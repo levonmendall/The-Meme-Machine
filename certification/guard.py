@@ -13,7 +13,7 @@ LIVE_NAMES={'pons-selective-market-test','solana-dlmm-independent-v1',
             'four-lane-certification'}
 
 UNIVERSAL_READ_ONLY_JOBS={'test','tests','lint','build','inspect-retained-failure'}
-REVIEWED_READ_ONLY_JOBS={'offline-prerequisites','review','deterministic','qualification'}
+REVIEWED_READ_ONLY_JOBS={'offline-prerequisites','review','deterministic','qualification','targeted'}
 READ_ONLY_WORKFLOWS={
     'non-market-certification',
     'v9-handoff-continuation-nonmarket-certification',
@@ -21,6 +21,7 @@ READ_ONLY_WORKFLOWS={
     'Ramses v4 offline certification',
     'Ramses v4 launchable non-market certification',
     'v12-active-strategy-certification',
+    'targeted-repair-validation',
 }
 
 

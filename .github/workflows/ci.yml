@@ -13,10 +13,36 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
-      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Validate external one-shot launch request only
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[single-market-launch]')
+        run: |
+          python - <<'PY'
+          import json,re,subprocess
+          changed=subprocess.check_output(
+              ['git','diff-tree','--no-commit-id','--name-only','-r','HEAD'],text=True
+          ).splitlines()
+          if changed != ['.github/single-campaign-launch-request.json']:
+              raise SystemExit('single_market_launch_commit_must_only_change_request')
+          row=json.load(open('.github/single-campaign-launch-request.json'))
+          if set(row) != {'runtime_sha','runtime_ref','certification_run_id','authorization_id'}:
+              raise SystemExit('single_market_launch_request_fields')
+          if not re.fullmatch(r'[0-9a-f]{40}',row['runtime_sha']):
+              raise SystemExit('single_market_launch_runtime_sha')
+          if not re.fullmatch(r'cert/single-market-[a-z0-9-]+',row['runtime_ref']):
+              raise SystemExit('single_market_launch_runtime_ref')
+          if type(row['certification_run_id']) is not int or row['certification_run_id'] <= 0:
+              raise SystemExit('single_market_launch_certificate')
+          if not re.fullmatch(r'[a-z0-9-]{8,100}',row['authorization_id']):
+              raise SystemExit('single_market_launch_authorization')
+          PY
+      - name: Install runtime test dependencies
+        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[single-market-launch]') == false
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Prepare canonical qualification worktrees
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/qualification-worktrees"
@@ -44,9 +70,15 @@ jobs:
           (cd "$WORKTREE" && python -m unittest robinhood_tests.test_ramses_connected_lifecycle robinhood_tests.test_ramses_rate_limit robinhood_tests.test_ramses_strategy robinhood_tests.test_ramses_strategy_isolation robinhood_tests.test_ramses_continuous_campaign robinhood_tests.test_ramses_market_scope_efficiency robinhood_tests.test_ramses_universe robinhood_tests.test_ramses_viability_v4_replay -v)
           git -C "$WORKTREE" diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD | sha256sum | awk '{print "RAMSES_EXACT_DIFF_SHA256=" $1}'
           (cd "$WORKTREE" && python -c "from robinhood_research.ramses_campaign import CampaignBooks; from robinhood_research.ramses_strategy import POLICY,POLICY_HASH,STRATEGY_DOMAIN; asset='0x'+'11'*20; costs=dict(entry_overhead=630350,add_liquidity=1260698,remove_liquidity=1260698,unwind=630349); position=204788; screen=dict(policy_hash=POLICY_HASH,strategy_domain=STRATEGY_DOMAIN,finalized_frontier_source='pinned_external_finalized_header',rows=[dict(token_y=asset,paper_capital_quote_raw=205467,gas_costs=costs,decision=dict(freeze=dict(proposals=[dict(capital_employed=position)])))]); expected=max(205467,position+sum(costs.values())*(1+POLICY['controller']['max_rebalances'])); assert CampaignBooks.budgets_from_screen(screen)[asset]==expected")
-      - run: python -m unittest discover -v
-      - run: python -m tests.resource_check
-      - run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
+      - name: Generic deterministic suite
+        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[single-market-launch]') == false
+        run: python -m unittest discover -v
+      - name: Generic resource gate
+        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[single-market-launch]') == false
+        run: python -m tests.resource_check
+      - name: Generic synthetic lifecycle
+        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[single-market-launch]') == false
+        run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
   longevity-soak:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[longevity-soak]')
     runs-on: ubuntu-24.04

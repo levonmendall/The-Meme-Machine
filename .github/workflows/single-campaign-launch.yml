@@ -1,7 +1,7 @@
 name: single-campaign-launch
 on:
   push:
-    branches: [launch/evidence-reconstruction-single-20260924]
+    branches: [launch/certified-runtime-authority-v2]
 permissions:
   contents: write
   actions: write
@@ -64,6 +64,7 @@ jobs:
         if: always() && steps.request.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
+          SINGLE_AUTHORIZATION_ID: ${{ steps.request.outputs.authorization_id }}
         run: python -m certification.single_campaign_control review --output single-campaign-authority.json
       - name: Preserve dispatch receipt
         if: always()

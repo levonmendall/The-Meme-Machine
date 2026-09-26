@@ -26,6 +26,7 @@ CONFIG = ROOT / 'certification/single_campaign_authorization.json'
 STATE_PATH = 'certification/SINGLE_CAMPAIGN_STATE.json'
 CONTINUATION_STATE_PATH = 'certification/SINGLE_CAMPAIGN_CONTINUATION_STATE.json'
 MARKET_WORKFLOW = '.github/workflows/four-lane-certification.yml'
+LAUNCH_BRANCH = 'launch/certified-runtime-authority-v2'
 ACTIVE_STATUSES = ('queued', 'in_progress', 'waiting', 'pending', 'requested')
 OFFLINE_WORKFLOWS = {
     'non-market-certification.yml', 'evidence-reconstruction-certification.yml',
@@ -37,6 +38,7 @@ OFFLINE_WORKFLOWS = {
     'ramses-v4-offline-certification.yml',
     'ramses-v4-launchable-nonmarket-certification.yml',
     'v12-active-strategy-certification.yml',
+    'targeted-repair-validation.yml',
 }
 OFFLINE_JOBS = {'test', 'tests', 'lint', 'build', 'offline-prerequisites',
                 'inspect-retained-failure', 'review', 'deterministic', 'qualification'}
@@ -51,22 +53,56 @@ CI_MARKERS = ('[forced-canary]', '[postgrad-live]', '[discovery-compare-live]',
     '[market-native-sample-supplement-live]', '[legacy-shadow-connectivity]')
 
 
-def configuration():
+def policy_configuration():
+    """Load the certified static single-campaign policy.
+
+    One-shot owner authorization is deliberately not stored in the runtime tree.
+    It is supplied by the external launch request after the runtime has already
+    been certified, so issuing fresh authority cannot invalidate that certificate.
+    """
     row = json.loads(CONFIG.read_text())
     expected = dict(enabled=True, maximum_market_workflows=1,
         phases_in_same_workflow=['smoke', 'hourly'], fresh_smoke_required=True,
         automatic_successors=False, position_continuation_workflows=True,
         workflow_reruns=False, dispatch_retries=False, live_money=False)
-    if (row.get('schema') != 'meme-machine-single-campaign-authorization-v1'
-            or not re.fullmatch(r'[a-z0-9-]{8,100}', row.get('authorization_id', ''))
+    dynamic = ('authorization_id', 'prior_run_observation', 'prior_launch_attempt')
+    if (row.get('schema') != 'meme-machine-single-campaign-policy-v2'
+            or any(key in row for key in dynamic)
             or any(row.get(k) != v for k, v in expected.items())):
-        raise ValueError('single_campaign_authorization_invalid')
+        raise ValueError('single_campaign_policy_invalid')
     return row
+
+
+def external_authorization_id(value=None):
+    value = os.environ.get('SINGLE_AUTHORIZATION_ID', '') if value is None else value
+    if not re.fullmatch(r'[a-z0-9-]{8,100}', value or ''):
+        raise ValueError('single_campaign_authorization_invalid')
+    return value
+
+
+def configuration():
+    row = policy_configuration()
+    value = os.environ.get('SINGLE_AUTHORIZATION_ID')
+    if value:
+        row = dict(row, authorization_id=external_authorization_id(value))
+    return row
+
+
+def require_authorization(config):
+    value = config.get('authorization_id')
+    if value is None:
+        raise ValueError('single_campaign_authorization_missing')
+    return external_authorization_id(value)
+
+
+def runtime_policy(config):
+    """Return certificate-bound control bytes, excluding ephemeral owner authority."""
+    return {key: value for key, value in config.items() if key != 'authorization_id'}
 
 
 def prohibit_if_enabled(action):
     if CONFIG.exists():
-        configuration()  # A malformed control cannot silently restore automation.
+        policy_configuration()  # A malformed static control cannot restore automation.
         raise ValueError('single_campaign_prohibits_' + action)
 
 
@@ -109,14 +145,17 @@ def identities(sha, config):
         'four-lane-certification.yml', 'position-continuation.yml',
         'prospective-cohort-review.yml', 'single-campaign-launch.yml',
         'evidence-reconstruction-certification.yml')}
-    return dict(integration_sha=sha, executable_git_tree_sha256=tree_hash, implementation_hash=implementation_hash(),
-        protocol_sha256=ph, source_manifest_hash=digest(spec),
+    identity = dict(integration_sha=sha, executable_git_tree_sha256=tree_hash,
+        implementation_hash=implementation_hash(), protocol_sha256=ph,
+        source_manifest_hash=digest(spec),
         source_diff_hashes={lane: row['source_diff_sha256'] for lane, row in spec['lanes'].items()},
         lane_policies={lane: {key: row[key] for key in ('strategy_version', 'policy_hash')}
                       for lane, row in proto['frozen_lanes'].items()},
-        execution_configuration_sha256=digest(dict(authorization=config, workflows=workflows,
-            parameters=dict(phase='hourly', program=False, fresh_smoke=True,
-                            smoke_seconds=600, hourly_seconds=3600))))
+        execution_configuration_sha256=digest(dict(authorization_policy=runtime_policy(config),
+            workflows=workflows, parameters=dict(phase='hourly', program=False, fresh_smoke=True,
+                                                  smoke_seconds=600, hourly_seconds=3600))))
+    identity['certification_fingerprint'] = digest(identity)
+    return identity
 
 
 def all_pages(api, path, key):
@@ -338,7 +377,7 @@ def exact_ref(api, runtime_ref, sha):
 def launcher_identity(api, run_id):
     run = api.request('GET', f'actions/runs/{int(run_id)}')
     if (str(run.get('path', '')).split('@')[0] != '.github/workflows/single-campaign-launch.yml'
-            or run.get('head_branch') != 'launch/evidence-reconstruction-single-20260924'
+            or run.get('head_branch') != LAUNCH_BRANCH
             or run.get('event') != 'push' or str(run.get('run_attempt')) != '1'
             or '[single-market-launch]' not in (run.get('head_commit') or {}).get('message', '')):
         raise ValueError('single_campaign_launcher_identity')
@@ -491,6 +530,8 @@ def main():
     config = configuration()
     if args.command == 'prohibit':
         prohibit_if_enabled(args.action)
+    if args.command not in ('prohibit', 'contention'):
+        require_authorization(config)
     from certification.prospective_program import GitHub
     api = GitHub()
     if args.command == 'contention':

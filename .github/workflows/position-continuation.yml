@@ -46,6 +46,9 @@ on:
         description: Position-only continuation of the one owner-authorized discovery campaign
         type: boolean
         default: false
+      authorization_id:
+        description: Consumed owner authorization identity for position-only continuation
+        type: string
   workflow_call:
     inputs:
       lane:
@@ -78,6 +81,9 @@ on:
       single_campaign:
         type: boolean
         default: false
+      authorization_id:
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -111,6 +117,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          SINGLE_AUTHORIZATION_ID: ${{ inputs.authorization_id }}
         run: >-
           python -m certification.single_campaign_control continuation-claim
           --lane "${{ inputs.lane }}"
@@ -213,6 +220,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          SINGLE_AUTHORIZATION_ID: ${{ inputs.authorization_id }}
           CONTINUATION_JOB_RESULT: ${{ job.status }}
         run: >-
           python -m certification.single_campaign_control continuation-record
@@ -257,6 +265,7 @@ jobs:
               -f engineering_recovery="${{ inputs.engineering_recovery || false }}" \
               -f smoke_continuation="${{ inputs.smoke_continuation || false }}" \
               -f single_campaign="${{ inputs.single_campaign || false }}" \
+              -f authorization_id="${{ inputs.authorization_id }}" \
               -f certification_run_id="${{ inputs.certification_run_id }}"
           fi
       - name: Activate successor only after the preserved predecessor is verified flat
