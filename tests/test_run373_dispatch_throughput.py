@@ -220,7 +220,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as temp,patch(
             'meme_machine.solana_evidence_service.time.time',return_value=1790439000
         ),patch.object(
-            service,'STREAM_DISPATCH_MAX_MESSAGES',3
+            service,'STREAM_DISPATCH_MAX_MESSAGES',4
         ),patch.object(
             service,'STREAM_DISPATCH_MAX_BYTES',64*1024*1024
         ),patch.object(
@@ -240,8 +240,9 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 await self.wait_for(lambda:bool(reasons),attempts=3000)
                 self.assertEqual(reasons[0],'local_receive_dispatch_capacity')
                 # The old implementation cancelled processors immediately on
-                # overflow. The repaired transport must commit all admitted data
-                # frames before marking the connection discontinuity.
+                # overflow. One control ACK may still occupy an outstanding slot,
+                # so the four-frame test bound must still drain at least three
+                # admitted data frames before marking the discontinuity.
                 self.assertGreaterEqual(accepted_at_disconnect[0],3)
             finally:
                 stop.set()
