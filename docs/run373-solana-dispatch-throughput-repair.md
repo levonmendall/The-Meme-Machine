@@ -28,3 +28,7 @@ Focused regressions include a sustained Run-373-shaped 10+ MiB block stream near
 the gap is created.
 
 PAPER ONLY. No market workflow is authorized by this repair or its certification.
+
+Focused prepared-runtime certification: workflow 36255447776 passed.
+Prepared Pump diff SHA256: `5349956f0ae189d6e19be348b675e912f18083845740d3b5c4e1c0fd77f96be3`.
+Prepared Meteora diff SHA256: `7153ef534181073c7e769dc675ed43bc51d4c81368a9bdcf24ddba2241af2055`.
