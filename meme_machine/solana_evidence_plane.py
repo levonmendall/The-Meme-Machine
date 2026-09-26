@@ -20,6 +20,7 @@ import threading
 import time
 import uuid
 from .solana_provider_config import public_value
+from .solana_evidence_storage import install as install_storage, encode as encode_body, decode as _decode_body, collect as collect_storage
 
 STORAGE_WARNING_BYTES = 512 * 1024 * 1024
 STORAGE_CRITICAL_BYTES = 128 * 1024 * 1024
@@ -56,6 +57,11 @@ class EvidenceUnavailable(ValueError):
 
 class EvidenceConflict(EvidenceUnavailable):
     pass
+
+
+def decode_body(raw,db):
+    try:return _decode_body(raw,db)
+    except (ValueError,TypeError,KeyError) as exc:raise EvidenceConflict('hot_evidence_corrupt') from exc
 
 
 @dataclass(frozen=True)
@@ -141,10 +147,7 @@ CREATE TABLE IF NOT EXISTS records(
 CREATE INDEX IF NOT EXISTS records_scope_slot ON records(scope,slot,event_index);
 CREATE INDEX IF NOT EXISTS records_scope_time ON records(scope,market_time,slot,event_index);
 CREATE INDEX IF NOT EXISTS records_signature ON records(signature);
-CREATE TABLE IF NOT EXISTS addresses(
- address TEXT NOT NULL,identity TEXT NOT NULL REFERENCES records(identity),slot INTEGER NOT NULL,
- PRIMARY KEY(address,identity));
-CREATE INDEX IF NOT EXISTS address_window ON addresses(address,slot);
+CREATE INDEX IF NOT EXISTS records_archive_time ON records(COALESCE(market_time,first_seen),identity) WHERE body IS NOT NULL;
 CREATE TABLE IF NOT EXISTS lineage(
  identity TEXT NOT NULL REFERENCES records(identity),source TEXT NOT NULL,
  endpoint TEXT NOT NULL,observed REAL NOT NULL,PRIMARY KEY(identity,source,endpoint));
@@ -201,12 +204,16 @@ class EvidenceWriter:
             self.db.execute('PRAGMA synchronous=FULL')
             self.db.execute('PRAGMA foreign_keys=ON')
             self.db.executescript(SCHEMA)
+            install_storage(self.db)
             with self.transaction():
                 initialized = self.db.execute("SELECT value FROM meta WHERE key='initialized'").fetchone()
                 if initialized:
                     self._count('restarts')
                     # Last cursor is durable, but proves nothing after a crash.
-                    for scope, slot in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
+                    # Account snapshots carry their own slot/freshness; they do
+                    # not attest a continuous program interval. Match disconnect
+                    # semantics rather than creating unrepairable account gaps.
+                    for scope, slot in self.db.execute("SELECT scope,slot FROM cursors WHERE scope NOT LIKE 'account:%'").fetchall():
                         self._gap(scope, slot + 1, None, 'writer_restart')
                 self.db.execute("INSERT OR IGNORE INTO meta VALUES('initialized','1')")
         except BaseException:
@@ -247,7 +254,8 @@ class EvidenceWriter:
         self.db.execute('INSERT INTO counters VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=value+excluded.value', (key, count))
 
     def _gap(self, scope, lo, hi, reason):
-        if not self.db.execute('SELECT 1 FROM gaps WHERE scope=? AND lo=? AND hi IS ? AND repaired IS NULL', (scope, lo, hi)).fetchone():
+        if not self.db.execute('''SELECT 1 FROM gaps WHERE scope=? AND lo<=? AND repaired IS NULL
+            AND (hi IS NULL OR (? IS NOT NULL AND hi>=?))''', (scope, lo, hi, hi)).fetchone():
             self.db.execute('INSERT INTO gaps(scope,lo,hi,reason,created) VALUES(?,?,?,?,?)', (scope, lo, hi, reason, self.clock()))
             self._count('gaps_created')
 
@@ -316,7 +324,7 @@ class EvidenceWriter:
                     inserted = self.db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
                         (record.identity, record.scope, record.slot, record.signature, record.program,
                          record.market_time, record.event_index, record.transaction_index, record.kind,
-                         canonical(body), digest(body), record.observed_at)).rowcount
+                         encode_body(body,self.db), staged[record.identity], record.observed_at)).rowcount
                     self.db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',
                         [(address, record.identity, record.slot) for address in body['addresses']])
                     self.db.execute('INSERT OR IGNORE INTO lineage VALUES(?,?,?,?)',
@@ -344,6 +352,11 @@ class EvidenceWriter:
             n = self.db.execute('UPDATE gaps SET repaired=? WHERE scope=? AND lo>=? AND hi<=? AND repaired IS NULL',
                 (proof.observed_at, proof.scope, proof.lower_slot, proof.upper_slot)).rowcount
             self._count('gaps_repaired', n)
+            if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='stream_receipts'").fetchone():
+                # A completed authenticated repair settles the old receipt too.
+                # It does not link receipt sessions or grant stream coverage.
+                self.db.execute('UPDATE stream_receipts SET sealed=1 WHERE scope=? AND slot BETWEEN ? AND ?',
+                    (proof.scope,proof.lower_slot,proof.upper_slot))
 
     def interest(self, owner, scope, *, lower_slot, priority=4, lifecycle='candidate'):
         with self.transaction():
@@ -388,7 +401,7 @@ class EvidenceWriter:
         self.db.execute('UPDATE gaps SET pages=pages+1,attempts=attempts+1,repair_cursor=? WHERE id=?', (canonical(cursor), gap_id))
         self._count('gap_repair_calls')
 
-    def archive_plan(self,before_time,*,max_records=1000):
+    def archive_plan(self,before_time,*,max_records=1000,max_bytes=4*1024*1024):
         """Snapshot a bounded immutable batch; filesystem work runs off-writer."""
         self._check()
         if not 1 <= max_records <= 1000:
@@ -406,9 +419,15 @@ class EvidenceWriter:
           AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
               AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
           ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
-        return [dict(identity=k,body=json.loads(b),hash=h,
-            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
-            coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(json.loads(b)['scope'],json.loads(b)['slot'],json.loads(b)['slot']))]) for k,b,h in rows]
+        plan=[];size=0
+        for k,b,h in rows:
+            body=decode_body(b,self.db);cost=len(canonical(body).encode())
+            if plan and size+cost>max_bytes:break
+            plan.append(dict(identity=k,body=body,hash=h,
+                lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
+                coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(body['scope'],body['slot'],body['slot']))]))
+            size+=cost
+        return plan
 
     @staticmethod
     def write_archive(path,plan):
@@ -440,6 +459,7 @@ class EvidenceWriter:
                 pinned=pinned or self._account_pinned(scope)
                 if not pinned:
                     archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
+                    self.db.execute('DELETE FROM hot_refs WHERE identity=?',(row['identity'],))
             self._count('archived_records',archived)
         return archived
 
@@ -477,7 +497,6 @@ class EvidenceWriter:
                 ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,max_records))]
                 for identity in ids:
                     self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
-                    self.db.execute('DELETE FROM addresses WHERE identity=?',(identity,))
                     self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
                 self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
                 self.db.execute('DELETE FROM coverage WHERE scope=? AND hi<?',(scope,floor))
@@ -489,6 +508,7 @@ class EvidenceWriter:
             # The archive directory is the immutable content-addressed inventory;
             # old completed hot manifests need not grow without bound.
             self.db.execute('DELETE FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL)')
+            collect_storage(self.db,max_records)
         # PASSIVE cannot wait for readers. Pinned WAL bytes remain in telemetry and
         # the existing hard capacity guard stops ingestion if they exhaust space.
         self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
@@ -562,7 +582,7 @@ class EvidenceReader:
                 if body is None:
                     # Normal hot decisions never perform archive I/O implicitly.
                     raise EvidenceUnavailable('evidence_requires_offline_archive_restore')
-                parsed = json.loads(body)
+                parsed = decode_body(body,self.db)
                 if digest(parsed) != checksum:
                     raise EvidenceConflict('local_evidence_hash_mismatch:' + identity)
                 result.append(parsed)
@@ -577,6 +597,10 @@ class EvidenceReader:
             health={k:json.loads(v) for k,v in self.db.execute('SELECT * FROM service_health')}
         return dict(integrity_poisoned=bool(self.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone()),storage=storage_health(self.path),service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
             coverage_windows=self.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],
+            hot_payload_records=self.db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0],
+            shared_hot_chunks=self.db.execute('SELECT COUNT(*) FROM hot_chunks').fetchone()[0],
+            address_references=self.db.execute('SELECT COUNT(*) FROM address_refs').fetchone()[0],
+            active_pins=[dict(scope=s,lifecycle=l,count=n,lower_slot=lo) for s,l,n,lo in self.db.execute('SELECT scope,lifecycle,COUNT(*),MIN(lower_slot) FROM interests WHERE active=1 GROUP BY scope,lifecycle')],
             unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
             consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],
             counters=dict(self.db.execute('SELECT * FROM counters')), local_queries=self.queries,

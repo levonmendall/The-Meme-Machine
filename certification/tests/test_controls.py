@@ -13,13 +13,16 @@ from certification.report import LANES,evaluate
 
 class ControlsTests(unittest.TestCase):
     def smoke(self):
-        return dict(phase='smoke',status='FINISHED',continuous_overlap_seconds=600,
+        result=dict(phase='smoke',status='FINISHED',continuous_overlap_seconds=600,
             source_manifest_hash='manifest',integration_sha='commit',implementation_hash='code',
             shared_provider={n:dict(queues=[]) for n in ('solana','robinhood')},
             lanes={lane:dict(exit_code=0,unexpected_exit=False,process_restarts=0,
                 open_positions=0,accounting_reconciled=True,provider_requests=1,
                 funnel=dict(completed_scans=1),
                 gates={g:True for g in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated')}) for lane in LANES})
+        from certification.tests.solana_fixture import pump_evidence
+        result['lanes']['pump'].update(pump_evidence())
+        return result
 
     def test_unresolved_immutable_work_fails_smoke_and_hourly_readiness(self):
         for count in (1,None):

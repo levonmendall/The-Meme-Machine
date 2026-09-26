@@ -18,6 +18,19 @@ def pump_flat_completion(row):
 
 def authoritative_activity(row):
     live=row.get('evidence_liveness') or {}
+    stream=row.get('stream_state') or {}
+    counts=stream.get('counters') or {};local=stream.get('lane_counters') or counts
+    provider=(stream.get('service_health') or {}).get('provider') or {}
+    methods=row.get('method_counts') or {}
     return (live.get('usable_observations',0)>0 and not live.get('failure')
             and (live.get('last') or {}).get('usable') is True
-            and not row.get('infrastructure_failure'))
+            and not row.get('infrastructure_failure')
+            and provider.get('provider')=='alchemy_solana_mainnet'
+            and provider.get('network')=='solana-mainnet'
+            and len(provider.get('endpoint_identity',''))==64
+            and counts.get('stream_accepted_messages',0)>0
+            and counts.get('stream_bytes',0)>0
+            and (row.get('funnel') or {}).get('discovered',0)>0
+            and local.get('pump.complete_local_reads',0)>0
+            and counts.get('pump.foreground_historical_rpc_calls')==0
+            and not any(methods.get(k,0) for k in ('getTransaction','getTransactionsForAddress','getSignaturesForAddress','getBlock')))
