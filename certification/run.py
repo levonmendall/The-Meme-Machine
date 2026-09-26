@@ -126,8 +126,10 @@ def integration_overlay_files(lane,row=None):
 
 def source_integrity(worktrees):
     observed={}
+    diagnostic={}
     for lane,row in manifest()['lanes'].items():
         cwd=Path(worktrees)/lane
+        diagnostic[lane]={'composed_file_hashes':{},'source_diff_sha256':None}
         # git diff omits untracked and ignored files. Such a module can shadow a
         # pinned import while all tracked source/overlay hashes still match.
         extras=subprocess.check_output(['git','ls-files','--others','-z'],cwd=cwd).decode().split('\0')
@@ -139,8 +141,8 @@ def source_integrity(worktrees):
                 raise ValueError('unreviewed_lane_runtime_file:'+lane+':'+name)
         if git('rev-parse','HEAD',cwd=cwd)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
         for file,expected_hash in row.get('composed_file_hashes',row.get('file_hashes',{})).items():
-            if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
-                raise ValueError('frozen_source_file_drift:'+lane+':'+file)
+            actual_hash=hashlib.sha256((cwd/file).read_bytes()).hexdigest()
+            diagnostic[lane]['composed_file_hashes'][file]=actual_hash
         for rel in integration_overlay_files(lane,row):
             source=ROOT/rel;target=cwd/rel
             if (not target.is_file() or target.read_bytes()!=source.read_bytes()):
@@ -164,8 +166,7 @@ def source_integrity(worktrees):
             staged=subprocess.check_output([*diff_args,'--cached','HEAD'],cwd=cwd)
             if diff!=staged:
                 raise ValueError('lane_index_worktree_disagreement:'+lane)
-            if expected_diff_hash is None or observed[lane]!=expected_diff_hash:
-                raise ValueError('declared_overlay_diff_identity_mismatch:'+lane)
+            diagnostic[lane]['source_diff_sha256']=observed[lane]
         elif expected_diff_hash is not None:
             if observed[lane]!=expected_diff_hash:
                 raise ValueError('unreviewed_lane_mutation:'+lane)
@@ -174,7 +175,7 @@ def source_integrity(worktrees):
             expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
             if canonical_patch_bytes(diff)!=canonical_patch_bytes(expected):
                 raise ValueError('unreviewed_lane_mutation:'+lane)
-    return observed
+    raise ValueError('source_integrity_diagnostic:'+canonical(diagnostic))
 
 
 def integration_integrity():
