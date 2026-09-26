@@ -56,7 +56,7 @@ class SustainedSocket:
         self.queue=asyncio.Queue();self.subs={}
         self.remaining=frames;self.interval=interval
         self.padding_bytes=padding_bytes;self.relevant_transactions=relevant_transactions
-        self.next_slot=1000;self.recv_count=0
+        self.next_slot=1000;self.recv_count=0;self.next_emit=None
 
     async def __aenter__(self):return self
     async def __aexit__(self,*args):pass
@@ -70,7 +70,10 @@ class SustainedSocket:
         if not self.queue.empty():
             raw=await self.queue.get()
         elif self.remaining:
-            await asyncio.sleep(self.interval)
+            now=time.monotonic()
+            if self.next_emit is None:self.next_emit=now+self.interval
+            await asyncio.sleep(max(0.0,self.next_emit-now))
+            self.next_emit+=self.interval
             slot=self.next_slot;self.next_slot+=1;self.remaining-=1
             raw=block_frame(
                 slot,padding_bytes=self.padding_bytes,
