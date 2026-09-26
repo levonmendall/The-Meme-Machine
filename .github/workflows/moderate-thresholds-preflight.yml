@@ -46,11 +46,11 @@ jobs:
           root=Path(os.environ["ROOT"])
           work=Path(os.environ["RUNNER_TEMP"])/"threshold-worktrees"
           spec=json.loads((root/"certification/sources.json").read_text())
-          def replace(path,old,new):
+          def replace(path,old,new,expected=1):
               p=Path(path);text=p.read_text()
-              if text.count(old)!=1:
+              if text.count(old)!=expected:
                   raise SystemExit(f"replacement_anchor:{p}:{old!r}:{text.count(old)}")
-              p.write_text(text.replace(old,new,1))
+              p.write_text(text.replace(old,new,expected))
           def git(cwd,*args):
               return subprocess.check_output(["git",*args],cwd=cwd)
           originals={}
@@ -104,7 +104,9 @@ jobs:
             ],
           }
           for rel,pairs in replacements.items():
-              for old,new in pairs: replace(p/rel,old,new)
+              for item in pairs:
+                  old,new,*rest=item
+                  replace(p/rel,old,new,*(rest or [1]))
 
           p=work/"pons"
           replacements={
@@ -147,13 +149,15 @@ jobs:
             ],
           }
           for rel,pairs in replacements.items():
-              for old,new in pairs: replace(p/rel,old,new)
+              for item in pairs:
+                  old,new,*rest=item
+                  replace(p/rel,old,new,*(rest or [1]))
 
           p=work/"meteora"
           replacements={
             "SOLANA_DLMM_INDEPENDENT_V1.json":[
               ('"min_competing_range_liquidity_to_capital_multiple": 5','"min_competing_range_liquidity_to_capital_multiple": 4'),
-              ('"min_two_way_balance": 0.25','"min_two_way_balance": 0.2'),
+              ('"min_two_way_balance": 0.25','"min_two_way_balance": 0.2',2),
               ('"max_drift_ratio": 0.75','"max_drift_ratio": 0.8'),
               ('"max_stress_unwind_loss_bps": 150','"max_stress_unwind_loss_bps": 200'),
               ('"min_competing_range_liquidity_to_capital_multiple = 5"','"min_competing_range_liquidity_to_capital_multiple = 4"'),
@@ -163,13 +167,13 @@ jobs:
               ('authenticated_fee_density_24h_pct >= 5.0','authenticated_fee_density_24h_pct >= 4.0'),
               ('"live_fee_density_threshold_pct": 5','"live_fee_density_threshold_pct": 4'),
               ('The frozen 5%/day threshold','The frozen 4%/day threshold'),
-              ('"revision": "2.0-profitability-fee-density-v1-core-hold-v2"','"revision": "2.1-moderate-admission-thresholds-v1"'),
+              ('  "revision": "2.0-profitability-fee-density-v1-core-hold-v2",\\n  "amendment_history": [','  "revision": "2.1-moderate-admission-thresholds-v1",\\n  "amendment_history": ['),
               ('"policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966"','"policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408"'),
               ('"reference_profitability_policy_revision": "2.0-profitability-fee-density-v1-core-hold-v2"','"reference_profitability_policy_revision": "2.1-moderate-admission-thresholds-v1"'),
               ('"authenticated_fee_density_threshold_pct": 5','"authenticated_fee_density_threshold_pct": 4'),
             ],
             "tests/test_solana_dlmm_independent_v1.py":[
-              ('p["qualification"]["min_two_way_balance"],0.25','p["qualification"]["min_two_way_balance"],0.20'),
+              ('p["qualification"]["min_two_way_balance"],0.25','p["qualification"]["min_two_way_balance"],0.20',2),
               ('p["qualification"]["min_authenticated_fee_density_24h_pct"],5.0','p["qualification"]["min_authenticated_fee_density_24h_pct"],4.0'),
               ('p["fee_model"]["live_fee_density_threshold_pct"],5.0','p["fee_model"]["live_fee_density_threshold_pct"],4.0'),
               ('p["revision"],"2.0-profitability-fee-density-v1-core-hold-v2"','p["revision"],"2.1-moderate-admission-thresholds-v1"'),
@@ -186,7 +190,9 @@ jobs:
             ],
           }
           for rel,pairs in replacements.items():
-              for old,new in pairs: replace(p/rel,old,new)
+              for item in pairs:
+                  old,new,*rest=item
+                  replace(p/rel,old,new,*(rest or [1]))
 
           out={}
           for lane in ("pump","pons","meteora"):
