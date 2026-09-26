@@ -83,7 +83,7 @@ def external_authorization_id(value=None):
 def configuration():
     row = policy_configuration()
     value = os.environ.get('SINGLE_AUTHORIZATION_ID')
-    if value is not None:
+    if value:
         row = dict(row, authorization_id=external_authorization_id(value))
     return row
 

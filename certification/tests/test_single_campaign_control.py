@@ -100,6 +100,11 @@ class SingleCampaignTests(unittest.TestCase):
                     lanes={lane: dict(open_positions=int(lane == open_lane), accounting_reconciled=True,
                                       durable_handoff=(lane == open_lane)) for lane in control.LANES})
 
+    def test_empty_authorization_environment_is_absent_not_malformed(self):
+        with patch.dict(os.environ, {'SINGLE_AUTHORIZATION_ID': ''}, clear=False):
+            config = control.configuration()
+        self.assertNotIn('authorization_id', config)
+
     def test_authorization_is_external_to_certified_runtime_policy(self):
         self.assertEqual(self.config['authorization_id'], 'unit-single-campaign-v1')
         first = control.runtime_policy(self.config)
