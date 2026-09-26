@@ -1,5 +1,6 @@
 """Offline regressions for run 36043064083's unregistered workflow and authority."""
 from copy import deepcopy
+import os
 import unittest
 from unittest.mock import patch
 
@@ -9,6 +10,9 @@ from certification.tests.test_single_campaign_control import API, SHA, REF
 
 class ContinuationAuthorityTests(unittest.TestCase):
     def setUp(self):
+        self.env_patch = patch.dict(
+            os.environ, {'SINGLE_AUTHORIZATION_ID': 'unit-continuation-authority-v2'}, clear=False)
+        self.env_patch.start(); self.addCleanup(self.env_patch.stop)
         self.config = control.configuration()
         self.identity = {'integration_sha': SHA, 'implementation_hash': 'frozen'}
         self.parent = dict(identity=self.identity, workflow_run_id=22,
