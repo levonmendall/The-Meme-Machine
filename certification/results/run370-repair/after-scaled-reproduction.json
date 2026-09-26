@@ -1,0 +1,2475 @@
+{
+  "artifact_id": 10894299703,
+  "artifact_sha256": "c28ce3c2d2ba1375c4bc5035145b52da039d09e4c677e78c2911bc89d7ed77c3",
+  "categories": [
+    [
+      "account:3msVd34R5KxonDzyNSV5nT19UtUeJ2RF1NaQhvVPNLxL",
+      "account",
+      22,
+      22,
+      39556,
+      1798
+    ],
+    [
+      "account:3vDyCqa4q3G3u9iQCXYPfLeDQpknj9L5AXy3jd2NjgsK",
+      "account",
+      28,
+      28,
+      50316,
+      1797
+    ],
+    [
+      "account:5BEYpX8vFT9FZx7doc8cdhzUXZh7Tbr3GR27tHYcZQjB",
+      "account",
+      2,
+      2,
+      3596,
+      1798
+    ],
+    [
+      "account:7FWWRx3oWDBnJcoMVD6avKzh7Beg4m2BUtW1en5n111b",
+      "account",
+      1,
+      1,
+      1797,
+      1797
+    ],
+    [
+      "account:8F2gvA5hu8h2YDTseLMowJQDxk7fRjgCo5CAv1s323HJ",
+      "account",
+      3,
+      3,
+      5391,
+      1797
+    ],
+    [
+      "account:959G3GBv1MnKUFzHtvnxFuZHd53NG7SyZkuLs8VohaUN",
+      "account",
+      1,
+      1,
+      1797,
+      1797
+    ],
+    [
+      "account:Apo1KqU2DPHi7TrDbZEgqTf2EJbrCqAAq5eWg8DLgyS6",
+      "account",
+      1,
+      1,
+      1797,
+      1797
+    ],
+    [
+      "account:CJi8QBok22jwLA2eTWE6kif7hz1Fkz1HPYLoEYQhoHUK",
+      "account",
+      1,
+      1,
+      1797,
+      1797
+    ],
+    [
+      "account:CcG3fyDZn6uXTV5p2TV9cceCA2YhE3bUMLeXGn6vZSNr",
+      "account",
+      2,
+      2,
+      3594,
+      1797
+    ],
+    [
+      "account:FtwzPjTqoFuy8aF8bMBi7QF7UxpdYN5n9YUH6R7DcHjB",
+      "account",
+      7,
+      7,
+      12579,
+      1797
+    ],
+    [
+      "account:GYqytuXSiX3GaPuCkLMY4jeRR3mAtyAuQqhD32d45g5y",
+      "account",
+      4,
+      4,
+      7188,
+      1797
+    ],
+    [
+      "account:Gc5hVCBydc6k3Z7oc2cQEW4GThFQi2Fqk5HfKABqa2q8",
+      "account",
+      42,
+      42,
+      75474,
+      1797
+    ],
+    [
+      "account:bFsVzSMig72r5fBBTzXRpkvpbntKnj9VMrtA7EVwJrU",
+      "account",
+      1,
+      1,
+      1793,
+      1793
+    ],
+    [
+      "account:vgBVDHRJ2U6Q8nydwtVhZRj3WCL25Uz4XDF3sV8THKr",
+      "account",
+      1,
+      1,
+      1793,
+      1793
+    ],
+    [
+      "program:meteora",
+      "transaction",
+      39418,
+      37562,
+      709867474,
+      37916
+    ],
+    [
+      "program:pump",
+      "event",
+      3846,
+      3726,
+      17667394,
+      15483
+    ],
+    [
+      "program:pumpswap",
+      "event",
+      16193,
+      15304,
+      92988880,
+      14896
+    ]
+  ],
+  "counters": {
+    "archive_bytes": 6019248,
+    "archived_records": 2880,
+    "capacity_stops": 3,
+    "compacted_records": 15,
+    "expired_candidate_interests": 0,
+    "gap_repair_attempts": 103,
+    "gap_repair_calls": 80,
+    "gap_repair_failures": 3,
+    "gap_repair_retries": 38,
+    "gaps_created": 122,
+    "gaps_repaired": 60,
+    "ingested_account": 116,
+    "ingested_event": 20054,
+    "ingested_transaction": 39418,
+    "ipc.applied": 188,
+    "ipc.deduplicated": 239,
+    "ipc.rejected": 29,
+    "meteora.complete_local_reads": 0,
+    "meteora.historical_reconstruction_rpc_calls": 0,
+    "meteora.incomplete_local_reads": 0,
+    "meteora.local_evidence_reads": 0,
+    "meteora.local_triggers": 2,
+    "meteora.repair_assisted_windows": 0,
+    "pump.complete_local_reads": 0,
+    "pump.foreground_historical_rpc_calls": 0,
+    "pump.incomplete_local_reads": 0,
+    "pump.local_evidence_reads": 0,
+    "pump.repair_assisted_windows": 0,
+    "rejected_evidence_records": 0,
+    "restarts": 3,
+    "stream_accepted_messages": 390,
+    "stream_bytes": 1942956310,
+    "stream_messages": 390,
+    "stream_reconnects": 18,
+    "stream_rejected_messages": 0
+  },
+  "coverage": [
+    [
+      "program:meteora",
+      271,
+      450531487,
+      450533444
+    ],
+    [
+      "program:pump",
+      255,
+      450531488,
+      450533444
+    ],
+    [
+      "program:pumpswap",
+      271,
+      450531487,
+      450533444
+    ]
+  ],
+  "db_bytes": 2000011264,
+  "disconnects_by_reason": {
+    "ConnectionClosedError": 12,
+    "filtered_block_bound": 5
+  },
+  "floors": {
+    "retention_floor:account:3vDyCqa4q3G3u9iQCXYPfLeDQpknj9L5AXy3jd2NjgsK": "0",
+    "retention_floor:account:8F2gvA5hu8h2YDTseLMowJQDxk7fRjgCo5CAv1s323HJ": "0",
+    "retention_floor:account:959G3GBv1MnKUFzHtvnxFuZHd53NG7SyZkuLs8VohaUN": "0",
+    "retention_floor:account:Gc5hVCBydc6k3Z7oc2cQEW4GThFQi2Fqk5HfKABqa2q8": "0",
+    "retention_floor:program:meteora": "450531486",
+    "retention_floor:program:pump": "450531488",
+    "retention_floor:program:pumpswap": "450531487"
+  },
+  "gaps": [
+    [
+      "account:3msVd34R5KxonDzyNSV5nT19UtUeJ2RF1NaQhvVPNLxL",
+      "writer_restart",
+      0,
+      1,
+      450533052,
+      null
+    ],
+    [
+      "account:3vDyCqa4q3G3u9iQCXYPfLeDQpknj9L5AXy3jd2NjgsK",
+      "writer_restart",
+      0,
+      1,
+      450533050,
+      null
+    ],
+    [
+      "account:5BEYpX8vFT9FZx7doc8cdhzUXZh7Tbr3GR27tHYcZQjB",
+      "writer_restart",
+      0,
+      1,
+      450532952,
+      null
+    ],
+    [
+      "account:7FWWRx3oWDBnJcoMVD6avKzh7Beg4m2BUtW1en5n111b",
+      "writer_restart",
+      0,
+      1,
+      450533134,
+      null
+    ],
+    [
+      "account:8F2gvA5hu8h2YDTseLMowJQDxk7fRjgCo5CAv1s323HJ",
+      "writer_restart",
+      0,
+      1,
+      450531778,
+      null
+    ],
+    [
+      "account:959G3GBv1MnKUFzHtvnxFuZHd53NG7SyZkuLs8VohaUN",
+      "writer_restart",
+      0,
+      1,
+      450531791,
+      null
+    ],
+    [
+      "account:Apo1KqU2DPHi7TrDbZEgqTf2EJbrCqAAq5eWg8DLgyS6",
+      "writer_restart",
+      0,
+      1,
+      450532328,
+      null
+    ],
+    [
+      "account:CJi8QBok22jwLA2eTWE6kif7hz1Fkz1HPYLoEYQhoHUK",
+      "writer_restart",
+      0,
+      1,
+      450532776,
+      null
+    ],
+    [
+      "account:CcG3fyDZn6uXTV5p2TV9cceCA2YhE3bUMLeXGn6vZSNr",
+      "writer_restart",
+      0,
+      1,
+      450533439,
+      null
+    ],
+    [
+      "account:FtwzPjTqoFuy8aF8bMBi7QF7UxpdYN5n9YUH6R7DcHjB",
+      "writer_restart",
+      0,
+      1,
+      450533335,
+      null
+    ],
+    [
+      "account:GYqytuXSiX3GaPuCkLMY4jeRR3mAtyAuQqhD32d45g5y",
+      "writer_restart",
+      0,
+      1,
+      450533052,
+      null
+    ],
+    [
+      "account:Gc5hVCBydc6k3Z7oc2cQEW4GThFQi2Fqk5HfKABqa2q8",
+      "writer_restart",
+      0,
+      1,
+      450533446,
+      null
+    ],
+    [
+      "account:bFsVzSMig72r5fBBTzXRpkvpbntKnj9VMrtA7EVwJrU",
+      "writer_restart",
+      0,
+      1,
+      450532957,
+      null
+    ],
+    [
+      "account:vgBVDHRJ2U6Q8nydwtVhZRj3WCL25Uz4XDF3sV8THKr",
+      "writer_restart",
+      0,
+      1,
+      450532856,
+      null
+    ],
+    [
+      "program:meteora",
+      "ConnectionClosedError",
+      0,
+      1,
+      450531509,
+      450533332
+    ],
+    [
+      "program:meteora",
+      "ConnectionClosedError",
+      1,
+      11,
+      450531509,
+      450533221
+    ],
+    [
+      "program:meteora",
+      "filtered_block_bound",
+      0,
+      1,
+      450531509,
+      450533437
+    ],
+    [
+      "program:meteora",
+      "filtered_block_bound",
+      1,
+      4,
+      450531509,
+      450532766
+    ],
+    [
+      "program:meteora",
+      "missing_filtered_block_receipt",
+      0,
+      2,
+      450533233,
+      450533436
+    ],
+    [
+      "program:meteora",
+      "missing_filtered_block_receipt",
+      1,
+      15,
+      450531509,
+      450533220
+    ],
+    [
+      "program:meteora",
+      "service_shutdown",
+      0,
+      1,
+      450531509,
+      null
+    ],
+    [
+      "program:meteora",
+      "writer_restart",
+      0,
+      1,
+      450533446,
+      null
+    ],
+    [
+      "program:pump",
+      "ConnectionClosedError",
+      0,
+      12,
+      450531509,
+      450533332
+    ],
+    [
+      "program:pump",
+      "filtered_block_bound",
+      0,
+      5,
+      450531509,
+      450533437
+    ],
+    [
+      "program:pump",
+      "missing_filtered_block_receipt",
+      0,
+      17,
+      450531509,
+      450533436
+    ],
+    [
+      "program:pump",
+      "service_shutdown",
+      0,
+      1,
+      450531509,
+      null
+    ],
+    [
+      "program:pump",
+      "writer_restart",
+      0,
+      1,
+      450533446,
+      null
+    ],
+    [
+      "program:pumpswap",
+      "ConnectionClosedError",
+      0,
+      1,
+      450531509,
+      450533332
+    ],
+    [
+      "program:pumpswap",
+      "ConnectionClosedError",
+      1,
+      11,
+      450531509,
+      450533221
+    ],
+    [
+      "program:pumpswap",
+      "filtered_block_bound",
+      0,
+      1,
+      450531509,
+      450533437
+    ],
+    [
+      "program:pumpswap",
+      "filtered_block_bound",
+      1,
+      4,
+      450531509,
+      450532766
+    ],
+    [
+      "program:pumpswap",
+      "missing_filtered_block_receipt",
+      0,
+      2,
+      450533233,
+      450533436
+    ],
+    [
+      "program:pumpswap",
+      "missing_filtered_block_receipt",
+      1,
+      15,
+      450531509,
+      450533220
+    ],
+    [
+      "program:pumpswap",
+      "service_shutdown",
+      0,
+      1,
+      450531509,
+      null
+    ],
+    [
+      "program:pumpswap",
+      "writer_restart",
+      0,
+      1,
+      450533446,
+      null
+    ]
+  ],
+  "physical": [
+    [
+      "records",
+      886996992,
+      842627137
+    ],
+    [
+      "sqlite_autoindex_addresses_1",
+      412114944,
+      349265041
+    ],
+    [
+      "addresses",
+      377286656,
+      351500428
+    ],
+    [
+      "address_window",
+      142680064,
+      120213573
+    ],
+    [
+      "stream_deliveries",
+      34504704,
+      32285933
+    ],
+    [
+      "stream_order",
+      29442048,
+      27512854
+    ],
+    [
+      "sqlite_autoindex_stream_order_1",
+      23121920,
+      19962866
+    ],
+    [
+      "sqlite_autoindex_stream_deliveries_1",
+      23121920,
+      19962866
+    ],
+    [
+      "stream_receipts",
+      16465920,
+      15856643
+    ],
+    [
+      "sqlite_autoindex_lineage_1",
+      14815232,
+      12411664
+    ],
+    [
+      "lineage",
+      13758464,
+      12743273
+    ],
+    [
+      "sqlite_autoindex_records_1",
+      8085504,
+      6953235
+    ],
+    [
+      "records_signature",
+      6676480,
+      5604722
+    ],
+    [
+      "records_scope_time",
+      2322432,
+      1902056
+    ],
+    [
+      "records_scope_slot",
+      1974272,
+      1604655
+    ],
+    [
+      "sqlite_autoindex_coverage_1",
+      581632,
+      479525
+    ],
+    [
+      "coverage",
+      548864,
+      485230
+    ],
+    [
+      "gaps",
+      503808,
+      471394
+    ],
+    [
+      "receipt_parent",
+      57344,
+      46947
+    ],
+    [
+      "receipt_time",
+      32768,
+      23959
+    ],
+    [
+      "coverage_window",
+      32768,
+      23290
+    ],
+    [
+      "sqlite_autoindex_stream_receipts_1",
+      28672,
+      19854
+    ],
+    [
+      "sqlite_schema",
+      12288,
+      5523
+    ],
+    [
+      "gap_window",
+      12288,
+      4503
+    ],
+    [
+      "archives",
+      12288,
+      6660
+    ],
+    [
+      "sqlite_autoindex_service_interests_1",
+      4096,
+      2809
+    ],
+    [
+      "sqlite_autoindex_service_health_1",
+      4096,
+      311
+    ],
+    [
+      "sqlite_autoindex_meta_1",
+      4096,
+      409
+    ],
+    [
+      "sqlite_autoindex_interests_1",
+      4096,
+      1822
+    ],
+    [
+      "sqlite_autoindex_interest_owners_1",
+      4096,
+      1470
+    ],
+    [
+      "sqlite_autoindex_cursors_1",
+      4096,
+      836
+    ],
+    [
+      "sqlite_autoindex_counters_1",
+      4096,
+      860
+    ],
+    [
+      "sqlite_autoindex_consumers_1",
+      4096,
+      9
+    ],
+    [
+      "sqlite_autoindex_command_receipts_1",
+      4096,
+      123
+    ],
+    [
+      "sqlite_autoindex_archives_1",
+      4096,
+      3509
+    ],
+    [
+      "service_interests",
+      4096,
+      2942
+    ],
+    [
+      "service_interest_address",
+      4096,
+      2809
+    ],
+    [
+      "service_health",
+      4096,
+      1766
+    ],
+    [
+      "meta",
+      4096,
+      434
+    ],
+    [
+      "interests",
+      4096,
+      2373
+    ],
+    [
+      "interest_owners",
+      4096,
+      1603
+    ],
+    [
+      "cursors",
+      4096,
+      1041
+    ],
+    [
+      "counters",
+      4096,
+      861
+    ],
+    [
+      "consumers",
+      4096,
+      33
+    ],
+    [
+      "conflicts",
+      4096,
+      0
+    ],
+    [
+      "command_receipts",
+      4096,
+      579
+    ],
+    [
+      "command_expiry",
+      4096,
+      36
+    ]
+  ],
+  "pins": [
+    [
+      "program:meteora",
+      "candidate",
+      1,
+      22,
+      450531486,
+      450532947
+    ]
+  ],
+  "pressure_baseline_samples": [
+    {
+      "counters": {
+        "compacted_records": 0,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 100,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 933888,
+      "elapsed_seconds": 0.1608890639981837,
+      "hot_records": 100,
+      "simulated_seconds": 60.0,
+      "wal_bytes": 1417312
+    },
+    {
+      "counters": {
+        "compacted_records": 0,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 200,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 1658880,
+      "elapsed_seconds": 0.15899043300305493,
+      "hot_records": 200,
+      "simulated_seconds": 120.0,
+      "wal_bytes": 1417312
+    },
+    {
+      "counters": {
+        "compacted_records": 0,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 300,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 2396160,
+      "elapsed_seconds": 0.17293004000384826,
+      "hot_records": 300,
+      "simulated_seconds": 180.0,
+      "wal_bytes": 1417312
+    },
+    {
+      "counters": {
+        "archive_bytes": 18090,
+        "archived_records": 64,
+        "compacted_records": 64,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 400,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 3121152,
+      "elapsed_seconds": 0.26002219800284365,
+      "hot_records": 336,
+      "simulated_seconds": 240.0,
+      "wal_bytes": 2134192
+    },
+    {
+      "counters": {
+        "archive_bytes": 36203,
+        "archived_records": 128,
+        "compacted_records": 128,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 500,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 3436544,
+      "elapsed_seconds": 0.32757448299526004,
+      "hot_records": 372,
+      "simulated_seconds": 300.0,
+      "wal_bytes": 2286632
+    },
+    {
+      "counters": {
+        "archive_bytes": 54302,
+        "archived_records": 192,
+        "compacted_records": 192,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 600,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 3723264,
+      "elapsed_seconds": 0.39614273099869024,
+      "hot_records": 408,
+      "simulated_seconds": 360.0,
+      "wal_bytes": 2401992
+    },
+    {
+      "counters": {
+        "archive_bytes": 72417,
+        "archived_records": 256,
+        "compacted_records": 256,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 700,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 4018176,
+      "elapsed_seconds": 0.25540021999768214,
+      "hot_records": 444,
+      "simulated_seconds": 420.0,
+      "wal_bytes": 2509112
+    },
+    {
+      "counters": {
+        "archive_bytes": 90526,
+        "archived_records": 320,
+        "compacted_records": 320,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 800,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 4276224,
+      "elapsed_seconds": 0.26093926999601535,
+      "hot_records": 480,
+      "simulated_seconds": 480.0,
+      "wal_bytes": 2566792
+    },
+    {
+      "counters": {
+        "archive_bytes": 108636,
+        "archived_records": 384,
+        "compacted_records": 384,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 900,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 4501504,
+      "elapsed_seconds": 0.2555561229964951,
+      "hot_records": 516,
+      "simulated_seconds": 540.0,
+      "wal_bytes": 2591512
+    },
+    {
+      "counters": {
+        "archive_bytes": 126755,
+        "archived_records": 448,
+        "compacted_records": 448,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1000,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 4767744,
+      "elapsed_seconds": 0.27194925600633724,
+      "hot_records": 552,
+      "simulated_seconds": 600.0,
+      "wal_bytes": 2710992
+    },
+    {
+      "counters": {
+        "archive_bytes": 144871,
+        "archived_records": 512,
+        "compacted_records": 512,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1100,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 5009408,
+      "elapsed_seconds": 0.2596221459971275,
+      "hot_records": 588,
+      "simulated_seconds": 660.0,
+      "wal_bytes": 2710992
+    },
+    {
+      "counters": {
+        "archive_bytes": 162982,
+        "archived_records": 576,
+        "compacted_records": 576,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1200,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 5267456,
+      "elapsed_seconds": 0.26702281900361413,
+      "hot_records": 624,
+      "simulated_seconds": 720.0,
+      "wal_bytes": 2710992
+    },
+    {
+      "counters": {
+        "archive_bytes": 181098,
+        "archived_records": 640,
+        "compacted_records": 640,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1300,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 5533696,
+      "elapsed_seconds": 0.24861190000228817,
+      "hot_records": 660,
+      "simulated_seconds": 780.0,
+      "wal_bytes": 2760432
+    },
+    {
+      "counters": {
+        "archive_bytes": 199207,
+        "archived_records": 704,
+        "compacted_records": 704,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1400,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 5812224,
+      "elapsed_seconds": 0.2726532259985106,
+      "hot_records": 696,
+      "simulated_seconds": 840.0,
+      "wal_bytes": 2809872
+    },
+    {
+      "counters": {
+        "archive_bytes": 217308,
+        "archived_records": 768,
+        "compacted_records": 768,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1500,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 6062080,
+      "elapsed_seconds": 0.25136587399902055,
+      "hot_records": 732,
+      "simulated_seconds": 900.0,
+      "wal_bytes": 2809872
+    },
+    {
+      "counters": {
+        "archive_bytes": 235430,
+        "archived_records": 832,
+        "compacted_records": 832,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1600,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 6373376,
+      "elapsed_seconds": 0.25144268599979114,
+      "hot_records": 768,
+      "simulated_seconds": 960.0,
+      "wal_bytes": 2987032
+    },
+    {
+      "counters": {
+        "archive_bytes": 253525,
+        "archived_records": 896,
+        "compacted_records": 896,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1700,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 6664192,
+      "elapsed_seconds": 0.24647950300277444,
+      "hot_records": 804,
+      "simulated_seconds": 1020.0,
+      "wal_bytes": 2987032
+    },
+    {
+      "counters": {
+        "archive_bytes": 271635,
+        "archived_records": 960,
+        "compacted_records": 960,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1800,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 6934528,
+      "elapsed_seconds": 0.2734568739979295,
+      "hot_records": 840,
+      "simulated_seconds": 1080.0,
+      "wal_bytes": 2987032
+    },
+    {
+      "counters": {
+        "archive_bytes": 289738,
+        "archived_records": 1024,
+        "compacted_records": 1024,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 1900,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 7200768,
+      "elapsed_seconds": 0.25880089599377243,
+      "hot_records": 876,
+      "simulated_seconds": 1140.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 307832,
+        "archived_records": 1088,
+        "compacted_records": 1088,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2000,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 7487488,
+      "elapsed_seconds": 0.24531657899933634,
+      "hot_records": 912,
+      "simulated_seconds": 1200.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 325962,
+        "archived_records": 1152,
+        "compacted_records": 1152,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2100,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 7770112,
+      "elapsed_seconds": 0.25271822499780683,
+      "hot_records": 948,
+      "simulated_seconds": 1260.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 344079,
+        "archived_records": 1216,
+        "compacted_records": 1216,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2200,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 8085504,
+      "elapsed_seconds": 0.2705730270026834,
+      "hot_records": 984,
+      "simulated_seconds": 1320.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 362181,
+        "archived_records": 1280,
+        "compacted_records": 1280,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2300,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 8351744,
+      "elapsed_seconds": 0.25533066900243284,
+      "hot_records": 1020,
+      "simulated_seconds": 1380.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 380284,
+        "archived_records": 1344,
+        "compacted_records": 1344,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2400,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 8572928,
+      "elapsed_seconds": 0.24467127999378135,
+      "hot_records": 1056,
+      "simulated_seconds": 1440.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 398396,
+        "archived_records": 1408,
+        "compacted_records": 1408,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2500,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 8814592,
+      "elapsed_seconds": 0.25190949399984675,
+      "hot_records": 1092,
+      "simulated_seconds": 1500.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 416508,
+        "archived_records": 1472,
+        "compacted_records": 1472,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2600,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 9084928,
+      "elapsed_seconds": 0.2701827519995277,
+      "hot_records": 1128,
+      "simulated_seconds": 1560.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 434617,
+        "archived_records": 1536,
+        "compacted_records": 1536,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2700,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 9342976,
+      "elapsed_seconds": 0.25693778099957854,
+      "hot_records": 1164,
+      "simulated_seconds": 1620.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 452731,
+        "archived_records": 1600,
+        "compacted_records": 1600,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2800,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 9637888,
+      "elapsed_seconds": 0.2522246329972404,
+      "hot_records": 1200,
+      "simulated_seconds": 1680.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 470844,
+        "archived_records": 1664,
+        "compacted_records": 1664,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 2900,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 9900032,
+      "elapsed_seconds": 0.25675931599835167,
+      "hot_records": 1236,
+      "simulated_seconds": 1740.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 488947,
+        "archived_records": 1728,
+        "compacted_records": 1728,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3000,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 10170368,
+      "elapsed_seconds": 0.2707795169990277,
+      "hot_records": 1272,
+      "simulated_seconds": 1800.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 507040,
+        "archived_records": 1792,
+        "compacted_records": 1792,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3100,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 10493952,
+      "elapsed_seconds": 0.2560989760022494,
+      "hot_records": 1308,
+      "simulated_seconds": 1860.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 525160,
+        "archived_records": 1856,
+        "compacted_records": 1856,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3200,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 10752000,
+      "elapsed_seconds": 0.245053677004762,
+      "hot_records": 1344,
+      "simulated_seconds": 1920.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 543257,
+        "archived_records": 1920,
+        "compacted_records": 1920,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3300,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 10981376,
+      "elapsed_seconds": 0.251503651998064,
+      "hot_records": 1380,
+      "simulated_seconds": 1980.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 561351,
+        "archived_records": 1984,
+        "compacted_records": 1984,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3400,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 11218944,
+      "elapsed_seconds": 0.26560431200050516,
+      "hot_records": 1416,
+      "simulated_seconds": 2040.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 579479,
+        "archived_records": 2048,
+        "compacted_records": 2048,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3500,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 11493376,
+      "elapsed_seconds": 0.2536137619972578,
+      "hot_records": 1452,
+      "simulated_seconds": 2100.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 597602,
+        "archived_records": 2112,
+        "compacted_records": 2112,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3600,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 11759616,
+      "elapsed_seconds": 0.24827537800592836,
+      "hot_records": 1488,
+      "simulated_seconds": 2160.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 615703,
+        "archived_records": 2176,
+        "compacted_records": 2176,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3700,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 12017664,
+      "elapsed_seconds": 0.2554381559966714,
+      "hot_records": 1524,
+      "simulated_seconds": 2220.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 633826,
+        "archived_records": 2240,
+        "compacted_records": 2240,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3800,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 12271616,
+      "elapsed_seconds": 0.2642633700015722,
+      "hot_records": 1560,
+      "simulated_seconds": 2280.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 651936,
+        "archived_records": 2304,
+        "compacted_records": 2304,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 3900,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 12550144,
+      "elapsed_seconds": 0.25578981800208567,
+      "hot_records": 1596,
+      "simulated_seconds": 2340.0,
+      "wal_bytes": 3094152
+    },
+    {
+      "counters": {
+        "archive_bytes": 670063,
+        "archived_records": 2368,
+        "compacted_records": 2368,
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 4000,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "db_bytes": 12869632,
+      "elapsed_seconds": 0.25157331799709937,
+      "hot_records": 1632,
+      "simulated_seconds": 2400.0,
+      "wal_bytes": 3135352
+    }
+  ],
+  "pump_failure": "evidence_hot_capacity_pressure",
+  "pump_failure_snapshot": {
+    "admission_health": {
+      "program:pump": {
+        "observed_at": 1790387769.4919815,
+        "reason": "evidence_hot_capacity_pressure",
+        "scope": "program:pump",
+        "state": "DEGRADED",
+        "usable": false
+      },
+      "program:pumpswap": {
+        "frontier_slot": 450533224,
+        "lag_seconds": 17.417648792266846,
+        "observed_at": 1790387737.4176488,
+        "reason": "authoritative_current",
+        "scope": "program:pumpswap",
+        "state": "USABLE",
+        "usable": true
+      }
+    },
+    "archive_bytes": 5305878,
+    "consumer_lag": [
+      {
+        "owner": "pump",
+        "scope": "program:pump",
+        "slots": 111,
+        "updated": 1790387738.4598594
+      }
+    ],
+    "counters": {
+      "archive_bytes": 5305878,
+      "archived_records": 2624,
+      "compacted_records": 15,
+      "expired_candidate_interests": 0,
+      "gap_repair_attempts": 95,
+      "gap_repair_calls": 76,
+      "gap_repair_retries": 38,
+      "gaps_created": 96,
+      "gaps_repaired": 56,
+      "ingested_account": 110,
+      "ingested_event": 19037,
+      "ingested_transaction": 37573,
+      "ipc.applied": 188,
+      "ipc.deduplicated": 239,
+      "ipc.rejected": 29,
+      "meteora.complete_local_reads": 0,
+      "meteora.historical_reconstruction_rpc_calls": 0,
+      "meteora.incomplete_local_reads": 0,
+      "meteora.local_evidence_reads": 0,
+      "meteora.local_triggers": 2,
+      "meteora.repair_assisted_windows": 0,
+      "pump.complete_local_reads": 0,
+      "pump.foreground_historical_rpc_calls": 0,
+      "pump.incomplete_local_reads": 0,
+      "pump.local_evidence_reads": 0,
+      "pump.repair_assisted_windows": 0,
+      "rejected_evidence_records": 0,
+      "stream_accepted_messages": 371,
+      "stream_bytes": 1845955746,
+      "stream_messages": 371,
+      "stream_reconnects": 17,
+      "stream_rejected_messages": 0
+    },
+    "coverage_windows": 759,
+    "cursors": [
+      {
+        "scope": "program:pump",
+        "slot": 450533335,
+        "updated": 1790387767.6432161
+      },
+      {
+        "scope": "program:pumpswap",
+        "slot": 450533335,
+        "updated": 1790387767.8731544
+      },
+      {
+        "scope": "program:meteora",
+        "slot": 450533335,
+        "updated": 1790387768.5026066
+      },
+      {
+        "scope": "account:3vDyCqa4q3G3u9iQCXYPfLeDQpknj9L5AXy3jd2NjgsK",
+        "slot": 450533049,
+        "updated": 1790387694.3069386
+      },
+      {
+        "scope": "account:8F2gvA5hu8h2YDTseLMowJQDxk7fRjgCo5CAv1s323HJ",
+        "slot": 450531777,
+        "updated": 1790387379.7987158
+      },
+      {
+        "scope": "account:959G3GBv1MnKUFzHtvnxFuZHd53NG7SyZkuLs8VohaUN",
+        "slot": 450531790,
+        "updated": 1790387405.2498648
+      },
+      {
+        "scope": "account:Gc5hVCBydc6k3Z7oc2cQEW4GThFQi2Fqk5HfKABqa2q8",
+        "slot": 450533333,
+        "updated": 1790387760.982234
+      },
+      {
+        "scope": "account:FtwzPjTqoFuy8aF8bMBi7QF7UxpdYN5n9YUH6R7DcHjB",
+        "slot": 450533334,
+        "updated": 1790387763.7558346
+      },
+      {
+        "scope": "account:Apo1KqU2DPHi7TrDbZEgqTf2EJbrCqAAq5eWg8DLgyS6",
+        "slot": 450532327,
+        "updated": 1790387490.8704214
+      },
+      {
+        "scope": "account:CJi8QBok22jwLA2eTWE6kif7hz1Fkz1HPYLoEYQhoHUK",
+        "slot": 450532775,
+        "updated": 1790387619.4148185
+      },
+      {
+        "scope": "account:3msVd34R5KxonDzyNSV5nT19UtUeJ2RF1NaQhvVPNLxL",
+        "slot": 450533051,
+        "updated": 1790387700.6803923
+      },
+      {
+        "scope": "account:vgBVDHRJ2U6Q8nydwtVhZRj3WCL25Uz4XDF3sV8THKr",
+        "slot": 450532855,
+        "updated": 1790387637.055936
+      },
+      {
+        "scope": "account:5BEYpX8vFT9FZx7doc8cdhzUXZh7Tbr3GR27tHYcZQjB",
+        "slot": 450532951,
+        "updated": 1790387664.3572392
+      },
+      {
+        "scope": "account:GYqytuXSiX3GaPuCkLMY4jeRR3mAtyAuQqhD32d45g5y",
+        "slot": 450533051,
+        "updated": 1790387700.6825657
+      },
+      {
+        "scope": "account:CcG3fyDZn6uXTV5p2TV9cceCA2YhE3bUMLeXGn6vZSNr",
+        "slot": 450532953,
+        "updated": 1790387666.6377776
+      },
+      {
+        "scope": "account:bFsVzSMig72r5fBBTzXRpkvpbntKnj9VMrtA7EVwJrU",
+        "slot": 450532956,
+        "updated": 1790387669.9239976
+      },
+      {
+        "scope": "account:7FWWRx3oWDBnJcoMVD6avKzh7Beg4m2BUtW1en5n111b",
+        "slot": 450533133,
+        "updated": 1790387709.842318
+      }
+    ],
+    "db_bytes": 1908203520,
+    "hot_bytes": 2061034952,
+    "ingestion_lag_seconds": {
+      "finalized_frontier:program:meteora": 20.510754108428955,
+      "finalized_frontier:program:pump": 20.510751962661743,
+      "finalized_frontier:program:pumpswap": 20.510753631591797
+    },
+    "integrity_poisoned": false,
+    "interests": [
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450531486,
+        "owner": "meteora:candidate:3vDyCqa4q3G3u9iQCXYPfLeDQpknj9L5AXy3jd2NjgsK",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387264.380631
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450531635,
+        "owner": "meteora:candidate:8F2gvA5hu8h2YDTseLMowJQDxk7fRjgCo5CAv1s323HJ",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387302.0883932
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450531733,
+        "owner": "meteora:candidate:959G3GBv1MnKUFzHtvnxFuZHd53NG7SyZkuLs8VohaUN",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387327.6230736
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450531735,
+        "owner": "meteora:candidate:vgBVDHRJ2U6Q8nydwtVhZRj3WCL25Uz4XDF3sV8THKr",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387331.256512
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450531736,
+        "owner": "meteora:candidate:FNZYsYURykTTzFEg59vwkdUrfZgGUQ7FURUTfnNoQNFY",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387332.9439647
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450531737,
+        "owner": "meteora:candidate:Gc5hVCBydc6k3Z7oc2cQEW4GThFQi2Fqk5HfKABqa2q8",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387334.406326
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450531773,
+        "owner": "meteora:candidate:FtwzPjTqoFuy8aF8bMBi7QF7UxpdYN5n9YUH6R7DcHjB",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387377.9753978
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532043,
+        "owner": "meteora:candidate:bFsVzSMig72r5fBBTzXRpkvpbntKnj9VMrtA7EVwJrU",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387414.5652683
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532044,
+        "owner": "meteora:candidate:Ekm4LYkihEdQgZx2UReDMJ3eCDDjExPQLG94WfWmfyWr",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387420.152879
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532045,
+        "owner": "meteora:candidate:Apo1KqU2DPHi7TrDbZEgqTf2EJbrCqAAq5eWg8DLgyS6",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387421.6284392
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532047,
+        "owner": "meteora:candidate:CJi8QBok22jwLA2eTWE6kif7hz1Fkz1HPYLoEYQhoHUK",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387423.3472793
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532320,
+        "owner": "meteora:candidate:HZErmEhFdPtEv8miyRNJ6YYDCJVTUDQ8vb6b9gYV1pAY",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387487.028717
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532766,
+        "owner": "meteora:candidate:3msVd34R5KxonDzyNSV5nT19UtUeJ2RF1NaQhvVPNLxL",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387609.8959162
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532767,
+        "owner": "meteora:candidate:D7CCRNx6e2ck22P8N93xqJ2Kbcu13RmYVFYeVRqAyN8n",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387610.9684367
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532769,
+        "owner": "meteora:candidate:GYqytuXSiX3GaPuCkLMY4jeRR3mAtyAuQqhD32d45g5y",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387616.3701138
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532770,
+        "owner": "meteora:candidate:5BEYpX8vFT9FZx7doc8cdhzUXZh7Tbr3GR27tHYcZQjB",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387618.1219301
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532848,
+        "owner": "meteora:candidate:CcG3fyDZn6uXTV5p2TV9cceCA2YhE3bUMLeXGn6vZSNr",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387632.2311869
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532940,
+        "owner": "meteora:candidate:7ppXPgaWbZiGRNHmSLPEAnHVhMqUkhWC4VqRnPcrSvi7",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387654.3978007
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532941,
+        "owner": "meteora:candidate:EtPcWELeHvrwaUwESUJTtvSAtmJS4DRbqtzMcY82s58J",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387656.1973703
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532943,
+        "owner": "meteora:candidate:AG1EhPjsBrkxQWkViuLXF6pQnHwfr9f9sdNneeoykcEJ",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387660.112996
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532945,
+        "owner": "meteora:candidate:7FWWRx3oWDBnJcoMVD6avKzh7Beg4m2BUtW1en5n111b",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387662.0639567
+      },
+      {
+        "lifecycle": "candidate",
+        "lower_slot": 450532947,
+        "owner": "meteora:candidate:qhJ7kLjrE68sbDF11CpwMt3P9rqiwZtretM5ZzeAX6o",
+        "priority": 3,
+        "scope": "program:meteora",
+        "updated": 1790387664.353579
+      }
+    ],
+    "lane_counters": {
+      "ipc_retries": 209,
+      "ipc_unacknowledged": 8
+    },
+    "local_queries": 0,
+    "retention_floors": {
+      "account:3vDyCqa4q3G3u9iQCXYPfLeDQpknj9L5AXy3jd2NjgsK": 0,
+      "account:8F2gvA5hu8h2YDTseLMowJQDxk7fRjgCo5CAv1s323HJ": 0,
+      "account:959G3GBv1MnKUFzHtvnxFuZHd53NG7SyZkuLs8VohaUN": 0,
+      "account:Gc5hVCBydc6k3Z7oc2cQEW4GThFQi2Fqk5HfKABqa2q8": 0,
+      "program:meteora": 450531486,
+      "program:pump": 450531488,
+      "program:pumpswap": 450531487
+    },
+    "service_health": {
+      "account_stream_discontinuity": {
+        "reason": "ConnectionClosedError",
+        "seen": 1790387757.5494604
+      },
+      "finalized_frontier:program:meteora": {
+        "seen": 1790387767.0175545,
+        "slot": 450533335,
+        "time": 1790387749
+      },
+      "finalized_frontier:program:pump": {
+        "seen": 1790387767.0175545,
+        "slot": 450533335,
+        "time": 1790387749
+      },
+      "finalized_frontier:program:pumpswap": {
+        "seen": 1790387767.0175545,
+        "slot": 450533335,
+        "time": 1790387749
+      },
+      "heartbeat": 1790387768.5029514,
+      "hot_limit_bytes": 2147483648,
+      "ipc": {
+        "ipc.disconnected": 45,
+        "ipc.pending": 251
+      },
+      "last_source_error": "ConnectionClosedError",
+      "phase": "ACTIVE",
+      "pid": 2303,
+      "provider": {
+        "endpoint_identity": "267ddbf0c6aab1672c805ae5ad62c90cb30bb9883867f3286d66dedd572b3314",
+        "network": "solana-mainnet",
+        "provider": "alchemy_solana_mainnet"
+      },
+      "repair_http": {
+        "counters": {
+          "429s": 0,
+          "failures": 0,
+          "identity_calls": 1,
+          "logical_calls": 95,
+          "method:getGenesisHash": 1,
+          "method:getTransactionsForAddress": 94,
+          "physical_requests": 95,
+          "queue_microseconds": 10598717,
+          "repair_calls": 94,
+          "transport_microseconds": 10159026,
+          "unsupported_methods": 0
+        },
+        "endpoint_identity": "267ddbf0c6aab1672c805ae5ad62c90cb30bb9883867f3286d66dedd572b3314",
+        "estimated_alchemy": {
+          "billing_estimate_only": true,
+          "estimated_cu": null,
+          "estimated_cu_by_method": {
+            "getGenesisHash": 10
+          },
+          "known_estimated_cu": 10,
+          "logical_calls": 95,
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {
+            "getTransactionsForAddress": 94
+          }
+        },
+        "provider": "alchemy_solana_mainnet"
+      },
+      "storage": {
+        "archive_free_bytes": 90093850624,
+        "critical_bytes": 134217728,
+        "database_free_bytes": 90093850624,
+        "free_bytes": 90093850624,
+        "state": "ok",
+        "warning_bytes": 536870912
+      },
+      "subscriptions": {
+        "active": 23,
+        "by_evidence_class": {
+          "account": 22,
+          "blocks": 1
+        },
+        "pending": 0,
+        "wanted_accounts": 22
+      }
+    },
+    "storage": {
+      "archive_free_bytes": 90084659200,
+      "critical_bytes": 134217728,
+      "database_free_bytes": 90084659200,
+      "free_bytes": 90084659200,
+      "state": "ok",
+      "warning_bytes": 536870912
+    },
+    "unresolved_gaps": 40,
+    "wal_bytes": 152831432
+  },
+  "pump_local_reads": 0,
+  "repaired_gap_reopened_from_old_receipt": [
+    [
+      201
+    ]
+  ],
+  "scaled_reproduction_hot_limit_bytes": 33554432,
+  "scaled_reproduction_note": "100 retained-shape transactions versus one original 64-record maintenance slice per logical minute; scaled capacity, not a full-pressure throughput claim",
+  "schema": "run370-causal-reproduction-v1",
+  "scope": "post-shutdown preserved DB; lane failure snapshot is earlier",
+  "wal_bytes": 0,
+  "wal_note": "checkpointed before artifact; use lane snapshot for failure-time WAL"
+}

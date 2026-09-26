@@ -10,8 +10,8 @@ def main():
     args.output.mkdir(parents=True,exist_ok=True);env=dict(os.environ,PYTHONPATH=str(ROOT))
     before=source_integrity(args.worktrees);rows=[]
     fixtures=ROOT/'tests/fixtures/solana_evidence_plane'
-    commands=[('shared',ROOT,['-m','unittest','tests.test_solana_read_rpc','tests.test_solana_evidence_plane','tests.test_solana_evidence_transport','tests.test_solana_evidence_queries','tests.test_solana_evidence_fences','tests.test_solana_evidence_service_runtime','tests.test_run369_runtime','tests.test_solana_evidence_retention','tests.test_solana_retained_raw','tests.test_report_publisher_isolation','certification.tests.test_reserved_evidence_priority','-v']),
-      ('pump-production',args.worktrees/'pump',['-m','unittest','tests.test_evidence_runtime_cutover','tests.test_run369_liveness','-v']),
+    commands=[('shared',ROOT,['-m','unittest','tests.test_solana_read_rpc','tests.test_solana_evidence_plane','tests.test_solana_evidence_transport','tests.test_solana_evidence_queries','tests.test_solana_evidence_fences','tests.test_solana_evidence_service_runtime','tests.test_run369_runtime','tests.test_run370_storage','tests.test_solana_evidence_retention','tests.test_solana_retained_raw','tests.test_report_publisher_isolation','certification.tests.test_reserved_evidence_priority','-v']),
+      ('pump-production',args.worktrees/'pump',['-m','unittest','tests.test_evidence_runtime_cutover','tests.test_run369_liveness','tests.test_run370_pump_progression','-v']),
       ('meteora-production',args.worktrees/'meteora',['-m','unittest','tests.test_evidence_runtime_cutover','tests.test_run369_admission','-v']),
       ('retained-warmup',args.worktrees/'meteora',['-m','certification.replay_retained_warmup','--fixture',str(fixtures/'run-368-meteora-warmup.json.gz')]),
       ('retained-position',args.worktrees/'meteora',['-m','certification.replay_retained_meteora','--fixture',str(fixtures/'run-368-meteora-journal.json')]),

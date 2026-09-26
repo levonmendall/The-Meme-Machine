@@ -7,7 +7,8 @@ from certification.report import LANES
 
 class Run369LifecycleTests(unittest.TestCase):
     def row(self):
-        return dict(exit_code=0,process_restarts=0,unexpected_exit=False,continuous_uptime_seconds=600,
+        from certification.tests.solana_fixture import pump_evidence
+        return dict(pump_evidence(),exit_code=0,process_restarts=0,unexpected_exit=False,continuous_uptime_seconds=600,
             open_positions=0,accounting_reconciled=True,provider_requests=0,
             pump_discovery_terminal=dict(reason='flat_after_discovery',configured_seconds=600,deadline=1600,completed_at=1600),
             evidence_liveness=dict(usable_observations=500,failure=None,last=dict(usable=True)),
@@ -20,7 +21,7 @@ class Run369LifecycleTests(unittest.TestCase):
         for mutation in mutations:
             with self.subTest(mutation=mutation):self.assertFalse(pump_flat_completion(dict(self.row(),**mutation)))
     def test_smoke_accepts_local_authoritative_activity_and_preserves_premature_failure(self):
-        lanes={lane:dict(self.row(),provider_requests=1,funnel=dict(completed_scans=1)) for lane in LANES}
+        lanes={lane:dict(self.row(),provider_requests=1,funnel=dict(completed_scans=1,discovered=5)) for lane in LANES}
         lanes['pump']['provider_requests']=0
         result=dict(phase='smoke',status='FINISHED',continuous_overlap_seconds=599,lanes=lanes,
                     shared_provider={network:dict(queues=[]) for network in ('solana','robinhood')})

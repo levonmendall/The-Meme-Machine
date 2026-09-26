@@ -31,7 +31,7 @@ def register(state,result,assurance,artifact,run_id):
     state=deepcopy(state)
     keys=('phase','status','run_id','continuous_overlap_seconds','source_manifest_hash','implementation_hash','integration_sha','shared_provider','lanes')
     readiness={k:result[k] for k in keys}
-    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation')
+    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation','stream_state','method_counts','evidence_liveness')
     readiness['lanes']={lane:{k:r.get(k) for k in lane_keys} for lane,r in result['lanes'].items()}
     state.update(smoke_evidence_run_id=int(run_id),smoke_readiness=readiness,
         smoke_artifact=dict(id=artifact['id'],digest=artifact['digest']),smoke_pending_lanes=pending,
