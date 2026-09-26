@@ -176,7 +176,7 @@ def native_positions(root,lane):
                     entered=any(e['action']=='entry' for e in events)
                     positions[identity]=dict(id=identity,status='settled' if terminal else 'open' if entered else 'reserved',
                         version=len(events)-1,at=last.get('at'),last_action=last['action'])
-            elif lane=='pump' and 'journal' in tables and 'positions' in tables:
+            elif lane in ('pump','pons') and 'journal' in tables and 'positions' in tables:
                 for raw, in db.execute('SELECT body FROM positions'):
                     position=json.loads(raw);positions[position['id']]=position
                 for raw, in db.execute('SELECT body FROM journal ORDER BY seq'):
@@ -204,8 +204,8 @@ def native_positions(root,lane):
         exits+=sum(x in ('exit','exit_intent','segment_close','settled') for x in actions)
         complete+=bool(entered and terminal and any(x in ('mark','monitor') for x in actions)
                        and any(x in ('exit','exit_intent','segment_close','settle','settled') for x in actions))
-        if actions.count('entry')+actions.count('open')>1:violations.append(dict(id=identity,reason='duplicate_entry'))
-        if actions.count('settle')>1:violations.append(dict(id=identity,reason='duplicate_realization'))
+        if sum(actions.count(k) for k in ('entry','open','filled'))>1:violations.append(dict(id=identity,reason='duplicate_entry'))
+        if sum(actions.count(k) for k in ('settle','settled'))>1:violations.append(dict(id=identity,reason='duplicate_realization'))
         previous_version=None
         for event in events:
             p=event.get('position') or {};version=p.get('version')

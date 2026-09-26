@@ -113,6 +113,7 @@ class Observer:
                 self.event('paper_lifecycle',dict(policy_hash=self.policy,lifecycle=life))
                 self.pons_lifecycles.add(identity)
         self.checkpoint(dict(snapshot,lifecycles=result.get('lifecycles',[]),
+                             survivor=result.get('survivor'),active_regimes=result.get('active_regimes'),
                              observation_archive=dict(candidate_rows=self.pons_rows,
                                  qualifiers=self.pons_qualifiers,journal='telemetry.sqlite')),phase)
 
@@ -583,9 +584,9 @@ def persist_pons_terminal(path,result):
     os.replace(temporary,path)
 
 def policy_for(lane):
-    if lane=='pump':
-        from meme_machine.pump_acceleration_strategy import policy_hash
-        return policy_hash()
+    if lane in ('pump','pons'):
+        from certification.directional_sleeve import composite_hash
+        return composite_hash(lane)
     if lane=='meteora':
         path=Path('SOLANA_DLMM_INDEPENDENT_V1.json')
         source=json.loads((Path(__file__).parent/'sources.json').read_text())['lanes']['meteora']
@@ -606,6 +607,11 @@ def main():
     sys.path.insert(0,os.getcwd())
     actual=policy_for(args.lane)
     if actual!=args.policy_hash:raise ValueError('frozen_policy_hash_changed')
+    if args.lane in ('pump','pons'):
+        protocol=json.loads((Path(__file__).parent/'profitability_protocol.json').read_text())
+        os.environ['MM_DIRECTIONAL_COMPOSITE_REQUIRED']='1'
+        os.environ.setdefault('MM_DIRECTIONAL_SLEEVE_DB',str(Path.cwd()/'directional-sleeve.sqlite'))
+        os.environ['MM_DIRECTIONAL_COHORT_ID']=protocol['cohort_id']
     observer=Observer(args.output,args.lane,actual)
     from certification.decision_conformance import install as install_conformance
     conformance=install_conformance(args.output,args.lane,actual)

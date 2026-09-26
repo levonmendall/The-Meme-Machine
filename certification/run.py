@@ -122,7 +122,7 @@ def source_integrity(worktrees):
             if path.suffix.lower()=='.pyc' and '__pycache__' not in path.parts:
                 raise ValueError('unreviewed_lane_runtime_file:'+lane+':'+name)
         if git('rev-parse','HEAD',cwd=cwd)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
-        for file,expected_hash in row.get('file_hashes',{}).items():
+        for file,expected_hash in row.get('composed_file_hashes',row.get('file_hashes',{})).items():
             if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
                 raise ValueError('frozen_source_file_drift:'+lane+':'+file)
         # Git's default abbreviated index IDs vary with repository object count.
@@ -674,7 +674,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             return result
     for lane,row in spec['lanes'].items():
         if git('rev-parse','HEAD',cwd=Path(worktrees)/lane)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
-        for f,h in row['file_hashes'].items():
+        for f,h in row.get('composed_file_hashes',row['file_hashes']).items():
             if hashlib.sha256((Path(worktrees)/lane/f).read_bytes()).hexdigest()!=h:raise ValueError('policy_or_config_drift:'+lane)
     required=('MM_SOLANA_READ_RPC_URL','MM_ROBINHOOD_READ_RPC_URL')
     missing=[k for k in required if not os.environ.get(k)]

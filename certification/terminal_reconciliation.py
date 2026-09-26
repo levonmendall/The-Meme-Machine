@@ -74,8 +74,9 @@ def reconcile(lane,root):
             book.identity=json.loads(db.execute('SELECT body FROM genesis WHERE id=1').fetchone()[0])
             if book.identity['policy_hash']!=policy_hash():raise ValueError('terminal_policy_identity')
             replay=book.replay();accounting=book.reconcile()
-        return dict(verified=True,accounting=accounting,accounting_replay=replay,
-                    open_positions=accounting['open_positions']+accounting['pending'])
+        from certification.directional_accounting import terminal
+        return terminal(lane,root,dict(verified=True,accounting=accounting,accounting_replay=replay,
+                    open_positions=accounting['open_positions']+accounting['pending']))
     if lane=='pons':
         from robinhood_research.pons_selective_capital import CohortCapital
         from robinhood_research.pons_selective_continuation import POLICY_HASH
@@ -91,7 +92,8 @@ def reconcile(lane,root):
         verified=(accounting.get('conservation') is True
                   and accounting.get('cash_basis_conservation') is True
                   and accounting.get('native_observation_complete') is True)
-        return dict(verified=verified,accounting=accounting,open_positions=accounting['unsettled'])
+        from certification.directional_accounting import terminal
+        return terminal(lane,root,dict(verified=verified,accounting=accounting,open_positions=accounting['unsettled']))
     if lane=='meteora':
         from meme_machine.dlmm_independent_accounting import PaperBook
         from tests import solana_dlmm_independent_v1 as strategy

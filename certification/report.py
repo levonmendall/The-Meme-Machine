@@ -183,6 +183,9 @@ def summarize(lane, report):
     if coverage:
         result['funnel'].update({'unique_'+k:v for k,v in coverage.get('stages',{}).items()})
         result['funnel'].update({'unique_'+k:v for k,v in coverage.get('unique_classes',{}).items()})
+    if lane in ('pump','pons'):
+        from certification.directional_accounting import summarize_survivor
+        result=summarize_survivor(lane,report,result)
     return result
 
 

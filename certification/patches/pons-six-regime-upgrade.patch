@@ -1,0 +1,1228 @@
+diff --git a/robinhood_research/pons_natural_paper.py b/robinhood_research/pons_natural_paper.py
+index e7eb346fda3102bca7f334009ab7196e16d61f3f..14fc48ce3cbb6308aac17714dceb5f144394bc99 100644
+--- a/robinhood_research/pons_natural_paper.py
++++ b/robinhood_research/pons_natural_paper.py
+@@ -293,6 +293,9 @@ def _graduation_transition(rpc,candidate,start_block,end_block,report):
+         origin="pons_v2_graduated_v4",token=candidate["token"],
+         previous_market=candidate["curve"],market=proof["pool_id"],
+         position_id=proof["position_id"],proof=proof,
++        graduation_at=int(header['timestamp'],16),
++        initialization_sqrt_price_x96=int(initialization['decoded']['args']['sqrtPriceX96']),
++        graduation_gas_used=int(receipt['gasUsed'],16),
+     )
+     transition["proof_hash"]=digest(transition)
+     key=PoolKey(*sorted((record["token"],record["pairToken"]),key=lambda x:int(x,16)),
+@@ -631,4 +634,4 @@ if __name__=="__main__":
+         graduation=result.get("carried_through_graduation"),
+         final_position=result.get("final_position"),
+         exit=result.get("exit"),provider_sessions=result["provider_sessions"],
+-    ),sort_keys=True))
+\ No newline at end of file
++    ),sort_keys=True))
+diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/pons_postgrad_survivor.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..b2170fb6daaf0c89e0872fe377fe8e436aa12058
+--- /dev/null
++++ b/robinhood_research/pons_postgrad_survivor.py
+@@ -0,0 +1,373 @@
++"""Independent Pons post-graduation survivor-momentum strategy.
++
++This module is intentionally independent of the existing pre-graduation Pons
++strategy.  It contains only deterministic market-selection and lifecycle policy.
++Shared transport, authenticated Pons graduation proof, V4 market evidence and paper
++accounting may be supplied by adapters, but no pre-graduation qualification,
++position, wallet score or outcome is an input.
++
++The policy was designed from open-market Pons post-graduation behavior observed
++2026-09-19..2026-09-26.  It is PAPER ONLY until separately certified.
++"""
++from __future__ import annotations
++
++import hashlib
++import json
++
++
++STRATEGY_VERSION="pons-postgrad-survivor-momentum-v1"
++
++POLICY=dict(
++    authority=dict(
++        paper_only=True,
++        live_money=False,
++        signing=False,
++        submission=False,
++        independent_of_pregraduation=True,
++    ),
++    universe=dict(
++        min_seconds_after_graduation=6*60*60,
++        max_seconds_after_graduation=7*24*60*60,
++        native_quote_only=True,
++    ),
++    trend=dict(
++        min_since_graduation_return_bps=500,
++        min_long_return_bps=1000,
++        min_6h_return_bps=500,
++        min_2h_return_bps=300,
++        min_6h_efficiency_bps=2500,
++        min_reset_pullback_bps=500,
++        max_reset_pullback_bps=3500,
++        min_breakout_bps=100,
++        max_breakout_extension_bps=1200,
++        base_seconds=2*60*60,
++        breakout_exclusion_seconds=15*60,
++        long_window_seconds=24*60*60,
++        medium_window_seconds=6*60*60,
++        short_window_seconds=2*60*60,
++    ),
++    demand=dict(
++        min_independent_buyers_30m=5,
++        min_new_independent_buyers_30m=2,
++        min_buy_sell_ratio_bps=14_000,
++        min_buy_acceleration_bps=12_500,
++        max_largest_buyer_share_bps=3500,
++        max_creator_sell_quote=0,
++    ),
++    execution=dict(
++        target_capital_bps=25,
++        minimum_capital_bps=5,
++        min_turnover_multiple=40,
++        max_immediate_roundtrip_loss_bps=350,
++        max_double_size_roundtrip_loss_bps=500,
++        max_open_positions=2,
++        minimum_fill_breadth_bps=6000,
++        sizing_search_steps=32,
++    ),
++    exit=dict(
++        hard_stop_bps=-1000,
++        first_profit_bps=2000,
++        first_sell_bps=2500,
++        trailing_arm_bps=2000,
++        trailing_drawdown_bps=1200,
++        tighter_trailing_arm_bps=4000,
++        tighter_trailing_drawdown_bps=1000,
++        demand_failure_ratio_bps=8000,
++        demand_failure_confirmations=2,
++        no_new_high_seconds=6*60*60,
++        no_new_high_return_ceiling_bps=500,
++        max_hold_seconds=72*60*60,
++    ),
++)
++POLICY_HASH=hashlib.sha256(
++    json.dumps(POLICY,sort_keys=True,separators=(",",":")).encode()
++).hexdigest()
++
++
++def _points(rows):
++    out=[]
++    for row in rows or ():
++        if isinstance(row,dict):
++            at=int(row["at"]);price=int(row["price_index"])
++        else:
++            at=int(row[0]);price=int(row[1])
++        if price<=0:
++            raise ValueError("nonpositive_price")
++        out.append((at,price))
++    out.sort()
++    if any(b[0]<=a[0] for a,b in zip(out,out[1:])):
++        raise ValueError("nonmonotone_price_time")
++    return out
++
++
++def _window(points,now,seconds):
++    rows=[row for row in points if now-int(seconds)<=row[0]<=now]
++    return rows
++
++
++def return_bps(start,end):
++    start=int(start);end=int(end)
++    if start<=0 or end<=0:
++        raise ValueError("nonpositive_price")
++    return (end-start)*10_000//start
++
++
++def trend_efficiency_bps(prices):
++    values=[int(x) for x in prices]
++    if len(values)<2 or min(values)<=0:
++        return 0
++    travel=sum(abs(b-a) for a,b in zip(values,values[1:]))
++    if travel<=0:
++        return 0
++    return abs(values[-1]-values[0])*10_000//travel
++
++
++def buy_sell_ratio_bps(buy_quote,sell_quote):
++    buy=int(buy_quote);sell=int(sell_quote)
++    if buy<0 or sell<0:
++        raise ValueError("negative_flow")
++    if sell==0:
++        return 100_000 if buy>0 else 0
++    return buy*10_000//sell
++
++
++def _first_price_at_or_after(points,cutoff):
++    for at,price in points:
++        if at>=cutoff:
++            return price
++    return None
++
++
++def _feature_set(facts):
++    now=int(facts["now"])
++    graduation_at=int(facts["graduation_at"])
++    points=_points(facts.get("price_points"))
++    if not points or points[-1][0]>now:
++        raise ValueError("invalid_price_observation_time")
++    current=points[-1][1]
++    age=max(0,now-graduation_at)
++
++    since_grad=[row for row in points if row[0]>=graduation_at]
++    first_grad=since_grad[0][1] if since_grad else None
++
++    w2=_window(points,now,POLICY["trend"]["short_window_seconds"])
++    w6=_window(points,now,POLICY["trend"]["medium_window_seconds"])
++    wlong=_window(points,now,min(
++        POLICY["trend"]["long_window_seconds"],max(1,age)
++    ))
++
++    r2=(None if len(w2)<2 else return_bps(w2[0][1],current))
++    r6=(None if len(w6)<2 else return_bps(w6[0][1],current))
++    rlong=(None if len(wlong)<2 else return_bps(wlong[0][1],current))
++    rsince=(None if first_grad is None else return_bps(first_grad,current))
++    efficiency=(0 if len(w6)<2 else trend_efficiency_bps([p for _,p in w6]))
++
++    base_seconds=POLICY["trend"]["base_seconds"]
++    exclude=POLICY["trend"]["breakout_exclusion_seconds"]
++    prior_base=[
++        row for row in points
++        if now-base_seconds<=row[0]<=now-exclude
++    ]
++    older=[
++        row for row in points
++        if max(graduation_at,now-POLICY["trend"]["long_window_seconds"])
++        <=row[0]<now-base_seconds
++    ]
++    prior_high=(None if not prior_base else max(p for _,p in prior_base))
++    older_peak=(None if not older else max(p for _,p in older))
++    base_low=(None if not prior_base else min(p for _,p in prior_base))
++    breakout=(None if prior_high is None else return_bps(prior_high,current))
++    pullback=(
++        None if older_peak is None or base_low is None or base_low>=older_peak
++        else (older_peak-base_low)*10_000//older_peak
++    )
++
++    flow=facts.get("flow_30m") or {}
++    prev=facts.get("flow_previous_30m") or {}
++    buy=int(flow.get("buy_quote",0));sell=int(flow.get("sell_quote",0))
++    prev_buy=int(prev.get("buy_quote",0))
++    ratio=buy_sell_ratio_bps(buy,sell)
++    acceleration=(
++        100_000 if prev_buy==0 and buy>0
++        else 0 if prev_buy<=0
++        else buy*10_000//prev_buy
++    )
++    buyers={str(x).lower() for x in flow.get("buyer_groups",())}
++    new_buyers={str(x).lower() for x in flow.get("new_buyer_groups",())}
++    previous_buyers={str(x).lower() for x in prev.get("buyer_groups",())}
++    repeat_buyers=buyers & previous_buyers
++    group_flow=flow.get("buy_quote_by_group",{})
++    repeat_quote=sum(int(v) for g,v in group_flow.items() if str(g).lower() in repeat_buyers)
++    repeat_share=None if sum(int(v) for v in group_flow.values())!=buy else (0 if buy==0 else repeat_quote*10000//buy)
++    turnover=buy+sell
++
++    execution=facts.get("execution") or {}
++    roundtrip=execution.get("roundtrip_loss_bps")
++    stress=execution.get("double_size_roundtrip_loss_bps")
++
++    capital=int(facts.get("capital_quote",0))
++    target=capital*POLICY["execution"]["target_capital_bps"]//10_000
++    turnover_cap=turnover//POLICY["execution"]["min_turnover_multiple"]
++    proposed=max(0,min(target,turnover_cap))
++    minimum=capital*POLICY["execution"]["minimum_capital_bps"]//10_000
++
++    return dict(
++        age_seconds=age,current_price_index=current,
++        since_graduation_return_bps=rsince,long_return_bps=rlong,
++        return_6h_bps=r6,return_2h_bps=r2,efficiency_6h_bps=efficiency,
++        reset_pullback_bps=pullback,breakout_bps=breakout,
++        base_low=base_low,base_high=prior_high,older_peak=older_peak,
++        buy_quote_30m=buy,sell_quote_30m=sell,buy_sell_ratio_bps=ratio,
++        buy_acceleration_bps=acceleration,
++        independent_buyers_30m=len(buyers),
++        repeat_independent_buyers_30m=len(repeat_buyers),
++        repeat_buyer_share_bps=repeat_share,
++        persistent_buyer_groups=sorted(repeat_buyers),
++        new_independent_buyers_30m=len(new_buyers),
++        largest_buyer_share_bps=int(flow.get("largest_buyer_flow_bps",10_000)),
++        creator_sell_quote=int(flow.get("creator_sell_quote",0)),
++        turnover_quote_30m=turnover,
++        roundtrip_loss_bps=(None if roundtrip is None else int(roundtrip)),
++        double_size_roundtrip_loss_bps=(None if stress is None else int(stress)),
++        proposed_quote_amount=proposed,minimum_quote_amount=minimum,
++    )
++
++
++def evaluate_entry(facts):
++    """Return a deterministic, fail-closed post-graduation entry decision."""
++    f=_feature_set(facts)
++    reasons=[]
++    def reject(reason,condition):
++        if condition and reason not in reasons:
++            reasons.append(reason)
++
++    reject("graduation_lineage",facts.get("lineage_proven") is not True)
++    reject("non_native_quote",facts.get("native_quote") is not True)
++
++    u=POLICY["universe"];t=POLICY["trend"];d=POLICY["demand"];e=POLICY["execution"]
++    reject("too_early",f["age_seconds"]<u["min_seconds_after_graduation"])
++    reject("too_old",f["age_seconds"]>u["max_seconds_after_graduation"])
++
++    for name in (
++        "since_graduation_return_bps","long_return_bps","return_6h_bps",
++        "return_2h_bps","reset_pullback_bps","breakout_bps",
++        "roundtrip_loss_bps","double_size_roundtrip_loss_bps",
++    ):
++        reject("missing_"+name,f[name] is None)
++
++    if f["since_graduation_return_bps"] is not None:
++        reject("weak_since_graduation",
++               f["since_graduation_return_bps"]<t["min_since_graduation_return_bps"])
++    if f["long_return_bps"] is not None:
++        reject("weak_long_trend",f["long_return_bps"]<t["min_long_return_bps"])
++    if f["return_6h_bps"] is not None:
++        reject("weak_6h_trend",f["return_6h_bps"]<t["min_6h_return_bps"])
++    if f["return_2h_bps"] is not None:
++        reject("weak_2h_trend",f["return_2h_bps"]<t["min_2h_return_bps"])
++    reject("choppy_trend",f["efficiency_6h_bps"]<t["min_6h_efficiency_bps"])
++    if f["reset_pullback_bps"] is not None:
++        reject("no_meaningful_reset",f["reset_pullback_bps"]<t["min_reset_pullback_bps"])
++        reject("reset_too_deep",f["reset_pullback_bps"]>t["max_reset_pullback_bps"])
++    if f["breakout_bps"] is not None:
++        reject("no_breakout",f["breakout_bps"]<t["min_breakout_bps"])
++        reject("late_extension",f["breakout_bps"]>t["max_breakout_extension_bps"])
++
++    reject("insufficient_buyer_breadth",
++           f["independent_buyers_30m"]<d["min_independent_buyers_30m"])
++    reject("insufficient_new_breadth",
++           f["new_independent_buyers_30m"]<d["min_new_independent_buyers_30m"])
++    reject("weak_buy_sell_flow",f["buy_sell_ratio_bps"]<d["min_buy_sell_ratio_bps"])
++    reject("no_demand_acceleration",f["buy_acceleration_bps"]<d["min_buy_acceleration_bps"])
++    reject("buyer_concentration",
++           f["largest_buyer_share_bps"]>d["max_largest_buyer_share_bps"])
++    reject("creator_distribution",
++           f["creator_sell_quote"]>d["max_creator_sell_quote"])
++
++    if f["roundtrip_loss_bps"] is not None:
++        reject("roundtrip_friction",
++               f["roundtrip_loss_bps"]>e["max_immediate_roundtrip_loss_bps"])
++    if f["double_size_roundtrip_loss_bps"] is not None:
++        reject("stress_friction",
++               f["double_size_roundtrip_loss_bps"]>e["max_double_size_roundtrip_loss_bps"])
++    reject("insufficient_executable_capacity",
++           f["proposed_quote_amount"]<f["minimum_quote_amount"] or
++           f["proposed_quote_amount"]<=0)
++
++    priority=(
++        int(f["long_return_bps"] or -10**9),
++        int(f["return_6h_bps"] or -10**9),
++        int(f["independent_buyers_30m"]),
++        int(f["buy_sell_ratio_bps"]),
++        -int(f["roundtrip_loss_bps"] or 10**9),
++    )
++    return dict(
++        strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,
++        paper_only=True,live_money=False,
++        candidate=not reasons,all_rejections=reasons,
++        proposed_quote_amount=(f["proposed_quote_amount"] if not reasons else 0),
++        priority=priority,features=f,
++    )
++
++
++def select_entries(rows,open_positions=0):
++    """Cross-sectional selection without fitted weights.
++
++    Eligible survivors are ordered lexicographically by persistent trend, breadth,
++    flow and execution cost.  At most the remaining portfolio slots are returned.
++    """
++    capacity=max(0,POLICY["execution"]["max_open_positions"]-int(open_positions))
++    decisions=[evaluate_entry(row) for row in rows]
++    eligible=[(row,decision) for row,decision in zip(rows,decisions) if decision["candidate"]]
++    eligible.sort(key=lambda pair:tuple(-x for x in pair[1]["priority"]))
++    return eligible[:capacity],decisions
++
++
++def exit_action(
++    *,after_cost_return_bps,high_water_return_bps,hold_seconds,
++    seconds_since_high,buy_quote_30m,sell_quote_30m,new_buyers_30m,
++    deterioration_streak=0,
++):
++    """Full-exit lifecycle for the independent post-graduation position."""
++    x=POLICY["exit"]
++    current=int(after_cost_return_bps);high=max(current,int(high_water_return_bps))
++    if int(hold_seconds)>=x["max_hold_seconds"]:
++        return dict(action="full_exit",reason="max_hold")
++    if current<=x["hard_stop_bps"]:
++        return dict(action="full_exit",reason="hard_stop")
++
++    current_index=max(1,10_000+current)
++    high_index=max(current_index,10_000+high)
++    drawdown=(high_index-current_index)*10_000//high_index
++    trail=(
++        x["tighter_trailing_drawdown_bps"]
++        if high>=x["tighter_trailing_arm_bps"]
++        else x["trailing_drawdown_bps"]
++    )
++    if high>=x["trailing_arm_bps"] and drawdown>=trail:
++        return dict(action="full_exit",reason="high_water_trailing_stop")
++
++    ratio=buy_sell_ratio_bps(buy_quote_30m,sell_quote_30m)
++    soft=ratio<x["demand_failure_ratio_bps"] and int(new_buyers_30m)<=0
++    if soft and int(deterioration_streak)>=x["demand_failure_confirmations"]:
++        return dict(action="full_exit",reason="persistent_demand_failure")
++    if soft:
++        return dict(action="hold",reason="demand_deterioration_confirmation")
++
++    if (
++        int(hold_seconds)>=x["no_new_high_seconds"]
++        and int(seconds_since_high)>=x["no_new_high_seconds"]
++        and current<x["no_new_high_return_ceiling_bps"]
++    ):
++        return dict(action="full_exit",reason="stale_thesis")
++    if int(hold_seconds)>=x["max_hold_seconds"]:
++        return dict(action="full_exit",reason="max_hold")
++    return dict(action="hold",reason=None)
++
++
++def risk_policy():
++    x=POLICY['exit']
++    return dict(hard_stop_bps=x['hard_stop_bps'],first_profit_bps=x['first_profit_bps'],
++        first_sell_bps=x['first_sell_bps'],trail_bps=x['trailing_drawdown_bps'],
++        tight_arm_bps=x['tighter_trailing_arm_bps'],tight_trail_bps=x['tighter_trailing_drawdown_bps'],
++        soft_confirmations=x['demand_failure_confirmations'],maximum_hold_seconds=x['max_hold_seconds'],
++        stale_seconds=x['no_new_high_seconds'],stale_return_ceiling_bps=x['no_new_high_return_ceiling_bps'])
+diff --git a/robinhood_research/pons_selective_capital.py b/robinhood_research/pons_selective_capital.py
+index 38a4454449492b7cb12f0a108cbaf56c7552b126..bc725377da228566addba769ac3bb9bb4102db64 100644
+--- a/robinhood_research/pons_selective_capital.py
++++ b/robinhood_research/pons_selective_capital.py
+@@ -28,6 +28,22 @@ class CohortCapital:
+             db.execute('INSERT OR IGNORE INTO capital_genesis VALUES(1,?)',(genesis,))
+             if db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0]!=genesis:
+                 raise BoundaryError('selective_cohort_genesis_mismatch')
++        self.recover_shared_terminals()
++
++    def recover_shared_terminals(self):
++        from certification.directional_sleeve import open_sleeve,native_terminal
++        sleeve=open_sleeve('pons',self.capital)
++        if sleeve is None:return
++        with closing(sleeve),closing(self._connect()) as db:
++            verified=self.reconcile()
++            if not verified.get('native_observation_complete'):return
++            for raw, in db.execute('SELECT body FROM capital_positions'):
++                row=json.loads(raw);held=sleeve.get(row['id'])
++                if row['status']=='settled' and held and held['held']:
++                    position=row.get('native_position')
++                    if position is None or digest(position)!=row.get('native_settlement_hash'):
++                        raise BoundaryError('selective_terminal_recovery_proof')
++                    native_terminal(sleeve,row['id'],position,row['at'],verified=True)
+ 
+     def _connect(self):
+         db=sqlite3.connect(self.path,timeout=30,isolation_level=None)
+@@ -151,6 +167,10 @@ class CohortCapital:
+ 
+     def reserve(self,identity,amount,*,at,decision_hash,trial_path):
+         if type(amount) is not int or amount<=0:raise BoundaryError('selective_cohort_reservation_invalid')
++        from certification.directional_sleeve import open_sleeve
++        sleeve=open_sleeve('pons',self.capital)
++        if sleeve is not None:
++            with closing(sleeve):sleeve.reserve(identity,strategy=STRATEGY_NAMESPACE,amount=amount,at=int(at))
+         with closing(self._connect()) as db:
+             db.execute('BEGIN IMMEDIATE')
+             try:
+@@ -180,5 +200,10 @@ class CohortCapital:
+                 if 'native_position' in row and row['native_position']!=position:
+                     raise BoundaryError('selective_cohort_unobserved_settlement')
+                 row.update(status='settled',reserved=0,pnl=pnl,at=int(at),native_settlement_hash=digest(position))
+-                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
++                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT')
+             except BaseException:db.execute('ROLLBACK');raise
++        from certification.directional_sleeve import open_sleeve,native_terminal
++        sleeve=open_sleeve('pons',self.capital)
++        if sleeve is not None:
++            with closing(sleeve):native_terminal(sleeve,identity,position,int(at),verified=True)
++        return rec
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..4830b4281bfc7ac791f02c6f62a082aa05b94e57 100644
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@ -195,6 +195,7 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
+         started_at=result["started_at"],
+         canonical_discovery_cursor=int(cursor),
+         summary=_summary_snapshot(result),
++        survivor=result.get('survivor'),active_regimes=result.get('active_regimes'),
+         discovery_sessions=list(result["discovery_sessions"][-16:]),
+         discovery_session_count=len(result['discovery_sessions']),
+         provider_session_archive=str(PROVIDER_LOG),
+@@ -592,6 +593,13 @@ def run(endpoint,*,campaign=False):
+         result["opportunity_coverage"]=pipeline.snapshot()
+         result['capacity_censored']=result['opportunity_coverage']['unique_classes']['capacity_censored']
+     rpc=_discovery(endpoint)
++    survivor=None
++    if os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')=='1':
++        from certification.survivor_history import Worker
++        from .pons_survivor_runtime import Runtime
++        run_id=os.environ['MM_CERTIFICATION_RUN_ID']
++        survivor=Worker(lambda:Runtime(ROOT/'pons-survivor',STRATEGY_CAPITAL_QUOTE,run_id,endpoint))
++        result['active_regimes']=['pons-selective-continuation-v1','pons-postgrad-survivor-momentum-v1']
+     feed=SequencerBlockClock();feed.connect()
+     cursor=feed.wait_for_after(-1,timeout=5.0)
+     if cursor is None:
+@@ -733,6 +741,7 @@ def run(endpoint,*,campaign=False):
+             futures=[item for item in futures if id(item[1]) not in collected_futures]
+             now=time.time()
+             now_monotonic=time.monotonic()
++            if survivor is not None:result['survivor']=survivor.tick(now,admit=True)
+             for event in fresh:
+                 identity=(event["transactionHash"],event["logIndex"])
+                 is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
+@@ -953,6 +962,7 @@ def run(endpoint,*,campaign=False):
+         _append_jsonl(PROVIDER_LOG,terminal_provider)
+     finally:
+         # Resolve any externally in-flight work; its durable generation still fences it.
++        if survivor is not None:result['survivor']=survivor.close()
+         discovery_pool.shutdown(wait=True)
+         hydration_pool.shutdown(wait=True)
+         if hydration is not None:
+diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_research/pons_selective_continuation.py
+index ad93ee7ea258a8e95a3a07eb30670795fc135985..9891fda8008548939897ef3871eb907f6352a3b4 100644
+--- a/robinhood_research/pons_selective_continuation.py
++++ b/robinhood_research/pons_selective_continuation.py
+@@ -15,7 +15,8 @@ from . import BoundaryError
+ from .evidence import digest
+ 
+ POLICY = "pons-selective-continuation-v1"
+-POLICY_REVISION = "profitability-v1-profit-protection-v2"
++POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1"
++from certification.execution_capacity import resize, buyer_persistence
+ ZERO = "0x0000000000000000000000000000000000000000"
+ 
+ ENTRY_THRESHOLDS = dict(
+@@ -42,6 +43,9 @@ ENTRY_THRESHOLDS = dict(
+     max_state_age_seconds=5,
+     min_fill_breadth_retention_bps=6000,
+     max_market_events=512,
++    execution_stress_multiple=2,
++    sizing_search_steps=32,
++    repeat_buyer_diagnostics_only=True,
+ )
+ POST_GRAD_THRESHOLDS = dict(
+     min_observation_seconds=5,
+@@ -256,7 +260,14 @@ def demand_metrics(events, *, asof, creator_groups=()):
+         else 0 if current_buy == 0
+         else current_buy * 10_000 // current_sell
+     )
++    repeats = buyer_persistence([dict(id=r["identity"], at=int(r["event_at"]),
++        group=str(r["group"]).lower(), quote=int(r["quote"]), buy=r["side"]=="buy",
++        authenticated=True) for r in valid], now=int(asof), window_seconds=15,
++        excluded_groups=creator)
+     return dict(
++        repeat_independent_groups=repeats["repeat_buyers"],
++        repeat_buyer_share_bps=repeats["repeat_buyer_share_bps"],
++        persistent_buyer_groups=repeats["persistent_buyer_groups"],
+         independent_groups=len(independent_groups),
+         new_independent_groups_15s=len(new_groups_15),
+         independent_group_ids=sorted(independent_groups),
+@@ -454,10 +465,11 @@ def qualification_vector(
+         strategy_capital_quote=strategy_capital_quote,
+         independent_net_quote=demand["current_net_quote"],
+     )
+-    friction = (
+-        None if size["amount_quote"] <= 0
+-        else roundtrip_loss_bps(state, size["amount_quote"], lifecycle_gas_quote)
+-    )
++    capacity = resize(size["amount_quote"], 1,
++        lambda n: roundtrip_loss_bps(state,n,lifecycle_gas_quote),
++        ordinary_limit=ENTRY_THRESHOLDS["max_roundtrip_loss_bps"])
++    size.update(amount_quote=capacity.final_size, execution_capacity=capacity.telemetry())
++    friction = capacity.ordinary_loss_bps
+ 
+     rejections = []
+     def reject(reason):
+@@ -548,6 +560,11 @@ def qualification_vector(
+         token_age_seconds=token_age,
+         trajectory=traj,
+         demand=demand,
++        confirmation_context=dict(repeat_independent_groups=demand['repeat_independent_groups'],
++            repeat_buyer_share_bps=demand['repeat_buyer_share_bps'],persistent_buyer_groups=demand['persistent_buyer_groups']),
++        ranking_context=dict(qualified=bool(complete and not rejections),
++            repeat_buyer_tiebreak=[demand['repeat_independent_groups'],demand['repeat_buyer_share_bps']],
++            execution_stress_alpha_weight=0),
+         wallet_convergence=convergence,
+         creator_history=creator_history,
+         current_snipe_bps=int(current_snipe_bps),
+diff --git a/robinhood_research/pons_selective_ledger.py b/robinhood_research/pons_selective_ledger.py
+index 9fc8803858c6832a2ee4c748fbbe8905204f2a37..5d3d60bd8db24f87cb7aa3ec9167ac9e0c710467 100644
+--- a/robinhood_research/pons_selective_ledger.py
++++ b/robinhood_research/pons_selective_ledger.py
+@@ -111,6 +111,10 @@ class SelectivePaper:
+             return
+         before=previous["position"];q=event["quote"]
+         expected={k:before[k] for k in ("cost","remaining_cost","realized_proceeds","realized_pnl","tokens")}
++        if event["action"]=="resize":
++            if (before['status']!='reserved' or p['status']!='reserved'
++                    or not 0<p['amount']<=before['amount'] or p['reserved']!=before['reserved']):
++                raise BoundaryError('selective_resize_replay_mismatch')
+         if event["action"]=="entry":
+             if q is None or q["amount_in"]!=before["amount"]:
+                 raise BoundaryError("selective_entry_replay_mismatch")
+@@ -280,6 +284,24 @@ class SelectivePaper:
+         if self.on_commit:self.on_commit(self,p)
+         return p
+ 
++    def resize_reservation(self,identity,amount,now):
++        """Lower the intended fill; retain the original capital hold until terminal."""
++        if type(amount) is not int or amount<=0:
++            raise BoundaryError('selective_resize_amount')
++        self.store.db.execute('BEGIN IMMEDIATE')
++        try:
++            p=self._get(identity)
++            if p['status']!='reserved' or amount>p['amount'] or now<p['last_at']:
++                raise BoundaryError('selective_resize_boundary')
++            if amount!=p['amount']:
++                p.update(amount=amount,version=p['version']+1,last_at=int(now))
++                self._save(p,'resize',now)
++            self.store.db.execute('COMMIT')
++        except BaseException:
++            self.store.db.execute('ROLLBACK');raise
++        if self.on_commit:self.on_commit(self,p)
++        return p
++
+     def advance(
+         self,identity,*,now,action,quote=None,transition=None,
+         finality_ledger=None,cancel_reason=None,exit_tokens=None,
+diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
+index b2b55e0945c73414888f57762a7042091ebdc113..04a900f5fc6c848df3f73421a5ff30a102fbe6cf 100644
+--- a/robinhood_research/pons_selective_paper.py
++++ b/robinhood_research/pons_selective_paper.py
+@@ -5,6 +5,17 @@ shared components are neutral Pons protocol authentication, read-only provider,
+ finality and paper-execution primitives.  No continuation-v1, Ramses, Pump.fun or
+ other strategy signal/threshold/state is imported.
+ """
++from certification.execution_capacity import resize
++
++
++def _entry_capacity(metadata,amount,gas_quote):
++    from .pons import CurveState
++    from .pons_selective_continuation import roundtrip_loss_bps,ENTRY_THRESHOLDS
++    from . import BoundaryError
++    try:state=CurveState(**metadata['state'])
++    except (KeyError,TypeError,ValueError):raise BoundaryError('selective_capacity_state_missing') from None
++    return resize(amount,1,lambda n:roundtrip_loss_bps(state,n,int(gas_quote)*2),
++                  ordinary_limit=ENTRY_THRESHOLDS['max_roundtrip_loss_bps'])
+ from dataclasses import asdict
+ import time
+ import uuid
+@@ -543,10 +554,28 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+             _entry_generation(evaluation)
+             result['entry_persistence']['final_quote_provider_before']=rpc.telemetry()
+             final_started_wall=time.time();final_started=time.monotonic()
+-            entry,entry_meta,entry_ledger=_wait_curve_quote(
+-                rpc,candidate,"buy",amount,gas_units,store,"selective-entry-final",
+-                reserved["due"],seconds=30,local_freshness=True,
+-            )
++            original_amount=amount;capacity_probes=[];capacity_binding=None
++            for capacity_attempt in range(4):
++                entry,entry_meta,entry_ledger=_wait_curve_quote(
++                    rpc,candidate,"buy",amount,gas_units,store,"selective-entry-final",
++                    reserved["due"],seconds=30,local_freshness=True,
++                )
++                capacity=_entry_capacity(entry_meta,amount,entry.gas_quote)
++                capacity_probes.append(capacity.telemetry())
++                if capacity.final_size<amount and capacity_binding is None:capacity_binding=capacity.binding_reason
++                result['execution_capacity']=dict(capacity.telemetry(),original_size=original_amount,
++                    binding_reason=capacity_binding or capacity.binding_reason,sizing_attempts=capacity_probes)
++                if capacity.final_size<=0:
++                    raise BoundaryError('selective_execution_capacity')
++                if capacity.final_size==amount:break
++                amount=capacity.final_size
++                paper.resize_reservation(identity,amount,int(time.time()))
++                reference=candidate['state'].buy_with_snipe(amount,0)
++                min_tokens=reference['tokens_out']*(10000-ENTRY_SLIPPAGE_BPS)//10000
++                result['minimum_fill_tokens']=min_tokens
++                _entry_generation(evaluation)
++            else:
++                raise BoundaryError('selective_capacity_state_unstable')
+             final_received=time.monotonic()
+             result['entry_persistence']['final_quote_provider_after']=rpc.telemetry()
+             result['entry_persistence']['final_quote_acquisition_seconds']=final_received-final_started
+diff --git a/robinhood_research/pons_survivor_runtime.py b/robinhood_research/pons_survivor_runtime.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..69d1ed6a399def67579d1b3b527ff252f71e1ae6
+--- /dev/null
++++ b/robinhood_research/pons_survivor_runtime.py
+@@ -0,0 +1,328 @@
++"""Independent Pons V2 graduation discovery and active PAPER Survivor controller.
++
++All transport uses the existing canonical Robinhood provider and governor. The
++Candidate/Evidence Plane owns generation fencing. History is incremental and
++bounded; it is never reconstructed by an unbounded seven-day RPC scan.
++"""
++from collections import defaultdict
++from contextlib import contextmanager
++from dataclasses import asdict
++import os
++from pathlib import Path
++import time
++
++from certification.directional_sleeve import open_sleeve
++from certification.execution_capacity import resize,buyer_persistence
++from certification.journal import digest
++from certification.survivor_commit import commit,monitor,handoff_ready
++from certification.survivor_history import History
++from certification.survivor_paper_book import PaperBook
++from certification.robinhood.plane import Plane
++from certification.robinhood.pons import plane_path
++from . import BoundaryError
++from .abi import calldata,words,scalar
++from .identity import load,authenticate
++from .keccak import keccak256
++from .protocols import PoolKey
++from .provider_topology import configured_rpc
++from .provider_admission import decision_work,position_work
++from .pons_natural_observation import _latest_header,_one_word,ZERO
++from .pons_natural_paper import (_graduation_transition,_factory_record_at,_event_topic,
++    _v4_quoter_calldata,V4_QUOTER)
++from .pons_selective_v4 import collect_v4_activity
++from .pons_postgrad_survivor import POLICY,POLICY_HASH,STRATEGY_VERSION,evaluate_entry,risk_policy
++
++
++def price_index(sqrt,token,key):
++    if sqrt<=0:raise BoundaryError('survivor_v4_price')
++    return sqrt*sqrt*10**18//(1<<192) if token==key.currency0 else (1<<192)*10**18//(sqrt*sqrt)
++
++
++class Quotes:
++    """A bounded ladder, quoted at one authenticated block in two RPC batches.
++
++Each ladder point has its exact 2x probe. No interpolation invents executable
++capacity. Searching cached quotes issues zero additional provider calls.
++"""
++    def __init__(self,runtime,state,budget):
++        self.runtime=runtime;self.state=state;self.cache={};self.acquired=time.monotonic()
++        rpc=runtime.rpc;key=PoolKey(**runtime.current['graduation']['key'])
++        block=hex(state['block']);minimum=runtime.capital*5//10000
++        sizes={budget,minimum}
++        for i in range(1,4):sizes.add(max(minimum,budget//2**i))
++        sizes={n for n in sizes if minimum<=n<=budget};sizes|={2*n for n in sizes}
++        # Gas is an explicit conservative reservation, checked against each
++        # quoter simulation. If it is inadequate the quote fails closed.
++        units=max(500000,2*runtime.current['graduation']['transition']['graduation_gas_used'])
++        gas_price=int(rpc.call('eth_gasPrice',[],scope='pons_survivor'),16)
++        buffer=units*gas_price
++        code,manager=rpc.batch([
++            ('eth_getCode',[V4_QUOTER,block]),
++            ('eth_call',[dict(to=V4_QUOTER,data=calldata('poolManager()')),block])],scope='pons_survivor')
++        if not code or code=='0x' or _one_word(manager,'address')!=load('uniswap_v4_manager')['address'].lower():
++            raise BoundaryError('survivor_quoter_authority')
++        ordered=sorted(n for n in sizes if n>buffer)
++        if not ordered:return
++        buys=rpc.batch([('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(key,key.currency0==ZERO,n-buffer)),block])
++                        for n in ordered],scope='pons_survivor')
++        decoded=[tuple(scalar('uint256',w) for w in words(raw)) for raw in buys]
++        if any(len(v)!=2 or v[0]<=0 for v in decoded):raise BoundaryError('survivor_buy_quote_shape')
++        sells=rpc.batch([('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(key,key.currency0!=ZERO,v[0])),block])
++                         for v in decoded],scope='pons_survivor')
++        for n,b,raw in zip(ordered,decoded,sells):
++            s=tuple(scalar('uint256',w) for w in words(raw))
++            if len(s)!=2 or s[0]<=0:continue
++            entry_gas=max(units,b[1]*2)*gas_price;exit_gas=max(units,s[1]*2)*gas_price
++            cost=n-buffer+entry_gas
++            if cost>n:continue
++            self.cache[n]=dict(cost=cost,quantity=b[0],net_proceeds=max(0,s[0]-exit_gas),
++                gas=entry_gas,roundtrip_gas=entry_gas+exit_gas,
++                block=state['block'],block_hash=state['block_hash'],acquired=time.monotonic(),
++                loss_bps=max(0,(cost-max(0,s[0]-exit_gas))*10000//cost))
++
++    def loss(self,n):return self.cache.get(n,{}).get('loss_bps')
++    def entry(self,n):
++        if n not in self.cache:raise BoundaryError('survivor_executable_size_missing')
++        return dict(self.cache[n])
++
++
++class Runtime:
++    def __init__(self,root,capital,run_id,endpoint):
++        self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
++        self.capital=capital;self.run_id=run_id;self.endpoint=endpoint
++        self.sleeve=open_sleeve('pons',capital)
++        if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
++        self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
++        self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_VERSION,
++                            policy_hash=POLICY_HASH,initial=capital)
++        self.plane=Plane(plane_path(self.root/'candidate-evidence.sqlite'))
++        self.rpc=None;self.current=None;self.last_error=None
++
++    def now(self):return int(time.time())
++    def _provider(self):
++        if self.rpc is None or self.rpc.used>150:
++            self.rpc=configured_rpc(self.endpoint,limit=240,per_scope=220,retries=0)
++        if not getattr(self,'deployments_verified',False):
++            roles=('pons_v2_factory','pons_v2_hook','uniswap_v4_manager')
++            results=self.rpc.batch([('eth_getCode',[load(role)['address'],'latest']) for role in roles],scope='pons_survivor')
++            for role,code in zip(roles,results):authenticate(role,load(role)['address'],code)
++            self.deployments_verified=True
++
++    @decision_work(4)
++    def discover(self):
++        header=_latest_header(self.rpc);top=int(header['number'],16)
++        cursor=self.history.get_meta('discovery_block')
++        if cursor is None:self.history.set_meta('discovery_block',top);return
++        if top<=cursor:return
++        end=min(top,cursor+10);factory=load('pons_v2_factory')['address'].lower()
++        events=self.rpc.call('eth_getLogs',[dict(address=factory,fromBlock=hex(cursor+1),toBlock=hex(end),
++            topics=[_event_topic('pons_v2_factory','PoolGraduated')])],scope='pons_survivor')
++        if len(events)>32:raise BoundaryError('survivor_graduation_batch_capacity')
++        for event in events:
++            if len(event['topics'])<2:raise BoundaryError('survivor_graduation_token')
++            token='0x'+event['topics'][1][-40:].lower();block=int(event['blockNumber'],16)
++            report={};record=_factory_record_at(self.rpc,token,block,report)
++            result=_graduation_transition(self.rpc,dict(token=token,curve=record['curve']),block,block,report)
++            if result is None:raise BoundaryError('survivor_graduation_missing')
++            transition,key,h,record=result
++            if record['pairToken']!=ZERO:continue
++            evidence=dict(at=transition['graduation_at'],block=block,block_hash=h['hash'],
++                transition=transition,key=asdict(key),record=record,
++                source='robinhood_authenticated_candidate_evidence_plane')
++            row=self.history.graduate(token,evidence)
++            if row.get('block') is None:
++                row['block']=block;self.history.save(row)
++                p=price_index(transition['initialization_sqrt_price_x96'],token,key)
++                self.history.append(token,through=evidence['at'],events=[],points=[(evidence['at'],str(p))],complete=True)
++        self.history.set_meta('discovery_block',end)
++
++    def _increment(self,row,end):
++        start=row['block']+1
++        if end<start:return
++        if end-start>=40:raise BoundaryError('survivor_incremental_slice_required')
++        key=PoolKey(**row['graduation']['key']);pool=row['graduation']['transition']['market']
++        tape=collect_v4_activity(self.endpoint,pool_id=pool,key=key,token=row['id'],
++            start_block=start,end_block=end,max_events=256)
++        h=self.rpc.call('eth_getBlockByNumber',[hex(end),False],scope='pons_survivor')
++        # The preceding boundary must still have the authenticated hash recorded
++        # at the last watermark. A fork never becomes clean historical evidence.
++        previous=self.rpc.call('eth_getBlockByNumber',[hex(row['block']),False],scope='pons_survivor')
++        expected=row.get('block_hash',row['graduation']['block_hash'])
++        if previous['hash']!=expected:raise BoundaryError('survivor_history_reorg')
++        at=int(h['timestamp'],16);events=[];points={}
++        for e in tape['swaps']:
++            events.append(dict(id=e['identity'],at=e['event_at'],group=e['group'],buy=e['side']=='buy',
++                quote=e['quote'],tokens=e['tokens'],authenticated=True))
++            points[e['event_at']]=str(e['price_index'])
++        self.history.append(row['id'],through=at,events=events,points=sorted(points.items()),complete=True)
++        updated=self.history.get(row['id']);updated.update(block=end,block_hash=h['hash']);self.history.save(updated)
++
++    def fresh_state(self,candidate):
++        self._provider();self.current=self.history.get(candidate)
++        header=_latest_header(self.rpc);block=int(header['number'],16)
++        if block-self.current['block']>40:raise BoundaryError('survivor_monitoring_not_caught_up')
++        pool=self.current['graduation']['transition']['market'];manager=load('uniswap_v4_manager')['address'].lower()
++        slot=keccak256(bytes.fromhex(pool[2:])+(6).to_bytes(32,'big'))
++        data='0x'+keccak256(b'extsload(bytes32)').hex()[:8]+slot.hex()
++        raw=self.rpc.call('eth_call',[dict(to=manager,data=data),hex(block)],scope='pons_survivor')
++        value=words(raw)
++        if len(value)!=1:raise BoundaryError('survivor_v4_state_shape')
++        sqrt=scalar('uint256',value[0])&((1<<160)-1)
++        key=PoolKey(**self.current['graduation']['key'])
++        return dict(block=block,block_hash=header['hash'],at=int(header['timestamp'],16),
++                    price_index=price_index(sqrt,candidate,key),acquired=time.monotonic())
++
++    def fresh_quotes(self,state,budget):return Quotes(self,state,budget)
++
++    def reconstruct(self,state,quotes):
++        row=self.current;self._increment(row,state['block'])
++        self.history.append(row['id'],through=state['at'],events=[],points=[(state['at'],str(state['price_index']))],complete=True)
++        points,events=self.history.facts(row['id'],state['at']);now=state['at']
++        record=row['graduation']['record'];creators={str(record[k]).lower() for k in ('deployer','creatorFeeRecipient') if record.get(k)}
++        flow=buyer_persistence([e for e in events if e['group'] not in creators],now=now,window_seconds=1800)
++        def window(lower,upper):
++            rows=[e for e in events if lower<=e['at']<upper and e['group'] not in creators]
++            groups=defaultdict(int)
++            for e in rows:
++                if e['buy']:groups[e['group']]+=e['quote']
++            total=sum(groups.values())
++            return dict(buy_quote=total,sell_quote=sum(e['quote'] for e in rows if not e['buy']),
++                buyer_groups=sorted(groups),new_buyer_groups=sorted(set(groups)-set(flow['previous_buyer_groups'])),
++                buy_quote_by_group=dict(groups),largest_buyer_flow_bps=0 if not total else max(groups.values())*10000//total,
++                creator_sell_quote=sum(e['quote'] for e in events if lower<=e['at']<upper and not e['buy'] and e['group'] in creators))
++        cap=min(self.capital*25//10000,flow['turnover']//40)
++        capacity=resize(cap,self.capital*5//10000,quotes.loss,ordinary_limit=350,stress_limit=500,max_steps=4)
++        self.facts=dict(now=now,graduation_at=row['graduation']['at'],lineage_proven=True,native_quote=True,
++            price_points=[dict(at=p['at'],price_index=int(p['price'])) for p in points],
++            flow_30m=window(now-1800,now+1),flow_previous_30m=window(now-3600,now-1800),
++            capital_quote=self.capital,continuity_complete=self.history.get(row['id'])['complete'],
++            execution=dict(roundtrip_loss_bps=capacity.ordinary_loss_bps,
++                double_size_roundtrip_loss_bps=capacity.double_loss_bps,capacity=capacity.telemetry()),
++            organic_flow=flow)
++        return self.facts
++
++    def qualify(self,facts):
++        result=evaluate_entry(facts)
++        result['features'].update(independent_buyers=result['features']['independent_buyers_30m'])
++        if facts.get('continuity_complete') is not True:
++            result['candidate']=False;result['all_rejections'].append('incomplete_continuity')
++        return result
++
++    def turnover_cap(self,facts,decision):return decision['features']['turnover_quote_30m']//40
++
++    @contextmanager
++    def generation_fence(self,candidate,generation):
++        with self.plane.transaction():
++            row=self.plane.get('pons:survivor:'+candidate)
++            if row is None or row['generation']!=self.current['plane_generation']:
++                raise BoundaryError('survivor_generation_superseded')
++            yield
++
++    def validate_current(self,state,execution,now):
++        if execution['block_hash']!=state['block_hash'] or not 0<=time.monotonic()-state['acquired']<=5:
++            raise BoundaryError('survivor_stale_commit')
++
++    @position_work
++    def exit_quote(self,qty):
++        from .pons_natural_paper import _v4_quote
++        from .evidence import Store
++        grad=self.current['graduation'];key=PoolKey(**grad['key'])
++        store=Store(str(self.root/'quote-evidence.sqlite'))
++        try:
++            q,meta,ledger=_v4_quote(self.rpc,key,grad['transition']['market'],qty,
++                grad['transition']['graduation_gas_used'],store,'survivor_exit',local_freshness=True)
++            q.check(self.now(),q.market,'sell',qty,q.stamp.kind,finality_ledger=ledger)
++            return dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
++                acquired=time.monotonic(),block_hash=meta['block_hash'])
++        except BoundaryError:return None
++        finally:store.close()
++
++    def validate_exit(self,execution,qty,now):
++        if execution['quantity']!=qty or not 0<=time.monotonic()-execution['acquired']<=5:
++            raise BoundaryError('survivor_exit_quote_stale')
++
++    @decision_work(1)
++    def _enter(self,row):
++        return commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
++            strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,decision=row['decision'],regime=row['regime'],at=self.now(),
++            target=self.capital*25//10000,minimum=self.capital*5//10000,retention_bps=6000,
++            ordinary_limit=350,stress_limit=500,adapter=self,qualify=self.qualify)
++
++    @position_work
++    def _position(self,row,*,admit=True):
++        self.current=row
++        try:p=self.book._load(row['position'])
++        except ValueError:
++            if not admit:raise BoundaryError('survivor_continuation_unfilled_controller')
++            return self._enter(row)
++        if p['status'] in ('settled','cancelled'):
++            self.sleeve.release(row['position'],pnl=p['realized'],at=max(self.now(),p['last_at']),
++                terminal_hash=digest(p),native_verified=self.book.replay()['verified'],cancelled=p['status']=='cancelled')
++            row.update(position=None,state='settled');self.history.save(row);return
++        if p['status']=='reserved':
++            if not admit:raise BoundaryError('survivor_continuation_reservation')
++            return self._enter(row)
++        q=self.exit_quote(p['tokens']);net=None if q is None else q['net_proceeds']
++        events=[];flow=None;header=None
++        try:
++            header=_latest_header(self.rpc);end=int(header['number'],16)
++            self._increment(row,min(end,row['block']+40))
++            if end-self.history.get(row['id'])['block']<=1:
++                _,events=self.history.facts(row['id'],self.now())
++                flow=buyer_persistence(events,now=self.now(),window_seconds=1800)
++        except (ValueError,BoundaryError):pass
++        record=row['graduation']['record'];creators={record.get('deployer'),record.get('creatorFeeRecipient')}
++        observation=dict(id=header['hash'] if header else 'unavailable:'+str(self.now()),at=self.now(),
++            after_cost_return_bps=None if net is None else (net-p['basis'])*10000//p['basis'],
++            net_exit_proceeds=p['mark'] if net is None else net,exit_liquidity_valid=True if q is not None else None,
++            creator_distribution=any(not e['buy'] and e['group'] in creators for e in events),
++            soft_deterioration=None if flow is None else flow['buy_flow']*10000<flow['sell_flow']*8000 and flow['new_buyers']==0)
++        action=monitor(book=self.book,sleeve=self.sleeve,identity=row['position'],observation=observation,
++                       policy=risk_policy(),adapter=self)
++        if action['action']=='partial_exit':
++            row=self.history.get(row['id']);row['state']='runner';self.history.save(row)
++
++    @decision_work(4)
++    def step(self,*,admit):
++        try:
++            self._provider()
++            for row in self.history.rows():
++                if row.get('position'):self._position(row,admit=admit)
++            if admit:self.discover()
++            rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
++            if admit and rows:
++                row=rows[0];row['last_checked']=self.now();self.history.save(row)
++                header=_latest_header(self.rpc);end=int(header['number'],16)
++                self._increment(row,min(end,row['block']+40));row=self.history.get(row['id'])
++                age=self.now()-row['graduation']['at']
++                if age>604800:self.history.retire(row)
++                elif age<21600:row['state']='aging';self.history.save(row)
++                elif end-row['block']<=40:
++                    state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.capital*25//10000)
++                    decision=self.qualify(self.reconstruct(state,quotes));f=decision['features']
++                    regime=dict(at=state['at'],high_reset_cycle=f['reset_pullback_bps'],
++                        base_id=[f.get('base_low'),f.get('base_high')],buyer_population=self.facts['organic_flow']['buyer_groups'],
++                        independent_demand=f['independent_buyers_30m'],flow_regime=f['buy_sell_ratio_bps']//10000)
++                    key='pons:survivor:'+row['id']
++                    self.plane.observe(key,'pons',state['block_hash'],decision,ordering=(state['block'],),
++                        watermark=dict(block=state['block'],hash=state['block_hash']),interpretation=dict(policy=POLICY_HASH),
++                        observed=time.time(),deadline=None,priority=4,needs_work=False)
++                    observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
++                        state='qualified' if decision['candidate'] else 'breakout_watch',evidence=decision,regime=regime)
++                    row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
++                        generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
++                    if decision['candidate'] and sum(bool(r.get('position')) for r in self.history.rows())<POLICY['execution']['max_open_positions']:
++                        row['position']=self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime])
++                        row['state']='reserved';self.history.save(row);self._enter(row)
++                        row=self.history.get(row['id']);row['state']='filled'
++                    self.history.save(row)
++            self.last_error=None
++        except (ValueError,BoundaryError) as exc:self.last_error=str(exc)
++        return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
++                    candidate_count=len(self.history.rows()),last_boundary=self.last_error,
++                    accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
++                    policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
++                    durable_handoff=handoff_ready(self.book,self.history.rows()))
++
++    def close(self):
++        self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+diff --git a/robinhood_tests/test_pons_execution_acquisition.py b/robinhood_tests/test_pons_execution_acquisition.py
+index cc8fdd1dba943adfdc63d7bd047683384df4a02d..b64404872baa4e67e5a647603fd8ab27608569bc 100644
+--- a/robinhood_tests/test_pons_execution_acquisition.py
++++ b/robinhood_tests/test_pons_execution_acquisition.py
+@@ -11,6 +11,7 @@ from robinhood_research.pons_selective_capital import CohortCapital
+ from robinhood_research.pons_selective_paper import _curve_quote,run_lifecycle,STRATEGY_CAPITAL_QUOTE
+ from robinhood_research.pons_natural_paper import _curve_quote as serial_quote,RESEARCH_RECIPIENT
+ from robinhood_tests.test_pons_selective_continuation import state
++from certification.execution_capacity import resize
+ 
+ CURVE='0x'+'11'*20
+ 
+@@ -55,6 +56,7 @@ class ExecutionAcquisitionTests(unittest.TestCase):
+                 rpc=MagicMock();rpc.telemetry.return_value={}
+                 prefix='robinhood_research.pons_selective_paper.'
+                 with patch(prefix+'_validate_final_entry'),patch(prefix+'_confirm_entry_delta',return_value=({},[],{})),\
++                     patch(prefix+'_entry_capacity',side_effect=lambda meta,amount,gas:resize(amount,1,lambda n:100,ordinary_limit=600)),\
+                      patch(prefix+'paper_rpc',return_value=rpc),patch(prefix+'_gas_quote',return_value=(2,1)),\
+                      patch(prefix+'_wait_curve_quote',return_value=(fixture.quote(102,'buy',100,1000),{},None)),\
+                      patch(prefix+'_refresh_entry_persistence_signal',return_value=({}, {}, [])),\
+diff --git a/robinhood_tests/test_pons_position_provider_recovery.py b/robinhood_tests/test_pons_position_provider_recovery.py
+index dcec086c58d6e5d013f909d56f8f02fc9eb7f7f6..c856ff4d6248c4a61c7cfc23bee6d6a9f8894c5d 100644
+--- a/robinhood_tests/test_pons_position_provider_recovery.py
++++ b/robinhood_tests/test_pons_position_provider_recovery.py
+@@ -10,6 +10,7 @@ from robinhood_research.pons_selective_continuation import POLICY_HASH
+ from robinhood_research.pons_selective_ledger import JOURNAL_CATEGORY
+ from robinhood_research.pons_selective_paper import run_lifecycle,STRATEGY_CAPITAL_QUOTE
+ from robinhood_tests import test_pons_partial_accounting as accounting_fixture
++from certification.execution_capacity import resize
+ 
+ MODULE='robinhood_research.pons_selective_paper.'
+ class PositionRecoveryTests(unittest.TestCase):
+@@ -75,6 +76,7 @@ class PositionRecoveryTests(unittest.TestCase):
+             return {},{},[]
+         db=Path(folder)/'trial.sqlite';capital=Path(folder)/'capital.sqlite'
+         patches={'paper_rpc':lambda *a:rpc,'_gas_quote':lambda *a:(2,1),
++            '_entry_capacity':lambda meta,amount,gas:resize(amount,1,lambda n:100,ordinary_limit=600),
+             '_wait_curve_quote':wait_quote,'_curve_quote':quote,
+             '_refresh_entry_persistence_signal':self.persistent_entry_signal,
+             '_validate_final_entry':lambda *a:None,
+@@ -115,6 +117,7 @@ class PositionRecoveryTests(unittest.TestCase):
+             meta=dict(block=102,block_hash='h102',event_at=102,state={})
+             db=Path(d)/'trial.sqlite';capital=Path(d)/'capital.sqlite'
+             with patch(MODULE+'_validate_final_entry'),\
++                 patch(MODULE+'_entry_capacity',side_effect=lambda meta,amount,gas:resize(amount,1,lambda n:100,ordinary_limit=600)),\
+                  patch(MODULE+'_confirm_entry_delta',return_value=({},[],{})),\
+                  patch(MODULE+'paper_rpc',return_value=rpc),\
+                  patch(MODULE+'_gas_quote',return_value=(2,1)),\
+diff --git a/robinhood_tests/test_pons_postgrad_survivor.py b/robinhood_tests/test_pons_postgrad_survivor.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..49c70c465f118c17bf721cb525b94224e9e67c18
+--- /dev/null
++++ b/robinhood_tests/test_pons_postgrad_survivor.py
+@@ -0,0 +1,173 @@
++import unittest
++
++from robinhood_research.pons_postgrad_survivor import (
++    POLICY, STRATEGY_VERSION, evaluate_entry, exit_action, select_entries,
++    trend_efficiency_bps,
++)
++
++
++NOW=1_000_000
++
++
++def winner_points():
++    # A survivor trends higher, resets ~14% from an earlier peak, builds a two-hour
++    # base, then breaks out without a one-candle 20% chase.
++    return [
++        (NOW-30*60*60,10_000),
++        (NOW-24*60*60,10_200),
++        (NOW-12*60*60,12_000),
++        (NOW-8*60*60,13_000),
++        (NOW-6*60*60,11_600),
++        (NOW-4*60*60,11_800),
++        (NOW-2*60*60,11_300),
++        (NOW-90*60,11_500),
++        (NOW-30*60,11_700),
++        (NOW-16*60,11_800),
++        (NOW-5*60,12_600),
++        (NOW,12_900),
++    ]
++
++
++def facts(**changes):
++    d=dict(
++        now=NOW,graduation_at=NOW-30*60*60,lineage_proven=True,native_quote=True,
++        price_points=winner_points(),capital_quote=10**18,
++        flow_30m=dict(
++            buy_quote=10**17,sell_quote=5*10**16,
++            buyer_groups=["0x"+f"{i:040x}" for i in range(1,8)],
++            new_buyer_groups=["0x"+f"{i:040x}" for i in range(5,8)],
++            largest_buyer_flow_bps=2500,creator_sell_quote=0,
++        ),
++        flow_previous_30m=dict(buy_quote=6*10**16),
++        execution=dict(roundtrip_loss_bps=180,double_size_roundtrip_loss_bps=260),
++    )
++    d.update(changes);return d
++
++
++class PonsPostgradSurvivorTests(unittest.TestCase):
++    def test_open_market_style_survivor_breakout_qualifies(self):
++        out=evaluate_entry(facts())
++        self.assertTrue(out["candidate"],out["all_rejections"])
++        self.assertEqual(out["strategy"],STRATEGY_VERSION)
++        self.assertGreater(out["proposed_quote_amount"],0)
++
++    def test_volume_alone_cannot_rescue_downtrend(self):
++        points=[
++            (NOW-30*60*60,20_000),(NOW-24*60*60,18_000),
++            (NOW-8*60*60,14_000),(NOW-6*60*60,12_000),
++            (NOW-2*60*60,9_000),(NOW-30*60,9_300),(NOW,10_000),
++        ]
++        out=evaluate_entry(facts(price_points=points))
++        self.assertFalse(out["candidate"])
++        self.assertTrue(any(x in out["all_rejections"] for x in (
++            "weak_since_graduation","weak_long_trend","weak_6h_trend"
++        )))
++
++    def test_dead_cat_bounce_is_rejected_even_with_strong_recent_flow(self):
++        points=[
++            (NOW-30*60*60,20_000),(NOW-24*60*60,17_000),
++            (NOW-8*60*60,11_000),(NOW-6*60*60,9_000),
++            (NOW-2*60*60,7_000),(NOW-30*60,7_200),
++            (NOW-16*60,7_300),(NOW,8_500),
++        ]
++        out=evaluate_entry(facts(price_points=points))
++        self.assertFalse(out["candidate"])
++        self.assertIn("weak_since_graduation",out["all_rejections"])
++
++    def test_thin_market_and_concentrated_buyer_fail_closed(self):
++        f=facts(
++            flow_30m=dict(
++                buy_quote=10**15,sell_quote=2*10**14,
++                buyer_groups=["0x"+f"{i:040x}" for i in range(1,8)],
++                new_buyer_groups=["0x"+f"{i:040x}" for i in range(5,8)],
++                largest_buyer_flow_bps=5000,creator_sell_quote=0,
++            ),
++            execution=dict(roundtrip_loss_bps=500,double_size_roundtrip_loss_bps=900),
++        )
++        out=evaluate_entry(f)
++        self.assertFalse(out["candidate"])
++        self.assertIn("buyer_concentration",out["all_rejections"])
++        self.assertIn("roundtrip_friction",out["all_rejections"])
++        self.assertIn("stress_friction",out["all_rejections"])
++        self.assertIn("insufficient_executable_capacity",out["all_rejections"])
++
++    def test_creator_distribution_is_hard_reject(self):
++        flow=dict(facts()["flow_30m"]);flow["creator_sell_quote"]=1
++        out=evaluate_entry(facts(flow_30m=flow))
++        self.assertFalse(out["candidate"])
++        self.assertIn("creator_distribution",out["all_rejections"])
++
++    def test_one_buyer_pump_is_not_independent_demand(self):
++        flow=dict(facts()["flow_30m"])
++        flow["buyer_groups"]=["0x"+"11"*20]
++        flow["new_buyer_groups"]=["0x"+"11"*20]
++        out=evaluate_entry(facts(flow_30m=flow))
++        self.assertFalse(out["candidate"])
++        self.assertIn("insufficient_buyer_breadth",out["all_rejections"])
++
++    def test_late_vertical_extension_is_not_chased(self):
++        pts=winner_points()[:-2]+[(NOW-5*60,14_500),(NOW,15_000)]
++        out=evaluate_entry(facts(price_points=pts))
++        self.assertFalse(out["candidate"])
++        self.assertIn("late_extension",out["all_rejections"])
++
++    def test_cross_sectional_selection_prefers_persistent_strength(self):
++        a=facts()
++        b=facts(price_points=[
++            (at,price*(101 if i==len(winner_points())-1 else 100)//100)
++            for i,(at,price) in enumerate(winner_points())
++        ])
++        selected,decisions=select_entries([a,b],open_positions=0)
++        self.assertEqual(len(selected),2)
++        self.assertTrue(all(x["candidate"] for x in decisions))
++
++    def test_exit_hard_stop(self):
++        self.assertEqual(
++            exit_action(
++                after_cost_return_bps=-1000,high_water_return_bps=0,
++                hold_seconds=100,seconds_since_high=100,
++                buy_quote_30m=1,sell_quote_30m=1,new_buyers_30m=1,
++            )["reason"],"hard_stop"
++        )
++
++    def test_exit_trails_large_winner(self):
++        self.assertEqual(
++            exit_action(
++                after_cost_return_bps=2400,high_water_return_bps=4000,
++                hold_seconds=10_000,seconds_since_high=600,
++                buy_quote_30m=2,sell_quote_30m=1,new_buyers_30m=1,
++            )["reason"],"high_water_trailing_stop"
++        )
++
++    def test_soft_demand_failure_requires_confirmation(self):
++        first=exit_action(
++            after_cost_return_bps=500,high_water_return_bps=1000,
++            hold_seconds=1000,seconds_since_high=1000,
++            buy_quote_30m=7,sell_quote_30m=10,new_buyers_30m=0,
++            deterioration_streak=1,
++        )
++        second=exit_action(
++            after_cost_return_bps=500,high_water_return_bps=1000,
++            hold_seconds=1000,seconds_since_high=1000,
++            buy_quote_30m=7,sell_quote_30m=10,new_buyers_30m=0,
++            deterioration_streak=2,
++        )
++        self.assertEqual(first["action"],"hold")
++        self.assertEqual(second["reason"],"persistent_demand_failure")
++
++    def test_strategy_has_no_pregrad_import_dependency(self):
++        import inspect
++        import robinhood_research.pons_postgrad_survivor as module
++        source=inspect.getsource(module)
++        self.assertNotIn("pons_selective_continuation",source)
++        self.assertNotIn("pons_opportunity_research",source)
++
++    def test_efficiency_penalizes_chop(self):
++        self.assertGreater(
++            trend_efficiency_bps([100,110,120,130]),
++            trend_efficiency_bps([100,130,90,130]),
++        )
++
++
++if __name__=="__main__":
++    unittest.main()
+diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
+index 372e10021cc9f437493211b7adb46f41831196eb..a700bdb4fd8d9904c59aeb763a020597f244b939 100644
+--- a/robinhood_tests/test_pons_selective_continuation.py
++++ b/robinhood_tests/test_pons_selective_continuation.py
+@@ -96,7 +96,7 @@ def vector(**overrides):
+ class PonsSelectivePolicyTests(unittest.TestCase):
+     def test_policy_is_distinct_and_frozen(self):
+         self.assertEqual(POLICY,"pons-selective-continuation-v1")
+-        self.assertEqual(POLICY_HASH,"19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84")
++        self.assertEqual(POLICY_HASH,"3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa")
+         self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5000)
+         self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8500)
+         self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],120)

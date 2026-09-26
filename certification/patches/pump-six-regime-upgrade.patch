@@ -1,0 +1,989 @@
+diff --git a/meme_machine/postgrad.py b/meme_machine/postgrad.py
+index 82193ee244c95244f7fb3aa4579623e27feb7aa0..6fd38403aa65fb5722a380f946018e6b42e83ac7 100644
+--- a/meme_machine/postgrad.py
++++ b/meme_machine/postgrad.py
+@@ -449,7 +449,7 @@ class PostGraduationAdapter:
+         graduation_handoff(snapshot, max(now, snapshot['available_time']))
+         return snapshot
+ 
+-    def pumpswap_snapshot(self, handoff, now, priority=True):
++    def pumpswap_snapshot(self, handoff, now, priority=True, *, additional_accounts=()):
+         pool_key = pumpswap_pool(handoff.mint)
+         probe = self.rpc.call(
+             'getMultipleAccounts',
+@@ -464,6 +464,7 @@ class PostGraduationAdapter:
+             pool_key, handoff.mint, metadata['base_vault'], metadata['quote_vault'],
+             self.fee_address,
+         ]
++        addresses.extend(additional_accounts)
+         result = self.rpc.call(
+             'getMultipleAccounts',
+             [addresses, {'encoding':'base64', 'commitment':'finalized'}],
+@@ -471,7 +472,7 @@ class PostGraduationAdapter:
+         )
+         if len(result.get('value') or []) != len(addresses) or any(x is None for x in result['value']):
+             raise Unavailable('pumpswap_accounts_missing')
+-        pool_account, mint_account, base_vault, quote_vault, fee_account = result['value']
++        pool_account, mint_account, base_vault, quote_vault, fee_account = result['value'][:5]
+         metadata = _decode_pumpswap_pool(pool_key, pool_account, handoff.mint)
+         supply, decimals = pump.mint_info(mint_account)
+         if decimals <= 0 or supply <= 0:
+@@ -509,6 +510,7 @@ class PostGraduationAdapter:
+                 account_slot=slot,
+                 fee_address=self.fee_address,
+             ),
++            additional_accounts=dict(zip(additional_accounts,result['value'][5:])),
+             accounts=dict(
+                 pool=pool_account, mint=mint_account, base_vault=base_vault,
+                 quote_vault=quote_vault, fee_config=fee_account,
+@@ -812,4 +814,4 @@ class PostGraduationPaperEngine:
+                     )
+             del s['positions'][mint]
+             s['funnel']['settled_exits'] += 1
+-            return 'settled'
+\ No newline at end of file
++            return 'settled'
+diff --git a/meme_machine/pump_acceleration_paper.py b/meme_machine/pump_acceleration_paper.py
+index c1b961342d74739fa79e152deab67e69617a9bd4..b43933e0789a86ccd472e8fc3f4a7d611cf68d02 100644
+--- a/meme_machine/pump_acceleration_paper.py
++++ b/meme_machine/pump_acceleration_paper.py
+@@ -46,6 +46,10 @@ class PumpAccelerationPaperLifecycle:
+         self.book=book
+         self.lifecycle_id=lifecycle_id
+         self.entry_evidence=entry_evidence or {}
++        self.sleeve=None
++        if book is not None:
++            from certification.directional_sleeve import open_sleeve
++            self.sleeve=open_sleeve('pump',book.identity['initial'])
+         if book is not None and not lifecycle_id:
+             raise ValueError("durable_lifecycle_id_required")
+ 
+@@ -60,6 +64,9 @@ class PumpAccelerationPaperLifecycle:
+             raise ValueError("invalid_budget")
+         if self.reservation is not None or self.position is not None:
+             raise ValueError("lifecycle_already_active")
++        if self.sleeve is not None:
++            self.sleeve.reserve(self.lifecycle_id,strategy=STRATEGY_ID,
++                amount=int(budget_quote_units),at=int(now))
+         if self.book is not None:
+             self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
+                               dict(qualification=asdict(qualification),
+@@ -108,6 +115,11 @@ class PumpAccelerationPaperLifecycle:
+         if self.book is not None:
+             self.book.transition(self.lifecycle_id,"cancelled",int(now),
+                                  evidence=dict(reason=str(reason)))
++            if self.sleeve is not None:
++                from certification.directional_sleeve import native_terminal
++                self.book.replay()
++                native_terminal(self.sleeve,self.lifecycle_id,self.book._load(self.lifecycle_id),int(now),verified=True)
++                self.sleeve.close();self.sleeve=None
+         self.history.append(dict(event="cancelled",reason=str(reason),time=int(now),reservation=dict(self.reservation)))
+         self.reservation=None
+ 
+@@ -264,6 +276,11 @@ class PumpAccelerationPaperLifecycle:
+         self.position.realized_quote_units+=(
+             int(executable_proceeds_quote_units)-self.position.basis_quote_units
+         )
++        if self.sleeve is not None and self.book is not None:
++            from certification.directional_sleeve import native_terminal
++            self.book.replay()
++            native_terminal(self.sleeve,self.lifecycle_id,self.book._load(self.lifecycle_id),int(now),verified=True)
++            self.sleeve.close();self.sleeve=None
+         self.position.closed_at=int(now)
+         closed=asdict(self.position)
+         self.history.append(dict(event="settled",position=closed))
+diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acceleration_strategy.py
+index 71f6c1b0acd3bb077f6e30af11239e2476247bda..a68ae4546abd0012a656b31842cb5062cb120ee6 100644
+--- a/meme_machine/pump_acceleration_strategy.py
++++ b/meme_machine/pump_acceleration_strategy.py
+@@ -42,6 +42,9 @@ def _points(value, low, high, maximum):
+ class FrozenPolicy:
+     version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1"
+     entry_fraction_bps: int = 500
++    turnover_divisor: int = 40
++    execution_stress_multiple: int = 2
++    sizing_search_steps: int = 32
+ 
+     # Late-curve structural gates.
+     min_curve_progress_bps: int = 6000
+@@ -167,6 +170,7 @@ class SignalVector:
+     concentration_bps: int = 10_000
+     extension_bps: int = 0
+     immediate_roundtrip_loss_bps: int | None = None
++    authenticated_recent_turnover: int | None = None
+ 
+     skilled_wallet_clusters: int = 0
+     creator_quality_bps: int | None = None
+diff --git a/meme_machine/pumpswap_survivor.py b/meme_machine/pumpswap_survivor.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0d41fc832c714e3bca98aec6b6cb4afb466c2f17
+--- /dev/null
++++ b/meme_machine/pumpswap_survivor.py
+@@ -0,0 +1,155 @@
++"""Frozen PumpSwap Survivor policy; no pregraduation qualification dependency."""
++from fractions import Fraction
++import hashlib
++import json
++
++from certification.execution_capacity import buyer_persistence, turnover_capacity
++
++STRATEGY_ID = 'pumpswap-survivor-momentum-v1'
++POLICY = dict(
++    strategy=STRATEGY_ID, paper_only=True, quote='SOL',
++    minimum_age_seconds=21600, maximum_age_seconds=604800,
++    mayhem_clean_seconds=3600, mayhem_completion_required=True,
++    minimum_liquidity_usd_micros=30_000_000_000,
++    minimum_reset_bps=2500, base_seconds=3600, compression_bps=6000,
++    short_structure_seconds=7200, long_structure_seconds=21600,
++    maximum_extension_bps=1500, maximum_base_range_extension_bps=15000,
++    minimum_fill_breadth_bps=6500, target_sleeve_bps=25, turnover_divisor=40,
++    # These are the existing Pump hard execution/concentration ceilings.
++    maximum_roundtrip_loss_bps=600, maximum_double_loss_bps=600,
++    maximum_holder_concentration_bps=2500, minimum_size_units=1,
++    demand_window_seconds=1800,
++    exits=dict(hard_stop_bps=-1200, first_profit_bps=2500, first_sell_bps=2500,
++               trail_bps=2000, tight_arm_bps=6000, tight_trail_bps=1500,
++               soft_confirmations=2, maximum_hold_seconds=259200),
++    reentry=dict(minimum_seconds=3600, minimum_changed_dimensions=2),
++)
++POLICY_HASH = hashlib.sha256(json.dumps(POLICY,sort_keys=True,separators=(',',':')).encode()).hexdigest()
++
++
++def price_points(facts):
++    now = facts['now']
++    points = [(int(r['at']), Fraction(r['price'])) for r in facts['price_points']]
++    if (not points or any(p <= 0 for _,p in points)
++            or any(b[0] <= a[0] for a,b in zip(points,points[1:]))
++            or points[-1][0] != now):
++        raise ValueError('survivor_price_history_time')
++    return points
++
++
++def evaluate_entry(facts):
++    """All inputs are point-in-time evidence; UNKNOWN cannot become a pass."""
++    reasons, features = [], {}
++    def reject(reason, condition):
++        if condition:
++            reasons.append(reason)
++    reject('graduation_lineage', facts.get('lineage_proven') is not True
++           or facts.get('origin') != 'pump.fun' or facts.get('venue') != 'pumpswap'
++           or facts.get('canonical_migration_pool') is not True)
++    reject('non_sol_quote', facts.get('quote_asset') != 'SOL')
++    reject('authoritative_evidence', facts.get('authoritative') is not True
++           or facts.get('continuity_complete') is not True)
++    reject('creator_distribution', facts.get('creator_distribution_safe') is not True)
++    reject('hard_concentration', facts.get('hard_concentration_pass') is not True)
++    reject('exit_liquidity', facts.get('exit_liquidity_available') is not True)
++    now, grad = facts.get('now'), facts.get('graduation_at')
++    if type(now) is not int or type(grad) is not int:
++        reasons.append('unknown_graduation_time')
++        return _decision(reasons, features)
++    age = now-grad
++    reject('age', not POLICY['minimum_age_seconds'] <= age <= POLICY['maximum_age_seconds'])
++    mayhem = facts.get('mayhem') or {}
++    status = mayhem.get('status')
++    identifiable = mayhem.get('agent_identity_proven') is True
++    agents = mayhem.get('agent_groups')
++    reject('unknown_mayhem', status not in ('never', 'active', 'ended'))
++    if status in ('active','ended'):
++        if identifiable:
++            reject('unknown_mayhem_agent', not agents)
++        if status == 'active':
++            reasons.append('active_mayhem')
++        else:
++            ended = mayhem.get('ended_at')
++            clean = mayhem.get('clean_since')
++            reject('mayhem_clean_window', type(ended) is not int or type(clean) is not int
++                   or clean < ended or now-clean < POLICY['mayhem_clean_seconds'])
++    liquidity = facts.get('liquidity_usd_micros')
++    reject('liquidity_floor', type(liquidity) is not int
++           or liquidity < POLICY['minimum_liquidity_usd_micros'])
++    try:
++        points = price_points(facts)
++        price = points[-1][1]
++        migration = Fraction(facts['migration_price'])
++        reject('migration_price_survival', migration <= 0 or price < migration)
++        # The last *completed* hour ends at the breakout decision's predecessor
++        # watermark. Breakout points never widen the frozen base they must clear.
++        base_end = facts['base_end']
++        if type(base_end) is not int or not now-1800 <= base_end < now:
++            raise ValueError('base_time')
++        def window(start,end):
++            witness=next(((t,p) for t,p in reversed(points) if t<=start),None)
++            return ([] if witness is None else [witness])+[(t,p) for t,p in points if start<t<=end]
++        base = window(base_end-3600,base_end)
++        previous = window(base_end-7200,base_end-3600)
++        if (not base or not previous or base[0][0] > base_end-3600
++                or previous[0][0] > base_end-7200):
++            raise ValueError('base_history')
++        low, high = min(p for _,p in base), max(p for _,p in base)
++        span = high-low
++        prior_span = max(p for _,p in previous)-min(p for _,p in previous)
++        reject('base_range', span <= 0 or prior_span <= 0)
++        reject('base_compression', span*10000 > prior_span*POLICY['compression_bps'])
++        prebase = [(t,p) for t,p in points if grad <= t <= base[0][0]]
++        peak, reset, peak_at, reset_at = None, None, None, None
++        running_high, high_at = None, None
++        previous_price=None;new_cycle=False
++        for at,p in prebase:
++            # After a completed meaningful reset, the first recovery starts a
++            # new local high cycle. Retain the previous qualifying reset until
++            # this newer cycle itself supplies a meaningful drawdown.
++            if reset_at is not None and previous_price is not None and p>previous_price and not new_cycle:
++                running_high,high_at=p,at;new_cycle=True
++            if running_high is None or p > running_high:
++                running_high, high_at = p, at
++            if (running_high-p)*10000 >= running_high*POLICY['minimum_reset_bps']:
++                if reset_at is None or high_at!=peak_at or p <= reset:
++                    peak, reset, peak_at, reset_at = running_high,p,high_at,at
++                    new_cycle=False
++            previous_price=p
++        reject('meaningful_reset', reset_at is None)
++        if reset_at is not None:
++            reject('reset_before_base', reset_at > base[0][0] or peak_at >= reset_at)
++            reject('reset_low_breakdown', min(p for t,p in points if t >= reset_at) < reset)
++        # Three consecutive 20m base lows must not form a descending sequence.
++        lows = [min((p for t,p in base if base_end-3600+i*1200 <= t <= base_end-2400+i*1200),default=None) for i in range(3)]
++        reject('lower_low_sequence', None in lows or lows[0] > lows[1] > lows[2])
++        p2 = next((p for t,p in reversed(points) if t <= now-7200), None)
++        p6 = next((p for t,p in reversed(points) if t <= now-21600), None)
++        reject('two_hour_structure', p2 is None or price <= p2)
++        six = [(t,p) for t,p in points if t >= now-21600]
++        slope = sum((t-Fraction(sum(t for t,_ in six),len(six)))*(p-sum(p for _,p in six)/len(six)) for t,p in six)
++        reject('six_hour_structure', p6 is None or slope < 0)
++        vwap = facts.get('recovery_vwap')
++        reject('recovery_vwap', vwap is None or Fraction(vwap) <= 0 or price <= Fraction(vwap))
++        reject('no_continuation', price <= high)
++        reject('price_extension', (price-high)*10000 > high*POLICY['maximum_extension_bps'])
++        reject('base_range_extension', span <= 0 or (price-high)*10000 > span*POLICY['maximum_base_range_extension_bps'])
++        flow = buyer_persistence(facts['demand_events'],now=now,window_seconds=1800,
++                                 excluded_groups=(agents or ()) if identifiable else ())
++        reject('breadth_growth', flow['independent_buyers'] <= len(flow['previous_buyer_groups']))
++        reject('net_buy_flow', flow['buy_flow'] <= flow['sell_flow'])
++        cap = turnover_capacity(flow['turnover'], authenticated=facts.get('demand_complete') is True)
++        features.update(flow, age_seconds=age, price=str(price), base_low=str(low),base_high=str(high),
++                        base_range=str(span),reset_low=None if reset is None else str(reset),
++                        reset_at=reset_at,peak_at=peak_at,base_end=base_end,
++                        breakout_distance=str(price-high), extension_bps=int((price-high)*10000/high),
++                        base_range_extension_bps=None if span <= 0 else int((price-high)*10000/span),
++                        turnover_cap=cap)
++    except (KeyError, TypeError, ValueError, ZeroDivisionError):
++        reasons.append('incomplete_structure_or_demand')
++    return _decision(reasons, features)
++
++
++def _decision(reasons, features):
++    return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,paper_only=True,
++                candidate=not reasons,all_rejections=reasons,features=features)
+diff --git a/meme_machine/pumpswap_survivor_evidence.py b/meme_machine/pumpswap_survivor_evidence.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a81bd888662012c46e9ca6230ca4bb4f917565b2
+--- /dev/null
++++ b/meme_machine/pumpswap_survivor_evidence.py
+@@ -0,0 +1,54 @@
++"""Authenticated wire formats needed by Survivor; no network or alpha here.
++
++Pump public IDL: pump-fun/pump-public-docs@81091419e4457566469d4e2a27f64ed84d42419c.
++Pyth PriceUpdateV2 uses the fully verified Solana sponsored SOL/USD feed.
++The existing authenticated Solana provider reads the account; no Hermes client.
++"""
++import base64
++from fractions import Fraction
++import hashlib
++import struct
++from . import pump
++from .postgrad import WSOL,pumpswap_pool
++
++SOL_USD_ACCOUNT='7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE'
++PYTH_RECEIVER='rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ'
++SOL_USD_FEED=bytes.fromhex('ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d')
++MIGRATION_DISC=hashlib.sha256(b'event:CompletePumpAmmMigrationEvent').digest()[:8]
++
++def migration_events(tx):
++    if not tx or not tx.get('meta') or tx['meta'].get('err'):return []
++    stack=[];out=[]
++    for index,line in enumerate(tx['meta'].get('logMessages') or []):
++        if line.startswith('Program ') and ' invoke [' in line:stack.append(line.split()[1])
++        elif line.startswith('Program ') and (' success' in line or ' failed:' in line):
++            if stack:stack.pop()
++        elif line.startswith('Program data: ') and stack and stack[-1]==pump.PROGRAM:
++            raw=base64.b64decode(line[14:],validate=True)
++            if raw[:8]!=MIGRATION_DISC:continue
++            if len(raw) not in (168,200):raise ValueError('migration_event_layout')
++            mint=pump.b58(raw[40:72]);quantity,quote,fee=struct.unpack_from('<QQQ',raw,72)
++            curve=pump.b58(raw[96:128]);at=struct.unpack_from('<q',raw,128)[0]
++            pool=pump.b58(raw[136:168])
++            quote_mint=pump.b58(raw[168:200]) if len(raw)==200 else '11111111111111111111111111111111'
++            if quote_mint not in (WSOL,'11111111111111111111111111111111'):continue
++            if (quantity<=0 or quote<=0 or at<=0 or pool!=pumpswap_pool(mint)
++                    or curve!=pump.pda([b'bonding-curve',pump.un58(mint)])):
++                raise ValueError('migration_lineage')
++            out.append(dict(event_type='migration',mint=mint,pool=pool,bonding_curve=curve,
++                market_time=at,index=index,slot=int(tx['slot']),mint_amount=quantity,
++                quote_amount=quote,migration_fee=fee,quote_mint=quote_mint,
++                quote_asset='SOL' if quote_mint in (WSOL,'11111111111111111111111111111111') else 'OTHER'))
++    return out
++
++def sol_usd_lower_micros(account,*,now,slot,maximum_age=120):
++    if not account or account.get('owner')!=PYTH_RECEIVER or account.get('executable'):
++        raise ValueError('sol_usd_oracle_owner')
++    raw=base64.b64decode(account['data'][0],validate=True)
++    if (len(raw)<133 or raw[:8]!=hashlib.sha256(b'account:PriceUpdateV2').digest()[:8]
++            or raw[40]!=1 or raw[41:73]!=SOL_USD_FEED):
++        raise ValueError('sol_usd_oracle_identity_or_verification')
++    price,confidence,exponent,published,previous,ema,ema_conf,posted=struct.unpack_from('<qQiqqqQQ',raw,73)
++    if not -18<=exponent<=0 or not 0<=now-published<=maximum_age or posted>slot or price<=confidence:
++        raise ValueError('sol_usd_oracle_freshness_or_value')
++    return int(Fraction(price-confidence)*Fraction(10)**exponent*1_000_000)
+diff --git a/meme_machine/pumpswap_survivor_runtime.py b/meme_machine/pumpswap_survivor_runtime.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0e2eaaa7eef249c635e7b9c5c7ee170313b471e4
+--- /dev/null
++++ b/meme_machine/pumpswap_survivor_runtime.py
+@@ -0,0 +1,259 @@
++"""Active Pump Survivor inside the Pump sleeve, on the Solana Evidence Plane.
++
++One incremental monitoring task, at most one candidate hydration per turn. It
++never scans RPC history and never qualifies from public websocket discoveries.
++"""
++from contextlib import nullcontext
++from fractions import Fraction
++import json
++import os
++from pathlib import Path
++import time
++
++from certification.directional_sleeve import open_sleeve
++from certification.execution_capacity import buyer_persistence
++from certification.journal import digest
++from certification.survivor_commit import commit,monitor,handoff_ready
++from certification.survivor_history import History
++from certification.survivor_paper_book import PaperBook
++from .engine import GAS,MAYHEM_AGENT_WALLET
++from .postgrad import PostGraduationAdapter,graduation_handoff,buy_quote,sell_quote
++from .provider import Unavailable
++from .solana_read_rpc import new_rpc
++from .solana_evidence_runtime import RuntimeEvidence,PUMP_SCOPE,SWAP_SCOPE
++from .pumpswap_survivor import POLICY,POLICY_HASH,STRATEGY_ID,evaluate_entry
++from .pumpswap_survivor_evidence import SOL_USD_ACCOUNT,sol_usd_lower_micros
++
++
++class Quotes:
++    def __init__(self,state,now):self.state=state;self.acquired=now
++    def entry(self,budget):
++        if budget<=GAS:raise ValueError('survivor_dust')
++        q=buy_quote(self.state,budget-GAS)
++        return dict(cost=q.input_amount+GAS,quantity=q.output_amount,slot=self.state['slot'],
++                    acquired=self.acquired,market_time=self.state['market_time'],gas=GAS,fee=q.fee_amount)
++    def loss(self,budget):
++        try:
++            q=self.entry(budget);out=sell_quote(self.state,q['quantity']).output_amount
++            return max(0,(q['cost']-max(0,out-GAS))*10000//q['cost'])
++        except (ValueError,Unavailable,ZeroDivisionError):return None
++
++
++class Runtime:
++    def __init__(self,root,capital,run_id,confirmations):
++        self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
++        self.capital=capital;self.run_id=run_id;self.confirmations=confirmations
++        self.sleeve=open_sleeve('pump',capital)
++        if self.sleeve is None:raise ValueError('survivor_shared_sleeve_required')
++        self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
++        self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_ID,
++                            policy_hash=POLICY_HASH,initial=capital)
++        self.plane=RuntimeEvidence(owner='pump:survivor')
++        self.rpc=None;self.current=None;self.last_error=None
++
++    def now(self):return int(time.time())
++
++    def _provider(self,priority=30):
++        if self.rpc is None or self.rpc.calls>160:
++            pacer=None if self.rpc is None else self.rpc.read_pacer
++            self.rpc=new_rpc(limit=240,pacer=pacer)
++            self.rpc.evidence_priority=priority
++            self.adapter=PostGraduationAdapter(self.rpc)
++        self.rpc.evidence_priority=priority
++        self.rpc.evidence_kind='survivor_monitor' if priority==30 else 'survivor_commit_or_exit'
++
++    def discover(self):
++        top=self.plane.frontier(PUMP_SCOPE)
++        cursor=self.history.get_meta('discovery_slot')
++        if cursor is None:
++            self.history.set_meta('discovery_slot',max(0,top-1));return
++        if top<=cursor:return
++        end=min(top,cursor+64)
++        rows=self.plane.reader.window(PUMP_SCOPE,cursor+1,end,as_of=time.time(),kind='event',limit=10000)
++        for row in rows:
++            event=row['payload']['event']
++            if event.get('event_type')!='migration' or event.get('quote_asset')!='SOL':continue
++            evidence=dict(event,at=event['market_time'],identity=row['identity'],
++                          signature=row['signature'],source='solana_finalized_evidence_plane')
++            self.history.graduate(event['mint'],evidence)
++            self.plane.interest(SWAP_SCOPE,lower_slot=event['slot'],addresses=[event['pool']],
++                lifecycle='candidate',priority=4,owner='pump:survivor:'+event['mint'])
++        self.history.set_meta('discovery_slot',end)
++
++    def _increment(self,row,at,slot):
++        grad=row['graduation'];lo,hi=self.plane.bounds(SWAP_SCOPE,row['through'],at,upper_slot=slot)
++        records=self.plane.reader.window(SWAP_SCOPE,lo,hi,as_of=time.time(),address=grad['pool'],kind='event',limit=10000)
++        events=[];points={}
++        for record in records:
++            e=record['payload']['event'];t=e['market_time']
++            if not row['through']<=t<=at:continue
++            price=Fraction(e['pool_quote_reserve'],e['pool_base_reserve'])
++            points[t]=str(price)
++            events.append(dict(id=record['identity'],at=t,group=self.confirmations.cluster(e['wallet']),
++                wallet=e['wallet'],buy=e['buy'],quote=e['amount'],tokens=e['tokens'],
++                price=str(price),authenticated=True))
++        self.history.append(row['id'],through=at,events=events,points=sorted(points.items()),complete=True)
++        self.plane.interest(SWAP_SCOPE,lower_slot=max(lo,slot-1),addresses=[grad['pool']],
++            lifecycle='position' if row.get('position') else 'candidate',priority=0 if row.get('position') else 4,
++            owner='pump:survivor:'+row['id'])
++
++    def fresh_state(self,candidate,priority=1):
++        self._provider(priority);self.current=self.history.get(candidate)
++        raw=self.adapter.graduation_snapshot(candidate,self.now(),priority=True)
++        handoff=graduation_handoff(raw,self.now())
++        state=self.adapter.pumpswap_snapshot(handoff,self.now(),priority=True,additional_accounts=(SOL_USD_ACCOUNT,))
++        if state['pool']!=self.current['graduation']['pool']:raise ValueError('survivor_pool_drift')
++        return state
++
++    def fresh_quotes(self,state,budget):return Quotes(state,self.now())
++
++    def reconstruct(self,state,quote_context):
++        row=self.current;at=state['market_time'];self._increment(row,at,state['slot'])
++        price=Fraction(state['state']['quote_reserve'],state['state']['base_reserve'])
++        self.history.append(row['id'],through=at,events=[],points=[(at,str(price))],complete=True)
++        points,events=self.history.facts(row['id'],at)
++        grad=row['graduation'];creator=self.confirmations.cluster(state['creator'])
++        mayhem=state['state']['mayhem_mode']
++        agents={self.confirmations.cluster(MAYHEM_AGENT_WALLET)} if mayhem else set()
++        organic=[e for e in events if e['group'] not in agents and e['group']!=creator]
++        recent=[e for e in organic if at-1800<=e['at']<=at]
++        tokens=sum(e['tokens'] for e in recent)
++        vwap=None if tokens<=0 else str(Fraction(sum(e['quote'] for e in recent),tokens))
++        from tests.pump_acceleration_natural_prospective import _postgrad_concentration
++        concentration=_postgrad_concentration(self.rpc,state)
++        usd=sol_usd_lower_micros(state['additional_accounts'][SOL_USD_ACCOUNT],now=self.now(),slot=state['slot'])
++        base_end=max((p['at'] for p in points if p['at']<=at-60),default=None)
++        facts=dict(now=at,graduation_at=grad['at'],lineage_proven=True,origin='pump.fun',venue='pumpswap',
++            canonical_migration_pool=True,quote_asset='SOL',authoritative=True,
++            continuity_complete=self.history.get(row['id'])['complete'],demand_complete=True,
++            creator_distribution_safe=not any(not e['buy'] and e['group']==creator for e in events),
++            hard_concentration_pass=concentration<=POLICY['maximum_holder_concentration_bps'],
++            exit_liquidity_available=state['state']['raw_quote_reserve']>0,
++            migration_price=str(Fraction(grad['quote_amount'],grad['mint_amount'])),
++            liquidity_usd_micros=2*state['state']['raw_quote_reserve']*usd//10**9,
++            # The immutable coin flag proves whether it is a Mayhem coin. It
++            # does not prove the agent's completion time. Never infer completion
++            # from absent trades or elapsed age; without that evidence entry is
++            # blocked, even though the disclosed agent flow can be excluded.
++            mayhem=dict(status='unknown' if mayhem else 'never',agent_identity_proven=mayhem,
++                        agent_groups=sorted(agents)),price_points=points,base_end=base_end,
++            recovery_vwap=vwap,demand_events=organic,holder_concentration_bps=concentration)
++        self.facts=facts;return facts
++
++    def turnover_cap(self,facts,decision):return decision['features']['turnover_cap']
++    def generation_fence(self,candidate,generation):return nullcontext() # sleeve is the Pump generation authority
++    def validate_current(self,state,execution,now):
++        self.plane.require_usable(SWAP_SCOPE)
++        if not 0<=now-state['market_time']<=10 or not 0<=now-execution['acquired']<=5:
++            raise ValueError('survivor_stale_commit')
++        if execution['slot']!=state['slot']:raise ValueError('survivor_quote_state')
++
++    def exit_quote(self,qty):
++        try:
++            self._provider(0)
++            state=self.fresh_state(self.current['id'],priority=0)
++            q=sell_quote(state,qty)
++            return dict(net_proceeds=max(0,q.output_amount-GAS),quantity=qty,
++                acquired=self.now(),market_time=state['market_time'],slot=state['slot'])
++        except (ValueError,Unavailable):return None
++
++    def validate_exit(self,quote,qty,now):
++        if quote['quantity']!=qty or not 0<=now-quote['market_time']<=10 or not 0<=now-quote['acquired']<=5:
++            raise ValueError('survivor_exit_quote_stale')
++
++    def _position(self,row,*,admit=True):
++        self.current=row
++        try:position=self.book._load(row['position'])
++        except ValueError:
++            if not admit:raise ValueError('survivor_continuation_unfilled_controller')
++            return self._enter(row,row['decision'],row['generation'],row['regime'],row['position'])
++        if position['status'] in ('settled','cancelled'):
++            self.sleeve.release(row['position'],pnl=position['realized'],at=max(self.now(),position['last_at']),
++                terminal_hash=digest(position),native_verified=self.book.replay()['verified'],cancelled=position['status']=='cancelled')
++            row.update(position=None,state='settled');self.history.save(row);return
++        if position['status']=='reserved':
++            if not admit:raise ValueError('survivor_continuation_reservation')
++            # Reconstruct the exact qualified decision, then reacquire every fresh
++            # input; a persisted successful validation has no restart authority.
++            return self._enter(row,row['decision'],row['generation'],row['regime'],row['position'])
++        state=None;facts=None
++        try:
++            state=self.fresh_state(row['id'],priority=0)
++            facts=self.reconstruct(state,Quotes(state,self.now()))
++        except (ValueError,Unavailable):pass
++        q=self.exit_quote(position['tokens'])
++        net=None if q is None else q['net_proceeds']
++        flow={} if facts is None else buyer_persistence(facts['demand_events'],now=facts['now'],window_seconds=1800)
++        observation=dict(id=str(state['slot']) if state else 'unavailable:'+str(self.now()),at=self.now(),
++            after_cost_return_bps=None if net is None else (net-position['basis'])*10000//position['basis'],
++            net_exit_proceeds=position['mark'] if net is None else net,
++            exit_liquidity_valid=True if q is not None else None,creator_distribution=facts is not None and not facts['creator_distribution_safe'],
++            soft_deterioration=None if not flow else flow['buy_flow']<=flow['sell_flow'] and flow['new_buyers']==0)
++        action=monitor(book=self.book,sleeve=self.sleeve,identity=row['position'],observation=observation,
++                       policy=POLICY['exits'],adapter=self)
++        if action['action']=='partial_exit':
++            row=self.history.get(row['id']);row['state']='runner';self.history.save(row)
++
++    def _enter(self,row,decision,generation,regime,identity):
++        return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
++            strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
++            target=self.capital*25//10000,minimum=GAS*2+1,retention_bps=6500,
++            ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
++
++    def step(self,*,admit):
++        try:
++            rows=self.history.rows()
++            for row in rows:
++                if row.get('position'):
++                    self._position(row,admit=admit)
++            if admit:self.discover()
++            rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
++            if admit and rows:
++                row=rows[0];row['last_checked']=self.now();self.history.save(row)
++                age=self.now()-row['graduation']['at']
++                if age>604800:
++                    self.history.retire(row)
++                    self.plane.command(op='release',owner='pump:survivor:'+row['id'],scope=SWAP_SCOPE,resolved=False)
++                else:
++                    # Incremental local monitoring starts at graduation, without
++                    # RPC hydration or entry authority before the six-hour floor.
++                    top=self.plane.frontier(SWAP_SCOPE);at=self.plane.block_time(top)
++                    self._increment(row,at,top)
++                    if age<21600:row=self.history.get(row['id']);row['state']='aging';self.history.save(row)
++                    else:
++                        state=self.fresh_state(row['id'],priority=30)
++                        decision=evaluate_entry(self.reconstruct(state,Quotes(state,self.now())))
++                        row=self.history.get(row['id'])
++                        f=decision['features'];regime=dict(at=state['market_time'],
++                            high_reset_cycle=[f.get('peak_at'),f.get('reset_at')],base_id=[f.get('base_low'),f.get('base_high')],
++                            buyer_population=f.get('buyer_groups'),independent_demand=f.get('independent_buyers'),
++                            flow_regime='buy' if f.get('buy_flow',0)>f.get('sell_flow',0) else 'sell')
++                        blocked=row.get('extension_blocked_regime')
++                        if blocked:
++                            from certification.survivor_risk import new_regime
++                            if not (new_regime(blocked,regime) and blocked['base_id']!=regime['base_id']
++                                    and blocked['high_reset_cycle']!=regime['high_reset_cycle']):
++                                decision['candidate']=False;decision['all_rejections'].append('extension_requires_new_reset_base')
++                        if any(reason in decision['all_rejections'] for reason in ('price_extension','base_range_extension')):
++                            row['extension_blocked_regime']=regime;self.history.save(row)
++                        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
++                            state='qualified' if decision['candidate'] else 'continuation_watch',evidence=decision,regime=regime)
++                        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
++                            generation=observed['generation'],regime=regime)
++                        if decision['candidate']:
++                            row['position']=self.run_id+':'+digest([STRATEGY_ID,row['id'],regime])
++                            row['state']='reserved';self.history.save(row)
++                            self._enter(row,decision,observed['generation'],regime,row['position'])
++                            row=self.history.get(row['id']);row['state']='filled'
++                        self.history.save(row)
++            self.last_error=None
++        except (ValueError,Unavailable) as exc:
++            self.last_error=str(exc)
++        return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
++                    candidate_count=len(self.history.rows()),last_boundary=self.last_error,
++                    accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
++                    policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
++                    durable_handoff=handoff_ready(self.book,self.history.rows()))
++
++    def close(self):
++        self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+diff --git a/meme_machine/solana_evidence_runtime.py b/meme_machine/solana_evidence_runtime.py
+index 1869ab8858fd64061a079f4e571784342733e122..6d884b56f4270f797a9bcaf367ccf75422c0a2b7 100644
+--- a/meme_machine/solana_evidence_runtime.py
++++ b/meme_machine/solana_evidence_runtime.py
+@@ -189,7 +189,7 @@ class LocalPumpTape:
+     def __init__(self,plane):self.plane=plane
+     def window(self,mint,now,max_slot=None):
+         rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
+-        return [e for e in rows if e.get('event_type')!='create']
++        return [e for e in rows if e.get('event_type') not in ('create','migration')]
+     def creation(self,mint):
+         db=self.plane.reader.db;db.execute('BEGIN')
+         try:
+@@ -215,7 +215,7 @@ class LocalPumpTape:
+             for seq,raw,slot in rows:
+                 if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
+                 event=decode_body(raw,db)['payload']['event']
+-                if event.get('event_type')!='create':events.append(event)
++                if event.get('event_type') not in ('create','migration'):events.append(event)
+                 sequence=seq
+         finally:db.execute('ROLLBACK')
+         if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
+diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
+index 7c012258df379c2345ec52c33141e232209e09fc..5dd06fea9edb49ce3a358c061a04b27d3602afce 100644
+--- a/meme_machine/solana_evidence_service.py
++++ b/meme_machine/solana_evidence_service.py
+@@ -342,9 +342,10 @@ def program_subscriptions():
+ def program_decoders():
+     from . import pump
+     from .pump_acceleration_evidence import pumpswap_trade_events
++    from .pumpswap_survivor_evidence import migration_events
+     from .solana_evidence_runtime import PUMP_SCOPE,SWAP_SCOPE
+     def pump_events(tx):
+-        return [dict(e,event_type='trade') for e in pump.trade_events(tx)]+[dict(e,event_type='create') for e in pump.create_events(tx)]
++        return [dict(e,event_type='trade') for e in pump.trade_events(tx)]+[dict(e,event_type='create') for e in pump.create_events(tx)]+migration_events(tx)
+     return {PUMP_SCOPE:pump_events,SWAP_SCOPE:pumpswap_trade_events}
+ 
+ 
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c83c237ec 100644
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -15,6 +15,7 @@ from collections import Counter,deque
+ from pathlib import Path
+ from types import SimpleNamespace
+ 
++from certification.execution_capacity import resize, turnover_capacity
+ from meme_machine import pump
+ from meme_machine.concentration import ConcentrationReader
+ from meme_machine.engine import GAS
+@@ -54,7 +55,7 @@ INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
+ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
+ ENTRY_DELAY_SECONDS=2
+ ENTRY_FILL_TIMEOUT_SECONDS=20
+-FROZEN_POLICY_HASH="825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
++FROZEN_POLICY_HASH="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"
+ FILL_PERSISTENCE_CONTEXT=None
+ ACCOUNTING=None
+ PIPELINE=None
+@@ -169,12 +170,12 @@ def _confirmation_meta(value):
+     )
+ 
+ 
+-def _late_roundtrip_loss_bps(snapshot):
++def _late_roundtrip_loss_bps(snapshot, budget=ENTRY_BUDGET):
+     """Immediate executable after-cost downside for the exact paper entry size."""
+     curve=pump.curve(snapshot["accounts"][0])
+     supply,_=pump.mint_info(snapshot["accounts"][1])
+     entry_rates=pump.fees(snapshot["accounts"][2],curve,supply)
+-    tokens,cost,entry_fee=pump.buy(curve,ENTRY_BUDGET,entry_rates)
++    tokens,cost,entry_fee=pump.buy(curve,budget,entry_rates)
+     gross=max(0,int(cost)-int(entry_fee))
+     after=pump.Curve(
+         token=int(curve.token)-int(tokens),
+@@ -192,6 +193,28 @@ def _late_roundtrip_loss_bps(snapshot):
+     return max(0,(basis-executable)*10_000//max(1,basis))
+ 
+ 
++
++def _capacity(snapshot, turnover, intended=ENTRY_BUDGET):
++    cap=turnover_capacity(turnover,authenticated=turnover is not None)
++    def loss(n):
++        try:
++            if "accounts" in snapshot:
++                return _late_roundtrip_loss_bps(snapshot,n)
++            buy=buy_quote(snapshot,n)
++            proceeds=sell_quote(snapshot,buy.output_amount).output_amount
++            basis=buy.input_amount+GAS
++            return max(0,(basis-max(0,proceeds-GAS))*10000//basis)
++        except (ValueError,Unavailable,ZeroDivisionError):
++            return None
++    answer=resize(min(intended,cap),1,loss,ordinary_limit=POLICY.max_immediate_roundtrip_loss_bps)
++    telemetry=answer.telemetry()
++    telemetry.update(decision_size=intended,capital_cap=intended,turnover_cap=cap,
++        liquidity_execution_cap=answer.final_size,
++        binding_cap=answer.binding_reason if answer.final_size<min(intended,cap)
++            else "turnover" if cap<intended else "capital")
++    return answer,telemetry
++
++
+ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
+     now=int(snapshot["market_time"])
+     curve=pump.curve(snapshot["accounts"][0])
+@@ -215,7 +238,8 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
+         net_buy_share_bps=flow["net_buy_share_bps"],
+         concentration_bps=int(concentration_bps),
+         extension_bps=int(trajectory["extension_bps"]),
+-        immediate_roundtrip_loss_bps=_late_roundtrip_loss_bps(snapshot),
++        authenticated_recent_turnover=flow["gross_buy"]+flow["gross_sell"],
++        immediate_roundtrip_loss_bps=_capacity(snapshot,flow["gross_buy"]+flow["gross_sell"])[0].ordinary_loss_bps,
+         skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),
+         creator_quality_bps=confirmation["creator_quality_bps"],
+         creator_history_launches=int(confirmation["creator_history_launches"]),
+@@ -328,6 +352,7 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
+     common=dict(
+         mint=snapshot["mint"],observed_at=now,surface="pumpswap",phase=mode,
+         quote_asset="SOL",independent_buyer_clusters=flow["independent_buyer_clusters"],
++        authenticated_recent_turnover=flow["gross_buy"]+flow["gross_sell"],
+         buyer_growth=flow["buyer_growth"],
+         repeat_buyer_clusters=flow["repeat_buyer_clusters"],
+         repeat_buy_share_bps=flow["repeat_buy_share_bps"],
+@@ -471,7 +496,9 @@ def _fill_pending(
+ 
+                 supply,_=pump.mint_info(snapshot["accounts"][1])
+                 rates=pump.fees(snapshot["accounts"][2],curve,supply)
+-                tokens,cost,fee=pump.buy(curve,ENTRY_BUDGET,rates)
++                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover)
++                if capacity.final_size<=0:raise ValueError("entry_capacity_unavailable")
++                tokens,cost,fee=pump.buy(curve,capacity.final_size,rates)
+                 surface="pump.fun"
+                 entry=dict(tokens=tokens,cost=cost,fee=fee,gas=GAS)
+             else:
+@@ -524,10 +551,14 @@ def _fill_pending(
+                 row["last_concentration"]=int(concentration)
+                 _assert_fill_deadline(row)
+ 
+-                quote=buy_quote(snapshot,ENTRY_BUDGET)
++                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover)
++                if capacity.final_size<=0:raise ValueError("entry_capacity_unavailable")
++                quote=buy_quote(snapshot,capacity.final_size)
+                 tokens=quote.output_amount;cost=quote.input_amount;surface="pumpswap"
+                 entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
+ 
++            row["qualifier_row"]["execution_capacity"]=capacity_telemetry
++            entry["execution_capacity"]=capacity_telemetry
+             basis=cost+GAS
+             if life.book is not None:life.book.checkpoint_runtime(life.lifecycle_id,'fill_context',dict(entry=entry,concentration=int(row.get('last_concentration',0)),reserved_fill_latency=dict(row.get('reserved_fill_latency',{}),total_seconds=int(snapshot['available_time'])-row['reserved_at'])))
+             life.fill(tokens,basis,int(snapshot["available_time"]),surface,
+@@ -870,6 +901,8 @@ def main(*,campaign=False,discovery_seconds=None):
+         run_id=genesis['run_id']
+     ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
+                          policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
++    from certification.directional_sleeve import recover_pump_terminals
++    recover_pump_terminals(ACCOUNTING)
+     PIPELINE=Pipeline(REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
+     report=dict(
+         kind="pump_acceleration_natural_prospective",
+@@ -923,6 +956,12 @@ def main(*,campaign=False,discovery_seconds=None):
+     if not ready.wait(15):report['limitations'].append('public_discovery_start_timeout')
+ 
+     sessions=Sessions();sessions.plane=plane
++    survivor=None
++    if os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')=='1':
++        from certification.survivor_history import Worker
++        from meme_machine.pumpswap_survivor_runtime import Runtime
++        survivor=Worker(lambda:Runtime(REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))
++        report['active_regimes']=[STRATEGY_ID,'pumpswap-survivor-momentum-v1']
+     cursor=0;full_attempts=0
+     created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
+     report["qualifiers"].extend(recovered)
+@@ -940,6 +979,7 @@ def main(*,campaign=False,discovery_seconds=None):
+             now=int(time.time())
+             _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
+             _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
++            if survivor is not None:report['survivor']=survivor.tick(now,admit=now<discovery_end)
+             if campaign:_retire_postgrad(report,postgrad,pending,active,pumpswap_stream,int(time.time()))
+             health=plane.health(PUMP_SCOPE)
+             if health['usable']:health=plane.health(SWAP_SCOPE)
+@@ -1246,6 +1286,7 @@ def main(*,campaign=False,discovery_seconds=None):
+                 _save(report);last_save=now
+             time.sleep(1)
+     finally:
++        if survivor is not None:report['survivor']=survivor.close()
+         stop.set();thread.join(timeout=5)
+         sessions.finish()
+         report["sessions"]=sessions.history
+diff --git a/tests/test_pump_acceleration_policy_identity.py b/tests/test_pump_acceleration_policy_identity.py
+index f20c412b3654451b1bc159f6c34c2aa329095806..b897084103301830eda9004917c90ab0e9fe277b 100644
+--- a/tests/test_pump_acceleration_policy_identity.py
++++ b/tests/test_pump_acceleration_policy_identity.py
+@@ -2,7 +2,7 @@ import unittest
+ 
+ from meme_machine.pump_acceleration_strategy import policy_hash
+ 
+-FROZEN="825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
++FROZEN="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"
+ 
+ 
+ class FrozenPolicyIdentityTests(unittest.TestCase):
+diff --git a/tests/test_pumpswap_survivor.py b/tests/test_pumpswap_survivor.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..d22ed8056254f918e89dff891e3a37d961228997
+--- /dev/null
++++ b/tests/test_pumpswap_survivor.py
+@@ -0,0 +1,128 @@
++"""Synthetic exact-boundary fixtures; these are not market profitability evidence."""
++from copy import deepcopy
++import unittest
++from meme_machine.pumpswap_survivor import evaluate_entry, POLICY
++
++
++def facts():
++    now=25000
++    points=[(0,100),(3400,100),(12000,150),(17200,190),(17700,200),
++            (17800,140),(20000,145),(20799,160),(20800,150),
++            (21400,153),(22000,155),(22600,154),(23200,157),(23800,158),
++            (24400,160),(25000,162)]
++    events=[]
++    for i,g in enumerate(['a','b','c']):
++        events.append(dict(id='prior'+g,at=now-2000+i,group=g,quote=1000,buy=True,authenticated=True))
++    for i,g in enumerate(['a','b','d','e','f','g']):
++        events.append(dict(id='new'+g,at=now-1000+i,group=g,quote=1000,buy=True,authenticated=True))
++    return dict(now=now,graduation_at=0,migration_price='100',
++                origin='pump.fun',venue='pumpswap',canonical_migration_pool=True,
++                lineage_proven=True,quote_asset='SOL',authoritative=True,
++                continuity_complete=True,creator_distribution_safe=True,
++                hard_concentration_pass=True,exit_liquidity_available=True,
++                mayhem=dict(status='never'),liquidity_usd_micros=30_000_000_000,
++                base_end=24400,price_points=[dict(at=t,price=str(p)) for t,p in points],
++                recovery_vwap='155',demand_events=events,demand_complete=True)
++
++
++class SurvivorTests(unittest.TestCase):
++    def test_valid_survival_reset_base_continuation(self):
++        d=evaluate_entry(facts())
++        self.assertTrue(d['candidate'],d)
++        self.assertEqual(d['features']['turnover_cap'],150)
++        self.assertEqual(d['features']['repeat_buyers'],2)
++
++    def test_fail_closed_universe_liquidity_and_safety(self):
++        for key,value,reason in [
++            ('lineage_proven',False,'graduation_lineage'),('canonical_migration_pool',False,'graduation_lineage'),
++            ('quote_asset','USDC','non_sol_quote'),('liquidity_usd_micros',29_999_999_999,'liquidity_floor'),
++            ('liquidity_usd_micros',None,'liquidity_floor'),('migration_price','163','migration_price_survival'),
++            ('creator_distribution_safe',None,'creator_distribution'),('hard_concentration_pass',False,'hard_concentration'),
++            ('exit_liquidity_available',False,'exit_liquidity'),('continuity_complete',False,'authoritative_evidence')]:
++            with self.subTest(key=key,value=value):
++                f=facts();f[key]=value
++                self.assertIn(reason,evaluate_entry(f)['all_rejections'])
++
++    def test_age_inclusive_exact_bounds(self):
++        for age,passes in [(21599,False),(21600,True),(604800,True),(604801,False)]:
++            f=facts();f['graduation_at']=f['now']-age
++            self.assertEqual('age' not in evaluate_entry(f)['all_rejections'],passes)
++
++    def test_mayhem_unknown_active_clean_and_excluded_flow(self):
++        for m,reason in [({},'unknown_mayhem'),(dict(status='active'),'active_mayhem'),
++                         (dict(status='ended',ended_at=21401,clean_since=21401),'mayhem_clean_window')]:
++            f=facts();f['mayhem']=m;self.assertIn(reason,evaluate_entry(f)['all_rejections'])
++        f=facts();f['mayhem']=dict(status='ended',ended_at=21400,clean_since=21400)
++        self.assertTrue(evaluate_entry(f)['candidate'])
++        f['mayhem']=dict(status='ended',ended_at=21400,clean_since=21400,agent_identity_proven=True,agent_groups=['bot'])
++        f['demand_events'].append(dict(id='bot',at=24999,group='bot',quote=10**12,buy=True,authenticated=True))
++        d=evaluate_entry(f);self.assertTrue(d['candidate'],d)
++        self.assertEqual(d['features']['independent_buyers'],6)
++        self.assertEqual(d['features']['buy_flow'],6000)
++        f['mayhem']['status']='active'
++        self.assertIn('active_mayhem',evaluate_entry(f)['all_rejections'])
++
++    def test_breakout_and_both_extension_bounds(self):
++        for price,reason in [('160','no_continuation'),('184.0001','price_extension'),('175.0001','base_range_extension')]:
++            f=facts();f['price_points'][-1]['price']=price
++            self.assertIn(reason,evaluate_entry(f)['all_rejections'])
++        f=facts();f['price_points'][-1]['price']='175'
++        self.assertNotIn('base_range_extension',evaluate_entry(f)['all_rejections'])
++
++    def test_no_repeat_threshold_and_positive_organic_flow(self):
++        f=facts()
++        for e in f['demand_events']:
++            if e['at']>=23200:e['group']='new'+e['group']
++        d=evaluate_entry(f);self.assertTrue(d['candidate'],d)
++        self.assertEqual(d['features']['repeat_buyers'],0)
++        f['demand_events'].append(dict(id='sell',at=24990,group='seller',quote=6000,buy=False,authenticated=True))
++        self.assertIn('net_buy_flow',evaluate_entry(f)['all_rejections'])
++
++    def test_nonpositive_base_future_and_missing_demand(self):
++        f=facts()
++        for r in f['price_points']:
++            if 20800<=r['at']<=24400:r['price']='155'
++        self.assertIn('base_range',evaluate_entry(f)['all_rejections'])
++        f=facts();f['price_points'][-1]['at']=25001
++        self.assertIn('incomplete_structure_or_demand',evaluate_entry(f)['all_rejections'])
++        f=facts();f['demand_complete']=False
++        self.assertIn('incomplete_structure_or_demand',evaluate_entry(f)['all_rejections'])
++
++    def test_recovery_vwap_and_negative_two_hour_structure(self):
++        f=facts();f['recovery_vwap']='162'
++        self.assertIn('recovery_vwap',evaluate_entry(f)['all_rejections'])
++        f=facts();f['price_points'][5]['price']='163'
++        self.assertIn('two_hour_structure',evaluate_entry(f)['all_rejections'])
++
++    def test_compression_exact_sixty_percent_and_one_tick_above(self):
++        f=facts();f['price_points'][-2]['price']='186';f['price_points'][-1]['price']='188'
++        self.assertNotIn('base_compression',evaluate_entry(f)['all_rejections'])
++        f['price_points'][-2]['price']='186.0001'
++        self.assertIn('base_compression',evaluate_entry(f)['all_rejections'])
++
++    def test_both_extension_limits_exactly_equal(self):
++        f=facts();f['price_points'][8]['price']='144';f['price_points'][-1]['price']='184'
++        d=evaluate_entry(f);self.assertTrue(d['candidate'],d)
++        f['price_points'][-1]['price']='184.0001'
++        reasons=evaluate_entry(f)['all_rejections']
++        self.assertIn('price_extension',reasons);self.assertIn('base_range_extension',reasons)
++
++    def test_six_hour_slope_zero_is_valid_negative_is_not(self):
++        from fractions import Fraction
++        f=facts();rows=[r for r in f['price_points'] if r['at']>=3400]
++        center=Fraction(sum(r['at'] for r in rows),len(rows))
++        target=next(r for r in rows if r['at']==3400)
++        rest=sum((r['at']-center)*Fraction(r['price']) for r in rows if r is not target)
++        target['price']=str(-rest/(target['at']-center))
++        self.assertNotIn('six_hour_structure',evaluate_entry(f)['all_rejections'])
++        target['price']=str(Fraction(target['price'])+Fraction(1,10000))
++        self.assertIn('six_hour_structure',evaluate_entry(f)['all_rejections'])
++
++    def test_migration_price_equal_passes_below_fails(self):
++        f=facts();f['migration_price']='162'
++        self.assertNotIn('migration_price_survival',evaluate_entry(f)['all_rejections'])
++        f['migration_price']='162.0001'
++        self.assertIn('migration_price_survival',evaluate_entry(f)['all_rejections'])
++
++
++if __name__=='__main__':unittest.main()
+diff --git a/tests/test_pumpswap_survivor_evidence.py b/tests/test_pumpswap_survivor_evidence.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..c1bcc52e301f7e5bed6d1e4b3ce3f571c81dcfcf
+--- /dev/null
++++ b/tests/test_pumpswap_survivor_evidence.py
+@@ -0,0 +1,48 @@
++import base64
++import hashlib
++import struct
++import unittest
++from meme_machine import pump
++from meme_machine.postgrad import pumpswap_pool,WSOL
++from meme_machine.pumpswap_survivor_evidence import migration_events,MIGRATION_DISC,sol_usd_lower_micros,PYTH_RECEIVER,SOL_USD_FEED
++
++
++class EvidenceTests(unittest.TestCase):
++    def migration(self,quote=None):
++        mint=pump.b58(bytes([42])*32);pool=pumpswap_pool(mint)
++        raw=MIGRATION_DISC+bytes([5])*32+pump.un58(mint)+struct.pack('<QQQ',1000,400,2)
++        raw+=pump.un58(pump.pda([b'bonding-curve',pump.un58(mint)]))+struct.pack('<q',100)+pump.un58(pool)
++        if quote is not None:raw+=pump.un58(quote)
++        return dict(slot=100,meta=dict(err=None,logMessages=[f'Program {pump.PROGRAM} invoke [1]',
++            'Program data: '+base64.b64encode(raw).decode(),f'Program {pump.PROGRAM} success']))
++
++    def test_authenticated_invocation_and_sol_lineage_legacy_and_current(self):
++        for quote in (None,WSOL):
++            rows=migration_events(self.migration(quote));self.assertEqual(len(rows),1)
++            self.assertEqual(rows[0]['quote_asset'],'SOL');self.assertEqual(rows[0]['market_time'],100)
++        tx=self.migration();tx['meta']['logMessages'][0]='Program unrelated invoke [1]'
++        self.assertEqual(migration_events(tx),[])
++        tx=self.migration();tx['meta']['err']={'error':1};self.assertEqual(migration_events(tx),[])
++
++    def test_usdc_migration_is_excluded_without_poisoning_shared_plane(self):
++        self.assertEqual(migration_events(self.migration(pump.b58(bytes([7])*32))),[])
++
++    def oracle(self,**changes):
++        fields=dict(price=10_000_000_000,confidence=10_000_000,exponent=-8,published=100,previous=90,ema=10_000_000_000,ema_conf=10_000_000,posted=90)
++        fields.update(changes)
++        raw=hashlib.sha256(b'account:PriceUpdateV2').digest()[:8]+bytes(32)+bytes([1])+SOL_USD_FEED
++        raw+=struct.pack('<qQiqqqQQ',*fields.values())
++        return dict(owner=PYTH_RECEIVER,executable=False,data=[base64.b64encode(raw).decode(),'base64'])
++
++    def test_oracle_conservative_value_exact_age_boundary(self):
++        self.assertEqual(sol_usd_lower_micros(self.oracle(),now=220,slot=90),99_900_000)
++        for kw in (dict(published=99),dict(published=221),dict(posted=91),dict(confidence=10_000_000_000),dict(exponent=1)):
++            with self.subTest(kw=kw),self.assertRaises(ValueError):sol_usd_lower_micros(self.oracle(**kw),now=220,slot=90)
++
++    def test_oracle_unknown_partial_wrong_feed_owner_fail_closed(self):
++        for offset in (0,40,41):
++            account=self.oracle();raw=bytearray(base64.b64decode(account['data'][0]));raw[offset]^=1
++            account['data'][0]=base64.b64encode(raw).decode()
++            with self.assertRaises(ValueError):sol_usd_lower_micros(account,now=100,slot=90)
++        a=self.oracle();a['owner']='wrong'
++        with self.assertRaises(ValueError):sol_usd_lower_micros(a,now=100,slot=90)
