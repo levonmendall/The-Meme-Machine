@@ -58,6 +58,26 @@ def disconnect_classification(exc):
         return 'provider_close_'+str(received.code)
     return type(exc).__name__
 
+STREAM_MAX_MESSAGE_BYTES=16*1024*1024
+STREAM_PROTOCOL_QUEUE_FRAMES=32
+STREAM_DISPATCH_MAX_MESSAGES=12
+STREAM_DISPATCH_MAX_BYTES=96*1024*1024
+STREAM_WATCHDOG_SECONDS=.1
+
+
+def decode_source_message(raw,config):
+    """Validate and decode one provider frame without re-serializing large JSON."""
+    if not isinstance(raw,str) or len(raw)>STREAM_MAX_MESSAGE_BYTES:
+        raise EvidenceUnavailable('source_message_size_limit')
+    # Scan the original transport bytes for credential-shaped material. Calling
+    # config.public() on the decoded object would json.dumps the entire 6-16 MB
+    # block again and was a large avoidable event-loop workload.
+    config.public(raw)
+    message=json.loads(raw)
+    if not isinstance(message,dict):
+        raise EvidenceUnavailable('source_message_shape')
+    return message
+
 class FinalizedFence:
     def __init__(self,writer,*,endpoint_identity,decoders=None):
         self.writer=writer;self.endpoint_identity=endpoint_identity
@@ -516,10 +536,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     # ingestion. Run 371 proved that awaiting the owner after every
                     # message can fill the protocol receive queue and starve pong
                     # handling while persistence/compaction/gap repair is busy.
-                    async with connect(config.stream_url,logger=logger,max_size=16*1024*1024,max_queue=16,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
+                    async with connect(config.stream_url,logger=logger,max_size=STREAM_MAX_MESSAGE_BYTES,max_queue=STREAM_PROTOCOL_QUEUE_FRAMES,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
                         from collections import Counter,deque
                         number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set();retired_subscriptions=deque(maxlen=256)
-                        inbound=asyncio.Queue(maxsize=64)
+                        inbound=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
+                        inbound_bytes=0
                         await ws.send(canonical(pending[1].request(1)))
 
                         async def sync_subscriptions():
@@ -538,27 +559,44 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             return wanted
 
                         async def receive():
+                            nonlocal inbound_bytes
                             while not stop.is_set():
                                 try:raw=await asyncio.wait_for(ws.recv(),.5)
                                 except TimeoutError:continue
-                                item=(raw,time.time())
-                                try:inbound.put_nowait(item)
-                                except asyncio.QueueFull:
+                                size=len(raw) if isinstance(raw,str) else STREAM_MAX_MESSAGE_BYTES+1
+                                if (size>STREAM_MAX_MESSAGE_BYTES or inbound.full()
+                                        or inbound_bytes+size>STREAM_DISPATCH_MAX_BYTES):
                                     count('stream.dispatch_queue_overflow')
+                                    counts['stream.dispatch_bytes_peak']=max(
+                                        counts.get('stream.dispatch_bytes_peak',0),inbound_bytes)
                                     raise StreamDispatchCapacity() from None
+                                inbound_bytes+=size
+                                inbound.put_nowait((raw,time.time(),size))
+                                counts['stream.received_messages']=counts.get('stream.received_messages',0)+1
+                                counts['stream.raw_message_peak_bytes']=max(
+                                    counts.get('stream.raw_message_peak_bytes',0),size)
                                 counts['stream.dispatch_queue_peak']=max(
                                     counts.get('stream.dispatch_queue_peak',0),inbound.qsize())
+                                counts['stream.dispatch_bytes_peak']=max(
+                                    counts.get('stream.dispatch_bytes_peak',0),inbound_bytes)
 
                         async def process():
+                            nonlocal inbound_bytes
                             wanted=set()
                             while not stop.is_set():
-                                try:raw,seen=await asyncio.wait_for(inbound.get(),.5)
+                                try:raw,seen,size=await asyncio.wait_for(inbound.get(),.5)
                                 except TimeoutError:
                                     wanted=await sync_subscriptions()
                                     continue
                                 try:
                                     wanted=await sync_subscriptions()
-                                    message=json.loads(raw);config.public(message)
+                                    decode_started=time.monotonic()
+                                    message=await asyncio.to_thread(decode_source_message,raw,config)
+                                    decode_us=int((time.monotonic()-decode_started)*1_000_000)
+                                    counts['stream.decode_peak_microseconds']=max(
+                                        counts.get('stream.decode_peak_microseconds',0),decode_us)
+                                    counts['stream.decode_total_microseconds']=(
+                                        counts.get('stream.decode_total_microseconds',0)+decode_us)
                                     if message.get('id') in retiring:
                                         retiring.remove(message['id']);continue
                                     if 'id' in message:
@@ -572,10 +610,22 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
                                     await work(lambda state:state.source(sub,message,seen,len(raw)),0 if sub.evidence_class=='account' else 2)
                                 finally:
+                                    inbound_bytes=max(0,inbound_bytes-size)
                                     inbound.task_done()
 
-                        receiver=asyncio.create_task(receive());processor=asyncio.create_task(process());stopper=asyncio.create_task(stop.wait())
-                        connection_tasks=[receiver,processor,stopper]
+                        async def loop_watchdog():
+                            expected=time.monotonic()+STREAM_WATCHDOG_SECONDS
+                            while not stop.is_set():
+                                await asyncio.sleep(STREAM_WATCHDOG_SECONDS)
+                                now=time.monotonic()
+                                lag_us=int(max(0.0,now-expected)*1_000_000)
+                                counts['stream.event_loop_lag_peak_microseconds']=max(
+                                    counts.get('stream.event_loop_lag_peak_microseconds',0),lag_us)
+                                expected=now+STREAM_WATCHDOG_SECONDS
+
+                        receiver=asyncio.create_task(receive());processor=asyncio.create_task(process())
+                        watchdog=asyncio.create_task(loop_watchdog());stopper=asyncio.create_task(stop.wait())
+                        connection_tasks=[receiver,processor,watchdog,stopper]
                         done,_=await asyncio.wait(connection_tasks,return_when=asyncio.FIRST_COMPLETED)
                         for task in done:task.result()
                 except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
