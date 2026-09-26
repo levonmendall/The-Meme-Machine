@@ -28,3 +28,7 @@ Large-frame decode now crosses a spawned-process boundary; only compact program-
 Transport hardening: websocket application receive now requests raw bytes; multi-MB decode/filter remains isolated in a spawned worker process.
 
 Composition hardening: shared Pump/PumpSwap protocol decoding is now strategy-independent and staged identically into Pump and Meteora worktrees.
+
+Final focused prepared-lane identities:
+- Pump: 99eeb19627ea69eb45e4ef30aacff95884e57cd262e1456d178693def0f0de36
+- Meteora: a5d7a4ed0caf221fc68e36a7499642f11ec7b45ceb864c84f9962db37e42b261
