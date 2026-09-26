@@ -1,0 +1,532 @@
+diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
+index d08956ea8319359d9e16338ed0d0cb8cf4e878b7..b2b55e0945c73414888f57762a7042091ebdc113 100644
+--- a/robinhood_research/pons_selective_paper.py
++++ b/robinhood_research/pons_selective_paper.py
+@@ -8,6 +8,7 @@ other strategy signal/threshold/state is imported.
+ from dataclasses import asdict
+ import time
+ import uuid
++from contextlib import nullcontext
+ 
+ from . import BoundaryError
+ from .provider_admission import position_work
+@@ -30,6 +31,7 @@ from .pons_selective_acquisition import (
+ from .pons_selective_continuation import (
+     ENTRY_THRESHOLDS, EXIT_POLICY, POLICY, POLICY_HASH, demand_metrics,
+     entry_signal_persistence, normalized_trade, post_graduation_vector,
++    _buy_price_impact_bps, roundtrip_loss_bps,
+     pregraduation_action, pregraduation_exit_reason,
+     pregraduation_soft_deterioration, runner_action,
+     runner_soft_deterioration, trajectory_metrics,
+@@ -55,7 +57,7 @@ class _PinnedQuoteReads:
+     a new head and cache; no timestamp/deadline or strategy economics is changed.
+     """
+     def __init__(self,rpc,curve,side):
+-        self.rpc=rpc;self.curve=curve;self.side=side;self.header=None;self.cache=None
++        self.rpc=rpc;self.curve=curve;self.side=side;self.header=None;self.cache=None;self.snipe=None
+ 
+     def call(self,method,params,*,scope):
+         if method=='eth_getBlockByNumber' and params==['latest',False]:
+@@ -78,7 +80,10 @@ class _PinnedQuoteReads:
+             self.cache={canonical([m,p]):v for (m,p),v in zip(calls,values)}
+         key=canonical([method,params])
+         if key not in self.cache:raise BoundaryError('selective_quote_read_not_pinned')
+-        return self.cache.pop(key)
++        value=self.cache.pop(key)
++        if method=='eth_call' and params[0].get('data')==calldata('currentSnipeTaxBps(address)',RESEARCH_RECIPIENT):
++            self.snipe=int(value,16)
++        return value
+ 
+ 
+ def _curve_quote(rpc,candidate,side,*args,**kwargs):
+@@ -86,7 +91,10 @@ def _curve_quote(rpc,candidate,side,*args,**kwargs):
+ 
+ 
+ def _wait_curve_quote(rpc,candidate,side,*args,**kwargs):
+-    return _native_wait_curve_quote(_PinnedQuoteReads(rpc,candidate['curve'],side),candidate,side,*args,**kwargs)
++    pinned=_PinnedQuoteReads(rpc,candidate['curve'],side)
++    quote,meta,ledger=_native_wait_curve_quote(pinned,candidate,side,*args,**kwargs)
++    if side=='buy':meta['current_snipe_bps']=pinned.snipe
++    return quote,meta,ledger
+ 
+ 
+ def _cancel_proven_unfilled(paper,identity,capital_guard,reason):
+@@ -158,34 +166,46 @@ def _position_return_bps(position,quote):
+     return (net-basis)*10_000//basis
+ 
+ 
+-def _curve_logs(endpoint,curve,current_header,seconds=60):
++def _curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None):
+     current_block=int(current_header["number"],16)
+     current_at=int(current_header["timestamp"],16)
+-    locator=evidence_rpc(endpoint)
+-    cache={current_block:current_header}
+-    start_header=_header_search(
+-        locator,current_block,current_at,max(0,current_at-int(seconds)),cache
+-    )
+-    start_block=int(start_header["number"],16)
+-    locator_telemetry=locator.telemetry()
++    if after_block is None:
++        locator=evidence_rpc(endpoint)
++        cache={current_block:current_header}
++        start_header=_header_search(
++            locator,current_block,current_at,max(0,current_at-int(seconds)),cache
++        )
++        start_block=int(start_header["number"],16)
++        locator_telemetry=locator.telemetry()
++    else:
++        # One exact, bounded delta; never a new historical window or head search.
++        start_block=int(after_block)+1
++        if not 0<=current_block-int(after_block)<=256:
++            raise BoundaryError("selective_entry_delta_block_capacity")
++        locator_telemetry={}
+ 
+     sigs=[
+         topic("CurveBuy(address,address,uint256,uint256,uint256,uint256)"),
+         topic("CurveSell(address,address,uint256,uint256,uint256,uint256)"),
+     ]
+     calls=[]
+-    for first in range(start_block,current_block+1,10):
++    chunk=10 if after_block is None else 256
++    for first in range(start_block,current_block+1,chunk):
+         calls.append(("eth_getLogs",[dict(
+-            fromBlock=hex(first),toBlock=hex(min(current_block,first+9)),
++            fromBlock=hex(first),toBlock=hex(min(current_block,first+chunk-1)),
+             address=curve,topics=[sigs],
+         )]))
+     batches,sessions=_batched(endpoint,calls,"pons_selective_monitor") if calls else ([],[])
+     raw=[]
+     for rows in batches:
+         raw.extend(rows)
+-    if len(raw)>512:
++    if len(raw)>(512 if after_block is None else 32):
+         raise BoundaryError("selective_monitor_event_capacity")
+ 
++    if after_block is not None and any(
++            not start_block<=int(e["blockNumber"],16)<=current_block or e.get("removed")
++            or e.get("address", "").lower()!=curve.lower() for e in raw):
++        raise BoundaryError("selective_entry_delta_log_identity")
+     hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
+     headers_v,more=_batched(
+         endpoint,[("eth_getBlockByHash",[h,False]) for h in hashes],"pons_selective_monitor"
+@@ -229,7 +249,7 @@ def _curve_logs(endpoint,curve,current_header,seconds=60):
+     return out,[locator_telemetry]+sessions
+ 
+ 
+-def _refresh_curve_signal(endpoint,candidate,mark_meta):
++def _refresh_curve_signal(endpoint,candidate,mark_meta,*,entry_evidence=None):
+     current_state=CurveState(**mark_meta["state"])
+     current_header=dict(
+         number=hex(int(mark_meta["block"])),
+@@ -252,6 +272,8 @@ def _refresh_curve_signal(endpoint,candidate,mark_meta):
+     demand=demand_metrics(
+         events,asof=int(mark_meta["event_at"]),creator_groups=creator_groups
+     )
++    if entry_evidence is not None:
++        entry_evidence.update(events=events,frontier=dict(mark_meta),complete=True)
+     return trajectory,demand,[trajectory_session]+sessions
+ 
+ 
+@@ -262,7 +284,85 @@ def _refresh_entry_persistence_signal(endpoint,candidate,entry_meta):
+     monitoring. Keeping the hook separate prevents recovery tests from conflating
+     pre-entry persistence with deliberately injected post-entry provider failures.
+     """
+-    return _refresh_curve_signal(endpoint,candidate,entry_meta)
++    evidence={}
++    trajectory,demand,sessions=_refresh_curve_signal(
++        endpoint,candidate,entry_meta,entry_evidence=evidence)
++    return trajectory,dict(demand,_entry_evidence=evidence),sessions
++
++
++
++def _entry_generation(evaluation):
++    path=evaluation.get('candidate_plane_path')
++    if path:
++        from certification.robinhood.plane import Plane
++        plane=Plane(path)
++        try:
++            if not plane.decision(evaluation['candidate_broker_identity'],
++                    evaluation['candidate_broker_generation'],'entry_confirmation'):
++                raise BoundaryError('candidate_generation_superseded_before_entry')
++        finally:plane.close()
++
++
++def _confirm_entry_delta(endpoint,candidate,anchor,final,trajectory,demand,vector):
++    """Authenticate only the interval after persistence, using immutable receipt reuse.
++
++    Rolling rows alone do not prove interval completeness. The exact authoritative
++    log query is mandatory when the quote frontier advances; no empty-cache proof.
++    """
++    first,last=int(anchor['block']),int(final['block'])
++    if last<first or int(final['event_at'])<int(anchor['event_at']):
++        raise BoundaryError('selective_entry_frontier_regression')
++    if last==first:
++        if any(final[k]!=anchor[k] for k in ('block_hash','event_at','state')):
++            raise BoundaryError('selective_entry_frontier_conflict')
++        return demand,[],dict(mode='same_authenticated_frontier',events_reused=0)
++    evidence=demand.get('_entry_evidence',{})
++    if (not evidence.get('complete') or evidence.get('frontier')!=anchor
++            or last-first>256 or int(final['event_at'])-int(anchor['event_at'])>=60):
++        raise BoundaryError('selective_entry_delta_unprovable')
++    # Recheck both pins; a changed branch cannot extend authenticated history.
++    headers,sessions=_batched(endpoint,[('eth_getBlockByNumber',[hex(n),False])
++        for n in (first,last)],'pons_selective_entry_delta')
++    if len(headers)!=2 or any(h.get('hash')!=m['block_hash']
++            or int(h.get('number','-1'),16)!=m['block']
++            or int(h.get('timestamp','-1'),16)!=m['event_at']
++            for h,m in zip(headers,(anchor,final))):
++        raise BoundaryError('selective_entry_delta_header_identity')
++    events,more=_curve_logs(endpoint,candidate['curve'],headers[1],after_block=first)
++    sessions.extend(more)
++    asof=int(final['event_at'])
++    retained=[r for r in evidence['events'] if asof-60<=int(r['event_at'])<=asof]
++    current=demand_metrics(retained+events,asof=asof,creator_groups=(
++        candidate['record'].get('deployer'),candidate['record'].get('creatorFeeRecipient')))
++    verdict=entry_signal_persistence(vector,trajectory,current)
++    if not verdict['persistent']:
++        raise BoundaryError('entry_signal_decay:'+','.join(verdict['reasons']))
++    return current,sessions,dict(mode='authenticated_incremental_delta',
++        first_block=first+1,last_block=last,events_reused=len(retained),delta_events=len(events))
++
++
++def _validate_final_entry(entry,meta,anchor_quote,amount,started_wall):
++    if entry is anchor_quote or int(entry.stamp.observed_at)<int(started_wall):
++        raise BoundaryError('selective_entry_quote_not_new')
++    if any(meta.get(k)!=v for k,v in dict(block=entry.stamp.block,
++            block_hash=entry.stamp.block_hash,event_at=entry.stamp.event_at,
++            observed_at=entry.stamp.observed_at,amount_in=entry.amount_in,
++            amount_out=entry.amount_out,gas_quote=entry.gas_quote).items()):
++        raise BoundaryError('selective_entry_quote_metadata_identity')
++    if meta.get('current_snipe_bps')!=0:
++        raise BoundaryError('snipe_tax_nonzero')
++    state=CurveState(**meta['state'])
++    value=state.buy_with_snipe(amount,0)
++    if state.graduated or value['refund'] or value['ready_to_graduate']:
++        raise BoundaryError('selective_entry_structural_boundary')
++    if value['tokens_out']!=entry.amount_out:
++        raise BoundaryError('selective_entry_quote_state_identity')
++    impact=_buy_price_impact_bps(state,amount)
++    if impact is None or impact>ENTRY_THRESHOLDS['max_entry_impact_bps']:
++        raise BoundaryError('selective_entry_impact')
++    loss=roundtrip_loss_bps(state,amount,int(entry.gas_quote)*2)
++    if loss is None or loss>ENTRY_THRESHOLDS['max_roundtrip_loss_bps']:
++        raise BoundaryError('selective_entry_execution_economics')
+ 
+ 
+ def _delayed_exit(
+@@ -425,23 +525,44 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+             rpc,candidate,"buy",amount,gas_units,store,"selective-entry",
+             reserved["due"],seconds=30,local_freshness=True,
+         )
++        anchor_quote,anchor_meta=entry,entry_meta
++        persistence_started=time.monotonic()
+         trajectory_now,demand_now,persistence_sessions=_refresh_entry_persistence_signal(
+             endpoint,candidate,entry_meta
+         )
++        persistence_elapsed=time.monotonic()-persistence_started
+         result["provider_sessions"].extend(persistence_sessions)
+         persistence=entry_signal_persistence(vector,trajectory_now,demand_now)
+         result["entry_persistence"]=dict(
+             persistence,
+             reasons=list(persistence["reasons"]),
+-            trajectory=trajectory_now,demand=demand_now,
++            trajectory=trajectory_now,demand={k:v for k,v in demand_now.items() if k!='_entry_evidence'},
++            persistence_elapsed_seconds=persistence_elapsed,
+         )
++        if persistence['persistent']:
++            _entry_generation(evaluation)
++            result['entry_persistence']['final_quote_provider_before']=rpc.telemetry()
++            final_started_wall=time.time();final_started=time.monotonic()
++            entry,entry_meta,entry_ledger=_wait_curve_quote(
++                rpc,candidate,"buy",amount,gas_units,store,"selective-entry-final",
++                reserved["due"],seconds=30,local_freshness=True,
++            )
++            final_received=time.monotonic()
++            result['entry_persistence']['final_quote_provider_after']=rpc.telemetry()
++            result['entry_persistence']['final_quote_acquisition_seconds']=final_received-final_started
++            _validate_final_entry(entry,entry_meta,anchor_quote,amount,final_started_wall)
++            demand_now,delta_sessions,delta=_confirm_entry_delta(
++                endpoint,candidate,anchor_meta,entry_meta,trajectory_now,demand_now,vector)
++            result['provider_sessions'].extend(delta_sessions)
++            result['entry_persistence']['provider_sessions_after_final_quote']=delta_sessions
++            result['entry_persistence']['final_delta']=delta
++            result['entry_persistence']['broad_reconstruction_after_final_quote']=0
++            _entry_generation(evaluation)
+         quote_age=max(0,int(time.time())-int(entry.stamp.observed_at))
+         result["entry_persistence"]["quote_age_after_confirmation_seconds"]=quote_age
+         if not persistence["persistent"] or quote_age>ENTRY_THRESHOLDS["max_state_age_seconds"]:
+-            failure=(
+-                "entry_signal_decay" if not persistence["persistent"]
+-                else "entry_quote_stale_after_confirmation"
+-            )
++            failure=("entry_signal_decay" if not persistence["persistent"]
++                     else "entry_quote_stale_after_confirmation")
+             paper.advance(
+                 identity,now=int(time.time()),action="cancel",
+                 cancel_reason=failure,
+@@ -488,10 +609,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+                 reconciliation=paper.reconcile(),
+             )
+             return result
+-        opened=paper.advance(
+-            identity,now=entry.stamp.observed_at,action="entry",quote=entry,
+-            finality_ledger=entry_ledger,
+-        )
++        # Hold the generation fence through the native commit. Projection callbacks
++        # execute afterward because they open their own connection to the Plane.
++        plane=None
++        if evaluation.get('candidate_plane_path'):
++            from certification.robinhood.plane import Plane
++            plane=Plane(evaluation['candidate_plane_path'])
++        callback=paper.on_commit
++        try:
++            with plane.transaction() if plane is not None else nullcontext():
++                if plane is not None:
++                    current=plane.get(evaluation['candidate_broker_identity'])
++                    if (not current or current['generation']!=evaluation['candidate_broker_generation']
++                            or current['completed']!=current['desired']
++                            or plane.clock()>=current['deadline']):
++                        raise BoundaryError('candidate_generation_superseded_before_entry')
++                decision_at=time.time()
++                quote_age=max(float(decision_at)-float(entry.stamp.observed_at),
++                    float(getattr(entry,'acquisition_latency_seconds',0))+time.monotonic()-final_received)
++                result['entry_persistence']['quote_age_at_decision_seconds']=quote_age
++                if quote_age>ENTRY_THRESHOLDS['max_state_age_seconds']:
++                    raise BoundaryError('entry_quote_stale_after_confirmation')
++                paper.on_commit=None
++                opened=paper.advance(
++                    identity,now=int(decision_at),action="entry",quote=entry,
++                    finality_ledger=entry_ledger,
++                )
++        finally:
++            paper.on_commit=callback
++            if plane is not None:plane.close()
++        if callback:callback(paper,opened)
+         result["entry"]=dict(position=opened,quote=entry_meta)
+ 
+         # Every strategy-local paper trial must survive restart before monitoring.
+diff --git a/robinhood_tests/test_pons_entry_confirmation_ordering.py b/robinhood_tests/test_pons_entry_confirmation_ordering.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..9689ed71dc2486a77b7626ac60094c0b3ded4922
+--- /dev/null
++++ b/robinhood_tests/test_pons_entry_confirmation_ordering.py
+@@ -0,0 +1,181 @@
++"""Offline production lifecycle tests: native quotes, finality and journal commits."""
++from contextlib import ExitStack
++from dataclasses import replace,asdict
++from pathlib import Path
++import json,tempfile,unittest
++from unittest.mock import patch
++from robinhood_research import BoundaryError
++from robinhood_research import pons_selective_paper as paper
++from robinhood_research.evidence import Store
++from robinhood_research.pons import CurveState
++from robinhood_research.pons_selective_continuation import POLICY_HASH
++from robinhood_research.pons_selective_ledger import JOURNAL_CATEGORY
++from robinhood_tests.test_pons_execution_acquisition import FakeRPC,candidate,CURVE
++from robinhood_tests import test_pons_position_provider_recovery as recovery
++
++class EntryOrderingTests(unittest.TestCase):
++    def lifecycle(self,*,delay=20,mutate=None,validation_delay=0,persistent=True,folder=None,broker=False,supersede=False):
++        clock=[102.0];calls=[];rpc=FakeRPC();rpc.used=0
++        rpc.verify_chain=lambda:None
++        rpc.telemetry=lambda:dict(logical_calls=rpc.logical,physical_transports=rpc.transports)
++        c=candidate();c.update(receipt={'gasUsed':hex(21000)},record={})
++        c['state']=CurveState(quote_reserve=2*10**18,token_reserve=800*10**24,
++            real_quote=8*10**17,reserved_tokens=100*10**24,fee_bps=100,creator_tax_bps=50,graduated=False,launched_at=0,snipe_start_bps=9900,snipe_seconds=5,timestamp=100)
++        vector=dict(current_threshold_pass=True,policy_hash=POLICY_HASH,
++            proposed_size={'amount_quote':10**15},evidence_available_at=100,
++            trajectory={'graduation_eta_seconds':60},demand={'largest_buyer_flow_bps':1000})
++        evaluation=dict(vector=vector,candidate=c,token='t',curve=CURVE,source_transaction='tx',market_events=[])
++        if folder is None:
++            tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup);folder=tmp.name
++        db=Path(folder)/'paper.sqlite'
++        if broker:
++            from certification.robinhood.plane import Plane
++            path=Path(folder)/'plane.sqlite'
++            plane=Plane(path,clock=lambda:clock[0])
++            if plane.get('candidate') is None:
++                plane.observe('candidate','pons','obs1',{},ordering=(1,),watermark={'block':12},
++                    interpretation={'policy':POLICY_HASH},observed=100,deadline=200,priority=1)
++                plane.finish(plane.claim(),result={})
++            plane.close()
++            evaluation.update(candidate_plane_path=str(path),candidate_broker_identity='candidate',candidate_broker_generation=1)
++        original_wait=paper._wait_curve_quote;original_validate=paper._validate_final_entry
++        quotes=[]
++        def wait(*a,**kw):
++            calls.append(('quote',clock[0]));clock[0]+=.5
++            q,m,l=original_wait(*a,**kw)
++            if quotes and supersede:
++                from certification.robinhood.plane import Plane
++                plane=Plane(evaluation['candidate_plane_path'],clock=lambda:clock[0])
++                plane.observe('candidate','pons','obs2',{},ordering=(2,),watermark={'block':13},
++                    interpretation={'policy':POLICY_HASH},observed=clock[0],deadline=200,priority=1)
++                plane.close()
++            if quotes and mutate:q,m,l=mutate(q,m,l,quotes[0])
++            quotes.append((q,m,l));return q,m,l
++        def persistence(*a):
++            calls.append(('persistence',clock[0]));clock[0]+=delay
++            t,d,s=recovery.PositionRecoveryTests.persistent_entry_signal()
++            if not persistent:d['current_net_quote']=0
++            return t,d,s
++        def validate(*a):
++            original_validate(*a);clock[0]+=validation_delay
++        def monitor(*a):raise BoundaryError('offline_monitor_stop')
++        patches={'paper_rpc':lambda *a:rpc,'_gas_quote':lambda *a:(21000,1),
++            '_wait_curve_quote':wait,'_refresh_entry_persistence_signal':persistence,
++            '_validate_final_entry':validate,'_latest_header':monitor,
++            'time.time':lambda:clock[0],'time.monotonic':lambda:clock[0],
++            'time.sleep':lambda sec:clock.__setitem__(0,clock[0]+sec)}
++        with ExitStack() as stack:
++            if broker:
++                from certification.robinhood.plane import Plane as NativePlane
++                stack.enter_context(patch('certification.robinhood.plane.Plane',side_effect=lambda path,**kw:NativePlane(path,clock=lambda:clock[0])))
++            for name,value in patches.items():stack.enter_context(patch.object(paper,name,side_effect=value) if '.' not in name else patch('robinhood_research.pons_selective_paper.'+name,side_effect=value))
++            result=paper.run_lifecycle('offline',evaluation,db_path=db)
++        store=Store(db);events=[json.loads(r[0]) for r in store.db.execute('SELECT body FROM records WHERE category=?',(JOURNAL_CATEGORY,))];store.close()
++        return result,events,calls,rpc
++
++    def test_slow_persistence_then_new_native_quote_commits(self):
++        r,events,calls,rpc=self.lifecycle()
++        self.assertEqual([c[0] for c in calls],['quote','persistence','quote'])
++        self.assertEqual(sum(e['action']=='entry' for e in events),1,r)
++        metrics=r['entry_persistence']
++        self.assertEqual(metrics['persistence_elapsed_seconds'],20)
++        self.assertEqual(metrics['final_quote_acquisition_seconds'],.5)
++        self.assertLessEqual(metrics['quote_age_at_decision_seconds'],5)
++        self.assertEqual(metrics['broad_reconstruction_after_final_quote'],0)
++        self.assertEqual((rpc.logical,rpc.transports),(16,4))
++
++    def test_real_time_after_final_quote_still_cancels(self):
++        r,events,_,_=self.lifecycle(validation_delay=6)
++        self.assertFalse(any(e['action']=='entry' for e in events),r)
++        self.assertIn('stale',r.get('entry_failure',r.get('boundary','')))
++
++    def test_decay_prevents_final_quote_acquisition(self):
++        r,events,calls,_=self.lifecycle(persistent=False)
++        self.assertEqual(r['entry_failure'],'entry_signal_decay')
++        self.assertEqual([x[0] for x in calls],['quote','persistence'])
++        self.assertFalse(any(e['action']=='entry' for e in events))
++
++    def test_reused_quote_timestamp_forgery_and_missing_finality_rejected(self):
++        def reused(q,m,l,old):return old
++        def forged(q,m,l,old):return replace(old[0],stamp=replace(old[0].stamp,observed_at=q.stamp.observed_at)),dict(old[1],observed_at=q.stamp.observed_at),old[2]
++        def no_finality(q,m,l,old):return q,m,None
++        def zero(q,m,l,old):return replace(q,amount_out=0),dict(m,amount_out=0),l
++        def missing(q,m,l,old):return replace(q,amount_out=None),dict(m,amount_out=None),l
++        def untrusted(q,m,l,old):return replace(q,stamp=replace(q.stamp,block_hash='wrong')),m,l
++        for mutate in (reused,forged,no_finality,zero,missing,untrusted):
++            with self.subTest(mutation=mutate.__name__):
++                r,events,_,_=self.lifecycle(mutate=mutate)
++                self.assertFalse(any(e['action']=='entry' for e in events),r)
++
++    def test_final_current_snipe_state_rejects(self):
++        def mutate(q,m,l,old):return q,dict(m,current_snipe_bps=100),l
++        r,events,_,_=self.lifecycle(mutate=mutate)
++        self.assertEqual(r['boundary'],'snipe_tax_nonzero')
++        self.assertFalse(any(e['action']=='entry' for e in events))
++
++    def test_same_frontier_conflict_and_missing_delta_proof_reject(self):
++        anchor=dict(block=1,block_hash='h1',event_at=100,state={})
++        for final,error in ((dict(anchor,block_hash='other'),'conflict'),
++                (dict(anchor,block=2,event_at=101),'unprovable'),
++                (dict(anchor,block=0),'regression')):
++            with self.subTest(error=error),self.assertRaisesRegex(BoundaryError,error):
++                paper._confirm_entry_delta('offline',{},anchor,final,{}, {},{})
++
++    def test_exact_delta_does_not_search_or_scan_full_history(self):
++        header=dict(number='0x6',hash='h6',timestamp='0x65')
++        calls=[]
++        def batch(endpoint,rows,scope,**kwargs):calls.extend(rows);return [[]],[]
++        with patch.object(paper,'_header_search',side_effect=AssertionError('history search')),patch.object(paper,'_batched',side_effect=batch):
++            events,_=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline',CURVE,header,after_block=5)
++        self.assertEqual(events,[])
++        self.assertEqual(len(calls),1)
++        self.assertEqual(calls[0][1][0]['fromBlock'],'0x6')
++        self.assertEqual(calls[0][1][0]['toBlock'],'0x6')
++        with self.assertRaisesRegex(BoundaryError,'capacity'):
++            paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline',CURVE,dict(header,number=hex(300)),after_block=5)
++
++    def test_generation_superseded_during_final_quote_cannot_enter(self):
++        r,events,_,_=self.lifecycle(broker=True,supersede=True)
++        self.assertEqual(r['boundary'],'candidate_generation_superseded_before_entry')
++        self.assertFalse(any(e['action']=='entry' for e in events))
++
++    def test_committed_entry_survives_restart_duplicate_delivery(self):
++        with tempfile.TemporaryDirectory() as folder:
++            r,events,_,_=self.lifecycle(broker=True,folder=folder)
++            self.assertEqual(sum(e['action']=='entry' for e in events),1,r)
++            r,events,_,_=self.lifecycle(broker=True,folder=folder)
++            self.assertEqual(sum(e['action']=='entry' for e in events),1,r)
++            self.assertEqual(sum(e['action']=='reserve' for e in events),1)
++
++    def test_current_delta_preserves_creator_and_net_demand_gates(self):
++        def event(i,at,amount=10,side='buy',group=None):
++            group=group or 'g'+str(i)
++            return dict(identity=str(i),event_at=at,quote=amount,tokens=100,
++                side=side,group=group,actor=group,recipient=group)
++        retained=[event(i,80,1) for i in range(6)]+[event(i,99) for i in range(6,12)]
++        anchor=dict(block=1,block_hash='h1',event_at=100,state={})
++        final=dict(block=2,block_hash='h2',event_at=101,state={})
++        headers=[dict(number=hex(x['block']),hash=x['block_hash'],timestamp=hex(x['event_at'])) for x in (anchor,final)]
++        trajectory,_,_=recovery.PositionRecoveryTests.persistent_entry_signal()
++        demand={'_entry_evidence':dict(complete=True,frontier=anchor,events=retained)}
++        for delta,error in (([],None),([event(20,101,1,'sell','creator')],'creator_distribution'),
++                ([event(20,101,1000,'sell')],'net_demand_nonpositive')):
++            with self.subTest(error=error),patch.object(paper,'_batched',return_value=(headers,[])),patch.object(paper,'_curve_logs',return_value=(delta,[])) as logs:
++                if error:
++                    with self.assertRaisesRegex(BoundaryError,error):
++                        paper._confirm_entry_delta('offline',{'curve':CURVE,'record':{'deployer':'creator'}},anchor,final,trajectory,demand,{})
++                else:
++                    current,_,metrics=paper._confirm_entry_delta('offline',{'curve':CURVE,'record':{}},anchor,final,trajectory,demand,{})
++                    self.assertGreater(current['current_net_quote'],0)
++                    self.assertEqual(metrics['events_reused'],12)
++                self.assertEqual(logs.call_args.kwargs,{'after_block':1})
++
++    def test_excessive_current_impact_rejected_at_frozen_limit(self):
++        from robinhood_research.pons_natural_paper import _ledger_for_quote
++        store=Store(':memory:')
++        self.addCleanup(store.close)
++        with patch('robinhood_research.pons_natural_paper.time.time',return_value=102):
++            q,m=paper._curve_quote(FakeRPC(),candidate(),'buy',5*10**16,21000,store,'impact',local_freshness=True)
++        m['current_snipe_bps']=0
++        with self.assertRaisesRegex(BoundaryError,'selective_entry_impact'):
++            paper._validate_final_entry(q,m,None,5*10**16,102)
+diff --git a/robinhood_tests/test_pons_execution_acquisition.py b/robinhood_tests/test_pons_execution_acquisition.py
+index d582990cdf34d01b88c0acec76d4fc9efe944c46..cc8fdd1dba943adfdc63d7bd047683384df4a02d 100644
+--- a/robinhood_tests/test_pons_execution_acquisition.py
++++ b/robinhood_tests/test_pons_execution_acquisition.py
+@@ -54,7 +54,8 @@ class ExecutionAcquisitionTests(unittest.TestCase):
+                     token='token',curve='m',source_transaction='source')
+                 rpc=MagicMock();rpc.telemetry.return_value={}
+                 prefix='robinhood_research.pons_selective_paper.'
+-                with patch(prefix+'paper_rpc',return_value=rpc),patch(prefix+'_gas_quote',return_value=(2,1)),\
++                with patch(prefix+'_validate_final_entry'),patch(prefix+'_confirm_entry_delta',return_value=({},[],{})),\
++                     patch(prefix+'paper_rpc',return_value=rpc),patch(prefix+'_gas_quote',return_value=(2,1)),\
+                      patch(prefix+'_wait_curve_quote',return_value=(fixture.quote(102,'buy',100,1000),{},None)),\
+                      patch(prefix+'_refresh_entry_persistence_signal',return_value=({}, {}, [])),\
+                      patch(prefix+'entry_signal_persistence',return_value={'persistent':persistent,'reasons':[]}),\
+diff --git a/robinhood_tests/test_pons_position_provider_recovery.py b/robinhood_tests/test_pons_position_provider_recovery.py
+index 6a6934b35ba042224383328e3966e54199e4d876..dcec086c58d6e5d013f909d56f8f02fc9eb7f7f6 100644
+--- a/robinhood_tests/test_pons_position_provider_recovery.py
++++ b/robinhood_tests/test_pons_position_provider_recovery.py
+@@ -77,6 +77,8 @@ class PositionRecoveryTests(unittest.TestCase):
+         patches={'paper_rpc':lambda *a:rpc,'_gas_quote':lambda *a:(2,1),
+             '_wait_curve_quote':wait_quote,'_curve_quote':quote,
+             '_refresh_entry_persistence_signal':self.persistent_entry_signal,
++            '_validate_final_entry':lambda *a:None,
++            '_confirm_entry_delta':lambda *a:(a[5],[],{}),
+             '_fresh_fill_full_exit_check':lambda *a:dict(executable=True),
+             '_prove_impossible_full_exit':lambda *a:dict(reason='impossible_full_position_exit',sale_proceeds=0),
+             '_latest_header':lambda *a:dict(number=hex(int(clock[0]))),
+@@ -112,7 +114,9 @@ class PositionRecoveryTests(unittest.TestCase):
+             entry=fixture.quote(102,'buy',100,1000)
+             meta=dict(block=102,block_hash='h102',event_at=102,state={})
+             db=Path(d)/'trial.sqlite';capital=Path(d)/'capital.sqlite'
+-            with patch(MODULE+'paper_rpc',return_value=rpc),\
++            with patch(MODULE+'_validate_final_entry'),\
++                 patch(MODULE+'_confirm_entry_delta',return_value=({},[],{})),\
++                 patch(MODULE+'paper_rpc',return_value=rpc),\
+                  patch(MODULE+'_gas_quote',return_value=(2,1)),\
+                  patch(MODULE+'_wait_curve_quote',return_value=(entry,meta,None)),\
+                  patch(MODULE+'_refresh_entry_persistence_signal',

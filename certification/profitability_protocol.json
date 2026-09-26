@@ -42,7 +42,7 @@
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
-      "source_diff_sha256": "260fc7bb80271a42774dbecd289e9121855c981dc1a481321b61e99e34fe9ab0"
+      "source_diff_sha256": "3dae04d625ba98f902db27c7ab12b1e80df61b8cff49c5762be9734d17449a74"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v4",
