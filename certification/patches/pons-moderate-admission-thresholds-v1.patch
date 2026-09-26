@@ -10,7 +10,7 @@ diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_resea
  from certification.execution_capacity import resize, buyer_persistence
  ZERO = "0x0000000000000000000000000000000000000000"
  
-@@ -21,27 +21,27 @@ ENTRY_THRESHOLDS = dict(
+@@ -21,25 +21,25 @@ ENTRY_THRESHOLDS = dict(
 -    min_curve_progress_bps=5000,
 -    max_curve_progress_bps=8500,
 -    min_token_age_seconds=120,
@@ -48,7 +48,7 @@ diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_resea
      max_market_events=512,
      execution_stress_multiple=2,
      sizing_search_steps=32,
-@@ -49,12 +49,12 @@ ENTRY_THRESHOLDS = dict(
+@@ -49,8 +49,8 @@ ENTRY_THRESHOLDS = dict(
  POST_GRAD_THRESHOLDS = dict(
      min_observation_seconds=5,
 -    max_observation_seconds=30,
@@ -62,7 +62,7 @@ diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_resea
 +    min_buy_sell_ratio_bps=13_000,
 +    max_preholder_sell_share_bps=6000,
  )
-@@ -69,9 +69,9 @@ BREAKOUT_THRESHOLDS = dict(
+@@ -69,7 +69,7 @@ BREAKOUT_THRESHOLDS = dict(
      allocation_authority=False,
      min_seconds_after_graduation=30,
      max_seconds_after_graduation=900,
@@ -85,7 +85,7 @@ diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/p
          max_seconds_after_graduation=7*24*60*60,
          native_quote_only=True,
      ),
-@@ -37,16 +37,16 @@ POLICY=dict(
+@@ -37,12 +37,12 @@ POLICY=dict(
 -        min_since_graduation_return_bps=500,
 -        min_long_return_bps=1000,
 -        min_6h_return_bps=500,
@@ -107,7 +107,7 @@ diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/p
          base_seconds=2*60*60,
          breakout_exclusion_seconds=15*60,
          long_window_seconds=24*60*60,
-@@ -55,11 +55,11 @@ POLICY=dict(
+@@ -55,9 +55,9 @@ POLICY=dict(
      ),
      demand=dict(
 -        min_independent_buyers_30m=5,
@@ -122,7 +122,7 @@ diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/p
 +        max_largest_buyer_share_bps=4000,
          max_creator_sell_quote=0,
      ),
-@@ -70,12 +70,12 @@ POLICY=dict(
+@@ -70,10 +70,10 @@ POLICY=dict(
      execution=dict(
          target_capital_bps=25,
          minimum_capital_bps=5,
@@ -140,10 +140,10 @@ diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/p
 diff --git a/robinhood_research/pons_survivor_runtime.py b/robinhood_research/pons_survivor_runtime.py
 --- a/robinhood_research/pons_survivor_runtime.py
 +++ b/robinhood_research/pons_survivor_runtime.py
-@@ -164,7 +164,7 @@ class SurvivorRuntime:
+@@ -164 +164 @@ class SurvivorRuntime:
 -        capacity=resize(cap,self.capital*5//10000,quotes.loss,ordinary_limit=350,stress_limit=500,max_steps=4)
 +        capacity=resize(cap,self.capital*5//10000,quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
-@@ -221,8 +221,8 @@ class SurvivorRuntime:
+@@ -221,5 +221,5 @@ class SurvivorRuntime:
      def _enter(self,row):
          return commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
              strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,decision=row['decision'],regime=row['regime'],at=self.now(),
@@ -154,7 +154,7 @@ diff --git a/robinhood_research/pons_survivor_runtime.py b/robinhood_research/po
 diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
 --- a/robinhood_tests/test_pons_selective_continuation.py
 +++ b/robinhood_tests/test_pons_selective_continuation.py
-@@ -96,10 +96,10 @@ class PonsSelectivePolicyTests(unittest.TestCase):
+@@ -96,6 +96,6 @@ class PonsSelectivePolicyTests(unittest.TestCase):
      def test_policy_is_distinct_and_frozen(self):
          self.assertEqual(POLICY,"pons-selective-continuation-v1")
 -        self.assertEqual(POLICY_HASH,"3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa")
@@ -165,7 +165,7 @@ diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tes
 +        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],4500)
 +        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8800)
 +        self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],90)
-@@ -106,7 +106,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
+@@ -106,4 +106,4 @@ class PonsSelectivePolicyTests(unittest.TestCase):
          self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
          self.assertEqual(ENTRY_THRESHOLDS["real_quote_size_bps"],200)
          self.assertEqual(ENTRY_THRESHOLDS["independent_net_size_bps"],1000)
