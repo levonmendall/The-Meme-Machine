@@ -831,7 +831,7 @@ index 0000000000000000000000000000000000000000..73061db4c92e62a5b4cf50698e5a06f9
 +        for event in events:
 +            if len(event['topics'])<2:raise BoundaryError('survivor_graduation_token')
 +            token='0x'+event['topics'][1][-40:].lower();block=int(event['blockNumber'],16)
-+            report={};record=_factory_record_at(self.rpc,token,block,report)
++            report={'reads':[]};record=_factory_record_at(self.rpc,token,block,report)
 +            result=_graduation_transition(self.rpc,dict(token=token,curve=record['curve']),block,block,report)
 +            if result is None:raise BoundaryError('survivor_graduation_missing')
 +            transition,key,h,record=result

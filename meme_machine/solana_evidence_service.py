@@ -70,6 +70,8 @@ STREAM_COMMIT_BATCH_MAX_MESSAGES=8
 STREAM_COMMIT_BATCH_MAX_BYTES=16*1024*1024
 STREAM_SUBSCRIPTION_SYNC_SECONDS=.25
 STREAM_WATCHDOG_SECONDS=.1
+STREAM_SOURCE_IDLE_SECONDS=20
+STREAM_COMMIT_STALL_SECONDS=15
 
 
 def decode_source_message(raw,credential,program_addresses=()):
@@ -554,11 +556,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     from .solana_provider_config import AlchemyEndpoint
     from .solana_evidence_transport import Subscription
     from .solana_evidence_plane import EvidenceWriter
-    from .solana_evidence_control import PriorityOwner,command_priority,MAX_COMMAND_BYTES
+    from .solana_evidence_control import PriorityOwner,PendingCommands,MAX_COMMAND_BYTES
     config=AlchemyEndpoint.parse(endpoint)
     import logging
     logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
     owner=PriorityOwner(lambda:ServiceState(path,config))
+    pending_commands=PendingCommands(owner)
     await asyncio.wrap_future(owner.ready)
     decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))
     await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
@@ -570,7 +573,14 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             started=time.monotonic()
             value=fn(state)
             return value,int((started-submitted)*1_000_000),int((time.monotonic()-started)*1_000_000)
-        value,queued,executed=await asyncio.shield(asyncio.wrap_future(owner.submit(timed,priority=priority)))
+        wrapped=asyncio.wrap_future(owner.submit(timed,priority=priority))
+        try:value,queued,executed=await asyncio.shield(wrapped)
+        except asyncio.CancelledError:
+            # Accepted owner work outlives a cancelled maintenance waiter. Its
+            # recorded outcome must be consumed even when cooperative SQL yield
+            # finishes after shutdown has cancelled that background coroutine.
+            wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
+            raise
         # Separate scheduler wait from actual writer work; the prior "commit"
         # metric included both and could not identify the saturated stage.
         for stage,duration in (('queue',queued),('execution',executed)):
@@ -596,7 +606,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     raise EvidenceUnavailable('evidence_command_envelope')
                 # Enqueue once. Waiting clients may disconnect; the mutation and
                 # receipt remain owned by this task/SQLite actor, never the socket.
-                future=owner.submit(lambda state:state.fence.command(request),priority=command_priority(request))
+                future=pending_commands.submit(request)
                 wrapped=asyncio.wrap_future(future)
                 try:response=await asyncio.wait_for(asyncio.shield(wrapped),.4)
                 except TimeoutError:
@@ -635,7 +645,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     # persistence, and account-subscription reconciliation. Run 373
                     # proved that a healthy receiver can still lose continuity when
                     # one sequential downstream processor cannot sustain block flow.
-                    async with connect(config.stream_url,logger=logger,max_size=STREAM_MAX_MESSAGE_BYTES,max_queue=STREAM_PROTOCOL_QUEUE_FRAMES,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
+                    # A bounded websocket data queue pauses transport reads,
+                    # including PONG frames. Its autonomous ping deadline cannot
+                    # distinguish that intentional backpressure from a dead peer.
+                    # Keep pings, but enforce explicit receive/commit progress
+                    # deadlines below; native freshness/finality gates are intact.
+                    async with connect(config.stream_url,logger=logger,max_size=STREAM_MAX_MESSAGE_BYTES,max_queue=STREAM_PROTOCOL_QUEUE_FRAMES,ping_interval=10,ping_timeout=None,open_timeout=10) as ws:
                         from collections import Counter,deque
                         number=1
                         pending={1:Subscription('service','chain:solana','all','blocks',2)}
@@ -643,6 +658,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         inbound=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
                         decoded=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
                         pending_bytes=0;pending_frames=0;receive_sequence=0
+                        commit_progress=time.monotonic()
                         drained=asyncio.Event();drained.set()
                         capacity_available=asyncio.Event()
                         wanted=set()
@@ -676,6 +692,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
 
                         async def receive():
                             nonlocal pending_bytes,pending_frames,receive_sequence
+                            last_receive=time.monotonic()
                             while not stop.is_set() and not connection_stop.is_set():
                                 # Reserve room for one maximum-sized frame before
                                 # asking the transport for it. A full local queue
@@ -694,12 +711,18 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     try:await asyncio.wait_for(capacity_available.wait(),.5)
                                     except TimeoutError:pass
                                     if stop.is_set() or connection_stop.is_set():return
+                                    if time.monotonic()-commit_progress>STREAM_COMMIT_STALL_SECONDS:
+                                        raise EvidenceUnavailable('local_ordered_commit_stalled')
                                 if wait_started is not None:
                                     wait_us=int((time.monotonic()-wait_started)*1_000_000)
                                     counts['stream.admission_wait_total_microseconds']=counts.get('stream.admission_wait_total_microseconds',0)+wait_us
                                     counts['stream.admission_wait_peak_microseconds']=max(counts.get('stream.admission_wait_peak_microseconds',0),wait_us)
                                 try:raw=await asyncio.wait_for(ws.recv(decode=False),.5)
-                                except TimeoutError:continue
+                                except TimeoutError:
+                                    if time.monotonic()-last_receive>STREAM_SOURCE_IDLE_SECONDS:
+                                        raise EvidenceUnavailable('source_receive_idle_timeout')
+                                    continue
+                                last_receive=time.monotonic()
                                 size=len(raw) if isinstance(raw,(str,bytes)) else STREAM_MAX_MESSAGE_BYTES+1
                                 # The frame that crosses the bound is the first
                                 # unretained frame. Stop reception, drain every frame
@@ -768,7 +791,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     inbound.task_done()
 
                         async def commit_ordered():
-                            nonlocal pending_bytes,pending_frames
+                            nonlocal pending_bytes,pending_frames,commit_progress
                             next_sequence=0;finished_workers=0;ready={}
                             while finished_workers<STREAM_DECODE_WORKERS or ready or pending_frames:
                                 # Pull every completion already available before
@@ -852,6 +875,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                     counts.get('stream.commit_total_microseconds',0)+commit_us)
                                                 pending_bytes=max(0,pending_bytes-batch_bytes)
                                                 pending_frames=max(0,pending_frames-len(batch))
+                                                commit_progress=time.monotonic()
                                                 capacity_available.set()
                                                 if pending_frames==0:drained.set()
                                                 next_sequence+=len(batch)
@@ -894,6 +918,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                             counts.get('stream.commit_total_microseconds',0)+commit_us)
                                         pending_bytes=max(0,pending_bytes-size)
                                         pending_frames=max(0,pending_frames-1)
+                                        commit_progress=time.monotonic()
                                         capacity_available.set()
                                         if pending_frames==0:drained.set()
                                         next_sequence+=1
@@ -993,6 +1018,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         plan=await work(lambda state:state.maintenance(http),4);next_health=time.monotonic()+1
                         snapshot=dict(counts)
                         await work(lambda state:state.fence.health('ipc',snapshot),1)
+                        scheduler=owner.telemetry()
+                        await work(lambda state:state.fence.health('owner_scheduler',scheduler),1)
                     else:plan=await work(lambda state:state.writer.archive_plan(time.time()-180,max_records=512),4)
                     if plan:
                         receipt=await asyncio.to_thread(EvidenceWriter.write_archive,path,plan)
@@ -1026,6 +1053,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         # Persist the final bounded counters after producers stop; a short drain
         # can otherwise finish between maintenance snapshots and hide pressure.
         await work(lambda state:state.fence.health('ipc',dict(counts)),0)
+        scheduler=owner.telemetry()
+        await work(lambda state:state.fence.health('owner_scheduler',scheduler),0)
         await asyncio.to_thread(owner.close)
         await asyncio.to_thread(decoder_pool.shutdown,wait=True,cancel_futures=True)
         Path(socket_path).unlink(missing_ok=True)

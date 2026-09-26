@@ -18,8 +18,10 @@ MAX_RECEIPTS=8192
 
 
 class PriorityOwner:
-    def __init__(self, factory, *, capacity=64, reserved=8):
+    def __init__(self, factory, *, capacity=64, reserved=8, clock=time.monotonic):
         self.capacity=capacity; self.reserved=reserved
+        self.clock=clock;self.enqueued={}
+        self.metrics={}
         self.cv=threading.Condition(); self.queue=[]; self.sequence=0
         self.closed=False; self.ready=concurrent.futures.Future()
         self.thread=threading.Thread(target=self._run,args=(factory,),name='solana-evidence-owner',daemon=True)
@@ -30,9 +32,13 @@ class PriorityOwner:
         with self.cv:
             if self.closed: raise EvidenceUnavailable('evidence_owner_unavailable')
             limit=self.capacity if priority==0 else self.capacity-self.reserved
-            if len(self.queue)>=limit: raise EvidenceUnavailable('evidence_control_overloaded')
+            if len(self.queue)>=limit:
+                self.metrics['rejected']=self.metrics.get('rejected',0)+1
+                raise EvidenceUnavailable('evidence_control_overloaded')
             self.sequence+=1
+            self.enqueued[self.sequence]=self.clock()
             heapq.heappush(self.queue,(priority,self.sequence,expires,fn,future)); self.cv.notify()
+            self.metrics['queue_peak']=max(self.metrics.get('queue_peak',0),len(self.queue))
         return future
 
     def _run(self,factory):
@@ -45,16 +51,37 @@ class PriorityOwner:
                 with self.cv:
                     self.cv.wait_for(lambda:self.queue or self.closed)
                     if not self.queue and self.closed: break
-                    priority,_,expires,fn,future=heapq.heappop(self.queue)
+                    # Exit/reservation work and foreground requests retain strict
+                    # precedence. Continuous commits must not starve counters,
+                    # gap repair or bounded retention until their queues overflow.
+                    # After one second, oldest waiting non-urgent work gets the
+                    # next slot; the 64-entry owner bound is unchanged.
+                    aged=[]
+                    if self.queue[0][0]>=2:
+                        now=self.clock()
+                        aged=[(row[1],i) for i,row in enumerate(self.queue)
+                              if now-self.enqueued[row[1]]>=1.0]
+                    if aged:
+                        self.metrics['aged_selections']=self.metrics.get('aged_selections',0)+1
+                        _,index=min(aged);item=self.queue[index]
+                        self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)
+                    else:item=heapq.heappop(self.queue)
+                    priority,sequence,expires,fn,future=item
+                    queued=self.clock()-self.enqueued.pop(sequence)
+                    prefix='priority'+str(priority)
+                    wait=int(max(0,queued)*1_000_000)
+                    self.metrics[prefix+'.queue_peak_us']=max(self.metrics.get(prefix+'.queue_peak_us',0),wait)
+                    self.metrics[prefix+'.queue_total_us']=self.metrics.get(prefix+'.queue_total_us',0)+wait
+                started=self.clock()
+                interrupted=False
                 try:
                     if expires is not None and time.time()>expires:
                         raise EvidenceUnavailable('evidence_command_expired')
-                    interrupted=False
                     writer=getattr(self.state,'writer',None)
                     def yield_background():
                         nonlocal interrupted
                         if interrupted:return 0 # allow rollback to finish
-                        with self.cv:urgent=bool(self.queue and self.queue[0][0]<4)
+                        with self.cv:urgent=bool(self.queue and self.queue[0][0]<2)
                         if urgent:
                             interrupted=True;return 1
                         return 0
@@ -67,7 +94,17 @@ class PriorityOwner:
                         if priority==4 and writer:writer.db.set_progress_handler(None,0)
                 except BaseException as exc: future.set_exception(exc)
                 else: future.set_result(result)
+                finally:
+                    elapsed=int(max(0,self.clock()-started)*1_000_000)
+                    with self.cv:
+                        if interrupted:self.metrics['background_yields']=self.metrics.get('background_yields',0)+1
+                        self.metrics[prefix+'.execution_peak_us']=max(self.metrics.get(prefix+'.execution_peak_us',0),elapsed)
+                        self.metrics[prefix+'.execution_total_us']=self.metrics.get(prefix+'.execution_total_us',0)+elapsed
+                        self.metrics[prefix+'.completed']=self.metrics.get(prefix+'.completed',0)+1
         finally: self.state.close()
+
+    def telemetry(self):
+        with self.cv:return dict(self.metrics,queued=len(self.queue))
 
     def close(self):
         with self.cv: self.closed=True; self.cv.notify_all()
@@ -79,3 +116,30 @@ def command_priority(request):
     if request.get('op') in ('release','ack'): return 0
     if request.get('op')=='interest' and request.get('lifecycle') in ('reserved','open'): return 0
     return 3 if request.get('op')=='counter' else 1
+
+
+class PendingCommands:
+    """Coalesce socket retries before admission, retaining durable receipt checks.
+
+    Entries exist only while accepted owner work is queued/running, so this map
+    cannot exceed the existing bounded queue plus its one executing operation.
+    A disconnected waiter never cancels the single accepted mutation.
+    """
+    def __init__(self,owner):
+        self.owner=owner;self.lock=threading.RLock();self.pending={}
+
+    def submit(self,request):
+        from .solana_evidence_plane import digest
+        key=(request['consumer'],request['request_id']);checksum=digest(request)
+        with self.lock:
+            previous=self.pending.get(key)
+            if previous:
+                if previous[0]!=checksum:raise EvidenceUnavailable('evidence_command_identity_conflict')
+                return previous[1]
+            future=self.owner.submit(lambda state:state.fence.command(request),
+                                     priority=command_priority(request))
+            self.pending[key]=(checksum,future)
+            def done(_):
+                with self.lock:self.pending.pop(key,None)
+            future.add_done_callback(done)
+            return future

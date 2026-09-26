@@ -595,7 +595,11 @@ def policy_for(lane):
     if lane=='meteora':
         path=Path('SOLANA_DLMM_INDEPENDENT_V1.json')
         source=json.loads((Path(__file__).parent/'sources.json').read_text())['lanes']['meteora']
-        if hashlib.sha256(path.read_bytes()).hexdigest()!=source['file_hashes'][path.name]:
+        # Match the exact prepared runtime identity used by source_integrity.
+        # An approved overlay may revise this policy file; the old source hash
+        # must neither reject that composition nor accept a reverted policy.
+        hashes=source.get('composed_file_hashes',source['file_hashes'])
+        if hashlib.sha256(path.read_bytes()).hexdigest()!=hashes[path.name]:
             raise ValueError('frozen_source_file_drift:meteora')
         # The execution policy embeds a label predating its description/duplicate-field
         # synchronization. Bind the label to exact source bytes, never trust it alone.

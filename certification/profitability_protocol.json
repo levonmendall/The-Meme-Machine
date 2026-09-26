@@ -27,7 +27,7 @@
       "strategy_version": "pump-shared-sleeve-six-regime-v1",
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "policy_hash": "0f909d1e7eb90cdbb504b4e52fec693ccaf810f87f80259be760c81361a3babc",
-      "source_diff_sha256": "e9d61456bdff61649d7dbdab46feb3278e3daffaa322d8165c1f374dcfc9435f",
+      "source_diff_sha256": "2b76da550bbd15353c312ab7e0ea2282a5a3c9876293dda77d9c8ffeaa3a8f68",
       "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f"
     },
     "meteora": {
@@ -35,13 +35,13 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "3772c67216c9272a263e3a0c0c2d91a45f1154edd4067ba9c6f9e54498a4eb03"
+      "source_diff_sha256": "1401066e59d074ec0194ae816ad5fbe61d8eb3578d1d9432a62bba71da8111e5"
     },
     "pons": {
       "strategy_version": "pons-shared-sleeve-six-regime-v1",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "b9f3aff04336d22fac8a8a8f38c821a8fb776b8ccd891774a8d46012d9124db2",
-      "source_diff_sha256": "f1b2a9b97fd5b1400d8dc21d62bacc60f6f8a481882cfc933e1ba0107f3d7a4f",
+      "source_diff_sha256": "f80a6965e7ae2b4a4ca3c7ebace88b0a6caf06920c8dc7c847bd703bf7e56bbd",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23"
     },
     "ramses": {
