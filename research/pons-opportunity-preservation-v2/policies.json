@@ -1,0 +1,27 @@
+{
+  "schema": "pons-opportunity-policy-preregistration-v1",
+  "evidence_cutoff_integration": "d1fc161401869522db9abbf50e3f6073e80a4374",
+  "baseline_policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+  "unit": "run + native curve + reentry regime established by the unchanged reentry_regime_reset between qualified vectors",
+  "chronology": {"development": [357, 358, 360, 362], "validation": [364, 366, 367, 368]},
+  "robustness": "leave-one-run-out, fixed rules, no refitting",
+  "policies": {
+    "0": {"name": "frozen baseline", "runtime_enabled": true},
+    "1": {"name": "stateful preservation", "runtime_enabled": false,
+      "temporary": {"early_progress": "WATCHING", "too_young": "DEFERRED", "snipe_nonzero": "DEFERRED", "incomplete_trajectory": "WATCHING", "unfavorable_trajectory_or_eta": "WATCHING"},
+      "terminal": ["invalid_provenance", "unsupported_quote", "over_age", "beyond_pregraduation_regime", "creator_adverse"],
+      "promotion_order": ["valid_scope_provenance", "readiness_imminence", "trajectory_quality", "independent_demand_quality", "original_deadline_feasibility", "native_identity_tie_break"],
+      "workload": "one promotion per native generation; supplied bounded slots, never more than existing one hydration worker per dispatch",
+      "canonical": "unchanged", "sizing": "unchanged", "exits": "unchanged"},
+    "2": {"name": "preservation plus fill hysteresis", "runtime_enabled": false,
+      "hard": ["creator_distribution_or_adverse", "stale_or_untrusted", "nonpositive_net_demand", "unavailable_or_unacceptable_cost", "impact", "structural_execution", "zero_size"],
+      "soft": "hold after one moderate observation; cancel after two consecutive distinct observations; severe deterioration cancels immediately; no deadline extension",
+      "canonical": "unchanged", "sizing": "unchanged", "exits": "unchanged"},
+    "3": {"name": "canonical softening", "runtime_enabled": false,
+      "eligibility": "evaluate only if Grade-A forward executable outcomes support replicated improvement across run clusters; otherwise not evaluated"}
+  },
+  "selection": "accept only demonstrated unique-opportunity improvement with measurable loser/downside/workload safeguards; unknown does not pass; ties retain simpler baseline",
+  "probe": "not evaluated without qualification-to-executable-entry and scale observations",
+  "outcome_labels": "no forward executable observation means UNKNOWN; qualification is not a winner; cancellation is not a zero-return trade",
+  "forbidden": ["run_369", "provider_collection", "network_replay", "exit_optimization", "provider_changes", "freshness_relaxation", "larger_target_size"]
+}
