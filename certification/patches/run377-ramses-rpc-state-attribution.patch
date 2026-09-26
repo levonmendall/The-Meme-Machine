@@ -17,7 +17,7 @@ diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
 -                code = code if isinstance(code, int) else 'unknown'
 -                raise BoundaryError(f'provider_rpc_{code}')
 +                from certification.robinhood.rpc_errors import classify, boundary
-+                self.last_provider_rpc_error = classify(reply['error'])
++                self.last_provider_rpc_error = classify(reply['error'], self._endpoint)
 +                raise BoundaryError(boundary(self.last_provider_rpc_error))
              if reply.get('id') != 1 or 'result' not in reply:
                  raise BoundaryError('provider_invalid_envelope')
@@ -38,7 +38,7 @@ diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
 -                    code=code if isinstance(code,int) else 'unknown'
 -                    raise BoundaryError(f'provider_rpc_{code}')
 +                    from certification.robinhood.rpc_errors import classify, boundary
-+                    self.last_provider_rpc_error = classify(item['error'])
++                    self.last_provider_rpc_error = classify(item['error'], self._endpoint)
 +                    raise BoundaryError(boundary(self.last_provider_rpc_error))
                  if 'result' not in item or item['result'] is None:
                      raise BoundaryError('provider_missing_result')
@@ -59,7 +59,7 @@ diff --git a/robinhood_tests/test_run377_rpc_state.py b/robinhood_tests/test_run
 new file mode 100644
 --- /dev/null
 +++ b/robinhood_tests/test_run377_rpc_state.py
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,50 @@
 +"""Missing-state recovery stays distinct from immutable/authentication failure."""
 +import io,json,unittest
 +from unittest.mock import patch
@@ -94,7 +94,19 @@ new file mode 100644
 +  for message in ('execution reverted','unknown https://offline.invalid/private-key'):
 +   reason,detail=self.call(message)
 +   self.assertEqual(reason,'provider_rpc_-32000')
-+   self.assertNotIn(message,json.dumps(detail))
++   self.assertNotIn('https://offline.invalid/private-key',json.dumps(detail))
++   if message=='execution reverted':self.assertEqual(detail['message_excerpt'],message)
 +   def failure():raise BoundaryError(reason)
 +   with self.assertRaisesRegex(BoundaryError,'provider_rpc_-32000'):
 +    _scan_with_capacity_recovery(failure,deadline=10,clock=lambda:1,record_failure=lambda row:None)
++
++ def test_unknown_provider_message_is_bounded_and_redacted_for_causal_review(self):
++  from certification.robinhood.rpc_errors import classify
++  endpoint='https://alchemy.invalid/v2/PRIVATE_FIXTURE_377'
++  message='unsupported state selector '+endpoint+' PRIVATE_FIXTURE_377 authorization=secret bearer OTHER_SECRET Authorization: Bearer THIRD_SECRET '+('x'*9000)
++  detail=classify({'code':-32000,'message':message},endpoint)
++  self.assertEqual(detail['category'],'unclassified')
++  self.assertTrue(detail['truncated']);self.assertLessEqual(len(detail['message_excerpt']),512)
++  self.assertIn('unsupported state selector',detail['message_excerpt'])
++  for secret in (endpoint,'PRIVATE_FIXTURE_377','OTHER_SECRET','THIRD_SECRET','authorization=secret'):
++   self.assertNotIn(secret,json.dumps(detail))

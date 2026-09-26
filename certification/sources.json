@@ -1170,7 +1170,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "3f54e0dd95f0a757b02273510351ee2efdd920c73919ff3b5da9dc00835ab3a2",
+      "source_diff_sha256": "255e286c4f2544127cbce9d3303eb4634da2c09aa48f4cc9396d3923fe597092",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",

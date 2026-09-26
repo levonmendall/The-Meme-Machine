@@ -70,7 +70,8 @@ exposure **flat**, all four reconciled books, and no hourly phase record.
    failed. Native transport discarded the RPC message before instrumentation, so
    the original message cannot be recovered. Do not claim its cause is known.
    New bounded telemetry retains code, allowlisted category, truncated length and
-   message hash, never provider prose or credentials. Precisely recognized
+   message hash and a 512-character credential-redacted excerpt. Full provider URLs,
+   configured endpoint credentials and authorization values are removed. Precisely recognized
    missing-block/header responses defer a scan through the existing cadence,
    without positive evidence, partial screening or a new provider. Unknown errors,
    reverts and structural/authentication failures still fail closed. A new smoke
@@ -112,3 +113,18 @@ new native Pump/Meteora regression imported an integration-only fixture helper.
 Pons (421 tests), Ramses (362 tests), and supervisor passed. No market ran on this
 SHA. The regression is now self-contained; its four cases pass from both actual
 prepared lane roots. Full certification is required again on the revised SHA.
+
+Candidate `ed3ff80c5a32b84b165ac38402cb8415ce30eb34` passed full hosted
+certificate `36271591482`, artifact `10916360983`, SHA256
+`d600fbb9d56e469733d676b2fc73a34e4cf40f259c91cf32e42cd7f2f4979886`.
+Before market use, unknown RPC errors were given a bounded redacted cause excerpt;
+a category and hash alone would not resolve an unfamiliar future error. The
+additional regression covers URLs, configured bare keys, authorization values,
+and truncation. This source change requires a new exact-SHA certificate.
+
+Local Ramses suite: 363 tests, three existing process-identity checks fail because
+this workspace virtualizes `/proc/self/stat` differently from `/proc/<pid>/stat`
+(self start ticks 1508527 versus PID record 138; `alive(process_identity())` is
+false). These checks passed in the hosted ed3 certificate. No production liveness
+check is weakened; the next hosted complete suite must pass them again. All three
+new RPC classification/redaction regressions pass locally.
