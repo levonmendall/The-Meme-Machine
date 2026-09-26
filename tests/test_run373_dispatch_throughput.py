@@ -109,11 +109,15 @@ def database_ready(path):
     if not Path(path).exists():return False
     try:
         db=sqlite3.connect(path)
+        required={'meta','counters','hot_chunks','address_refs','service_health','stream_receipts'}
         names={r[0] for r in db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('meta','counters','hot_chunks')"
+            "SELECT name FROM sqlite_master WHERE type='table'"
         )}
+        initialized=(db.execute(
+            "SELECT value FROM meta WHERE key='initialized'"
+        ).fetchone() if 'meta' in names else None)
         db.close()
-        return {'meta','counters','hot_chunks'}.issubset(names)
+        return required.issubset(names) and initialized==('1',)
     except sqlite3.Error:
         return False
 
