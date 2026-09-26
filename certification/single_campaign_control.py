@@ -21,6 +21,7 @@ import uuid
 from certification.journal import canonical, digest
 from certification.run import ROOT, git, implementation_hash, manifest
 from certification.prospective_acceptance import LANES, protocol
+from certification.workflow_identity import REVIEWED_OFFLINE, reviewed_offline_digest
 
 CONFIG = ROOT / 'certification/single_campaign_authorization.json'
 STATE_PATH = 'certification/SINGLE_CAMPAIGN_STATE.json'
@@ -219,8 +220,11 @@ def contention(api, exclude_run=None, owned_launcher=None):
                 continue
             seen.add(run['id'])
             jobs = all_pages(api, f"actions/runs/{run['id']}/jobs?filter=latest", 'jobs')
+            reviewed = reviewed_offline_digest(run, lambda path: api.request('GET', path))
+            pinned = str(run.get('path', '')).split('@')[0] in REVIEWED_OFFLINE
             item = dict(run_id=run['id'], path=run.get('path'), status=run.get('status'),
-                        market=market_run(run, jobs))
+                        market=not bool(reviewed) if pinned else market_run(run, jobs),
+                        reviewed_offline_workflow_sha256=reviewed)
             inspected.append(item)
             if item['market']:
                 conflicts.append(item)

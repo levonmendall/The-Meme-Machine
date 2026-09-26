@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 from urllib.request import Request,urlopen
 from certification.run import manifest,ROOT,atomic
+from certification.workflow_identity import reviewed_offline_digest
 
 LIVE_NAMES={'pons-selective-market-test','solana-dlmm-independent-v1',
             'pump-acceleration-natural-prospective','robinhood-ramses-extended-test','robinhood-ramses-extended',
@@ -25,8 +26,9 @@ READ_ONLY_WORKFLOWS={
 }
 
 
-def active_market_job(workflow,job,run=None,spec=None):
+def active_market_job(workflow,job,run=None,spec=None,reviewed_offline=False):
     if job.get('status')!='in_progress':return False
+    if reviewed_offline:return False
     # The pinned Pump source's legacy live-diagnostic is public-Solana-only:
     # its workflow does not inject MM_SOLANA_READ_RPC_URL and its entrypoint uses
     # MM_SOLANA_RPC_URL/public Solana. A bounded authenticated-Alchemy identity
@@ -69,9 +71,11 @@ def check():
             runs=data.get('workflow_runs',[])
             for row in runs:
                 if str(row['id'])==os.environ.get('GITHUB_RUN_ID'):continue
+                reviewed=reviewed_offline_digest(row,lambda path:fetch_json(
+                    f'https://api.github.com/repos/{spec["repository"]}/'+path,token))
                 for job_page in range(1,11):
                     jobs=fetch_json(f'https://api.github.com/repos/{spec["repository"]}/actions/runs/{row["id"]}/jobs?filter=latest&per_page=100&page={job_page}',token).get('jobs',[])
-                    active.extend(dict(id=row['id'],name=row['name'],job_id=job['id'],job_name=job['name'],status=job['status']) for job in jobs if active_market_job(row['name'],job,row,spec))
+                    active.extend(dict(id=row['id'],name=row['name'],job_id=job['id'],job_name=job['name'],status=job['status']) for job in jobs if active_market_job(row['name'],job,row,spec,reviewed_offline=bool(reviewed)))
                     if len(jobs)<100:break
                 else:raise RuntimeError('active_job_pagination_bound')
             if len(runs)<100:break
