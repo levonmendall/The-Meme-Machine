@@ -567,6 +567,7 @@ def _apply_moderate_threshold_overlay(work,patch_path,lane):
              '[(14399,False),(14400,True),(604800,True),(604801,False)]',1),
             ('test_reset_exact_twenty_five_percent_and_one_fraction_below',
              'test_reset_exact_eighteen_percent_and_one_fraction_below',1),
+            ('(17800,20000,20800)','(17800,20000,20799,20800)',2),
             ("row['price']='150'","row['price']='164'",1),
             ("row['price']='150.0001'","row['price']='164.0001'",1),
         ]);touched.append(p)
