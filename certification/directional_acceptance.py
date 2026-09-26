@@ -25,8 +25,20 @@ def run(worktrees,output):
  roots=Path(worktrees).resolve();out=Path(output).resolve();out.mkdir(parents=True,exist_ok=True)
  spec=manifest();base=json.loads(subprocess.check_output(['git','show',
    'af60b355995dfa960555288fa73808bb7aba5d25:certification/sources.json'],cwd=ROOT))
+ meteora_policy=json.loads((roots/'meteora'/'SOLANA_DLMM_INDEPENDENT_V1.json').read_text())
+ meteora_revision=spec['lanes']['meteora'].get('execution_certification',{}).get('moderate_admission_thresholds_v1',{})
  checks=dict(exactly_four_lanes=set(spec['lanes'])=={'pump','pons','meteora','ramses'},
-             meteora_unchanged=strategy_contract(spec['lanes']['meteora'])==strategy_contract(base['lanes']['meteora']),
+             meteora_policy_identity=(
+                 meteora_policy.get('execution_certification',{}).get('policy_hash')==spec['lanes']['meteora']['policy_hash']
+                 and meteora_policy.get('revision')=='2.1-moderate-admission-thresholds-v1'
+             ),
+             meteora_threshold_only_revision=(
+                 meteora_revision.get('exit_thresholds_changed') is False
+                 and meteora_revision.get('expected_net_positive_gate_unchanged') is True
+                 and meteora_revision.get('range_width_unchanged') is True
+                 and meteora_revision.get('core_hold_unchanged') is True
+                 and meteora_revision.get('paper_only_unchanged') is True
+             ),
              ramses_unchanged=strategy_contract(spec['lanes']['ramses'])==strategy_contract(base['lanes']['ramses']))
  checks['preserved_ramses_runtime_repair']=all((ROOT/p).read_bytes()==subprocess.check_output(['git','show','2d93e6b5fdb751a3a3e9b057cca759bb0549839f:'+p],cwd=ROOT) for p in INFRA_OVERLAYS)
  observed=source_integrity(roots);components={};suites={}
