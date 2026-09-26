@@ -1,0 +1,12 @@
+name: Run 369 combined repairs non-market certification
+on:
+  push:
+    branches: [cert/single-market-run369-repairs-20260925]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  certify:
+    if: contains(github.event.head_commit.message, '[non-market-cert]')
+    uses: ./.github/workflows/non-market-certification.yml
+    secrets: inherit
