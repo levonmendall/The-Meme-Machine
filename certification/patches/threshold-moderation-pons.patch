@@ -1,0 +1,138 @@
+diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_research/pons_selective_continuation.py
+--- a/robinhood_research/pons_selective_continuation.py
++++ b/robinhood_research/pons_selective_continuation.py
+@@ -15,7 +15,7 @@ from . import BoundaryError
+ from .evidence import digest
+ 
+ POLICY = "pons-selective-continuation-v1"
+-POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1"
++POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-threshold-moderation-v1"
+ from certification.execution_capacity import resize, buyer_persistence
+ ZERO = "0x0000000000000000000000000000000000000000"
+ 
+@@ -22,19 +22,19 @@ ENTRY_THRESHOLDS = dict(
+     min_curve_progress_bps=5000,
+     max_curve_progress_bps=8500,
+-    min_token_age_seconds=120,
+-    max_token_age_seconds=600,
+-    min_graduation_eta_seconds=20,
+-    max_graduation_eta_seconds=90,
+-    min_progress_15s_bps=300,
++    min_token_age_seconds=90,
++    max_token_age_seconds=900,
++    min_graduation_eta_seconds=15,
++    max_graduation_eta_seconds=120,
++    min_progress_15s_bps=200,
+     require_curve_acceleration=True,
+     require_flow_acceleration=True,
+     min_independent_groups=3,
+     min_new_independent_groups_15s=1,
+-    min_buy_sell_ratio_bps=12_000,
+-    max_largest_buyer_flow_bps=4000,
+-    max_top3_buyer_flow_bps=6000,
++    min_buy_sell_ratio_bps=11_000,
++    max_largest_buyer_flow_bps=4500,
++    max_top3_buyer_flow_bps=7000,
+     max_creator_tax_bps=200,
+     max_roundtrip_loss_bps=600,
+     max_entry_impact_bps=300,
+@@ -42,16 +42,16 @@ ENTRY_THRESHOLDS = dict(
+     independent_net_size_bps=1000,# 10% of independent net demand
+     max_state_age_seconds=5,
+-    min_fill_breadth_retention_bps=6000,
++    min_fill_breadth_retention_bps=5500,
+     max_market_events=512,
+     execution_stress_multiple=2,
+     sizing_search_steps=32,
+     repeat_buyer_diagnostics_only=True,
+ )
+ POST_GRAD_THRESHOLDS = dict(
+     min_observation_seconds=5,
+     max_observation_seconds=30,
+-    min_price_retention_bps=9200,
+-    min_new_independent_buyers=3,
+-    min_buy_sell_ratio_bps=15_000,
+-    max_preholder_sell_share_bps=5000,
++    min_price_retention_bps=9000,
++    min_new_independent_buyers=2,
++    min_buy_sell_ratio_bps=12_500,
++    max_preholder_sell_share_bps=6000,
+ )
+diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/pons_postgrad_survivor.py
+--- a/robinhood_research/pons_postgrad_survivor.py
++++ b/robinhood_research/pons_postgrad_survivor.py
+@@ -58,23 +58,23 @@ POLICY=dict(
+     ),
+     trend=dict(
+         min_since_graduation_return_bps=500,
+-        min_long_return_bps=1000,
+-        min_6h_return_bps=500,
+-        min_2h_return_bps=300,
+-        min_6h_efficiency_bps=2500,
+-        min_reset_pullback_bps=500,
+-        max_reset_pullback_bps=3500,
+-        min_breakout_bps=100,
+-        max_breakout_extension_bps=1200,
++        min_long_return_bps=750,
++        min_6h_return_bps=300,
++        min_2h_return_bps=150,
++        min_6h_efficiency_bps=2000,
++        min_reset_pullback_bps=300,
++        max_reset_pullback_bps=4000,
++        min_breakout_bps=50,
++        max_breakout_extension_bps=1500,
+         base_seconds=2*60*60,
+         breakout_exclusion_seconds=15*60,
+         long_window_seconds=24*60*60,
+         medium_window_seconds=6*60*60,
+         short_window_seconds=2*60*60,
+     ),
+     demand=dict(
+-        min_independent_buyers_30m=5,
+-        min_new_independent_buyers_30m=2,
+-        min_buy_sell_ratio_bps=14_000,
+-        min_buy_acceleration_bps=12_500,
+-        max_largest_buyer_share_bps=3500,
++        min_independent_buyers_30m=4,
++        min_new_independent_buyers_30m=1,
++        min_buy_sell_ratio_bps=12_500,
++        min_buy_acceleration_bps=11_000,
++        max_largest_buyer_share_bps=4000,
+         max_creator_sell_quote=0,
+     ),
+@@ -91,7 +91,7 @@ POLICY=dict(
+         max_immediate_roundtrip_loss_bps=350,
+         max_double_size_roundtrip_loss_bps=500,
+         max_open_positions=2,
+-        minimum_fill_breadth_bps=6000,
++        minimum_fill_breadth_bps=5500,
+         sizing_search_steps=32,
+     ),
+diff --git a/robinhood_research/pons_postgrad_survivor_runtime.py b/robinhood_research/pons_postgrad_survivor_runtime.py
+--- a/robinhood_research/pons_postgrad_survivor_runtime.py
++++ b/robinhood_research/pons_postgrad_survivor_runtime.py
+@@ -216,8 +216,11 @@ class Runtime:
+     @decision_work(1)
+     def _enter(self,row):
+         return commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
+             strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,decision=row['decision'],regime=row['regime'],at=self.now(),
+-            target=self.capital*25//10000,minimum=self.capital*5//10000,retention_bps=6000,
+-            ordinary_limit=350,stress_limit=500,adapter=self,qualify=self.qualify)
++            target=self.capital*POLICY['execution']['target_capital_bps']//10000,
++            minimum=self.capital*POLICY['execution']['minimum_capital_bps']//10000,
++            retention_bps=POLICY['execution']['minimum_fill_breadth_bps'],
++            ordinary_limit=POLICY['execution']['max_immediate_roundtrip_loss_bps'],
++            stress_limit=POLICY['execution']['max_double_size_roundtrip_loss_bps'],adapter=self,qualify=self.qualify)
+ 
+diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
+--- a/robinhood_tests/test_pons_selective_continuation.py
++++ b/robinhood_tests/test_pons_selective_continuation.py
+@@ -1345,11 +1345,11 @@ class PonsSelectivePolicyTests(unittest.TestCase):
+     def test_policy_is_distinct_and_frozen(self):
+         self.assertEqual(POLICY,"pons-selective-continuation-v1")
+-        self.assertEqual(POLICY_HASH,"3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa")
++        self.assertEqual(POLICY_HASH,"b01dc51fd4a1cd731accc29fcb7bf402a3da2208ee0308b81c03af27381fe31b")
+         self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5000)
+         self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8500)
+-        self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],120)
++        self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],90)
