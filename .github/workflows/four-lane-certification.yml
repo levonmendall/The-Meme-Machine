@@ -173,6 +173,7 @@ jobs:
             certification-smoke/result.json
             certification-smoke/status.html
             certification-smoke-live-snapshots.jsonl
+            certification-smoke-publisher.jsonl
             certification-artifact/single-campaign-phase.json
             certification-gates/chain-binding.json
           if-no-files-found: warn
@@ -318,6 +319,7 @@ jobs:
             certification-hourly/result.json
             certification-hourly/status.html
             certification-hourly-live-snapshots.jsonl
+            certification-hourly-publisher.jsonl
             certification-artifact/single-campaign-phase.json
             certification-artifact/prospective-observation.json
             certification-gates/chain-binding.json
