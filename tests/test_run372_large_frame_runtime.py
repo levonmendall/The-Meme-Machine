@@ -23,13 +23,15 @@ class LargeFrameSocket:
         self.subs[req['id']]=req
         await self.queue.put(json.dumps(dict(id=req['id'],result=req['id'])))
 
-    async def recv(self):
+    async def recv(self,decode=None):
         self.recv_count+=1
         if not self.queue.empty():
-            return await self.queue.get()
-        if self.frames:
-            return self.frames.pop(0)
-        return await self.queue.get()
+            raw=await self.queue.get()
+        elif self.frames:
+            raw=self.frames.pop(0)
+        else:
+            raw=await self.queue.get()
+        return raw.encode() if decode is False and isinstance(raw,str) else raw
 
 
 class FakeIPC:
