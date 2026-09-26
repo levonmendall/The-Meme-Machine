@@ -139,3 +139,48 @@ diff --git a/robinhood_tests/test_ramses_rate_limit.py b/robinhood_tests/test_ra
  
  if __name__=="__main__":
      unittest.main()
+diff --git a/robinhood_tests/test_ramses_scan_capacity_recovery.py b/robinhood_tests/test_ramses_scan_capacity_recovery.py
+--- a/robinhood_tests/test_ramses_scan_capacity_recovery.py
++++ b/robinhood_tests/test_ramses_scan_capacity_recovery.py
+@@ -25,14 +25,29 @@ class ScanRecoveryTests(unittest.TestCase):
+         self.assertEqual(calls,[1]);self.assertEqual(len(rows),1)
+ 
+-    def test_persistent_local_loss_is_bounded_and_auth_failure_is_not_recovered(self):
+-        for reason,count in [('provider_shared_admission_deadline',3),('header_hash_mismatch',1)]:
+-            rows=[];calls=[]
+-            def scan():
+-                calls.append(1);raise BoundaryError(reason)
+-            with self.assertRaises(BoundaryError):
+-                _scan_with_capacity_recovery(scan,deadline=100,record_failure=rows.append,
+-                    clock=lambda:0,sleeper=lambda _:None)
+-            self.assertEqual(len(calls),count)
+-            self.assertEqual(len(rows),3 if count==3 else 0)
++    def test_persistent_local_loss_is_bounded_deferred_and_auth_failure_is_not_recovered(self):
++        rows=[];calls=[]
++        def admission_scan():
++            calls.append(1)
++            raise BoundaryError('provider_shared_admission_deadline')
++        result=_scan_with_capacity_recovery(
++            admission_scan,deadline=100,record_failure=rows.append,
++            clock=lambda:0,sleeper=lambda _:None)
++        self.assertEqual(
++            result,
++            {'_scan_deferred':True,'reason':'provider_shared_admission_deadline'})
++        self.assertEqual(len(calls),3)
++        self.assertEqual(len(rows),3)
++        self.assertTrue(all(row['infrastructure_censored'] for row in rows))
++        self.assertTrue(all(row['market_screen_complete'] is False for row in rows))
++        self.assertTrue(all(row['qualification_inferred'] is False for row in rows))
++
++        calls=[]
++        def auth_scan():
++            calls.append(1)
++            raise BoundaryError('header_hash_mismatch')
++        with self.assertRaisesRegex(BoundaryError,'header_hash_mismatch'):
++            _scan_with_capacity_recovery(
++                auth_scan,deadline=100,record_failure=lambda _row:None,
++                clock=lambda:0,sleeper=lambda _:None)
++        self.assertEqual(len(calls),1)
+ 
+     def test_missing_result_is_fail_closed_not_completed(self):
+         with self.assertRaisesRegex(BoundaryError,'missing_result'):
