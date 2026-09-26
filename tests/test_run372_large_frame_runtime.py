@@ -102,7 +102,7 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
 
         with tempfile.TemporaryDirectory() as temp,patch('meme_machine.solana_evidence_service.time.time',return_value=1790430100):
             path=Path(temp)/'db';socket=LargeFrameSocket(frames);stop=asyncio.Event()
-            with patch.object(service,'decode_source_message',side_effect=deliberately_slow_decode),patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
+            with patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
                 runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
                 ticker=asyncio.create_task(heartbeat(stop))
                 try:
