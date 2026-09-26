@@ -42,3 +42,16 @@ path, Run 373 sustained dispatch pressure, Run 372 large-frame keepalive, and
 prepared Pump/Meteora runtime composition.
 
 No market workflow is authorized by this repair.
+
+## Focused validation
+
+Focused workflow `36262693907` passed the root and prepared-runtime repair
+regressions.
+
+Prepared runtime identities:
+
+- Pump: `62445c7c0caaa35673e7b82d56fa4c0161f1cea02167c1476b57db15f41f18f1`
+- Meteora: `a048ecf08d3d46859ee569b9b58961ff26e262c852120ef7bcc98a7acd2d7c53`
+
+These hashes are pinned in `certification/sources.json` before full non-market
+certification.
