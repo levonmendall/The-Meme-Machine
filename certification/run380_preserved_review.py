@@ -40,6 +40,9 @@ for p in root.rglob('*.sqlite'):
   data={'path':str(p.relative_to(root)),'schema':[dict(r) for r in db.execute("select name,sql from sqlite_master where type='table'")]}
   for table in ('service_health','counters','gaps','cursors','conflicts','interests','stream_receipts'):
    data[table]=[dict(r) for r in db.execute('select * from '+table+' limit 10000')]
+   if table=='stream_receipts':
+    for row in data[table]:
+     census=row.pop('census');row['census_sha256']=hashlib.sha256(census.encode()).hexdigest();row['census_count']=len(json.loads(census))
   data['record_shapes']=[dict(r) for r in db.execute('select scope,kind,count(*) n,min(slot) lo,max(slot) hi,max(length(body)) max_body from records group by scope,kind')]
   (out/'solana-durable-state.json').write_text(json.dumps(safe(data),indent=2))
   n=0;size=0
@@ -48,5 +51,11 @@ for p in root.rglob('*.sqlite'):
     body=decode(row[0],db);line=json.dumps(body,separators=(',',':'))+'\n';f.write(line);n+=1;size+=len(line)
     if size>24*1024*1024:break
   (out/'sample-count.json').write_text(json.dumps({'records':n,'uncompressed_bytes':size}))
+  with gzip.open(out/'solana-event-samples.jsonl.gz','wt') as f:
+   for scope in ('program:pump','program:pumpswap'):
+    size=0
+    for row in db.execute("select body from records where body is not null and kind='event' and scope=? order by slot limit 1000",(scope,)):
+     body=decode(row[0],db);line=json.dumps(body,separators=(',',':'))+'\n';f.write(line);size+=len(line)
+     if size>12*1024*1024:break
  db.close()
 print('Preserved exact artifact review complete; no provider calls.')
