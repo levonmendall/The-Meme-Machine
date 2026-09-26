@@ -59,7 +59,7 @@ def frame(slot,logs,padding):
     )
     row=dict(
         method='blockNotification',
-        params=dict(result=dict(value=dict(
+        params=dict(subscription=1,result=dict(value=dict(
             slot=slot,err=None,
             block=dict(
                 parentSlot=slot-1,
