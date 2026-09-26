@@ -30,3 +30,7 @@ Focused threshold preflight and the repository-wide deterministic CI passed befo
 ## Certification repair note
 
 Full non-market certification exposed stale Pons age-boundary regressions after the intentional current-Pons token-age window changed from 120–600 seconds to 90–900 seconds. The repair changes only deterministic test fixtures and the test BatchContext launch-time parameter; active runtime logic and all thresholds remain unchanged. Retained historical v9 policy epochs remain digest-pinned separately from the v14 prospective policy.
+
+## Final directional acceptance repair
+
+The six-regime directional gate previously required `meteora_unchanged`, which is incompatible with this authorized threshold-only Meteora revision. The gate now binds the prepared Meteora runtime to the exact v14 policy hash and revision and separately verifies that exit thresholds, positive expected-net authority, range width, core hold, and PAPER-only authority remain unchanged. Ramses remains required unchanged. No lane strategy or threshold was modified by this certification repair.
