@@ -167,7 +167,7 @@ jobs:
               ('authenticated_fee_density_24h_pct >= 5.0','authenticated_fee_density_24h_pct >= 4.0'),
               ('"live_fee_density_threshold_pct": 5','"live_fee_density_threshold_pct": 4'),
               ('The frozen 5%/day threshold','The frozen 4%/day threshold'),
-              ('  "revision": "2.0-profitability-fee-density-v1-core-hold-v2",\\n  "amendment_history": [','  "revision": "2.1-moderate-admission-thresholds-v1",\\n  "amendment_history": ['),
+              ('  "revision": "2.0-profitability-fee-density-v1-core-hold-v2",\n  "amendment_history": [','  "revision": "2.1-moderate-admission-thresholds-v1",\n  "amendment_history": ['),
               ('"policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966"','"policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408"'),
               ('"reference_profitability_policy_revision": "2.0-profitability-fee-density-v1-core-hold-v2"','"reference_profitability_policy_revision": "2.1-moderate-admission-thresholds-v1"'),
               ('"authenticated_fee_density_threshold_pct": 5','"authenticated_fee_density_threshold_pct": 4'),
