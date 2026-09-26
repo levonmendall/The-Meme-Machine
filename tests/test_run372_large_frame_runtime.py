@@ -107,7 +107,17 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                 try:
                     await self.wait_for(lambda:socket.recv_count>=5)
                     reader=EvidenceReader(path)
-                    await self.wait_for(lambda:reader.telemetry()['counters'].get('stream_accepted_messages',0)>=4)
+                    for _ in range(800):
+                        snapshot=reader.telemetry()
+                        if snapshot['counters'].get('stream_accepted_messages',0)>=4:
+                            break
+                        disconnects={k:v for k,v in snapshot['counters'].items()
+                                     if k.startswith('disconnect:') and v}
+                        if disconnects:
+                            self.fail('large-frame disconnect '+json.dumps(disconnects,sort_keys=True))
+                        await asyncio.sleep(.01)
+                    else:
+                        self.fail('large-frame acceptance stalled '+json.dumps(reader.telemetry(),sort_keys=True)[:4000])
                     await self.wait_for(lambda:'stream.raw_message_peak_bytes' in (reader.telemetry()['service_health'].get('ipc') or {}))
                     telemetry=reader.telemetry()
                     runtime=telemetry['service_health']['ipc']
