@@ -1,6 +1,6 @@
 {
-  "runtime_sha": "350e9c647cefbee7aa5e40fd7b84810ae5232b07",
-  "runtime_ref": "cert/single-market-latest-policies-350e9c-20260926",
-  "certification_run_id": 36274452439,
-  "authorization_id": "latest-policy-runtime-350e9c-smoke-only-20260926"
+  "runtime_sha": "ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6",
+  "runtime_ref": "cert/single-market-ee6523fb-20260926",
+  "certification_run_id": 36278007375,
+  "authorization_id": "runtime-ee6523fb-smoke-only-20260926"
 }
