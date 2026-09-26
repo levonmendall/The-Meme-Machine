@@ -1,0 +1,47 @@
+{
+  "as_of": "2026-09-26",
+  "source": "public CoinGecko 7-day market charts; no Meme Machine evidence",
+  "examples": {
+    "bundle-cat": {
+      "week_return_pct": 193.0127,
+      "range_pct": 239.3999,
+      "max_drawdown_pct": 34.3526,
+      "best_approx_24h_pct": 206.4201,
+      "worst_approx_24h_pct": -26.3862
+    },
+    "mushroom-2": {
+      "week_return_pct": 45.0261,
+      "range_pct": 169.2343,
+      "max_drawdown_pct": 34.5172,
+      "best_approx_24h_pct": 77.3117,
+      "worst_approx_24h_pct": -33.4638
+    },
+    "pare": {
+      "week_return_pct": -55.6014,
+      "range_pct": 269.352,
+      "max_drawdown_pct": 72.9256,
+      "best_approx_24h_pct": 35.2186,
+      "worst_approx_24h_pct": -43.626
+    },
+    "robin-the-frog": {
+      "week_return_pct": -59.0238,
+      "range_pct": 155.2144,
+      "max_drawdown_pct": 60.8173,
+      "best_approx_24h_pct": 67.9107,
+      "worst_approx_24h_pct": -39.1522
+    },
+    "ubik": {
+      "week_return_pct": -1.9851,
+      "range_pct": 56.3676,
+      "max_drawdown_pct": 32.3137,
+      "best_approx_24h_pct": 50.0288,
+      "worst_approx_24h_pct": -17.1945
+    }
+  },
+  "interpretation": [
+    "large post-graduation upside exists",
+    "large one-day rebounds also occur in losing trends",
+    "volume or one sharp candle is insufficient",
+    "strategy therefore requires persistent multi-timeframe trend plus reset, breadth and executable liquidity"
+  ]
+}

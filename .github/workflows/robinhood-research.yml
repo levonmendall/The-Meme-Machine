@@ -1,7 +1,7 @@
 name: robinhood-research
 on:
   push:
-    branches: [feat/robinhood-research-foundation, feat/pons-selective-continuation-v1, strategy/pons-profitability-v1]
+    branches: [feat/robinhood-research-foundation, feat/pons-selective-continuation-v1, strategy/pons-profitability-v1, strategy/pons-postgrad-survivor-momentum-v1-20260926]
   pull_request:
     paths: ['robinhood_research/**', 'robinhood_tests/**', '.github/workflows/robinhood-research.yml']
   workflow_dispatch:
