@@ -65,18 +65,57 @@ STREAM_DISPATCH_MAX_BYTES=96*1024*1024
 STREAM_WATCHDOG_SECONDS=.1
 
 
-def decode_source_message(raw,config):
-    """Validate and decode one provider frame without re-serializing large JSON."""
+def decode_source_message(raw,credential,program_addresses=()):
+    """Decode and authority-preservingly compact one provider frame.
+
+    This function is process-safe. For full block notifications it inspects every
+    transaction's static and loaded account keys before dropping unrelated bodies.
+    The parent receives only the union relevant to Pump, PumpSwap, or Meteora.
+    """
+    from .solana_provider_config import public_value
     if not isinstance(raw,str) or len(raw)>STREAM_MAX_MESSAGE_BYTES:
         raise EvidenceUnavailable('source_message_size_limit')
-    # Scan the original transport bytes for credential-shaped material. Calling
-    # config.public() on the decoded object would json.dumps the entire 6-16 MB
-    # block again and was a large avoidable event-loop workload.
-    config.public(raw)
+    public_value(raw,credential)
     message=json.loads(raw)
     if not isinstance(message,dict):
         raise EvidenceUnavailable('source_message_shape')
-    return message
+    total=retained=0
+    if message.get('method')=='blockNotification':
+        try:
+            value=message['params']['result']['value'];block=value.get('block')
+            transactions=block.get('transactions') if isinstance(block,dict) else None
+        except (KeyError,TypeError,AttributeError):
+            raise EvidenceUnavailable('source_block_shape') from None
+        if not isinstance(transactions,list):
+            raise EvidenceUnavailable('source_block_shape')
+        targets=set(program_addresses);kept=[]
+        for tx in transactions:
+            try:
+                keys=tx['transaction']['message']['accountKeys']
+                meta=tx['meta']
+                if not isinstance(keys,list) or not isinstance(meta,dict):
+                    raise TypeError()
+                normalized=[k if isinstance(k,str) else k['pubkey'] for k in keys]
+                loaded=meta.get('loadedAddresses') or {}
+                normalized+=list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
+                if any(not isinstance(k,str) for k in normalized):
+                    raise TypeError()
+            except (KeyError,TypeError,AttributeError):
+                raise EvidenceUnavailable('source_transaction_shape') from None
+            total+=1
+            if targets.intersection(normalized):
+                kept.append(tx)
+        retained=len(kept)
+        block=dict(block);block['transactions']=kept
+        value=dict(value);value['block']=block
+        result=dict(message['params']['result']);result['value']=value
+        params=dict(message['params']);params['result']=result
+        message=dict(message);message['params']=params
+    return message,total,retained
+
+
+def source_decoder_probe():
+    return True
 
 class FinalizedFence:
     def __init__(self,writer,*,endpoint_identity,decoders=None):
@@ -465,6 +504,8 @@ class ServiceState:
 async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     """Independent bounded socket handling and one priority SQLite owner."""
     import asyncio
+    from concurrent.futures import ProcessPoolExecutor
+    import multiprocessing
     import os
     from pathlib import Path
     from websockets.asyncio.client import connect
@@ -478,6 +519,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
     owner=PriorityOwner(lambda:ServiceState(path,config))
     await asyncio.wrap_future(owner.ready)
+    decoder_pool=ProcessPoolExecutor(max_workers=1,mp_context=multiprocessing.get_context('spawn'))
+    await asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
+    source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1):
         return await asyncio.shield(asyncio.wrap_future(owner.submit(fn,priority=priority)))
     stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
@@ -591,12 +635,20 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                 try:
                                     wanted=await sync_subscriptions()
                                     decode_started=time.monotonic()
-                                    message=await asyncio.to_thread(decode_source_message,raw,config)
+                                    decoded=decoder_pool.submit(
+                                        decode_source_message,raw,config.credential,source_program_addresses)
+                                    message,source_transactions,retained_transactions=await asyncio.shield(
+                                        asyncio.wrap_future(decoded))
                                     decode_us=int((time.monotonic()-decode_started)*1_000_000)
+                                    counts['stream.decode_process_messages']=counts.get('stream.decode_process_messages',0)+1
                                     counts['stream.decode_peak_microseconds']=max(
                                         counts.get('stream.decode_peak_microseconds',0),decode_us)
                                     counts['stream.decode_total_microseconds']=(
                                         counts.get('stream.decode_total_microseconds',0)+decode_us)
+                                    counts['stream.source_transactions']=(
+                                        counts.get('stream.source_transactions',0)+source_transactions)
+                                    counts['stream.retained_transactions']=(
+                                        counts.get('stream.retained_transactions',0)+retained_transactions)
                                     if message.get('id') in retiring:
                                         retiring.remove(message['id']);continue
                                     if 'id' in message:
@@ -686,4 +738,5 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         await asyncio.gather(*tasks,return_exceptions=True)
         if clients:await asyncio.gather(*list(clients),return_exceptions=True)
         await asyncio.to_thread(owner.close)
+        await asyncio.to_thread(decoder_pool.shutdown,wait=True,cancel_futures=True)
         Path(socket_path).unlink(missing_ok=True)
