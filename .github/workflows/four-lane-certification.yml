@@ -164,6 +164,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PHASE_JOB_RESULT: ${{ job.status }}
         run: python -m certification.single_campaign_control end-phase --phase smoke --result certification-smoke/result.json --job-result "$PHASE_JOB_RESULT" --output certification-artifact/single-campaign-phase.json
+      - name: Preserve compact smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: four-lane-compact-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            certification-smoke/result.json
+            certification-smoke/status.html
+            certification-smoke-live-snapshots.jsonl
+            certification-artifact/single-campaign-phase.json
+            certification-gates/chain-binding.json
+          if-no-files-found: warn
+          retention-days: 90
       - name: Preserve success and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -296,6 +309,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PHASE_JOB_RESULT: ${{ job.status }}
         run: python -m certification.single_campaign_control end-phase --phase hourly --result certification-hourly/result.json --job-result "$PHASE_JOB_RESULT" --output certification-artifact/single-campaign-phase.json
+      - name: Preserve compact hourly diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: four-lane-hourly-compact-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            certification-hourly/result.json
+            certification-hourly/status.html
+            certification-hourly-live-snapshots.jsonl
+            certification-artifact/single-campaign-phase.json
+            certification-artifact/prospective-observation.json
+            certification-gates/chain-binding.json
+          if-no-files-found: warn
+          retention-days: 90
       - name: Preserve hourly success or failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
