@@ -38,6 +38,7 @@ OFFLINE_WORKFLOWS = {
     'ramses-v4-offline-certification.yml',
     'ramses-v4-launchable-nonmarket-certification.yml',
     'v12-active-strategy-certification.yml',
+    'targeted-repair-validation.yml',
 }
 OFFLINE_JOBS = {'test', 'tests', 'lint', 'build', 'offline-prerequisites',
                 'inspect-retained-failure', 'review', 'deterministic', 'qualification'}

@@ -20,6 +20,11 @@ class GuardOfflineWrapperTests(unittest.TestCase):
             with self.subTest(workflow=workflow):
                 self.assertFalse(active_market_job(workflow,job))
 
+    def test_targeted_repair_validation_is_explicitly_read_only(self):
+        self.assertFalse(active_market_job(
+            'targeted-repair-validation',
+            {'status':'in_progress','name':'targeted'}))
+
     def test_unknown_wrapper_with_offline_named_job_still_fails_closed(self):
         job={'status':'in_progress','name':'certify / offline-prerequisites'}
         self.assertTrue(active_market_job('unknown-wrapper',job))

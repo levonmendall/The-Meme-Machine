@@ -9,3 +9,9 @@ The PAPER market workflow uses a two-level safety model.
 5. **Certification fingerprints are auditable.** Runtime identity includes the exact SHA, executable Git-tree hash, implementation hash, protocol hash, source-manifest/diff hashes, lane strategy/policy identities, and execution-configuration hash. Full-certificate receipts also carry a deterministic fingerprint. Ephemeral authorization IDs are intentionally excluded from the runtime fingerprint.
 
 Full recertification remains mandatory after a material runtime change. A one-shot authorization refresh, prior-run narrative, launch request, or other non-runtime control-plane metadata must not create a new runtime SHA merely to authorize another PAPER observation.
+
+## Enforced validation tiers
+
+- `targeted-repair-validation.yml` is the bounded development gate for one affected lane or the control plane. Its artifact explicitly declares `market_certificate: false`.
+- The final composed runtime still receives one full `non-market-certification.yml` certificate before any new runtime SHA can be admitted to a market workflow.
+- A `[single-market-launch]` request-only commit is permitted to change only `.github/single-campaign-launch-request.json`; generic runtime tests are skipped for that commit because the exact certified runtime SHA is unchanged.

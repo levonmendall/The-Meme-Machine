@@ -198,6 +198,7 @@ class SingleCampaignTests(unittest.TestCase):
             'ramses-v4-offline-certification.yml',
             'ramses-v4-launchable-nonmarket-certification.yml',
             'v12-active-strategy-certification.yml',
+            'targeted-repair-validation.yml',
         ):
             api = API()
             api.runs['in_progress'] = [market(42, 'in_progress', '.github/workflows/' + name)]
