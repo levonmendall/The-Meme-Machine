@@ -13,9 +13,10 @@ class FakeSocket:
     async def send(self,raw):
         req=json.loads(raw);self.subs[req['id']]=req
         await self.queue.put(json.dumps(dict(id=req['id'],result=req['id'])))
-    async def recv(self):
+    async def recv(self,decode=None):
         self.recv_count+=1
-        return await self.queue.get()
+        raw=await self.queue.get()
+        return raw.encode() if decode is False and isinstance(raw,str) else raw
     async def inject(self,slot,logs):
         for identity,req in self.subs.items():
             if req['method']!='blockSubscribe':continue
