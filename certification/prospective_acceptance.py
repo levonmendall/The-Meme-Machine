@@ -191,7 +191,7 @@ def _lane_economics(lane,row,hours,run_dir=None,ended_at=None):
 
 def amend_continuation_record(record,lane,state_dir,continuation_result):
     """Amend the original statistical block after one long-horizon lane terminates."""
-    if lane not in ("meteora","ramses"):
+    if lane not in ("pump","pons","meteora","ramses"):
         raise ValueError("continuation_amendment_lane")
     row=deepcopy(record)
     result=continuation_result
@@ -209,7 +209,12 @@ def amend_continuation_record(record,lane,state_dir,continuation_result):
     status=str(result.get("status") or "unknown")
     accounting=result.get("accounting") or {}
 
-    if lane=="meteora":
+    if lane in ('pump','pons'):
+        proof=dict(open_positions=0,accounting_reconciled=terminal_verified,
+                   natural_settled=0,forced_settled=0)
+        proof['native_accounting' if lane=='pump' else 'cohort_accounting']=accounting
+        economics=_lane_economics(lane,proof,hours,state_dir)
+    elif lane=="meteora":
         genesis=accounting.get("genesis") or {}
         start=genesis.get("capital");realized=accounting.get("realized_pnl_lamports")
         ns=accounting.get("capital_unit_nanoseconds")
@@ -276,7 +281,7 @@ def amend_continuation_record(record,lane,state_dir,continuation_result):
     lane_row["natural_position_terminal"]=True
     lane_row["continuation_terminal_status"]=status
     if status=="settled":
-        lane_row["natural_settled"]=int(lane_row.get("natural_settled") or 0)+1
+        lane_row["natural_settled"]=int(lane_row.get("natural_settled") or 0)+int(result.get("newly_settled",1))
     updates=row.setdefault("continuation_updates",{})
     updates[lane]={
         "status":status,
@@ -317,7 +322,7 @@ def merge_records(records):
         updates={}
         for candidate in rows:
             for lane,meta in (candidate.get("continuation_updates") or {}).items():
-                if lane not in ("meteora","ramses"):
+                if lane not in ("pump","pons","meteora","ramses"):
                     raise ValueError("prospective_record_unknown_continuation_lane")
                 prior=updates.get(lane)
                 if prior is None or float(meta.get("finalized_at") or 0)>=float(prior[0].get("finalized_at") or 0):
@@ -576,7 +581,7 @@ def evaluate(records,proto,proto_hash,expected_integration_sha=None):
 def main():
     p=argparse.ArgumentParser();sub=p.add_subparsers(dest="command",required=True)
     r=sub.add_parser("record");r.add_argument("--result",required=True);r.add_argument("--run-dir");r.add_argument("--chain-binding");r.add_argument("--output",required=True)
-    m=sub.add_parser("amend-continuation");m.add_argument("--record",required=True);m.add_argument("--lane",choices=("meteora","ramses"),required=True);m.add_argument("--state-dir",required=True);m.add_argument("--continuation-result",required=True);m.add_argument("--output",required=True)
+    m=sub.add_parser("amend-continuation");m.add_argument("--record",required=True);m.add_argument("--lane",choices=("pump","pons","meteora","ramses"),required=True);m.add_argument("--state-dir",required=True);m.add_argument("--continuation-result",required=True);m.add_argument("--output",required=True)
     e=sub.add_parser("evaluate");e.add_argument("--record",action="append",default=[]);e.add_argument("--records-dir");e.add_argument("--expected-integration-sha");e.add_argument("--output",required=True)
     a=p.parse_args();proto,ph=protocol()
     if a.command=="record":

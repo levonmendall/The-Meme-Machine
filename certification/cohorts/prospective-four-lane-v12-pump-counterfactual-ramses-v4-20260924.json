@@ -1,10 +1,10 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-six-regime-v13-20260926",
-  "frozen_parent_integration_sha": "af60b355995dfa960555288fa73808bb7aba5d25",
+  "cohort_id": "prospective-four-lane-v12-pump-counterfactual-ramses-v4-20260924",
+  "frozen_parent_integration_sha": "05991b4e3ff848a16cf169bbed33762ed598a095",
   "paper_only": true,
   "live_money": false,
-  "purpose": "Prospective PAPER cohort for the frozen current Pump/Pons capacity revision and their independent Survivor regimes, sharing the existing four portfolio sleeves. Configuration promotion does not authorize market execution.",
+  "purpose": "Prospective out-of-sample certification of the four frozen natural paper strategies after combining the replay-supported Pump price-retention revision with certified Ramses Active Wide Maker v4; no earlier Pump/Ramses economics are eligible.",
   "evidence_authority": {
     "cohort_begins_only_after_exact_sha_non_market_certification": true,
     "exact_integration_sha_must_remain_constant_for_entire_cohort": true,
@@ -20,15 +20,15 @@
     "statistical_block": "one completed natural market campaign window; multiple trades inside one block are not treated as independent statistical samples",
     "market_assurance_required": true,
     "prior_cohort_records_eligible": false,
-    "counterfactual_strategy_revision_reset": "new common v13 four-lane/six-regime cohort; no old policy-era economic block is eligible"
+    "counterfactual_strategy_revision_reset": "new combined v12 protocol/cohort identity; no pre-Pump-revision or pre-Ramses-v4 economic block is admitted"
   },
   "frozen_lanes": {
     "pump": {
-      "strategy_version": "pump-shared-sleeve-six-regime-v1",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1",
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
-      "policy_hash": "e7d4bb2710f51ec464872a37b2692b87c730c21f6183ab09a6c12154dd37182e",
-      "source_diff_sha256": "d0103372c8786848a13274772795523ee6ea62d0c205d9a876d20f2eb8a310bb"
+      "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
+      "source_diff_sha256": "214b8f89975169c0409562089ba840bf45aab483aecc29dfed88a6a022101105"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
@@ -38,11 +38,11 @@
       "source_diff_sha256": "38013fa55b079684bde71ef1d6849f0cfbc7eea18f957493f6b0f3a93ad29cb6"
     },
     "pons": {
-      "strategy_version": "pons-shared-sleeve-six-regime-v1",
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
-      "policy_hash": "930ac9dff72bff84ef6235e58346c2f7bb3c3c3fad52f8f8d73394838e09cbab",
-      "source_diff_sha256": "19cff36b0a0b0e74bb159f36450ac93af58cd570f4a7e071c8bce5c4f6503876"
+      "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+      "source_diff_sha256": "3dae04d625ba98f902db27c7ab12b1e80df61b8cff49c5762be9734d17449a74"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v4",
@@ -124,68 +124,5 @@
     "profitability_pass_requires_every_lane_economic_pass": true,
     "autonomous_operation_eligible_only_after_portfolio_and_autonomy_pass": true,
     "live_money_authority": false
-  },
-  "previous_immutable_cohort": {
-    "path": "certification/cohorts/prospective-four-lane-v12-pump-counterfactual-ramses-v4-20260924.json",
-    "sha256": "35dc3d305dcfbb07bea99926eee67bdedf1de47e80a0726d96763512ea27f4c5"
-  },
-  "frozen_strategies": {
-    "pump": {
-      "pump-acceleration-independent-v1": "bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef",
-      "pumpswap-survivor-momentum-v1": "d480c982c531946ed4219d162a2f130fbb74ffd3ed05bbb660b5b131806d56ab"
-    },
-    "meteora": {
-      "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966"
-    },
-    "pons": {
-      "pons-selective-continuation-v1": "3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa",
-      "pons-postgrad-survivor-momentum-v1": "c2a2b109cf0acdb033237c66c6501b3b558f0e34821f44b3d25e0550cb62092b"
-    },
-    "ramses": {
-      "ramses-active-wide-maker-v4": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e"
-    }
-  },
-  "directional_sleeves": {
-    "pump": {
-      "lane": "pump",
-      "strategies": {
-        "pump-acceleration-independent-v1": "bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef",
-        "pumpswap-survivor-momentum-v1": "d480c982c531946ed4219d162a2f130fbb74ffd3ed05bbb660b5b131806d56ab"
-      },
-      "allocation": {
-        "one_sleeve": true,
-        "portfolio_allocation_increased": false,
-        "survivor_target_sleeve_bps": 25,
-        "priority": [
-          "positions",
-          "current",
-          "survivor"
-        ],
-        "reservation_authority": "durable_shared_sleeve_v1",
-        "same_regime_reentry": false,
-        "accounting_namespaces_separate": true
-      }
-    },
-    "pons": {
-      "lane": "pons",
-      "strategies": {
-        "pons-selective-continuation-v1": "3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa",
-        "pons-postgrad-survivor-momentum-v1": "c2a2b109cf0acdb033237c66c6501b3b558f0e34821f44b3d25e0550cb62092b"
-      },
-      "allocation": {
-        "one_sleeve": true,
-        "portfolio_allocation_increased": false,
-        "survivor_target_sleeve_bps": 25,
-        "priority": [
-          "positions",
-          "current",
-          "survivor"
-        ],
-        "reservation_authority": "durable_shared_sleeve_v1",
-        "same_regime_reentry": false,
-        "accounting_namespaces_separate": true
-      }
-    }
-  },
-  "market_run_authorized_by_this_upgrade": false
+  }
 }

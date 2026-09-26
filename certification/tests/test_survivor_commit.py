@@ -58,6 +58,17 @@ class SurvivorCommitTests(unittest.TestCase):
             adapter=self.adapter,qualify=lambda x:x)
     def reopen(self):self.book.close();self.book=self.new_book()
 
+    def test_slow_reconstruction_refreshes_once_then_rechecks_all_inputs(self):
+        self.adapter.commit_context_expired=lambda state:self.adapter.calls.count('demand')==1
+        self.assertEqual(self.fill()['status'],'filled')
+        self.assertEqual(self.adapter.calls,['state','quote','demand','state','quote','demand','validate'])
+
+    def test_repeat_staleness_cancels_with_bounded_provider_work(self):
+        self.adapter.commit_context_expired=lambda state:True
+        with self.assertRaisesRegex(ValueError,'stale_commit'):self.fill()
+        self.assertEqual(self.adapter.calls,['state','quote','demand','state','quote','demand'])
+        self.assertEqual(self.sleeve.reconcile()['available'],1000)
+
     def test_exact_retention_boundaries_for_both_sleeves(self):
         for threshold,breadth in ((6000,12),(6500,13)):
             with self.subTest(threshold=threshold):
@@ -145,3 +156,49 @@ class SurvivorCommitTests(unittest.TestCase):
         action=monitor(book=self.book,sleeve=self.sleeve,identity='run:one',observation=observation,policy=policy,adapter=self.adapter)
         self.assertEqual(action['reason'],'hard_stop')
         self.assertEqual(self.book._load('run:one')['status'],'settled')
+
+    @unittest.skipUnless(hasattr(__import__('os'),'fork'),'requires Linux process crash')
+    def test_process_death_after_validation_reacquires_all_fresh_inputs(self):
+        import os,signal
+        pid=os.fork()
+        if pid==0:
+            self.adapter.validate_current=lambda *a:os.kill(os.getpid(),signal.SIGKILL)
+            self.fill();os._exit(99)
+        _,status=os.waitpid(pid,0)
+        self.assertEqual(os.WTERMSIG(status),signal.SIGKILL)
+        self.reopen();self.assertEqual(self.book._load('run:one')['status'],'reserved')
+        self.assertEqual(self.fill()['status'],'filled')
+        self.assertEqual(self.adapter.calls,['state','quote','demand','validate'])
+
+    @unittest.skipUnless(hasattr(__import__('os'),'fork'),'requires Linux process crash')
+    def test_native_fill_survives_process_death_before_sleeve_ack(self):
+        import os,signal
+        pid=os.fork()
+        if pid==0:
+            original=self.book.transition
+            def crash(*a,**kw):
+                original(*a,**kw)
+                if a[1]=='filled':os.kill(os.getpid(),signal.SIGKILL)
+            self.book.transition=crash;self.fill();os._exit(99)
+        _,status=os.waitpid(pid,0)
+        self.assertEqual(os.WTERMSIG(status),signal.SIGKILL)
+        self.reopen();self.assertEqual(self.book._load('run:one')['status'],'open')
+        self.assertEqual(self.sleeve.get('run:one')['status'],'reserved')
+        self.assertEqual(self.sleeve.reconcile()['reserved'],100)
+        self.assertEqual(self.fill()['status'],'already_committed')
+        self.assertEqual(self.adapter.calls,[])
+
+    def test_pons_below_sixty_percent_cancels(self):
+        self.adapter.breadth=11
+        with self.assertRaisesRegex(ValueError,'breadth_retention'):self.fill(6000)
+        self.assertEqual(self.sleeve.reconcile()['available'],1000)
+
+    def test_pons_twenty_percent_realization_exact_accounting(self):
+        self.fill(6000);self.adapter.at=11;self.adapter.proceeds=30
+        from certification.tests.test_survivor_risk_boundaries import POLICIES
+        observation=dict(id='profit',at=11,after_cost_return_bps=2000,net_exit_proceeds=120,exit_liquidity_valid=True)
+        result=monitor(book=self.book,sleeve=self.sleeve,identity='run:one',observation=observation,
+                       policy=POLICIES['pons'],adapter=self.adapter)
+        self.assertEqual(result['quantity'],100);self.reopen()
+        p=self.book._load('run:one');self.assertEqual((p['tokens'],p['basis'],p['realized']),(300,75,5))
+        self.assertTrue(restore_risk(self.book,'run:one')['realization_taken'])

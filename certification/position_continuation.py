@@ -1,4 +1,4 @@
-"""Resume durable Meteora/Ramses paper positions in bounded restart-safe slices.
+"""Resume durable four-lane paper positions in bounded restart-safe slices.
 
 This module is intentionally separate from market discovery.  It consumes only
 append-only paper state created by the original lane and re-authenticates fresh
@@ -641,9 +641,74 @@ def resume_ramses(state_dir,*,slice_seconds):
         book.close()
 
 
+def resume_directional(state_dir,*,lane,slice_seconds):
+    """Resume only already-filled Survivor positions under the frozen sleeve."""
+    from contextlib import closing
+    from certification.terminal_reconciliation import connect,reconcile
+    from certification.run import lane_environment
+    runtime_identity=_runtime_identity(state_dir,lane)
+    lane_root=_activate_lane_root()
+    paths=list(Path(state_dir).glob('certification-native/*/'+lane))
+    if len(paths)!=1:raise RuntimeError('directional_continuation_native_root_ambiguous')
+    root=paths[0]
+    before=reconcile(lane,root)
+    if not before.get('verified') or not before.get('durable_handoff'):
+        raise RuntimeError('directional_continuation_filled_survivor_required')
+    folder=root/'pump-survivor' if lane=='pump' else root/'pons-selective-continuation-v1-cohort/pons-survivor'
+    with closing(connect(folder/'paper.sqlite')) as db:
+        genesis=json.loads(db.execute('SELECT body FROM genesis').fetchone()[0])
+    with closing(connect(root/'directional-sleeve.sqlite')) as db:
+        allocation=json.loads(db.execute('SELECT body FROM sleeve_genesis').fetchone()[0])
+    protocol=json.loads(Path(__file__).with_name('profitability_protocol.json').read_text())
+    if allocation['cohort']!=protocol['cohort_id']:raise RuntimeError('directional_continuation_cohort')
+    source=json.loads(Path(__file__).with_name('sources.json').read_text())['lanes'][lane]
+    original_result=json.loads(Path(runtime_identity['result_path']).read_text())
+    original_settled=original_result['lanes'][lane]['survivor']['accounting']['settled']
+    original_run=Path(runtime_identity['result_path']).parent
+    env=lane_environment(lane,source,original_run,genesis['run_id'],'position_continuation')
+    env.update(MM_DIRECTIONAL_COMPOSITE_REQUIRED='1',MM_DIRECTIONAL_COHORT_ID=allocation['cohort'],
+               MM_DIRECTIONAL_SLEEVE_DB=str(root/'directional-sleeve.sqlite'))
+    prior={k:os.environ.get(k) for k in env};os.environ.update(env)
+    evidence=None;runtime=None
+    try:
+        if lane=='pump':
+            from certification.evidence_supervisor import EvidenceProcess
+            from meme_machine.pumpswap_survivor_runtime import Runtime
+            from meme_machine.pump_acceleration_confirmations import ConfirmationBook
+            confirmations=ConfirmationBook.from_files(
+                Path(lane_root)/'tests/fixtures/solana_alpha_wallet_cohort_frozen.json',
+                Path(lane_root)/'tests/fixtures/solana_skilled_wallet_prospective_contract.json')
+            evidence=EvidenceProcess(original_run,lane_root,env);evidence.start()
+            runtime=Runtime(folder,genesis['initial'],genesis['run_id'],confirmations)
+        else:
+            from robinhood_research.pons_survivor_runtime import Runtime
+            runtime=Runtime(folder,genesis['initial'],genesis['run_id'],os.environ['MM_ROBINHOOD_READ_RPC_URL'])
+        deadline=time.monotonic()+slice_seconds
+        while time.monotonic()<deadline:
+            if evidence is not None:evidence.check()
+            status=runtime.step(admit=False)
+            if not status.get('durable_handoff'):raise RuntimeError('directional_continuation_unfilled_state')
+            if status['accounting']['open_positions']==0:break
+            time.sleep(min(5,max(0,deadline-time.monotonic())))
+    finally:
+        if runtime is not None:runtime.close()
+        if evidence is not None:evidence.close()
+        for k,value in prior.items():
+            if value is None:os.environ.pop(k,None)
+            else:os.environ[k]=value
+    after=reconcile(lane,root)
+    if not after['verified']:raise RuntimeError('directional_continuation_replay_failed')
+    handoff=after['open_positions']>0
+    return dict(lane=lane,status='handoff_required' if handoff else 'settled',handoff_required=handoff,
+        runtime_identity=runtime_identity,accounting=after['accounting'],
+        terminal_replay_verified=after['verified'],survivor=after['survivor'],
+        newly_settled=after['survivor']['accounting']['settled']-original_settled,
+        new_entries=0,discovery_enabled=False)
+
+
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument('--lane',choices=('meteora','ramses'),required=True)
+    p.add_argument('--lane',choices=('pump','pons','meteora','ramses'),required=True)
     p.add_argument('--state-dir',required=True)
     p.add_argument('--slice-seconds',type=int,default=3000)
     p.add_argument('--output',default='position-continuation-result.json')
@@ -662,13 +727,15 @@ def main():
     os.environ['MM_CERT_INTEGRATION_SHA']=git('rev-parse','HEAD')
     # Snapshot the lane book once; subsequent changes must extend its prefix.
     before=native_positions(state_dir,a.lane);_atomic(audit/'position-before.json',before)
+    if a.lane in ('pump','pons'):os.environ['MM_DIRECTIONAL_COMPOSITE_REQUIRED']='1'
     conformance=install(audit,a.lane,source['policy_hash'])
     try:
         native_paths=sorted(state_dir.glob('certification-native/*/'+a.lane))
         cwd=native_paths[0] if len(native_paths)==1 else state_dir
         with chdir(cwd):
             result=(resume_meteora(state_dir,slice_seconds=a.slice_seconds)
-                    if a.lane=='meteora' else resume_ramses(state_dir,slice_seconds=a.slice_seconds))
+                    if a.lane=='meteora' else resume_ramses(state_dir,slice_seconds=a.slice_seconds)
+                    if a.lane=='ramses' else resume_directional(state_dir,lane=a.lane,slice_seconds=a.slice_seconds))
     finally:
         conformance.close()
         after=native_positions(state_dir,a.lane);_atomic(audit/'position-after.json',after)

@@ -11,6 +11,10 @@ import sqlite3
 import sys
 import threading
 
+# Direct script execution from an isolated native worktree still needs the
+# certified neutral accounting helpers, after the native import root.
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 
 def connect(path):
     return sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,

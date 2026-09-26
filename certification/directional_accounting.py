@@ -23,6 +23,7 @@ def combine(lane,current,survivor):
         c['remaining_cost_basis']+=s['basis'];c['booked_realized']+=s['realized']
         c['realized']=ceiling['realized'];c['unsettled']+=s['open_positions']+s['pending'];c['positions']+=s['open_positions']+s['pending']+s['settled']
         c['available']=ceiling['available'];c['reserved']=ceiling['reserved']
+        c['native_execution_cost']+=survivor['native_execution_cost']
         c['capital_at_risk_unit_nanoseconds']+=s['capital_unit_seconds']*1_000_000_000
         c['cash_basis_conservation']=capital+c['booked_realized']==c['cash']+c['remaining_cost_basis']
         if not c['cash_basis_conservation']:raise ValueError('directional_cash_conservation')
@@ -31,6 +32,19 @@ def combine(lane,current,survivor):
     c['shared_sleeve']=ceiling;c['one_funded_genesis']=True
     c['strategy_namespaces']=survivor['policies']
     return c
+
+
+def execution_cost(book):
+    """Count only gas actually committed in native fills/realizations/exits."""
+    import json
+    total=0
+    for raw, in book.db.execute('SELECT body FROM journal ORDER BY seq'):
+        e=json.loads(raw)
+        if e['action'] in ('filled','partial_harvest','settled'):
+            gas=e['evidence']['execution']['gas']
+            if type(gas) is not int or gas<0:raise ValueError('survivor_execution_cost_unknown')
+            total+=gas
+    return total
 
 
 def summarize_survivor(lane,report,result):
@@ -89,7 +103,26 @@ def terminal(lane,root,current):
             if p['status']=='open' and p['id'] not in owned:raise ValueError('survivor_controller_missing')
             if p['status'] in ('settled','cancelled') and reserved['held']!=0:
                 raise ValueError('survivor_terminal_capital_not_reconciled')
+        current_strategy=next(k for k in expected if k!=strategy)
+        native_path=(root/'pump-acceleration-natural-prospective.accounting.sqlite3' if lane=='pump'
+            else root/'pons-selective-continuation-v1-cohort/pons-selective-cohort-capital.sqlite')
+        table='positions' if lane=='pump' else 'capital_positions'
+        with closing(connect(native_path)) as native:
+            current_rows={p['id']:p for p in (json.loads(raw) for raw, in native.execute('SELECT body FROM '+table))}
+        owners={strategy:{p['id']:p for p in positions},current_strategy:current_rows}
+        for raw, in allocation.execute('SELECT body FROM sleeve_positions'):
+            held=json.loads(raw)
+            if held['held'] and held['id'] not in owners[held['strategy']]:
+                raise ValueError('directional_unowned_capital')
+        for identity,p in current_rows.items():
+            held=sleeve.get(identity)
+            if not held or held['strategy']!=current_strategy:raise ValueError('current_sleeve_reservation_missing')
+            required=p['basis']+p['reserved'] if lane=='pump' else p['reserved']
+            if held['held']<required:raise ValueError('current_capital_unreserved')
+            if p['status'] in ('settled','cancelled') and held['held']:
+                raise ValueError('current_terminal_capital_not_reconciled')
         status=dict(accounting=accounting,accounting_replay=replay,sleeve=ceiling,policies=expected,
+            native_execution_cost=execution_cost(book) if lane=='pons' else None,
             durable_handoff=accounting['pending']==0,active=True,strategy=strategy,policy_hash=expected[strategy])
         aggregate=combine(lane,current['accounting'],status)
         opened=current['open_positions']+accounting['open_positions']+accounting['pending']

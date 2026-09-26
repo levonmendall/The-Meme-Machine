@@ -48,9 +48,16 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
     if existing is None:
         book.reserve(identity,budget,at,dict(decision=decision,generation=generation,regime=regime))
     try:
-        state=adapter.fresh_state(candidate)
-        quote_context=adapter.fresh_quotes(state,budget)
-        facts=adapter.reconstruct(state,quote_context)
+        # A slow first incremental reconstruction can exhaust the native five-
+        # second freshness budget. One bounded complete refresh uses the now-
+        # caught-up history; it never reuses a stale quote or loosens freshness.
+        for attempt in range(2):
+            state=adapter.fresh_state(candidate)
+            quote_context=adapter.fresh_quotes(state,budget)
+            facts=adapter.reconstruct(state,quote_context)
+            expired=getattr(adapter,'commit_context_expired',lambda state:False)(state)
+            if not expired:break
+            if attempt==1:raise ValueError('survivor_stale_commit')
         fresh=qualify(facts)
         if not fresh['candidate']:
             raise ValueError('survivor_fill_qualification:'+','.join(fresh['all_rejections']))
@@ -113,7 +120,7 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter):
     if state.get('settled'):return dict(action='settled')
     position=book._load(identity)
     next_state,action=mark(state,observation,policy)
-    if observation['id']!=state.get('last_observation'):
+    if next_state!=state:
         # Return uses the remaining cost basis and full executable remaining exit.
         book.transition(identity,'mark',observation['at'],
                         amount=observation.get('net_exit_proceeds',position['mark']),

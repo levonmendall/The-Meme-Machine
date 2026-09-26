@@ -273,7 +273,7 @@ class StateStore:
 
 
 def continuation_store(api,config,lane):
-    if lane not in ('meteora','ramses'):
+    if lane not in ('pump','pons','meteora','ramses'):
         raise ValueError('single_campaign_continuation_lane')
     ref='cert/single-campaign-continuation-'+digest(
         config['authorization_id']+':'+lane)[:16]
@@ -524,7 +524,7 @@ def main():
     parser.add_argument('--result'); parser.add_argument('--job-result')
     parser.add_argument('--certificate-run-id'); parser.add_argument('--runtime-ref')
     parser.add_argument('--output'); parser.add_argument('--action', default='continuation')
-    parser.add_argument('--lane',choices=('meteora','ramses'))
+    parser.add_argument('--lane',choices=('pump','pons','meteora','ramses'))
     parser.add_argument('--campaign-run-id'); parser.add_argument('--state-run-id')
     args = parser.parse_args()
     config = configuration()

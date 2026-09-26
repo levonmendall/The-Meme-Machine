@@ -4,6 +4,10 @@ on:
     branches: [cert/non-market-e2e-20260922, repair/market-scope-efficiency-final-20260923, cert/profitability-portfolio-autonomy-current-v1, cert/profitability-portfolio-autonomy-final-v1]
   workflow_dispatch:
   workflow_call:
+    inputs:
+      preserved_only:
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -101,16 +105,19 @@ jobs:
           --expected-reason dlmm_terminal_state_disagrees_with_forward_reconstruction:token_x_mint_info
           --output non-market-evidence/historical-resolution.json
       - name: Check for competing market jobs before connectivity
+        if: inputs.preserved_only != true
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m certification.guard --wait-seconds 0
       - name: Secret-safe Solana and Robinhood chain binding
+        if: inputs.preserved_only != true
         env:
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
         run: python -m certification.chain_binding --output non-market-evidence/chain-binding.json
       - name: Short production-adapter connectivity probes without paper entries
+        if: inputs.preserved_only != true
         timeout-minutes: 3
         env:
           PYTHONPATH: ${{ github.workspace }}
@@ -124,11 +131,17 @@ jobs:
             (cd "$RUNNER_TEMP/non-market-lanes/$lane" && python "$GITHUB_WORKSPACE/certification/connectivity_smoke.py" --lane "$lane" --output "$GITHUB_WORKSPACE/non-market-evidence/$lane-connectivity.json") || failed=1
           done
           exit "$failed"
+      - name: Six active regimes and bounded preserved evidence
+        if: inputs.preserved_only == true
+        run: |
+          python -m certification.directional_acceptance --worktrees "$RUNNER_TEMP/non-market-lanes" --output non-market-evidence/directional-acceptance
+          python -m certification.directional_preserved_validation --worktrees "$RUNNER_TEMP/non-market-lanes" --output non-market-evidence/preserved-validation.json
       - name: Aggregate final non-market engineering certification
         run: >-
           python -m certification.final_acceptance
           --evidence non-market-evidence
           --expected-sha "${{ github.sha }}"
+          ${{ inputs.preserved_only && '--preserved-only' || '' }}
           --output non-market-evidence/final-acceptance.json
       - name: Preserve success and failure evidence
         if: always()

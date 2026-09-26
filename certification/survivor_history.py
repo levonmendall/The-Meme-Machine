@@ -6,6 +6,7 @@ authenticated graduation identity, rather than a manufactured historical value.
 """
 import json
 import sqlite3
+from fractions import Fraction
 from contextlib import contextmanager
 from certification.journal import canonical,digest
 
@@ -80,9 +81,16 @@ class History:
                     (identity,event['id'],event['at'],canonical(event),digest(event)))
             for at,price in points:
                 if at>through:raise ValueError('survivor_future_price')
-                # Native adapter deterministically chooses the final chain-ordered
-                # state in a second; a later watermark may complete that second.
-                body=[identity,int(at),str(price)]
+                bar=dict(price) if isinstance(price,dict) else dict(price=str(price),low=str(price),high=str(price))
+                old=self.db.execute('SELECT price,hash FROM points WHERE candidate=? AND at=?',(identity,int(at))).fetchone()
+                if old:
+                    if digest([identity,int(at),old[0]])!=old[1]:raise ValueError('survivor_price_corruption')
+                    prior=json.loads(old[0])
+                    bar['low']=str(min(Fraction(bar['low']),Fraction(prior['low'])))
+                    bar['high']=str(max(Fraction(bar['high']),Fraction(prior['high'])))
+                if not 0<Fraction(bar['low'])<=Fraction(bar['price'])<=Fraction(bar['high']):
+                    raise ValueError('survivor_price_range')
+                body=[identity,int(at),canonical(bar)]
                 self.db.execute('INSERT OR REPLACE INTO points VALUES(?,?,?,?)',(*body,digest(body)))
             if self.db.execute('SELECT count(*) FROM points WHERE candidate=?',(identity,)).fetchone()[0]>self.maximum_points:
                 raise ValueError('survivor_history_point_capacity')
@@ -95,7 +103,7 @@ class History:
         points=[]
         for at,price,h in self.db.execute('SELECT at,price,hash FROM points WHERE candidate=? AND at<=? ORDER BY at',(identity,now)):
             if digest([identity,at,price])!=h:raise ValueError('survivor_price_corruption')
-            points.append(dict(at=at,price=price))
+            points.append(dict(at=at,**json.loads(price)))
         return points,events
 
     def rows(self,*,include_retired=False):

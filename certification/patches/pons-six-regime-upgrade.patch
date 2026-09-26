@@ -21,10 +21,10 @@ index e7eb346fda3102bca7f334009ab7196e16d61f3f..14fc48ce3cbb6308aac17714dceb5f14
 +    ),sort_keys=True))
 diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/pons_postgrad_survivor.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..b2170fb6daaf0c89e0872fe377fe8e436aa12058
+index 0000000000000000000000000000000000000000..93a82695225668e8efb0a7cd8e202bb4b4fb2519
 --- /dev/null
 +++ b/robinhood_research/pons_postgrad_survivor.py
-@@ -0,0 +1,373 @@
+@@ -0,0 +1,384 @@
 +"""Independent Pons post-graduation survivor-momentum strategy.
 +
 +This module is intentionally independent of the existing pre-graduation Pons
@@ -81,6 +81,9 @@ index 0000000000000000000000000000000000000000..b2170fb6daaf0c89e0872fe377fe8e43
 +        max_largest_buyer_share_bps=3500,
 +        max_creator_sell_quote=0,
 +    ),
++    confirmation=dict(repeat_window_seconds=1800,hard_repeat_threshold=None,
++        ranking_tiebreak=['repeat_independent_buyers_30m','repeat_buyer_share_bps']),
++    reentry=dict(minimum_seconds=3600,minimum_changed_dimensions=2),
 +    execution=dict(
 +        target_capital_bps=25,
 +        minimum_capital_bps=5,
@@ -326,13 +329,21 @@ index 0000000000000000000000000000000000000000..b2170fb6daaf0c89e0872fe377fe8e43
 +        int(f["independent_buyers_30m"]),
 +        int(f["buy_sell_ratio_bps"]),
 +        -int(f["roundtrip_loss_bps"] or 10**9),
++        int(f["repeat_independent_buyers_30m"]),
++        int(f["repeat_buyer_share_bps"] or 0),
 +    )
++    blocked=set(reasons)
++    stage='qualified' if not blocked else 'breakout_watch'
++    if blocked & {'no_breakout','late_extension','missing_breakout_bps'}:stage='reset_or_base'
++    if blocked & {'no_meaningful_reset','reset_too_deep','missing_reset_pullback_bps'}:stage='trend_eligible'
++    if blocked & {'weak_since_graduation','weak_long_trend','weak_6h_trend','weak_2h_trend','choppy_trend'}:stage='survivor'
++    if blocked & {'too_early','too_old'}:stage='aging'
 +    return dict(
 +        strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,
 +        paper_only=True,live_money=False,
 +        candidate=not reasons,all_rejections=reasons,
 +        proposed_quote_amount=(f["proposed_quote_amount"] if not reasons else 0),
-+        priority=priority,features=f,
++        priority=priority,features=f,stage=stage,
 +    )
 +
 +
@@ -399,48 +410,78 @@ index 0000000000000000000000000000000000000000..b2170fb6daaf0c89e0872fe377fe8e43
 +        soft_confirmations=x['demand_failure_confirmations'],maximum_hold_seconds=x['max_hold_seconds'],
 +        stale_seconds=x['no_new_high_seconds'],stale_return_ceiling_bps=x['no_new_high_return_ceiling_bps'])
 diff --git a/robinhood_research/pons_selective_capital.py b/robinhood_research/pons_selective_capital.py
-index 38a4454449492b7cb12f0a108cbaf56c7552b126..bc725377da228566addba769ac3bb9bb4102db64 100644
+index 38a4454449492b7cb12f0a108cbaf56c7552b126..f0aa38dd82cec1b115d26f5d8f2bc24ad92a144d 100644
 --- a/robinhood_research/pons_selective_capital.py
 +++ b/robinhood_research/pons_selective_capital.py
-@@ -28,6 +28,22 @@ class CohortCapital:
+@@ -28,6 +28,31 @@ class CohortCapital:
              db.execute('INSERT OR IGNORE INTO capital_genesis VALUES(1,?)',(genesis,))
              if db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0]!=genesis:
                  raise BoundaryError('selective_cohort_genesis_mismatch')
 +        self.recover_shared_terminals()
 +
-+    def recover_shared_terminals(self):
++    def recover_shared_terminals(self,*,release_absent=False):
 +        from certification.directional_sleeve import open_sleeve,native_terminal
 +        sleeve=open_sleeve('pons',self.capital)
 +        if sleeve is None:return
 +        with closing(sleeve),closing(self._connect()) as db:
-+            verified=self.reconcile()
-+            if not verified.get('native_observation_complete'):return
++            verified=self._reconcile(db)
++            native_ids=set()
 +            for raw, in db.execute('SELECT body FROM capital_positions'):
 +                row=json.loads(raw);held=sleeve.get(row['id'])
++                native_ids.add(row['id'])
 +                if row['status']=='settled' and held and held['held']:
-+                    position=row.get('native_position')
++                    position=row.get('native_position',row.get('shared_terminal_position'))
 +                    if position is None or digest(position)!=row.get('native_settlement_hash'):
 +                        raise BoundaryError('selective_terminal_recovery_proof')
 +                    native_terminal(sleeve,row['id'],position,row['at'],verified=True)
++            if release_absent:
++                # Only the cohort startup, before lifecycle workers, can prove
++                # no current reservation is concurrently being materialized.
++                for raw, in sleeve.db.execute('SELECT body FROM sleeve_positions'):
++                    held=json.loads(raw)
++                    if held['strategy']==STRATEGY_NAMESPACE and held['held'] and held['id'] not in native_ids:
++                        sleeve.release(held['id'],pnl=0,at=held['at'],native_verified=True,
++                            terminal_hash=digest(dict(native_absent=held['id'],cohort_replay=verified)),cancelled=True)
  
      def _connect(self):
          db=sqlite3.connect(self.path,timeout=30,isolation_level=None)
-@@ -151,6 +167,10 @@ class CohortCapital:
+@@ -151,6 +176,12 @@ class CohortCapital:
  
      def reserve(self,identity,amount,*,at,decision_hash,trial_path):
          if type(amount) is not int or amount<=0:raise BoundaryError('selective_cohort_reservation_invalid')
 +        from certification.directional_sleeve import open_sleeve
 +        sleeve=open_sleeve('pons',self.capital)
 +        if sleeve is not None:
-+            with closing(sleeve):sleeve.reserve(identity,strategy=STRATEGY_NAMESPACE,amount=amount,at=int(at))
++            try:
++                with closing(sleeve):sleeve.reserve(identity,strategy=STRATEGY_NAMESPACE,amount=amount,at=int(at))
++            except ValueError as exc:raise BoundaryError(str(exc)) from None
          with closing(self._connect()) as db:
              db.execute('BEGIN IMMEDIATE')
              try:
-@@ -180,5 +200,10 @@ class CohortCapital:
+@@ -161,7 +192,15 @@ class CohortCapital:
+                 row=dict(id=identity,status='reserved',reserved=amount,initial_reserved=amount,pnl=0,
+                          at=int(at),decision_hash=decision_hash,trial_path=str(trial_path),policy_hash=POLICY_HASH)
+                 self._write(db,row,'reserve');db.execute('COMMIT');return row
+-            except BaseException:db.execute('ROLLBACK');raise
++            except BaseException:
++                db.execute('ROLLBACK')
++                if not db.execute('SELECT 1 FROM capital_positions WHERE id=?',(identity,)).fetchone():
++                    sleeve=open_sleeve('pons',self.capital)
++                    if sleeve is not None:
++                        with closing(sleeve):
++                            sleeve.release(identity,pnl=0,at=int(at),native_verified=True,
++                                terminal_hash=digest(dict(native_absent=identity,cohort_replay=self._reconcile(db))),cancelled=True)
++                raise
+ 
+     def settle(self,identity,position,*,at):
+         if position.get('id')!=identity or position.get('experiment')!=STRATEGY_NAMESPACE or position.get('status')!='settled' or position.get('tokens')!=0 or position.get('reserved')!=0:
+@@ -179,6 +218,11 @@ class CohortCapital:
+                 if pnl < -row['initial_reserved']:raise BoundaryError('selective_cohort_loss_exceeds_reservation')
                  if 'native_position' in row and row['native_position']!=position:
                      raise BoundaryError('selective_cohort_unobserved_settlement')
-                 row.update(status='settled',reserved=0,pnl=pnl,at=int(at),native_settlement_hash=digest(position))
+-                row.update(status='settled',reserved=0,pnl=pnl,at=int(at),native_settlement_hash=digest(position))
 -                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
++                row.update(status='settled',reserved=0,pnl=pnl,at=int(at),native_settlement_hash=digest(position),shared_terminal_position=position)
 +                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT')
              except BaseException:db.execute('ROLLBACK');raise
 +        from certification.directional_sleeve import open_sleeve,native_terminal
@@ -449,7 +490,7 @@ index 38a4454449492b7cb12f0a108cbaf56c7552b126..bc725377da228566addba769ac3bb9bb
 +            with closing(sleeve):native_terminal(sleeve,identity,position,int(at),verified=True)
 +        return rec
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..4830b4281bfc7ac791f02c6f62a082aa05b94e57 100644
+index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..c54f92e3f2b716a42dec02e09d11e17081fb260e 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
 @@ -195,6 +195,7 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
@@ -460,7 +501,15 @@ index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..4830b4281bfc7ac791f02c6f62a082aa
          discovery_sessions=list(result["discovery_sessions"][-16:]),
          discovery_session_count=len(result['discovery_sessions']),
          provider_session_archive=str(PROVIDER_LOG),
-@@ -592,6 +593,13 @@ def run(endpoint,*,campaign=False):
+@@ -540,6 +541,7 @@ def run(endpoint,*,campaign=False):
+                             ROOT/"pons-selective-cohort-capital.sqlite") if p.exists()]
+     recovered=(recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH) if occupied else None)
+ 
++    CohortCapital(ROOT/'pons-selective-cohort-capital.sqlite',STRATEGY_CAPITAL_QUOTE).recover_shared_terminals(release_absent=True)
+     initial_accounting=_cohort_accounting()
+     started=time.time()
+     result=dict(
+@@ -592,6 +594,13 @@ def run(endpoint,*,campaign=False):
          result["opportunity_coverage"]=pipeline.snapshot()
          result['capacity_censored']=result['opportunity_coverage']['unique_classes']['capacity_censored']
      rpc=_discovery(endpoint)
@@ -474,7 +523,7 @@ index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..4830b4281bfc7ac791f02c6f62a082aa
      feed=SequencerBlockClock();feed.connect()
      cursor=feed.wait_for_after(-1,timeout=5.0)
      if cursor is None:
-@@ -733,6 +741,7 @@ def run(endpoint,*,campaign=False):
+@@ -733,6 +742,7 @@ def run(endpoint,*,campaign=False):
              futures=[item for item in futures if id(item[1]) not in collected_futures]
              now=time.time()
              now_monotonic=time.monotonic()
@@ -482,7 +531,7 @@ index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..4830b4281bfc7ac791f02c6f62a082aa
              for event in fresh:
                  identity=(event["transactionHash"],event["logIndex"])
                  is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
-@@ -953,6 +962,7 @@ def run(endpoint,*,campaign=False):
+@@ -953,6 +963,7 @@ def run(endpoint,*,campaign=False):
          _append_jsonl(PROVIDER_LOG,terminal_provider)
      finally:
          # Resolve any externally in-flight work; its durable generation still fences it.
@@ -654,10 +703,10 @@ index b2b55e0945c73414888f57762a7042091ebdc113..04a900f5fc6c848df3f73421a5ff30a1
              result['entry_persistence']['final_quote_acquisition_seconds']=final_received-final_started
 diff --git a/robinhood_research/pons_survivor_runtime.py b/robinhood_research/pons_survivor_runtime.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..69d1ed6a399def67579d1b3b527ff252f71e1ae6
+index 0000000000000000000000000000000000000000..73061db4c92e62a5b4cf50698e5a06f9c0102603
 --- /dev/null
 +++ b/robinhood_research/pons_survivor_runtime.py
-@@ -0,0 +1,328 @@
+@@ -0,0 +1,333 @@
 +"""Independent Pons V2 graduation discovery and active PAPER Survivor controller.
 +
 +All transport uses the existing canonical Robinhood provider and governor. The
@@ -878,6 +927,9 @@ index 0000000000000000000000000000000000000000..69d1ed6a399def67579d1b3b527ff252
 +                raise BoundaryError('survivor_generation_superseded')
 +            yield
 +
++    def commit_context_expired(self,state):
++        return not 0<=time.monotonic()-state['acquired']<=5
++
 +    def validate_current(self,state,execution,now):
 +        if execution['block_hash']!=state['block_hash'] or not 0<=time.monotonic()-state['acquired']<=5:
 +            raise BoundaryError('survivor_stale_commit')
@@ -893,7 +945,7 @@ index 0000000000000000000000000000000000000000..69d1ed6a399def67579d1b3b527ff252
 +                grad['transition']['graduation_gas_used'],store,'survivor_exit',local_freshness=True)
 +            q.check(self.now(),q.market,'sell',qty,q.stamp.kind,finality_ledger=ledger)
 +            return dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
-+                acquired=time.monotonic(),block_hash=meta['block_hash'])
++                acquired=time.monotonic(),block_hash=meta['block_hash'],gas=q.gas_quote)
 +        except BoundaryError:return None
 +        finally:store.close()
 +
@@ -968,7 +1020,7 @@ index 0000000000000000000000000000000000000000..69d1ed6a399def67579d1b3b527ff252
 +                        watermark=dict(block=state['block'],hash=state['block_hash']),interpretation=dict(policy=POLICY_HASH),
 +                        observed=time.time(),deadline=None,priority=4,needs_work=False)
 +                    observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
-+                        state='qualified' if decision['candidate'] else 'breakout_watch',evidence=decision,regime=regime)
++                        state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
 +                    row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
 +                        generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
 +                    if decision['candidate'] and sum(bool(r.get('position')) for r in self.history.rows())<POLICY['execution']['max_open_positions']:
@@ -978,7 +1030,9 @@ index 0000000000000000000000000000000000000000..69d1ed6a399def67579d1b3b527ff252
 +                    self.history.save(row)
 +            self.last_error=None
 +        except (ValueError,BoundaryError) as exc:self.last_error=str(exc)
++        from certification.directional_accounting import execution_cost
 +        return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
++                    native_execution_cost=execution_cost(self.book),
 +                    candidate_count=len(self.history.rows()),last_boundary=self.last_error,
 +                    accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
 +                    policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
@@ -986,6 +1040,75 @@ index 0000000000000000000000000000000000000000..69d1ed6a399def67579d1b3b527ff252
 +
 +    def close(self):
 +        self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+diff --git a/robinhood_tests/test_pons_capacity_persistence.py b/robinhood_tests/test_pons_capacity_persistence.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc77733f34fc39ca4a73a127f1ce060744147e74
+--- /dev/null
++++ b/robinhood_tests/test_pons_capacity_persistence.py
+@@ -0,0 +1,35 @@
++"""Current Pons capacity uses native curve state; repeat features never qualify."""
++from dataclasses import asdict
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.pons_selective_paper import _entry_capacity
++from robinhood_research.pons_selective_continuation import demand_metrics,ENTRY_THRESHOLDS
++from robinhood_tests.test_pons_selective_continuation import state,trade,vector,events
++
++class CapacityPersistence(unittest.TestCase):
++ def test_actual_curve_exact_two_x_resize(self):
++  c=_entry_capacity({'state':asdict(state())},3*10**16,21000)
++  self.assertGreater(c.final_size,0);self.assertLess(c.final_size,3*10**16)
++  self.assertEqual(c.binding_reason,'double_size_stress')
++  self.assertLessEqual(c.ordinary_loss_bps,600);self.assertLessEqual(c.double_loss_bps,600)
++  self.assertEqual(c,_entry_capacity({'state':asdict(state())},3*10**16,21000))
++ def test_deep_capacity_preserved_and_unusable_gas_cancels(self):
++  self.assertEqual(_entry_capacity({'state':asdict(state())},10**15,21000).final_size,10**15)
++  self.assertEqual(_entry_capacity({'state':asdict(state())},10**15,10**20).final_size,0)
++  self.assertEqual(ENTRY_THRESHOLDS['max_roundtrip_loss_bps'],600)
++ def test_missing_authoritative_state_fails_closed(self):
++  with self.assertRaisesRegex(BoundaryError,'state_missing'):_entry_capacity({},10**15,21000)
++ def test_repeat_point_in_time_boundary_and_no_future_information(self):
++  rows=[trade('a0','a',10,170),trade('a1','a',30,185),trade('b','b',70,200),trade('future','b',900,201)]
++  with self.assertRaisesRegex(BoundaryError,'invalid_selective_market_window'):
++   demand_metrics(rows,asof=200,creator_groups=())
++  d=demand_metrics(rows[:-1],asof=200,creator_groups=())
++  self.assertEqual(d['repeat_independent_groups'],1)
++  self.assertEqual(d['repeat_buyer_share_bps'],3000)
++  self.assertEqual(d['persistent_buyer_groups'],['a'])
++ def test_repeat_context_cannot_bypass_entry_qualification(self):
++  rows=events();rows += [trade('repeat'+str(i),e['group'],1,180) for i,e in enumerate(rows)]
++  qualified=vector(events=rows)
++  failed=vector(events=rows,current_snipe_bps=1)
++  self.assertGreater(failed['confirmation_context']['repeat_independent_groups'],0)
++  self.assertFalse(failed['current_threshold_pass']);self.assertFalse(failed['ranking_context']['qualified'])
+diff --git a/robinhood_tests/test_pons_entry_confirmation_ordering.py b/robinhood_tests/test_pons_entry_confirmation_ordering.py
+index 9689ed71dc2486a77b7626ac60094c0b3ded4922..f3ccff6168456ba033e6e24511b03fe4a5c602ec 100644
+--- a/robinhood_tests/test_pons_entry_confirmation_ordering.py
++++ b/robinhood_tests/test_pons_entry_confirmation_ordering.py
+@@ -53,6 +53,12 @@ class EntryOrderingTests(unittest.TestCase):
+             quotes.append((q,m,l));return q,m,l
+         def persistence(*a):
+             calls.append(('persistence',clock[0]));clock[0]+=delay
++            if supersede=='reconstruction':
++                from certification.robinhood.plane import Plane
++                plane=Plane(evaluation['candidate_plane_path'],clock=lambda:clock[0])
++                plane.observe('candidate','pons','reconstruction_supersession',{},ordering=(2,),watermark={'block':13},
++                    interpretation={'policy':POLICY_HASH},observed=clock[0],deadline=200,priority=1)
++                plane.close()
+             t,d,s=recovery.PositionRecoveryTests.persistent_entry_signal()
+             if not persistent:d['current_net_quote']=0
+             return t,d,s
+@@ -139,6 +145,10 @@ class EntryOrderingTests(unittest.TestCase):
+         self.assertEqual(r['boundary'],'candidate_generation_superseded_before_entry')
+         self.assertFalse(any(e['action']=='entry' for e in events))
+ 
++    def test_generation_superseded_during_reconstruction_cannot_enter(self):
++        r,events,_,_=self.lifecycle(broker=True,supersede='reconstruction')
++        self.assertFalse(any(e['action']=='entry' for e in events),r)
++
+     def test_committed_entry_survives_restart_duplicate_delivery(self):
+         with tempfile.TemporaryDirectory() as folder:
+             r,events,_,_=self.lifecycle(broker=True,folder=folder)
 diff --git a/robinhood_tests/test_pons_execution_acquisition.py b/robinhood_tests/test_pons_execution_acquisition.py
 index cc8fdd1dba943adfdc63d7bd047683384df4a02d..b64404872baa4e67e5a647603fd8ab27608569bc 100644
 --- a/robinhood_tests/test_pons_execution_acquisition.py
@@ -1226,3 +1349,42 @@ index 372e10021cc9f437493211b7adb46f41831196eb..a700bdb4fd8d9904c59aeb763a020597
          self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5000)
          self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8500)
          self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],120)
+diff --git a/robinhood_tests/test_pons_shared_survivor.py b/robinhood_tests/test_pons_shared_survivor.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc5cd2b2af9c9ccc2cb9cabe290909bf2dd25ac
+--- /dev/null
++++ b/robinhood_tests/test_pons_shared_survivor.py
+@@ -0,0 +1,33 @@
++"""Actual current-Pons cohort reservations share Survivor's unchanged ceiling."""
++from pathlib import Path
++from unittest.mock import patch
++import os,tempfile,unittest
++from certification.directional_sleeve import open_sleeve
++from robinhood_research import BoundaryError
++from robinhood_research.pons_selective_capital import CohortCapital
++from robinhood_research.pons_selective_ledger import STRATEGY_NAMESPACE
++from robinhood_research.pons_postgrad_survivor import STRATEGY_VERSION
++
++class SharedPons(unittest.TestCase):
++ def test_current_plus_survivor_share_ceiling_and_restart(self):
++  with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_DIRECTIONAL_SLEEVE_DB=td+'/sleeve',MM_DIRECTIONAL_COHORT_ID='new'):
++   path=Path(td)/'current';current=CohortCapital(path,1000)
++   current.reserve('current',900,at=1,decision_hash='a',trial_path='missing')
++   sleeve=open_sleeve('pons',1000);sleeve.reserve('survivor',strategy=STRATEGY_VERSION,amount=100,at=1)
++   with self.assertRaisesRegex(BoundaryError,'capital_exhausted'):
++    current.reserve('overflow',1,at=1,decision_hash='b',trial_path='missing')
++   self.assertEqual(sleeve.reconcile()['reserved'],1000)
++   current=CohortCapital(path,1000);self.assertEqual(sleeve.reconcile()['reserved'],1000)
++   position=dict(id='current',experiment=STRATEGY_NAMESPACE,status='settled',tokens=0,reserved=0,pnl=-100)
++   current.settle('current',position,at=2)
++   self.assertEqual(sleeve.reconcile()['available'],800)
++   current=CohortCapital(path,1000);self.assertEqual(sleeve.reconcile()['available'],800)
++   sleeve.close()
++ def test_startup_orphan_recovery_never_releases_survivor(self):
++  with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_DIRECTIONAL_SLEEVE_DB=td+'/sleeve',MM_DIRECTIONAL_COHORT_ID='new'):
++   current=CohortCapital(Path(td)/'current',1000);sleeve=open_sleeve('pons',1000)
++   sleeve.reserve('orphan',strategy=STRATEGY_NAMESPACE,amount=900,at=1)
++   sleeve.reserve('survivor',strategy=STRATEGY_VERSION,amount=100,at=1)
++   current.recover_shared_terminals();self.assertEqual(sleeve.reconcile()['reserved'],1000)
++   current.recover_shared_terminals(release_absent=True)
++   self.assertEqual(sleeve.reconcile()['reserved'],100);sleeve.close()

@@ -88,6 +88,7 @@ class SleeveReservations:
         with self.transaction():
             old=self.get(identity)
             if old:
+                if old['status']=='settled':raise ValueError('terminal_reservation_reused')
                 if all(old[k]==v for k,v in dict(strategy=strategy,amount=amount,candidate=candidate,generation=generation).items()):
                     return old
                 raise ValueError('sleeve_reservation_conflict')

@@ -7,7 +7,8 @@ def mark(state, observation, policy):
     A repeated observation cannot supply the second deterioration confirmation.
     Unavailable liquidity creates an exit intent, never fabricated proceeds.
     """
-    if observation['id'] == state.get('last_observation'):
+    repeated=observation['id'] == state.get('last_observation')
+    if repeated and observation['at']==state.get('last_at'):
         return dict(state), dict(state['last_action'])
     now = observation['at']
     if now < state.get('last_at',state['opened_at']):
@@ -23,7 +24,7 @@ def mark(state, observation, policy):
         high = max(high,current)
     updated['high_water_bps'] = high
     updated['tightened'] = updated.get('tightened',False) or high >= policy['tight_arm_bps']
-    soft = observation.get('soft_deterioration')
+    soft = None if repeated else observation.get('soft_deterioration')
     if soft is not None:
         updated['deterioration_streak'] = updated.get('deterioration_streak',0)+1 if soft is True else 0
     else:updated.setdefault('deterioration_streak',0)

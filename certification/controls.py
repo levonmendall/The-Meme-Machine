@@ -92,6 +92,17 @@ def record_unfinished_broker_jobs(path,journal,now):
                 consumer_count=sum(consumer_counts.values()),consumer_reasons=consumer_counts)
 
 
+def position_handoff(lane,row):
+    if row.get('durable_handoff') is not True:return False
+    if lane in ('meteora','ramses'):return row.get('open_positions')==1
+    state=row.get('continuation_state') or {}
+    proof=row.get('terminal_reconciliation') or {}
+    return bool(lane in ('pump','pons') and proof.get('verified') is True
+        and state.get('schema')=='directional-survivor-handoff-v1'
+        and state.get('lane')==lane and state.get('positions',0)>0
+        and row.get('open_positions')==state.get('positions'))
+
+
 def smoke_engineering(result):
     """A machinery preflight, never a four-hour or natural execution PASS."""
     failures=[]
@@ -109,8 +120,7 @@ def smoke_engineering(result):
         if permanently_unfunded(row):failures.append(lane+':permanently_unfunded_paper_book')
         if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
             failures.append(lane+':process_continuity')
-        handoff=(lane in ('meteora','ramses') and row.get('open_positions')==1
-                 and row.get('durable_handoff') is True
+        handoff=(position_handoff(lane,row)
                  and (row.get('terminal_reconciliation') or {}).get('verified') is True)
         if (row.get('open_positions')!=0 and not handoff) or row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
@@ -152,11 +162,7 @@ def hourly_engineering(result):
         if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
             failures.append(lane+':process_continuity')
         open_positions=row.get('open_positions')
-        durable_handoff=(
-            lane in ('meteora','ramses')
-            and open_positions==1
-            and row.get('durable_handoff') is True
-        )
+        durable_handoff=position_handoff(lane,row)
         if row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
         elif open_positions is None:

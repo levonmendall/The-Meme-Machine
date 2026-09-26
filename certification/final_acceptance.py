@@ -24,7 +24,7 @@ def resource_rss_kib(row):
     ]
     return float(max(values,default=0))
 
-def run(evidence,output,expected_sha=None,registry_path=None):
+def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=False):
     root=Path(evidence)
     offline=load(root/"offline/result.json")
     crash=load(root/"crash.json")
@@ -32,7 +32,7 @@ def run(evidence,output,expected_sha=None,registry_path=None):
     integrated=load(root/"integrated-acceptance/result.json")
     historical=load(root/"historical-resolution.json")
     registry=load(registry_path or Path(__file__).with_name("historical_exposure.json"))
-    connectivity={lane:load(root/f"{lane}-connectivity.json") for lane in LANES}
+    connectivity={} if preserved_only else {lane:load(root/f"{lane}-connectivity.json") for lane in LANES}
     resources={
         "pump":load(root/"pump-resource.json"),
         "meteora_general":load(root/"meteora-resource.json"),
@@ -81,6 +81,18 @@ def run(evidence,output,expected_sha=None,registry_path=None):
         "resource_bounds":resource_pass,
         "exact_integration_identity":identity_pass,
     }
+    if preserved_only:
+        # Explicit alternate scope: certify preserved adapter contracts without
+        # claiming present-day provider connectivity or collecting fresh markets.
+        gates.pop('production_adapter_connectivity')
+        directional=load(root/'directional-acceptance/result.json')
+        preserved=load(root/'preserved-validation.json')
+        gates['six_regime_integration']=(directional.get('passed') is True
+            and directional.get('integration_sha')==expected_sha)
+        gates['preserved_production_adapter_contracts']=integrated.get('passed') is True
+        gates['bounded_preserved_validation']=(preserved.get('passed') is True
+            and preserved.get('integration_sha')==expected_sha
+            and preserved.get('fresh_market_data_used') is False)
     passed=all(gates.values())
     result=dict(
         passed=passed,
@@ -88,6 +100,8 @@ def run(evidence,output,expected_sha=None,registry_path=None):
             "CERTIFIED_NON_MARKET_ENGINEERING" if passed else "NOT_CERTIFIED"
         ),
         integration_sha=offline.get("integration_sha"),
+        validation_scope='preserved_evidence_only' if preserved_only else 'non_market_with_connectivity',
+        fresh_provider_connectivity_checked=not preserved_only,
         expected_integration_sha=expected_sha,
         gates=gates,
         test_counts=offline.get("test_counts"),
@@ -129,5 +143,6 @@ if __name__=="__main__":
     p.add_argument("--output",required=True)
     p.add_argument("--expected-sha")
     p.add_argument("--registry")
+    p.add_argument("--preserved-only",action='store_true')
     a=p.parse_args()
-    raise SystemExit(run(a.evidence,a.output,a.expected_sha,a.registry))
+    raise SystemExit(run(a.evidence,a.output,a.expected_sha,a.registry,a.preserved_only))

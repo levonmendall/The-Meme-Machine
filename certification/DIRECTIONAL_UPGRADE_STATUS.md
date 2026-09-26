@@ -31,8 +31,23 @@ and disclosed agent identity do not prove the agent completion timestamp. Withou
 an authenticated completion timestamp plus a complete 60-minute clean window,
 a Mayhem Survivor entry is blocked. Agent flow is excluded independently.
 
-Remaining: finish adapter/boundary/integration checks, prepare and verify actual
-composer manifests, archive the immutable old cohort and freeze the new one,
-complete bounded preserved-evidence validation, full offline certification of the
-exact SHA, then canonical promotion of that same SHA. This checkpoint is not
-prospective profitability evidence.
+The new common cohort is `prospective-four-lane-six-regime-v13-20260926`.
+The prior v12 protocol is archived byte-for-byte under `certification/cohorts/`.
+`profitability_protocol.json` commits all six regime identities plus both shared
+sleeve identities. Allocation resolves in the sleeve's append-only serial order:
+the first durable reservation owns capital, and restart cannot reorder it.
+
+The prepared composer manifests pass source/hash verification. The focused
+six-regime integration gate passes all lane, policy, sleeve and unchanged-strategy
+checks. One bounded preserved-input pass passes 90 tests (Pump 26, Pons 33, shared
+31); historical Survivor profitability and missing historical evidence remain
+UNKNOWN. The local supervisor suite runs 338 tests; three existing provider
+process-liveness tests fail from the documented local PID namespace mismatch.
+Those tests remain enabled without modification in the hosted full certification.
+
+The exact candidate must pass the full hosted deterministic/non-market workflow
+before canonical promotion. The dedicated workflow calls the existing complete
+certification with preserved inputs, all four native suites, supervisor, crash,
+restart, accounting, integration and resource gates. It performs no provider
+connectivity probes or market collection and cannot authorize a market run.
+This implementation record is not a certification or profitability claim.

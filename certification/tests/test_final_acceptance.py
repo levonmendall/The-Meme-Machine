@@ -71,4 +71,25 @@ class FinalAcceptanceTests(unittest.TestCase):
             self.assertEqual(run(root,out,"different",root/"registry.json"),1)
             self.assertFalse(json.loads(out.read_text())["gates"]["exact_integration_identity"])
 
+    def test_preserved_scope_requires_all_exact_sha_reports_without_claiming_connectivity(self):
+        for changed in (None,'directional_sha','preserved_sha','fresh_data','failed','missing'):
+            with self.subTest(changed=changed),tempfile.TemporaryDirectory() as td:
+                root=Path(td)/'e';root.mkdir();self.build(root,connectivity=False)
+                (root/'directional-acceptance').mkdir()
+                (root/'directional-acceptance/result.json').write_text(json.dumps(dict(
+                    passed=True,integration_sha='other' if changed=='directional_sha' else 'sha')))
+                path=root/'preserved-validation.json'
+                path.write_text(json.dumps(dict(passed=changed!='failed',
+                    integration_sha='other' if changed=='preserved_sha' else 'sha',
+                    fresh_market_data_used=changed=='fresh_data')))
+                out=root/'final.json'
+                if changed=='missing':
+                    path.unlink()
+                    with self.assertRaises(FileNotFoundError):run(root,out,'sha',root/'registry.json',True)
+                    continue
+                self.assertEqual(run(root,out,'sha',root/'registry.json',True),0 if changed is None else 1)
+                result=json.loads(out.read_text())
+                self.assertFalse(result['fresh_provider_connectivity_checked'])
+                self.assertNotIn('production_adapter_connectivity',result['gates'])
+
 if __name__=="__main__":unittest.main()

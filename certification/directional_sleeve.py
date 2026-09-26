@@ -57,8 +57,19 @@ def recover_pump_terminals(book):
     if sleeve is None:return
     try:
         verified=book.replay()['verified']
+        current_strategy=next(s for s in sleeve.identity['policies'] if 'survivor' not in s)
+        native_ids={}
         for raw, in book.db.execute('SELECT body FROM positions'):
             position=json.loads(raw);held=sleeve.get(position['id'])
+            native_ids[position['id']]=position
             if position['status'] in ('settled','cancelled') and held and held['held']:
                 native_terminal(sleeve,position['id'],position,position['last_at'],verified=verified)
+        # Startup occurs before current-Pump admission. A crash before the native
+        # reservation leaves an allocation only; verified absence releases it.
+        for raw, in sleeve.db.execute('SELECT body FROM sleeve_positions'):
+            held=json.loads(raw)
+            if held['strategy']==current_strategy and held['held'] and held['id'] not in native_ids:
+                sleeve.release(held['id'],pnl=0,at=held['at'],
+                    terminal_hash=digest(dict(native_absent=held['id'],book_replay=book.replay())),
+                    native_verified=verified,cancelled=True)
     finally:sleeve.close()

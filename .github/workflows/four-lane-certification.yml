@@ -314,7 +314,7 @@ jobs:
           import json
           from pathlib import Path
           row=json.loads(Path("certification-hourly/result.json").read_text())
-          for lane in ("meteora","ramses"):
+          for lane in ("pump","pons","meteora","ramses"):
               state=(row.get("lanes") or {}).get(lane) or {}
               if int(state.get("open_positions") or 0)>0 and state.get("durable_handoff") is True:
                   print(lane)

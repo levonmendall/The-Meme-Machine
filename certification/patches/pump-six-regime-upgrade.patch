@@ -44,7 +44,7 @@ index 82193ee244c95244f7fb3aa4579623e27feb7aa0..6fd38403aa65fb5722a380f946018e6b
 \ No newline at end of file
 +            return 'settled'
 diff --git a/meme_machine/pump_acceleration_paper.py b/meme_machine/pump_acceleration_paper.py
-index c1b961342d74739fa79e152deab67e69617a9bd4..b43933e0789a86ccd472e8fc3f4a7d611cf68d02 100644
+index c1b961342d74739fa79e152deab67e69617a9bd4..302895ffbb7db645d467b985154f87d367d3b341 100644
 --- a/meme_machine/pump_acceleration_paper.py
 +++ b/meme_machine/pump_acceleration_paper.py
 @@ -46,6 +46,10 @@ class PumpAccelerationPaperLifecycle:
@@ -58,7 +58,7 @@ index c1b961342d74739fa79e152deab67e69617a9bd4..b43933e0789a86ccd472e8fc3f4a7d61
          if book is not None and not lifecycle_id:
              raise ValueError("durable_lifecycle_id_required")
  
-@@ -60,6 +64,9 @@ class PumpAccelerationPaperLifecycle:
+@@ -60,10 +64,23 @@ class PumpAccelerationPaperLifecycle:
              raise ValueError("invalid_budget")
          if self.reservation is not None or self.position is not None:
              raise ValueError("lifecycle_already_active")
@@ -66,9 +66,26 @@ index c1b961342d74739fa79e152deab67e69617a9bd4..b43933e0789a86ccd472e8fc3f4a7d61
 +            self.sleeve.reserve(self.lifecycle_id,strategy=STRATEGY_ID,
 +                amount=int(budget_quote_units),at=int(now))
          if self.book is not None:
-             self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
-                               dict(qualification=asdict(qualification),
-@@ -108,6 +115,11 @@ class PumpAccelerationPaperLifecycle:
+-            self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
+-                              dict(qualification=asdict(qualification),
+-                                   snapshot=self.entry_evidence))
++            try:
++                self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
++                                  dict(qualification=asdict(qualification),snapshot=self.entry_evidence))
++            except BaseException:
++                if self.sleeve is not None:
++                    from certification.journal import digest
++                    replay=self.book.replay()
++                    present=self.book.db.execute('SELECT 1 FROM positions WHERE id=?',(self.lifecycle_id,)).fetchone()
++                    if not present:
++                        self.sleeve.release(self.lifecycle_id,pnl=0,at=int(now),native_verified=replay['verified'],
++                            terminal_hash=digest(dict(native_absent=self.lifecycle_id,replay=replay)),cancelled=True)
++                    self.sleeve.close();self.sleeve=None
++                raise
+         self.reservation=dict(
+             strategy_id=STRATEGY_ID,
+             mode=qualification.mode,
+@@ -108,6 +125,11 @@ class PumpAccelerationPaperLifecycle:
          if self.book is not None:
              self.book.transition(self.lifecycle_id,"cancelled",int(now),
                                   evidence=dict(reason=str(reason)))
@@ -80,7 +97,7 @@ index c1b961342d74739fa79e152deab67e69617a9bd4..b43933e0789a86ccd472e8fc3f4a7d61
          self.history.append(dict(event="cancelled",reason=str(reason),time=int(now),reservation=dict(self.reservation)))
          self.reservation=None
  
-@@ -264,6 +276,11 @@ class PumpAccelerationPaperLifecycle:
+@@ -264,6 +286,11 @@ class PumpAccelerationPaperLifecycle:
          self.position.realized_quote_units+=(
              int(executable_proceeds_quote_units)-self.position.basis_quote_units
          )
@@ -116,10 +133,10 @@ index 71f6c1b0acd3bb077f6e30af11239e2476247bda..a68ae4546abd0012a656b31842cb5062
      creator_quality_bps: int | None = None
 diff --git a/meme_machine/pumpswap_survivor.py b/meme_machine/pumpswap_survivor.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..0d41fc832c714e3bca98aec6b6cb4afb466c2f17
+index 0000000000000000000000000000000000000000..67f6d366a4be7ec9de2736de7b85568b7c880008
 --- /dev/null
 +++ b/meme_machine/pumpswap_survivor.py
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,173 @@
 +"""Frozen PumpSwap Survivor policy; no pregraduation qualification dependency."""
 +from fractions import Fraction
 +import hashlib
@@ -141,6 +158,7 @@ index 0000000000000000000000000000000000000000..0d41fc832c714e3bca98aec6b6cb4afb
 +    maximum_roundtrip_loss_bps=600, maximum_double_loss_bps=600,
 +    maximum_holder_concentration_bps=2500, minimum_size_units=1,
 +    demand_window_seconds=1800,
++    ranking_tiebreak=['independent_buyers','repeat_buyers','repeat_buyer_share_bps'],
 +    exits=dict(hard_stop_bps=-1200, first_profit_bps=2500, first_sell_bps=2500,
 +               trail_bps=2000, tight_arm_bps=6000, tight_trail_bps=1500,
 +               soft_confirmations=2, maximum_hold_seconds=259200),
@@ -200,6 +218,10 @@ index 0000000000000000000000000000000000000000..0d41fc832c714e3bca98aec6b6cb4afb
 +           or liquidity < POLICY['minimum_liquidity_usd_micros'])
 +    try:
 +        points = price_points(facts)
++        extrema={int(r['at']):(Fraction(r.get('low',r['price'])),Fraction(r.get('high',r['price'])))
++                 for r in facts['price_points']}
++        if any(not 0<extrema[t][0]<=p<=extrema[t][1] for t,p in points):
++            raise ValueError('price_extrema')
 +        price = points[-1][1]
 +        migration = Fraction(facts['migration_price'])
 +        reject('migration_price_survival', migration <= 0 or price < migration)
@@ -216,9 +238,15 @@ index 0000000000000000000000000000000000000000..0d41fc832c714e3bca98aec6b6cb4afb
 +        if (not base or not previous or base[0][0] > base_end-3600
 +                or previous[0][0] > base_end-7200):
 +            raise ValueError('base_history')
-+        low, high = min(p for _,p in base), max(p for _,p in base)
++        def bounds(rows,start):
++            # A preceding witness contributes its last state at the boundary,
++            # not extrema from an earlier interval outside the window.
++            return (min(p if t<start else extrema[t][0] for t,p in rows),
++                    max(p if t<start else extrema[t][1] for t,p in rows))
++        low, high = bounds(base,base_end-3600)
 +        span = high-low
-+        prior_span = max(p for _,p in previous)-min(p for _,p in previous)
++        prior_low,prior_high=bounds(previous,base_end-7200)
++        prior_span = prior_high-prior_low
 +        reject('base_range', span <= 0 or prior_span <= 0)
 +        reject('base_compression', span*10000 > prior_span*POLICY['compression_bps'])
 +        prebase = [(t,p) for t,p in points if grad <= t <= base[0][0]]
@@ -241,9 +269,9 @@ index 0000000000000000000000000000000000000000..0d41fc832c714e3bca98aec6b6cb4afb
 +        reject('meaningful_reset', reset_at is None)
 +        if reset_at is not None:
 +            reject('reset_before_base', reset_at > base[0][0] or peak_at >= reset_at)
-+            reject('reset_low_breakdown', min(p for t,p in points if t >= reset_at) < reset)
++            reject('reset_low_breakdown', min(extrema[t][0] for t,p in points if t >= reset_at) < reset)
 +        # Three consecutive 20m base lows must not form a descending sequence.
-+        lows = [min((p for t,p in base if base_end-3600+i*1200 <= t <= base_end-2400+i*1200),default=None) for i in range(3)]
++        lows = [min((extrema[t][0] for t,p in base if base_end-3600+i*1200 <= t <= base_end-2400+i*1200),default=None) for i in range(3)]
 +        reject('lower_low_sequence', None in lows or lows[0] > lows[1] > lows[2])
 +        p2 = next((p for t,p in reversed(points) if t <= now-7200), None)
 +        p6 = next((p for t,p in reversed(points) if t <= now-21600), None)
@@ -273,8 +301,15 @@ index 0000000000000000000000000000000000000000..0d41fc832c714e3bca98aec6b6cb4afb
 +
 +
 +def _decision(reasons, features):
++    blocked=set(reasons)
++    stage='qualified' if not blocked else 'continuation_watch'
++    if blocked & {'two_hour_structure','six_hour_structure','recovery_vwap'}:stage='base'
++    if blocked & {'base_range','base_compression','lower_low_sequence','reset_before_base','reset_low_breakdown'}:stage='reset'
++    if blocked & {'meaningful_reset','migration_price_survival','incomplete_structure_or_demand'}:stage='survivor'
++    if blocked & {'age','unknown_graduation_time','unknown_mayhem','active_mayhem','mayhem_clean_window'}:stage='aging'
 +    return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,paper_only=True,
-+                candidate=not reasons,all_rejections=reasons,features=features)
++                candidate=not reasons,all_rejections=reasons,features=features,stage=stage,
++                priority=None if reasons else tuple(features[k] for k in POLICY['ranking_tiebreak']))
 diff --git a/meme_machine/pumpswap_survivor_evidence.py b/meme_machine/pumpswap_survivor_evidence.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..a81bd888662012c46e9ca6230ca4bb4f917565b2
@@ -337,10 +372,10 @@ index 0000000000000000000000000000000000000000..a81bd888662012c46e9ca6230ca4bb4f
 +    return int(Fraction(price-confidence)*Fraction(10)**exponent*1_000_000)
 diff --git a/meme_machine/pumpswap_survivor_runtime.py b/meme_machine/pumpswap_survivor_runtime.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..0e2eaaa7eef249c635e7b9c5c7ee170313b471e4
+index 0000000000000000000000000000000000000000..7c7f15bd7a8be967fa4508c9b4229d7760959194
 --- /dev/null
 +++ b/meme_machine/pumpswap_survivor_runtime.py
-@@ -0,0 +1,259 @@
+@@ -0,0 +1,274 @@
 +"""Active Pump Survivor inside the Pump sleeve, on the Solana Evidence Plane.
 +
 +One incremental monitoring task, at most one candidate hydration per turn. It
@@ -418,7 +453,11 @@ index 0000000000000000000000000000000000000000..0e2eaaa7eef249c635e7b9c5c7ee1703
 +            if event.get('event_type')!='migration' or event.get('quote_asset')!='SOL':continue
 +            evidence=dict(event,at=event['market_time'],identity=row['identity'],
 +                          signature=row['signature'],source='solana_finalized_evidence_plane')
++            prior=self.history.get(event['mint'])
 +            self.history.graduate(event['mint'],evidence)
++            if prior is None:
++                self.history.append(event['mint'],through=event['market_time'],events=[],
++                    points=[(event['market_time'],str(Fraction(event['quote_amount'],event['mint_amount'])))],complete=True)
 +            self.plane.interest(SWAP_SCOPE,lower_slot=event['slot'],addresses=[event['pool']],
 +                lifecycle='candidate',priority=4,owner='pump:survivor:'+event['mint'])
 +        self.history.set_meta('discovery_slot',end)
@@ -426,12 +465,23 @@ index 0000000000000000000000000000000000000000..0e2eaaa7eef249c635e7b9c5c7ee1703
 +    def _increment(self,row,at,slot):
 +        grad=row['graduation'];lo,hi=self.plane.bounds(SWAP_SCOPE,row['through'],at,upper_slot=slot)
 +        records=self.plane.reader.window(SWAP_SCOPE,lo,hi,as_of=time.time(),address=grad['pool'],kind='event',limit=10000)
++        def order(record):
++            index=record['transaction_index']
++            if index is None:
++                proof=self.plane.reader.db.execute('SELECT rank FROM stream_order WHERE scope=? AND slot=? AND signature=?',
++                    (SWAP_SCOPE,record['slot'],record['signature'])).fetchone()
++                if proof is None:raise ValueError('survivor_trade_order_unknown')
++                index=proof[0]
++            return record['slot'],index,record['event_index']
++        records.sort(key=order)
 +        events=[];points={}
 +        for record in records:
 +            e=record['payload']['event'];t=e['market_time']
 +            if not row['through']<=t<=at:continue
 +            price=Fraction(e['pool_quote_reserve'],e['pool_base_reserve'])
-+            points[t]=str(price)
++            prior=points.get(t,dict(low=str(price),high=str(price)))
++            points[t]=dict(price=str(price),low=str(min(price,Fraction(prior['low']))),
++                           high=str(max(price,Fraction(prior['high']))))
 +            events.append(dict(id=record['identity'],at=t,group=self.confirmations.cluster(e['wallet']),
 +                wallet=e['wallet'],buy=e['buy'],quote=e['amount'],tokens=e['tokens'],
 +                price=str(price),authenticated=True))
@@ -580,7 +630,7 @@ index 0000000000000000000000000000000000000000..0e2eaaa7eef249c635e7b9c5c7ee1703
 +                        if any(reason in decision['all_rejections'] for reason in ('price_extension','base_range_extension')):
 +                            row['extension_blocked_regime']=regime;self.history.save(row)
 +                        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
-+                            state='qualified' if decision['candidate'] else 'continuation_watch',evidence=decision,regime=regime)
++                            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
 +                        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
 +                            generation=observed['generation'],regime=regime)
 +                        if decision['candidate']:
@@ -786,6 +836,52 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
          stop.set();thread.join(timeout=5)
          sessions.finish()
          report["sessions"]=sessions.history
+diff --git a/tests/test_directional_capacity.py b/tests/test_directional_capacity.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..08a5fe2b7d8762f2f0235d34e4921effb42d2276
+--- /dev/null
++++ b/tests/test_directional_capacity.py
+@@ -0,0 +1,40 @@
++"""Capacity connects to the unchanged Pump quote and qualification primitives."""
++import ast,json,subprocess,unittest
++from pathlib import Path
++from unittest.mock import patch
++from types import SimpleNamespace
++from tests import pump_acceleration_natural_prospective as runtime
++from meme_machine import pump_acceleration_strategy as strategy
++from meme_machine.provider import Unavailable
++
++class CurrentPumpCapacity(unittest.TestCase):
++ def test_entry_alpha_functions_unchanged_from_preserved_source(self):
++  old=subprocess.check_output(['git','show','3c9553afb3caa92ab5f3db769f870df033a9630f:meme_machine/pump_acceleration_strategy.py']).decode()
++  before=ast.parse(old);after=ast.parse(Path(strategy.__file__).read_text())
++  functions=lambda tree:{n.name:ast.dump(n,include_attributes=False) for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}
++  self.assertEqual(functions(before),functions(after))
++ def test_authentic_captured_curve_capacity(self):
++  fixture=json.loads((Path(__file__).parent/'fixtures/mainnet_candidate_accounts.json').read_text())
++  snapshot=dict(accounts=fixture['response']['value'])
++  result,telemetry=runtime._capacity(snapshot,400_000_000,10_000_000)
++  self.assertGreater(result.final_size,0);self.assertLessEqual(result.final_size,10_000_000)
++  self.assertLessEqual(result.ordinary_loss_bps,600);self.assertLessEqual(result.double_loss_bps,600)
++  self.assertEqual(telemetry['turnover_cap'],10_000_000)
++ def test_turnover_does_not_enlarge_and_missing_fails_closed(self):
++  with patch.object(runtime,'GAS',0),patch.object(runtime,'buy_quote',side_effect=lambda s,n:SimpleNamespace(input_amount=n,output_amount=n)),patch.object(runtime,'sell_quote',side_effect=lambda s,n:SimpleNamespace(output_amount=n)):
++   for turnover,expected,binding in ((4000,100,'capital'),(2000,50,'turnover'),(0,0,'turnover')):
++    result,t=runtime._capacity({},turnover,100)
++    self.assertEqual(result.final_size,expected);self.assertEqual(t['binding_cap'],binding)
++   with self.assertRaisesRegex(ValueError,'authenticated_turnover'):runtime._capacity({},None,100)
++ def test_liquidity_cliff_preserves_smaller_entry_with_exact_two_x(self):
++  sizes=[]
++  def buy(s,n):sizes.append(n);return SimpleNamespace(input_amount=n,output_amount=n)
++  def sell(s,n):return SimpleNamespace(output_amount=n if n<=100 else n*9//10)
++  with patch.object(runtime,'GAS',0),patch.object(runtime,'buy_quote',side_effect=buy),patch.object(runtime,'sell_quote',side_effect=sell):
++   result,t=runtime._capacity({},4000,100)
++  self.assertEqual(result.final_size,50);self.assertIn(100,sizes)
++  self.assertEqual(t['binding_cap'],'double_size_stress');self.assertEqual(strategy.POLICY.max_immediate_roundtrip_loss_bps,600)
++ def test_unavailable_quote_zero_capacity(self):
++  with patch.object(runtime,'buy_quote',side_effect=Unavailable('offline_missing_quote')):
++   result,_=runtime._capacity({},4000,100)
++  self.assertEqual(result.final_size,0)
 diff --git a/tests/test_pump_acceleration_policy_identity.py b/tests/test_pump_acceleration_policy_identity.py
 index f20c412b3654451b1bc159f6c34c2aa329095806..b897084103301830eda9004917c90ab0e9fe277b 100644
 --- a/tests/test_pump_acceleration_policy_identity.py
@@ -799,12 +895,54 @@ index f20c412b3654451b1bc159f6c34c2aa329095806..b897084103301830eda9004917c90ab0
  
  
  class FrozenPolicyIdentityTests(unittest.TestCase):
+diff --git a/tests/test_pump_shared_survivor.py b/tests/test_pump_shared_survivor.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..73d2be820a9762190ab1518440ef8debf01e73ff
+--- /dev/null
++++ b/tests/test_pump_shared_survivor.py
+@@ -0,0 +1,36 @@
++"""Both active Pump regimes use one durable sleeve, with separate native books."""
++from pathlib import Path
++from unittest.mock import patch
++import os,tempfile,unittest
++from certification.directional_sleeve import open_sleeve,recover_pump_terminals
++from meme_machine.paper_accounting import PaperBook
++from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
++from meme_machine.pumpswap_survivor import STRATEGY_ID
++from tests.test_pump_acceleration_paper import qualification
++
++class SharedPump(unittest.TestCase):
++ def test_native_current_reservation_and_survivor_ceiling_survive_restart(self):
++  with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_DIRECTIONAL_SLEEVE_DB=td+'/sleeve',MM_DIRECTIONAL_COHORT_ID='new'):
++   book=PaperBook(td+'/current',run_id='r',lane='pump',policy_hash='current-test',initial=1000)
++   current=PumpAccelerationPaperLifecycle(book=book,lifecycle_id='r:current')
++   current.reserve(qualification(),900,100)
++   sleeve=open_sleeve('pump',1000);sleeve.reserve('r:survivor',strategy=STRATEGY_ID,amount=100,at=100)
++   with self.assertRaisesRegex(ValueError,'capital_exhausted'):
++    sleeve.reserve('r:overflow',strategy=STRATEGY_ID,amount=1,at=100)
++   sleeve.close();sleeve=open_sleeve('pump',1000)
++   self.assertEqual((sleeve.reconcile()['capital'],sleeve.reconcile()['reserved']),(1000,1000))
++   current.fill(100,850,102,'pump.fun');current.mark(900,110,80);current.mark(700,120,20);current.settle(700,122)
++   self.assertEqual(sleeve.reconcile()['available'],750)
++   sleeve.close();book.close()
++ def test_startup_releases_only_proven_absent_current_native_reservation(self):
++  with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_DIRECTIONAL_SLEEVE_DB=td+'/sleeve',MM_DIRECTIONAL_COHORT_ID='new'):
++   book=PaperBook(td+'/current',run_id='r',lane='pump',policy_hash='current-test',initial=1000)
++   sleeve=open_sleeve('pump',1000)
++   current=next(s for s in sleeve.identity['policies'] if 'survivor' not in s)
++   sleeve.reserve('r:orphan',strategy=current,amount=900,at=100)
++   sleeve.reserve('r:survivor',strategy=STRATEGY_ID,amount=100,at=100)
++   recover_pump_terminals(book)
++   self.assertEqual(sleeve.reconcile()['reserved'],100)
++   self.assertTrue(sleeve.get('r:orphan')['cancelled'])
++   with self.assertRaisesRegex(ValueError,'terminal_reservation_reused'):sleeve.reserve('r:orphan',strategy=current,amount=900,at=100)
++   sleeve.close();book.close()
 diff --git a/tests/test_pumpswap_survivor.py b/tests/test_pumpswap_survivor.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..d22ed8056254f918e89dff891e3a37d961228997
+index 0000000000000000000000000000000000000000..debfc0f2abd82d5e9fe43ae01ca76552524c02c8
 --- /dev/null
 +++ b/tests/test_pumpswap_survivor.py
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,151 @@
 +"""Synthetic exact-boundary fixtures; these are not market profitability evidence."""
 +from copy import deepcopy
 +import unittest
@@ -930,6 +1068,29 @@ index 0000000000000000000000000000000000000000..d22ed8056254f918e89dff891e3a37d9
 +        self.assertNotIn('migration_price_survival',evaluate_entry(f)['all_rejections'])
 +        f['migration_price']='162.0001'
 +        self.assertIn('migration_price_survival',evaluate_entry(f)['all_rejections'])
++
++    def test_reset_exact_twenty_five_percent_and_one_fraction_below(self):
++        f=facts()
++        for row in f['price_points']:
++            if row['at'] in (17800,20000,20800):row['price']='150'
++        self.assertNotIn('meaningful_reset',evaluate_entry(f)['all_rejections'])
++        for row in f['price_points']:
++            if row['at'] in (17800,20000,20800):row['price']='150.0001'
++        self.assertIn('meaningful_reset',evaluate_entry(f)['all_rejections'])
++
++    def test_missing_full_base_and_active_lower_low_sequence(self):
++        f=facts();f['price_points']=[r for r in f['price_points'] if r['at']>20800]
++        self.assertIn('incomplete_structure_or_demand',evaluate_entry(f)['all_rejections'])
++        f=facts()
++        replacements={21400:'149',22000:'148',22600:'147',23200:'146',23800:'145'}
++        for r in f['price_points']:r['price']=replacements.get(r['at'],r['price'])
++        self.assertIn('lower_low_sequence',evaluate_entry(f)['all_rejections'])
++
++    def test_intrasecond_extrema_cannot_hide_base_expansion_or_breakdown(self):
++        f=facts();f['price_points'][10]['high']='190'
++        self.assertIn('base_compression',evaluate_entry(f)['all_rejections'])
++        f=facts();f['price_points'][10]['low']='139'
++        self.assertIn('reset_low_breakdown',evaluate_entry(f)['all_rejections'])
 +
 +
 +if __name__=='__main__':unittest.main()

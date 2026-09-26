@@ -46,7 +46,7 @@ def run(worktrees,output):
         integration_sha=git('rev-parse','HEAD'),source_manifest_hash=digest(manifest()),
         lane_sources=manifest()['lanes'],source_diff_hashes=identities,
         source_unchanged_after_tests=unchanged,component_suite_overlap_seconds=overlap,
-        lanes=lanes,started_at=started,ended_at=time.time(),natural_market_run_started=False)
+        lanes=lanes,test_counts={lane:row.get('tests_run') for lane,row in lanes.items()},started_at=started,ended_at=time.time(),natural_market_run_started=False)
     atomic(out/'result.json',result)
     print(json.dumps(dict(passed=good,engineering_certification='NOT_CERTIFIED',
         test_counts={lane:row.get('tests_run') for lane,row in lanes.items()},

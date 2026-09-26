@@ -30,6 +30,13 @@ FUNCTIONS={
  'meteora':{'tests.solana_dlmm_independent_v1':('qualify','_segment_exit','_eligible_exit_reasons')},
  'ramses':{'robinhood_research.ramses_strategy':('classify_pool','controller_action','decompose_pnl')},
 }
+SURVIVOR_FUNCTIONS={
+ 'pump':{'meme_machine.pumpswap_survivor':('evaluate_entry',),
+         'certification.survivor_risk':('mark',)},
+ 'pons':{'robinhood_research.pons_postgrad_survivor':('evaluate_entry',),
+         'certification.survivor_risk':('mark',)},
+}
+for _lane,_modules in SURVIVOR_FUNCTIONS.items():FUNCTIONS[_lane].update(_modules)
 DATA_MODULES=frozenset(('meme_machine.pump_acceleration_strategy',
     'meme_machine.pump_acceleration_paper','meme_machine.dlmm_tape',
     'robinhood_research.pons','robinhood_research.pons_selective_continuation',
@@ -59,7 +66,7 @@ def encode(value):
             type(value).__name__=='PumpAccelerationPaperLifecycle'):
         # The decision is replayed with no book. Native economic transitions have
         # a separate immutable-ledger replay, and may never be re-executed here.
-        return {'$pump_lifecycle':encode({k:v for k,v in vars(value).items() if k!='book'})}
+        return {'$pump_lifecycle':encode({k:v for k,v in vars(value).items() if k not in ('book','sleeve')})}
     if dataclasses.is_dataclass(value) and not isinstance(value,type):
         cls=type(value)
         if cls.__module__ not in DATA_MODULES:raise TypeError('unsupported_decision_dataclass')
@@ -86,7 +93,7 @@ def decode(value):
         return float(value['$float'])
     if '$pump_lifecycle' in value:
         cls=getattr(importlib.import_module('meme_machine.pump_acceleration_paper'),'PumpAccelerationPaperLifecycle')
-        instance=cls.__new__(cls);instance.__dict__.update(decode(value['$pump_lifecycle']));instance.book=None
+        instance=cls.__new__(cls);instance.__dict__.update(decode(value['$pump_lifecycle']));instance.book=None;instance.sleeve=None
         return instance
     if '$dataclass' in value:
         module,name,fields=value['$dataclass']
@@ -199,6 +206,8 @@ class Recorder:
 def install(output,lane,policy_hash):
     recorder=Recorder(output,lane,policy_hash)
     for module,names in FUNCTIONS[lane].items():
+        if module in SURVIVOR_FUNCTIONS.get(lane,{}) and os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')!='1':
+            continue
         target=importlib.import_module(module)
         for name in names:recorder.wrap(target,name)
     recorder.status(False)

@@ -10,7 +10,7 @@ on:
         description: Durable paper position lane to resume
         required: true
         type: choice
-        options: [meteora, ramses]
+        options: [pump, pons, meteora, ramses]
       state_run_id:
         description: GitHub Actions run containing the latest hourly/continuation artifact
         required: true
@@ -175,7 +175,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$CONTINUATION_LANE" in
-            meteora|ramses) ;;
+            pump|pons|meteora|ramses) ;;
             *) echo "invalid continuation lane" >&2; exit 2 ;;
           esac
           export MM_CONTINUATION_LANE_ROOT="$RUNNER_TEMP/continuation-worktrees/$CONTINUATION_LANE"
