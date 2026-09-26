@@ -140,9 +140,11 @@ diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/p
 diff --git a/robinhood_research/pons_survivor_runtime.py b/robinhood_research/pons_survivor_runtime.py
 --- a/robinhood_research/pons_survivor_runtime.py
 +++ b/robinhood_research/pons_survivor_runtime.py
-@@ -164 +164 @@ class SurvivorRuntime:
+@@ -162,3 +162,3 @@ class SurvivorRuntime:
+         cap=min(self.capital*25//10000,flow['turnover']//40)
 -        capacity=resize(cap,self.capital*5//10000,quotes.loss,ordinary_limit=350,stress_limit=500,max_steps=4)
 +        capacity=resize(cap,self.capital*5//10000,quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
+         self.facts=dict(now=now,graduation_at=row['graduation']['at'],lineage_proven=True,native_quote=True,
 @@ -221,5 +221,5 @@ class SurvivorRuntime:
      def _enter(self,row):
          return commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
