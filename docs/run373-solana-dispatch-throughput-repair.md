@@ -32,3 +32,5 @@ PAPER ONLY. No market workflow is authorized by this repair or its certification
 Focused prepared-runtime certification: workflow 36255447776 passed.
 Prepared Pump diff SHA256: `5349956f0ae189d6e19be348b675e912f18083845740d3b5c4e1c0fd77f96be3`.
 Prepared Meteora diff SHA256: `7153ef534181073c7e769dc675ed43bc51d4c81368a9bdcf24ddba2241af2055`.
+
+Certification bookkeeping repair: the historical Meteora receipt now pins Git diff abbreviation to 7 characters and requires the original frozen overlay SHA256 `ce328f328c0ea95d3e681da3c8912a095c13cc0aa590999088c161843df48503`. This corrects repository-growth-dependent object-ID abbreviation without changing historical economics or exposure disposition.
