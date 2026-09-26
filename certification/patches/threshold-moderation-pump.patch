@@ -25,7 +25,7 @@ diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acce
      max_extension_bps: int = 16000
      max_immediate_roundtrip_loss_bps: int = 600
      # Demand quality must include repeat participation rather than one-shot breadth.
-@@ -76,8 +76,8 @@ class FrozenPolicy:
+@@ -76,6 +76,6 @@ class FrozenPolicy:
      # Immediate post-graduation momentum gates.
      min_postgrad_age_s: int = 5
      max_postgrad_entry_age_s: int = 180
@@ -34,7 +34,7 @@ diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acce
 +    min_postgrad_independent_clusters: int = 6
 +    min_postgrad_buyer_growth: int = 1
      min_postgrad_price_vs_graduation_bps: int = 1
-@@ -89,8 +89,8 @@ class FrozenPolicy:
+@@ -89,7 +89,7 @@ class FrozenPolicy:
      # as point-in-time ranking/confirmation evidence, not a binary veto.
      postgrad_price_retention_hard_gate: bool = False
      min_postgrad_volume_acceleration_bps: int = 0
@@ -44,7 +44,7 @@ diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acce
 +    max_early_holder_sell_share_bps: int = 4500
      min_postgrad_score: int = 0
  
-@@ -101,7 +101,7 @@ class FrozenPolicy:
+@@ -101,6 +101,6 @@ class FrozenPolicy:
      min_pullback_depth_bps: int = 100
      max_pullback_depth_bps: int = 3500
      min_breakout_bps: int = 200
@@ -77,7 +77,7 @@ diff --git a/meme_machine/pumpswap_survivor.py b/meme_machine/pumpswap_survivor.
 diff --git a/meme_machine/pumpswap_survivor_runtime.py b/meme_machine/pumpswap_survivor_runtime.py
 --- a/meme_machine/pumpswap_survivor_runtime.py
 +++ b/meme_machine/pumpswap_survivor_runtime.py
-@@ -190,8 +190,10 @@ class Runtime:
+@@ -190,6 +190,8 @@ class Runtime:
      def _enter(self,row,decision,generation,regime,identity):
          return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
              strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
