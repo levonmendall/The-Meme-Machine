@@ -28,10 +28,16 @@ jobs:
         run: |
           grep -q "certification-smoke-publisher.jsonl" .github/workflows/four-lane-certification.yml
           grep -q "certification-hourly-publisher.jsonl" .github/workflows/four-lane-certification.yml
-      - name: Verify market workflows are not dispatched here
+      - name: Verify this workflow is non-market only
         run: |
-          ! grep -q "workflow_dispatch:" .github/workflows/run374-live-status-repair.yml
-          ! grep -Eq "certification\.run run|four-lane-certification.*dispatch" .github/workflows/run374-live-status-repair.yml
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('.github/workflows/run374-live-status-repair.yml').read_text()
+          header=text.split('\njobs:',1)[0]
+          assert 'workflow_dispatch:' not in header
+          assert 'workflow_call:' not in header
+          assert 'uses: ./.github/workflows/non-market-certification.yml' in text
+          PY
   full-non-market:
     if: contains(github.event.head_commit.message, '[non-market-cert]')
     uses: ./.github/workflows/non-market-certification.yml

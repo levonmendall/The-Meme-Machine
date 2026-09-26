@@ -204,7 +204,7 @@ def _render_output(view):
             row.get('forced_settled'),row.get('open_positions')))
     raw=json.dumps(view,sort_keys=True,separators=(',',':'),allow_nan=False)
     return dict(title='Four-lane paper progress: '+str(view.get('certification_status','INCOMPLETE')),
-                summary='\n'.join(rows),text='\`\`\`json\n'+raw+'\n\`\`\`')
+                summary='\n'.join(rows),text='```json\n'+raw+'\n```')
 
 
 def terminal_output(result,integration_sha=None):
