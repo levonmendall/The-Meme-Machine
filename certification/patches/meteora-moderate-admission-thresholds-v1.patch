@@ -1,0 +1,155 @@
+diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
+index 108159d57a225ba309ede53ebbbcf2041ebb0af3..9db86627ebb72127cb9a64cdf960a0021b46226d 100644
+--- a/SOLANA_DLMM_INDEPENDENT_V1.json
++++ b/SOLANA_DLMM_INDEPENDENT_V1.json
+@@ -115,12 +115,12 @@
+     "research_band_note": "The historical 51-100-bin band maps to 52-100 supplied bins here because the mechanically modeled centered range deliberately excludes the active bin to avoid unmodeled active-bin composition fees."
+   },
+   "qualification": {
+-    "min_competing_range_liquidity_to_capital_multiple": 5,
+-    "min_two_way_balance": 0.25,
+-    "max_drift_ratio": 0.75,
++    "min_competing_range_liquidity_to_capital_multiple": 4,
++    "min_two_way_balance": 0.2,
++    "max_drift_ratio": 0.8,
+     "require_reversal": false,
+     "stress_inventory_fraction_of_capital": 0.5,
+-    "max_stress_unwind_loss_bps": 150,
++    "max_stress_unwind_loss_bps": 200,
+     "projected_fee_horizon_seconds": 14400,
+     "min_expected_net_lamports": 1,
+     "expected_net_definition": "projected exact-range fee capture over the 4h minimum core hold - 400000 lamports modeled network cost - 50%-inventory stress unwind loss; must be strictly positive",
+@@ -128,14 +128,14 @@
+     "ranking_metric": "authenticated fee production / executable local range liquidity, 24h-normalized",
+     "dynamic_fee_uplift_hard_gate": false,
+     "unchanged_hard_risk_gates": [
+-      "min_competing_range_liquidity_to_capital_multiple = 5",
+-      "max_drift_ratio = 0.75",
+-      "max_stress_unwind_loss_bps = 150",
++      "min_competing_range_liquidity_to_capital_multiple = 4",
++      "max_drift_ratio = 0.80",
++      "max_stress_unwind_loss_bps = 200",
+       "position sizing from local executable depth",
+       "fresh authenticated finalized swap and exact 12-second warmup",
+       "fail-closed reconstruction and unwind"
+     ],
+-    "min_authenticated_fee_density_24h_pct": 5,
++    "min_authenticated_fee_density_24h_pct": 4,
+     "high_density_tier_24h_pct": 20
+   },
+   "fee_model": {
+@@ -145,16 +145,16 @@
+     "range_fee_capture": "authenticated warmup LP fees from swaps intersecting the proposed range, converted to SOL at authenticated bin prices",
+     "historical_apr_is_not_an_entry_signal": true,
+     "dynamic_fee_uplift_role": "recorded context and exit-state feature; not a hard entry gate",
+-    "hard_entry_economic_test": "authenticated_fee_density_24h_pct >= 5.0 AND projected 4h exact-range fee capture - 400000 lamports network cost - stress unwind loss > 0",
++    "hard_entry_economic_test": "authenticated_fee_density_24h_pct >= 4.0 AND projected 4h exact-range fee capture - 400000 lamports network cost - stress unwind loss > 0",
+     "live_fee_density_metric": "authenticated_fee_density_24h_pct = 100 * range_fee_sol_lamports / range_liquidity_sol_lamports * 86400 / observed_seconds",
+-    "live_fee_density_threshold_pct": 5,
++    "live_fee_density_threshold_pct": 4,
+     "live_fee_density_high_tier_pct": 20,
+     "metric_boundary": "Uses only pre-entry authenticated finalized swap tape and executable local range liquidity. Public Meteora feePerTvl24h and current API fee/TVL fields are not entry evidence.",
+-    "historical_mapping": "The frozen 5%/day threshold preserves the broad historical positive regime only after its unit is explicitly redefined in authenticated local-liquidity terms; it is not a direct trust of the retrospective API field."
++    "historical_mapping": "The frozen 4%/day threshold preserves the broad historical positive regime only after its unit is explicitly redefined in authenticated local-liquidity terms; it is not a direct trust of the retrospective API field."
+   },
+   "flow_model": {
+     "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
+-    "min_two_way_balance": 0.25,
++    "min_two_way_balance": 0.2,
+     "adverse_selection_proxy": [
+       "near-range drift ratio",
+       "one-way flow",
+@@ -219,7 +219,7 @@
+     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
+     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
+   },
+-  "revision": "2.0-profitability-fee-density-v1-core-hold-v2",
++  "revision": "2.1-moderate-admission-thresholds-v1",
+   "amendment_history": [
+     {
+       "revision": "1.1",
+@@ -365,17 +365,17 @@
+     }
+   },
+   "execution_certification": {
+-    "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
++    "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
+     "purpose": "prospective_natural_paper_profitability_validation_of_authenticated_local_fee_density_strategy",
+     "profitability_authority": true,
+     "paper_only": true,
+     "freshness_finality_unchanged": true,
+     "exact_warmup_seconds": 12,
+-    "reference_profitability_policy_revision": "2.0-profitability-fee-density-v1-core-hold-v2",
++    "reference_profitability_policy_revision": "2.1-moderate-admission-thresholds-v1",
+     "machinery_proof_only": false,
+     "one_natural_settled_lifecycle_target": false,
+     "prior_execution_certification_revision": "1.9-machinery-proof-v2",
+-    "authenticated_fee_density_threshold_pct": 5,
++    "authenticated_fee_density_threshold_pct": 4,
+     "core_hold_seconds": [
+       14400,
+       86400
+diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
+index 1b7c6e897abfcbb2ede3990e51b5ccc43b3822c5..aa870049044557f1b5a0f01bfce07ca5d9c668dd 100644
+--- a/tests/test_solana_dlmm_independent_v1.py
++++ b/tests/test_solana_dlmm_independent_v1.py
+@@ -34,18 +34,18 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+         self.assertEqual(p["range"]["max_holding_seconds"],86400)
+         self.assertEqual(p["range"]["min_half_width_bins"],26)
+         self.assertEqual(p["range"]["max_half_width_bins"],50)
+-        self.assertEqual(p["qualification"]["min_two_way_balance"],0.25)
++        self.assertEqual(p["qualification"]["min_two_way_balance"],0.20)
+         self.assertEqual(
+-            p["qualification"]["min_authenticated_fee_density_24h_pct"],5.0)
++            p["qualification"]["min_authenticated_fee_density_24h_pct"],4.0)
+         self.assertEqual(p["qualification"]["min_expected_net_lamports"],1)
+         self.assertEqual(
+-            p["fee_model"]["live_fee_density_threshold_pct"],5.0)
++            p["fee_model"]["live_fee_density_threshold_pct"],4.0)
+         self.assertIn(
+             "range_fee_sol_lamports / range_liquidity_sol_lamports",
+             p["fee_model"]["live_fee_density_metric"])
+         self.assertFalse(p["fee_model"]["require_dynamic_fee_uplift"])
+         self.assertEqual(
+-            p["revision"],"2.0-profitability-fee-density-v1-core-hold-v2")
++            p["revision"],"2.1-moderate-admission-thresholds-v1")
+         self.assertEqual(p["exit"]["core_hold_seconds"],14400)
+         self.assertEqual(p["exit"]["economic_collapse_confirmation_segments"],2)
+         self.assertEqual(
+@@ -372,25 +372,25 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+         base=dict(
+             volume_acceleration=0.1,
+             fee_acceleration=0.1,
+-            authenticated_fee_density_24h_pct=5.0,
++            authenticated_fee_density_24h_pct=4.0,
+             dynamic_fee_uplift=1.0,
+-            competing_liquidity_to_capital_multiple=5.0,
+-            two_way_balance=0.25,
+-            drift_ratio=0.75,
++            competing_liquidity_to_capital_multiple=4.0,
++            two_way_balance=0.20,
++            drift_ratio=0.80,
+             reversal_count=0,
+-            stress_inventory_roundtrip={"loss_bps":150.0},
++            stress_inventory_roundtrip={"loss_bps":200.0},
+             expected_net_lamports=1,
+         )
+-        self.assertEqual(p["qualification"]["min_two_way_balance"],0.25)
++        self.assertEqual(p["qualification"]["min_two_way_balance"],0.20)
+         self.assertEqual(p["qualification"]["min_expected_net_lamports"],1)
+         self.assertTrue(strategy.qualify(base,p)["passes"])
+         mutations={
+             "authenticated_fee_density":{
+-                "authenticated_fee_density_24h_pct":4.999},
+-            "capacity":{"competing_liquidity_to_capital_multiple":4.99},
+-            "two_way":{"two_way_balance":0.2499},
+-            "drift":{"drift_ratio":0.7501},
+-            "unwind":{"stress_inventory_roundtrip":{"loss_bps":150.01}},
++                "authenticated_fee_density_24h_pct":3.999},
++            "capacity":{"competing_liquidity_to_capital_multiple":3.99},
++            "two_way":{"two_way_balance":0.1999},
++            "drift":{"drift_ratio":0.8001},
++            "unwind":{"stress_inventory_roundtrip":{"loss_bps":200.01}},
+             "expected_net":{"expected_net_lamports":0},
+         }
+         for expected,change in mutations.items():

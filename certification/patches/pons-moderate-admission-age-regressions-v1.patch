@@ -1,0 +1,84 @@
+diff --git a/robinhood_tests/test_coverage_acquisition.py b/robinhood_tests/test_coverage_acquisition.py
+--- a/robinhood_tests/test_coverage_acquisition.py
++++ b/robinhood_tests/test_coverage_acquisition.py
+@@ -28,9 +28,9 @@ class CachedLaunchAgeTests(unittest.TestCase):
+         return ctx
+ 
+     def test_repeated_out_of_age_candidates_do_not_block_trajectory(self):
+-        for launch in (81,0):
++        for launch in (111,0):
+             ctx=self.context(launch)
+-            asof=200 if launch else 601
++            asof=200 if launch else 901
+             with patch.object(acquisition,'_trajectory') as trajectory, patch.object(
+                     acquisition,'_authenticate_window') as window:
+                 for _ in range(3):
+@@ -42,8 +42,8 @@ class CachedLaunchAgeTests(unittest.TestCase):
+                 trajectory.assert_not_called();window.assert_not_called()
+ 
+     def test_boundary_and_cold_candidates_still_reach_full_qualification(self):
+-        for launch in (80,0,None):
+-            asof=600 if launch==0 else 200
++        for launch in (110,0,None):
++            asof=900 if launch==0 else 200
+             ctx=self.context(launch)
+             snap=[dict(r,at=r['at']+asof-200) for r in snapshots()]
+             market=[dict(r,event_at=r['event_at']+asof-200) for r in events()]
+@@ -56,7 +56,7 @@ class CachedLaunchAgeTests(unittest.TestCase):
+                 trajectory.assert_called_once();window.assert_called_once();qualify.assert_called_once()
+ 
+     def test_young_candidate_is_reevaluated_when_original_age_gate_opens(self):
+-        ctx=self.context(81)
++        ctx=self.context(111)
+         with patch.object(acquisition,'_trajectory',side_effect=RuntimeError('trajectory_reached')) as trajectory:
+             self.assertTrue(self.evaluate(ctx,200)['screened_out'])
+             with self.assertRaisesRegex(RuntimeError,'trajectory_reached'):self.evaluate(ctx,201)
+diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
+--- a/robinhood_tests/test_pons_selective_continuation.py
++++ b/robinhood_tests/test_pons_selective_continuation.py
+@@ -414,7 +414,8 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+         return "0x"+int(value).to_bytes(32,"big").hex()
+ 
+     class BatchContext:
+-        def __init__(self):
++        def __init__(self,launch_at=900):
++            self.launch_at=int(launch_at)
+             self.cache=ImmutableEvidenceCache()
+             self.completed_sessions=[]
+             self.rpc=None
+@@ -445,7 +446,7 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+                     block=int(params[1],16)
+                     if data==calldata("launchedAt()"):
+                         out.append(
+-                            SelectiveEvidenceThroughputTests._word(900)
++                            SelectiveEvidenceThroughputTests._word(self.launch_at)
+                         )
+                     else:
+                         out.append(
+diff --git a/robinhood_tests/test_pons_evidence_reconstruction_semantics.py b/robinhood_tests/test_pons_evidence_reconstruction_semantics.py
+--- a/robinhood_tests/test_pons_evidence_reconstruction_semantics.py
++++ b/robinhood_tests/test_pons_evidence_reconstruction_semantics.py
+@@ -141,7 +141,7 @@ class FullEvidenceRequestTests(unittest.TestCase):
+         return row,stages,acquire_trajectory,acquire_window
+ 
+     def test_cached_age_rejection_never_requests_full_evidence_or_history(self):
+-        row,stages,trajectory,window=self.evaluate(launch=81)
++        row,stages,trajectory,window=self.evaluate(launch=111)
+         self.assertEqual(row['vector']['all_rejections'],['token_age'])
+         self.assertFalse(row['vector']['complete'])
+         trajectory.assert_not_called();window.assert_not_called()
+@@ -185,12 +185,12 @@ class FullEvidenceRequestTests(unittest.TestCase):
+ class ColdAgeAcquisitionTests(unittest.TestCase):
+     def test_newly_authenticated_age_veto_stops_before_reserves_and_window_receipts(self):
+         fixtures=selective_fixtures.SelectiveEvidenceThroughputTests()
+-        ctx=fixtures.BatchContext();candidate=fixtures._candidate(200)
++        ctx=fixtures.BatchContext(launch_at=920);candidate=fixtures._candidate(200)
+         tape=[dict(address=candidate['curve'],blockNumber='0xbe',blockHash='hash',
+                    transactionHash='tx',transactionIndex='0x0',logIndex='0x0')]
+         result,launch,meta=acquisition._trajectory('unused',candidate,evidence_context=ctx,
+             window_tape=tape,screen_launch_age=True)
+-        self.assertEqual(launch,900)
++        self.assertEqual(launch,920)
+         self.assertEqual(result,[])
+         self.assertTrue(meta['launch_age_screen_only'])
+         self.assertEqual(len(ctx.batches),1)

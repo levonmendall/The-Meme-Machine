@@ -45,6 +45,16 @@ async def local_server(*args,path,**kwargs):
     return FakeIPC()
 
 
+async def observe(path,method='telemetry',*args,**kwargs):
+    # The independently scheduled reader is not part of the transport event
+    # loop. Synchronous SQLite/filesystem probes must not manufacture loop lag.
+    def read():
+        reader=EvidenceReader(path)
+        try:return getattr(reader,method)(*args,**kwargs)
+        finally:reader.close()
+    return await asyncio.to_thread(read)
+
+
 def frame(slot,logs,padding):
     relevant=dict(
         transaction=dict(
@@ -111,6 +121,28 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
         self.fail('large-frame service did not make progress')
 
     async def test_prepared_transport_keeps_event_loop_live_during_realistic_large_frames(self):
+        await self.exercise_large_frames()
+
+    async def test_slow_independent_observer_does_not_manufacture_transport_lag(self):
+        original=EvidenceReader.telemetry;first=[True]
+        def slow(reader):
+            if first[0]:first[0]=False;time.sleep(.60)
+            return original(reader)
+        with patch.object(EvidenceReader,'telemetry',slow):
+            await self.exercise_large_frames()
+        self.assertFalse(first[0])
+
+    async def test_real_receive_loop_stall_still_fails_the_original_limit(self):
+        original=LargeFrameSocket.recv;first=[True]
+        async def stalled(socket,decode=None):
+            if first[0] and socket.frames and socket.queue.empty():
+                first[0]=False;time.sleep(.60)
+            return await original(socket,decode=decode)
+        with patch.object(LargeFrameSocket,'recv',stalled):
+            with self.assertRaisesRegex(AssertionError,'not less than 0.5'):
+                await self.exercise_large_frames()
+
+    async def exercise_large_frames(self):
         logs=[]
         padding='x'*(7*1024*1024)
         frames=[frame(slot,logs,padding) for slot in range(300,304)]
@@ -138,9 +170,8 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                         await asyncio.sleep(.01)
                     else:
                         self.fail('large-frame websocket receive did not start')
-                    reader=EvidenceReader(path)
                     for _ in range(800):
-                        snapshot=reader.telemetry()
+                        snapshot=await observe(path)
                         if snapshot['counters'].get('stream_accepted_messages',0)>=4:
                             break
                         disconnects={k:v for k,v in snapshot['counters'].items()
@@ -149,11 +180,14 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                             self.fail('large-frame disconnect '+json.dumps(disconnects,sort_keys=True))
                         await asyncio.sleep(.01)
                     else:
-                        self.fail('large-frame acceptance stalled '+json.dumps(reader.telemetry(),sort_keys=True)[:4000])
-                    await self.wait_for(lambda:(reader.telemetry()['service_health'].get('ipc') or {}).get('stream.decode_process_messages',0)>=4)
-                    await self.wait_for(lambda:'stream.event_loop_lag_peak_microseconds' in
-                                        (reader.telemetry()['service_health'].get('ipc') or {}))
-                    telemetry=reader.telemetry()
+                        self.fail('large-frame acceptance stalled '+json.dumps(await observe(path),sort_keys=True)[:4000])
+                    for _ in range(1000):
+                        telemetry=await observe(path)
+                        runtime=telemetry['service_health'].get('ipc') or {}
+                        if (runtime.get('stream.decode_process_messages',0)>=4
+                                and 'stream.event_loop_lag_peak_microseconds' in runtime):break
+                        await asyncio.sleep(.01)
+                    else:self.fail('large-frame service telemetry did not make progress')
                     runtime=telemetry['service_health']['ipc']
                     self.assertEqual(runtime['stream.decode_process_messages'],4)
                     self.assertGreaterEqual(runtime['stream.raw_message_peak_bytes'],7_000_000)
@@ -162,7 +196,7 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(runtime['stream.retained_transactions'],4)
                     self.assertEqual(telemetry['counters'].get('disconnect:local_receive_backpressure_ping_timeout',0),0)
                     self.assertEqual(runtime.get('stream.dispatch_queue_overflow',0),0)
-                    self.assertTrue(reader.covered(SWAP_SCOPE,300,302,as_of=1790430100))
+                    self.assertTrue(await observe(path,'covered',SWAP_SCOPE,300,302,as_of=1790430100))
                     gaps=[b-a for a,b in zip(ticks,ticks[1:])]
                     self.assertTrue(gaps)
                     self.assertLess(max(gaps),.5)
@@ -170,7 +204,6 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                         runtime['stream.event_loop_lag_peak_microseconds'],
                         500_000,
                     )
-                    reader.close()
                 finally:
                     stop.set()
                     await asyncio.gather(runner,ticker,return_exceptions=True)

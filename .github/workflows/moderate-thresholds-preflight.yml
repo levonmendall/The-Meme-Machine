@@ -1,0 +1,247 @@
+name: Moderate admission threshold preflight
+on:
+  push:
+    branches: [strategy/moderate-admission-thresholds-20260926]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Prepare certified six-regime baseline
+        run: |
+          cp certification/sources.json "${RUNNER_TEMP}/sources-final.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("certification/sources.json")
+          s=json.loads(p.read_text())
+          for lane,name in (
+              ("pump","certification/patches/pump-moderate-admission-thresholds-v1.patch"),
+              ("pons","certification/patches/pons-moderate-admission-thresholds-v1.patch"),
+              ("meteora","certification/patches/meteora-moderate-admission-thresholds-v1.patch"),
+          ):
+              s["lanes"][lane]["overlay_patches"]=[
+                  x for x in s["lanes"][lane]["overlay_patches"] if x!=name
+              ]
+          p.write_text(json.dumps(s,indent=2)+"\n")
+          PY
+          python -m certification.run prepare --worktrees "${RUNNER_TEMP}/threshold-worktrees"
+          mv "${RUNNER_TEMP}/sources-final.json" certification/sources.json
+      - name: Apply exact threshold mutations and derive canonical patches
+        env:
+          ROOT: ${{ github.workspace }}
+        run: |
+          python - <<'PY'
+          import base64,hashlib,json,os,subprocess
+          from pathlib import Path
+          root=Path(os.environ["ROOT"])
+          work=Path(os.environ["RUNNER_TEMP"])/"threshold-worktrees"
+          spec=json.loads((root/"certification/sources.json").read_text())
+          def replace(path,old,new,expected=1):
+              p=Path(path);text=p.read_text()
+              if text.count(old)!=expected:
+                  raise SystemExit(f"replacement_anchor:{p}:{old!r}:{text.count(old)}")
+              p.write_text(text.replace(old,new,expected))
+          def git(cwd,*args):
+              return subprocess.check_output(["git",*args],cwd=cwd)
+          originals={}
+          for lane in ("pump","pons","meteora"):
+              cwd=work/lane
+              originals[lane]=git(cwd,"rev-parse","HEAD").decode().strip()
+              subprocess.run(["git","config","user.name","Threshold Preflight"],cwd=cwd,check=True)
+              subprocess.run(["git","config","user.email","threshold-preflight@example.invalid"],cwd=cwd,check=True)
+              subprocess.run(["git","commit","-m","temporary composed baseline"],cwd=cwd,check=True,
+                             stdout=subprocess.DEVNULL)
+          p=work/"pump"
+          replacements={
+            "meme_machine/pump_acceleration_strategy.py":[
+              ('STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1"','STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1"'),
+              ("    min_independent_clusters: int = 20\n    min_buyer_growth: int = 4\n    min_net_buy_share_bps: int = 5500\n    max_concentration_bps: int = 2500",
+               "    min_independent_clusters: int = 14\n    min_buyer_growth: int = 3\n    min_net_buy_share_bps: int = 5200\n    max_concentration_bps: int = 3000"),
+              ("    min_repeat_buy_share_bps: int = 1000\n    # A delayed fill must retain at least 60% of the decision-time buyer breadth.\n    min_fill_breadth_retention_bps: int = 6000",
+               "    min_repeat_buy_share_bps: int = 800\n    # A delayed fill must retain at least 50% of the decision-time buyer breadth.\n    min_fill_breadth_retention_bps: int = 5000"),
+              ("    min_postgrad_independent_clusters: int = 8\n    min_postgrad_buyer_growth: int = 2",
+               "    min_postgrad_independent_clusters: int = 6\n    min_postgrad_buyer_growth: int = 1"),
+              ("    max_postgrad_concentration_bps: int = 3500\n    max_early_holder_sell_share_bps: int = 4000",
+               "    max_postgrad_concentration_bps: int = 4000\n    max_early_holder_sell_share_bps: int = 4500"),
+              ("    min_consolidation_s: int = 10","    min_consolidation_s: int = 8"),
+              ("    min_breakout_bps: int = 200\n    min_second_leg_buyer_growth: int = 2",
+               "    min_breakout_bps: int = 150\n    min_second_leg_buyer_growth: int = 1"),
+            ],
+            "meme_machine/pumpswap_survivor.py":[
+              ("minimum_age_seconds=21600","minimum_age_seconds=14400"),
+              ("minimum_liquidity_usd_micros=30_000_000_000","minimum_liquidity_usd_micros=20_000_000_000"),
+              ("minimum_reset_bps=2500","minimum_reset_bps=1800"),
+              ("minimum_fill_breadth_bps=6500","minimum_fill_breadth_bps=5000"),
+              ("maximum_holder_concentration_bps=2500","maximum_holder_concentration_bps=3000"),
+            ],
+            "meme_machine/pumpswap_survivor_runtime.py":[
+              ("retention_bps=6500","retention_bps=5000"),
+            ],
+            "tests/pump_acceleration_natural_prospective.py":[
+              ('FROZEN_POLICY_HASH="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"',
+               'FROZEN_POLICY_HASH="a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d"'),
+            ],
+            "tests/test_pump_acceleration_policy_identity.py":[
+              ('FROZEN="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"',
+               'FROZEN="a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d"'),
+            ],
+            "tests/test_pumpswap_survivor.py":[
+              ("29_999_999_999","19_999_999_999"),
+              ("[(21599,False),(21600,True),(604800,True),(604801,False)]","[(14399,False),(14400,True),(604800,True),(604801,False)]"),
+              ("test_reset_exact_twenty_five_percent_and_one_fraction_below","test_reset_exact_eighteen_percent_and_one_fraction_below"),
+              ("if row['at'] in (17800,20000,20800):row['price']='150'","if row['at'] in (17800,20000,20799,20800):row['price']='164'"),
+              ("if row['at'] in (17800,20000,20800):row['price']='150.0001'","if row['at'] in (17800,20000,20799,20800):row['price']='164.0001'"),
+            ],
+          }
+          for rel,pairs in replacements.items():
+              for item in pairs:
+                  old,new,*rest=item
+                  replace(p/rel,old,new,*(rest or [1]))
+
+          p=work/"pons"
+          replacements={
+            "robinhood_research/pons_selective_continuation.py":[
+              ('POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1"',
+               'POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1"'),
+              ("    min_curve_progress_bps=5000,\n    max_curve_progress_bps=8500,\n    min_token_age_seconds=120,\n    max_token_age_seconds=600,\n    min_graduation_eta_seconds=20,\n    max_graduation_eta_seconds=90,\n    min_progress_15s_bps=300,",
+               "    min_curve_progress_bps=4500,\n    max_curve_progress_bps=8800,\n    min_token_age_seconds=90,\n    max_token_age_seconds=900,\n    min_graduation_eta_seconds=15,\n    max_graduation_eta_seconds=120,\n    min_progress_15s_bps=200,"),
+              ("    min_buy_sell_ratio_bps=12_000,\n    max_largest_buyer_flow_bps=4000,\n    max_top3_buyer_flow_bps=6000,",
+               "    min_buy_sell_ratio_bps=11_000,\n    max_largest_buyer_flow_bps=4500,\n    max_top3_buyer_flow_bps=6500,"),
+              ("    max_entry_impact_bps=300,","    max_entry_impact_bps=400,"),
+              ("    min_fill_breadth_retention_bps=6000,","    min_fill_breadth_retention_bps=5000,"),
+              ("    max_observation_seconds=30,\n    min_price_retention_bps=9200,\n    min_new_independent_buyers=3,\n    min_buy_sell_ratio_bps=15_000,\n    max_preholder_sell_share_bps=5000,",
+               "    max_observation_seconds=45,\n    min_price_retention_bps=9000,\n    min_new_independent_buyers=2,\n    min_buy_sell_ratio_bps=13_000,\n    max_preholder_sell_share_bps=6000,"),
+              ("    min_pullback_bps=500,\n    min_new_independent_buyers_15s=3,\n    min_buy_sell_ratio_bps=15_000,",
+               "    min_pullback_bps=300,\n    min_new_independent_buyers_15s=2,\n    min_buy_sell_ratio_bps=13_000,"),
+            ],
+            "robinhood_research/pons_postgrad_survivor.py":[
+              ("min_seconds_after_graduation=6*60*60","min_seconds_after_graduation=4*60*60"),
+              ("        min_since_graduation_return_bps=500,\n        min_long_return_bps=1000,\n        min_6h_return_bps=500,\n        min_2h_return_bps=300,\n        min_6h_efficiency_bps=2500,\n        min_reset_pullback_bps=500,\n        max_reset_pullback_bps=3500,\n        min_breakout_bps=100,\n        max_breakout_extension_bps=1200,",
+               "        min_since_graduation_return_bps=300,\n        min_long_return_bps=750,\n        min_6h_return_bps=300,\n        min_2h_return_bps=100,\n        min_6h_efficiency_bps=2000,\n        min_reset_pullback_bps=300,\n        max_reset_pullback_bps=4000,\n        min_breakout_bps=50,\n        max_breakout_extension_bps=1500,"),
+              ("        min_independent_buyers_30m=5,\n        min_new_independent_buyers_30m=2,\n        min_buy_sell_ratio_bps=14_000,\n        min_buy_acceleration_bps=12_500,\n        max_largest_buyer_share_bps=3500,",
+               "        min_independent_buyers_30m=4,\n        min_new_independent_buyers_30m=1,\n        min_buy_sell_ratio_bps=12_500,\n        min_buy_acceleration_bps=11_000,\n        max_largest_buyer_share_bps=4000,"),
+              ("        min_turnover_multiple=40,\n        max_immediate_roundtrip_loss_bps=350,\n        max_double_size_roundtrip_loss_bps=500,",
+               "        min_turnover_multiple=30,\n        max_immediate_roundtrip_loss_bps=450,\n        max_double_size_roundtrip_loss_bps=650,"),
+              ("        minimum_fill_breadth_bps=6000,","        minimum_fill_breadth_bps=5000,"),
+            ],
+            "robinhood_research/pons_survivor_runtime.py":[
+              ("ordinary_limit=350,stress_limit=500,max_steps=4","ordinary_limit=450,stress_limit=650,max_steps=4"),
+              ("retention_bps=6000,","retention_bps=5000,"),
+              ("ordinary_limit=350,stress_limit=500,adapter=self","ordinary_limit=450,stress_limit=650,adapter=self"),
+            ],
+            "robinhood_tests/test_pons_selective_continuation.py":[
+              ('POLICY_HASH,"3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa"',
+               'POLICY_HASH,"cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3"'),
+              ('ENTRY_THRESHOLDS["min_curve_progress_bps"],5000','ENTRY_THRESHOLDS["min_curve_progress_bps"],4500'),
+              ('ENTRY_THRESHOLDS["max_curve_progress_bps"],8500','ENTRY_THRESHOLDS["max_curve_progress_bps"],8800'),
+              ('ENTRY_THRESHOLDS["min_token_age_seconds"],120','ENTRY_THRESHOLDS["min_token_age_seconds"],90'),
+              ('ENTRY_THRESHOLDS["max_token_age_seconds"],600','ENTRY_THRESHOLDS["max_token_age_seconds"],900'),
+              ('ENTRY_THRESHOLDS["min_graduation_eta_seconds"],20','ENTRY_THRESHOLDS["min_graduation_eta_seconds"],15'),
+              ('ENTRY_THRESHOLDS["max_graduation_eta_seconds"],90','ENTRY_THRESHOLDS["max_graduation_eta_seconds"],120'),
+              ('ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],6000','ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],5000'),
+              ('immature=vector(launch_at=100)','immature=vector(launch_at=111)'),
+              ('stale=vector(launch_at=-500)','stale=vector(launch_at=-701)'),
+              ('price_retention_bps=9000,new_independent_buyers=1','price_retention_bps=8999,new_independent_buyers=1'),
+            ],
+          }
+          for rel,pairs in replacements.items():
+              for item in pairs:
+                  old,new,*rest=item
+                  replace(p/rel,old,new,*(rest or [1]))
+
+          p=work/"meteora"
+          replacements={
+            "SOLANA_DLMM_INDEPENDENT_V1.json":[
+              ('"min_competing_range_liquidity_to_capital_multiple": 5','"min_competing_range_liquidity_to_capital_multiple": 4'),
+              ('"min_two_way_balance": 0.25','"min_two_way_balance": 0.2',2),
+              ('"max_drift_ratio": 0.75','"max_drift_ratio": 0.8'),
+              ('"max_stress_unwind_loss_bps": 150','"max_stress_unwind_loss_bps": 200'),
+              ('"min_competing_range_liquidity_to_capital_multiple = 5"','"min_competing_range_liquidity_to_capital_multiple = 4"'),
+              ('"max_drift_ratio = 0.75"','"max_drift_ratio = 0.80"'),
+              ('"max_stress_unwind_loss_bps = 150"','"max_stress_unwind_loss_bps = 200"'),
+              ('"min_authenticated_fee_density_24h_pct": 5','"min_authenticated_fee_density_24h_pct": 4'),
+              ('authenticated_fee_density_24h_pct >= 5.0','authenticated_fee_density_24h_pct >= 4.0'),
+              ('"live_fee_density_threshold_pct": 5','"live_fee_density_threshold_pct": 4'),
+              ('The frozen 5%/day threshold','The frozen 4%/day threshold'),
+              ('  "revision": "2.0-profitability-fee-density-v1-core-hold-v2",\n  "amendment_history": [','  "revision": "2.1-moderate-admission-thresholds-v1",\n  "amendment_history": ['),
+              ('"policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966"','"policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408"'),
+              ('"reference_profitability_policy_revision": "2.0-profitability-fee-density-v1-core-hold-v2"','"reference_profitability_policy_revision": "2.1-moderate-admission-thresholds-v1"'),
+              ('"authenticated_fee_density_threshold_pct": 5','"authenticated_fee_density_threshold_pct": 4'),
+            ],
+            "tests/test_solana_dlmm_independent_v1.py":[
+              ('p["qualification"]["min_two_way_balance"],0.25','p["qualification"]["min_two_way_balance"],0.20',2),
+              ('p["qualification"]["min_authenticated_fee_density_24h_pct"],5.0','p["qualification"]["min_authenticated_fee_density_24h_pct"],4.0'),
+              ('p["fee_model"]["live_fee_density_threshold_pct"],5.0','p["fee_model"]["live_fee_density_threshold_pct"],4.0'),
+              ('p["revision"],"2.0-profitability-fee-density-v1-core-hold-v2"','p["revision"],"2.1-moderate-admission-thresholds-v1"'),
+              ('authenticated_fee_density_24h_pct=5.0','authenticated_fee_density_24h_pct=4.0'),
+              ('competing_liquidity_to_capital_multiple=5.0','competing_liquidity_to_capital_multiple=4.0'),
+              ('two_way_balance=0.25','two_way_balance=0.20'),
+              ('drift_ratio=0.75','drift_ratio=0.80'),
+              ('{"loss_bps":150.0}','{"loss_bps":200.0}'),
+              ('"authenticated_fee_density_24h_pct":4.999','"authenticated_fee_density_24h_pct":3.999'),
+              ('"capacity":{"competing_liquidity_to_capital_multiple":4.99}','"capacity":{"competing_liquidity_to_capital_multiple":3.99}'),
+              ('"two_way":{"two_way_balance":0.2499}','"two_way":{"two_way_balance":0.1999}'),
+              ('"drift":{"drift_ratio":0.7501}','"drift":{"drift_ratio":0.8001}'),
+              ('{"loss_bps":150.01}','{"loss_bps":200.01}'),
+            ],
+          }
+          for rel,pairs in replacements.items():
+              for item in pairs:
+                  old,new,*rest=item
+                  replace(p/rel,old,new,*(rest or [1]))
+
+          out={}
+          for lane in ("pump","pons","meteora"):
+              cwd=work/lane
+              subprocess.run(["git","add","-A"],cwd=cwd,check=True)
+              threshold=git(cwd,"diff","--binary","--full-index","--no-ext-diff","--no-textconv","--no-renames","HEAD")
+              combined=git(cwd,"diff","--binary","--full-index","--no-ext-diff","--no-textconv","--no-renames","--cached",originals[lane])
+              row=spec["lanes"][lane]
+              files={}
+              for name in row.get("composed_file_hashes",row.get("file_hashes",{})):
+                  files[name]=hashlib.sha256((cwd/name).read_bytes()).hexdigest()
+              out[lane]={"source_diff_sha256":hashlib.sha256(combined).hexdigest(),
+                         "composed_file_hashes":files}
+              print("PATCH_BASE64_"+lane.upper()+"="+base64.b64encode(threshold).decode())
+          env=dict(os.environ);env["PYTHONPATH"]=str(root)
+          pump=json.loads(subprocess.check_output([
+              "python","-c",
+              "import json;from meme_machine.pump_acceleration_strategy import STRATEGY_ID,policy_hash;"
+              "from meme_machine.pumpswap_survivor import STRATEGY_ID as S,POLICY_HASH;"
+              "print(json.dumps({STRATEGY_ID:policy_hash(),S:POLICY_HASH},sort_keys=True))"
+          ],cwd=work/"pump",env=env,text=True))
+          pons=json.loads(subprocess.check_output([
+              "python","-c",
+              "import json;from robinhood_research.pons_selective_continuation import POLICY_HASH;"
+              "from robinhood_research.pons_postgrad_survivor import STRATEGY_VERSION,POLICY_HASH as S;"
+              "print(json.dumps({'pons-selective-continuation-v1':POLICY_HASH,STRATEGY_VERSION:S},sort_keys=True))"
+          ],cwd=work/"pons",env=env,text=True))
+          def digest(v):
+              return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(",",":")).encode()).hexdigest()
+          for lane,strategies in (("pump",pump),("pons",pons)):
+              out[lane]["strategies"]=strategies
+              out[lane]["composite_policy_hash"]=digest(dict(
+                  lane=lane,strategies=strategies,
+                  allocation=spec["lanes"][lane]["composite_policy"]["allocation"]))
+          meteora=json.loads((work/"meteora"/"SOLANA_DLMM_INDEPENDENT_V1.json").read_text())
+          out["meteora"]["policy_hash"]=meteora["execution_certification"]["policy_hash"]
+          print("THRESHOLD_PREFLIGHT_JSON="+json.dumps(out,sort_keys=True))
+          PY
+      - name: Focused threshold regressions
+        env:
+          ROOT: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          (cd "${RUNNER_TEMP}/threshold-worktrees/pump" && PYTHONPATH="${ROOT}" python -m unittest -v             tests.test_pump_acceleration_policy_identity             tests.test_pump_acceleration_strategy             tests.test_pumpswap_survivor)
+          (cd "${RUNNER_TEMP}/threshold-worktrees/pons" && PYTHONPATH="${ROOT}" python -m unittest -v             robinhood_tests.test_pons_selective_continuation             robinhood_tests.test_pons_postgrad_survivor)
+          (cd "${RUNNER_TEMP}/threshold-worktrees/meteora" && PYTHONPATH="${ROOT}" python -m unittest -v             tests.test_solana_dlmm_independent_v1)
