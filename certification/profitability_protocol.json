@@ -26,7 +26,6 @@
     "pump": {
       "strategy_version": "pump-shared-sleeve-six-regime-v1",
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
-      "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "policy_hash": "0f909d1e7eb90cdbb504b4e52fec693ccaf810f87f80259be760c81361a3babc",
       "source_diff_sha256": "2b34539c8cd84c109fbbfa43c2ceba598301059aaee473be260a12184dc7e96b"
     },
@@ -40,14 +39,12 @@
     "pons": {
       "strategy_version": "pons-shared-sleeve-six-regime-v1",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
-      "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "b9f3aff04336d22fac8a8a8f38c821a8fb776b8ccd891774a8d46012d9124db2",
       "source_diff_sha256": "8c00c082d4d20a6ccdb5fc08bb0e59406f84e4f0abec7860bb1b1432588a49ca"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v4",
       "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
-      "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
       "source_diff_sha256": "0c4bfa59e9ab1cd1023f66969e073e81142eee4adf3676f1717a77a3f3d206df"
     }
