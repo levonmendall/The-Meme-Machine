@@ -1,0 +1,148 @@
+diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
+--- a/robinhood_research/ramses_extended_test.py
++++ b/robinhood_research/ramses_extended_test.py
+@@ -93,6 +93,20 @@ def _campaign_candidate_boundary(reason):
+     if reason in CAMPAIGN_TRANSIENT_PROVIDER_BOUNDARIES:return 'provider_failed'
+     return None
+ 
++
++def _frontier_poll(rpc,*,poll_index,elapsed):
++    """Defer one transient finalized-frontier read without weakening authority."""
++    try:
++        return rpc.call(
++            "eth_getBlockByNumber",["finalized",False],scope="extended_frontier"
++        ),None
++    except BoundaryError as exc:
++        reason=str(exc)
++        if reason not in CAMPAIGN_TRANSIENT_PROVIDER_BOUNDARIES:
++            raise
++        return None,dict(
++            poll_index=int(poll_index),elapsed_seconds=float(elapsed),
++            boundary=reason,failure_domain='provider_or_shared_admission',
++            market_screen_complete=False,qualification_inferred=False,
++            infrastructure_censored=True)
++
+ 
+ def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,sleeper=None):
+     """Retry local admission loss; defer exhausted transient transport fail-closed."""
+@@ -121,11 +135,14 @@ def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,s
+                 # alive and may retry only after its existing scan cadence permits.
+                 return dict(_scan_deferred=True,reason=reason)
+             if reason not in ('provider_shared_admission_deadline','provider_shared_queue_capacity'):raise
+-            record_failure(dict(attempt=attempt,reason=reason,at_monotonic=clock(),
++            record_failure(dict(
++                attempt=attempt,reason=reason,at_monotonic=clock(),
+                 original_deadline=deadline,failure_domain='local_admission',
+-                failed_admission_reached_transport=False))
++                failed_admission_reached_transport=False,
++                market_screen_complete=False,qualification_inferred=False,
++                infrastructure_censored=True))
+             if clock()>=deadline:return None
+-            if attempt==3:raise BoundaryError('ramses_scan_local_admission_recovery_exhausted') from None
++            if attempt==3:
++                return dict(_scan_deferred=True,reason=reason)
+             sleeper(min(2**(attempt-1),max(0,deadline-clock())))
+ 
+@@ -621,10 +638,28 @@ def run(
+             if elapsed>=discovery_seconds:
+                 break
+ 
+-            frontier=frontier_rpc.call(
+-                "eth_getBlockByNumber",["finalized",False],scope="extended_frontier"
+-            )
+             frontier_polls+=1
++            frontier,recovery=_frontier_poll(
++                frontier_rpc,poll_index=frontier_polls,elapsed=elapsed)
++            if recovery is not None:
++                result.setdefault('frontier_recovery_attempts',[]).append(recovery)
++                frontier_observations.append(dict(
++                    elapsed_seconds=elapsed,progress='provider_deferred',
++                    expensive_scan=False,gate_reason='provider_deferred',
++                    boundary=recovery['boundary'],infrastructure_censored=True,
++                    qualification_inferred=False))
++                result['frontier_discovery']=dict(
++                    result.get('frontier_discovery',{}),
++                    polls=frontier_polls,advances=frontier_advances,
++                    expensive_scans=len(screens),provider=frontier_rpc.telemetry(),
++                    last_poll_boundary=recovery['boundary'],
++                    next_scan_eligibility='awaiting_frontier')
++                deferred=dict(result.get('scan_progress') or {})
++                deferred.update(
++                    state='deferred',stage='finalized_frontier',
++                    updated_at=time.time(),boundary=recovery['boundary'],
++                    market_screen_complete=False,qualification_inferred=False,
++                    infrastructure_censored=True)
++                checkpoint_scan(deferred)
++                remaining=max(0,discovery_seconds-(time.monotonic()-started))
++                if remaining:time.sleep(min(DISCOVERY_FRONTIER_POLL_SECONDS,remaining))
++                continue
+             progress=_frontier_progress(last_observed_frontier,frontier)
+             if progress=="advanced":
+                 frontier_advances+=1
+diff --git a/robinhood_tests/test_ramses_run371_pressure.py b/robinhood_tests/test_ramses_run371_pressure.py
+new file mode 100644
+--- /dev/null
++++ b/robinhood_tests/test_ramses_run371_pressure.py
+@@ -0,0 +1,62 @@
++import unittest
++
++from robinhood_research import BoundaryError
++from robinhood_research.ramses_extended_test import (
++    _frontier_poll,
++    _scan_with_capacity_recovery,
++)
++
++
++class FailingRpc:
++    def __init__(self,reason):
++        self.reason=reason
++
++    def call(self,*_args,**_kwargs):
++        raise BoundaryError(self.reason)
++
++
++class Run371ProviderPressureTests(unittest.TestCase):
++    def test_frontier_429_is_deferred_without_market_inference(self):
++        frontier,row=_frontier_poll(
++            FailingRpc('provider_http_429'),poll_index=7,elapsed=574.0)
++        self.assertIsNone(frontier)
++        self.assertEqual(row['boundary'],'provider_http_429')
++        self.assertTrue(row['infrastructure_censored'])
++        self.assertFalse(row['market_screen_complete'])
++        self.assertFalse(row['qualification_inferred'])
++
++    def test_frontier_shared_admission_deadline_is_deferred(self):
++        frontier,row=_frontier_poll(
++            FailingRpc('provider_shared_admission_deadline'),
++            poll_index=8,elapsed=575.0)
++        self.assertIsNone(frontier)
++        self.assertEqual(row['failure_domain'],'provider_or_shared_admission')
++        self.assertFalse(row['qualification_inferred'])
++
++    def test_frontier_structural_boundary_still_fails_closed(self):
++        with self.assertRaisesRegex(
++                BoundaryError,'ramses_finalized_frontier_conflict'):
++            _frontier_poll(
++                FailingRpc('ramses_finalized_frontier_conflict'),
++                poll_index=1,elapsed=1.0)
++
++    def test_repeated_shared_admission_loss_defers_only_current_scan(self):
++        failures=[]
++        def scan():
++            raise BoundaryError('provider_shared_admission_deadline')
++        row=_scan_with_capacity_recovery(
++            scan,deadline=100,record_failure=failures.append,
++            clock=lambda:0,sleeper=lambda _seconds:None)
++        self.assertEqual(
++            row,
++            dict(_scan_deferred=True,reason='provider_shared_admission_deadline'),
++        )
++        self.assertEqual(len(failures),3)
++        self.assertTrue(all(x['infrastructure_censored'] for x in failures))
++        self.assertTrue(all(x['market_screen_complete'] is False for x in failures))
++        self.assertTrue(all(x['qualification_inferred'] is False for x in failures))
++
++
++if __name__=='__main__':
++    unittest.main()
++
