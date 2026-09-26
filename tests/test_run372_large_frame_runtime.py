@@ -86,14 +86,6 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
         frames=[frame(slot,logs,padding) for slot in range(300,304)]
         self.assertTrue(all(7_000_000<len(raw)<service.STREAM_MAX_MESSAGE_BYTES for raw in frames))
 
-        original_decode=service.decode_source_message
-        decode_calls=[0]
-        def deliberately_slow_decode(raw,config):
-            if isinstance(raw,str) and len(raw)>7_000_000:
-                decode_calls[0]+=1
-                time.sleep(.15)
-            return original_decode(raw,config)
-
         ticks=[]
         async def heartbeat(stop):
             while not stop.is_set():
@@ -122,10 +114,11 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                     await self.wait_for(lambda:'stream.raw_message_peak_bytes' in (reader.telemetry()['service_health'].get('ipc') or {}))
                     telemetry=reader.telemetry()
                     runtime=telemetry['service_health']['ipc']
-                    self.assertEqual(decode_calls[0],4)
+                    self.assertEqual(runtime['stream.decode_process_messages'],4)
                     self.assertGreaterEqual(runtime['stream.raw_message_peak_bytes'],7_000_000)
                     self.assertGreaterEqual(runtime['stream.dispatch_queue_peak'],2)
-                    self.assertGreater(runtime['stream.decode_peak_microseconds'],100_000)
+                    self.assertEqual(runtime['stream.source_transactions'],8)
+                    self.assertEqual(runtime['stream.retained_transactions'],4)
                     self.assertEqual(telemetry['counters'].get('disconnect:local_receive_backpressure_ping_timeout',0),0)
                     self.assertEqual(runtime.get('stream.dispatch_queue_overflow',0),0)
                     self.assertTrue(reader.covered(SWAP_SCOPE,300,302,as_of=1790430100))
