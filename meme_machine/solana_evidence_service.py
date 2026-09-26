@@ -63,6 +63,8 @@ STREAM_PROTOCOL_QUEUE_FRAMES=32
 STREAM_DISPATCH_MAX_MESSAGES=64
 STREAM_DISPATCH_MAX_BYTES=96*1024*1024
 STREAM_PROCESS_DECODE_MIN_BYTES=1024*1024
+STREAM_DECODE_WORKERS=2
+STREAM_SUBSCRIPTION_SYNC_SECONDS=.25
 STREAM_WATCHDOG_SECONDS=.1
 
 
@@ -518,8 +520,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
     owner=PriorityOwner(lambda:ServiceState(path,config))
     await asyncio.wrap_future(owner.ready)
-    decoder_pool=ProcessPoolExecutor(max_workers=1,mp_context=multiprocessing.get_context('spawn'))
-    await asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
+    decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))
+    await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
+                           for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1):
         return await asyncio.shield(asyncio.wrap_future(owner.submit(fn,priority=priority)))
@@ -574,20 +577,27 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         async def source():
             while not stop.is_set():
                 connection_tasks=[]
+                connection_stop=asyncio.Event()
                 try:
-                    # The websocket reader is deliberately independent of SQLite
-                    # ingestion. Run 371 proved that awaiting the owner after every
-                    # message can fill the protocol receive queue and starve pong
-                    # handling while persistence/compaction/gap repair is busy.
+                    # Keep websocket draining independent from decode, SQLite
+                    # persistence, and account-subscription reconciliation. Run 373
+                    # proved that a healthy receiver can still lose continuity when
+                    # one sequential downstream processor cannot sustain block flow.
                     async with connect(config.stream_url,logger=logger,max_size=STREAM_MAX_MESSAGE_BYTES,max_queue=STREAM_PROTOCOL_QUEUE_FRAMES,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
                         from collections import Counter,deque
-                        number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set();retired_subscriptions=deque(maxlen=256)
+                        number=1
+                        pending={1:Subscription('service','chain:solana','all','blocks',2)}
+                        active={};registered=set();retiring=set();retired_subscriptions=deque(maxlen=256)
                         inbound=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
-                        inbound_bytes=0
+                        decoded=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
+                        pending_bytes=0;pending_frames=0;receive_sequence=0
+                        drained=asyncio.Event();drained.set()
+                        wanted=set()
                         await ws.send(canonical(pending[1].request(1)))
 
-                        async def sync_subscriptions():
-                            nonlocal number
+                        async def sync_subscriptions_once():
+                            nonlocal number,wanted
+                            started=time.monotonic()
                             wanted=set(await work(lambda state:state.interests(),0))
                             if len(wanted)>256:raise EvidenceUnavailable('restored_subscription_capacity')
                             for sid,sub in list(active.items()):
@@ -598,53 +608,79 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     del active[sid];registered.discard(sub.address)
                             for address in sorted(wanted-registered):
                                 number+=1;sub=Subscription('service','account:'+address,address,'account',0)
-                                pending[number]=sub;registered.add(address);await ws.send(canonical(sub.request(number)))
-                            return wanted
+                                pending[number]=sub;registered.add(address)
+                                await ws.send(canonical(sub.request(number)))
+                            elapsed=int((time.monotonic()-started)*1_000_000)
+                            counts['stream.subscription_syncs']=counts.get('stream.subscription_syncs',0)+1
+                            counts['stream.subscription_sync_peak_microseconds']=max(
+                                counts.get('stream.subscription_sync_peak_microseconds',0),elapsed)
+
+                        async def subscription_manager():
+                            while not stop.is_set() and not connection_stop.is_set():
+                                await sync_subscriptions_once()
+                                try:await asyncio.wait_for(connection_stop.wait(),STREAM_SUBSCRIPTION_SYNC_SECONDS)
+                                except TimeoutError:pass
 
                         async def receive():
-                            nonlocal inbound_bytes
-                            while not stop.is_set():
+                            nonlocal pending_bytes,pending_frames,receive_sequence
+                            while not stop.is_set() and not connection_stop.is_set():
                                 try:raw=await asyncio.wait_for(ws.recv(decode=False),.5)
                                 except TimeoutError:continue
                                 size=len(raw) if isinstance(raw,(str,bytes)) else STREAM_MAX_MESSAGE_BYTES+1
-                                if (size>STREAM_MAX_MESSAGE_BYTES or inbound.full()
-                                        or inbound_bytes+size>STREAM_DISPATCH_MAX_BYTES):
+                                # The frame that crosses the bound is the first
+                                # unretained frame. Stop reception, drain every frame
+                                # already accepted into this connection, then create
+                                # the continuity gap at the resulting committed edge.
+                                if (size>STREAM_MAX_MESSAGE_BYTES
+                                        or pending_frames>=STREAM_DISPATCH_MAX_MESSAGES
+                                        or pending_bytes+size>STREAM_DISPATCH_MAX_BYTES):
                                     count('stream.dispatch_queue_overflow')
-                                    counts['stream.dispatch_bytes_peak']=max(
-                                        counts.get('stream.dispatch_bytes_peak',0),inbound_bytes)
-                                    raise StreamDispatchCapacity() from None
-                                inbound_bytes+=size
-                                inbound.put_nowait((raw,time.time(),size))
+                                    counts['stream.dispatch_overflow_frame_bytes']=max(
+                                        counts.get('stream.dispatch_overflow_frame_bytes',0),size)
+                                    counts['stream.dispatch_overflow_pending_frames']=max(
+                                        counts.get('stream.dispatch_overflow_pending_frames',0),pending_frames)
+                                    counts['stream.dispatch_overflow_pending_bytes']=max(
+                                        counts.get('stream.dispatch_overflow_pending_bytes',0),pending_bytes)
+                                    return ('capacity',size)
+                                sequence=receive_sequence;receive_sequence+=1
+                                pending_frames+=1;pending_bytes+=size;drained.clear()
+                                received_at=time.monotonic()
+                                inbound.put_nowait((sequence,raw,time.time(),size,received_at))
                                 counts['stream.received_messages']=counts.get('stream.received_messages',0)+1
                                 counts['stream.raw_message_peak_bytes']=max(
                                     counts.get('stream.raw_message_peak_bytes',0),size)
                                 counts['stream.dispatch_queue_peak']=max(
                                     counts.get('stream.dispatch_queue_peak',0),inbound.qsize())
                                 counts['stream.dispatch_bytes_peak']=max(
-                                    counts.get('stream.dispatch_bytes_peak',0),inbound_bytes)
+                                    counts.get('stream.dispatch_bytes_peak',0),pending_bytes)
+                                counts['stream.outstanding_frames_peak']=max(
+                                    counts.get('stream.outstanding_frames_peak',0),pending_frames)
 
-                        async def process():
-                            nonlocal inbound_bytes
-                            wanted=set()
-                            while not stop.is_set():
-                                try:raw,seen,size=await asyncio.wait_for(inbound.get(),.5)
-                                except TimeoutError:
-                                    wanted=await sync_subscriptions()
-                                    continue
+                        async def decode_worker(worker_id):
+                            while True:
+                                item=await inbound.get()
+                                if item is None:
+                                    inbound.task_done()
+                                    await decoded.put(('worker_done',worker_id))
+                                    return
+                                sequence,raw,seen,size,received_at=item
                                 try:
-                                    wanted=await sync_subscriptions()
                                     decode_started=time.monotonic()
+                                    queue_wait_us=int(max(0.0,decode_started-received_at)*1_000_000)
+                                    counts['stream.decode_queue_wait_peak_microseconds']=max(
+                                        counts.get('stream.decode_queue_wait_peak_microseconds',0),queue_wait_us)
                                     if size>=STREAM_PROCESS_DECODE_MIN_BYTES:
-                                        decoded=decoder_pool.submit(
+                                        future=decoder_pool.submit(
                                             decode_source_message,raw,config.credential,source_program_addresses)
                                         message,source_transactions,retained_transactions=await asyncio.shield(
-                                            asyncio.wrap_future(decoded))
+                                            asyncio.wrap_future(future))
                                         counts['stream.decode_process_messages']=counts.get('stream.decode_process_messages',0)+1
                                     else:
                                         message,source_transactions,retained_transactions=await asyncio.to_thread(
                                             decode_source_message,raw,config.credential,source_program_addresses)
                                         counts['stream.decode_thread_messages']=counts.get('stream.decode_thread_messages',0)+1
-                                    decode_us=int((time.monotonic()-decode_started)*1_000_000)
+                                    decoded_at=time.monotonic()
+                                    decode_us=int((decoded_at-decode_started)*1_000_000)
                                     counts['stream.decode_peak_microseconds']=max(
                                         counts.get('stream.decode_peak_microseconds',0),decode_us)
                                     counts['stream.decode_total_microseconds']=(
@@ -653,25 +689,67 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                         counts.get('stream.source_transactions',0)+source_transactions)
                                     counts['stream.retained_transactions']=(
                                         counts.get('stream.retained_transactions',0)+retained_transactions)
-                                    if message.get('id') in retiring:
-                                        retiring.remove(message['id']);continue
-                                    if 'id' in message:
-                                        sub=pending.pop(message['id'])
-                                        if 'error' in message or type(message.get('result')) is not int:raise EvidenceUnavailable('authoritative_subscription_rejected')
-                                        active[message['result']]=sub
-                                        status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted))
-                                        await work(lambda state:state.fence.health('subscriptions',status));continue
-                                    sub=active.get((message.get('params') or {}).get('subscription'))
-                                    if sub is None and (message.get('params') or {}).get('subscription') in retired_subscriptions:continue
-                                    if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
-                                    await work(lambda state:state.source(sub,message,seen,len(raw)),0 if sub.evidence_class=='account' else 2)
+                                    await decoded.put(('frame',sequence,message,seen,size,decoded_at))
                                 finally:
-                                    inbound_bytes=max(0,inbound_bytes-size)
                                     inbound.task_done()
+
+                        async def commit_ordered():
+                            nonlocal pending_bytes,pending_frames
+                            next_sequence=0;finished_workers=0;ready={}
+                            while finished_workers<STREAM_DECODE_WORKERS or ready or pending_frames:
+                                item=await decoded.get()
+                                try:
+                                    if item[0]=='worker_done':
+                                        finished_workers+=1
+                                    else:
+                                        _,sequence,message,seen,size,decoded_at=item
+                                        ready[sequence]=(message,seen,size,decoded_at)
+                                        counts['stream.ordered_ready_peak']=max(
+                                            counts.get('stream.ordered_ready_peak',0),len(ready))
+                                    while next_sequence in ready:
+                                        message,seen,size,decoded_at=ready.pop(next_sequence)
+                                        commit_started=time.monotonic()
+                                        ordered_wait_us=int(max(0.0,commit_started-decoded_at)*1_000_000)
+                                        counts['stream.ordered_commit_wait_peak_microseconds']=max(
+                                            counts.get('stream.ordered_commit_wait_peak_microseconds',0),ordered_wait_us)
+                                        if message.get('id') in retiring:
+                                            retiring.remove(message['id'])
+                                        elif 'id' in message:
+                                            sub=pending.pop(message['id'])
+                                            if 'error' in message or type(message.get('result')) is not int:
+                                                raise EvidenceUnavailable('authoritative_subscription_rejected')
+                                            active[message['result']]=sub
+                                            status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),
+                                                        pending=len(pending),wanted_accounts=len(wanted))
+                                            await work(lambda state:state.fence.health('subscriptions',status))
+                                        else:
+                                            sid=(message.get('params') or {}).get('subscription')
+                                            sub=active.get(sid)
+                                            if sub is None and sid in retired_subscriptions:
+                                                sub=None
+                                            elif sub is None:
+                                                raise EvidenceUnavailable('unknown_source_subscription')
+                                            if sub is not None:
+                                                await work(lambda state:state.source(sub,message,seen,size),
+                                                           0 if sub.evidence_class=='account' else 2)
+                                        commit_us=int((time.monotonic()-commit_started)*1_000_000)
+                                        counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+1
+                                        counts['stream.commit_peak_microseconds']=max(
+                                            counts.get('stream.commit_peak_microseconds',0),commit_us)
+                                        counts['stream.commit_total_microseconds']=(
+                                            counts.get('stream.commit_total_microseconds',0)+commit_us)
+                                        pending_bytes=max(0,pending_bytes-size)
+                                        pending_frames=max(0,pending_frames-1)
+                                        if pending_frames==0:drained.set()
+                                        next_sequence+=1
+                                finally:
+                                    decoded.task_done()
+                            if pending_frames or ready:
+                                raise EvidenceUnavailable('stream_ordered_drain_incomplete')
 
                         async def loop_watchdog():
                             expected=time.monotonic()+STREAM_WATCHDOG_SECONDS
-                            while not stop.is_set():
+                            while not stop.is_set() and not connection_stop.is_set():
                                 await asyncio.sleep(STREAM_WATCHDOG_SECONDS)
                                 now=time.monotonic()
                                 lag_us=int(max(0.0,now-expected)*1_000_000)
@@ -679,11 +757,49 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     counts.get('stream.event_loop_lag_peak_microseconds',0),lag_us)
                                 expected=now+STREAM_WATCHDOG_SECONDS
 
-                        receiver=asyncio.create_task(receive());processor=asyncio.create_task(process())
-                        watchdog=asyncio.create_task(loop_watchdog());stopper=asyncio.create_task(stop.wait())
-                        connection_tasks=[receiver,processor,watchdog,stopper]
-                        done,_=await asyncio.wait(connection_tasks,return_when=asyncio.FIRST_COMPLETED)
-                        for task in done:task.result()
+                        receiver=asyncio.create_task(receive())
+                        decoders=[asyncio.create_task(decode_worker(i)) for i in range(STREAM_DECODE_WORKERS)]
+                        committer=asyncio.create_task(commit_ordered())
+                        subscriptions=asyncio.create_task(subscription_manager())
+                        watchdog=asyncio.create_task(loop_watchdog())
+                        stopper=asyncio.create_task(stop.wait())
+                        connection_tasks=[receiver,*decoders,committer,subscriptions,watchdog,stopper]
+                        watched=[receiver,*decoders,committer,subscriptions,watchdog,stopper]
+                        done,_=await asyncio.wait(watched,return_when=asyncio.FIRST_COMPLETED)
+
+                        if stopper in done:
+                            connection_stop.set();receiver.cancel()
+                            await asyncio.gather(receiver,return_exceptions=True)
+                            for _ in decoders:await inbound.put(None)
+                            await asyncio.gather(*decoders)
+                            await committer
+                            return
+
+                        if receiver in done:
+                            receiver_exc=receiver.exception()
+                            outcome=None if receiver_exc else receiver.result()
+                            connection_stop.set()
+                            for _ in decoders:await inbound.put(None)
+                            drain_started=time.monotonic()
+                            await asyncio.gather(*decoders)
+                            await committer
+                            await drained.wait()
+                            counts['stream.drain_count']=counts.get('stream.drain_count',0)+1
+                            drain_us=int((time.monotonic()-drain_started)*1_000_000)
+                            counts['stream.drain_peak_microseconds']=max(
+                                counts.get('stream.drain_peak_microseconds',0),drain_us)
+                            if receiver_exc is not None:raise receiver_exc
+                            if outcome and outcome[0]=='capacity':
+                                raise StreamDispatchCapacity() from None
+                            raise EvidenceUnavailable('stream_receiver_stopped')
+
+                        # Any downstream task ending while reception is active is
+                        # structural. Propagate its exception rather than silently
+                        # reconnecting around corrupt ordering or persistence.
+                        for task in done:
+                            if task is not stopper:
+                                result=task.result()
+                                raise EvidenceUnavailable('stream_pipeline_task_stopped:'+task.get_coro().__name__)
                 except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
                     if stop.is_set():return
                     if isinstance(exc,EvidenceConflict) or str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
@@ -693,6 +809,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     try:await asyncio.wait_for(stop.wait(),1)
                     except TimeoutError:pass
                 finally:
+                    connection_stop.set()
                     for task in connection_tasks:task.cancel()
                     if connection_tasks:await asyncio.gather(*connection_tasks,return_exceptions=True)
 
