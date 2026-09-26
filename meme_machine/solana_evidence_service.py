@@ -62,6 +62,7 @@ STREAM_MAX_MESSAGE_BYTES=16*1024*1024
 STREAM_PROTOCOL_QUEUE_FRAMES=32
 STREAM_DISPATCH_MAX_MESSAGES=64
 STREAM_DISPATCH_MAX_BYTES=96*1024*1024
+STREAM_PROCESS_DECODE_MIN_BYTES=1024*1024
 STREAM_WATCHDOG_SECONDS=.1
 
 
@@ -635,12 +636,17 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                 try:
                                     wanted=await sync_subscriptions()
                                     decode_started=time.monotonic()
-                                    decoded=decoder_pool.submit(
-                                        decode_source_message,raw,config.credential,source_program_addresses)
-                                    message,source_transactions,retained_transactions=await asyncio.shield(
-                                        asyncio.wrap_future(decoded))
+                                    if size>=STREAM_PROCESS_DECODE_MIN_BYTES:
+                                        decoded=decoder_pool.submit(
+                                            decode_source_message,raw,config.credential,source_program_addresses)
+                                        message,source_transactions,retained_transactions=await asyncio.shield(
+                                            asyncio.wrap_future(decoded))
+                                        counts['stream.decode_process_messages']=counts.get('stream.decode_process_messages',0)+1
+                                    else:
+                                        message,source_transactions,retained_transactions=await asyncio.to_thread(
+                                            decode_source_message,raw,config.credential,source_program_addresses)
+                                        counts['stream.decode_thread_messages']=counts.get('stream.decode_thread_messages',0)+1
                                     decode_us=int((time.monotonic()-decode_started)*1_000_000)
-                                    counts['stream.decode_process_messages']=counts.get('stream.decode_process_messages',0)+1
                                     counts['stream.decode_peak_microseconds']=max(
                                         counts.get('stream.decode_peak_microseconds',0),decode_us)
                                     counts['stream.decode_total_microseconds']=(
