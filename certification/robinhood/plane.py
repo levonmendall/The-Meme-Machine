@@ -214,7 +214,7 @@ class Plane:
         row=self.get(work['id'])
         return bool(row and row['generation']==work['generation'] and row['claim']==work['claim'] and row['desired']==work['desired'] and self.clock()<row['deadline'])
 
-    def finish(self,work,*,result=None,state='canonical_evidence_complete',reason=None,logical=None,physical=None,seconds=None):
+    def finish(self,work,*,result=None,state='canonical_evidence_complete',reason=None,logical=None,physical=None,seconds=None,accounting_details=None):
         with self.transaction():
             row=self._row(work['id'])
             if (not row or row['claim']!=work['claim'] or row['generation']!=work['generation'] or row['desired']!=work['desired']):
@@ -227,7 +227,7 @@ class Plane:
             completed=row['desired'] if state=='canonical_evidence_complete' else row['completed']
             self.db.execute('''UPDATE candidates SET completed=?,result=?,state=?,reason=?,pending=0,claim=NULL,owner=NULL,claim_until=NULL WHERE id=?''',
                 (completed,canonical(result) if result is not None else None,state,reason,row['id']))
-            self._audit(row,state,reason,logical_authenticated_reads=logical,physical_requests=physical)
+            self._audit(row,state,reason,logical_authenticated_reads=logical,physical_requests=physical,**(accounting_details or {}))
             if seconds is not None and math.isfinite(seconds) and seconds>=0:
                 self.db.execute('INSERT INTO service VALUES(?,?,?,?,?)',(row['lane'],seconds,logical,physical,self.clock()))
                 self.db.execute('DELETE FROM service WHERE rowid NOT IN (SELECT rowid FROM service ORDER BY at DESC LIMIT 256)')
