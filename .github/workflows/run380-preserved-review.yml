@@ -1,0 +1,32 @@
+name: Run 380 preserved evidence review
+on:
+  push:
+    branches: [analysis/run380-preserved-evidence-20260926]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Review digest-pinned archived evidence without provider credentials
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_RUN_ID: '36278710306'
+          REVIEW_SHA: ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6
+          REVIEW_PHASE: smoke
+        run: python -m certification.run380_preserved_review
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: run380-preserved-evidence-review
+          path: frozen-review/
+          retention-days: 90
+          if-no-files-found: error
