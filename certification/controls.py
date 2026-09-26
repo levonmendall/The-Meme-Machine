@@ -114,7 +114,9 @@ def smoke_engineering(result):
                  and (row.get('terminal_reconciliation') or {}).get('verified') is True)
         if (row.get('open_positions')!=0 and not handoff) or row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
-        if not row.get('provider_requests') and not (lane=='pump' and authoritative_activity(row)):
+        if lane=='pump' and not authoritative_activity(row):
+            failures.append('pump:local_authoritative_evidence_activity')
+        elif lane!='pump' and not row.get('provider_requests'):
             failures.append(lane+':no_provider_activity')
         if lane in ('pump','meteora') and row.get('infrastructure_failure'):
             failures.append(lane+':evidence_unusable')
@@ -162,7 +164,9 @@ def hourly_engineering(result):
         elif open_positions and not durable_handoff:
             failures.append(lane+':unsettled_position_without_durable_handoff')
         from certification.solana_lifecycle import authoritative_activity
-        if not row.get('provider_requests') and not (lane=='pump' and authoritative_activity(row)):
+        if lane=='pump' and not authoritative_activity(row):
+            failures.append('pump:local_authoritative_evidence_activity')
+        elif lane!='pump' and not row.get('provider_requests'):
             failures.append(lane+':no_provider_activity')
         if lane in ('pump','meteora') and row.get('infrastructure_failure'):
             failures.append(lane+':evidence_unusable')
@@ -205,7 +209,7 @@ def export_readiness(path,output):
     if 'robinhood_reuse' in result['shared_provider']:
         attestation['shared_provider']['robinhood_reuse']={k:result['shared_provider']['robinhood_reuse'].get(k) for k in ('state','inflight_jobs')}
     lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation',
-               'continuous_uptime_seconds','pump_discovery_terminal','evidence_liveness','infrastructure_failure')
+               'continuous_uptime_seconds','pump_discovery_terminal','evidence_liveness','infrastructure_failure','stream_state','method_counts')
     attestation['lanes']={lane:{key:result['lanes'][lane].get(key) for key in lane_keys} for lane in LANES}
     with Path(output).open('a') as handle:
         handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')

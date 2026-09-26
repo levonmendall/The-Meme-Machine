@@ -9,7 +9,7 @@ import socket
 import time
 import uuid
 import sqlite3
-from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical
+from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical,decode_body
 from .solana_evidence_queries import PumpEvidenceView,MeteoraEvidenceView
 
 PUMP_SCOPE='program:pump'
@@ -196,7 +196,7 @@ class LocalPumpTape:
             (mint,PUMP_SCOPE,self.plane.clock()))
         for raw,seen in rows:
             if raw:
-                event=json.loads(raw)['payload'].get('event',{})
+                event=decode_body(raw,self.plane.reader.db)['payload'].get('event',{})
                 if event.get('event_type')=='create':return dict(event,available_time=int(seen))
         return None
     def events_since(self,sequence):
@@ -207,7 +207,7 @@ class LocalPumpTape:
         events=[]
         for seq,raw,slot in rows:
             if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
-            event=json.loads(raw)['payload']['event']
+            event=decode_body(raw,self.plane.reader.db)['payload']['event']
             if event.get('event_type')!='create':events.append(event)
             sequence=seq
         if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])

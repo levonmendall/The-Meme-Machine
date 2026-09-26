@@ -1,0 +1,403 @@
+diff --git a/meme_machine/solana_evidence_plane.py b/meme_machine/solana_evidence_plane.py
+index 78101aa5ec0660632ef02997838f39ff447e03bf..ef91e82f6fb610d66e37d8ba44c8627e4fd92adf 100644
+--- a/meme_machine/solana_evidence_plane.py
++++ b/meme_machine/solana_evidence_plane.py
+@@ -20,6 +20,7 @@ import threading
+ import time
+ import uuid
+ from .solana_provider_config import public_value
++from .solana_evidence_storage import install as install_storage, encode as encode_body, decode as _decode_body, collect as collect_storage
+ 
+ STORAGE_WARNING_BYTES = 512 * 1024 * 1024
+ STORAGE_CRITICAL_BYTES = 128 * 1024 * 1024
+@@ -58,6 +59,11 @@ class EvidenceConflict(EvidenceUnavailable):
+     pass
+ 
+ 
++def decode_body(raw,db):
++    try:return _decode_body(raw,db)
++    except (ValueError,TypeError,KeyError) as exc:raise EvidenceConflict('hot_evidence_corrupt') from exc
++
++
+ @dataclass(frozen=True)
+ class FinalizedRecord:
+     identity: str
+@@ -141,10 +147,7 @@ CREATE TABLE IF NOT EXISTS records(
+ CREATE INDEX IF NOT EXISTS records_scope_slot ON records(scope,slot,event_index);
+ CREATE INDEX IF NOT EXISTS records_scope_time ON records(scope,market_time,slot,event_index);
+ CREATE INDEX IF NOT EXISTS records_signature ON records(signature);
+-CREATE TABLE IF NOT EXISTS addresses(
+- address TEXT NOT NULL,identity TEXT NOT NULL REFERENCES records(identity),slot INTEGER NOT NULL,
+- PRIMARY KEY(address,identity));
+-CREATE INDEX IF NOT EXISTS address_window ON addresses(address,slot);
++CREATE INDEX IF NOT EXISTS records_archive_time ON records(COALESCE(market_time,first_seen),identity) WHERE body IS NOT NULL;
+ CREATE TABLE IF NOT EXISTS lineage(
+  identity TEXT NOT NULL REFERENCES records(identity),source TEXT NOT NULL,
+  endpoint TEXT NOT NULL,observed REAL NOT NULL,PRIMARY KEY(identity,source,endpoint));
+@@ -201,12 +204,16 @@ class EvidenceWriter:
+             self.db.execute('PRAGMA synchronous=FULL')
+             self.db.execute('PRAGMA foreign_keys=ON')
+             self.db.executescript(SCHEMA)
++            install_storage(self.db)
+             with self.transaction():
+                 initialized = self.db.execute("SELECT value FROM meta WHERE key='initialized'").fetchone()
+                 if initialized:
+                     self._count('restarts')
+                     # Last cursor is durable, but proves nothing after a crash.
+-                    for scope, slot in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
++                    # Account snapshots carry their own slot/freshness; they do
++                    # not attest a continuous program interval. Match disconnect
++                    # semantics rather than creating unrepairable account gaps.
++                    for scope, slot in self.db.execute("SELECT scope,slot FROM cursors WHERE scope NOT LIKE 'account:%'").fetchall():
+                         self._gap(scope, slot + 1, None, 'writer_restart')
+                 self.db.execute("INSERT OR IGNORE INTO meta VALUES('initialized','1')")
+         except BaseException:
+@@ -247,7 +254,8 @@ class EvidenceWriter:
+         self.db.execute('INSERT INTO counters VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=value+excluded.value', (key, count))
+ 
+     def _gap(self, scope, lo, hi, reason):
+-        if not self.db.execute('SELECT 1 FROM gaps WHERE scope=? AND lo=? AND hi IS ? AND repaired IS NULL', (scope, lo, hi)).fetchone():
++        if not self.db.execute('''SELECT 1 FROM gaps WHERE scope=? AND lo<=? AND repaired IS NULL
++            AND (hi IS NULL OR (? IS NOT NULL AND hi>=?))''', (scope, lo, hi, hi)).fetchone():
+             self.db.execute('INSERT INTO gaps(scope,lo,hi,reason,created) VALUES(?,?,?,?,?)', (scope, lo, hi, reason, self.clock()))
+             self._count('gaps_created')
+ 
+@@ -316,7 +324,7 @@ class EvidenceWriter:
+                     inserted = self.db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
+                         (record.identity, record.scope, record.slot, record.signature, record.program,
+                          record.market_time, record.event_index, record.transaction_index, record.kind,
+-                         canonical(body), digest(body), record.observed_at)).rowcount
++                         encode_body(body,self.db), staged[record.identity], record.observed_at)).rowcount
+                     self.db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',
+                         [(address, record.identity, record.slot) for address in body['addresses']])
+                     self.db.execute('INSERT OR IGNORE INTO lineage VALUES(?,?,?,?)',
+@@ -344,6 +352,11 @@ class EvidenceWriter:
+             n = self.db.execute('UPDATE gaps SET repaired=? WHERE scope=? AND lo>=? AND hi<=? AND repaired IS NULL',
+                 (proof.observed_at, proof.scope, proof.lower_slot, proof.upper_slot)).rowcount
+             self._count('gaps_repaired', n)
++            if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='stream_receipts'").fetchone():
++                # A completed authenticated repair settles the old receipt too.
++                # It does not link receipt sessions or grant stream coverage.
++                self.db.execute('UPDATE stream_receipts SET sealed=1 WHERE scope=? AND slot BETWEEN ? AND ?',
++                    (proof.scope,proof.lower_slot,proof.upper_slot))
+ 
+     def interest(self, owner, scope, *, lower_slot, priority=4, lifecycle='candidate'):
+         with self.transaction():
+@@ -388,7 +401,7 @@ class EvidenceWriter:
+         self.db.execute('UPDATE gaps SET pages=pages+1,attempts=attempts+1,repair_cursor=? WHERE id=?', (canonical(cursor), gap_id))
+         self._count('gap_repair_calls')
+ 
+-    def archive_plan(self,before_time,*,max_records=1000):
++    def archive_plan(self,before_time,*,max_records=1000,max_bytes=4*1024*1024):
+         """Snapshot a bounded immutable batch; filesystem work runs off-writer."""
+         self._check()
+         if not 1 <= max_records <= 1000:
+@@ -406,9 +419,15 @@ class EvidenceWriter:
+           AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
+               AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
+           ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
+-        return [dict(identity=k,body=json.loads(b),hash=h,
+-            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
+-            coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(json.loads(b)['scope'],json.loads(b)['slot'],json.loads(b)['slot']))]) for k,b,h in rows]
++        plan=[];size=0
++        for k,b,h in rows:
++            body=decode_body(b,self.db);cost=len(canonical(body).encode())
++            if plan and size+cost>max_bytes:break
++            plan.append(dict(identity=k,body=body,hash=h,
++                lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
++                coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(body['scope'],body['slot'],body['slot']))]))
++            size+=cost
++        return plan
+ 
+     @staticmethod
+     def write_archive(path,plan):
+@@ -440,6 +459,7 @@ class EvidenceWriter:
+                 pinned=pinned or self._account_pinned(scope)
+                 if not pinned:
+                     archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
++                    self.db.execute('DELETE FROM hot_refs WHERE identity=?',(row['identity'],))
+             self._count('archived_records',archived)
+         return archived
+ 
+@@ -477,7 +497,6 @@ class EvidenceWriter:
+                 ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,max_records))]
+                 for identity in ids:
+                     self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
+-                    self.db.execute('DELETE FROM addresses WHERE identity=?',(identity,))
+                     self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
+                 self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
+                 self.db.execute('DELETE FROM coverage WHERE scope=? AND hi<?',(scope,floor))
+@@ -489,6 +508,7 @@ class EvidenceWriter:
+             # The archive directory is the immutable content-addressed inventory;
+             # old completed hot manifests need not grow without bound.
+             self.db.execute('DELETE FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL)')
++            collect_storage(self.db,max_records)
+         # PASSIVE cannot wait for readers. Pinned WAL bytes remain in telemetry and
+         # the existing hard capacity guard stops ingestion if they exhaust space.
+         self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
+@@ -562,7 +582,7 @@ class EvidenceReader:
+                 if body is None:
+                     # Normal hot decisions never perform archive I/O implicitly.
+                     raise EvidenceUnavailable('evidence_requires_offline_archive_restore')
+-                parsed = json.loads(body)
++                parsed = decode_body(body,self.db)
+                 if digest(parsed) != checksum:
+                     raise EvidenceConflict('local_evidence_hash_mismatch:' + identity)
+                 result.append(parsed)
+@@ -577,6 +597,10 @@ class EvidenceReader:
+             health={k:json.loads(v) for k,v in self.db.execute('SELECT * FROM service_health')}
+         return dict(integrity_poisoned=bool(self.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone()),storage=storage_health(self.path),service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
+             coverage_windows=self.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],
++            hot_payload_records=self.db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0],
++            shared_hot_chunks=self.db.execute('SELECT COUNT(*) FROM hot_chunks').fetchone()[0],
++            address_references=self.db.execute('SELECT COUNT(*) FROM address_refs').fetchone()[0],
++            active_pins=[dict(scope=s,lifecycle=l,count=n,lower_slot=lo) for s,l,n,lo in self.db.execute('SELECT scope,lifecycle,COUNT(*),MIN(lower_slot) FROM interests WHERE active=1 GROUP BY scope,lifecycle')],
+             unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
+             consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],
+             counters=dict(self.db.execute('SELECT * FROM counters')), local_queries=self.queries,
+diff --git a/meme_machine/solana_evidence_runtime.py b/meme_machine/solana_evidence_runtime.py
+index f5e3445fc4baff88777cc1ad279a65a99b9dd5f4..b58818d07acb7ae9ca19130d16cf38d7ec1ee759 100644
+--- a/meme_machine/solana_evidence_runtime.py
++++ b/meme_machine/solana_evidence_runtime.py
+@@ -9,7 +9,7 @@ import socket
+ import time
+ import uuid
+ import sqlite3
+-from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical
++from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical,decode_body
+ from .solana_evidence_queries import PumpEvidenceView,MeteoraEvidenceView
+ 
+ PUMP_SCOPE='program:pump'
+@@ -196,7 +196,7 @@ class LocalPumpTape:
+             (mint,PUMP_SCOPE,self.plane.clock()))
+         for raw,seen in rows:
+             if raw:
+-                event=json.loads(raw)['payload'].get('event',{})
++                event=decode_body(raw,self.plane.reader.db)['payload'].get('event',{})
+                 if event.get('event_type')=='create':return dict(event,available_time=int(seen))
+         return None
+     def events_since(self,sequence):
+@@ -207,7 +207,7 @@ class LocalPumpTape:
+         events=[]
+         for seq,raw,slot in rows:
+             if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
+-            event=json.loads(raw)['payload']['event']
++            event=decode_body(raw,self.plane.reader.db)['payload']['event']
+             if event.get('event_type')!='create':events.append(event)
+             sequence=seq
+         if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
+diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
+index 6c00fc153fcab027bbd68e8bd0ee8e56984d19dc..7c012258df379c2345ec52c33141e232209e09fc 100644
+--- a/meme_machine/solana_evidence_service.py
++++ b/meme_machine/solana_evidence_service.py
+@@ -47,6 +47,17 @@ def poison_conflicts(method):
+             raise
+     return guarded
+ 
++
++def disconnect_classification(exc):
++    """Secret-safe attribution: never persist arbitrary provider exception text."""
++    if isinstance(exc,EvidenceUnavailable):return str(exc)
++    sent=getattr(exc,'sent',None);received=getattr(exc,'rcvd',None)
++    if getattr(sent,'code',None)==1009 or getattr(received,'code',None)==1009:return 'source_message_size_limit'
++    if 'keepalive ping timeout' in str(getattr(sent,'reason','')).lower():return 'local_receive_backpressure_ping_timeout'
++    if received is not None:
++        return 'provider_close_'+str(received.code)
++    return type(exc).__name__
++
+ class FinalizedFence:
+     def __init__(self,writer,*,endpoint_identity,decoders=None):
+         self.writer=writer;self.endpoint_identity=endpoint_identity
+@@ -90,7 +101,7 @@ class FinalizedFence:
+         with self.writer.transaction():
+             self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
+                 ('account_stream_discontinuity',canonical(dict(reason=reason,seen=self.writer.clock()))))
+-        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 GROUP BY scope'):
++        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 AND session=? GROUP BY scope',(self.session,)):
+             bounds[scope]=min(bounds.get(scope,slot),slot)
+         for scope,slot in bounds.items():self.writer.gap(scope,slot,None,reason)
+         self.session=uuid.uuid4().hex
+@@ -129,7 +140,7 @@ class FinalizedFence:
+             raise EvidenceUnavailable('finalized_block_fence_shape')
+         if subscription.evidence_class in ('transactions','census'):
+             transactions=block.get('transactions')
+-            if not isinstance(transactions,list) or len(transactions)>2048:
++            if not isinstance(transactions,list):
+                 raise EvidenceUnavailable('filtered_block_bound')
+             # Run 369: mentionsAccountOrProgram selected whole blocks. A signature
+             # list cannot prove which program was mentioned. Inspect authenticated
+@@ -139,6 +150,7 @@ class FinalizedFence:
+                 loaded=tx['meta'].get('loadedAddresses') or {}
+                 return [k if isinstance(k,str) else k['pubkey'] for k in values]+list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
+             transactions=[tx for tx in transactions if subscription.address in keys(tx)]
++            if len(transactions)>2048:raise EvidenceUnavailable('filtered_block_bound')
+             signatures=[tx['transaction']['signatures'][0] for tx in transactions]
+             scoped=dict(method='blockNotification',params=dict(result=dict(value=dict(value,block=dict(block,transactions=transactions)))))
+             decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity)
+@@ -370,6 +382,7 @@ class ServiceState:
+ 
+     def disconnected(self,reason):
+         self.fence.disconnect(reason);self.fence.count('stream_reconnects')
++        self.fence.count('disconnect:'+reason)
+         self.fence.health('phase','DEGRADED')
+         self.fence.health('last_source_error',reason)
+ 
+@@ -415,11 +428,11 @@ class ServiceState:
+         self.fence.health('heartbeat',now);self.fence.health('storage',storage_health(self.writer.path))
+         self.fence.health('repair_http',http);require_storage(self.writer.path)
+         # A small archive slice yields to the control queue after every commit.
+-        return self.writer.archive_plan(now-180,max_records=64)
++        return self.writer.archive_plan(now-180,max_records=512)
+ 
+     def archive_commit(self,plan,receipt):
+         self.writer.commit_archive(plan,receipt)
+-        self.writer.retain(time.time()-180,max_records=64,archive_first=False)
++        self.writer.retain(time.time()-180,max_records=512,archive_first=False)
+ 
+     def close(self):
+         try:
+@@ -496,7 +509,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+             while not stop.is_set():
+                 try:
+                     async with connect(config.stream_url,logger=logger,max_size=16*1024*1024,max_queue=4,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
+-                        number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set()
++                        from collections import deque
++                        number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set();retired_subscriptions=deque(maxlen=256)
+                         await ws.send(canonical(pending[1].request(1)))
+                         while not stop.is_set():
+                             wanted=set(await work(lambda state:state.interests(),0))
+@@ -504,6 +518,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                             for sid,sub in list(active.items()):
+                                 if sub.evidence_class=='account' and sub.address not in wanted:
+                                     number+=1;retiring.add(number)
++                                    retired_subscriptions.append(sid)
+                                     await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
+                                     del active[sid];registered.discard(sub.address)
+                             for address in sorted(wanted-registered):
+@@ -521,11 +536,13 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                                 status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted))
+                                 await work(lambda state:state.fence.health('subscriptions',status));continue
+                             sub=active.get((message.get('params') or {}).get('subscription'))
++                            if sub is None and (message.get('params') or {}).get('subscription') in retired_subscriptions:continue
+                             if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
+                             await work(lambda state:state.source(sub,message,seen,len(raw)),0 if sub.evidence_class=='account' else 2)
+                 except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
++                    if stop.is_set():return
+                     if isinstance(exc,EvidenceConflict) or str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
+-                    reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
++                    reason=disconnect_classification(exc)
+                     await work(lambda state:state.disconnected(reason))
+                     try:await asyncio.wait_for(stop.wait(),1)
+                     except TimeoutError:pass
+@@ -554,7 +571,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                         plan=await work(lambda state:state.maintenance(http),4);next_health=time.monotonic()+1
+                         snapshot=dict(counts)
+                         await work(lambda state:state.fence.health('ipc',snapshot),1)
+-                    else:plan=await work(lambda state:state.writer.archive_plan(time.time()-180,max_records=64),4)
++                    else:plan=await work(lambda state:state.writer.archive_plan(time.time()-180,max_records=512),4)
+                     if plan:
+                         receipt=await asyncio.to_thread(EvidenceWriter.write_archive,path,plan)
+                         await work(lambda state:state.archive_commit(plan,receipt),4)
+diff --git a/meme_machine/solana_evidence_storage.py b/meme_machine/solana_evidence_storage.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..83acefc6867179fbf3d07cf79ebfa29ccf256a09
+--- /dev/null
++++ b/meme_machine/solana_evidence_storage.py
+@@ -0,0 +1,97 @@
++"""Lossless hot representation; no authority, field projection or archive reads.
++
++Long native identities/addresses are dictionary indexed. Repeated authenticated
++log arrays share one compressed content-addressed chunk. Public record hashes
++and archived bodies still cover the original complete canonical JSON.
++"""
++import hashlib
++import json
++import zlib
++
++
++def install(db):
++    db.executescript('''
++    CREATE TABLE IF NOT EXISTS hot_chunks(hash TEXT PRIMARY KEY,body BLOB NOT NULL);
++    CREATE TABLE IF NOT EXISTS hot_refs(identity TEXT NOT NULL,hash TEXT NOT NULL,
++      PRIMARY KEY(identity,hash)) WITHOUT ROWID;
++    CREATE INDEX IF NOT EXISTS hot_ref_hash ON hot_refs(hash);
++    CREATE TABLE IF NOT EXISTS address_keys(id INTEGER PRIMARY KEY,address TEXT NOT NULL UNIQUE);
++    CREATE TABLE IF NOT EXISTS address_refs(address_id INTEGER NOT NULL,record_id INTEGER NOT NULL,slot INTEGER NOT NULL,
++      PRIMARY KEY(address_id,record_id)) WITHOUT ROWID;
++    CREATE INDEX IF NOT EXISTS address_record ON address_refs(record_id);
++    ''')
++    old=db.execute("SELECT type FROM sqlite_master WHERE name='addresses'").fetchone()
++    db.execute('BEGIN IMMEDIATE')
++    try:
++        if old and old[0]=='table':
++            db.execute('INSERT OR IGNORE INTO address_keys(address) SELECT DISTINCT address FROM addresses')
++            db.execute('INSERT OR IGNORE INTO address_refs SELECT k.id,r.rowid,a.slot FROM addresses a JOIN address_keys k ON k.address=a.address JOIN records r ON r.identity=a.identity')
++            db.execute('DROP TABLE addresses')
++        db.execute('CREATE INDEX IF NOT EXISTS address_window ON address_refs(address_id,slot)')
++        db.execute('''CREATE VIEW IF NOT EXISTS addresses AS SELECT k.address,r.identity,a.slot
++          FROM address_refs a JOIN address_keys k ON k.id=a.address_id JOIN records r ON r.rowid=a.record_id''')
++        db.execute('''CREATE TRIGGER IF NOT EXISTS addresses_insert INSTEAD OF INSERT ON addresses BEGIN
++          INSERT OR IGNORE INTO address_keys(address) VALUES(NEW.address);
++          INSERT OR IGNORE INTO address_refs SELECT k.id,r.rowid,NEW.slot FROM address_keys k,records r
++            WHERE k.address=NEW.address AND r.identity=NEW.identity;
++          END''')
++        db.execute('''CREATE TRIGGER IF NOT EXISTS addresses_delete INSTEAD OF DELETE ON addresses BEGIN
++          DELETE FROM address_refs WHERE address_id=(SELECT id FROM address_keys WHERE address=OLD.address)
++            AND record_id=(SELECT rowid FROM records WHERE identity=OLD.identity);
++          END''')
++        db.execute('''CREATE TRIGGER IF NOT EXISTS record_storage_delete BEFORE DELETE ON records BEGIN
++          DELETE FROM address_refs WHERE record_id=OLD.rowid;
++          DELETE FROM hot_refs WHERE identity=OLD.identity;
++          END''')
++        db.execute('COMMIT')
++    except BaseException:
++        db.execute('ROLLBACK');raise
++
++
++def _json(value):return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)
++
++
++def encode(body,db):
++    raw=_json(body)
++    if len(raw)<2048:return raw
++    # Copy only modified containers; callers retain their immutable original.
++    value=dict(body,payload=dict(body['payload']))
++    for parent,key in (('raw_lineage','logs'),('meta','logMessages')):
++        section=value['payload'].get(parent)
++        if not isinstance(section,dict) or not isinstance(section.get(key),list):continue
++        logs=_json(section[key]).encode()
++        if len(logs)<512:continue
++        checksum=hashlib.sha256(logs).hexdigest()
++        db.execute('INSERT OR IGNORE INTO hot_chunks VALUES(?,?)',(checksum,zlib.compress(logs,1)))
++        db.execute('INSERT OR IGNORE INTO hot_refs VALUES(?,?)',(body['identity'],checksum))
++        value['payload'][parent]=dict(section,**{key:{'_hot_log_chunk':checksum}})
++    return b'SEP1'+zlib.compress(_json(value).encode(),1)
++
++
++def _inflate(raw):
++    obj=zlib.decompressobj();value=obj.decompress(raw,16*1024*1024+1)
++    if len(value)>16*1024*1024 or not obj.eof or obj.unused_data:raise ValueError('hot_chunk_bound_or_corruption')
++    return value
++
++
++def decode(raw,db):
++    if isinstance(raw,str):return json.loads(raw) # original stores/small bodies
++    if not isinstance(raw,bytes) or not raw.startswith(b'SEP1'):raise ValueError('hot_body_encoding')
++    try:value=json.loads(_inflate(raw[4:]))
++    except zlib.error as exc:raise ValueError('hot_body_corrupt') from exc
++    for parent,key in (('raw_lineage','logs'),('meta','logMessages')):
++        section=value['payload'].get(parent)
++        ref=section.get(key) if isinstance(section,dict) else None
++        if not isinstance(ref,dict) or set(ref)!={'_hot_log_chunk'}:continue
++        row=db.execute('SELECT body FROM hot_chunks WHERE hash=?',(ref['_hot_log_chunk'],)).fetchone()
++        if row is None:raise ValueError('hot_chunk_missing')
++        try:logs=_inflate(row[0])
++        except zlib.error as exc:raise ValueError('hot_chunk_corrupt') from exc
++        if hashlib.sha256(logs).hexdigest()!=ref['_hot_log_chunk']:raise ValueError('hot_chunk_hash_mismatch')
++        section[key]=json.loads(logs)
++    return value
++
++
++def collect(db,limit=1000):
++    db.execute('DELETE FROM hot_chunks WHERE hash IN (SELECT hash FROM hot_chunks c WHERE NOT EXISTS(SELECT 1 FROM hot_refs r WHERE r.hash=c.hash) LIMIT ?)',(limit,))
++    db.execute('DELETE FROM address_keys WHERE id IN (SELECT id FROM address_keys k WHERE NOT EXISTS(SELECT 1 FROM address_refs r WHERE r.address_id=k.id) LIMIT ?)',(limit,))

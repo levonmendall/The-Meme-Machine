@@ -47,6 +47,17 @@ def poison_conflicts(method):
             raise
     return guarded
 
+
+def disconnect_classification(exc):
+    """Secret-safe attribution: never persist arbitrary provider exception text."""
+    if isinstance(exc,EvidenceUnavailable):return str(exc)
+    sent=getattr(exc,'sent',None);received=getattr(exc,'rcvd',None)
+    if getattr(sent,'code',None)==1009 or getattr(received,'code',None)==1009:return 'source_message_size_limit'
+    if 'keepalive ping timeout' in str(getattr(sent,'reason','')).lower():return 'local_receive_backpressure_ping_timeout'
+    if received is not None:
+        return 'provider_close_'+str(received.code)
+    return type(exc).__name__
+
 class FinalizedFence:
     def __init__(self,writer,*,endpoint_identity,decoders=None):
         self.writer=writer;self.endpoint_identity=endpoint_identity
@@ -90,7 +101,7 @@ class FinalizedFence:
         with self.writer.transaction():
             self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
                 ('account_stream_discontinuity',canonical(dict(reason=reason,seen=self.writer.clock()))))
-        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 GROUP BY scope'):
+        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 AND session=? GROUP BY scope',(self.session,)):
             bounds[scope]=min(bounds.get(scope,slot),slot)
         for scope,slot in bounds.items():self.writer.gap(scope,slot,None,reason)
         self.session=uuid.uuid4().hex
@@ -129,7 +140,7 @@ class FinalizedFence:
             raise EvidenceUnavailable('finalized_block_fence_shape')
         if subscription.evidence_class in ('transactions','census'):
             transactions=block.get('transactions')
-            if not isinstance(transactions,list) or len(transactions)>2048:
+            if not isinstance(transactions,list):
                 raise EvidenceUnavailable('filtered_block_bound')
             # Run 369: mentionsAccountOrProgram selected whole blocks. A signature
             # list cannot prove which program was mentioned. Inspect authenticated
@@ -139,6 +150,7 @@ class FinalizedFence:
                 loaded=tx['meta'].get('loadedAddresses') or {}
                 return [k if isinstance(k,str) else k['pubkey'] for k in values]+list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
             transactions=[tx for tx in transactions if subscription.address in keys(tx)]
+            if len(transactions)>2048:raise EvidenceUnavailable('filtered_block_bound')
             signatures=[tx['transaction']['signatures'][0] for tx in transactions]
             scoped=dict(method='blockNotification',params=dict(result=dict(value=dict(value,block=dict(block,transactions=transactions)))))
             decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity)
@@ -370,6 +382,7 @@ class ServiceState:
 
     def disconnected(self,reason):
         self.fence.disconnect(reason);self.fence.count('stream_reconnects')
+        self.fence.count('disconnect:'+reason)
         self.fence.health('phase','DEGRADED')
         self.fence.health('last_source_error',reason)
 
@@ -415,11 +428,11 @@ class ServiceState:
         self.fence.health('heartbeat',now);self.fence.health('storage',storage_health(self.writer.path))
         self.fence.health('repair_http',http);require_storage(self.writer.path)
         # A small archive slice yields to the control queue after every commit.
-        return self.writer.archive_plan(now-180,max_records=64)
+        return self.writer.archive_plan(now-180,max_records=512)
 
     def archive_commit(self,plan,receipt):
         self.writer.commit_archive(plan,receipt)
-        self.writer.retain(time.time()-180,max_records=64,archive_first=False)
+        self.writer.retain(time.time()-180,max_records=512,archive_first=False)
 
     def close(self):
         try:
@@ -496,7 +509,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             while not stop.is_set():
                 try:
                     async with connect(config.stream_url,logger=logger,max_size=16*1024*1024,max_queue=4,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
-                        number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set()
+                        from collections import deque
+                        number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set();retired_subscriptions=deque(maxlen=256)
                         await ws.send(canonical(pending[1].request(1)))
                         while not stop.is_set():
                             wanted=set(await work(lambda state:state.interests(),0))
@@ -504,6 +518,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             for sid,sub in list(active.items()):
                                 if sub.evidence_class=='account' and sub.address not in wanted:
                                     number+=1;retiring.add(number)
+                                    retired_subscriptions.append(sid)
                                     await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
                                     del active[sid];registered.discard(sub.address)
                             for address in sorted(wanted-registered):
@@ -521,11 +536,13 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                 status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted))
                                 await work(lambda state:state.fence.health('subscriptions',status));continue
                             sub=active.get((message.get('params') or {}).get('subscription'))
+                            if sub is None and (message.get('params') or {}).get('subscription') in retired_subscriptions:continue
                             if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
                             await work(lambda state:state.source(sub,message,seen,len(raw)),0 if sub.evidence_class=='account' else 2)
                 except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
+                    if stop.is_set():return
                     if isinstance(exc,EvidenceConflict) or str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
-                    reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
+                    reason=disconnect_classification(exc)
                     await work(lambda state:state.disconnected(reason))
                     try:await asyncio.wait_for(stop.wait(),1)
                     except TimeoutError:pass
@@ -554,7 +571,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         plan=await work(lambda state:state.maintenance(http),4);next_health=time.monotonic()+1
                         snapshot=dict(counts)
                         await work(lambda state:state.fence.health('ipc',snapshot),1)
-                    else:plan=await work(lambda state:state.writer.archive_plan(time.time()-180,max_records=64),4)
+                    else:plan=await work(lambda state:state.writer.archive_plan(time.time()-180,max_records=512),4)
                     if plan:
                         receipt=await asyncio.to_thread(EvidenceWriter.write_archive,path,plan)
                         await work(lambda state:state.archive_commit(plan,receipt),4)

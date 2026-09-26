@@ -1,0 +1,63 @@
+{
+  "baseline": true,
+  "bounded_with_headroom": false,
+  "completed_seconds": 0,
+  "dense_full_blocks": true,
+  "elapsed_seconds": 0.19436766899889335,
+  "failure": "filtered_block_bound",
+  "fixture_artifact_id": 10894299703,
+  "fixture_digest": "c28ce3c2d2ba1375c4bc5035145b52da039d09e4c677e78c2911bc89d7ed77c3",
+  "infrastructure_censored_queries": {},
+  "limitation": "Synthetic timing, padding and events; retained-shape pressure, not counterfactual economic vectors or attribution of undocumented historical websocket closes.",
+  "local_reads": {
+    "meteora": 0,
+    "pump": 0
+  },
+  "max_source_seconds": 0,
+  "observed_archive_records_per_second": 0.0,
+  "observed_ingestion_records_per_second": 0.0,
+  "peak_db_bytes": 4096,
+  "peak_hot_bytes": 560328,
+  "peak_wal_bytes": 556232,
+  "processed_transactions": 0,
+  "provider_calls": 0,
+  "requested_seconds": 1800,
+  "samples": [
+    {
+      "active_pins": 0,
+      "archive_bytes": 0,
+      "counters": {
+        "gap_repair_retries": 0,
+        "ingested_account": 0,
+        "ingested_event": 0,
+        "ingested_transaction": 0,
+        "meteora.complete_local_reads": 0,
+        "meteora.historical_reconstruction_rpc_calls": 0,
+        "meteora.incomplete_local_reads": 0,
+        "meteora.local_evidence_reads": 0,
+        "meteora.repair_assisted_windows": 0,
+        "pump.complete_local_reads": 0,
+        "pump.foreground_historical_rpc_calls": 0,
+        "pump.incomplete_local_reads": 0,
+        "pump.local_evidence_reads": 0,
+        "pump.repair_assisted_windows": 0,
+        "rejected_evidence_records": 0,
+        "stream_accepted_messages": 0,
+        "stream_bytes": 0,
+        "stream_messages": 0,
+        "stream_reconnects": 0,
+        "stream_rejected_messages": 0
+      },
+      "coverage": 0,
+      "db_bytes": 4096,
+      "hot_bytes": 560328,
+      "hot_records": 0,
+      "retention_floors": {},
+      "seconds": 0,
+      "unresolved_gaps": 0,
+      "wal_bytes": 556232
+    }
+  ],
+  "schema": "run370-pressure-v1",
+  "steady_hot_range_bytes": null
+}

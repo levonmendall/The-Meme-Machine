@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 from meme_machine.pump_acceleration_evidence import pumpswap_trade_events
 from meme_machine.postgrad import PUMPSWAP_PROGRAM
-from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader,FinalizedRecord,digest
+from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader,FinalizedRecord,digest,decode_body
 
 FIXTURES=Path(__file__).parent/'fixtures/solana_evidence_plane'
 
@@ -35,7 +35,7 @@ class RetainedRawTests(unittest.TestCase):
                 writer.ingest(records)
             reader=EvidenceReader(writer.path)
             for identity,body,checksum in reader.db.execute('SELECT identity,body,hash FROM records'):
-                value=json.loads(body)
+                value=decode_body(body,reader.db)
                 self.assertEqual(value['payload'],expected[identity]);self.assertEqual(digest(value),checksum)
                 # Authenticated transaction samples cannot certify an interval census.
                 self.assertFalse(reader.covered('pump',value['slot'],value['slot'],as_of=1e12))

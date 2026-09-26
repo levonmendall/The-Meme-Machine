@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "artifact_id": 10894299703,
+  "complete_retained_censuses": 1,
+  "transactions": 249,
+  "attempted_run370_pools_replayed": 1,
+  "authenticated_swaps": 1,
+  "historical_rpc_calls": 0,
+  "point_in_time_fencing": true,
+  "qualified_economic_vectors": "NOT_CLAIMED",
+  "limitation": "One complete retained block proves lossless production trigger reconstruction, not a counterfactual replay of missing account/warmup intervals."
+}
