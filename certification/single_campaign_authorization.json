@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "run370-repairs-20260925-one-market-v1",
+  "authorization_id": "run369-repairs-20260925-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -15,13 +15,13 @@
   "live_money": false,
   "prior_run_observation": {
     "run_id": 36200179045,
-    "status": "completed_failure_flat",
-    "source": "Run 369 smoke exposed the Solana runtime and Pons causal-accounting defects repaired in the two certified Run 369 repair branches. Native exposure ended flat."
+    "status": "completed_failure",
+    "source": "Run 369 consumed the prior one-shot authority and failed during smoke. The Run 369 Solana runtime and Pons causal-accounting defects were repaired and separately offline-certified before this fresh owner authorization."
   },
   "prior_launch_attempt": {
     "run_id": 36200179045,
-    "outcome": "completed_failure_flat",
+    "outcome": "completed_failure",
     "provider_or_market_work_started": true,
-    "reason": "Prior one-shot authority is consumed. Owner explicitly authorized exactly one new PAPER market workflow using the just-completed Run 369 Solana runtime and Pons accounting repairs."
+    "reason": "Prior authority is consumed and cannot be retried. Owner explicitly authorized one fresh PAPER market workflow using the newly composed Run 369 repairs."
   }
 }
