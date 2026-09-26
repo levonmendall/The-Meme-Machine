@@ -59,3 +59,6 @@ for p in root.rglob('*.sqlite'):
      if size>12*1024*1024:break
  db.close()
 print('Preserved exact artifact review complete; no provider calls.')
+
+import runpy
+runpy.run_module("certification.run380_owner_profile",run_name="__main__")
