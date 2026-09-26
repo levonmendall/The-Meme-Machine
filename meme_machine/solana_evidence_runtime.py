@@ -191,25 +191,33 @@ class LocalPumpTape:
         rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
         return [e for e in rows if e.get('event_type')!='create']
     def creation(self,mint):
-        rows=self.plane.reader.db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
-            WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY a.slot DESC LIMIT 1000''',
-            (mint,PUMP_SCOPE,self.plane.clock()))
-        for raw,seen in rows:
-            if raw:
-                event=decode_body(raw,self.plane.reader.db)['payload'].get('event',{})
-                if event.get('event_type')=='create':return dict(event,available_time=int(seen))
-        return None
+        db=self.plane.reader.db;db.execute('BEGIN')
+        try:
+            rows=db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
+                WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY a.slot DESC LIMIT 1000''',
+                (mint,PUMP_SCOPE,self.plane.clock())).fetchall()
+            for raw,seen in rows:
+                if raw:
+                    event=decode_body(raw,db)['payload'].get('event',{})
+                    if event.get('event_type')=='create':return dict(event,available_time=int(seen))
+            return None
+        finally:db.execute('ROLLBACK')
     def events_since(self,sequence):
         hi=self.plane.frontier(PUMP_SCOPE)
-        rows=self.plane.reader.db.execute('''SELECT rowid,body,slot FROM records WHERE scope=? AND kind='event'
-            AND rowid>? AND slot<=? AND first_seen<=? ORDER BY rowid LIMIT 5000''',
-            (PUMP_SCOPE,sequence,hi,self.plane.clock())).fetchall()
-        events=[]
-        for seq,raw,slot in rows:
-            if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
-            event=decode_body(raw,self.plane.reader.db)['payload']['event']
-            if event.get('event_type')!='create':events.append(event)
-            sequence=seq
+        # Keep body and shared material on the same bounded read snapshot while
+        # archive GC runs. Release it before any control acknowledgement.
+        db=self.plane.reader.db;db.execute('BEGIN')
+        try:
+            rows=db.execute('''SELECT rowid,body,slot FROM records WHERE scope=? AND kind='event'
+                AND rowid>? AND slot<=? AND first_seen<=? ORDER BY rowid LIMIT 5000''',
+                (PUMP_SCOPE,sequence,hi,self.plane.clock())).fetchall()
+            events=[]
+            for seq,raw,slot in rows:
+                if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
+                event=decode_body(raw,db)['payload']['event']
+                if event.get('event_type')!='create':events.append(event)
+                sequence=seq
+        finally:db.execute('ROLLBACK')
         if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
         return events,sequence
     def covered(self,now=None):

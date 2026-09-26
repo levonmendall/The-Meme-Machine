@@ -14,6 +14,34 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class Run370StorageTests(unittest.TestCase):
+    def test_discovery_snapshot_survives_archive_gc_and_releases_wal(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from meme_machine import solana_evidence_runtime as runtime
+        for operation in ('creation','events_since'):
+            with self.subTest(operation=operation),tempfile.TemporaryDirectory() as tmp:
+                w=EvidenceWriter(Path(tmp)/'db',clock=lambda:1000)
+                event={'event_type':'create' if operation=='creation' else 'trade'}
+                w.ingest([replace(record(),scope=runtime.PUMP_SCOPE,
+                    payload=dict(event=event,raw_lineage={'logs':['log'*100]*100}))])
+                reader=EvidenceReader(w.path)
+                def acknowledge(**request):self.assertFalse(reader.db.in_transaction)
+                plane=SimpleNamespace(reader=reader,clock=lambda:1000,frontier=lambda scope:10,
+                    owner='pump',command=acknowledge)
+                original=runtime.decode_body
+                def concurrent_archive(raw,db):
+                    w.retain(999)
+                    self.assertEqual(w.db.execute('SELECT COUNT(*) FROM hot_chunks').fetchone()[0],0)
+                    return original(raw,db)
+                try:
+                    with patch.object(runtime,'decode_body',side_effect=concurrent_archive):
+                        tape=runtime.LocalPumpTape(plane)
+                        result=tape.creation('pool') if operation=='creation' else tape.events_since(0)[0][0]
+                    self.assertEqual(result['event_type'],event['event_type'])
+                    self.assertFalse(reader.db.in_transaction)
+                    self.assertEqual(w.db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0],0)
+                finally:reader.close();w.close()
+
     def test_restart_does_not_invent_account_interval_authority(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'db';w=EvidenceWriter(path,clock=lambda:100)

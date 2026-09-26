@@ -86,8 +86,8 @@ scaled reproduction above establishes actual capacity exhaustion.
   responsiveness, and zero historical foreground RPC. Direct RPC activity
   cannot substitute for local evidence. Continuation export retains this proof.
 
-All prior Pump/Meteora overlays remain declared, with one incremental Run 370
-overlay per lane. `certification.run prepare` applies them; source integrity
+All prior Pump/Meteora overlays remain declared, with incremental capacity and discovery-snapshot
+overlays per lane. `certification.run prepare` applies them; source integrity
 and shared-module identity checks pass. Pons/Ramses composition entries are
 unchanged. No strategy source identity, policy hash, economics, market scope,
 provider authority, provider ceiling, finality or freshness rule changed.
@@ -156,11 +156,11 @@ transaction/checkpoint boundary and after source/maintenance calls; its peak
 measurements therefore include transient WAL growth that coarse trend samples
 may miss. The retained local development reports use 50-second trend sampling.
 
-New regressions comprise seven storage/gap tests, one smoke-proof test with
+New regressions comprise eight storage/gap tests, one smoke-proof test with
 multiple negative cases, and one composed Pump production-path test. Existing
 disconnect/retry/priority, retention, accounting, reconstruction and provider
 tests remain enabled. Local results before the final hosted certificate:
-312 root tests; 346 Pump, 452 Meteora, 387 Pons and 357 Ramses native tests;
+313 root tests; 346 Pump, 452 Meteora, 387 Pons and 357 Ramses native tests;
 283 supervisor tests (all passed with prepared lanes; the aggregate runner
 separately skips 10 optional prepared-lane tests); and all 24 offline certification gates passed. Real Unix IPC is
 blocked locally by `Operation not permitted` and remains a mandatory hosted
@@ -171,3 +171,16 @@ repair evidence or indefinite lifecycle retention can still correctly exhaust
 a finite hard store and stop admission; no finite-capacity system can promise
 unlimited preservation. The repair does not recover absent historical evidence
 or authorize another market run. No market workflow or deployment was launched.
+
+### Concurrent archive cleanup correction
+
+Review of candidate `1c27ff7d5b0680a4b1491fae74058524b81bbe2b` identified
+a shared-material read race in both Pump discovery paths. A deterministic
+regression archives a record and garbage-collects its log chunk between body
+selection and decoding; both paths failed on that candidate with
+`hot_evidence_corrupt`. Each discovery read now holds one bounded SQLite
+snapshot through body selection and lossless decoding, releasing it before
+acknowledgement, including exceptional exits. The regression proves successful
+decoding across concurrent cleanup and subsequent unblocked WAL truncation.
+This supersedes the earlier candidate; its hosted certificate is not acceptance
+for the corrected final SHA. No economics or evidence semantics changed.
