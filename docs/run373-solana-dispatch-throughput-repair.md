@@ -34,3 +34,5 @@ Prepared Pump diff SHA256: `5349956f0ae189d6e19be348b675e912f18083845740d3b5c4e1
 Prepared Meteora diff SHA256: `7153ef534181073c7e769dc675ed43bc51d4c81368a9bdcf24ddba2241af2055`.
 
 Certification bookkeeping repair: the historical Meteora receipt now pins Git diff abbreviation to 7 characters and requires the original frozen overlay SHA256 `ce328f328c0ea95d3e681da3c8912a095c13cc0aa590999088c161843df48503`. This corrects repository-growth-dependent object-ID abbreviation without changing historical economics or exposure disposition.
+
+Final reconciled prepared identities: Pump `08755763dadada2df016b598ec3fc7408fad2e1d0b14b775fe698af23577e08c`; Meteora `b004ff44c5afd956ecee6f442445d4491d1330493c8e8965b5810a5caaf40f8f`.
