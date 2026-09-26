@@ -38,3 +38,16 @@ outer transactions. A focused regression injects a fixed outer-commit delay and
 proves the bounded path drains without a dispatch-capacity disconnect.
 
 PAPER ONLY. No market workflow is authorized by this repair or its certification.
+
+## Focused certification
+
+Focused workflow `36262997513` passed on the repaired integration runtime and
+on both prepared Solana lane worktrees.
+
+Prepared runtime identities:
+
+- Pump: `331724a4fe47993d6eaf258309ddfa01b09a60e8bbde2650f149e4623b3e3afa`
+- Meteora: `faf2b08d5b170e04f59c9924d39caf468f37c2abe6864f97b8c9937b0cd8203f`
+
+These identities are frozen in `certification/sources.json` before the full
+non-market certification.

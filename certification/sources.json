@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-24-v12-pump-counterfactual-ramses-v4",
+  "verified_at": "2026-09-26-run375-runtime-capacity-wal-v1",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -241,6 +241,28 @@
           "prepared_source_diff_sha256": "08755763dadada2df016b598ec3fc7408fad2e1d0b14b775fe698af23577e08c",
           "focused_regression_run_id": 36256113613,
           "focused_regression_result": "success"
+        },
+        "run375_ordered_commit_batching_repair": {
+          "revision": "bounded-full-sync-ordered-commit-batching-v1",
+          "incident_run_id": 36260920839,
+          "incident_runtime_sha": "87679280006ebf22c8b410fdf558658d190fd235",
+          "purpose": "Amortize synchronous=FULL SQLite durability cost across already-decoded consecutive finalized full-block frames without increasing the 64-frame/96MiB dispatch bounds or weakening ordered fail-closed evidence semantics.",
+          "commit_batch_max_messages": 8,
+          "commit_batch_max_bytes": 16777216,
+          "dispatch_max_messages_unchanged": 64,
+          "dispatch_max_bytes_unchanged": 100663296,
+          "synchronous_full_unchanged": true,
+          "receive_order_authority_unchanged": true,
+          "per_frame_savepoint": true,
+          "account_and_control_messages_unbatched": true,
+          "strategy_thresholds_changed": false,
+          "market_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true,
+          "focused_regression_run_id": 36262997513,
+          "focused_regression_result": "success",
+          "prepared_source_diff_sha256": "331724a4fe47993d6eaf258309ddfa01b09a60e8bbde2650f149e4623b3e3afa"
         }
       },
       "prospect_admission": {
@@ -255,7 +277,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "08755763dadada2df016b598ec3fc7408fad2e1d0b14b775fe698af23577e08c",
+      "source_diff_sha256": "331724a4fe47993d6eaf258309ddfa01b09a60e8bbde2650f149e4623b3e3afa",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -286,7 +308,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "b004ff44c5afd956ecee6f442445d4491d1330493c8e8965b5810a5caaf40f8f",
+      "source_diff_sha256": "faf2b08d5b170e04f59c9924d39caf468f37c2abe6864f97b8c9937b0cd8203f",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -546,6 +568,28 @@
           "prepared_source_diff_sha256": "b004ff44c5afd956ecee6f442445d4491d1330493c8e8965b5810a5caaf40f8f",
           "focused_regression_run_id": 36256113613,
           "focused_regression_result": "success"
+        },
+        "run375_ordered_commit_batching_repair": {
+          "revision": "bounded-full-sync-ordered-commit-batching-v1",
+          "incident_run_id": 36260920839,
+          "incident_runtime_sha": "87679280006ebf22c8b410fdf558658d190fd235",
+          "purpose": "Amortize synchronous=FULL SQLite durability cost across already-decoded consecutive finalized full-block frames without increasing the 64-frame/96MiB dispatch bounds or weakening ordered fail-closed evidence semantics.",
+          "commit_batch_max_messages": 8,
+          "commit_batch_max_bytes": 16777216,
+          "dispatch_max_messages_unchanged": 64,
+          "dispatch_max_bytes_unchanged": 100663296,
+          "synchronous_full_unchanged": true,
+          "receive_order_authority_unchanged": true,
+          "per_frame_savepoint": true,
+          "account_and_control_messages_unbatched": true,
+          "strategy_thresholds_changed": false,
+          "market_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true,
+          "focused_regression_run_id": 36262997513,
+          "focused_regression_result": "success",
+          "prepared_source_diff_sha256": "faf2b08d5b170e04f59c9924d39caf468f37c2abe6864f97b8c9937b0cd8203f"
         }
       },
       "prospect_admission": {
@@ -773,6 +817,21 @@
           "evidence_freshness_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "run375_provider_usage_wal_race_repair": {
+          "revision": "transient-wal-stat-race-v1",
+          "incident_run_id": 36260920839,
+          "incident_runtime_sha": "87679280006ebf22c8b410fdf558658d190fd235",
+          "failure": "provider_usage snapshot observed SQLite WAL existence and then stat failed after checkpoint unlink",
+          "repair": "single race-safe WAL stat treats only FileNotFoundError as zero transient WAL bytes",
+          "main_database_errors_still_visible": true,
+          "provider_limits_changed": false,
+          "strategy_thresholds_changed": false,
+          "evidence_requirements_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true,
+          "focused_regression_run_id": 36262997513,
+          "focused_regression_result": "success"
         }
       },
       "prospect_admission": {
