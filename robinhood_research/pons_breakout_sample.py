@@ -11,12 +11,12 @@ from pathlib import Path
 import time
 
 from . import BoundaryError
-from .abi import signature, topic
+from .abi import calldata, scalar, signature, topic, words
 from .identity import authenticate, load
 from .pons import authenticate_curve, factory_record, raw_event
-from .pons_natural_paper import _graduation_transition, _rpc as paper_rpc
+from .pons_natural_paper import (\n    V4_QUOTER, _graduation_transition, _one_word, _rpc as paper_rpc,\n    _v4_quoter_calldata,\n)
 from .pons_selective_acquisition import _header_search, _rpc as evidence_rpc
-from .pons_selective_continuation import breakout_vector
+from .pons_selective_continuation import ZERO, breakout_vector
 from .pons_selective_v4 import collect_v4_activity
 from .pons_natural_observation import _latest_header
 from .protocols import PoolKey
@@ -133,8 +133,10 @@ def run(endpoint):
     result=dict(
         kind=STRATEGY,strategy=STRATEGY,research_only=True,
         allocation_authority=False,independent_strategy=True,
-        source_strategy=None,started_at=time.time(),observations=[],
-        provider_sessions=[],
+        source_strategy=None,paper_only=True,live_money=False,
+        shadow_notional_quote=SHADOW_NOTIONAL_QUOTE,
+        forward_horizons_seconds=list(FORWARD_HORIZONS_SECONDS),
+        started_at=time.time(),observations=[],provider_sessions=[],
     )
     try:
         discovered=_discover_graduation(endpoint)
@@ -213,7 +215,43 @@ def run(endpoint):
                 continue
             if vector["candidate"]:
                 result["signal"]=observation
-                result["status"]="breakout_candidate"
+                try:
+                    entry=_shadow_v4_quote(
+                        endpoint,key,transition["market"],
+                        SHADOW_NOTIONAL_QUOTE,side="buy",
+                    )
+                    result["provider_sessions"].extend(
+                        entry.pop("provider_sessions")
+                    )
+                    result["shadow_entry_quote"]=entry
+                    started=time.monotonic()
+                    marks=[]
+                    for horizon in FORWARD_HORIZONS_SECONDS:
+                        wait=max(
+                            0.0,float(horizon)-(time.monotonic()-started)
+                        )
+                        if wait:
+                            time.sleep(wait)
+                        mark=_shadow_v4_quote(
+                            endpoint,key,transition["market"],
+                            entry["amount_out"],side="sell",
+                        )
+                        result["provider_sessions"].extend(
+                            mark.pop("provider_sessions")
+                        )
+                        mark["target_horizon_seconds"]=int(horizon)
+                        mark["observed_elapsed_seconds"]=int(
+                            time.monotonic()-started
+                        )
+                        mark["after_cost_return_bps"]=_after_cost_return_bps(
+                            entry,mark
+                        )
+                        marks.append(mark)
+                    result["forward_marks"]=marks
+                    result["status"]="breakout_candidate_forward_observed"
+                except BoundaryError as exc:
+                    result["status"]="breakout_candidate_quote_boundary"
+                    result["shadow_boundary"]=str(exc)
                 break
             consolidation_high=max(consolidation_high,current)
 
