@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "run372-run371-repairs-20260926-one-market-v1",
+  "authorization_id": "run373-run372-large-frame-repair-20260926-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36225681652,
+    "run_id": 36249156755,
     "status": "completed_failure",
-    "source": "Run 371 consumed its one-shot authority and halted during smoke after exposing Solana stream-continuity/backpressure and Ramses transient provider-pressure defects. Those defects were repaired and the repaired runtime was focused-tested and fully non-market certified before this fresh owner authorization."
+    "source": "Run 372 consumed its one-shot authority and halted during smoke after exposing that the Run 371 websocket decoupling repair was not composed into the actual Pump/Meteora prepared worktrees. The successor repair explicitly composes the integration-owned Solana evidence service and shared program decoders into both Solana lanes, receives raw websocket bytes, processes large frames off the event loop, and passed focused prepared-runtime regressions."
   },
   "prior_launch_attempt": {
-    "run_id": 36225681652,
+    "run_id": 36249156755,
     "outcome": "completed_failure",
     "provider_or_market_work_started": true,
-    "reason": "The Run 371 authority is consumed and cannot be retried. Owner explicitly authorized exactly one fresh PAPER market workflow using the repaired and certified Run 371 successor runtime."
+    "reason": "The Run 372 authority is consumed and cannot be retried. Owner explicitly authorized exactly one fresh PAPER market workflow using the repaired Run 372 Solana large-frame successor runtime after cancelling the independent Pons breakout study."
   }
 }
