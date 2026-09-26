@@ -36,7 +36,9 @@ class WarmupParity(unittest.TestCase):
                 self.assertEqual(tx['slot'],sig['slot']);self.assertEqual(tx['transaction']['signatures'][0],signature)
                 records.append(FinalizedRecord(scope+':'+signature,scope,tx['slot'],signature,dlmm.PROGRAM,(pool,),tx['blockTime'],tx,'alchemy_finalized_repair',endpoint,receipt['observed_at'],transaction_index=sig['transactionIndex'],kind='transaction'))
             writer.ingest(records);ledger={};current=dlmm.validate(snapshot(data['slots'][0]),int(clock[0]));origin=current;cursor=[current['slot'],2**31-1,2**31-1];tapes=[]
-            with patch.object(lane,'EVIDENCE_PLANE',plane),patch.object(lane.time,'sleep') as sleep:
+            # Retained point-in-time parity cannot assert present service liveness.
+            # Production admission health is exercised separately, with a live clock.
+            with patch.object(plane,'require_usable'),patch.object(lane,'EVIDENCE_PLANE',plane),patch.object(lane.time,'sleep') as sleep:
                 for chunk in data['chunks']:
                     receipt=chunk['census'];req=receipt['request'];page=receipt['response']['result']
                     self.assertEqual(req['method'],'getSignaturesForAddress');self.assertEqual(req['params'][0],pool)

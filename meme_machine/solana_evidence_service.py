@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS stream_receipts(
  session TEXT NOT NULL,seen REAL NOT NULL,sealed INTEGER NOT NULL DEFAULT 0,
  PRIMARY KEY(scope,slot));
 CREATE INDEX IF NOT EXISTS receipt_time ON stream_receipts(scope,market_time,slot);
+CREATE INDEX IF NOT EXISTS receipt_parent ON stream_receipts(scope,parent,session);
 CREATE TABLE IF NOT EXISTS stream_deliveries(
  scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,hash TEXT NOT NULL,
  seen REAL NOT NULL,PRIMARY KEY(scope,slot,signature));
@@ -28,6 +29,10 @@ CREATE TABLE IF NOT EXISTS service_interests(
 CREATE TABLE IF NOT EXISTS stream_order(scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,rank INTEGER NOT NULL,blockhash TEXT NOT NULL,PRIMARY KEY(scope,slot,signature));
 CREATE TABLE IF NOT EXISTS service_health(key TEXT PRIMARY KEY,value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS interest_owners(owner TEXT PRIMARY KEY,consumer TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS command_receipts(
+ consumer TEXT NOT NULL,request_id TEXT NOT NULL,hash TEXT NOT NULL,response TEXT NOT NULL,
+ expires REAL NOT NULL,PRIMARY KEY(consumer,request_id));
+CREATE INDEX IF NOT EXISTS command_expiry ON command_receipts(expires);
 '''
 
 def poison_conflicts(method):
@@ -113,7 +118,7 @@ class FinalizedFence:
         self.seal(subscription.scope,seen)
 
     @poison_conflicts
-    def block(self,subscription,message,seen):
+    def block(self,subscription,message,seen,*,include_logs=False):
         value=message['params']['result']['value'];slot=value['slot'];block=value.get('block')
         if value.get('err') is not None or not isinstance(block,dict):
             self.writer.gap(subscription.scope,slot,slot,'filtered_block_unavailable')
@@ -122,13 +127,22 @@ class FinalizedFence:
         if (type(slot) is not int or type(parent) is not int or not 0<=parent<slot
                 or type(at) is not int or at>seen or not block.get('blockhash') or not block.get('previousBlockhash')):
             raise EvidenceUnavailable('finalized_block_fence_shape')
-        if subscription.evidence_class=='transactions':
+        if subscription.evidence_class in ('transactions','census'):
             transactions=block.get('transactions')
             if not isinstance(transactions,list) or len(transactions)>2048:
                 raise EvidenceUnavailable('filtered_block_bound')
+            # Run 369: mentionsAccountOrProgram selected whole blocks. A signature
+            # list cannot prove which program was mentioned. Inspect authenticated
+            # static AND loaded keys, and persist only the scoped transactions.
+            def keys(tx):
+                values=tx['transaction']['message']['accountKeys']
+                loaded=tx['meta'].get('loadedAddresses') or {}
+                return [k if isinstance(k,str) else k['pubkey'] for k in values]+list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
+            transactions=[tx for tx in transactions if subscription.address in keys(tx)]
             signatures=[tx['transaction']['signatures'][0] for tx in transactions]
+            scoped=dict(method='blockNotification',params=dict(result=dict(value=dict(value,block=dict(block,transactions=transactions)))))
             decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity)
-            records=decoder.decode(subscription,message,seen)
+            records=decoder.decode(replace(subscription,evidence_class='transactions'),scoped,seen) if subscription.evidence_class=='transactions' else []
             enriched=[]
             for rank,(tx,record) in enumerate(zip(transactions,records)):
                 message_keys=tx['transaction']['message'].get('accountKeys') or []
@@ -143,7 +157,14 @@ class FinalizedFence:
                 self.writer.db.executemany('INSERT OR IGNORE INTO stream_order VALUES(?,?,?,?,?)',
                     [(subscription.scope,slot,sig,rank,block['blockhash']) for rank,sig in enumerate(signatures)])
             for tx,signature in zip(transactions,signatures):
-                self._delivery(subscription.scope,slot,signature,tx,seen)
+                if subscription.evidence_class=='census' and include_logs:
+                    meta=tx['meta']
+                    log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
+                    notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
+                    records=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
+                    self.writer.ingest(records)
+                    self._delivery(subscription.scope,slot,signature,log,seen)
+                elif subscription.evidence_class=='transactions':self._delivery(subscription.scope,slot,signature,tx,seen)
         else:
             signatures=block.get('signatures')
         if (not isinstance(signatures,list) or len(signatures)>2048
@@ -214,6 +235,40 @@ class FinalizedFence:
         return [replace(record,payload=tx,addresses=tuple(sorted(set(keys+[record.program]))),transaction_index=index)]
 
     def command(self,request):
+        from .solana_evidence_control import MAX_RECEIPTS,COMMAND_SECONDS
+        # Direct in-process fixture callers retain the same whitelist. Production
+        # IPC requires the versioned envelope before it reaches this method.
+        if 'request_id' not in request:return self._apply_command(request)
+        consumer=request.get('consumer');identity=request['request_id'];expiry=request.get('expires_at')
+        now=self.writer.clock()
+        if (not isinstance(consumer,str) or not consumer or len(consumer)>128
+                or not isinstance(identity,str) or not 1<=len(identity)<=64
+                or type(expiry) not in (int,float) or not now-COMMAND_SECONDS*2<=expiry<=now+COMMAND_SECONDS):
+            raise EvidenceUnavailable('evidence_command_envelope')
+        checksum=digest(request)
+        with self.writer.transaction():
+            old=self.writer.db.execute('SELECT hash,response FROM command_receipts WHERE consumer=? AND request_id=?',(consumer,identity)).fetchone()
+            if old:
+                if old[0]!=checksum:raise EvidenceUnavailable('evidence_request_identity_conflict')
+                self.writer._count('ipc.deduplicated')
+                return json.loads(old[1])
+            if expiry<now:raise EvidenceUnavailable('evidence_command_expired')
+            self.writer.db.execute('DELETE FROM command_receipts WHERE expires<?',(now-COMMAND_SECONDS*2,))
+            if self.writer.db.execute('SELECT COUNT(*) FROM command_receipts').fetchone()[0]>=MAX_RECEIPTS:
+                self.writer._count('ipc.receipt_capacity_rejections')
+                return dict(ok=False,state='rejected',error='evidence_receipt_capacity',request_id=identity)
+            try:
+                with self.writer.transaction():self._apply_command(request)
+                response=dict(ok=True,state='applied',request_id=identity)
+                self.writer._count('ipc.applied')
+            except (EvidenceUnavailable,KeyError,TypeError) as exc:
+                response=dict(ok=False,state='rejected',request_id=identity,
+                              error=str(exc) if isinstance(exc,EvidenceUnavailable) else 'evidence_command_shape')
+                self.writer._count('ipc.rejected')
+            self.writer.db.execute('INSERT INTO command_receipts VALUES(?,?,?,?,?)',(consumer,identity,checksum,canonical(response),expiry))
+            return response
+
+    def _apply_command(self,request):
         """Strict consumer IPC whitelist; no proof/ingest/SQL escape hatch."""
         op=request.get('op')
         if op in ('interest','release','ack'):
@@ -281,183 +336,244 @@ def program_decoders():
     return {PUMP_SCOPE:pump_events,SWAP_SCOPE:pumpswap_trade_events}
 
 
+class ServiceState:
+    """All SQLite access is confined to the priority owner thread."""
+    def __init__(self,path,config):
+        from .solana_evidence_plane import EvidenceWriter
+        # Whole-program history is an archive workload. Keep a bounded three-minute
+        # hot tail plus explicit lifecycle pins, not two hours of every transaction.
+        self.writer=EvidenceWriter(path,max_hot_bytes=2*1024*1024*1024)
+        self.fence=FinalizedFence(self.writer,endpoint_identity=config.identity,decoders=program_decoders())
+        self.fence.health('provider',dict(provider=config.provider,network=config.network,endpoint_identity=config.identity))
+        self.fence.health('phase','WARMING');self.fence.health('heartbeat',time.time())
+        import os
+        self.fence.health('pid',os.getpid())
+        self.fence.health('hot_limit_bytes',self.writer.max_hot_bytes)
+        self.repair_after={};self.failed=False
+
+    def source(self,sub,message,seen,byte_count):
+        from .solana_evidence_transport import Subscription
+        with self.writer.transaction():
+            self.writer._count('stream_messages');self.writer._count('stream_bytes',byte_count)
+            if sub.evidence_class=='blocks':
+                # One full block transport is reused by all three scopes. Empty
+                # scoped blocks also retain their authenticated parent witness.
+                for target in program_subscriptions():
+                    if target.evidence_class!='logs':self.fence.block(target,message,seen,include_logs=True)
+            else:
+                self.writer.ingest(FinalizedNotificationDecoder(endpoint_identity=self.fence.endpoint_identity).decode(sub,message,seen))
+            self.writer._count('stream_accepted_messages')
+            self.fence.health('phase','ACTIVE');self.fence.health('heartbeat',time.time())
+
+    def interests(self):
+        return [r[0] for r in self.writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 257")]
+
+    def disconnected(self,reason):
+        self.fence.disconnect(reason);self.fence.count('stream_reconnects')
+        self.fence.health('phase','DEGRADED')
+        self.fence.health('last_source_error',reason)
+
+    def repair_plan(self):
+        now=time.time()
+        # One bounded provider page runs outside the owner, at the governor's
+        # background priority. Open lifecycles can still repair missing evidence;
+        # they never wait for this worker to perform their current-state refresh.
+        if self.writer.db.execute("SELECT value FROM meta WHERE key='poisoned'").fetchone():return None
+        rows=self.writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,attempts FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY attempts,created LIMIT 64').fetchall()
+        for gid,scope,lo,hi,cursor,attempts in rows:
+            if now<self.repair_after.get(gid,0):continue
+            sub=next((s for s in program_subscriptions() if s.scope==scope),None)
+            if sub is None:continue
+            state=json.loads(cursor) if cursor else {}
+            cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters={'slot':{'gte':lo,'lte':hi}})
+            if state.get('next'):cfg['paginationToken']=state['next']
+            with self.writer.transaction():
+                self.writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
+                self.writer._count('gap_repair_attempts')
+                if attempts:self.writer._count('gap_repair_retries')
+            # At most 64 bounded retry leases; completed/old leases are expendable.
+            self.repair_after={k:v for k,v in self.repair_after.items() if v>now}
+            self.repair_after[gid]=now+min(60,2**min(attempts,6))
+            return gid,sub.address,cfg
+
+    def repair_apply(self,plan,value):
+        from .solana_evidence_transport import AddressGapRepair
+        gid,address,_=plan
+        scope=self.writer.db.execute('SELECT scope FROM gaps WHERE id=?',(gid,)).fetchone()[0]
+        frontier=self.writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(scope,)).fetchone()[0]
+        class ReceiptRPC:
+            def call(self,*args):return value
+        try:
+            AddressGapRepair(ReceiptRPC(),self.writer,endpoint_identity=self.fence.endpoint_identity,record_mapper=self.fence.repair_records).step(gid,address,now=time.time(),finalized_through=frontier)
+        except (ValueError,KeyError,TypeError) as exc:
+            self.fence.count('gap_repair_failures')
+            self.fence.health('last_repair_error',str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__)
+
+    def maintenance(self,http):
+        from .solana_evidence_plane import require_storage,storage_health
+        now=time.time();self.fence.expire_candidates(now)
+        self.fence.health('heartbeat',now);self.fence.health('storage',storage_health(self.writer.path))
+        self.fence.health('repair_http',http);require_storage(self.writer.path)
+        # A small archive slice yields to the control queue after every commit.
+        return self.writer.archive_plan(now-180,max_records=64)
+
+    def archive_commit(self,plan,receipt):
+        self.writer.commit_archive(plan,receipt)
+        self.writer.retain(time.time()-180,max_records=64,archive_first=False)
+
+    def close(self):
+        try:
+            self.fence.disconnect('service_shutdown')
+            self.fence.health('phase','FAILED' if self.failed else 'OFF')
+            self.fence.health('heartbeat',time.time())
+        finally:self.writer.close()
+
+
 async def serve(path,endpoint,*,repair_rpc=None,stop=None):
-    """One supervised process, one SQLite writer, bounded source and IPC I/O."""
+    """Independent bounded socket handling and one priority SQLite owner."""
     import asyncio
-    import hashlib
     import os
     from pathlib import Path
     from websockets.asyncio.client import connect
     from websockets.exceptions import ConnectionClosed
-    from .solana_evidence_plane import EvidenceWriter
-    from .solana_evidence_transport import alchemy_stream_endpoint,Subscription,AddressGapRepair
     from .solana_provider_config import AlchemyEndpoint
-    from .solana_evidence_plane import require_storage,storage_health
+    from .solana_evidence_transport import Subscription
+    from .solana_evidence_plane import EvidenceWriter
+    from .solana_evidence_control import PriorityOwner,command_priority,MAX_COMMAND_BYTES
     config=AlchemyEndpoint.parse(endpoint)
     import logging
     logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
-    url=config.stream_url;writer=EvidenceWriter(path)
-    fence=FinalizedFence(writer,endpoint_identity=config.identity,decoders=program_decoders())
-    fence.health('provider',dict(provider=config.provider,network=config.network,endpoint_identity=config.identity))
-    fence.health('phase','WARMING')
-    stop=stop or asyncio.Event();path=Path(path);socket_path=str(path)+'.sock'
-    Path(socket_path).unlink(missing_ok=True)
+    owner=PriorityOwner(lambda:ServiceState(path,config))
+    await asyncio.wrap_future(owner.ready)
+    async def work(fn,priority=1):
+        return await asyncio.shield(asyncio.wrap_future(owner.submit(fn,priority=priority)))
+    stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
+    clients=set();counts={}
+    def count(key):counts[key]=counts.get(key,0)+1
+
     async def consumer(reader,stream):
+        task=asyncio.current_task();admitted=len(clients)<32
+        if admitted:clients.add(task)
+        response=dict(ok=False,state='rejected',error='evidence_control_overloaded')
         try:
-            line=await asyncio.wait_for(reader.readline(),.5)
-            if len(line)>32768:raise EvidenceUnavailable('consumer_command_bound')
-            request=json.loads(line)
-            if not request.get('consumer'):raise EvidenceUnavailable('consumer_identity_required')
-            response=fence.command(request)
-        except (ValueError,KeyError,TypeError,TimeoutError) as exc:response={'ok':False,'error':type(exc).__name__}
-        stream.write((canonical(response)+'\n').encode());await stream.drain();stream.close()
-    server=await asyncio.start_unix_server(consumer,path=socket_path,limit=32769)
-    os.chmod(socket_path,0o600)
-    async def stream_source():
-        while not stop.is_set():
+            if not admitted:count('ipc.overloaded')
+            else:
+                line=await asyncio.wait_for(reader.readline(),.5)
+                if len(line)>MAX_COMMAND_BYTES:raise EvidenceUnavailable('consumer_command_bound')
+                request=json.loads(line)
+                if not isinstance(request,dict) or not request.get('consumer') or not request.get('request_id') or 'expires_at' not in request:
+                    raise EvidenceUnavailable('evidence_command_envelope')
+                # Enqueue once. Waiting clients may disconnect; the mutation and
+                # receipt remain owned by this task/SQLite actor, never the socket.
+                future=owner.submit(lambda state:state.fence.command(request),priority=command_priority(request))
+                wrapped=asyncio.wrap_future(future)
+                try:response=await asyncio.wait_for(asyncio.shield(wrapped),.4)
+                except TimeoutError:
+                    count('ipc.pending')
+                    response=dict(ok=False,state='pending',request_id=request['request_id'],error='evidence_command_pending')
+                    # Consume eventual failures without cancelling accepted work.
+                    wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
+        except (ValueError,KeyError,TypeError,TimeoutError,OSError) as exc:
+            count('ipc.rejected')
+            response=dict(ok=False,state='rejected',error=str(exc) if isinstance(exc,EvidenceUnavailable) else 'evidence_command_transport')
+        finally:
             try:
-                async with connect(url,logger=logger,max_size=16*1024*1024,max_queue=32,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
-                    pending={};active={};registered=set();retiring=set();number=0
-                    async def register(sub):
-                        nonlocal number
-                        number+=1;pending[number]=sub;await ws.send(canonical(sub.request(number)))
-                    for sub in program_subscriptions():await register(sub)
-                    while not stop.is_set():
-                        # Durable interests survive consumer/service restarts. Account
-                        # observations remain content only, never interval authority.
-                        interests=writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address").fetchall()
-                        if len(interests)>256:
-                            fence.count('subscription_capacity_rejections')
-                            raise EvidenceUnavailable('restored_subscription_capacity')
-                        wanted={r[0] for r in interests}
-                        for sid,sub in list(active.items()):
-                            if sub.evidence_class=='account' and sub.address not in wanted:
-                                number+=1;retiring.add(number)
-                                await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
-                                del active[sid];registered.discard(sub.address)
-                        for address, in interests:
-                            if address not in registered:
-                                await register(Subscription('service','account:'+address,address,'account',0));registered.add(address)
-                        try:raw=await asyncio.wait_for(ws.recv(),.5)
-                        except TimeoutError:continue
-                        seen=time.time()
-                        fence.count('stream_messages');fence.count('stream_bytes',len(raw.encode() if isinstance(raw,str) else raw))
-                        message=json.loads(raw);config.public(message)
-                        if message.get('id') in retiring:
-                            retiring.remove(message['id']);continue
-                        if 'id' in message:
-                            sub=pending.pop(message['id'])
-                            if 'error' in message or type(message.get('result')) is not int:
-                                if (message.get('error') or {}).get('code')==-32601:fence.count('stream_unsupported_methods')
-                                raise EvidenceUnavailable('authoritative_subscription_rejected')
-                            active[message['result']]=sub
-                            from collections import Counter
-                            fence.health('subscriptions',dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted)))
-                            continue
-                        sub=active.get((message.get('params') or {}).get('subscription'))
-                        if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
-                        if sub.evidence_class=='logs':fence.logs(sub,message,seen)
-                        elif sub.evidence_class=='account':
-                            writer.ingest(FinalizedNotificationDecoder(endpoint_identity=fence.endpoint_identity).decode(sub,message,seen))
-                        else:fence.block(sub,message,seen)
-                        fence.count('stream_accepted_messages')
-                        fence.health('phase','ACTIVE')
-                        from collections import Counter
-                        fence.health('subscriptions',dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted)))
-            except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
-                fence.count('stream_rejected_messages')
-                if str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
-                if isinstance(exc,EvidenceConflict):
-                    with writer.transaction():writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
-                    raise
-                fence.disconnect(type(exc).__name__)
-                fence.count('stream_reconnects');fence.count('stream_reconnect_reason.'+type(exc).__name__)
-                fence.health('subscriptions',dict(active=0,by_evidence_class={},pending=0,wanted_accounts=0))
-                fence.health('phase','WARMING')
+                stream.write((canonical(response)+'\n').encode())
+                if admitted:await asyncio.wait_for(stream.drain(),.2)
+            except (OSError,TimeoutError,RuntimeError):count('ipc.disconnected')
+            finally:
+                stream.close()
+                try:
+                    if admitted:await asyncio.wait_for(stream.wait_closed(),.2)
+                except (OSError,TimeoutError,RuntimeError):pass
+                clients.discard(task)
+
+    server=None;tasks=[]
+    try:
+        server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
+        os.chmod(socket_path,0o600)
+        async def source():
+            while not stop.is_set():
+                try:
+                    async with connect(config.stream_url,logger=logger,max_size=16*1024*1024,max_queue=4,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
+                        number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set()
+                        await ws.send(canonical(pending[1].request(1)))
+                        while not stop.is_set():
+                            wanted=set(await work(lambda state:state.interests(),0))
+                            if len(wanted)>256:raise EvidenceUnavailable('restored_subscription_capacity')
+                            for sid,sub in list(active.items()):
+                                if sub.evidence_class=='account' and sub.address not in wanted:
+                                    number+=1;retiring.add(number)
+                                    await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
+                                    del active[sid];registered.discard(sub.address)
+                            for address in sorted(wanted-registered):
+                                number+=1;sub=Subscription('service','account:'+address,address,'account',0)
+                                pending[number]=sub;registered.add(address);await ws.send(canonical(sub.request(number)))
+                            try:raw=await asyncio.wait_for(ws.recv(),.5)
+                            except TimeoutError:continue
+                            seen=time.time();message=json.loads(raw);config.public(message)
+                            if message.get('id') in retiring:retiring.remove(message['id']);continue
+                            if 'id' in message:
+                                sub=pending.pop(message['id'])
+                                if 'error' in message or type(message.get('result')) is not int:raise EvidenceUnavailable('authoritative_subscription_rejected')
+                                active[message['result']]=sub
+                                from collections import Counter
+                                status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted))
+                                await work(lambda state:state.fence.health('subscriptions',status));continue
+                            sub=active.get((message.get('params') or {}).get('subscription'))
+                            if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
+                            await work(lambda state:state.source(sub,message,seen,len(raw)),0 if sub.evidence_class=='account' else 2)
+                except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
+                    if isinstance(exc,EvidenceConflict) or str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
+                    reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
+                    await work(lambda state:state.disconnected(reason))
+                    try:await asyncio.wait_for(stop.wait(),1)
+                    except TimeoutError:pass
+
+        async def repair():
+            while not stop.is_set():
+                try:
+                    if repair_rpc is not None:
+                        plan=await work(lambda state:state.repair_plan(),4)
+                        if plan:
+                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[plan[1],plan[2]],False)
+                            await work(lambda state:state.repair_apply(plan,value),4)
+                except (OSError,ValueError,KeyError,TypeError,TimeoutError) as exc:
+                    if str(exc)!='evidence_background_yield':
+                        await work(lambda state:state.fence.count('gap_repair_failures'),3)
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
-    # Repair transport is detached from the SQLite writer and strategy consumers.
-    # One bounded page is in flight; commits are applied on this writer's thread.
-    async def repair_worker():
-        while not stop.is_set():
-            if repair_rpc is not None:
-                gap=writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,pages,attempts FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY created LIMIT 1').fetchone()
-                if gap:
-                    gid,scope,lo,hi,cursor,pages,attempts=gap
-                    subscriptions={s.scope:s for s in program_subscriptions()}
-                    sub=subscriptions.get(scope)
-                    if sub:
-                        state=json.loads(cursor) if cursor else {'next':None}
-                        cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters={'slot':{'gte':lo,'lte':hi}})
-                        if state.get('next'):cfg['paginationToken']=state['next']
-                        try:
-                            with writer.transaction():
-                                writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
-                                writer._count('gap_repair_attempts')
-                                if attempts:writer._count('gap_repair_retries')
-                            active=writer.db.execute("SELECT 1 FROM interests WHERE scope=? AND active=1 AND lifecycle IN ('candidate','reserved','open') LIMIT 1",(scope,)).fetchone()
-                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],bool(active))
-                            # Apply through the same bounded durable repair boundary.
-                            class ReceiptRPC:
-                                def call(self,*args):return value
-                            frontier=writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(scope,)).fetchone()[0]
-                            AddressGapRepair(ReceiptRPC(),writer,endpoint_identity=fence.endpoint_identity,record_mapper=fence.repair_records).step(gid,sub.address,now=time.time(),finalized_through=frontier)
-                        except (OSError,ValueError,KeyError,TypeError,TimeoutError):
-                            with writer.transaction():writer._count('gap_repair_failures')
-            try:await asyncio.wait_for(stop.wait(),1)
-            except TimeoutError:pass
-    async def maintenance():
-        previous=None
-        while not stop.is_set():
-            # Candidate interests have bounded leases; unresolved money/lifecycle
-            # interests never expire. No archive slice runs ahead of a reservation.
-            now=time.time()
-            fence.expire_candidates(now)
-            fence.health('storage',storage_health(writer.path));require_storage(writer.path)
-            counts=dict(writer.db.execute('SELECT * FROM counters'))
-            backlog=writer.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0]
-            http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
-            fence.health('repair_http',http)
-            if repair_rpc is not None and hasattr(repair_rpc,'governor'):
-                fence.health('http_governor',repair_rpc.governor.status())
-            current=(now,counts.get('stream_bytes',0),counts.get('stream_reconnects',0),backlog)
-            anomalies=[]
-            if storage_health(writer.path)['state']!='ok':anomalies.append('filesystem_capacity_pressure')
-            if previous:
-                seconds=max(.001,now-previous[0])
-                if (current[1]-previous[1])/seconds>16*1024*1024:anomalies.append('stream_byte_rate')
-                if current[2]-previous[2]>=3:anomalies.append('reconnect_loop')
-                if backlog>previous[3]:anomalies.append('growing_repair_backlog')
-            hc=http.get('counters',{})
-            if hc.get('429s',0)>=3:anomalies.append('repeated_429s')
-            if hc.get('unsupported_methods',0)+counts.get('stream_unsupported_methods',0)>=3:anomalies.append('unsupported_method')
-            if counts.get('subscription_capacity_rejections',0):anomalies.append('subscription_growth')
-            hot=sum(p.stat().st_size for p in (writer.path,Path(str(writer.path)+'-wal')) if p.exists())
-            if hot>writer.max_hot_bytes*.8:anomalies.append('hot_capacity_pressure')
-            decisions=counts.get('pump.decisions_fully_local',0)+counts.get('meteora.local_warmup_intervals',0)
-            if hc.get('physical_requests',0)>max(100,decisions*20):anomalies.append('http_per_decision')
-            fence.health('resource_anomalies',dict(states=anomalies,repair_backlog=backlog,observed_at=now,
-                stream_bytes_per_second=(current[1]-previous[1])/max(.001,now-previous[0]) if previous else None))
-            previous=current
-            if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
-                plan=writer.archive_plan(now-7200,max_records=256)
-                receipt=await asyncio.to_thread(writer.write_archive,writer.path,plan)
-                writer.commit_archive(plan,receipt)
-                writer.retain(now-7200,max_records=256,archive_first=False)
-            try:await asyncio.wait_for(stop.wait(),5)
-            except TimeoutError:pass
-    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker()),asyncio.create_task(maintenance())]
-    try:
-        stopper=asyncio.create_task(stop.wait())
-        done,_=await asyncio.wait([stopper,*tasks],return_when=asyncio.FIRST_COMPLETED)
-        for task in done:
-            if task is not stopper:task.result()
+
+        async def maintenance():
+            next_health=0
+            while not stop.is_set():
+                plan=None
+                try:
+                    if time.monotonic()>=next_health:
+                        http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
+                        plan=await work(lambda state:state.maintenance(http),4);next_health=time.monotonic()+1
+                        snapshot=dict(counts)
+                        await work(lambda state:state.fence.health('ipc',snapshot),1)
+                    else:plan=await work(lambda state:state.writer.archive_plan(time.time()-180,max_records=64),4)
+                    if plan:
+                        receipt=await asyncio.to_thread(EvidenceWriter.write_archive,path,plan)
+                        await work(lambda state:state.archive_commit(plan,receipt),4)
+                except EvidenceUnavailable as exc:
+                    if str(exc)!='evidence_background_yield':raise
+                try:await asyncio.wait_for(stop.wait(),.1 if plan else 1)
+                except TimeoutError:pass
+
+        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(stop.wait())]
+        done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
+        for task in done:task.result()
+    except BaseException:
+        await work(lambda state:setattr(state,'failed',True),0)
+        raise
     finally:
-        fence.health('phase','DRAINING')
-        if 'stopper' in locals():stopper.cancel()
+        await work(lambda state:state.fence.health('phase','DRAINING'),0)
+        if server:server.close();await server.wait_closed()
         for task in tasks:task.cancel()
         await asyncio.gather(*tasks,return_exceptions=True)
-        fence.disconnect('service_shutdown');server.close();await server.wait_closed()
-        if repair_rpc is not None and hasattr(repair_rpc,'telemetry'):fence.health('repair_http',repair_rpc.telemetry())
-        fence.health('phase','OFF')
-        writer.close();Path(socket_path).unlink(missing_ok=True)
+        if clients:await asyncio.gather(*list(clients),return_exceptions=True)
+        await asyncio.to_thread(owner.close)
+        Path(socket_path).unlink(missing_ok=True)

@@ -34,10 +34,10 @@ class Subscription:
         elif self.evidence_class == 'account':
             method='accountSubscribe'
             params=[self.address, {'commitment':'finalized','encoding':'base64'}]
-        elif self.evidence_class in ('transactions','census'):
+        elif self.evidence_class in ('transactions','census','blocks'):
             method='blockSubscribe'
-            params=[{'mentionsAccountOrProgram':self.address},
-                {'commitment':'finalized','encoding':'json','transactionDetails':('full' if self.evidence_class=='transactions' else 'signatures'),
+            params=['all' if self.evidence_class=='blocks' else {'mentionsAccountOrProgram':self.address},
+                {'commitment':'finalized','encoding':'json','transactionDetails':'full',
                  'showRewards':False,'maxSupportedTransactionVersion':1}]
         else:
             raise EvidenceUnavailable('unsupported_evidence_class')

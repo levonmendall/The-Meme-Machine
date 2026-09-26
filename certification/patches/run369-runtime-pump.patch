@@ -1,0 +1,1480 @@
+diff --git a/meme_machine/solana_evidence_control.py b/meme_machine/solana_evidence_control.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..7e731b651627db6ab20c3f8ea45a4cb3d71ad955
+--- /dev/null
++++ b/meme_machine/solana_evidence_control.py
+@@ -0,0 +1,81 @@
++"""Bounded control protocol and one priority-scheduled SQLite owner.
++
++Socket disconnect never cancels accepted work. A durable command receipt and the
++mutation share one commit. Expired requests cannot be replayed after receipt GC.
++"""
++import concurrent.futures
++import heapq
++import threading
++import time
++import sqlite3
++
++from .solana_evidence_plane import EvidenceUnavailable
++
++COMMAND_SECONDS=3.0
++ATTEMPT_SECONDS=.5
++MAX_COMMAND_BYTES=32768
++MAX_RECEIPTS=8192
++
++
++class PriorityOwner:
++    def __init__(self, factory, *, capacity=64, reserved=8):
++        self.capacity=capacity; self.reserved=reserved
++        self.cv=threading.Condition(); self.queue=[]; self.sequence=0
++        self.closed=False; self.ready=concurrent.futures.Future()
++        self.thread=threading.Thread(target=self._run,args=(factory,),name='solana-evidence-owner',daemon=True)
++        self.thread.start()
++
++    def submit(self, fn, *, priority=1, expires=None):
++        future=concurrent.futures.Future()
++        with self.cv:
++            if self.closed: raise EvidenceUnavailable('evidence_owner_unavailable')
++            limit=self.capacity if priority==0 else self.capacity-self.reserved
++            if len(self.queue)>=limit: raise EvidenceUnavailable('evidence_control_overloaded')
++            self.sequence+=1
++            heapq.heappush(self.queue,(priority,self.sequence,expires,fn,future)); self.cv.notify()
++        return future
++
++    def _run(self,factory):
++        try:
++            self.state=factory(); self.ready.set_result(True)
++        except BaseException as exc:
++            self.ready.set_exception(exc); self.closed=True; return
++        try:
++            while True:
++                with self.cv:
++                    self.cv.wait_for(lambda:self.queue or self.closed)
++                    if not self.queue and self.closed: break
++                    priority,_,expires,fn,future=heapq.heappop(self.queue)
++                try:
++                    if expires is not None and time.time()>expires:
++                        raise EvidenceUnavailable('evidence_command_expired')
++                    interrupted=False
++                    writer=getattr(self.state,'writer',None)
++                    def yield_background():
++                        nonlocal interrupted
++                        if interrupted:return 0 # allow rollback to finish
++                        with self.cv:urgent=bool(self.queue and self.queue[0][0]<4)
++                        if urgent:
++                            interrupted=True;return 1
++                        return 0
++                    if priority==4 and writer:writer.db.set_progress_handler(yield_background,1000)
++                    try:result=fn(self.state)
++                    except sqlite3.OperationalError as exc:
++                        if interrupted:raise EvidenceUnavailable('evidence_background_yield') from exc
++                        raise
++                    finally:
++                        if priority==4 and writer:writer.db.set_progress_handler(None,0)
++                except BaseException as exc: future.set_exception(exc)
++                else: future.set_result(result)
++        finally: self.state.close()
++
++    def close(self):
++        with self.cv: self.closed=True; self.cv.notify_all()
++        self.thread.join(timeout=5)
++        if self.thread.is_alive(): raise EvidenceUnavailable('evidence_owner_shutdown_timeout')
++
++
++def command_priority(request):
++    if request.get('op') in ('release','ack'): return 0
++    if request.get('op')=='interest' and request.get('lifecycle') in ('reserved','open'): return 0
++    return 3 if request.get('op')=='counter' else 1
+diff --git a/meme_machine/solana_evidence_health.py b/meme_machine/solana_evidence_health.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..42a81dece5e6008bf4805f6f99aea1756056e0cf
+--- /dev/null
++++ b/meme_machine/solana_evidence_health.py
+@@ -0,0 +1,56 @@
++"""Live admission health; historical readers retain point-in-time replay semantics."""
++import json
++import sqlite3
++from pathlib import Path
++
++HEARTBEAT_SECONDS=15
++FINALIZED_LAG_SECONDS=60
++STARTUP_SECONDS=90
++
++
++def evidence_health(reader,scope,now):
++    def result(state,reason,**extra):return dict(state=state,usable=state=='USABLE',reason=reason,scope=scope,observed_at=now,**extra)
++    try:
++        health={k:json.loads(v) for k,v in reader.db.execute('SELECT * FROM service_health')}
++        phase=health.get('phase','WARMING')
++        if reader.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone():return result('FAILED','evidence_store_poisoned')
++        if phase in ('OFF','FAILED'):return result('FAILED','evidence_service_unavailable')
++        if phase=='DRAINING':return result('DRAINING','evidence_service_draining')
++        heartbeat=health.get('heartbeat')
++        if not isinstance(heartbeat,(int,float)):return result('WARMING','evidence_health_uninitialized')
++        if not 0<=now-heartbeat<=HEARTBEAT_SECONDS:return result('FAILED','evidence_heartbeat_stale')
++        frontier=health.get('finalized_frontier:'+scope)
++        if not frontier:return result('WARMING','evidence_cold_start')
++        lag=now-frontier['time'];age=now-frontier['seen']
++        if not 0<=lag<=FINALIZED_LAG_SECONDS or not 0<=age<=HEARTBEAT_SECONDS:
++            return result('DEGRADED','evidence_finalized_stale',lag_seconds=lag,receipt_age_seconds=age)
++        sealed=reader.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(scope,now)).fetchone()[0]
++        parent=reader.db.execute('SELECT parent FROM stream_receipts WHERE scope=? AND slot=?',(scope,frontier['slot'])).fetchone()
++        if sealed is None or parent is None:return result('WARMING','evidence_cold_start')
++        if sealed<parent[0] or not reader.covered(scope,parent[0],sealed,as_of=now):
++            return result('DEGRADED','evidence_discontinuous')
++        if phase!='ACTIVE':return result('DEGRADED','evidence_source_disconnected')
++        hot=sum(p.stat().st_size for p in (reader.path,Path(str(reader.path)+'-wal')) if p.exists())
++        if hot>=health.get('hot_limit_bytes',2*1024*1024*1024)*.9:
++            return result('DEGRADED','evidence_hot_capacity_pressure')
++        return result('USABLE','authoritative_current',frontier_slot=sealed,lag_seconds=lag)
++    except (sqlite3.Error,OSError,ValueError,KeyError,TypeError):
++        return result('FAILED','evidence_service_unavailable')
++
++
++class HealthWatch:
++    """Bounded warmup and degraded windows; health observations are not evidence."""
++    def __init__(self,now):
++        self.started=now;self.unhealthy_since=now;self.usable_observations=0
++        self.failure=None;self.last=None
++    def observe(self,health,now):
++        self.last=health
++        if health['usable']:
++            self.usable_observations+=1;self.unhealthy_since=None
++        else:
++            if self.unhealthy_since is None:self.unhealthy_since=now
++            bound=30 if self.usable_observations else STARTUP_SECONDS
++            if now-self.unhealthy_since>=bound:self.failure=health['reason']
++        return self.failure
++    def snapshot(self):
++        return dict(usable_observations=self.usable_observations,failure=self.failure,last=self.last)
+diff --git a/meme_machine/solana_evidence_plane.py b/meme_machine/solana_evidence_plane.py
+index 90e87dd3816b0542f16a9c1d5a28fbabc8e390dc..78101aa5ec0660632ef02997838f39ff447e03bf 100644
+--- a/meme_machine/solana_evidence_plane.py
++++ b/meme_machine/solana_evidence_plane.py
+@@ -222,6 +222,19 @@ class EvidenceWriter:
+     @contextmanager
+     def transaction(self):
+         self._check()
++        # A source batch or command receipt owns the outer commit. Inner helpers
++        # must roll back with it; one fsync publishes the entire atomic operation.
++        if self.db.in_transaction:
++            name='nested_'+uuid.uuid4().hex
++            self.db.execute('SAVEPOINT '+name)
++            try:
++                yield
++                self.db.execute('RELEASE '+name)
++            except BaseException:
++                self.db.execute('ROLLBACK TO '+name)
++                self.db.execute('RELEASE '+name)
++                raise
++            return
+         self.db.execute('BEGIN IMMEDIATE')
+         try:
+             yield
+@@ -383,12 +396,15 @@ class EvidenceWriter:
+         rows = self.db.execute('''SELECT r.identity,r.body,r.hash FROM records r
+           WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
+           AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
+-             AND i.scope=r.scope AND r.slot>=i.lower_slot)
++             AND i.scope=r.scope AND r.slot>=i.lower_slot
++             AND (NOT EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)
++               OR EXISTS(SELECT 1 FROM service_interests s JOIN addresses a ON a.address=s.address
++                         WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=r.identity)))
+           AND NOT EXISTS(SELECT 1 FROM service_interests s JOIN interests i
+              ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1
+              AND r.kind='account' AND s.address=substr(r.scope,9))
+           AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
+-              AND r.slot>=g.lo)
++              AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
+           ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
+         return [dict(identity=k,body=json.loads(b),hash=h,
+             lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
+@@ -415,7 +431,12 @@ class EvidenceWriter:
+                 # An interest can arrive while compression/fsync is in flight.
+                 # Recheck pins before dropping even a single hot payload.
+                 body=row['body'];scope=body['scope'];slot=body['slot']
+-                pinned=self.db.execute('SELECT 1 FROM interests WHERE scope=? AND active=1 AND lower_slot<=? UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,slot,scope,slot)).fetchone()
++                pinned=self.db.execute('''SELECT 1 FROM interests i WHERE scope=? AND active=1 AND lower_slot<=?
++                    AND (NOT EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)
++                      OR EXISTS(SELECT 1 FROM service_interests s JOIN addresses a ON a.address=s.address
++                                WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=?))
++                    UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? AND (hi IS NULL OR hi>=?) LIMIT 1''',
++                    (scope,slot,row['identity'],scope,slot,slot)).fetchone()
+                 pinned=pinned or self._account_pinned(scope)
+                 if not pinned:
+                     archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
+diff --git a/meme_machine/solana_evidence_runtime.py b/meme_machine/solana_evidence_runtime.py
+index 34bd9172e11cc21615d0b6acf9e863a28becf20a..f5e3445fc4baff88777cc1ad279a65a99b9dd5f4 100644
+--- a/meme_machine/solana_evidence_runtime.py
++++ b/meme_machine/solana_evidence_runtime.py
+@@ -7,6 +7,8 @@ import os
+ from pathlib import Path
+ import socket
+ import time
++import uuid
++import sqlite3
+ from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical
+ from .solana_evidence_queries import PumpEvidenceView,MeteoraEvidenceView
+ 
+@@ -18,31 +20,67 @@ class RuntimeEvidence:
+     def __init__(self,path=None,*,owner,clock=time.time,command=None):
+         path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
+         if not path:raise EvidenceUnavailable('shared_evidence_plane_required')
+-        self.path=Path(path).resolve();self.reader=EvidenceReader(self.path)
++        self.path=Path(path).resolve()
++        try:self.reader=EvidenceReader(self.path)
++        except sqlite3.Error:self.reader=None
+         self.owner=owner;self.clock=clock;self._command=command
+         self.counts={}
++        self.health_observations={}
+     def command(self,**request):
++        from .solana_evidence_control import COMMAND_SECONDS,ATTEMPT_SECONDS
+         request.setdefault('owner',self.owner)
+         request['consumer']=self.owner
+         if self._command:return self._command(request)
++        request.setdefault('request_id',uuid.uuid4().hex)
++        request.setdefault('expires_at',time.time()+COMMAND_SECONDS)
+         data=(canonical(request)+'\n').encode()
+         if len(data)>32768:raise EvidenceUnavailable('evidence_interest_command_bound')
+-        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
+-            stream.settimeout(.25)
++        end=time.monotonic()+COMMAND_SECONDS
++        for attempt in range(6):
++            remaining=end-time.monotonic()
++            if remaining<=0:break
+             try:
+-                stream.connect(str(self.path)+'.sock');stream.sendall(data)
+-                reply=stream.makefile('rb').readline(32769)
+-            except OSError as exc:raise EvidenceUnavailable('evidence_service_unavailable') from exc
+-        result=json.loads(reply)
+-        if result.get('ok') is not True:raise EvidenceUnavailable(result.get('error','evidence_command_rejected'))
+-        return result
++                with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
++                    stream.settimeout(min(ATTEMPT_SECONDS,remaining))
++                    stream.connect(str(self.path)+'.sock');stream.sendall(data)
++                    with stream.makefile('rb') as source:reply=source.readline(32769)
++                if len(reply)>32768:raise ValueError('reply_bound')
++                result=json.loads(reply)
++                if result.get('state')=='pending' or result.get('error')=='evidence_control_overloaded':
++                    self.counts['ipc_retries']=self.counts.get('ipc_retries',0)+1
++                    time.sleep(min(.05,max(0,end-time.monotonic())));continue
++                if result.get('ok') is not True:raise EvidenceUnavailable(result.get('error','evidence_command_rejected'))
++                if result.get('request_id')!=request['request_id']:raise EvidenceUnavailable('evidence_ack_identity')
++                return result
++            except EvidenceUnavailable:raise
++            except (OSError,ValueError):
++                self.counts['ipc_retries']=self.counts.get('ipc_retries',0)+1
++                time.sleep(min(.05,max(0,end-time.monotonic())))
++        self.counts['ipc_unacknowledged']=self.counts.get('ipc_unacknowledged',0)+1
++        error=EvidenceUnavailable('evidence_command_unacknowledged')
++        error.request=request # retry this exact envelope; never mint a new counter ID
++        raise error
+     def count(self,key,count=1):
+         self.counts[key]=self.counts.get(key,0)+count
+-        self.command(op='counter',key=key,count=count)
++        try:self.command(op='counter',key=key,count=count)
++        except EvidenceUnavailable:
++            # Diagnostic delivery does not own lane liveness or decision authority.
++            self.counts['ipc_counter_unacknowledged']=self.counts.get('ipc_counter_unacknowledged',0)+1
+     def interest(self,scope,*,lower_slot,addresses=(),lifecycle='candidate',priority=3,owner=None):
+         return self.command(op='interest',owner=owner or self.owner,scope=scope,
+             lower_slot=lower_slot,addresses=list(addresses),lifecycle=lifecycle,priority=priority)
++    def admit_candidate(self,scope,*,addresses,owner):
++        """The lane consumes a classified infrastructure result, never a crash."""
++        try:
++            self.require_usable(scope)
++            frontier=self.frontier(scope)
++            self.interest(scope,lower_slot=max(0,frontier-1),addresses=addresses,owner=owner)
++            return dict(accepted=True)
++        except EvidenceUnavailable as exc:
++            return dict(accepted=False,terminal_classification='infrastructure_evidence_unavailable',
++                        reason=str(exc),economic_rejection=False)
+     def frontier(self,scope):
++        self.require_usable(scope)
+         row=self.reader.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(scope,self.clock())).fetchone()
+         if not row or row[0] is None:raise EvidenceUnavailable('evidence_cold_start')
+         return row[0]
+@@ -68,6 +106,7 @@ class RuntimeEvidence:
+         if row is None or slot>=row[0]:self.command(op='ack',owner=owner,scope=scope,slot=slot)
+     def pump_events(self,scope,address,lower_time,upper_time,*,upper_slot=None):
+         try:
++            self.require_usable(scope)
+             self.count('pump.local_evidence_reads')
+             lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
+             events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
+@@ -80,6 +119,7 @@ class RuntimeEvidence:
+             self.count('pump.gap_blocked_queries')
+             self.count('pump.incomplete_local_reads');raise
+     def meteora_scope(self,pool):
++        if self.reader is None:self.require_usable(METEORA_SCOPE)
+         scoped='pool:meteora:'+pool
+         if self.reader.db.execute('SELECT 1 FROM coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone():return scoped
+         return METEORA_SCOPE
+@@ -87,6 +127,7 @@ class RuntimeEvidence:
+         try:
+             self.count('meteora.local_evidence_reads')
+             scope=self.meteora_scope(pool)
++            self.require_usable(METEORA_SCOPE)
+             result=MeteoraEvidenceView(self.reader,scope).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
+             self.acknowledge(scope,end)
+             self.count('meteora.complete_local_reads')
+@@ -98,8 +139,22 @@ class RuntimeEvidence:
+     def _repair_assisted(self,lane,scope,lo,hi):
+         if self.reader.db.execute("SELECT 1 FROM coverage WHERE scope=? AND lo<=? AND hi>=? AND available<=? AND proof LIKE '%alchemy_finalized_repair%' LIMIT 1",(scope,hi,lo,self.clock())).fetchone():
+             self.count(lane+'.repair_assisted_windows')
+-    def telemetry(self):return dict(self.reader.telemetry(),lane_counters=dict(self.counts))
+-    def close(self):self.reader.close()
++    def health(self,scope):
++        from .solana_evidence_health import evidence_health
++        if self.reader is None:
++            try:self.reader=EvidenceReader(self.path)
++            except sqlite3.Error:return dict(state='FAILED',usable=False,reason='evidence_service_unavailable',scope=scope,observed_at=self.clock())
++        health=evidence_health(self.reader,scope,self.clock())
++        self.health_observations[scope]=health
++        return health
++    def require_usable(self,scope):
++        health=self.health(scope)
++        if not health['usable']:raise EvidenceUnavailable(health['reason'])
++        return health
++    def telemetry(self):
++        return dict(self.reader.telemetry() if self.reader else {},lane_counters=dict(self.counts),admission_health=dict(self.health_observations))
++    def close(self):
++        if self.reader:self.reader.close()
+ 
+ class LocalPumpHistory:
+     """Adapter for the real Pump runner's frozen history/decision interface."""
+diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
+index c46c1e60271b9931613fd42f67e4cfe4e8d7c0fe..6c00fc153fcab027bbd68e8bd0ee8e56984d19dc 100644
+--- a/meme_machine/solana_evidence_service.py
++++ b/meme_machine/solana_evidence_service.py
+@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS stream_receipts(
+  session TEXT NOT NULL,seen REAL NOT NULL,sealed INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(scope,slot));
+ CREATE INDEX IF NOT EXISTS receipt_time ON stream_receipts(scope,market_time,slot);
++CREATE INDEX IF NOT EXISTS receipt_parent ON stream_receipts(scope,parent,session);
+ CREATE TABLE IF NOT EXISTS stream_deliveries(
+  scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,hash TEXT NOT NULL,
+  seen REAL NOT NULL,PRIMARY KEY(scope,slot,signature));
+@@ -28,6 +29,10 @@ CREATE TABLE IF NOT EXISTS service_interests(
+ CREATE TABLE IF NOT EXISTS stream_order(scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,rank INTEGER NOT NULL,blockhash TEXT NOT NULL,PRIMARY KEY(scope,slot,signature));
+ CREATE TABLE IF NOT EXISTS service_health(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS interest_owners(owner TEXT PRIMARY KEY,consumer TEXT NOT NULL);
++CREATE TABLE IF NOT EXISTS command_receipts(
++ consumer TEXT NOT NULL,request_id TEXT NOT NULL,hash TEXT NOT NULL,response TEXT NOT NULL,
++ expires REAL NOT NULL,PRIMARY KEY(consumer,request_id));
++CREATE INDEX IF NOT EXISTS command_expiry ON command_receipts(expires);
+ '''
+ 
+ def poison_conflicts(method):
+@@ -113,7 +118,7 @@ class FinalizedFence:
+         self.seal(subscription.scope,seen)
+ 
+     @poison_conflicts
+-    def block(self,subscription,message,seen):
++    def block(self,subscription,message,seen,*,include_logs=False):
+         value=message['params']['result']['value'];slot=value['slot'];block=value.get('block')
+         if value.get('err') is not None or not isinstance(block,dict):
+             self.writer.gap(subscription.scope,slot,slot,'filtered_block_unavailable')
+@@ -122,13 +127,22 @@ class FinalizedFence:
+         if (type(slot) is not int or type(parent) is not int or not 0<=parent<slot
+                 or type(at) is not int or at>seen or not block.get('blockhash') or not block.get('previousBlockhash')):
+             raise EvidenceUnavailable('finalized_block_fence_shape')
+-        if subscription.evidence_class=='transactions':
++        if subscription.evidence_class in ('transactions','census'):
+             transactions=block.get('transactions')
+             if not isinstance(transactions,list) or len(transactions)>2048:
+                 raise EvidenceUnavailable('filtered_block_bound')
++            # Run 369: mentionsAccountOrProgram selected whole blocks. A signature
++            # list cannot prove which program was mentioned. Inspect authenticated
++            # static AND loaded keys, and persist only the scoped transactions.
++            def keys(tx):
++                values=tx['transaction']['message']['accountKeys']
++                loaded=tx['meta'].get('loadedAddresses') or {}
++                return [k if isinstance(k,str) else k['pubkey'] for k in values]+list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
++            transactions=[tx for tx in transactions if subscription.address in keys(tx)]
+             signatures=[tx['transaction']['signatures'][0] for tx in transactions]
++            scoped=dict(method='blockNotification',params=dict(result=dict(value=dict(value,block=dict(block,transactions=transactions)))))
+             decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity)
+-            records=decoder.decode(subscription,message,seen)
++            records=decoder.decode(replace(subscription,evidence_class='transactions'),scoped,seen) if subscription.evidence_class=='transactions' else []
+             enriched=[]
+             for rank,(tx,record) in enumerate(zip(transactions,records)):
+                 message_keys=tx['transaction']['message'].get('accountKeys') or []
+@@ -143,7 +157,14 @@ class FinalizedFence:
+                 self.writer.db.executemany('INSERT OR IGNORE INTO stream_order VALUES(?,?,?,?,?)',
+                     [(subscription.scope,slot,sig,rank,block['blockhash']) for rank,sig in enumerate(signatures)])
+             for tx,signature in zip(transactions,signatures):
+-                self._delivery(subscription.scope,slot,signature,tx,seen)
++                if subscription.evidence_class=='census' and include_logs:
++                    meta=tx['meta']
++                    log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
++                    notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
++                    records=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
++                    self.writer.ingest(records)
++                    self._delivery(subscription.scope,slot,signature,log,seen)
++                elif subscription.evidence_class=='transactions':self._delivery(subscription.scope,slot,signature,tx,seen)
+         else:
+             signatures=block.get('signatures')
+         if (not isinstance(signatures,list) or len(signatures)>2048
+@@ -214,6 +235,40 @@ class FinalizedFence:
+         return [replace(record,payload=tx,addresses=tuple(sorted(set(keys+[record.program]))),transaction_index=index)]
+ 
+     def command(self,request):
++        from .solana_evidence_control import MAX_RECEIPTS,COMMAND_SECONDS
++        # Direct in-process fixture callers retain the same whitelist. Production
++        # IPC requires the versioned envelope before it reaches this method.
++        if 'request_id' not in request:return self._apply_command(request)
++        consumer=request.get('consumer');identity=request['request_id'];expiry=request.get('expires_at')
++        now=self.writer.clock()
++        if (not isinstance(consumer,str) or not consumer or len(consumer)>128
++                or not isinstance(identity,str) or not 1<=len(identity)<=64
++                or type(expiry) not in (int,float) or not now-COMMAND_SECONDS*2<=expiry<=now+COMMAND_SECONDS):
++            raise EvidenceUnavailable('evidence_command_envelope')
++        checksum=digest(request)
++        with self.writer.transaction():
++            old=self.writer.db.execute('SELECT hash,response FROM command_receipts WHERE consumer=? AND request_id=?',(consumer,identity)).fetchone()
++            if old:
++                if old[0]!=checksum:raise EvidenceUnavailable('evidence_request_identity_conflict')
++                self.writer._count('ipc.deduplicated')
++                return json.loads(old[1])
++            if expiry<now:raise EvidenceUnavailable('evidence_command_expired')
++            self.writer.db.execute('DELETE FROM command_receipts WHERE expires<?',(now-COMMAND_SECONDS*2,))
++            if self.writer.db.execute('SELECT COUNT(*) FROM command_receipts').fetchone()[0]>=MAX_RECEIPTS:
++                self.writer._count('ipc.receipt_capacity_rejections')
++                return dict(ok=False,state='rejected',error='evidence_receipt_capacity',request_id=identity)
++            try:
++                with self.writer.transaction():self._apply_command(request)
++                response=dict(ok=True,state='applied',request_id=identity)
++                self.writer._count('ipc.applied')
++            except (EvidenceUnavailable,KeyError,TypeError) as exc:
++                response=dict(ok=False,state='rejected',request_id=identity,
++                              error=str(exc) if isinstance(exc,EvidenceUnavailable) else 'evidence_command_shape')
++                self.writer._count('ipc.rejected')
++            self.writer.db.execute('INSERT INTO command_receipts VALUES(?,?,?,?,?)',(consumer,identity,checksum,canonical(response),expiry))
++            return response
++
++    def _apply_command(self,request):
+         """Strict consumer IPC whitelist; no proof/ingest/SQL escape hatch."""
+         op=request.get('op')
+         if op in ('interest','release','ack'):
+@@ -281,183 +336,244 @@ def program_decoders():
+     return {PUMP_SCOPE:pump_events,SWAP_SCOPE:pumpswap_trade_events}
+ 
+ 
++class ServiceState:
++    """All SQLite access is confined to the priority owner thread."""
++    def __init__(self,path,config):
++        from .solana_evidence_plane import EvidenceWriter
++        # Whole-program history is an archive workload. Keep a bounded three-minute
++        # hot tail plus explicit lifecycle pins, not two hours of every transaction.
++        self.writer=EvidenceWriter(path,max_hot_bytes=2*1024*1024*1024)
++        self.fence=FinalizedFence(self.writer,endpoint_identity=config.identity,decoders=program_decoders())
++        self.fence.health('provider',dict(provider=config.provider,network=config.network,endpoint_identity=config.identity))
++        self.fence.health('phase','WARMING');self.fence.health('heartbeat',time.time())
++        import os
++        self.fence.health('pid',os.getpid())
++        self.fence.health('hot_limit_bytes',self.writer.max_hot_bytes)
++        self.repair_after={};self.failed=False
++
++    def source(self,sub,message,seen,byte_count):
++        from .solana_evidence_transport import Subscription
++        with self.writer.transaction():
++            self.writer._count('stream_messages');self.writer._count('stream_bytes',byte_count)
++            if sub.evidence_class=='blocks':
++                # One full block transport is reused by all three scopes. Empty
++                # scoped blocks also retain their authenticated parent witness.
++                for target in program_subscriptions():
++                    if target.evidence_class!='logs':self.fence.block(target,message,seen,include_logs=True)
++            else:
++                self.writer.ingest(FinalizedNotificationDecoder(endpoint_identity=self.fence.endpoint_identity).decode(sub,message,seen))
++            self.writer._count('stream_accepted_messages')
++            self.fence.health('phase','ACTIVE');self.fence.health('heartbeat',time.time())
++
++    def interests(self):
++        return [r[0] for r in self.writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 257")]
++
++    def disconnected(self,reason):
++        self.fence.disconnect(reason);self.fence.count('stream_reconnects')
++        self.fence.health('phase','DEGRADED')
++        self.fence.health('last_source_error',reason)
++
++    def repair_plan(self):
++        now=time.time()
++        # One bounded provider page runs outside the owner, at the governor's
++        # background priority. Open lifecycles can still repair missing evidence;
++        # they never wait for this worker to perform their current-state refresh.
++        if self.writer.db.execute("SELECT value FROM meta WHERE key='poisoned'").fetchone():return None
++        rows=self.writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,attempts FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY attempts,created LIMIT 64').fetchall()
++        for gid,scope,lo,hi,cursor,attempts in rows:
++            if now<self.repair_after.get(gid,0):continue
++            sub=next((s for s in program_subscriptions() if s.scope==scope),None)
++            if sub is None:continue
++            state=json.loads(cursor) if cursor else {}
++            cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters={'slot':{'gte':lo,'lte':hi}})
++            if state.get('next'):cfg['paginationToken']=state['next']
++            with self.writer.transaction():
++                self.writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
++                self.writer._count('gap_repair_attempts')
++                if attempts:self.writer._count('gap_repair_retries')
++            # At most 64 bounded retry leases; completed/old leases are expendable.
++            self.repair_after={k:v for k,v in self.repair_after.items() if v>now}
++            self.repair_after[gid]=now+min(60,2**min(attempts,6))
++            return gid,sub.address,cfg
++
++    def repair_apply(self,plan,value):
++        from .solana_evidence_transport import AddressGapRepair
++        gid,address,_=plan
++        scope=self.writer.db.execute('SELECT scope FROM gaps WHERE id=?',(gid,)).fetchone()[0]
++        frontier=self.writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(scope,)).fetchone()[0]
++        class ReceiptRPC:
++            def call(self,*args):return value
++        try:
++            AddressGapRepair(ReceiptRPC(),self.writer,endpoint_identity=self.fence.endpoint_identity,record_mapper=self.fence.repair_records).step(gid,address,now=time.time(),finalized_through=frontier)
++        except (ValueError,KeyError,TypeError) as exc:
++            self.fence.count('gap_repair_failures')
++            self.fence.health('last_repair_error',str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__)
++
++    def maintenance(self,http):
++        from .solana_evidence_plane import require_storage,storage_health
++        now=time.time();self.fence.expire_candidates(now)
++        self.fence.health('heartbeat',now);self.fence.health('storage',storage_health(self.writer.path))
++        self.fence.health('repair_http',http);require_storage(self.writer.path)
++        # A small archive slice yields to the control queue after every commit.
++        return self.writer.archive_plan(now-180,max_records=64)
++
++    def archive_commit(self,plan,receipt):
++        self.writer.commit_archive(plan,receipt)
++        self.writer.retain(time.time()-180,max_records=64,archive_first=False)
++
++    def close(self):
++        try:
++            self.fence.disconnect('service_shutdown')
++            self.fence.health('phase','FAILED' if self.failed else 'OFF')
++            self.fence.health('heartbeat',time.time())
++        finally:self.writer.close()
++
++
+ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+-    """One supervised process, one SQLite writer, bounded source and IPC I/O."""
++    """Independent bounded socket handling and one priority SQLite owner."""
+     import asyncio
+-    import hashlib
+     import os
+     from pathlib import Path
+     from websockets.asyncio.client import connect
+     from websockets.exceptions import ConnectionClosed
+-    from .solana_evidence_plane import EvidenceWriter
+-    from .solana_evidence_transport import alchemy_stream_endpoint,Subscription,AddressGapRepair
+     from .solana_provider_config import AlchemyEndpoint
+-    from .solana_evidence_plane import require_storage,storage_health
++    from .solana_evidence_transport import Subscription
++    from .solana_evidence_plane import EvidenceWriter
++    from .solana_evidence_control import PriorityOwner,command_priority,MAX_COMMAND_BYTES
+     config=AlchemyEndpoint.parse(endpoint)
+     import logging
+     logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
+-    url=config.stream_url;writer=EvidenceWriter(path)
+-    fence=FinalizedFence(writer,endpoint_identity=config.identity,decoders=program_decoders())
+-    fence.health('provider',dict(provider=config.provider,network=config.network,endpoint_identity=config.identity))
+-    fence.health('phase','WARMING')
+-    stop=stop or asyncio.Event();path=Path(path);socket_path=str(path)+'.sock'
+-    Path(socket_path).unlink(missing_ok=True)
++    owner=PriorityOwner(lambda:ServiceState(path,config))
++    await asyncio.wrap_future(owner.ready)
++    async def work(fn,priority=1):
++        return await asyncio.shield(asyncio.wrap_future(owner.submit(fn,priority=priority)))
++    stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
++    clients=set();counts={}
++    def count(key):counts[key]=counts.get(key,0)+1
++
+     async def consumer(reader,stream):
++        task=asyncio.current_task();admitted=len(clients)<32
++        if admitted:clients.add(task)
++        response=dict(ok=False,state='rejected',error='evidence_control_overloaded')
+         try:
+-            line=await asyncio.wait_for(reader.readline(),.5)
+-            if len(line)>32768:raise EvidenceUnavailable('consumer_command_bound')
+-            request=json.loads(line)
+-            if not request.get('consumer'):raise EvidenceUnavailable('consumer_identity_required')
+-            response=fence.command(request)
+-        except (ValueError,KeyError,TypeError,TimeoutError) as exc:response={'ok':False,'error':type(exc).__name__}
+-        stream.write((canonical(response)+'\n').encode());await stream.drain();stream.close()
+-    server=await asyncio.start_unix_server(consumer,path=socket_path,limit=32769)
+-    os.chmod(socket_path,0o600)
+-    async def stream_source():
+-        while not stop.is_set():
++            if not admitted:count('ipc.overloaded')
++            else:
++                line=await asyncio.wait_for(reader.readline(),.5)
++                if len(line)>MAX_COMMAND_BYTES:raise EvidenceUnavailable('consumer_command_bound')
++                request=json.loads(line)
++                if not isinstance(request,dict) or not request.get('consumer') or not request.get('request_id') or 'expires_at' not in request:
++                    raise EvidenceUnavailable('evidence_command_envelope')
++                # Enqueue once. Waiting clients may disconnect; the mutation and
++                # receipt remain owned by this task/SQLite actor, never the socket.
++                future=owner.submit(lambda state:state.fence.command(request),priority=command_priority(request))
++                wrapped=asyncio.wrap_future(future)
++                try:response=await asyncio.wait_for(asyncio.shield(wrapped),.4)
++                except TimeoutError:
++                    count('ipc.pending')
++                    response=dict(ok=False,state='pending',request_id=request['request_id'],error='evidence_command_pending')
++                    # Consume eventual failures without cancelling accepted work.
++                    wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
++        except (ValueError,KeyError,TypeError,TimeoutError,OSError) as exc:
++            count('ipc.rejected')
++            response=dict(ok=False,state='rejected',error=str(exc) if isinstance(exc,EvidenceUnavailable) else 'evidence_command_transport')
++        finally:
+             try:
+-                async with connect(url,logger=logger,max_size=16*1024*1024,max_queue=32,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
+-                    pending={};active={};registered=set();retiring=set();number=0
+-                    async def register(sub):
+-                        nonlocal number
+-                        number+=1;pending[number]=sub;await ws.send(canonical(sub.request(number)))
+-                    for sub in program_subscriptions():await register(sub)
+-                    while not stop.is_set():
+-                        # Durable interests survive consumer/service restarts. Account
+-                        # observations remain content only, never interval authority.
+-                        interests=writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address").fetchall()
+-                        if len(interests)>256:
+-                            fence.count('subscription_capacity_rejections')
+-                            raise EvidenceUnavailable('restored_subscription_capacity')
+-                        wanted={r[0] for r in interests}
+-                        for sid,sub in list(active.items()):
+-                            if sub.evidence_class=='account' and sub.address not in wanted:
+-                                number+=1;retiring.add(number)
+-                                await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
+-                                del active[sid];registered.discard(sub.address)
+-                        for address, in interests:
+-                            if address not in registered:
+-                                await register(Subscription('service','account:'+address,address,'account',0));registered.add(address)
+-                        try:raw=await asyncio.wait_for(ws.recv(),.5)
+-                        except TimeoutError:continue
+-                        seen=time.time()
+-                        fence.count('stream_messages');fence.count('stream_bytes',len(raw.encode() if isinstance(raw,str) else raw))
+-                        message=json.loads(raw);config.public(message)
+-                        if message.get('id') in retiring:
+-                            retiring.remove(message['id']);continue
+-                        if 'id' in message:
+-                            sub=pending.pop(message['id'])
+-                            if 'error' in message or type(message.get('result')) is not int:
+-                                if (message.get('error') or {}).get('code')==-32601:fence.count('stream_unsupported_methods')
+-                                raise EvidenceUnavailable('authoritative_subscription_rejected')
+-                            active[message['result']]=sub
+-                            from collections import Counter
+-                            fence.health('subscriptions',dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted)))
+-                            continue
+-                        sub=active.get((message.get('params') or {}).get('subscription'))
+-                        if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
+-                        if sub.evidence_class=='logs':fence.logs(sub,message,seen)
+-                        elif sub.evidence_class=='account':
+-                            writer.ingest(FinalizedNotificationDecoder(endpoint_identity=fence.endpoint_identity).decode(sub,message,seen))
+-                        else:fence.block(sub,message,seen)
+-                        fence.count('stream_accepted_messages')
+-                        fence.health('phase','ACTIVE')
+-                        from collections import Counter
+-                        fence.health('subscriptions',dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted)))
+-            except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
+-                fence.count('stream_rejected_messages')
+-                if str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
+-                if isinstance(exc,EvidenceConflict):
+-                    with writer.transaction():writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
+-                    raise
+-                fence.disconnect(type(exc).__name__)
+-                fence.count('stream_reconnects');fence.count('stream_reconnect_reason.'+type(exc).__name__)
+-                fence.health('subscriptions',dict(active=0,by_evidence_class={},pending=0,wanted_accounts=0))
+-                fence.health('phase','WARMING')
++                stream.write((canonical(response)+'\n').encode())
++                if admitted:await asyncio.wait_for(stream.drain(),.2)
++            except (OSError,TimeoutError,RuntimeError):count('ipc.disconnected')
++            finally:
++                stream.close()
++                try:
++                    if admitted:await asyncio.wait_for(stream.wait_closed(),.2)
++                except (OSError,TimeoutError,RuntimeError):pass
++                clients.discard(task)
++
++    server=None;tasks=[]
++    try:
++        server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
++        os.chmod(socket_path,0o600)
++        async def source():
++            while not stop.is_set():
++                try:
++                    async with connect(config.stream_url,logger=logger,max_size=16*1024*1024,max_queue=4,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
++                        number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set()
++                        await ws.send(canonical(pending[1].request(1)))
++                        while not stop.is_set():
++                            wanted=set(await work(lambda state:state.interests(),0))
++                            if len(wanted)>256:raise EvidenceUnavailable('restored_subscription_capacity')
++                            for sid,sub in list(active.items()):
++                                if sub.evidence_class=='account' and sub.address not in wanted:
++                                    number+=1;retiring.add(number)
++                                    await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
++                                    del active[sid];registered.discard(sub.address)
++                            for address in sorted(wanted-registered):
++                                number+=1;sub=Subscription('service','account:'+address,address,'account',0)
++                                pending[number]=sub;registered.add(address);await ws.send(canonical(sub.request(number)))
++                            try:raw=await asyncio.wait_for(ws.recv(),.5)
++                            except TimeoutError:continue
++                            seen=time.time();message=json.loads(raw);config.public(message)
++                            if message.get('id') in retiring:retiring.remove(message['id']);continue
++                            if 'id' in message:
++                                sub=pending.pop(message['id'])
++                                if 'error' in message or type(message.get('result')) is not int:raise EvidenceUnavailable('authoritative_subscription_rejected')
++                                active[message['result']]=sub
++                                from collections import Counter
++                                status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted))
++                                await work(lambda state:state.fence.health('subscriptions',status));continue
++                            sub=active.get((message.get('params') or {}).get('subscription'))
++                            if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
++                            await work(lambda state:state.source(sub,message,seen,len(raw)),0 if sub.evidence_class=='account' else 2)
++                except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
++                    if isinstance(exc,EvidenceConflict) or str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
++                    reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
++                    await work(lambda state:state.disconnected(reason))
++                    try:await asyncio.wait_for(stop.wait(),1)
++                    except TimeoutError:pass
++
++        async def repair():
++            while not stop.is_set():
++                try:
++                    if repair_rpc is not None:
++                        plan=await work(lambda state:state.repair_plan(),4)
++                        if plan:
++                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[plan[1],plan[2]],False)
++                            await work(lambda state:state.repair_apply(plan,value),4)
++                except (OSError,ValueError,KeyError,TypeError,TimeoutError) as exc:
++                    if str(exc)!='evidence_background_yield':
++                        await work(lambda state:state.fence.count('gap_repair_failures'),3)
+                 try:await asyncio.wait_for(stop.wait(),1)
+                 except TimeoutError:pass
+-    # Repair transport is detached from the SQLite writer and strategy consumers.
+-    # One bounded page is in flight; commits are applied on this writer's thread.
+-    async def repair_worker():
+-        while not stop.is_set():
+-            if repair_rpc is not None:
+-                gap=writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,pages,attempts FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY created LIMIT 1').fetchone()
+-                if gap:
+-                    gid,scope,lo,hi,cursor,pages,attempts=gap
+-                    subscriptions={s.scope:s for s in program_subscriptions()}
+-                    sub=subscriptions.get(scope)
+-                    if sub:
+-                        state=json.loads(cursor) if cursor else {'next':None}
+-                        cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters={'slot':{'gte':lo,'lte':hi}})
+-                        if state.get('next'):cfg['paginationToken']=state['next']
+-                        try:
+-                            with writer.transaction():
+-                                writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
+-                                writer._count('gap_repair_attempts')
+-                                if attempts:writer._count('gap_repair_retries')
+-                            active=writer.db.execute("SELECT 1 FROM interests WHERE scope=? AND active=1 AND lifecycle IN ('candidate','reserved','open') LIMIT 1",(scope,)).fetchone()
+-                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],bool(active))
+-                            # Apply through the same bounded durable repair boundary.
+-                            class ReceiptRPC:
+-                                def call(self,*args):return value
+-                            frontier=writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(scope,)).fetchone()[0]
+-                            AddressGapRepair(ReceiptRPC(),writer,endpoint_identity=fence.endpoint_identity,record_mapper=fence.repair_records).step(gid,sub.address,now=time.time(),finalized_through=frontier)
+-                        except (OSError,ValueError,KeyError,TypeError,TimeoutError):
+-                            with writer.transaction():writer._count('gap_repair_failures')
+-            try:await asyncio.wait_for(stop.wait(),1)
+-            except TimeoutError:pass
+-    async def maintenance():
+-        previous=None
+-        while not stop.is_set():
+-            # Candidate interests have bounded leases; unresolved money/lifecycle
+-            # interests never expire. No archive slice runs ahead of a reservation.
+-            now=time.time()
+-            fence.expire_candidates(now)
+-            fence.health('storage',storage_health(writer.path));require_storage(writer.path)
+-            counts=dict(writer.db.execute('SELECT * FROM counters'))
+-            backlog=writer.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0]
+-            http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
+-            fence.health('repair_http',http)
+-            if repair_rpc is not None and hasattr(repair_rpc,'governor'):
+-                fence.health('http_governor',repair_rpc.governor.status())
+-            current=(now,counts.get('stream_bytes',0),counts.get('stream_reconnects',0),backlog)
+-            anomalies=[]
+-            if storage_health(writer.path)['state']!='ok':anomalies.append('filesystem_capacity_pressure')
+-            if previous:
+-                seconds=max(.001,now-previous[0])
+-                if (current[1]-previous[1])/seconds>16*1024*1024:anomalies.append('stream_byte_rate')
+-                if current[2]-previous[2]>=3:anomalies.append('reconnect_loop')
+-                if backlog>previous[3]:anomalies.append('growing_repair_backlog')
+-            hc=http.get('counters',{})
+-            if hc.get('429s',0)>=3:anomalies.append('repeated_429s')
+-            if hc.get('unsupported_methods',0)+counts.get('stream_unsupported_methods',0)>=3:anomalies.append('unsupported_method')
+-            if counts.get('subscription_capacity_rejections',0):anomalies.append('subscription_growth')
+-            hot=sum(p.stat().st_size for p in (writer.path,Path(str(writer.path)+'-wal')) if p.exists())
+-            if hot>writer.max_hot_bytes*.8:anomalies.append('hot_capacity_pressure')
+-            decisions=counts.get('pump.decisions_fully_local',0)+counts.get('meteora.local_warmup_intervals',0)
+-            if hc.get('physical_requests',0)>max(100,decisions*20):anomalies.append('http_per_decision')
+-            fence.health('resource_anomalies',dict(states=anomalies,repair_backlog=backlog,observed_at=now,
+-                stream_bytes_per_second=(current[1]-previous[1])/max(.001,now-previous[0]) if previous else None))
+-            previous=current
+-            if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
+-                plan=writer.archive_plan(now-7200,max_records=256)
+-                receipt=await asyncio.to_thread(writer.write_archive,writer.path,plan)
+-                writer.commit_archive(plan,receipt)
+-                writer.retain(now-7200,max_records=256,archive_first=False)
+-            try:await asyncio.wait_for(stop.wait(),5)
+-            except TimeoutError:pass
+-    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker()),asyncio.create_task(maintenance())]
+-    try:
+-        stopper=asyncio.create_task(stop.wait())
+-        done,_=await asyncio.wait([stopper,*tasks],return_when=asyncio.FIRST_COMPLETED)
+-        for task in done:
+-            if task is not stopper:task.result()
++
++        async def maintenance():
++            next_health=0
++            while not stop.is_set():
++                plan=None
++                try:
++                    if time.monotonic()>=next_health:
++                        http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
++                        plan=await work(lambda state:state.maintenance(http),4);next_health=time.monotonic()+1
++                        snapshot=dict(counts)
++                        await work(lambda state:state.fence.health('ipc',snapshot),1)
++                    else:plan=await work(lambda state:state.writer.archive_plan(time.time()-180,max_records=64),4)
++                    if plan:
++                        receipt=await asyncio.to_thread(EvidenceWriter.write_archive,path,plan)
++                        await work(lambda state:state.archive_commit(plan,receipt),4)
++                except EvidenceUnavailable as exc:
++                    if str(exc)!='evidence_background_yield':raise
++                try:await asyncio.wait_for(stop.wait(),.1 if plan else 1)
++                except TimeoutError:pass
++
++        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(stop.wait())]
++        done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
++        for task in done:task.result()
++    except BaseException:
++        await work(lambda state:setattr(state,'failed',True),0)
++        raise
+     finally:
+-        fence.health('phase','DRAINING')
+-        if 'stopper' in locals():stopper.cancel()
++        await work(lambda state:state.fence.health('phase','DRAINING'),0)
++        if server:server.close();await server.wait_closed()
+         for task in tasks:task.cancel()
+         await asyncio.gather(*tasks,return_exceptions=True)
+-        fence.disconnect('service_shutdown');server.close();await server.wait_closed()
+-        if repair_rpc is not None and hasattr(repair_rpc,'telemetry'):fence.health('repair_http',repair_rpc.telemetry())
+-        fence.health('phase','OFF')
+-        writer.close();Path(socket_path).unlink(missing_ok=True)
++        if clients:await asyncio.gather(*list(clients),return_exceptions=True)
++        await asyncio.to_thread(owner.close)
++        Path(socket_path).unlink(missing_ok=True)
+diff --git a/meme_machine/solana_evidence_transport.py b/meme_machine/solana_evidence_transport.py
+index 8b339579c0838e14c13b14b83006370ad416b3db..8ad77d49e4155bf60ad2ae60ab92fb55875b7d02 100644
+--- a/meme_machine/solana_evidence_transport.py
++++ b/meme_machine/solana_evidence_transport.py
+@@ -34,10 +34,10 @@ class Subscription:
+         elif self.evidence_class == 'account':
+             method='accountSubscribe'
+             params=[self.address, {'commitment':'finalized','encoding':'base64'}]
+-        elif self.evidence_class in ('transactions','census'):
++        elif self.evidence_class in ('transactions','census','blocks'):
+             method='blockSubscribe'
+-            params=[{'mentionsAccountOrProgram':self.address},
+-                {'commitment':'finalized','encoding':'json','transactionDetails':('full' if self.evidence_class=='transactions' else 'signatures'),
++            params=['all' if self.evidence_class=='blocks' else {'mentionsAccountOrProgram':self.address},
++                {'commitment':'finalized','encoding':'json','transactionDetails':'full',
+                  'showRewards':False,'maxSupportedTransactionVersion':1}]
+         else:
+             raise EvidenceUnavailable('unsupported_evidence_class')
+diff --git a/tests/evidence_ipc_harness.py b/tests/evidence_ipc_harness.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..86222e038abbd1f1e9856b84210a84098b99d293
+--- /dev/null
++++ b/tests/evidence_ipc_harness.py
+@@ -0,0 +1,49 @@
++"""Exercise the real IPC callback where the executor disallows bind(2)."""
++import asyncio
++from contextlib import contextmanager
++import io
++import os
++from pathlib import Path
++import socket
++import threading
++from unittest.mock import patch
++
++
++@contextmanager
++def ipc_transport():
++    if os.environ.get('MM_REAL_IPC_TESTS')=='1':
++        yield None;return
++    loop=asyncio.get_running_loop();state={};real_socket=socket.socket
++    class Server:
++        def close(self):pass
++        async def wait_closed(self):pass
++    async def start(callback,*,path,**kwargs):
++        state['callback']=callback;Path(path).touch();return Server()
++    class Client:
++        def __init__(self):self.timeout=None;self.closed=False;self.response=None;self.ready=threading.Event()
++        def settimeout(self,value):self.timeout=value
++        def connect(self,path):
++            if 'callback' not in state:raise ConnectionRefusedError()
++        def sendall(self,data):
++            client=self
++            class Reader:
++                async def readline(self):return data
++            class Stream:
++                def write(self,reply):
++                    if client.closed:raise BrokenPipeError()
++                    client.response=reply;client.ready.set()
++                async def drain(self):
++                    if client.closed:raise ConnectionResetError()
++                def close(self):pass
++                async def wait_closed(self):pass
++            asyncio.run_coroutine_threadsafe(state['callback'](Reader(),Stream()),loop)
++        def makefile(self,*args):return self
++        def readline(self,limit):
++            if not self.ready.wait(self.timeout):raise TimeoutError()
++            return self.response[:limit]
++        def close(self):self.closed=True
++        def __enter__(self):return self
++        def __exit__(self,*args):self.close()
++    def factory(family=socket.AF_INET,*args,**kwargs):
++        return Client() if family==socket.AF_UNIX else real_socket(family,*args,**kwargs)
++    with patch('asyncio.start_unix_server',side_effect=start),patch('socket.socket',side_effect=factory):yield state
+diff --git a/tests/fixtures/solana_evidence_plane/run-368-raw-pump.json b/tests/fixtures/solana_evidence_plane/run-368-raw-pump.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..605f2325de5fd01c05cbc5d5c18720ad50874866
+--- /dev/null
++++ b/tests/fixtures/solana_evidence_plane/run-368-raw-pump.json
+@@ -0,0 +1 @@
++{"artifact":10872772276,"records":[{"events":[{"amount":184152,"buy":true,"index":49,"market_time":1790346151,"pool":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","pool_base_reserve":64291561735291,"pool_quote_reserve":256303084848,"slot":450378302,"tokens":42777510,"user_quote_amount":182237,"wallet":"5FZ1JBNuiqHMWAh3TYohUS8Dg1jFinC1QXxcBCNDkFAV"}],"observed_at_ns":1790346160141613960,"physical_request_id":"8e6d0602-107d-46a5-91af-81bceee66ff5:514","provider":{"endpoint_identity":"267ddbf0c6aab1672c805ae5ad62c90cb30bb9883867f3286d66dedd572b3314","network":"solana","provider_kind":"alchemy","role":null},"request":{"id":76,"jsonrpc":"2.0","method":"getTransaction","params":["yCokJGZskQeeiKcZxi8fM6HPLU3N6ujtftD6tmkPbpaahqBSpLiS96C7e6DUKnh84sMxB1sKQZs1nBRhcpAF11f",{"commitment":"finalized","encoding":"json","maxSupportedTransactionVersion":1}]},"response":{"id":76,"jsonrpc":"2.0","result":{"blockTime":1790346151,"meta":{"computeUnitsConsumed":98967,"costUnits":105884,"err":null,"fee":715164,"innerInstructions":[{"index":2,"instructions":[{"accounts":[24],"data":"84eT","programIdIndex":25,"stackHeight":2},{"accounts":[0,9],"data":"111135fAZn8PZBEU8J8iUmUTdbmBE6po1LhhgEJXngDjhxmUTshDA8EHdXaMJUsXdMg3PE","programIdIndex":10,"stackHeight":2},{"accounts":[9],"data":"P","programIdIndex":25,"stackHeight":2},{"accounts":[9,24],"data":"6RPFgENui1gZBmenZYi12xQZcAuK58XTi7T8Tfn433PbT","programIdIndex":25,"stackHeight":2}]},{"index":5,"instructions":[{"accounts":[13,22],"data":"KX69VKtJ7u4E7y1GibqEMEVMhEeT2y8sBVGLyThoVuE5iNiB8z8912KK1jFo5yxBg3zyd2HeJ3Agme","programIdIndex":23,"stackHeight":2},{"accounts":[5,14,4,2],"data":"iE3LQ3a6WWnqT","programIdIndex":26,"stackHeight":2},{"accounts":[9,24,1,0],"data":"h4AD5nfqtQoHi","programIdIndex":25,"stackHeight":2},{"accounts":[9,24,8,0],"data":"ggueUc9gq4AVN","programIdIndex":25,"stackHeight":2},{"accounts":[9,24,7,0],"data":"iNNdiHXMUAoVa","programIdIndex":25,"stackHeight":2},{"accounts":[9,24,6,0],"data":"ggueUc9gq4AVN","programIdIndex":25,"stackHeight":2},{"accounts":[19],"data":"3v6MM6bdCrZM9AkYohDKp6AN1YMkC3yKaSEichkLNz6yZrr8V1bM3kMo4FobrT6wyRV6YZBT23rFx6j4qRLTxeDWe52tquaG4VGJqtVyUbr2Kx5J4QEtKYaDYh7QS4bSKUAF2RFPbNnDb9W2aQQ9j2ZNbQVXwhTQEnyx1aNfvaxAcFej5sUS8gcXRWnnepXSWdvtVVwffuusUiBk1TyePbMQDx7cSacYAkBQufYiSTY81NB66eJdZsVupnEiQN1gFxy32P6Xs7991og4pBLdmoeXvDHRXefVu6qWnGCfpqiGks6Dkh1nvtAwCybFzc3oXzZmXTpFP4YZgynoEXyfAYEb1u1x4Th9Z1jvYhx1A9dbNZmPeadFSLVF2p1AU5L8fyfoEujgWUC77BKwappDftcgpqCk2auDowKurTmSR1vP7gXaf6MyPo8PzUxhvKW3J9E2xZTw5XHbu8ed3KcohvWARESrViriYBSNdrrXFX9LiGPsAwmnZZdd7TFaf9UmkUYynA1rH3MCGXAFW36WiZ3LfrtmB7AC9TKaecS1fUtVhS3v9qMxE8ZfuCkKoaoKtKAmbUTVaSPz2aNahJi8gGnKXJiTaD9BbT3Tps4sYEQgXyEZS5jKGKa7WqSwqT7AwGmEx3i1UF2jFy55HgRQm5YKWCKD5LJ4zUVKophJFfZvokjiP","programIdIndex":22,"stackHeight":2}]}],"loadedAddresses":{"readonly":[],"writable":[]},"logMessages":["Program ComputeBudget111111111111111111111111111111 invoke [1]","Program ComputeBudget111111111111111111111111111111 success","Program ComputeBudget111111111111111111111111111111 invoke [1]","Program ComputeBudget111111111111111111111111111111 success","Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [1]","Program log: CreateIdempotent","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 291349 compute units","Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program 11111111111111111111111111111111 invoke [2]","Program 11111111111111111111111111111111 success","Program log: Initialize the associated token account","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 286260 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 229 of 283799 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 16413 of 299700 compute units","Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success","Program 11111111111111111111111111111111 invoke [1]","Program 11111111111111111111111111111111 success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 201 of 283137 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA invoke [1]","Program log: Instruction: BuyExactQuoteIn","Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ invoke [2]","Program log: Instruction: GetFeesWithQuoteMint","Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ consumed 6065 of 241781 compute units","Program return: pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ FAAAAAAAAAAFAAAAAAAAAFAAAAAAAAAA","Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ success","Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb invoke [2]","Program log: Instruction: TransferChecked","Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb consumed 2562 of 230331 compute units","Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 225265 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 222394 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 218167 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 213690 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program data: Z/RSHyz1d3eng7ZqAAAAAKa7jAIAAAAAWM8CAAAAAABgz9cAAAAAAFjPAgAAAAAAewSzC3k6AAAwtdqsOwAAAFjPAgAAAAAAFAAAAAAAAABtAQAAAAAAAAUAAAAAAAAAXAAAAAAAAABKyQIAAAAAAN3HAgAAAAAAOavGTcjzpEYBAT2WT2AxuLgZukmjLmOJ0ErpAkpwkkk/KRE8A0M8Q2fajjUFYDJls4sS5GyfWPUkMynmqLI4dmmn6H5nrSsonWXInzCjefPoc1grQiiB/kG4iVOVRWht+s6OSLw+famzCVs9qNqJBjI8GI4+/U16KGU29CjPk8z/g4OBi6j6KMPNO21ek/n6uPCXm8NyFazFskaHe6jDybnwRqOiz07iErT6kv2dAPpPsLP8/TYeQK5TkflgNepjgaCUWrjk0WHGD17EKBnaW1BY5RmJVQlMFQskmDrJVONQAAAAAAAAALIFAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARrJ+AgAAAAASAAAAYnV5X2V4YWN0X3F1b3RlX2luAAAAAAAAAAAAAAAAAAAAAIgTAAAAAAAALgAAAAAAAADIQR4YBAAAAAAAAAAAAAAAASeeZhURjQMAAAAAAAAAAAAAAAAAAAAAAA==","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA invoke [2]","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA consumed 2098 of 205606 compute units","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA success","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA consumed 81785 of 282936 compute units","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 118 of 201151 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success"],"postBalances":[171598901,256304755890,2179320,1346200,1513840,1513840,543499370,1766063955,2073178710653,0,1,0,0,33103977,2778760,9272822,3388612899,28668918,1,4641093,1272665362,1836346995559,1178687650,6046721,1845366411367,200653906,70128638],"postTokenBalances":[{"accountIndex":1,"mint":"So11111111111111111111111111111111111111112","owner":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"256303267450","decimals":9,"uiAmount":256.30326745,"uiAmountString":"256.30326745"}},{"accountIndex":4,"mint":"644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","owner":"5FZ1JBNuiqHMWAh3TYohUS8Dg1jFinC1QXxcBCNDkFAV","programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb","uiTokenAmount":{"amount":"56920838","decimals":6,"uiAmount":56.920838,"uiAmountString":"56.920838"}},{"accountIndex":5,"mint":"644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","owner":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb","uiTokenAmount":{"amount":"64291518957781","decimals":6,"uiAmount":64291518.957781,"uiAmountString":"64291518.957781"}},{"accountIndex":6,"mint":"So11111111111111111111111111111111111111112","owner":"GXPFM2caqTtQYC2cJ5yJRi9VDkpsYZXzYdwYpGnLmtDL","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"541460090","decimals":9,"uiAmount":0.54146009,"uiAmountString":"0.54146009"}},{"accountIndex":7,"mint":"So11111111111111111111111111111111111111112","owner":"2UirZoBxH84XG7BjG8oc577fX6vXfP4pYx4Fu6orXc3V","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"1764575515","decimals":9,"uiAmount":1.764575515,"uiAmountString":"1.764575515"}},{"accountIndex":8,"mint":"So11111111111111111111111111111111111111112","owner":"JCRGumoE9Qi5BBgULTgdgTLjSgkCMSbF62ZZfGs84JeU","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"2073176855083","decimals":9,"uiAmount":2073.176855083,"uiAmountString":"2073.176855083"}}],"preBalances":[172498217,256304573288,2179320,1346200,1513840,1513840,543499324,1766062497,2073178710607,0,1,0,0,33103977,2778760,9272822,3388612899,28668918,1,4641093,1272665362,1836346995559,1178687650,6046721,1845366411367,200653906,70128638],"preTokenBalances":[{"accountIndex":1,"mint":"So11111111111111111111111111111111111111112","owner":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"256303084848","decimals":9,"uiAmount":256.303084848,"uiAmountString":"256.303084848"}},{"accountIndex":4,"mint":"644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","owner":"5FZ1JBNuiqHMWAh3TYohUS8Dg1jFinC1QXxcBCNDkFAV","programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb","uiTokenAmount":{"amount":"14143328","decimals":6,"uiAmount":14.143328,"uiAmountString":"14.143328"}},{"accountIndex":5,"mint":"644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","owner":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb","uiTokenAmount":{"amount":"64291561735291","decimals":6,"uiAmount":64291561.735291,"uiAmountString":"64291561.735291"}},{"accountIndex":6,"mint":"So11111111111111111111111111111111111111112","owner":"GXPFM2caqTtQYC2cJ5yJRi9VDkpsYZXzYdwYpGnLmtDL","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"541460044","decimals":9,"uiAmount":0.541460044,"uiAmountString":"0.541460044"}},{"accountIndex":7,"mint":"So11111111111111111111111111111111111111112","owner":"2UirZoBxH84XG7BjG8oc577fX6vXfP4pYx4Fu6orXc3V","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"1764574057","decimals":9,"uiAmount":1.764574057,"uiAmountString":"1.764574057"}},{"accountIndex":8,"mint":"So11111111111111111111111111111111111111112","owner":"JCRGumoE9Qi5BBgULTgdgTLjSgkCMSbF62ZZfGs84JeU","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"2073176855037","decimals":9,"uiAmount":2073.176855037,"uiAmountString":"2073.176855037"}}],"rewards":[],"status":{"Ok":null}},"slot":450378302,"transaction":{"message":{"accountKeys":["5FZ1JBNuiqHMWAh3TYohUS8Dg1jFinC1QXxcBCNDkFAV","2uyXxUFUZSf8mzv3R7bcyNzdHAC6dU1wQQZRAGznvnFo","4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","7vW4HkvikphaQG5WrHWHCLB94KoipXCAyfYewS5cTitx","87SJp7jktM5RQMgC3TqUFaUtXJgscJY5W96KFAZ5epaG","8goaafHaxBTri9Nsk6EerC5ic1gPTnYSiP7iBtSFYG26","AktftA98kSWAxn6kVSoqBXBELUArjKu2H9WmKB48ULFY","CPKst4uTXuztgKLEJm4KL26sCHYtN2UR2bLyd8H8GMVd","DWpvfqzGWuVy9jVSKSShdM2733nrEsnnhsUStYbkj6Nn","Ht3bzxLFLWvGq8urX5urHVy8sp5Xc4C4ifNc6bveXZF1","11111111111111111111111111111111","2UirZoBxH84XG7BjG8oc577fX6vXfP4pYx4Fu6orXc3V","4qQqK3WLM8Ec61vvntPm5caB666A8RH2svm7qQNYXNcR","5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx","644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw","ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL","C2aFPdENg4A2HQsmrd5rTw5TaYBX5Ku887cWjbFKtZpw","ComputeBudget111111111111111111111111111111","GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR","GXPFM2caqTtQYC2cJ5yJRi9VDkpsYZXzYdwYpGnLmtDL","JCRGumoE9Qi5BBgULTgdgTLjSgkCMSbF62ZZfGs84JeU","pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA","pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ","So11111111111111111111111111111111111111112","TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"],"header":{"numReadonlySignedAccounts":0,"numReadonlyUnsignedAccounts":17,"numRequiredSignatures":1},"instructions":[{"accounts":[],"data":"3tnVvJWxJ5x3","programIdIndex":18,"stackHeight":1},{"accounts":[],"data":"Kq1GWK","programIdIndex":18,"stackHeight":1},{"accounts":[0,9,0,24,10,25],"data":"2","programIdIndex":16,"stackHeight":1},{"accounts":[0,9],"data":"3Bxs4FiDSAXJobBu","programIdIndex":10,"stackHeight":1},{"accounts":[9],"data":"J","programIdIndex":25,"stackHeight":1},{"accounts":[2,0,15,14,24,4,9,5,1,21,8,26,25,10,16,19,22,7,11,17,3,13,23,12,20,6],"data":"2Nk86asu1ki8hACpLwtaFwu1QcRk5uB4E5n","programIdIndex":22,"stackHeight":1},{"accounts":[9,0,0],"data":"A","programIdIndex":25,"stackHeight":1}],"recentBlockhash":"377CuNmzaNkMRmhC5dujoAWH99576tGXwgLiDMETjEdr"},"signatures":["yCokJGZskQeeiKcZxi8fM6HPLU3N6ujtftD6tmkPbpaahqBSpLiS96C7e6DUKnh84sMxB1sKQZs1nBRhcpAF11f"]},"transactionIndex":285,"version":"legacy"}}},{"events":[{"amount":181538,"buy":false,"index":44,"market_time":1790346151,"pool":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","pool_base_reserve":64291519121489,"pool_quote_reserve":256303266022,"slot":450378301,"tokens":42613802,"user_quote_amount":179630,"wallet":"EpA74PYW2Vv2on2HA2rseSHWKqQWPod5AthqEsgBWhj8"}],"observed_at_ns":1790346160141613960,"physical_request_id":"8e6d0602-107d-46a5-91af-81bceee66ff5:514","provider":{"endpoint_identity":"267ddbf0c6aab1672c805ae5ad62c90cb30bb9883867f3286d66dedd572b3314","network":"solana","provider_kind":"alchemy","role":null},"request":{"id":77,"jsonrpc":"2.0","method":"getTransaction","params":["3ZixALVUrKdGCdrobq55LJ9J9YHkeY4RCC8dfkGgf1zfuLizBzi89gEfmLzoER1hSEmrLzY6QewVi4455NynmRb2",{"commitment":"finalized","encoding":"json","maxSupportedTransactionVersion":1}]},"response":{"id":77,"jsonrpc":"2.0","result":{"blockTime":1790346151,"meta":{"computeUnitsConsumed":84857,"costUnits":91471,"err":null,"fee":715164,"innerInstructions":[{"index":2,"instructions":[{"accounts":[22],"data":"84eT","programIdIndex":23,"stackHeight":2},{"accounts":[0,2],"data":"111135fAZn8PZBEU8J8iUmUTdbmBE6po1LhhgEJXngDjhxmUTshDA8EHdXaMJUsXdMg3PE","programIdIndex":9,"stackHeight":2},{"accounts":[2],"data":"P","programIdIndex":23,"stackHeight":2},{"accounts":[2,22],"data":"6awrmzb5JKMBs5G7oFC4D8QitpizKoYtmsosgjTMzorA6","programIdIndex":23,"stackHeight":2}]},{"index":3,"instructions":[{"accounts":[13,20],"data":"KX69VKtJ7u4ECJ9vVqn58NozxneYoLeW1zLGRFb4JHQ92sybBhWC2XKEcJgvpnAqJ5ZPNxZtKWYnTa","programIdIndex":21,"stackHeight":2},{"accounts":[6,14,5,0],"data":"ge8VhW3Q1jSof","programIdIndex":24,"stackHeight":2},{"accounts":[1,22,2,3],"data":"iKx8jeo2bVs4t","programIdIndex":23,"stackHeight":2},{"accounts":[1,22,7,3],"data":"ggueUc9gq4AVN","programIdIndex":23,"stackHeight":2},{"accounts":[1,22,8,3],"data":"iJgY7Hi7LpV3W","programIdIndex":23,"stackHeight":2},{"accounts":[1,22,4,3],"data":"ggApxQb3CnVzx","programIdIndex":23,"stackHeight":2},{"accounts":[19],"data":"3WpVFTH6N5gEG5rjeG9cr8J1torNad8zkXNuNUxiur4bBfoMkGWePDnvEiAeLoLwCk9pBMhigckSmCKtXjyrM1PSXUFWXrFCvTgk9tkpgtitu2tzukRwFLhoaCHBoVa3X1aHDyraJCotGsKtECiFGXnWovt6tCmgbed7uwoNFVTwBMuFNittedfAGGP3MLb6jQeYDvr5BtS9Ngbqt8tKypdmSc2PGaYiiVeyXzUCnvvcG3g7Ge8TFLNQpnr83q3LLHAiZSHBkTJQJcrvPUpfiu4LzfJJ88jSPQWzJce5Ye49kZfRitSNEGkRNjDtteinkTiVJy5BEtqPw3PXMHrbeEj4vbGHB6Fi1Yz72g69d1iuVGcTR8o6nHsEfuXNDQ3uJ8kpiRFnu8QihPPTdgPCPpvCj3PscaNnse2pnv8g59WGUui5sHGdNpKTDBkPpwny3WpSdCJkqqqtdyhQhRp7k5JgDEVUjm38b5FDGFq6q5p6zWp3bi1ebUVaZ9HAoD3f4bsTYXkK7pjmoxLgUhEvpM1a3zUyeNwbVYpN736yn6Uh53ixHQw8DAHcTP4koPftt5zeS8hUVqiJbMzbuuocwouVMu9","programIdIndex":20,"stackHeight":2}]}],"loadedAddresses":{"readonly":[],"writable":[]},"logMessages":["Program ComputeBudget111111111111111111111111111111 invoke [1]","Program ComputeBudget111111111111111111111111111111 success","Program ComputeBudget111111111111111111111111111111 invoke [1]","Program ComputeBudget111111111111111111111111111111 success","Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [1]","Program log: CreateIdempotent","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 294349 compute units","Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program 11111111111111111111111111111111 invoke [2]","Program 11111111111111111111111111111111 success","Program log: Initialize the associated token account","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 289260 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 229 of 286799 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 13413 of 299700 compute units","Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA invoke [1]","Program log: Instruction: Sell","Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ invoke [2]","Program log: Instruction: GetFeesWithQuoteMint","Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ consumed 6065 of 253109 compute units","Program return: pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ FAAAAAAAAAAFAAAAAAAAAFAAAAAAAAAA","Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ success","Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb invoke [2]","Program log: Instruction: TransferChecked","Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb consumed 2562 of 243305 compute units","Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 238166 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 235194 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 230865 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 226313 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success","Program data: Pi83CqUD3Cqng7ZqAAAAACo8igIAAAAAApkCAAAAAAA6XBsIAAAAAAAAAAAAAAAAUcgoCXk6AADmeN2sOwAAACLFAgAAAAAAFAAAAAAAAABsAQAAAAAAAAUAAAAAAAAAWwAAAAAAAAC2wwIAAAAAAK69AgAAAAAAOavGTcjzpEYBAT2WT2AxuLgZukmjLmOJ0ErpAkpwkknNPIXDNThOsfhPQalRgtWmeb0na2dX611KUoBSjCgQs3wY1oV5ZP8i5DiPvF3ORXvhsIujy6j5DBMZbR8boYoxKkSGpNugt1A9GHFYEQclJyDr5aVgmacsO98MA66hbe7gBMh865j6XOR/gDgG/Sx5RdKVJJWa7ADe2XgU8494RpwlJHx6/mh3nE583EE55WuEze54pO2bR06h+o7pPOIlgaCUWrjk0WHGD17EKBnaW1BY5RmJVQlMFQskmDrJVONQAAAAAAAAAK0FAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIgTAAAAAAAALQAAAAAAAADIQR4YBAAAAAAAAAAAAAAAASeeZhURjQMAAAAAAAAAAAAAAAAAAAAAAA==","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA invoke [2]","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA consumed 2098 of 219067 compute units","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA success","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA consumed 71026 of 286287 compute units","Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA success","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 118 of 215261 compute units","Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success"],"postBalances":[159488814,256304573288,0,2179320,638948560,1513840,1513840,2078207911716,1766062497,1,0,1020115140,0,33103977,2778760,9272822,3388612899,1,8742973059982,4641093,1178687650,6046721,1845366411367,200653906,70128638],"postTokenBalances":[{"accountIndex":1,"mint":"So11111111111111111111111111111111111111112","owner":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"256303084848","decimals":9,"uiAmount":256.303084848,"uiAmountString":"256.303084848"}},{"accountIndex":4,"mint":"So11111111111111111111111111111111111111112","owner":"3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"636909175","decimals":9,"uiAmount":0.636909175,"uiAmountString":"0.636909175"}},{"accountIndex":5,"mint":"644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","owner":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb","uiTokenAmount":{"amount":"64291561735291","decimals":6,"uiAmount":64291561.735291,"uiAmountString":"64291561.735291"}},{"accountIndex":6,"mint":"644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","owner":"EpA74PYW2Vv2on2HA2rseSHWKqQWPod5AthqEsgBWhj8","programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb","uiTokenAmount":{"amount":"93397008","decimals":6,"uiAmount":93.397008,"uiAmountString":"93.397008"}},{"accountIndex":7,"mint":"So11111111111111111111111111111111111111112","owner":"G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"2078206056146","decimals":9,"uiAmount":2078.206056146,"uiAmountString":"2078.206056146"}},{"accountIndex":8,"mint":"So11111111111111111111111111111111111111112","owner":"2UirZoBxH84XG7BjG8oc577fX6vXfP4pYx4Fu6orXc3V","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"1764574057","decimals":9,"uiAmount":1.764574057,"uiAmountString":"1.764574057"}}],"preBalances":[160024348,256304754462,0,2179320,638948515,1513840,1513840,2078207911670,1766061044,1,0,1020115140,0,33103977,2778760,9272822,3388612899,1,8742973059982,4641093,1178687650,6046721,1845366411367,200653906,70128638],"preTokenBalances":[{"accountIndex":1,"mint":"So11111111111111111111111111111111111111112","owner":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"256303266022","decimals":9,"uiAmount":256.303266022,"uiAmountString":"256.303266022"}},{"accountIndex":4,"mint":"So11111111111111111111111111111111111111112","owner":"3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"636909130","decimals":9,"uiAmount":0.63690913,"uiAmountString":"0.63690913"}},{"accountIndex":5,"mint":"644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","owner":"4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb","uiTokenAmount":{"amount":"64291519121489","decimals":6,"uiAmount":64291519.121489,"uiAmountString":"64291519.121489"}},{"accountIndex":6,"mint":"644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","owner":"EpA74PYW2Vv2on2HA2rseSHWKqQWPod5AthqEsgBWhj8","programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb","uiTokenAmount":{"amount":"136010810","decimals":6,"uiAmount":136.01081,"uiAmountString":"136.01081"}},{"accountIndex":7,"mint":"So11111111111111111111111111111111111111112","owner":"G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"2078206056100","decimals":9,"uiAmount":2078.2060561,"uiAmountString":"2078.2060561"}},{"accountIndex":8,"mint":"So11111111111111111111111111111111111111112","owner":"2UirZoBxH84XG7BjG8oc577fX6vXfP4pYx4Fu6orXc3V","programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","uiTokenAmount":{"amount":"1764572604","decimals":9,"uiAmount":1.764572604,"uiAmountString":"1.764572604"}}],"rewards":[],"status":{"Ok":null}},"slot":450378301,"transaction":{"message":{"accountKeys":["EpA74PYW2Vv2on2HA2rseSHWKqQWPod5AthqEsgBWhj8","2uyXxUFUZSf8mzv3R7bcyNzdHAC6dU1wQQZRAGznvnFo","3qzjE1kTUskh5f87xKydD22THcqKigjTckbE56fDrrah","4t8A7ZCEBae744tJqrxqHmTxy8Gi9SkHaTfr1rYaJzue","6rVkF4HSgy1jrnC3HogfRgPHrq4CtLg5f11URpsC4i9D","8goaafHaxBTri9Nsk6EerC5ic1gPTnYSiP7iBtSFYG26","9MRXEqABWaAvqHUrcUuVyx2T7ctaeNwj5QpAoH5smT1A","BWXT6RUhit9FfJQM3pBmqeFLPYmuxgmyhMGC5sGr8RbA","CPKst4uTXuztgKLEJm4KL26sCHYtN2UR2bLyd8H8GMVd","11111111111111111111111111111111","2UirZoBxH84XG7BjG8oc577fX6vXfP4pYx4Fu6orXc3V","3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR","4qQqK3WLM8Ec61vvntPm5caB666A8RH2svm7qQNYXNcR","5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx","644WewHuyN7UqSAQgybrPxH3uHzLYvqjiNf1geEEQqRm","ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw","ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL","ComputeBudget111111111111111111111111111111","G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP","GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR","pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA","pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ","So11111111111111111111111111111111111111112","TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"],"header":{"numReadonlySignedAccounts":0,"numReadonlyUnsignedAccounts":16,"numRequiredSignatures":1},"instructions":[{"accounts":[],"data":"3tnVvJWxJ5x3","programIdIndex":17,"stackHeight":1},{"accounts":[],"data":"Kq1GWK","programIdIndex":17,"stackHeight":1},{"accounts":[0,2,0,22,9,23],"data":"2","programIdIndex":16,"stackHeight":1},{"accounts":[3,0,15,14,22,6,2,5,1,18,7,24,23,9,16,19,20,8,10,13,21,12,11,4],"data":"5jRcjdixRUDKHU25oSs8UKKtnUybXhPPD","programIdIndex":20,"stackHeight":1},{"accounts":[2,0,0],"data":"A","programIdIndex":23,"stackHeight":1}],"recentBlockhash":"377CuNmzaNkMRmhC5dujoAWH99576tGXwgLiDMETjEdr"},"signatures":["3ZixALVUrKdGCdrobq55LJ9J9YHkeY4RCC8dfkGgf1zfuLizBzi89gEfmLzoER1hSEmrLzY6QewVi4455NynmRb2"]},"transactionIndex":435,"version":"legacy"}}}],"run":368,"scope":"retained_transaction_event_parity_only_not_interval_coverage","source_zip_sha256":"af99edde03cca57bf0e9e2c1dd1737de550346c4c3d2a52ddca5e27d2a519a0a"}
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+index 130e6c8b0f3c00bbe68154bf6be0cb89650700d7..3cc819a9718fa4c507392cc86150b7f93e5ac4c6 100644
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -908,6 +908,8 @@ def main(*,campaign=False,discovery_seconds=None):
+         report['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
+     _save(report)
+ 
++    from meme_machine.solana_evidence_health import HealthWatch
++    evidence_watch=HealthWatch(time.monotonic())
+     plane=RuntimeEvidence(owner='pump')
+     tape=LocalPumpTape(plane)
+     discovery_tape=PumpTape()
+@@ -931,6 +933,7 @@ def main(*,campaign=False,discovery_seconds=None):
+     discovery_end=int(time.time())+discovery_seconds
+     attempt_budget=RollingAttemptBudget()
+     end=discovery_end+FOLLOWUP_SECONDS
++    report["discovery_deadline"]=discovery_end
+ 
+     try:
+         while int(time.time())<end:
+@@ -938,13 +941,24 @@ def main(*,campaign=False,discovery_seconds=None):
+             _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
+             _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
+             if campaign:_retire_postgrad(report,postgrad,pending,active,pumpswap_stream,int(time.time()))
++            health=plane.health(PUMP_SCOPE)
++            if health['usable']:health=plane.health(SWAP_SCOPE)
++            evidence_watch.observe(health,time.monotonic())
++            report['evidence_liveness']=evidence_watch.snapshot()
++            if evidence_watch.failure:
++                report['infrastructure_failure']=evidence_watch.failure
++                if not pending and not active:break
+             if _smoke_tail_should_exit(
+                     smoke_flat_tail,now,discovery_end,pending,active):
+                 report['smoke_tail_exit']='flat_after_discovery'
++                report['discovery_completed_at']=now
+                 break
+             try:fresh,cursor=tape.events_since(cursor)
+             except ValueError as exc:
+-                report["evidence_plane_wait"]=str(exc);time.sleep(.25);continue
++                report["evidence_plane_wait"]=str(exc)
++                if now-last_save>=2:
++                    report['stream']=plane.telemetry();_save(report);last_save=now
++                time.sleep(.25);continue
+             for event in fresh:
+                 creation=tape.creation(event["mint"])
+                 if creation is None:
+@@ -1266,6 +1280,7 @@ def main(*,campaign=False,discovery_seconds=None):
+         ACCOUNTING.close();ACCOUNTING=None
+         PIPELINE.close();PIPELINE=None
+     print(json.dumps(report,sort_keys=True))
++    if report.get('infrastructure_failure'):raise Unavailable(report['infrastructure_failure'])
+ 
+ 
+ if __name__=="__main__":
+diff --git a/tests/test_evidence_runtime_cutover.py b/tests/test_evidence_runtime_cutover.py
+index 6cf75d43e1b6c7cfe2bd1574e1226f6d80ee3dbf..07b8574665b1493fb22ba32ba20167d2f3805cb3 100644
+--- a/tests/test_evidence_runtime_cutover.py
++++ b/tests/test_evidence_runtime_cutover.py
+@@ -32,7 +32,8 @@ class ProductionCutover(unittest.TestCase):
+         census=Subscription('service',SWAP_SCOPE,PUMPSWAP_PROGRAM,'census',4)
+         for slot in range(70,105):
+             self.fence.logs(logs,dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=dict(signature='s'+str(slot),logs=[],err=None)))),104)
+-            self.fence.block(census,dict(params=dict(result=dict(value=dict(slot=slot,err=None,block=dict(parentSlot=slot-1,blockTime=slot,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),signatures=['s'+str(slot)]))))),104)
++            self.fence.block(census,dict(params=dict(result=dict(value=dict(slot=slot,err=None,block=dict(parentSlot=slot-1,blockTime=slot,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),transactions=[dict(transaction=dict(signatures=['s'+str(slot)],message=dict(accountKeys=[PUMPSWAP_PROGRAM])),meta=dict(logMessages=[],err=None))]))))),104)
++        self.fence.health('phase','ACTIVE');self.fence.health('heartbeat',104)
+         self.plane=RuntimeEvidence(self.writer.path,owner='pump',clock=lambda:self.clock[0],command=self.fence.command)
+         self.snapshot=pumpswap_snapshot(kind='real',now=100,slot=100)
+         self.confirm=ConfirmationBook({},60)
+diff --git a/tests/test_run369_liveness.py b/tests/test_run369_liveness.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f7c53036c0998f8e5dad8095a2a18fd834acd16f
+--- /dev/null
++++ b/tests/test_run369_liveness.py
+@@ -0,0 +1,52 @@
++"""Actual Pump loop: exact flat completion versus bounded evidence failure."""
++import json
++from pathlib import Path
++from types import SimpleNamespace
++import tempfile
++import unittest
++from unittest.mock import patch
++from tests import pump_acceleration_natural_prospective as lane
++from meme_machine.solana_evidence_plane import EvidenceUnavailable
++
++
++class Run369PumpLoop(unittest.TestCase):
++    def run_case(self,usable):
++        with tempfile.TemporaryDirectory() as temp:
++            root=Path(temp);report=root/'native.json';clock=[1000.0]
++            health=dict(state='USABLE' if usable else 'WARMING',usable=usable,
++                        reason='authoritative_current' if usable else 'evidence_cold_start')
++            plane=SimpleNamespace(health=lambda _:health,telemetry=lambda:{},close=lambda:None)
++            session=SimpleNamespace(finish=lambda:None,history=[],rpc=SimpleNamespace(provider_telemetry=lambda:{}))
++            def tick(seconds):clock[0]+=seconds
++            with patch.object(lane,'REPORT',report),patch.object(lane,'RuntimeEvidence',return_value=plane), \
++                 patch.object(lane,'Sessions',return_value=session),patch.object(lane,'PumpLogStream') as stream, \
++                 patch.object(lane,'LocalPumpTape') as tape, \
++                 patch.object(lane,'primary_rpc_url',return_value='https://solana-mainnet.g.alchemy.com/v2/offline-fixture'), \
++                 patch.object(lane.time,'time',side_effect=lambda:clock[0]), \
++                 patch.object(lane.time,'monotonic',side_effect=lambda:clock[0]), \
++                 patch.object(lane.time,'sleep',side_effect=tick), \
++                 patch.dict(lane.os.environ,{'MM_CERTIFICATION_PHASE':'smoke','MM_SOLANA_EVIDENCE_BROKER_DB':str(root/'broker')}), \
++                 patch('builtins.print'):
++                stream.return_value.run.side_effect=lambda stop,ready:ready.set()
++                tape.return_value.status.return_value={}
++                tape.return_value.events_since.return_value=([],0)
++                if not usable:tape.return_value.events_since.side_effect=EvidenceUnavailable('evidence_cold_start')
++                if usable:lane.main(campaign=True,discovery_seconds=600)
++                else:
++                    with self.assertRaisesRegex(lane.Unavailable,'evidence_cold_start'):
++                        lane.main(campaign=True,discovery_seconds=600)
++            return json.loads(report.read_text()),clock[0]-1000
++
++    def test_actual_loop_clean_flat_completion(self):
++        report,elapsed=self.run_case(True)
++        self.assertEqual(report['smoke_tail_exit'],'flat_after_discovery')
++        self.assertEqual(elapsed,600)
++        self.assertEqual(report['pending_entries'],[]);self.assertEqual(report['open_positions'],[])
++        self.assertGreater(report['evidence_liveness']['usable_observations'],0)
++
++    def test_actual_loop_classifies_stalled_plane_before_entire_smoke(self):
++        report,elapsed=self.run_case(False)
++        self.assertEqual(report['infrastructure_failure'],'evidence_cold_start')
++        self.assertEqual(elapsed,90)
++        self.assertNotIn('smoke_tail_exit',report)
++        self.assertEqual(report['pending_entries'],[]);self.assertEqual(report['open_positions'],[])
+diff --git a/tests/test_run369_runtime.py b/tests/test_run369_runtime.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..91bd51718f4df07b58402c3e0ab713b1883a4204
+--- /dev/null
++++ b/tests/test_run369_runtime.py
+@@ -0,0 +1,239 @@
++"""Run 369 regressions. All sockets/providers are local deterministic fixtures."""
++import asyncio
++import json
++import tempfile
++import time
++import unittest
++import threading
++import socket
++from types import SimpleNamespace
++from pathlib import Path
++from unittest.mock import patch
++
++from meme_machine.solana_evidence_plane import EvidenceWriter, EvidenceReader, EvidenceUnavailable
++from meme_machine.solana_evidence_service import FinalizedFence, serve
++from meme_machine.solana_evidence_runtime import RuntimeEvidence, METEORA_SCOPE
++from meme_machine.solana_evidence_transport import Subscription
++from tests.test_solana_evidence_service_runtime import FakeSocket
++from tests.evidence_ipc_harness import ipc_transport
++
++PROGRAM = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo'
++
++
++def block(slot=10):
++    def tx(sig, program):
++        return dict(transaction=dict(signatures=[sig], message=dict(accountKeys=[program])),
++                    meta=dict(err=None, logMessages=[], loadedAddresses=dict(writable=[], readonly=[])))
++    return dict(method='blockNotification', params=dict(result=dict(value=dict(slot=slot, err=None,
++        block=dict(parentSlot=slot-1, blockhash='h'+str(slot), previousBlockhash='h'+str(slot-1),
++                   blockTime=slot, transactions=[tx('target'+str(slot), PROGRAM), tx('other'+str(slot), 'other')])))))
++
++
++class Run369SourceTests(unittest.TestCase):
++    def test_running_background_sql_yields_without_poisoning_owner(self):
++        from meme_machine.solana_evidence_control import PriorityOwner
++        with tempfile.TemporaryDirectory() as temp:
++            entered=threading.Event()
++            def state():
++                writer=EvidenceWriter(Path(temp)/'db')
++                return SimpleNamespace(writer=writer,close=writer.close)
++            owner=PriorityOwner(state)
++            def repair(state):
++                with state.writer.transaction():
++                    state.writer.db.execute("INSERT INTO counters VALUES('rolled_back',1)")
++                    entered.set()
++                    state.writer.db.execute('WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n').fetchone()
++            try:
++                owner.ready.result(1);background=owner.submit(repair,priority=4)
++                self.assertTrue(entered.wait(1))
++                foreground=owner.submit(lambda s:s.writer.db.execute("SELECT COUNT(*) FROM counters WHERE key='rolled_back'").fetchone()[0],priority=0)
++                self.assertEqual(foreground.result(1),0)
++                with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):background.result(1)
++                self.assertEqual(owner.submit(lambda s:42).result(1),42)
++            finally:owner.close()
++
++    def test_pool_pin_and_finite_gap_do_not_pin_unrelated_program_tail(self):
++        with tempfile.TemporaryDirectory() as temp:
++            writer=EvidenceWriter(Path(temp)/'db',clock=lambda:100)
++            try:
++                fence=FinalizedFence(writer,endpoint_identity='a'*64)
++                sub=Subscription('service',METEORA_SCOPE,PROGRAM,'transactions',4)
++                for slot in (10,11,12):fence.block(sub,block(slot),100)
++                fence.command(dict(op='interest',owner='position',scope=METEORA_SCOPE,lower_slot=0,
++                    addresses=['pool'],lifecycle='open',priority=0))
++                writer.gap(METEORA_SCOPE,10,10)
++                self.assertEqual([r['body']['slot'] for r in writer.archive_plan(100)],[11,12])
++                plan=writer.archive_plan(100)
++                fence.command(dict(op='interest',owner='second',scope=METEORA_SCOPE,lower_slot=11,
++                    addresses=[PROGRAM],lifecycle='reserved',priority=0))
++                self.assertEqual(writer.commit_archive(plan,writer.write_archive(writer.path,plan)),0)
++            finally:writer.close()
++
++    def test_whole_block_is_filtered_before_meteora_storage_and_census(self):
++        with tempfile.TemporaryDirectory() as temp:
++            writer=EvidenceWriter(Path(temp)/'db', clock=lambda:100)
++            try:
++                fence=FinalizedFence(writer, endpoint_identity='a'*64)
++                sub=Subscription('service', METEORA_SCOPE, PROGRAM, 'transactions', 4)
++                fence.block(sub, block(), 100)
++                self.assertEqual(writer.db.execute('SELECT signature FROM records').fetchall(), [('target10',)])
++                census=json.loads(writer.db.execute('SELECT census FROM stream_receipts').fetchone()[0])
++                self.assertEqual(census, ['target10'])
++            finally: writer.close()
++
++    def test_signature_only_census_is_rejected_and_alt_program_is_retained(self):
++        with tempfile.TemporaryDirectory() as temp:
++            writer=EvidenceWriter(Path(temp)/'db',clock=lambda:100)
++            try:
++                fence=FinalizedFence(writer,endpoint_identity='a'*64,decoders={METEORA_SCOPE:lambda _:[]})
++                sub=Subscription('service',METEORA_SCOPE,PROGRAM,'census',4)
++                message=block();body=message['params']['result']['value']['block']
++                body.pop('transactions');body['signatures']=['unknown-program']
++                with self.assertRaises(EvidenceUnavailable):fence.block(sub,message,100)
++                self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],0)
++                message=block();tx=message['params']['result']['value']['block']['transactions'][0]
++                tx['transaction']['message']['accountKeys']=[];tx['meta']['loadedAddresses']['readonly']=[PROGRAM]
++                fence.block(Subscription('service',METEORA_SCOPE,PROGRAM,'transactions',4),message,100)
++                self.assertEqual(writer.db.execute('SELECT signature FROM records').fetchall(),[('target10',)])
++            finally:writer.close()
++
++    def test_durable_receipts_deduplicate_all_mutations_and_reject_identity_conflicts(self):
++        with tempfile.TemporaryDirectory() as temp:
++            path=Path(temp)/'db';writer=EvidenceWriter(path,clock=lambda:100)
++            fence=FinalizedFence(writer,endpoint_identity='a'*64)
++            requests=[dict(op='interest',scope='scope',lower_slot=10,addresses=['pool'],lifecycle='reserved',priority=0),
++                      dict(op='ack',scope='scope',slot=10),dict(op='counter',key='pump.retry',count=7),
++                      dict(op='release',scope='scope',resolved=True)]
++            try:
++                for i,request in enumerate(requests):
++                    request.update(owner='pump:owner',consumer='pump',request_id=str(i),expires_at=103)
++                    first=fence.command(request);self.assertTrue(first['ok'])
++                    self.assertEqual(fence.command(request),first)
++                writer.close();writer=EvidenceWriter(path,clock=lambda:101)
++                fence=FinalizedFence(writer,endpoint_identity='a'*64)
++                for request in requests:self.assertTrue(fence.command(request)['ok'])
++                self.assertEqual(writer.db.execute("SELECT value FROM counters WHERE key='pump.retry'").fetchone()[0],7)
++                self.assertEqual(writer.db.execute('SELECT active FROM interests').fetchone()[0],0)
++                self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM consumers').fetchone()[0],1)
++                with self.assertRaises(EvidenceUnavailable):fence.command(dict(requests[2],count=8))
++                with patch('meme_machine.solana_evidence_control.MAX_RECEIPTS',4):
++                    result=fence.command(dict(requests[2],request_id='overflow'))
++                    self.assertEqual(result['error'],'evidence_receipt_capacity')
++                self.assertEqual(writer.db.execute("SELECT value FROM counters WHERE key='pump.retry'").fetchone()[0],7)
++                writer.clock=lambda:120
++                with self.assertRaises(EvidenceUnavailable):fence.command(requests[2])
++            finally:writer.close()
++
++    def test_health_states_and_stale_history_fail_closed(self):
++        from meme_machine.solana_evidence_health import HealthWatch
++        with tempfile.TemporaryDirectory() as temp:
++            now=[100];writer=EvidenceWriter(Path(temp)/'db',clock=lambda:now[0]);fence=FinalizedFence(writer,endpoint_identity='a'*64)
++            plane=RuntimeEvidence(writer.path,owner='meteora',clock=lambda:now[0],command=fence.command)
++            try:
++                fence.health('phase','WARMING');fence.health('heartbeat',100)
++                self.assertEqual(plane.health(METEORA_SCOPE)['state'],'WARMING')
++                for slot in (98,99,100):fence.block(Subscription('service',METEORA_SCOPE,PROGRAM,'transactions',4),block(slot),100)
++                fence.health('phase','ACTIVE')
++                self.assertTrue(plane.require_usable(METEORA_SCOPE)['usable'])
++                writer.gap(METEORA_SCOPE,99,99)
++                self.assertEqual(plane.health(METEORA_SCOPE)['state'],'DEGRADED')
++                with self.assertRaises(EvidenceUnavailable):plane.frontier(METEORA_SCOPE)
++                fence.health('phase','DRAINING');self.assertEqual(plane.health(METEORA_SCOPE)['state'],'DRAINING')
++                fence.health('phase','ACTIVE');now[0]=116
++                self.assertEqual(plane.health(METEORA_SCOPE)['state'],'FAILED')
++                self.assertFalse(plane.admit_candidate(METEORA_SCOPE,addresses=['pool'],owner='meteora:new')['accepted'])
++                watch=HealthWatch(0)
++                unhealthy=dict(state='WARMING',usable=False,reason='evidence_cold_start')
++                self.assertIsNone(watch.observe(unhealthy,89))
++                self.assertEqual(watch.observe(unhealthy,90),'evidence_cold_start')
++                self.assertEqual(watch.observe(unhealthy,600),'evidence_cold_start')
++            finally:plane.close();writer.close()
++
++    def test_missing_service_is_classified_meteora_admission(self):
++        with tempfile.TemporaryDirectory() as temp:
++            plane=RuntimeEvidence(Path(temp)/'missing',owner='meteora')
++            result=plane.admit_candidate(METEORA_SCOPE,addresses=['pool'],owner='meteora:new')
++            self.assertFalse(result['accepted']);self.assertFalse(result['economic_rejection'])
++            self.assertEqual(result['reason'],'evidence_service_unavailable');plane.close()
++
++    def test_bounded_priority_owner_repair_cannot_starve_lifecycle_or_foreground(self):
++        from meme_machine.solana_evidence_control import PriorityOwner
++        entered=threading.Event();release=threading.Event();order=[]
++        owner=PriorityOwner(lambda:SimpleNamespace(close=lambda:None),capacity=4,reserved=1)
++        try:
++            owner.ready.result(1)
++            blocker=owner.submit(lambda state:(entered.set(),release.wait(2)),priority=4)
++            self.assertTrue(entered.wait(1))
++            queued=[owner.submit(lambda state,i=i:order.append('repair'+str(i)),priority=4) for i in range(2)]
++            foreground=owner.submit(lambda state:order.append('foreground'),priority=1)
++            with self.assertRaises(EvidenceUnavailable):owner.submit(lambda state:None,priority=4)
++            lifecycle=owner.submit(lambda state:order.append('lifecycle'),priority=0)
++            with self.assertRaises(EvidenceUnavailable):owner.submit(lambda state:None,priority=0)
++            release.set();blocker.result(1)
++            for future in [*queued,foreground,lifecycle]:future.result(1)
++            self.assertEqual(order[:2],['lifecycle','foreground'])
++        finally:release.set();owner.close()
++
++
++class Run369IPCTests(unittest.IsolatedAsyncioTestCase):
++    async def test_response_after_old_250ms_limit_is_acknowledged_once(self):
++        original=FinalizedFence.command
++        def slow(fence, request):
++            time.sleep(.35)
++            return original(fence, request)
++        with tempfile.TemporaryDirectory() as temp:
++            path=Path(temp)/'db'; stop=asyncio.Event();wire=FakeSocket()
++            with ipc_transport(),patch('websockets.asyncio.client.connect', return_value=wire), patch.object(FinalizedFence,'command',slow):
++                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
++                try:
++                    for _ in range(200):
++                        if Path(str(path)+'.sock').exists(): break
++                        if task.done(): await task
++                        await asyncio.sleep(.01)
++                    for _ in range(200):
++                        if wire.subs:break
++                        await asyncio.sleep(.01)
++                    await wire.inject(100,[]);await wire.inject(101,[])
++                    for _ in range(200):
++                        probe=RuntimeEvidence(path,owner='probe')
++                        ready=probe.health(METEORA_SCOPE)['usable'];probe.close()
++                        if ready:break
++                        await asyncio.sleep(.01)
++                    def client():
++                        plane=RuntimeEvidence(path,owner='meteora')
++                        try: return plane.admit_candidate(METEORA_SCOPE,addresses=['pool'],owner='meteora:candidate:pool')
++                        finally: plane.close()
++                    self.assertTrue((await asyncio.to_thread(client))['accepted'])
++                    reader=EvidenceReader(path)
++                    try: self.assertEqual(reader.db.execute('SELECT COUNT(*) FROM interests').fetchone()[0],1)
++                    finally: reader.close()
++                finally: stop.set(); await task
++
++    async def test_disconnected_client_commit_retry_and_service_survival(self):
++        original=FinalizedFence.command
++        def slow(fence,request):time.sleep(.1);return original(fence,request)
++        with tempfile.TemporaryDirectory() as temp,ipc_transport():
++            path=Path(temp)/'db';stop=asyncio.Event();errors=[]
++            loop=asyncio.get_running_loop();previous=loop.get_exception_handler()
++            loop.set_exception_handler(lambda loop,context:errors.append(context))
++            with patch('websockets.asyncio.client.connect',return_value=FakeSocket()),patch.object(FinalizedFence,'command',slow):
++                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
++                try:
++                    for _ in range(200):
++                        if Path(str(path)+'.sock').exists():break
++                        await asyncio.sleep(.01)
++                    request=dict(op='counter',key='meteora.disconnect',count=1,owner='meteora',consumer='meteora',request_id='disconnect',expires_at=time.time()+3)
++                    def disconnect():
++                        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
++                            stream.connect(str(path)+'.sock');stream.sendall((json.dumps(request)+'\n').encode())
++                    await asyncio.to_thread(disconnect);await asyncio.sleep(.2)
++                    def retry():
++                        plane=RuntimeEvidence(path,owner='meteora')
++                        try:
++                            self.assertTrue(plane.command(**request)['ok'])
++                            self.assertTrue(plane.command(op='counter',key='meteora.normal',count=1)['ok'])
++                            self.assertEqual(plane.reader.db.execute("SELECT value FROM counters WHERE key='meteora.disconnect'").fetchone()[0],1)
++                        finally:plane.close()
++                    await asyncio.to_thread(retry)
++                    self.assertFalse(task.done());self.assertEqual(errors,[])
++                finally:stop.set();await task;loop.set_exception_handler(previous)
+diff --git a/tests/test_solana_evidence_fences.py b/tests/test_solana_evidence_fences.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a4ea6dc2277d76a45a6472b55c1bb678dce52fc4
+--- /dev/null
++++ b/tests/test_solana_evidence_fences.py
+@@ -0,0 +1,76 @@
++import tempfile
++from pathlib import Path
++import unittest
++from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader,EvidenceUnavailable
++from meme_machine.solana_evidence_transport import Subscription
++from meme_machine.solana_evidence_service import FinalizedFence
++
++class FenceTests(unittest.TestCase):
++    def setUp(self):
++        self.temp=tempfile.TemporaryDirectory();self.writer=EvidenceWriter(Path(self.temp.name)/'db',clock=lambda:100)
++        self.fence=FinalizedFence(self.writer,endpoint_identity='a'*64,decoders={'pump':lambda _:[]})
++        self.reader=EvidenceReader(self.writer.path);self.sub=Subscription('service','pump','program','census',4)
++    def tearDown(self):self.reader.close();self.writer.close();self.temp.cleanup()
++    def block(self,slot,parent,seen=100):
++        value=dict(slot=slot,err=None,block=dict(parentSlot=parent,blockhash=f'h{slot}',previousBlockhash=f'h{parent}',blockTime=slot,transactions=[dict(transaction=dict(signatures=[f's{slot}'],message=dict(accountKeys=['program'])),meta=dict(logMessages=[],err=None))]))
++        self.fence.block(self.sub,{'params':{'result':{'value':value}}},seen)
++    def log(self,slot,seen=100):
++        msg={'method':'logsNotification','params':{'result':{'context':{'slot':slot},'value':{'signature':f's{slot}','logs':[],'err':None}}}}
++        self.fence.logs(Subscription('service','pump','program','logs',4),msg,seen)
++    def test_single_notification_and_silence_never_grant_coverage(self):
++        self.log(10);self.block(10,9)
++        self.assertFalse(self.reader.covered('pump',10,10,as_of=10000))
++    def test_complete_census_and_linked_child_seal_exact_interval(self):
++        self.log(10);self.block(10,9);self.block(12,10)
++        self.assertTrue(self.reader.covered('pump',10,11,as_of=100))
++        self.assertFalse(self.reader.covered('pump',12,12,as_of=100))
++    def test_missing_filtered_delivery_fails_closed_and_preserves_asof(self):
++        self.block(10,9);self.block(11,10)
++        self.assertFalse(self.reader.covered('pump',10,10,as_of=100))
++        self.assertEqual(self.reader.telemetry()['unresolved_gaps'],1)
++        self.log(10,110)
++        self.assertFalse(self.reader.covered('pump',10,10,as_of=105))
++        self.assertTrue(self.reader.covered('pump',10,10,as_of=110))
++    def test_unknown_parent_is_explicit_gap_not_filtered_silence(self):
++        self.log(10);self.block(10,9);self.log(12);self.block(12,11);self.block(13,12)
++        self.assertFalse(self.reader.covered('pump',10,11,as_of=100))
++        self.assertTrue(self.reader.covered('pump',12,12,as_of=100))
++    def test_disconnect_cannot_bridge_sessions(self):
++        self.log(10);self.block(10,9);self.fence.disconnect();self.block(11,10)
++        self.assertFalse(self.reader.covered('pump',10,10,as_of=100))
++    def test_consumer_cannot_submit_proof_or_modify_evidence(self):
++        for op in ['ingest','coverage','repair','frontier','sql']:
++            with self.assertRaises(EvidenceUnavailable):self.fence.command({'op':op})
++    def test_restart_does_not_turn_old_receipt_into_live_coverage(self):
++        self.log(10);self.block(10,9);path=self.writer.path
++        self.writer.close();self.writer=EvidenceWriter(path,clock=lambda:100)
++        self.fence=FinalizedFence(self.writer,endpoint_identity='a'*64,decoders={'pump':lambda _:[]})
++        self.block(11,10)
++        self.assertFalse(self.reader.covered('pump',10,10,as_of=100))
++
++    def test_interest_ownership_lease_and_lifecycle_downgrade(self):
++        def interest(owner,consumer,lifecycle='candidate',priority=3):
++            self.fence.command(dict(op='interest',owner=owner,consumer=consumer,scope='pump',
++                lower_slot=10,priority=priority,lifecycle=lifecycle,addresses=['shared-account']))
++        interest('position','pump','reserved',1)
++        interest('candidate','meteora')
++        with self.assertRaises(EvidenceUnavailable):
++            self.fence.command(dict(op='release',consumer='meteora',owner='position',scope='pump',resolved=True))
++        with self.assertRaises(EvidenceUnavailable):interest('position','pump')
++        self.fence.expire_candidates(1401)
++        self.assertEqual(self.writer.db.execute("SELECT active FROM interests WHERE owner='candidate'").fetchone()[0],0)
++        self.assertEqual(self.writer.db.execute("SELECT active FROM interests WHERE owner='position'").fetchone()[0],1)
++        self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM service_interests').fetchone()[0],1)
++        self.fence.health('phase','DRAINING')
++        with self.assertRaises(EvidenceUnavailable):interest('new','pump')
++        interest('position','pump','open',0)
++        self.fence.command(dict(op='release',consumer='pump',owner='position',scope='pump',resolved=True))
++
++    def test_subscription_growth_is_rejected_before_partial_interest_commit(self):
++        for i in range(256):
++            self.fence.command(dict(op='interest',owner=str(i),scope='pump',lower_slot=10,
++                priority=3,lifecycle='candidate',addresses=['a'+str(i)]))
++        with self.assertRaises(EvidenceUnavailable):
++            self.fence.command(dict(op='interest',owner='overflow',scope='pump',lower_slot=10,
++                priority=3,lifecycle='candidate',addresses=['overflow']))
++        self.assertIsNone(self.writer.db.execute("SELECT 1 FROM interests WHERE owner='overflow'").fetchone())
+diff --git a/tests/test_solana_evidence_service_runtime.py b/tests/test_solana_evidence_service_runtime.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..957e4ccb325385a87377874bac396e85c98b681b
+--- /dev/null
++++ b/tests/test_solana_evidence_service_runtime.py
+@@ -0,0 +1,74 @@
++import asyncio,json,tempfile,time,unittest
++from pathlib import Path
++from unittest.mock import patch
++from meme_machine.solana_evidence_service import serve
++from meme_machine.solana_evidence_plane import EvidenceReader
++from meme_machine.postgrad import PUMPSWAP_PROGRAM
++from meme_machine.solana_evidence_runtime import SWAP_SCOPE
++
++class FakeSocket:
++    def __init__(self):self.queue=asyncio.Queue();self.subs={}
++    async def __aenter__(self):return self
++    async def __aexit__(self,*args):pass
++    async def send(self,raw):
++        req=json.loads(raw);self.subs[req['id']]=req
++        await self.queue.put(json.dumps(dict(id=req['id'],result=req['id'])))
++    async def recv(self):return await self.queue.get()
++    async def inject(self,slot,logs):
++        for identity,req in self.subs.items():
++            if req['method']!='blockSubscribe':continue
++            tx=dict(transaction=dict(signatures=['synthetic'+str(slot)],message=dict(accountKeys=[PUMPSWAP_PROGRAM])),meta=dict(err=None,logMessages=logs))
++            msg=dict(method='blockNotification',params=dict(subscription=identity,result=dict(value=dict(slot=slot,err=None,block=dict(parentSlot=slot-1,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),blockTime=int(time.time())-1,transactions=[tx])))))
++            await self.queue.put(json.dumps(msg))
++
++class FakeIPC:
++    def close(self):pass
++    async def wait_closed(self):pass
++
++async def local_server(*args,path,**kwargs):
++    Path(path).touch();return FakeIPC()
++
++class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
++    async def wait_for(self,predicate):
++        for _ in range(200):
++            if predicate():return
++            await asyncio.sleep(.01)
++        self.fail('offline service did not make progress')
++    async def test_real_service_ingests_while_both_readers_are_paused_and_recovers(self):
++        fixture=json.loads((Path(__file__).parent/'fixtures/solana_evidence_plane/run-368-raw-pump.json').read_text())
++        logs=fixture['records'][0]['response']['result']['meta']['logMessages']
++        with tempfile.TemporaryDirectory() as temp,patch('meme_machine.solana_evidence_service.time.time',return_value=1790347000):
++            path=Path(temp)/'db';socket=FakeSocket();stop=asyncio.Event()
++            with patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
++                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
++                try:
++                    await self.wait_for(lambda:len(socket.subs)==1)
++                    pump=EvidenceReader(path);meteora=EvidenceReader(path)
++                    pump.db.execute('BEGIN');pump.db.execute('SELECT COUNT(*) FROM records').fetchone()
++                    for slot in range(100,104):await socket.inject(slot,logs)
++                    await self.wait_for(lambda:meteora.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]==4)
++                    self.assertEqual(pump.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
++                    self.assertTrue(meteora.covered(SWAP_SCOPE,100,102,as_of=time.time()))
++                    telemetry=meteora.telemetry()
++                    self.assertGreater(telemetry['counters']['stream_bytes'],0)
++                    self.assertGreaterEqual(telemetry['counters']['stream_messages'],4)
++                    self.assertEqual(telemetry['service_health']['subscriptions']['by_evidence_class'],{'blocks':1})
++                    self.assertEqual(telemetry['service_health']['provider']['provider'],'alchemy_solana_mainnet')
++                    self.assertNotIn('offline-test',json.dumps(telemetry))
++                    pump.db.execute('ROLLBACK');meteora.db.execute('BEGIN');meteora.db.execute('SELECT COUNT(*) FROM records').fetchone()
++                    for slot in range(104,107):await socket.inject(slot,logs)
++                    await self.wait_for(lambda:pump.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]==7)
++                    self.assertEqual(meteora.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],4)
++                    meteora.db.execute('ROLLBACK');pump.close();meteora.close()
++                finally:stop.set();await task
++            second=FakeSocket();stop=asyncio.Event()
++            with patch('websockets.asyncio.client.connect',return_value=second),patch('asyncio.start_unix_server',side_effect=local_server):
++                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
++                try:
++                    await self.wait_for(lambda:len(second.subs)==1)
++                    reader=EvidenceReader(path)
++                    self.assertEqual(reader.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],7)
++                    self.assertGreaterEqual(reader.telemetry()['unresolved_gaps'],1)
++                    self.assertEqual(reader.telemetry()['counters']['restarts'],1)
++                    self.assertEqual(reader.db.execute('PRAGMA integrity_check').fetchone()[0],'ok');reader.close()
++                finally:stop.set();await task

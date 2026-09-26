@@ -96,7 +96,14 @@ def smoke_engineering(result):
     """A machinery preflight, never a four-hour or natural execution PASS."""
     failures=[]
     if result.get('phase')!='smoke' or result.get('status')!='FINISHED':failures.append('smoke_not_finished')
-    if result.get('continuous_overlap_seconds',0)<600:failures.append('ten_minute_overlap_missing')
+    from certification.solana_lifecycle import pump_flat_completion,authoritative_activity
+    lanes=result.get('lanes',{})
+    # Pump's native 600-second discovery can finish before the last-launched lane.
+    # Record actual overlap unchanged; require the exact native completion receipt
+    # and a full observed interval for every other lane.
+    completed=(pump_flat_completion(lanes.get('pump',{})) and all(
+        lanes.get(lane,{}).get('continuous_uptime_seconds',0)>=600 for lane in LANES if lane!='pump'))
+    if result.get('continuous_overlap_seconds',0)<600 and not completed:failures.append('ten_minute_overlap_missing')
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
         if permanently_unfunded(row):failures.append(lane+':permanently_unfunded_paper_book')
@@ -107,7 +114,10 @@ def smoke_engineering(result):
                  and (row.get('terminal_reconciliation') or {}).get('verified') is True)
         if (row.get('open_positions')!=0 and not handoff) or row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
-        if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        if not row.get('provider_requests') and not (lane=='pump' and authoritative_activity(row)):
+            failures.append(lane+':no_provider_activity')
+        if lane in ('pump','meteora') and row.get('infrastructure_failure'):
+            failures.append(lane+':evidence_unusable')
         if lane=='ramses' and (row.get('funnel') or {}).get('completed_scans',0)<1:
             failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
@@ -151,7 +161,11 @@ def hourly_engineering(result):
             failures.append(lane+':open_exposure_unknown')
         elif open_positions and not durable_handoff:
             failures.append(lane+':unsettled_position_without_durable_handoff')
-        if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        from certification.solana_lifecycle import authoritative_activity
+        if not row.get('provider_requests') and not (lane=='pump' and authoritative_activity(row)):
+            failures.append(lane+':no_provider_activity')
+        if lane in ('pump','meteora') and row.get('infrastructure_failure'):
+            failures.append(lane+':evidence_unusable')
         if lane=='ramses' and (row.get('funnel') or {}).get('completed_scans',0)<1:
             failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):

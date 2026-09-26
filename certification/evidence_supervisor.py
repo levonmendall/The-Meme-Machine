@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import time
+import sqlite3
 
 class EvidenceProcess:
     def __init__(self,run,cwd,env,*,spawn=subprocess.Popen,clock=time.monotonic,wait_ready=True):
@@ -25,9 +26,22 @@ class EvidenceProcess:
         code=self.proc.poll()
         if code is not None:
             self.file.close()
-            if self.restarts>=3:return dict(pid=self.proc.pid,restarts=self.restarts,exit_code=code,health='restart_bound_fail_closed')
+            if self.restarts>=3:return dict(pid=self.proc.pid,restarts=self.restarts,exit_code=code,health='restart_bound_fail_closed',lanes={lane:dict(state='FAILED',usable=False,reason='evidence_service_unavailable') for lane in ('pump','meteora')})
             self.restarts+=1;self.start()
-        return dict(pid=self.proc.pid,restarts=self.restarts,exit_code=code)
+        from meme_machine.solana_evidence_plane import EvidenceReader
+        from meme_machine.solana_evidence_health import evidence_health
+        states={}
+        try:
+            reader=EvidenceReader(self.env['MM_SOLANA_EVIDENCE_PLANE_DB'])
+            try:
+                for lane in ('pump','meteora'):
+                    states[lane]=evidence_health(reader,'program:'+lane,time.time())
+                swap=evidence_health(reader,'program:pumpswap',time.time())
+                if states['pump']['usable'] and not swap['usable']:states['pump']=swap
+            finally:reader.close()
+        except (OSError,ValueError,sqlite3.Error):
+            states={lane:dict(state='FAILED',usable=False,reason='evidence_service_unavailable') for lane in ('pump','meteora')}
+        return dict(pid=self.proc.pid,restarts=self.restarts,exit_code=code,lanes=states)
     def close(self):
         if self.proc is not None and self.proc.poll() is None:
             self.proc.terminate()

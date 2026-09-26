@@ -20,7 +20,8 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--worktrees',type=Path);parser.add_argument('--scan',type=Path);args=parser.parse_args()
     if args.scan:return scan_public_artifacts(args.scan)
     modules=('solana_provider_config','solana_evidence_plane','solana_evidence_transport',
-             'solana_evidence_service','solana_evidence_runtime','durable_publication')
+             'solana_evidence_service','solana_evidence_runtime','solana_evidence_control',
+             'solana_evidence_health','durable_publication')
     for lane in ('pump','meteora'):
         cwd=args.worktrees/lane
         for name in modules:

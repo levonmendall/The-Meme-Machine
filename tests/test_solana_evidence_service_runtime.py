@@ -16,12 +16,9 @@ class FakeSocket:
     async def recv(self):return await self.queue.get()
     async def inject(self,slot,logs):
         for identity,req in self.subs.items():
-            if PUMPSWAP_PROGRAM not in str(req['params']):continue
-            if req['method']=='logsSubscribe':
-                msg=dict(method='logsNotification',params=dict(subscription=identity,result=dict(context=dict(slot=slot),value=dict(signature='synthetic'+str(slot),logs=logs,err=None))))
-            elif req['method']=='blockSubscribe':
-                msg=dict(method='blockNotification',params=dict(subscription=identity,result=dict(value=dict(slot=slot,err=None,block=dict(parentSlot=slot-1,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),blockTime=int(time.time())-1,signatures=['synthetic'+str(slot)])))))
-            else:continue
+            if req['method']!='blockSubscribe':continue
+            tx=dict(transaction=dict(signatures=['synthetic'+str(slot)],message=dict(accountKeys=[PUMPSWAP_PROGRAM])),meta=dict(err=None,logMessages=logs))
+            msg=dict(method='blockNotification',params=dict(subscription=identity,result=dict(value=dict(slot=slot,err=None,block=dict(parentSlot=slot-1,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),blockTime=int(time.time())-1,transactions=[tx])))))
             await self.queue.put(json.dumps(msg))
 
 class FakeIPC:
@@ -45,7 +42,7 @@ class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
             with patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
                 task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
                 try:
-                    await self.wait_for(lambda:len(socket.subs)==5)
+                    await self.wait_for(lambda:len(socket.subs)==1)
                     pump=EvidenceReader(path);meteora=EvidenceReader(path)
                     pump.db.execute('BEGIN');pump.db.execute('SELECT COUNT(*) FROM records').fetchone()
                     for slot in range(100,104):await socket.inject(slot,logs)
@@ -54,8 +51,8 @@ class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(meteora.covered(SWAP_SCOPE,100,102,as_of=time.time()))
                     telemetry=meteora.telemetry()
                     self.assertGreater(telemetry['counters']['stream_bytes'],0)
-                    self.assertGreaterEqual(telemetry['counters']['stream_messages'],5)
-                    self.assertEqual(telemetry['service_health']['subscriptions']['by_evidence_class'],{'logs':2,'census':2,'transactions':1})
+                    self.assertGreaterEqual(telemetry['counters']['stream_messages'],4)
+                    self.assertEqual(telemetry['service_health']['subscriptions']['by_evidence_class'],{'blocks':1})
                     self.assertEqual(telemetry['service_health']['provider']['provider'],'alchemy_solana_mainnet')
                     self.assertNotIn('offline-test',json.dumps(telemetry))
                     pump.db.execute('ROLLBACK');meteora.db.execute('BEGIN');meteora.db.execute('SELECT COUNT(*) FROM records').fetchone()
@@ -68,7 +65,7 @@ class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
             with patch('websockets.asyncio.client.connect',return_value=second),patch('asyncio.start_unix_server',side_effect=local_server):
                 task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
                 try:
-                    await self.wait_for(lambda:len(second.subs)==5)
+                    await self.wait_for(lambda:len(second.subs)==1)
                     reader=EvidenceReader(path)
                     self.assertEqual(reader.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],7)
                     self.assertGreaterEqual(reader.telemetry()['unresolved_gaps'],1)
