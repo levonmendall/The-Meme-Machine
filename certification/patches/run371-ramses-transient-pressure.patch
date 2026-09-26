@@ -79,70 +79,63 @@ diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ram
              progress=_frontier_progress(last_observed_frontier,frontier)
              if progress=="advanced":
                  frontier_advances+=1
-diff --git a/robinhood_tests/test_ramses_run371_pressure.py b/robinhood_tests/test_ramses_run371_pressure.py
-new file mode 100644
---- /dev/null
-+++ b/robinhood_tests/test_ramses_run371_pressure.py
-@@ -0,0 +1,62 @@
-+import unittest
-+
-+from robinhood_research import BoundaryError
+diff --git a/robinhood_tests/test_ramses_rate_limit.py b/robinhood_tests/test_ramses_rate_limit.py
+--- a/robinhood_tests/test_ramses_rate_limit.py
++++ b/robinhood_tests/test_ramses_rate_limit.py
+@@ -1,8 +1,12 @@
+ import unittest
+ from unittest.mock import patch
+ 
+ from robinhood_research import BoundaryError
+ import robinhood_research.ramses_capture as capture
 +from robinhood_research.ramses_extended_test import (
 +    _frontier_poll,
 +    _scan_with_capacity_recovery,
 +)
+ 
+ 
+ class _FakeSession:
+@@ -155,7 +159,43 @@ class RamsesRateLimitTests(unittest.TestCase):
+         t=rpc.telemetry()
+         self.assertEqual(t["receipt_cache_hits"],1)
+         self.assertEqual(t["block_cache_hits"],2)
+ 
++    def test_run371_frontier_429_and_shared_admission_are_deferred(self):
++        class FailingRpc:
++            def __init__(self,reason):self.reason=reason
++            def call(self,*_args,**_kwargs):raise BoundaryError(self.reason)
++        for reason in ('provider_http_429','provider_shared_admission_deadline'):
++            with self.subTest(reason=reason):
++                frontier,row=_frontier_poll(
++                    FailingRpc(reason),poll_index=7,elapsed=574.0)
++                self.assertIsNone(frontier)
++                self.assertEqual(row['boundary'],reason)
++                self.assertTrue(row['infrastructure_censored'])
++                self.assertFalse(row['market_screen_complete'])
++                self.assertFalse(row['qualification_inferred'])
 +
-+
-+class FailingRpc:
-+    def __init__(self,reason):
-+        self.reason=reason
-+
-+    def call(self,*_args,**_kwargs):
-+        raise BoundaryError(self.reason)
-+
-+
-+class Run371ProviderPressureTests(unittest.TestCase):
-+    def test_frontier_429_is_deferred_without_market_inference(self):
-+        frontier,row=_frontier_poll(
-+            FailingRpc('provider_http_429'),poll_index=7,elapsed=574.0)
-+        self.assertIsNone(frontier)
-+        self.assertEqual(row['boundary'],'provider_http_429')
-+        self.assertTrue(row['infrastructure_censored'])
-+        self.assertFalse(row['market_screen_complete'])
-+        self.assertFalse(row['qualification_inferred'])
-+
-+    def test_frontier_shared_admission_deadline_is_deferred(self):
-+        frontier,row=_frontier_poll(
-+            FailingRpc('provider_shared_admission_deadline'),
-+            poll_index=8,elapsed=575.0)
-+        self.assertIsNone(frontier)
-+        self.assertEqual(row['failure_domain'],'provider_or_shared_admission')
-+        self.assertFalse(row['qualification_inferred'])
-+
-+    def test_frontier_structural_boundary_still_fails_closed(self):
++    def test_run371_structural_frontier_boundary_still_fails_closed(self):
++        class FailingRpc:
++            def call(self,*_args,**_kwargs):
++                raise BoundaryError('ramses_finalized_frontier_conflict')
 +        with self.assertRaisesRegex(
 +                BoundaryError,'ramses_finalized_frontier_conflict'):
-+            _frontier_poll(
-+                FailingRpc('ramses_finalized_frontier_conflict'),
-+                poll_index=1,elapsed=1.0)
++            _frontier_poll(FailingRpc(),poll_index=1,elapsed=1.0)
 +
-+    def test_repeated_shared_admission_loss_defers_only_current_scan(self):
++    def test_run371_repeated_shared_admission_loss_defers_current_scan(self):
 +        failures=[]
-+        def scan():
-+            raise BoundaryError('provider_shared_admission_deadline')
++        def scan():raise BoundaryError('provider_shared_admission_deadline')
 +        row=_scan_with_capacity_recovery(
 +            scan,deadline=100,record_failure=failures.append,
 +            clock=lambda:0,sleeper=lambda _seconds:None)
 +        self.assertEqual(
-+            row,
-+            dict(_scan_deferred=True,reason='provider_shared_admission_deadline'),
-+        )
++            row,dict(_scan_deferred=True,
++                     reason='provider_shared_admission_deadline'))
 +        self.assertEqual(len(failures),3)
 +        self.assertTrue(all(x['infrastructure_censored'] for x in failures))
 +        self.assertTrue(all(x['market_screen_complete'] is False for x in failures))
 +        self.assertTrue(all(x['qualification_inferred'] is False for x in failures))
 +
-+
-+if __name__=='__main__':
-+    unittest.main()
-+
+ 
+ if __name__=="__main__":
+     unittest.main()
