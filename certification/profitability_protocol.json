@@ -39,8 +39,8 @@
     },
     "pons": {
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
-      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
-      "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "source_sha": "1732d72d05a97302eb84cb5d996602c928e7f1d4",
+      "execution_sha": "1732d72d05a97302eb84cb5d996602c928e7f1d4",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
       "source_diff_sha256": "48083016628092f421b81f297c0fb4d29601d7fabf3e6d39da88430e53bb1089"
     },

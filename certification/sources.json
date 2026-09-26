@@ -494,8 +494,8 @@
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b"
     },
     "pons": {
-      "source_branch": "strategy/pons-profit-protection-v2-20260923",
-      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "source_branch": "strategy/pons-opportunity-preservation-v2-20260925",
+      "source_sha": "1732d72d05a97302eb84cb5d996602c928e7f1d4",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
       "file_hashes": {

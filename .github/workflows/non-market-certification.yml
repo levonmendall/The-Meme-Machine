@@ -1,7 +1,7 @@
 name: non-market-certification
 on:
   push:
-    branches: [cert/non-market-e2e-20260922, repair/market-scope-efficiency-final-20260923, cert/profitability-portfolio-autonomy-current-v1, cert/profitability-portfolio-autonomy-final-v1]
+    branches: [cert/non-market-e2e-20260922, repair/market-scope-efficiency-final-20260923, cert/profitability-portfolio-autonomy-current-v1, cert/profitability-portfolio-autonomy-final-v1, cert/pons-opportunity-preservation-v2-20260925]
   workflow_dispatch:
   workflow_call:
 permissions:
@@ -25,6 +25,11 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/non-market-lanes"
+      - name: Frozen Pons opportunity selection replay (no network)
+        if: github.ref == 'refs/heads/cert/pons-opportunity-preservation-v2-20260925'
+        run: |
+          mkdir -p non-market-evidence
+          python -m certification.robinhood.opportunity_replay --fixture certification/evidence/robinhood-runs-355-368.json.gz --pons "$RUNNER_TEMP/non-market-lanes/pons" --supplement docs/evidence-reconstruction-20260924/pons-authenticated-rejection-audit.json --output non-market-evidence/pons-opportunity-replay.json
       - name: Verify frozen profitability portfolio autonomy protocol
         run: python -m certification.protocol_freeze --output non-market-evidence/profitability-protocol-freeze.json
       - name: Reject retired provider references in prepared runtime
