@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "evidence-planes-20260925-one-market-v1",
+  "authorization_id": "run370-repairs-20260925-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36077647211,
-    "status": "completed_success",
-    "source": "Previous owner-authorized one-shot smoke-to-hourly paper campaign completed. This fresh authorization is for the combined offline-certified Solana and Robinhood Evidence Plane architectures."
+    "run_id": 36200179045,
+    "status": "completed_failure_flat",
+    "source": "Run 369 smoke exposed the Solana runtime and Pons causal-accounting defects repaired in the two certified Run 369 repair branches. Native exposure ended flat."
   },
   "prior_launch_attempt": {
-    "run_id": 36077647211,
-    "outcome": "completed_success",
+    "run_id": 36200179045,
+    "outcome": "completed_failure_flat",
     "provider_or_market_work_started": true,
-    "reason": "Previous one-shot authority is consumed. Owner explicitly authorized exactly one fresh market workflow using the new Solana and Robinhood evidence architectures."
+    "reason": "Prior one-shot authority is consumed. Owner explicitly authorized exactly one new PAPER market workflow using the just-completed Run 369 Solana runtime and Pons accounting repairs."
   }
 }
