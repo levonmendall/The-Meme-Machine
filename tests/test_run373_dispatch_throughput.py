@@ -220,12 +220,10 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
             if outer:
                 time.sleep(.03)
 
+        self.assertEqual(service.STREAM_DISPATCH_MAX_MESSAGES,64)
+        self.assertEqual(service.STREAM_DISPATCH_MAX_BYTES,96*1024*1024)
         with tempfile.TemporaryDirectory() as temp,patch(
             'meme_machine.solana_evidence_service.time.time',return_value=1790439000
-        ),patch.object(
-            service,'STREAM_DISPATCH_MAX_MESSAGES',16
-        ),patch.object(
-            service,'STREAM_DISPATCH_MAX_BYTES',96*1024*1024
         ),patch.object(
             EvidenceWriter,'transaction',delayed_transaction
         ),patch(
