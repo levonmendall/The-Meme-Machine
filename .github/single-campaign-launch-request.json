@@ -1,6 +1,6 @@
 {
-  "runtime_sha": "a24325b0c59a08c9bccb174c28b65b21323c1e96",
-  "runtime_ref": "cert/single-market-run374-run373-dispatch-repair-20260926",
-  "certification_run_id": 36257092919,
-  "authorization_id": "run374-run373-dispatch-repair-20260926-one-market-v1"
+  "runtime_sha": "87679280006ebf22c8b410fdf558658d190fd235",
+  "runtime_ref": "cert/single-market-run375-run374-publisher-repair-20260926",
+  "certification_run_id": 36260387290,
+  "authorization_id": "run375-run374-publisher-repair-20260926-one-market-v1"
 }
