@@ -59,3 +59,10 @@ and Pump 372. Both affected regressions pass after repair. The next candidate
 also preserves both directional namespaces and sleeve authorities in archives,
 validates Survivor capture/replay, and recognizes only verified Survivor handoffs
 through the existing continuation controls. No market workflow was launched.
+
+Candidate `9f76d1d30d79f0215388e011146bca2266bc294b` passed all 1,601
+native tests (Pump 373, Pons 419, Meteora 452, Ramses 357), 342 supervisor tests,
+and regular CI. Workflow `36264525057` then found a direct crash-harness import
+path missing the neutral helper root. The corrected harness passes the complete
+20-boundary native SIGKILL matrix; all four runner restart probes also pass.
+Strategy and composite policy hashes are unchanged by this harness repair.

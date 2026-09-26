@@ -93,4 +93,7 @@ if __name__=='__main__':
     parser.add_argument('--db',required=True);parser.add_argument('--step',type=int,default=0)
     parser.add_argument('--before-commit',action='store_true');parser.add_argument('--inspect',action='store_true')
     args=parser.parse_args();sys.path.insert(0,os.getcwd())
+    # Native strategies reuse certified neutral capacity/accounting helpers.
+    # Match worker import precedence when invoked directly from a lane worktree.
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
     exercise(args.lane,args.db,args.step,args.before_commit,args.inspect)
