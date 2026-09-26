@@ -1,7 +1,10 @@
 diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
+index 108159d57a225ba309ede53ebbbcf2041ebb0af3..9db86627ebb72127cb9a64cdf960a0021b46226d 100644
 --- a/SOLANA_DLMM_INDEPENDENT_V1.json
 +++ b/SOLANA_DLMM_INDEPENDENT_V1.json
-@@ -117,10 +117,10 @@
+@@ -115,12 +115,12 @@
+     "research_band_note": "The historical 51-100-bin band maps to 52-100 supplied bins here because the mechanically modeled centered range deliberately excludes the active bin to avoid unmodeled active-bin composition fees."
+   },
    "qualification": {
 -    "min_competing_range_liquidity_to_capital_multiple": 5,
 -    "min_two_way_balance": 0.25,
@@ -14,7 +17,10 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 -    "max_stress_unwind_loss_bps": 150,
 +    "max_stress_unwind_loss_bps": 200,
      "projected_fee_horizon_seconds": 14400,
-@@ -130,14 +130,14 @@
+     "min_expected_net_lamports": 1,
+     "expected_net_definition": "projected exact-range fee capture over the 4h minimum core hold - 400000 lamports modeled network cost - 50%-inventory stress unwind loss; must be strictly positive",
+@@ -128,14 +128,14 @@
+     "ranking_metric": "authenticated fee production / executable local range liquidity, 24h-normalized",
      "dynamic_fee_uplift_hard_gate": false,
      "unchanged_hard_risk_gates": [
 -      "min_competing_range_liquidity_to_capital_multiple = 5",
@@ -31,7 +37,8 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 +    "min_authenticated_fee_density_24h_pct": 4,
      "high_density_tier_24h_pct": 20
    },
-@@ -145,11 +145,11 @@
+   "fee_model": {
+@@ -145,16 +145,16 @@
      "range_fee_capture": "authenticated warmup LP fees from swaps intersecting the proposed range, converted to SOL at authenticated bin prices",
      "historical_apr_is_not_an_entry_signal": true,
      "dynamic_fee_uplift_role": "recorded context and exit-state feature; not a hard entry gate",
@@ -45,19 +52,25 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 -    "historical_mapping": "The frozen 5%/day threshold preserves the broad historical positive regime only after its unit is explicitly redefined in authenticated local-liquidity terms; it is not a direct trust of the retrospective API field."
 +    "historical_mapping": "The frozen 4%/day threshold preserves the broad historical positive regime only after its unit is explicitly redefined in authenticated local-liquidity terms; it is not a direct trust of the retrospective API field."
    },
-@@ -155,4 +155,4 @@
    "flow_model": {
      "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
 -    "min_two_way_balance": 0.25,
 +    "min_two_way_balance": 0.2,
      "adverse_selection_proxy": [
-@@ -220,5 +220,5 @@
+       "near-range drift ratio",
+       "one-way flow",
+@@ -219,7 +219,7 @@
+     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
      "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
    },
 -  "revision": "2.0-profitability-fee-density-v1-core-hold-v2",
 +  "revision": "2.1-moderate-admission-thresholds-v1",
    "amendment_history": [
-@@ -367,14 +367,14 @@
+     {
+       "revision": "1.1",
+@@ -365,17 +365,17 @@
+     }
+   },
    "execution_certification": {
 -    "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
 +    "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
@@ -74,10 +87,13 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 -    "authenticated_fee_density_threshold_pct": 5,
 +    "authenticated_fee_density_threshold_pct": 4,
      "core_hold_seconds": [
+       14400,
+       86400
 diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
+index 1b7c6e897abfcbb2ede3990e51b5ccc43b3822c5..aa870049044557f1b5a0f01bfce07ca5d9c668dd 100644
 --- a/tests/test_solana_dlmm_independent_v1.py
 +++ b/tests/test_solana_dlmm_independent_v1.py
-@@ -31,10 +31,10 @@
+@@ -34,18 +34,18 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
          self.assertEqual(p["range"]["max_holding_seconds"],86400)
          self.assertEqual(p["range"]["min_half_width_bins"],26)
          self.assertEqual(p["range"]["max_half_width_bins"],50)
@@ -90,14 +106,17 @@ diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_i
          self.assertEqual(
 -            p["fee_model"]["live_fee_density_threshold_pct"],5.0)
 +            p["fee_model"]["live_fee_density_threshold_pct"],4.0)
-@@ -47,4 +47,4 @@
+         self.assertIn(
              "range_fee_sol_lamports / range_liquidity_sol_lamports",
              p["fee_model"]["live_fee_density_metric"])
          self.assertFalse(p["fee_model"]["require_dynamic_fee_uplift"])
          self.assertEqual(
 -            p["revision"],"2.0-profitability-fee-density-v1-core-hold-v2")
 +            p["revision"],"2.1-moderate-admission-thresholds-v1")
-@@ -231,27 +231,27 @@
+         self.assertEqual(p["exit"]["core_hold_seconds"],14400)
+         self.assertEqual(p["exit"]["economic_collapse_confirmation_segments"],2)
+         self.assertEqual(
+@@ -372,25 +372,25 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
          base=dict(
              volume_acceleration=0.1,
              fee_acceleration=0.1,
@@ -133,3 +152,4 @@ diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_i
 +            "unwind":{"stress_inventory_roundtrip":{"loss_bps":200.01}},
              "expected_net":{"expected_net_lamports":0},
          }
+         for expected,change in mutations.items():
