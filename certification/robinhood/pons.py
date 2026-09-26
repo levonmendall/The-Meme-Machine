@@ -98,12 +98,22 @@ class Broker:
     def acknowledge(self,scheduled):
         return self.plane.consume(scheduled['key'],scheduled['work']['generation'])
 
-    def failure(self,scheduled,reason):
+    def failure(self,scheduled,reason,*,screen=None):
         state=('superseded' if reason=='candidate_generation_superseded' else
                'freshness_deadline_censored' if any(x in reason for x in ('stale','deadline')) else
                'provider_capacity_defer' if any(x in reason for x in ('429','capacity','budget')) else
                'transient_defer' if any(x in reason for x in ('transport_failure','http_50')) else 'authoritative_evidence_failure')
-        return self.plane.finish(scheduled['work'],state=state,reason=reason)
+        if screen is not None:
+            from .accounting import screen_outcome
+            state=screen_outcome(screen)
+        return self.plane.finish(scheduled['work'],state=state,reason=reason,
+            accounting_details={'authenticated_evidence':screen['authenticated_evidence']} if screen else None)
+
+    def report_to(self,pipeline,*,drain=False):
+        from .accounting import project,high_water
+        through=high_water(self.plane)
+        while project(self.plane,pipeline,through=through)==256:
+            if not drain:break
 
     def telemetry(self):return self.plane.snapshot('pons')
 

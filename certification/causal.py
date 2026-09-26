@@ -10,12 +10,35 @@ STATES = ('structural_exclusion','valid_early_rejection','evidence_not_required'
     'genuine_reconstruction_incomplete','stale_evidence','capital_occupied',
     'qualified_not_entered','entry_reserved','entry_cancelled','entry_filled',
     'settled','open_continuing','authenticated_trigger_awaiting_evidence',
-    'pre_admission_evidence_incomplete','observed')
+    'pre_admission_evidence_incomplete','canonical_evidence_completed','unresolved_transient','observed')
 
 
 def transition(state, stage, reason, classification, details):
     state=dict(state)
     reason=str(reason or '')
+    details=details or {}
+    generation=details.get('candidate_generation')
+    previous=state.get('candidate_generation')
+    # Fenced completions and out-of-order observations are history, not outcomes.
+    if classification=='superseded_generation' or stage=='candidate_superseded':
+        state['superseded_transitions']=state.get('superseded_transitions',0)+1
+        return state
+    if generation is not None and previous is not None and generation<previous:
+        state['older_generation_transitions']=state.get('older_generation_transitions',0)+1
+        return state
+    fresh=stage in ('discovered','current_state_queued','candidate_watching')
+    newer=generation is not None and (previous is None or generation>previous)
+    # Legacy archives have no generation stamp; their ordered fresh-work stages
+    # still supersede an earlier candidate decision. Lifecycle authority is separate.
+    if newer or (generation is None and fresh):
+        state.update(status=state.get('lifecycle_status','observed'),
+                     evidence='not_yet_required',required=False)
+    if generation is not None:state['candidate_generation']=generation
+    from certification.robinhood.accounting import immutable_exclusion
+    proof=immutable_exclusion(details.get('authenticated_evidence'))
+    if proof and classification in ('structural_ineligible','strategy_rejection'):
+        state['immutable_exclusion']=proof
+
     if stage in ('evidence_required','evidence_requested','full_evidence_requested','warmup_started'):
         state['required']=True
         state['evidence']='evidence_required'
@@ -24,13 +47,17 @@ def transition(state, stage, reason, classification, details):
         state['evidence']='evidence_completed'
     if stage=='evidence_not_required' and not state.get('required'):
         state['evidence']='evidence_not_required'
-    direct={'qualified':'qualified_not_entered','entry_reserved':'entry_reserved',
+    direct={'discovered':'observed','current_state_queued':'observed',
+        'candidate_watching':'observed','candidate_deferred':'unresolved_transient',
+        'current_state_requested':'observed','current_state_complete':'canonical_evidence_completed',
+        'qualified':'qualified_not_entered','entry_reserved':'entry_reserved',
         'entry_cancelled':'entry_cancelled','entry_filled':'entry_filled','settled':'settled',
         'deployed':'open_continuing',
         'trigger_authenticated':'authenticated_trigger_awaiting_evidence',
         'evidence_required':'evidence_required','evidence_complete':'evidence_completed',
         'economic_vector':'evidence_completed','evidence_not_required':'evidence_not_required'}
     status=direct.get(stage)
+    if fresh and generation is not None and generation==previous:status=None
     if reason=='paper_capital_occupied':status='capital_occupied'
     elif classification=='structural_ineligible':status='structural_exclusion'
     elif classification=='strategy_rejection' and stage not in ('entry_cancelled','settled'):
@@ -51,6 +78,7 @@ def transition(state, stage, reason, classification, details):
         status='open_continuing'
     if classification=='reconstruction_incomplete':
         state['evidence']='evidence_required' if state.get('required') else state['evidence']
+    if state.get('immutable_exclusion'):status='structural_exclusion'
     if status:state['status']=state.get('lifecycle_status',status)
     state['last_stage']=stage
     state['last_reason']=reason[:200]

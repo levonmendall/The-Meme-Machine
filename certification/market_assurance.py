@@ -55,9 +55,10 @@ def economic_marks(lane,proof):
         units='lamports' if lane in ('pump','meteora') else 'native_quote_raw',
         unrealized_status='available' if a.get('unrealized'+suffix) is not None else 'not_marked_by_native_ledger')
 
-def pipeline(root):
+def pipeline(root, *, candidate_plane=None, lane=None, reported_classes=None):
     paths=sorted(set(Path(root).rglob('*.pipeline.sqlite')) | set(Path(root).rglob('opportunity-pipeline.sqlite')))
-    if len(paths)!=1:return dict(available=False,reason='pipeline_missing_or_ambiguous')
+    if len(paths)!=1:return dict(available=False,reason='pipeline_missing_or_ambiguous',
+        candidate_plane_consistency=dict(status='fail' if candidate_plane is not None else 'not_applicable',failures=['pipeline_missing_or_ambiguous']))
     with ro(paths[0]) as db:
         stages={k:n for k,n in db.execute('SELECT stage,COUNT(DISTINCT candidate) FROM progress GROUP BY stage')}
         classes={k:n for k,n in db.execute('SELECT classification,COUNT(DISTINCT candidate) FROM progress WHERE classification IS NOT NULL GROUP BY classification')}
@@ -76,7 +77,11 @@ def pipeline(root):
                           ('evidence_requested','evidence_complete'),('evidence_complete','qualified')]:
             vals=[d[end]-d[start] for d in by_candidate.values() if start in d and end in d and d[end]>=d[start]]
             latencies[start+'__'+end]=dict(count=len(vals),p50=percentile(vals,.5),p95=percentile(vals,.95),max=max(vals) if vals else None)
+    from certification.robinhood.accounting import consistency
+    plane_check=(consistency(candidate_plane,paths[0],lane,reported_classes=reported_classes)
+                 if candidate_plane is not None else dict(status='not_applicable'))
     return dict(available=True,stages=stages,classes=classes,reasons=reasons,
+        candidate_plane_consistency=plane_check,
         evidence_obligations=summarize_obligations(obligation_records),
         last_stage=last[0] if last else None,last_at=last[1] if last else None,
         last_at_by_stage=stage_times,latency_seconds=latencies,
@@ -302,6 +307,10 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
     if row.get('unexpected_exit') or row.get('exit_code') not in (0,None):failures.append('process_failed')
     if proof.get('verified') is not True:failures.append('accounting_unestablished')
     if violations:failures.append('position_invariant_failure')
+    plane_check=pipe.get('candidate_plane_consistency') or {}
+    if plane_check.get('status')=='fail':
+        failures.append('candidate_plane_accounting_contradiction')
+        coverage='coverage_invalid'
     progress=pipe.get('last_at_by_stage') or {}
     upstream['discovery_progress_at']=progress.get('discovered')
     behavior=dict(process_alive=row.get('health')=='responsive',provider_alive=bool(row.get('provider_requests')),
@@ -356,6 +365,7 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
         position_watchdog=dict(status='fail' if violations else 'pass',violations=violations),
         provider_health=dict(errors=row.get('errors'),requests=row.get('provider_requests'),
             rpc_latency_seconds=row.get('rpc_latency_seconds')),
+        candidate_plane_consistency=plane_check,
         infrastructure_censoring=dict(classifications=classes,overlapping_counts=True,
             frozen_policy='profitability_protocol.json; prospective_acceptance._infra_fraction'),
         economic_admission='invalid' if failures else 'eligible_subject_to_frozen_block_gate',
@@ -387,8 +397,12 @@ def audit(artifact,worktrees,output,previous=None):
         try:proof=json.loads(proof_result.stdout)
         except ValueError:proof=dict(verified=False,error='native_replay_unavailable')
         snapshot=native_positions(native,lane)
+        plane_path=runtime/'shared-robinhood-evidence.candidates.sqlite'
+        # Pons uses the shared candidate population; missing evidence fails closed.
+        lane_pipe=pipeline(native,candidate_plane=plane_path if lane=='pons' else None,lane=lane,
+            reported_classes=((result['lanes'][lane].get('opportunity_coverage') or {}).get('unique_classes',{}) if lane=='pons' else None))
         reports[lane]=lane_report(lane,result['lanes'][lane],snapshot,conformance,
-            pipeline(native),proof,result['ended_at'],((prev.get('lanes') or {}).get(lane) or {}).get('snapshot'))
+            lane_pipe,proof,result['ended_at'],((prev.get('lanes') or {}).get(lane) or {}).get('snapshot'))
         if lane=='meteora':
             breadth=meteora_source_coverage(runtime,native,source)
             detail=reports[lane];detail['source_coverage']=breadth
