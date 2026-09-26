@@ -1,4 +1,4 @@
-import asyncio,json,tempfile,time,unittest
+import asyncio,base64,json,struct,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -6,6 +6,7 @@ from meme_machine.solana_evidence_plane import EvidenceReader
 from meme_machine.solana_evidence_runtime import SWAP_SCOPE
 from meme_machine.postgrad import PUMPSWAP_PROGRAM
 import meme_machine.solana_evidence_service as service
+from meme_machine.solana_program_decoders import PUMPSWAP_BUY_EVENT,pumpswap_trade_events
 
 
 class LargeFrameSocket:
@@ -76,6 +77,33 @@ def frame(slot,logs,padding):
 
 
 class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
+    def test_shared_pumpswap_decoder_is_strategy_independent_and_available(self):
+        values=[
+            1790430000,  # timestamp
+            11,          # base amount
+            12,13,14,    # limit/user amounts
+            1000,2000,   # pool reserves
+            22,           # quote amount
+            30,31,32,33,34,35,
+        ]
+        raw=PUMPSWAP_BUY_EVENT+struct.pack('<q',values[0])+b''.join(
+            struct.pack('<Q',v) for v in values[1:]
+        )+bytes(range(32))+bytes(range(32,64))
+        self.assertEqual(len(raw),184)
+        tx=dict(slot=444,meta=dict(err=None,logMessages=[
+            'Program '+PUMPSWAP_PROGRAM+' invoke [1]',
+            'Program data: '+base64.b64encode(raw).decode(),
+            'Program '+PUMPSWAP_PROGRAM+' success',
+        ]))
+        rows=pumpswap_trade_events(tx)
+        self.assertEqual(len(rows),1)
+        self.assertTrue(rows[0]['buy'])
+        self.assertEqual(rows[0]['amount'],22)
+        self.assertEqual(rows[0]['tokens'],11)
+        self.assertEqual(rows[0]['pool_base_reserve'],1000)
+        self.assertEqual(rows[0]['pool_quote_reserve'],2000)
+        self.assertEqual(rows[0]['slot'],444)
+
     async def wait_for(self,predicate,attempts=1000):
         for _ in range(attempts):
             if predicate():return
