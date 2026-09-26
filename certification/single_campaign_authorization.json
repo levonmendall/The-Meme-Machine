@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "run375-run374-publisher-repair-20260926-one-market-v1",
+  "authorization_id": "run376-run375-runtime-repair-20260926-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36257676182,
+    "run_id": 36260920839,
     "status": "completed_failure",
-    "source": "Run 374 consumed its one-shot authority. Its ten-minute smoke engineering result was PASS on the repaired Solana evidence plane, but the workflow failed because the live GitHub Check publisher exceeded its publication surface and allowed observability failure to override supervisor success. The successor publisher repair bounds Check payloads, provides a terminal fallback, preserves publisher diagnostics, keeps the supervisor exit authoritative, and passed focused plus full non-market certification."
+    "source": "Run 375 consumed its one-shot authority. Its smoke exposed two infrastructure defects: a Pons SQLite WAL telemetry stat race and Solana ordered SQLite persistence saturation. Both defects were repaired without changing strategy thresholds, market scope, provider limits, the 64-frame/96-MiB dispatch bounds, synchronous=FULL durability, or PAPER-only authority. The repaired runtime passed focused regression workflow 36263393571 and full non-market certification workflow 36263518304."
   },
   "prior_launch_attempt": {
-    "run_id": 36257676182,
+    "run_id": 36260920839,
     "outcome": "completed_failure",
     "provider_or_market_work_started": true,
-    "reason": "The Run 374 authority is consumed and cannot be retried. The owner explicitly authorized exactly one fresh PAPER market workflow using the fully certified Run 374 publisher-repair successor runtime."
+    "reason": "The Run 375 authority is consumed and cannot be retried. The owner explicitly authorized exactly one fresh PAPER market workflow using the fully certified Run 375 runtime-repair successor."
   }
 }
