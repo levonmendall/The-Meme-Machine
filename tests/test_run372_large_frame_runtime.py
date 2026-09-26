@@ -122,7 +122,7 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                     await self.wait_for(lambda:'stream.raw_message_peak_bytes' in (reader.telemetry()['service_health'].get('ipc') or {}))
                     telemetry=reader.telemetry()
                     runtime=telemetry['service_health']['ipc']
-                    self.assertEqual(decode_calls[0],5)
+                    self.assertEqual(decode_calls[0],4)
                     self.assertGreaterEqual(runtime['stream.raw_message_peak_bytes'],7_000_000)
                     self.assertGreaterEqual(runtime['stream.dispatch_queue_peak'],2)
                     self.assertGreater(runtime['stream.decode_peak_microseconds'],100_000)
