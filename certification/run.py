@@ -630,6 +630,12 @@ def _apply_moderate_threshold_overlay(work,patch_path,lane):
             ('ENTRY_THRESHOLDS["min_curve_progress_bps"],5000','ENTRY_THRESHOLDS["min_curve_progress_bps"],4500',1),
             ('ENTRY_THRESHOLDS["max_curve_progress_bps"],8500','ENTRY_THRESHOLDS["max_curve_progress_bps"],8800',1),
             ('ENTRY_THRESHOLDS["min_token_age_seconds"],120','ENTRY_THRESHOLDS["min_token_age_seconds"],90',1),
+            ('ENTRY_THRESHOLDS["max_token_age_seconds"],600','ENTRY_THRESHOLDS["max_token_age_seconds"],900',1),
+            ('ENTRY_THRESHOLDS["min_graduation_eta_seconds"],20','ENTRY_THRESHOLDS["min_graduation_eta_seconds"],15',1),
+            ('ENTRY_THRESHOLDS["max_graduation_eta_seconds"],90','ENTRY_THRESHOLDS["max_graduation_eta_seconds"],120',1),
+            ('price_retention_bps=9000,new_independent_buyers=1','price_retention_bps=8999,new_independent_buyers=1',1),
+            ('immature=vector(launch_at=100)','immature=vector(launch_at=111)',1),
+            ('stale=vector(launch_at=-500)','stale=vector(launch_at=-701)',1),
             ('ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],6000','ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],5000',1),
         ]);touched.append(p)
     elif lane=='meteora' and name=='meteora-moderate-admission-thresholds-v1.patch':
