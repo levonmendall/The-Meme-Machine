@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-24-v12-pump-counterfactual-ramses-v4",
+  "verified_at": "2026-09-26-threshold-moderation-v1",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
       "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "strategy_version": "pump-shared-sleeve-six-regime-v1",
-      "policy_hash": "e7d4bb2710f51ec464872a37b2692b87c730c21f6183ab09a6c12154dd37182e",
+      "policy_hash": "a47d8e2b86a0994a8e5518ee71d281a135fc8d2aaacf89732cf4f191743e1225",
       "file_hashes": {
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
         ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
@@ -205,6 +205,76 @@
           "source_promotion": "3c9553afb3caa92ab5f3db769f870df033a9630f",
           "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
           "strategy_source_pinned": true
+        },
+        "threshold_moderation_v1": {
+          "revision": "moderate-admission-v1",
+          "target_restrictiveness": "approximately_5_of_10",
+          "strategy_structure_changed": false,
+          "freshness_finality_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true,
+          "changes": {
+            "late_curve_independent_buyers": [
+              20,
+              12
+            ],
+            "late_curve_buyer_growth": [
+              4,
+              3
+            ],
+            "late_curve_net_buy_share_bps": [
+              5500,
+              5250
+            ],
+            "late_curve_max_concentration_bps": [
+              2500,
+              3000
+            ],
+            "postgrad_independent_buyers": [
+              8,
+              6
+            ],
+            "postgrad_buyer_growth": [
+              2,
+              1
+            ],
+            "postgrad_max_concentration_bps": [
+              3500,
+              4000
+            ],
+            "postgrad_max_early_holder_sell_share_bps": [
+              4000,
+              4500
+            ],
+            "second_leg_buyer_growth": [
+              2,
+              1
+            ],
+            "survivor_min_reset_bps": [
+              2500,
+              2000
+            ],
+            "survivor_compression_bps": [
+              6000,
+              7500
+            ],
+            "survivor_max_extension_bps": [
+              1500,
+              2000
+            ],
+            "survivor_max_base_range_extension_bps": [
+              15000,
+              20000
+            ],
+            "survivor_fill_breadth_bps": [
+              6500,
+              6000
+            ],
+            "survivor_max_holder_concentration_bps": [
+              2500,
+              3000
+            ]
+          }
         }
       },
       "prospect_admission": {
@@ -237,7 +307,8 @@
         "certification/patches/run369-runtime-pump.patch",
         "certification/patches/run370-capacity-pump.patch",
         "certification/patches/run370-discovery-snapshot-pump.patch",
-        "certification/patches/pump-six-regime-upgrade.patch"
+        "certification/patches/pump-six-regime-upgrade.patch",
+        "certification/patches/threshold-moderation-pump.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
@@ -259,14 +330,14 @@
         "tests/test_pumpswap_survivor_evidence.py": "d093ee1cbd26e66d8ef576ad5073d5e84ebfe1c93ee080d98a51efb2046c6a98"
       },
       "active_regimes": {
-        "pump-acceleration-independent-v1": "bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef",
-        "pumpswap-survivor-momentum-v1": "d480c982c531946ed4219d162a2f130fbb74ffd3ed05bbb660b5b131806d56ab"
+        "pump-acceleration-independent-v1": "a9c9eadfc6c7664dce708d06279e446d833867c98eb0993a3b62a001c4bdeae6",
+        "pumpswap-survivor-momentum-v1": "eb82f01900abcd9ede67ec5ed005e89b8c80646f5e021d01caf1205297454f6c"
       },
       "composite_policy": {
         "lane": "pump",
         "strategies": {
-          "pump-acceleration-independent-v1": "bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef",
-          "pumpswap-survivor-momentum-v1": "d480c982c531946ed4219d162a2f130fbb74ffd3ed05bbb660b5b131806d56ab"
+          "pump-acceleration-independent-v1": "a9c9eadfc6c7664dce708d06279e446d833867c98eb0993a3b62a001c4bdeae6",
+          "pumpswap-survivor-momentum-v1": "eb82f01900abcd9ede67ec5ed005e89b8c80646f5e021d01caf1205297454f6c"
         },
         "allocation": {
           "one_sleeve": true,
@@ -298,8 +369,8 @@
     "meteora": {
       "source_branch": "repair/meteora-legacy-one-side-source-20260924",
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
-      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
-      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+      "strategy_version": "solana-dlmm-independent-v2.1-profitability-fee-density-threshold-moderation-v1",
+      "policy_hash": "35156424b3889b29e4a6ba872e357638380eee50c6a947be593c92656ae5ff84",
       "source_diff_sha256": "9293d911b36fc19c9bd6b671792e9d46705dfb4107a82df50274685cba5e91ab",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
@@ -524,6 +595,32 @@
           "provider_limits_changed": false,
           "evidence_requirements_changed": false,
           "paper_only_unchanged": true
+        },
+        "threshold_moderation_v1": {
+          "revision": "2.1-profitability-fee-density-v1-threshold-moderation-v1",
+          "target_restrictiveness": "approximately_5_of_10",
+          "strategy_structure_changed": false,
+          "freshness_finality_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true,
+          "changes": {
+            "authenticated_fee_density_24h_pct": [
+              5,
+              4
+            ],
+            "min_two_way_balance": [
+              0.25,
+              0.2
+            ],
+            "competing_range_liquidity_multiple": [
+              5,
+              4
+            ],
+            "max_drift_ratio": [
+              0.75,
+              0.8
+            ]
+          }
         }
       },
       "prospect_admission": {
@@ -551,7 +648,8 @@
         "certification/patches/evidence-plane-offline-meteora.patch",
         "certification/patches/run369-runtime-meteora.patch",
         "certification/patches/run370-capacity-meteora.patch",
-        "certification/patches/run370-discovery-snapshot-meteora.patch"
+        "certification/patches/run370-discovery-snapshot-meteora.patch",
+        "certification/patches/threshold-moderation-meteora.patch"
       ],
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "integration_overlay_files": [
@@ -566,7 +664,7 @@
       "source_branch": "strategy/pons-profit-protection-v2-20260923",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "strategy_version": "pons-shared-sleeve-six-regime-v1",
-      "policy_hash": "930ac9dff72bff84ef6235e58346c2f7bb3c3c3fad52f8f8d73394838e09cbab",
+      "policy_hash": "4a91187c053778ce814a0d0a5242b379b2aec951c8c16bf5b784ff66c94fd79b",
       "file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
         "robinhood_research/pons_selective_continuation.py": "09763b06f52b771eea1bbe3222cb92672a4a3f2af251bcb50ee61f2b3925a269"
@@ -752,6 +850,132 @@
           "evidence_freshness_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "threshold_moderation_v1": {
+          "revision": "moderate-admission-v1",
+          "target_restrictiveness": "approximately_5_of_10",
+          "strategy_structure_changed": false,
+          "freshness_finality_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true,
+          "changes": {
+            "token_age_seconds": [
+              [
+                120,
+                600
+              ],
+              [
+                90,
+                900
+              ]
+            ],
+            "graduation_eta_seconds": [
+              [
+                20,
+                90
+              ],
+              [
+                15,
+                120
+              ]
+            ],
+            "progress_15s_bps": [
+              300,
+              200
+            ],
+            "buy_sell_ratio_bps": [
+              12000,
+              11000
+            ],
+            "max_largest_buyer_flow_bps": [
+              4000,
+              4500
+            ],
+            "max_top3_buyer_flow_bps": [
+              6000,
+              7000
+            ],
+            "fill_breadth_retention_bps": [
+              6000,
+              5500
+            ],
+            "postgrad_price_retention_bps": [
+              9200,
+              9000
+            ],
+            "postgrad_new_buyers": [
+              3,
+              2
+            ],
+            "postgrad_buy_sell_ratio_bps": [
+              15000,
+              12500
+            ],
+            "postgrad_preholder_sell_share_bps": [
+              5000,
+              6000
+            ],
+            "survivor_long_return_bps": [
+              1000,
+              750
+            ],
+            "survivor_6h_return_bps": [
+              500,
+              300
+            ],
+            "survivor_2h_return_bps": [
+              300,
+              150
+            ],
+            "survivor_efficiency_bps": [
+              2500,
+              2000
+            ],
+            "survivor_reset_bps": [
+              [
+                500,
+                3500
+              ],
+              [
+                300,
+                4000
+              ]
+            ],
+            "survivor_breakout_bps": [
+              [
+                100,
+                1200
+              ],
+              [
+                50,
+                1500
+              ]
+            ],
+            "survivor_buyers": [
+              5,
+              4
+            ],
+            "survivor_new_buyers": [
+              2,
+              1
+            ],
+            "survivor_buy_sell_ratio_bps": [
+              14000,
+              12500
+            ],
+            "survivor_buy_acceleration_bps": [
+              12500,
+              11000
+            ],
+            "survivor_max_largest_buyer_share_bps": [
+              3500,
+              4000
+            ],
+            "survivor_fill_breadth_bps": [
+              6000,
+              5500
+            ]
+          }
         }
       },
       "prospect_admission": {
@@ -781,7 +1005,8 @@
         "certification/patches/robinhood-provider-authority-pons.patch",
         "certification/patches/run369-pons-accounting.patch",
         "certification/patches/pons-entry-confirmation-ordering.patch",
-        "certification/patches/pons-six-regime-upgrade.patch"
+        "certification/patches/pons-six-regime-upgrade.patch",
+        "certification/patches/threshold-moderation-pons.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
@@ -802,14 +1027,14 @@
         "robinhood_tests/test_pons_shared_survivor.py": "93a012622fdcc8ceb8ca3640a06a5c33fb0abec829cfb3d371f4241e10456e65"
       },
       "active_regimes": {
-        "pons-selective-continuation-v1": "3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa",
-        "pons-postgrad-survivor-momentum-v1": "c2a2b109cf0acdb033237c66c6501b3b558f0e34821f44b3d25e0550cb62092b"
+        "pons-selective-continuation-v1": "b01dc51fd4a1cd731accc29fcb7bf402a3da2208ee0308b81c03af27381fe31b",
+        "pons-postgrad-survivor-momentum-v1": "f68a04f230cd72591b38fe270a795d5f1e4806d009fa4cef904e7d6d14003593"
       },
       "composite_policy": {
         "lane": "pons",
         "strategies": {
-          "pons-selective-continuation-v1": "3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa",
-          "pons-postgrad-survivor-momentum-v1": "c2a2b109cf0acdb033237c66c6501b3b558f0e34821f44b3d25e0550cb62092b"
+          "pons-selective-continuation-v1": "b01dc51fd4a1cd731accc29fcb7bf402a3da2208ee0308b81c03af27381fe31b",
+          "pons-postgrad-survivor-momentum-v1": "f68a04f230cd72591b38fe270a795d5f1e4806d009fa4cef904e7d6d14003593"
         },
         "allocation": {
           "one_sleeve": true,
