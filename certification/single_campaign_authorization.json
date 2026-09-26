@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "run369-repairs-20260925-one-market-v1",
+  "authorization_id": "run371-all-repairs-20260925-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36200179045,
+    "run_id": 36209572689,
     "status": "completed_failure",
-    "source": "Run 369 consumed the prior one-shot authority and failed during smoke. The Run 369 Solana runtime and Pons causal-accounting defects were repaired and separately offline-certified before this fresh owner authorization."
+    "source": "Run 370 consumed the previous one-shot PAPER authority and failed during smoke. The subsequent Run 370 Solana Evidence Plane capacity/continuity repair and Pons entry-confirmation ordering repair were separately certified and then combined on ec36747acd7a17cae519be9df10460a68609d60c before this fresh authorization."
   },
   "prior_launch_attempt": {
-    "run_id": 36200179045,
+    "run_id": 36209572689,
     "outcome": "completed_failure",
     "provider_or_market_work_started": true,
-    "reason": "Prior authority is consumed and cannot be retried. Owner explicitly authorized one fresh PAPER market workflow using the newly composed Run 369 repairs."
+    "reason": "The prior authority is consumed and cannot be retried. Owner explicitly authorized exactly one fresh PAPER market workflow to test the fully combined certified repairs."
   }
 }

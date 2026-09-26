@@ -1,0 +1,12 @@
+name: Run 371 authorization non-market certification
+on:
+  push:
+    branches: [cert/single-market-run371-all-repairs-20260925]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  certify:
+    if: contains(github.event.head_commit.message, '[single-market-auth-cert]')
+    uses: ./.github/workflows/non-market-certification.yml
+    secrets: inherit
