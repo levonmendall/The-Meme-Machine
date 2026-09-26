@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "run374-run373-dispatch-repair-20260926-one-market-v1",
+  "authorization_id": "run375-run374-publisher-repair-20260926-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36253445901,
+    "run_id": 36257676182,
     "status": "completed_failure",
-    "source": "Run 373 consumed its one-shot authority and halted during smoke after exposing sustained Solana dispatch-buffer saturation. The successor repair moves subscription reconciliation off the per-frame critical path, decodes large frames in parallel, preserves websocket receive order for authoritative commits, drains already-admitted frames before fail-closed reconnect, stabilizes the historical Meteora receipt proof, and passed exact-SHA focused, repository-wide, and full non-market certification."
+    "source": "Run 374 consumed its one-shot authority. Its ten-minute smoke engineering result was PASS on the repaired Solana evidence plane, but the workflow failed because the live GitHub Check publisher exceeded its publication surface and allowed observability failure to override supervisor success. The successor publisher repair bounds Check payloads, provides a terminal fallback, preserves publisher diagnostics, keeps the supervisor exit authoritative, and passed focused plus full non-market certification."
   },
   "prior_launch_attempt": {
-    "run_id": 36253445901,
+    "run_id": 36257676182,
     "outcome": "completed_failure",
     "provider_or_market_work_started": true,
-    "reason": "The Run 373 authority is consumed and cannot be retried. Owner explicitly authorized exactly one fresh PAPER market workflow using the fully certified Run 373 dispatch-throughput successor runtime."
+    "reason": "The Run 374 authority is consumed and cannot be retried. The owner explicitly authorized exactly one fresh PAPER market workflow using the fully certified Run 374 publisher-repair successor runtime."
   }
 }
