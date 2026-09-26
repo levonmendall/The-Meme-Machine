@@ -1,4 +1,4 @@
-import asyncio,json,tempfile,time,unittest
+import asyncio,json,sqlite3,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -102,6 +102,19 @@ class BurstSocket(SustainedSocket):
         return await super().recv(decode=decode)
 
 
+def database_ready(path):
+    if not Path(path).exists():return False
+    try:
+        db=sqlite3.connect(path)
+        names={r[0] for r in db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('meta','counters','hot_chunks')"
+        )}
+        db.close()
+        return {'meta','counters','hot_chunks'}.issubset(names)
+    except sqlite3.Error:
+        return False
+
+
 class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
     async def wait_for(self,predicate,attempts=5000,delay=.01):
         for _ in range(attempts):
@@ -130,7 +143,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop
             ))
             try:
-                await self.wait_for(path.exists,attempts=1000)
+                await self.wait_for(lambda:database_ready(path),attempts=2000)
                 reader=EvidenceReader(path)
                 await self.wait_for(
                     lambda:reader.telemetry()['counters'].get('stream_accepted_messages',0)>=frames,
