@@ -401,11 +401,8 @@ def program_subscriptions():
 
 
 def program_decoders():
-    from . import pump
-    from .pump_acceleration_evidence import pumpswap_trade_events
+    from .solana_program_decoders import pump_events,pumpswap_trade_events
     from .solana_evidence_runtime import PUMP_SCOPE,SWAP_SCOPE
-    def pump_events(tx):
-        return [dict(e,event_type='trade') for e in pump.trade_events(tx)]+[dict(e,event_type='create') for e in pump.create_events(tx)]
     return {PUMP_SCOPE:pump_events,SWAP_SCOPE:pumpswap_trade_events}
 
 
