@@ -59,8 +59,8 @@ class EvidenceConflict(EvidenceUnavailable):
     pass
 
 
-def decode_body(raw,db=None,*,chunks=None):
-    try:return _decode_body(raw,db,chunks=chunks)
+def decode_body(raw,db=None,*,chunks=None,decoded_chunks=None):
+    try:return _decode_body(raw,db,chunks=chunks,decoded_chunks=decoded_chunks)
     except (ValueError,TypeError,KeyError) as exc:raise EvidenceConflict('hot_evidence_corrupt') from exc
 
 
@@ -488,27 +488,47 @@ class EvidenceWriter:
 
     @staticmethod
     def prepare_archive(snapshot,*,max_bytes=4*1024*1024):
-        plan=[];size=0
-        if not snapshot:return plan
+        return [row for row,raw in EvidenceWriter._archive_rows(snapshot,max_bytes=max_bytes)]
+
+    @staticmethod
+    def _archive_rows(snapshot,*,max_bytes,cache_chunks=False):
+        size=0;decoded_chunks={} if cache_chunks else None
+        if not snapshot:return
         for row in snapshot['rows']:
-            body=decode_body(row['encoded'],chunks=snapshot['chunks']);raw=canonical(body);cost=len(raw.encode())
+            body=decode_body(row['encoded'],chunks=snapshot['chunks'],decoded_chunks=decoded_chunks);raw=canonical(body);cost=len(raw.encode())
             if hashlib.sha256(raw.encode()).hexdigest()!=row['hash']:raise EvidenceConflict('archive_body_hash_mismatch')
-            if plan and size+cost>max_bytes:break
-            plan.append(dict(identity=row['identity'],body=body,hash=row['hash'],
+            if size and size+cost>max_bytes:break
+            yield dict(identity=row['identity'],body=body,hash=row['hash'],
                 lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in row['lineage']],
-                coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in row['coverage']]))
+                coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in row['coverage']]),raw
             size+=cost
-        return plan
 
     @staticmethod
     def prepare_and_write_archive(path,snapshot,*,max_bytes=4*1024*1024):
-        plan=EvidenceWriter.prepare_archive(snapshot,max_bytes=max_bytes)
-        return plan,EvidenceWriter.write_archive(path,plan)
+        started=time.monotonic();lines=[];commit=[]
+        for row,body_raw in EvidenceWriter._archive_rows(snapshot,max_bytes=max_bytes,cache_chunks=True):
+            metadata={k:v for k,v in row.items() if k!='body'}
+            # "body" is the first canonical key. Reuse its already hash-checked
+            # serialization instead of serializing the full economic record twice.
+            lines.append('{"body":'+body_raw+','+canonical(metadata)[1:])
+            # The owner needs only these immutable fields to recheck pins and
+            # match identity/hash. Full bodies/provenance stay in the durable file,
+            # avoiding a second multi-megabyte process-pool transfer and decode.
+            commit.append(dict(identity=row['identity'],hash=row['hash'],
+                body=dict(scope=row['body']['scope'],slot=row['body']['slot'])))
+        prepared=time.monotonic()
+        receipt=EvidenceWriter._write_archive_raw(path,'\n'.join(lines)+'\n') if lines else None
+        if receipt:receipt['worker_metrics']=dict(prepare_microseconds=int((prepared-started)*1_000_000),
+            publish_microseconds=int((time.monotonic()-prepared)*1_000_000),records=len(commit))
+        return commit,receipt
 
     @staticmethod
     def write_archive(path,plan):
         if not plan:return None
-        raw='\n'.join(canonical(row) for row in plan)+'\n'
+        return EvidenceWriter._write_archive_raw(path,'\n'.join(canonical(row) for row in plan)+'\n')
+
+    @staticmethod
+    def _write_archive_raw(path,raw):
         public_value(raw)
         # Archival must keep pace with the authenticated stream. Level 1 is
         # lossless and avoids spending the shared worker budget on compression

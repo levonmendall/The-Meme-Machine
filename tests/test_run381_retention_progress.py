@@ -16,6 +16,67 @@ def proof(lo,hi):
                            lineage_hash=digest(['pump',lo,hi])),100)
 
 class RetentionProgressTests(unittest.TestCase):
+ def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
+  from meme_machine.solana_evidence_service import ServiceState
+  from meme_machine.solana_provider_config import AlchemyEndpoint
+  with tempfile.TemporaryDirectory() as td:
+   state=ServiceState(Path(td)/'db',AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+   try:
+    state.writer.ingest([replace(record(),identity='pipeline:%04d'%i) for i in range(1001)])
+    snapshot=state.archive_plan();commit,receipt=state.writer.prepare_and_write_archive(state.writer.path,snapshot)
+    next_snapshot=state.archive_commit_and_plan(commit,receipt)
+    self.assertEqual(len(commit),1000);self.assertEqual(len(next_snapshot['rows']),1)
+    self.assertTrue({r['identity'] for r in commit}.isdisjoint(r['identity'] for r in next_snapshot['rows']))
+    self.assertEqual(state.storage_metrics.get('retention.calls',0),0)
+    self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records WHERE body IS NULL').fetchone()[0],1000)
+    self.assertEqual(state.storage_metrics['archive_worker.records.total'],1000)
+    state.retention()
+    self.assertEqual(state.storage_metrics['retention.calls'],1)
+   finally:state.close()
+
+ def test_worker_publishes_identical_archive_and_returns_only_bounded_commit_identity(self):
+  from unittest.mock import patch
+  from meme_machine import solana_evidence_storage as storage
+  with tempfile.TemporaryDirectory() as td:
+   writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+   try:
+    rows=[replace(record(),identity='worker:'+str(i),signature='s:'+str(i),
+      payload={'raw_lineage':{'logs':['log'+str(j)+'x'*80 for j in range(100)]}}) for i in range(20)]
+    writer.ingest(rows);snapshot=writer.archive_snapshot(1000)
+    ordinary=writer.prepare_archive(snapshot);expected=writer.write_archive(writer.path,ordinary)
+    with patch.object(storage,'_inflate',wraps=storage._inflate) as inflate:
+     commit,receipt=writer.prepare_and_write_archive(writer.path,snapshot)
+    self.assertEqual({k:receipt[k] for k in expected},expected)
+    self.assertEqual(inflate.call_count,21,'the same immutable log chunk was inflated per record')
+    self.assertLess(len(pickle.dumps(commit)),len(pickle.dumps(ordinary))//10)
+    self.assertTrue(all(set(r['body'])=={'scope','slot'} for r in commit))
+    writer.interest('late-position','pump',lower_slot=10,priority=0,lifecycle='open')
+    self.assertEqual(writer.commit_archive(commit,receipt),0)
+    self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0],20)
+    writer.release('late-position','pump',lifecycle_resolved=True)
+    self.assertEqual(writer.commit_archive(commit,receipt),20)
+    self.assertEqual(writer.commit_archive(commit,receipt),0)
+    archive=Path(str(writer.path)+'.archive')/receipt['name']
+    saved=[json.loads(line) for line in gzip.decompress(archive.read_bytes()).splitlines()]
+    self.assertEqual(saved,ordinary)
+   finally:writer.close()
+
+ def test_empty_filtered_blocks_do_not_skip_bounded_continuity_cleanup(self):
+  from meme_machine.solana_evidence_service import ServiceState
+  from meme_machine.solana_provider_config import AlchemyEndpoint
+  with tempfile.TemporaryDirectory() as td:
+   state=ServiceState(Path(td)/'db',AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+   try:
+    db=state.writer.db
+    db.execute("INSERT INTO cursors VALUES('program:pump',1005,100)")
+    db.executemany('INSERT INTO stream_receipts VALUES(?,?,?,?,?,?,?,?,?,?)',
+      [('program:pump',i,i-1,'h'+str(i),'h'+str(i-1),100,'[]','fixture',100,0) for i in range(1,1006)])
+    self.assertIsNone(state.maintenance({}))
+    self.assertEqual(db.execute('SELECT COUNT(*) FROM stream_receipts').fetchone()[0],0)
+    self.assertEqual(db.execute("SELECT value FROM meta WHERE key='retention_floor:program:pump'").fetchone()[0],'1006')
+    self.assertEqual(state.storage_metrics['retention.calls'],1)
+   finally:state.close()
+
  def test_archive_publication_preserves_bodies_and_refuses_credentials_before_writing(self):
   with tempfile.TemporaryDirectory() as td:
    path=Path(td)/'db';row=dict(body=record().body(),hash=digest(record().body()),lineage=[dict(source='stream')])

@@ -103,7 +103,7 @@ def _inflate(raw):
     return value
 
 
-def decode(raw,db=None,*,chunks=None):
+def decode(raw,db=None,*,chunks=None,decoded_chunks=None):
     if isinstance(raw,str):return json.loads(raw) # original stores/small bodies
     if not isinstance(raw,bytes) or not raw.startswith(b'SEP1'):raise ValueError('hot_body_encoding')
     try:value=json.loads(_inflate(raw[4:]))
@@ -112,12 +112,19 @@ def decode(raw,db=None,*,chunks=None):
         section=value['payload'].get(parent)
         ref=section.get(key) if isinstance(section,dict) else None
         if not isinstance(ref,dict) or set(ref)!={'_hot_log_chunk'}:continue
+        checksum=ref['_hot_log_chunk']
+        if decoded_chunks is not None and checksum in decoded_chunks:
+            section[key]=decoded_chunks[checksum][1];continue
         row=((chunks[ref['_hot_log_chunk']],) if ref['_hot_log_chunk'] in chunks else None) if chunks is not None else db.execute('SELECT body FROM hot_chunks WHERE hash=?',(ref['_hot_log_chunk'],)).fetchone()
         if row is None:raise ValueError('hot_chunk_missing')
         try:logs=_inflate(row[0])
         except zlib.error as exc:raise ValueError('hot_chunk_corrupt') from exc
         if hashlib.sha256(logs).hexdigest()!=ref['_hot_log_chunk']:raise ValueError('hot_chunk_hash_mismatch')
         section[key]=json.loads(logs)
+        # Used only inside one immutable off-owner archive snapshot. Repeated
+        # authenticated log chunks need one hash/decode; bound cache by raw bytes.
+        if decoded_chunks is not None and sum(v[0] for v in decoded_chunks.values())+len(logs)<=4*1024*1024:
+            decoded_chunks[checksum]=(len(logs),section[key])
     return value
 
 
