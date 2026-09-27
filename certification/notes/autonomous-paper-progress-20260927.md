@@ -753,3 +753,51 @@ cross-lifecycle/provider/resource coverage remains pending. Missing/modified liv
 archive files and corrupt preserved snapshots fail closed.
 
 Twenty-seven affected archive/capsule/native-adapter tests pass. Seven-day archive component hot footprint is exactly 546,624 bytes after warmup in this fixture; 168 distinct cold chunks remain preserved, with no cold duplication across the restored boundaries.
+
+Archive-handoff batch pushed as `ed2a55708a59b682eb40216c16af14077537645e`.
+Long-lived pin audit found a previously untested Pump Survivor IPC seam: after
+fill, `_increment` passed lifecycle `position`, but the real evidence service
+accepts only `open` for that state. The authoritative raw-migration regression
+now promotes a held row through the real RuntimeEvidence/FinalizedFence path and
+reproduces `invalid_interest`. The smallest native correction uses `open`, priority
+0, preserving owner/address and all lifecycle pin semantics. Reopen the affected
+Phase-B monitoring cell until this repair is composed and verified. Existing
+native ledger and capsule continuity proofs remain valid.
+
+Ordinary CI `36341134079` passes at `ed2a55708a59b682eb40216c16af14077537645e`.
+A six-cycle real writer/consumer probe reproduces retained-index accumulation:
+200 unrelated archived records per cycle grow from 201 to 1,201 total records
+while the active owner remains pinned at slot 10 despite requested bounds through
+slot 1,218. Conservative interest MIN semantics silently ignore consumed progress.
+The measured repair is an explicit same-owner durable checkpoint acknowledgement,
+issued only after native replay state commits; ordinary interests, other owners,
+unresolved gaps, source authority and resource limits remain unchanged. Regressions
+must distinguish pre-commit crash, lost acknowledgement, duplicate/conflicting or
+foreign acknowledgement, restart and sustained retention before composition.
+
+Checkpoint implementation passes same-owner monotonic/idempotent acknowledgement,
+foreign/conflicting/future rejection, atomic rollback and retained gap/other-owner
+pins. Pump persists consumed scope/slot/content hash in the same History transaction;
+retry reuses the original checkpoint instead of deriving a different overlap bound.
+Meteora acknowledges only committed native tapes and recovered replay state. Actual
+native pre-mark/post-mark/post-ack cuts reopen and settle exactly once. This also
+exposed terminal pin leaks after cancelled fills/writeoffs and in position-only
+settlement: release now checks the native terminal state, retaining unresolved risk.
+
+An additional deterministic account probe showed all five old account values still
+pinned after consumed progress. Checkpoint-aware account retention now preserves
+the latest boundary witness and all later values; any unacknowledged owner retains
+all original history. The probe keeps slots 25/30 at bound 28, then the unchanged
+slot-30 value at bound 40. Raw older observations archive with hashes/provenance.
+The held-owner seven-day resource fixture includes account changes as well as
+program records; no resource or evidence acceptance limits changed.
+
+The composed repair passes 48 focused canonical/native-boundary/retention tests
+and 48 native Meteora strategy/recovery/campaign tests. The extended 168-hour held
+program/account fixture peaks at two hot records and 1,785,592 hot bytes (8,192-byte
+warm-state band), preserves 168 raw archive chunks, and retains one checkpoint.
+The existing 168-window capsule/archive component also passes (558,912-byte plateau).
+Meteora startup reconciles same-book orphan/terminal pins after abrupt pre-reserve
+or post-terminal cuts; unresolved and foreign-book pins remain. Both independently
+prepared source trees compose identically. Phase-B monitoring returns to PROVEN;
+the complete Phase-D joined resource/provider proof remains pending.

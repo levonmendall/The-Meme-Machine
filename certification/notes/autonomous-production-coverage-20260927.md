@@ -85,3 +85,7 @@ remain required in hosted certification and were not relaxed or skipped.
 Phase C still requires final-SHA real control-plane availability. Phase D still
 requires the accelerated resource/provider soak. The earlier chronological open-gap
 entries above are retained as investigation history, not current matrix status.
+
+New deterministic evidence reopens Pump Survivor monitoring: filled `_increment` sends unsupported IPC lifecycle `position`; actual service requires `open`. Native one-word repair is under verification.
+
+Pump Survivor monitoring is again PROVEN through actual filled-row IPC, durable checkpoint, pre/post-ack crash and duplicate retry tests. Meteora committed-tape checkpoints and terminal pin release use native replay state; cancelled, written-off and completed lifecycles release, unresolved and foreign lifecycles remain pinned. The full Phase-D resource/provider gate is still pending.

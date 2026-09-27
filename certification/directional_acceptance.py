@@ -13,6 +13,7 @@ INFRA_OVERLAYS=PRESERVED_INFRA|{
  'certification/patches/autonomous-ramses-campaign-recovery.patch',
  'certification/patches/autonomous-ramses-atomic-funding.patch',
  'certification/patches/autonomous-meteora-unfilled-recovery.patch',
+ 'certification/patches/autonomous-meteora-evidence-checkpoints.patch',
 }
 # These implementation-only files are additionally pinned by source_integrity.
 # Strategy/policy/workflow hashes remain identical to the approved contracts.

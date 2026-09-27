@@ -231,6 +231,7 @@ class FinalizedFence:
             self.writer._count('expired_candidate_interests',n)
             self.writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
             self.writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
+            self.writer.db.execute('DELETE FROM interest_checkpoints WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_checkpoints.owner AND i.scope=interest_checkpoints.scope)')
             self.writer.db.execute('DELETE FROM interest_owners WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_owners.owner)')
         if n:self.subscriptions_dirty.set()
 
@@ -444,12 +445,13 @@ class FinalizedFence:
     def _apply_command(self,request):
         """Strict consumer IPC whitelist; no proof/ingest/SQL escape hatch."""
         op=request.get('op')
-        if op in ('interest','release','ack'):
+        if op in ('interest','release','ack','advance_interest'):
             owner=request['owner'];consumer=request.get('consumer',owner)
             if not isinstance(owner,str) or len(owner)>256 or not isinstance(consumer,str) or len(consumer)>128:
                 raise EvidenceUnavailable('interest_owner_bound')
             known=self.writer.db.execute('SELECT consumer FROM interest_owners WHERE owner=?',(owner,)).fetchone()
             if known and known[0]!=consumer:raise EvidenceUnavailable('interest_owned_by_other_consumer')
+            if not known and op=='advance_interest':raise EvidenceUnavailable('interest_checkpoint_unknown_owner')
             if not known and op=='interest':
                 if self.writer.db.execute('SELECT COUNT(*) FROM interest_owners').fetchone()[0]>=4096:
                     raise EvidenceUnavailable('interest_owner_capacity')
@@ -478,6 +480,10 @@ class FinalizedFence:
             self.writer.release(request['owner'],request['scope'],lifecycle_resolved=request.get('resolved') is True)
         elif op=='ack':
             self.writer.acknowledge(request['owner'],request['scope'],request['slot'])
+        elif op=='advance_interest':
+            self.writer.advance_interest(request['owner'],request['scope'],
+                lower_slot=request['lower_slot'],consumed_slot=request['consumed_slot'],
+                checkpoint_hash=request['checkpoint_hash'])
         elif op=='counter':
             key=request['key'];count=request.get('count',1)
             if not key.startswith(('pump.','meteora.')) or len(key)>120 or type(count) is not int or not 0<=count<=10000:

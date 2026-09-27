@@ -199,10 +199,25 @@ CREATE TABLE IF NOT EXISTS interests(
  updated REAL NOT NULL,PRIMARY KEY(owner,scope));
 CREATE TABLE IF NOT EXISTS consumers(
  owner TEXT PRIMARY KEY,scope TEXT NOT NULL,slot INTEGER NOT NULL,updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS interest_checkpoints(
+ owner TEXT NOT NULL,scope TEXT NOT NULL,lower_slot INTEGER NOT NULL,
+ consumed_slot INTEGER NOT NULL,hash TEXT NOT NULL,updated REAL NOT NULL,
+ PRIMARY KEY(owner,scope));
 CREATE TABLE IF NOT EXISTS service_interests(
  owner TEXT NOT NULL,scope TEXT NOT NULL,address TEXT NOT NULL,evidence_class TEXT NOT NULL,
  PRIMARY KEY(owner,scope,address));
 CREATE INDEX IF NOT EXISTS service_interest_address ON service_interests(address,owner,scope);
+CREATE VIEW IF NOT EXISTS account_interest_bounds AS
+ SELECT 'account:'||s.address AS scope,
+ MIN(CASE WHEN c.owner IS NULL THEN 0 ELSE i.lower_slot END) AS lower_slot
+ FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope
+ LEFT JOIN interest_checkpoints c ON c.owner=i.owner AND c.scope=i.scope
+ WHERE i.active=1 GROUP BY s.address;
+CREATE VIEW IF NOT EXISTS account_interest_floors AS
+ SELECT b.scope,MIN(b.lower_slot,COALESCE((SELECT MAX(r.slot) FROM records r
+ WHERE r.scope=b.scope AND r.kind='account' AND r.body IS NOT NULL
+ AND r.slot<=b.lower_slot),b.lower_slot)) AS floor
+ FROM account_interest_bounds b;
 CREATE TABLE IF NOT EXISTS conflicts(
  id INTEGER PRIMARY KEY,identity TEXT NOT NULL,prior TEXT NOT NULL,
  incoming TEXT NOT NULL,observed REAL NOT NULL);
@@ -435,6 +450,36 @@ class EvidenceWriter:
                 raise EvidenceUnavailable('unresolved_lifecycle_interest')
             self.db.execute('UPDATE interests SET active=0,updated=? WHERE owner=? AND scope=?', (self.clock(), owner, scope))
 
+    def advance_interest(self,owner,scope,*,lower_slot,consumed_slot,checkpoint_hash):
+        """A consumer acknowledges its durable native replay checkpoint.
+
+        Ordinary interest reassertion remains conservative. This operation moves
+        only this owner's consumed prefix, never another lifecycle or gap pin,
+        and grants no coverage. The caller must commit its replay state first.
+        """
+        if (type(lower_slot) is not int or type(consumed_slot) is not int
+                or not 0<=lower_slot<=consumed_slot or not isinstance(checkpoint_hash,str)
+                or len(checkpoint_hash)!=64 or any(c not in '0123456789abcdef' for c in checkpoint_hash)):
+            raise EvidenceUnavailable('interest_checkpoint_shape')
+        with self.transaction():
+            row=self.db.execute('SELECT lower_slot FROM interests WHERE owner=? AND scope=? AND active=1',
+                                (owner,scope)).fetchone()
+            top=self.db.execute('SELECT slot FROM cursors WHERE scope=?',(scope,)).fetchone()
+            if row is None:raise EvidenceUnavailable('interest_checkpoint_owner_inactive')
+            if lower_slot<row[0]:raise EvidenceUnavailable('interest_checkpoint_regression')
+            if top is None or consumed_slot>top[0]:raise EvidenceUnavailable('interest_checkpoint_ahead_of_source')
+            prior=self.db.execute('SELECT lower_slot,consumed_slot,hash FROM interest_checkpoints WHERE owner=? AND scope=?',
+                                  (owner,scope)).fetchone()
+            if prior:
+                if lower_slot<prior[0] or consumed_slot<prior[1]:
+                    raise EvidenceUnavailable('interest_checkpoint_regression')
+                if consumed_slot==prior[1] and (lower_slot,consumed_slot,checkpoint_hash)!=prior:
+                    raise EvidenceUnavailable('interest_checkpoint_conflict')
+            self.db.execute('INSERT OR REPLACE INTO interest_checkpoints VALUES(?,?,?,?,?,?)',
+                            (owner,scope,lower_slot,consumed_slot,checkpoint_hash,self.clock()))
+            self.db.execute('UPDATE interests SET lower_slot=?,updated=? WHERE owner=? AND scope=?',
+                            (lower_slot,self.clock(),owner,scope))
+
     def acknowledge(self, owner, scope, slot):
         with self.transaction():
             prior = self.db.execute('SELECT scope,slot FROM consumers WHERE owner=?', (owner,)).fetchone()
@@ -462,16 +507,17 @@ class EvidenceWriter:
         self._check()
         if not 1 <= max_records <= 1000:
             raise EvidenceUnavailable('archive_batch_bound')
-        rows = self.db.execute('''SELECT r.identity,r.body,r.hash FROM records r
+        rows = self.db.execute('''WITH account_pins AS MATERIALIZED
+          (SELECT scope,floor FROM account_interest_floors)
+          SELECT r.identity,r.body,r.hash FROM records r
           WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
           AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
              AND i.scope=r.scope AND r.slot>=i.lower_slot
              AND (NOT EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)
                OR EXISTS(SELECT 1 FROM service_interests s JOIN addresses a ON a.address=s.address
                          WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=r.identity)))
-          AND NOT EXISTS(SELECT 1 FROM service_interests s JOIN interests i
-             ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1
-             AND r.kind='account' AND s.address=substr(r.scope,9))
+          AND NOT EXISTS(SELECT 1 FROM account_pins p
+             WHERE r.kind='account' AND p.scope=r.scope AND r.slot>=p.floor)
           AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
               AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
           ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records))
@@ -565,20 +611,20 @@ class EvidenceWriter:
                                 WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=?))
                     UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? AND (hi IS NULL OR hi>=?) LIMIT 1''',
                     (scope,slot,row['identity'],scope,slot,slot)).fetchone()
-                pinned=pinned or self._account_pinned(scope)
+                floor=self._account_floor(scope)
+                pinned=pinned or (floor is not None and slot>=floor)
                 if not pinned:
                     archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
                     self.db.execute('DELETE FROM hot_refs WHERE identity=?',(row['identity'],))
             self._count('archived_records',archived)
         return archived
 
-    def _account_pinned(self,scope):
-        if not scope.startswith('account:'):return False
-        # An unchanged account observation may predate the reservation. Preserve
-        # it and its history until every referencing lifecycle releases its pin.
-        return self.db.execute('''SELECT 1 FROM service_interests s JOIN interests i
-            ON s.owner=i.owner AND s.scope=i.scope
-            WHERE s.address=? AND i.active=1 LIMIT 1''',(scope[8:],)).fetchone() is not None
+    def _account_floor(self,scope):
+        if not scope.startswith('account:'):return None
+        # Preserve the last unchanged account value at/before the consumed
+        # boundary. Any owner without a durable checkpoint retains all history.
+        row=self.db.execute('SELECT floor FROM account_interest_floors WHERE scope=?',(scope,)).fetchone()
+        return row[0] if row else None
 
     def archive(self,before_time,*,max_records=1000):
         plan=self.archive_plan(before_time,max_records=max_records)
@@ -610,7 +656,8 @@ class EvidenceWriter:
                     if recent is not None:floor=min(floor,recent)
                     pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
                     if pins:floor=min(floor,min(pins))
-                    if self._account_pinned(scope):floor=0
+                    account_floor=self._account_floor(scope)
+                    if account_floor is not None:floor=min(floor,account_floor)
                     old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
                     floor=max(int(old[0]) if old else 0,floor)
                     ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit))]

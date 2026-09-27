@@ -74,7 +74,7 @@ class History:
                  complete=True,last_checked=0,position=None)
         self.save(row);return row
 
-    def append(self,identity,*,through,events,points,complete):
+    def append(self,identity,*,through,events,points,complete,evidence_checkpoint=None):
         with self.transaction():
             row=self.get(identity)
             if row is None or through<row['through']:raise ValueError('survivor_history_watermark')
@@ -106,7 +106,12 @@ class History:
             if self.db.execute('SELECT count(*) FROM points WHERE candidate=?',(identity,)).fetchone()[0]>self.maximum_points:
                 raise ValueError('survivor_history_point_capacity')
             self.db.execute('DELETE FROM events WHERE candidate=? AND at<?',(identity,through-3600))
-            row['through']=through;self.save(row)
+            row['through']=through
+            if evidence_checkpoint is not None:
+                # Stored in the same FULL-sync transaction as the consumed rows.
+                # An interrupted append can never authorize pin advancement.
+                row['evidence_checkpoint']=evidence_checkpoint
+            self.save(row)
             return row
 
     def facts(self,identity,now):

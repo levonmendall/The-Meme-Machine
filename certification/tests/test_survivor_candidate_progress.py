@@ -151,6 +151,9 @@ with tempfile.TemporaryDirectory() as td:
    assert scope==SWAP_SCOPE and lo==hi==now
    return 100,100
   def interest(self,scope,**kw):assert scope==SWAP_SCOPE and kw['addresses']==['canonical-pump-pool']
+  def advance_interest(self,scope,**kw):
+   assert scope==SWAP_SCOPE and kw['consumed_slot']==100
+   assert h.get('candidate')['evidence_checkpoint']['consumed_slot']==100
  class RPC:
   def call(self,method,params,priority):
    assert method=='getTokenLargestAccounts' and params[0]=='candidate' and params[1]['commitment']=='finalized'

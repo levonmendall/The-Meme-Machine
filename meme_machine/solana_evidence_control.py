@@ -132,7 +132,7 @@ class PriorityOwner:
 
 
 def command_priority(request):
-    if request.get('op') in ('release','ack'): return 0
+    if request.get('op') in ('release','ack','advance_interest'): return 0
     if request.get('op')=='interest' and request.get('lifecycle') in ('reserved','open'): return 0
     return 3 if request.get('op')=='counter' else 1
 

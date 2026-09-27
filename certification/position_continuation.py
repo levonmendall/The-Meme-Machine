@@ -251,6 +251,9 @@ def resume_meteora(state_dir,*,slice_seconds):
     position=recovered['position'];current=recovered['current'];elapsed=recovered['elapsed']
     entry_flow=recovered['entry_flow'];collapse_streaks=recovered['collapse_streaks']
     last_lineage=recovered['last_lineage'];restored_exit=recovered['restored_exit']
+    if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
+        module._evidence_plane()
+        module._checkpoint_position_evidence(book,identity,current)
 
     max_hold=int(policy['range']['max_holding_seconds'])
     segment_seconds=int(policy['exit']['observation_segment_seconds'])
@@ -295,6 +298,7 @@ def resume_meteora(state_dir,*,slice_seconds):
                 )
                 if terminal_writeoff:
                     book.append(identity,'writeoff',dict(reason=reason,recovery_attempts=recoveries))
+                    module._release_position_evidence(book,identity)
                     accounting=book.reconcile()
                     replay=book.replay_economics(
                         module._build_position,module._advance_position,module._mark)
@@ -318,6 +322,7 @@ def resume_meteora(state_dir,*,slice_seconds):
                     collapse_streaks=collapse_streaks,raw_exit_reasons=raw_reasons,
                     eligible_exit_reasons=reasons,effective_start_hash=module.digest(effective_start),
                     effective_start=(effective_start if effective_start!=current else None))))
+            module._checkpoint_position_evidence(book,identity,terminal)
             current=deepcopy(terminal);last_lineage=tape.lineage
             segments.append(dict(
                 elapsed_seconds=elapsed,lineage=tape.lineage,swaps=len(tape.events),
@@ -332,6 +337,7 @@ def resume_meteora(state_dir,*,slice_seconds):
             final=module._mark(position)
             book.append(identity,'settle',dict(
                 mark=final,exit_reason=exit_reason,lineage=last_lineage or module.digest(entry)))
+            module._release_position_evidence(book,identity)
             accounting=book.reconcile()
             replay=book.replay_economics(
                 module._build_position,module._advance_position,module._mark)

@@ -216,7 +216,7 @@ for excluded in (False,True):
     transactions=[dict(transaction=dict(signatures=['migration'],message=dict(accountKeys=[pump.PROGRAM])),meta=transaction['meta'])]
    fence.block(census,dict(params=dict(result=dict(value=dict(slot=slot,err=None,
     block=dict(parentSlot=slot-1,blockTime=slot,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),
-      transactions=transactions))))),101)
+      transactions=transactions))))),now[0])
   try:
    block(99)
    fence.logs(logs,dict(method='logsNotification',params=dict(result=dict(context=dict(slot=100),
@@ -233,6 +233,43 @@ for excluded in (False,True):
     assert writer.db.execute('SELECT COUNT(*) FROM interests WHERE scope=? AND active=1',(SWAP_SCOPE,)).fetchone()[0]==1
     h.close();h=History(Path(td)/'history',policy=POLICY_HASH);r.history=h
     r.discover();assert h.get(mint)==row
+    # Filled ownership must cross the real consumer IPC whitelist, not a
+    # permissive mock of RuntimeEvidence.interest.
+    from meme_machine.postgrad import PUMPSWAP_PROGRAM
+    census=Subscription('service',SWAP_SCOPE,PUMPSWAP_PROGRAM,'census',4)
+    block(99);block(100);block(101)
+    row['position']='existing-paper-position';h.save(row)
+    r._increment(row,100,100)
+    held=writer.db.execute('SELECT lifecycle,priority,active FROM interests WHERE owner=? AND scope=?',
+     ('pump:survivor:'+mint,SWAP_SCOPE)).fetchone()
+    assert held==('open',0,1),held
+    owner='pump:survivor:'+mint
+    def pin():return writer.db.execute('SELECT lower_slot FROM interests WHERE owner=? AND scope=?',(owner,SWAP_SCOPE)).fetchone()[0]
+    assert pin()==100
+    now[0]=103;block(102);block(103)
+    before=h.get(mint)
+    with patch.object(h,'append',side_effect=SystemExit('before native commit')):
+     try:r._increment(before,101,101)
+     except SystemExit:pass
+     else:raise AssertionError('missing crash cut')
+    assert h.get(mint)==before and pin()==100
+    with patch.object(plane,'advance_interest',side_effect=SystemExit('after native commit')):
+     try:r._increment(before,101,101)
+     except SystemExit:pass
+     else:raise AssertionError('missing crash cut')
+    assert h.get(mint)['through']==101 and pin()==100
+    h.close();h=History(Path(td)/'history',policy=POLICY_HASH);r.history=h
+    r._increment(h.get(mint),101,101);assert pin()==100
+    advance=plane.advance_interest
+    def lost_reply(*args,**kw):
+     advance(*args,**kw);raise SystemExit('after durable acknowledgement')
+    with patch.object(plane,'advance_interest',side_effect=lost_reply):
+     try:r._increment(h.get(mint),102,102)
+     except SystemExit:pass
+     else:raise AssertionError('missing crash cut')
+    assert h.get(mint)['through']==102 and pin()==101
+    h.close();h=History(Path(td)/'history',policy=POLICY_HASH);r.history=h
+    r._increment(h.get(mint),102,102);assert pin()==101
    writer.gap(PUMP_SCOPE,100,100)
    h.set_meta('discovery_slot',99)
    try:r.discover()

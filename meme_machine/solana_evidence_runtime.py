@@ -79,6 +79,10 @@ class RuntimeEvidence:
         except EvidenceUnavailable as exc:
             return dict(accepted=False,terminal_classification='infrastructure_evidence_unavailable',
                         reason=str(exc),economic_rejection=False)
+    def advance_interest(self,scope,*,lower_slot,consumed_slot,checkpoint_hash,owner):
+        """Call only after the consuming native replay checkpoint is durable."""
+        return self.command(op='advance_interest',owner=owner,scope=scope,
+            lower_slot=lower_slot,consumed_slot=consumed_slot,checkpoint_hash=checkpoint_hash)
     def frontier(self,scope):
         self.require_usable(scope)
         row=self.reader.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(scope,self.clock())).fetchone()
