@@ -262,3 +262,69 @@ already measured checkpoint repair. Discriminator remains the full 2,223-frame /
 delay. PASS requires all existing lag, age, storage, archive/cleanup, local-read,
 gap and integrity gates. FAIL disproves sufficiency and requires reviewing stage
 evidence before any further hosted run. No limit or source load is relaxed.
+
+Working-set candidate `e33adc5f5ec013e9169e7ce64d80638b912f5d97` is pushed;
+offline durability run `36327089863` is executing. While waiting, 38 reusable
+canonical native conformance/Survivor/accounting/continuity tests passed. Draft
+six-regime gap matrix is `autonomous-production-coverage-20260927.md`.
+Meteora's existing production lifecycle test already simulates its full 24-hour
+hold; retain it rather than duplicate it.
+
+Material B finding: both frozen Survivor policies approve 14,400-second minimum
+age, but both native Runtime.step schedulers still hard-code 21,600. New native
+boundary regression fails both at the approved minimum. Earlier notes describing
+a six-hour policy minimum were incorrect: that is the stale runtime gate, not
+frozen strategy authority. Bind runtime age scheduling to the existing policy
+values in Phase B; do not modify either policy or its hash.
+The same audit found Pons Survivor runtime turnover sizing still divides by 40,
+while its approved frozen policy divides by 30. The existing promotion patch
+changed the policy but left both runtime capacity sites unchanged. Native
+`turnover_cap` regression reproduces 30 units instead of policy-authorized 40 for
+1,200 units turnover. Bind both sites to the frozen policy in B; no allocation or
+policy change. These B regressions are deliberately uncommitted while A runs.
+Parked B prototypes now pass four focused native regressions: saturated-history
+retirement, both approved age boundaries, Pons native reconstruction/qualification
+and sizing, and Pump native reconstruction/qualification including actual oracle
+and concentration checks. Reconstruction cases reopen History and verify that a
+recorded continuity gap still prevents entry. Native acquisition/discovery-to-
+history and normal cross-window handoff remain explicit audit gaps. Ordinary CI
+`36327089807` passed for the independent Phase-A candidate.
+
+## Phase A complete — 2026-09-27
+
+Exact candidate `e33adc5f5ec013e9169e7ce64d80638b912f5d97` PASSED hosted
+durability run `36327089863`. Artifact `10934422845` independently verified as
+SHA256 `d7facd425993e78a66804e05d7dac59858d8d074051f66351fc2e127aa37a4ba`;
+all five recorded production source hashes match that checkout. Full 2,223 frames
+/ 600.21 source seconds, 6ms changed-commit latency (5,025 injected waits),
+0.165s/frame owner and 0.36s/1,000-record archive floors remained unchanged.
+Peak lag 3.068s; hot age 184.726s; all-retained age 186.223s; hot bytes
+1,054,211,840. Fifty-nine candidate-local reads passed; 410,384 archive records
+hash/provenance verified; 409,384 archived and 407,336 compacted. Remaining 2,048
+archived index rows are bounded backlog, not lost evidence. Receive/dispatch peaks
+9 frames / 36,738,045 bytes; admitted/committed messages both 2,224 including end
+marker. No runtime gaps/disconnects/capacity stops; three shutdown gaps are the
+intentional terminal discontinuity. SQLite integrity OK. Zero provider calls.
+
+Causal explanation: serial owner throughput was consumed by redundant implicit
+checkpoints and amplified record-deletion I/O (file-backed temporary statement
+journals plus a cache too small for the bounded address-index working set).
+Atomic health alone and checkpoint ownership alone were independently insufficient.
+Service-only explicit retention checkpoint ownership, atomic health publication,
+memory temporary rollback work and a fixed 16MiB cache retain FULL WAL durability
+and every acceptance bound. Full candidate write requests were 43.38GB across
+2,223 frames versus 77.27GB across 1,487 on the checkpoint-only failure; cancelled
+temporary writes fell from 4.56GB to 0.00026GB. Sustained source lag stayed low.
+Deterministic old-fail/new-pass I/O and checkpoint regressions plus rollback/reopen
+proof justify the repair. No second standalone 600s run: final full certification
+will supply the required independent sustained proof. Phase B is now active.
+
+Phase B first repair batch: declared Pump/Pons scheduling overlays bind approved
+age/turnover fields and let full candidate sets progress to retirement. Fresh
+preparation from all four frozen execution SHAs applies every declared patch;
+source-integrity verification passes. Forty focused native conformance, worker
+policy, Survivor and shared-accounting tests pass. Refresh only engineering
+composed/diff identities in sources/protocol; all approved policy hashes,
+strategy versions, source/execution SHAs and task-manifest bytes stay unchanged.
+Remaining coverage gaps are tracked in the matrix; no full certification or
+market workflow has been started.

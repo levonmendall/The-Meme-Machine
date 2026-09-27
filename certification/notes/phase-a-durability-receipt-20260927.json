@@ -1,0 +1,36 @@
+{
+  "integration_sha": "e33adc5f5ec013e9169e7ce64d80638b912f5d97",
+  "passed": true,
+  "frames": 2223,
+  "source_seconds": 600.21,
+  "measured_contention": {
+    "additional_commit_latency_seconds": 0.006,
+    "archive_seconds_per_thousand": 0.36,
+    "delayed_commits": 5025,
+    "owner_seconds_per_frame": 0.165,
+    "profile": "run381-fullcert-36293751021"
+  },
+  "source_hashes": {
+    "solana_evidence_control.py": "b1bcff1c163da5bd668e95dcf3a4f8cc50c90db019961700491bd7669585d50d",
+    "solana_evidence_plane.py": "1c013a8bb68b4a1379ed969f12ebf59451a9fa42ed786fa3a20145bd453ab727",
+    "solana_evidence_service.py": "7e39801d77b7d0800024b6ae0533dc1855f17c16dcfa65764e64753fd379bf2a",
+    "solana_evidence_storage.py": "4dd587fcf06559abdf9663a39a0f48c9071075a57894549dc66d9dde68d6f2c0",
+    "solana_program_decoders.py": "e246c532c7485c13123ff1a5a99260864d361c97550efe9cb56c074ec4f062c0"
+  },
+  "lag_peak": 3.068037986755371,
+  "hot_peak": 1054211840,
+  "oldest_hot_age_peak": 184.72551822662354,
+  "oldest_retained_age_peak": 186.22314643859863,
+  "candidate_checks": 59,
+  "archive_records_verified": 410384,
+  "archived_pending_compaction": 2048,
+  "integrity": [
+    "ok"
+  ],
+  "provider_calls": 0,
+  "schema": "autonomous-paper-phase-a-receipt-v1",
+  "workflow_run_id": 36327089863,
+  "artifact_id": 10934422845,
+  "artifact_sha256": "d7facd425993e78a66804e05d7dac59858d8d074051f66351fc2e127aa37a4ba",
+  "full_machinery_certificate": false
+}
