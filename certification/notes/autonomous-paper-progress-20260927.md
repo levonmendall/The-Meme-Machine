@@ -612,3 +612,35 @@ window budget. Twenty-two controller/state/adapter tests pass, including two nor
 windows with retained positions followed by a no-entry continuation. Full native
 workflow adapter, bounded-history, multi-day/crash/provider matrices still pending;
 these focused results do not close Phases B–D.
+
+Normal-discovery recovery batch is `2a61717b81ddcb5053e13b2a39019572cdba39f7`.
+Ordinary CI `36337682834` ran 798 tests and found one failure:
+`frozen_lane_drift:pons`. The new Pons composed-source digest was updated in
+sources.json but omitted from profitability_protocol.json. Corrected only that
+implementation-identity binding in the following history batch; frozen policies,
+cohort acceptance rules and task manifest remain unchanged. Focused protocol
+freeze verification passes. No unchanged CI retry was requested.
+
+Survivor history repair now retains the original graduation anchor, exact last
+24 hours and one boundary witness. Before removing any older point, runtime
+requires a verified restored predecessor capsule, preserved artifact digest and
+exact original history-file checksum. The raw observations remain in that native
+artifact; each prefix records the removed-data hash and prior-prefix hash.
+Pump carries the exact running reset scan/selected-reset low; Pons retains all
+inputs its longest feature window needs. Archived price rewrites and past-window
+queries fail closed. Both normal and no-entry position windows use their own
+validated claim. Constructor no longer rewrites an unchanged policy row, allowing
+an interrupted prune to roll back to the exact archived file identity.
+
+Dense regression preserves the original 100,001-point capacity rejection and
+rollback, then advances three archived/restarted windows beyond it: 86,402 points
+after prune, 90,002 after each hour; hot DB growth stays within 1 MiB across these
+windows and integrity passes. Independent old reset-scan arithmetic agrees with
+incremental prefix reduction; complete native Pump and Pons decisions agree before
+and after compaction, including Pons seven-day candidate age. Pump exact-mean
+optimization is now declared in the composed overlay. Seventeen Pump and fourteen
+Pons native Survivor tests pass; thirty-six affected canonical tests plus the
+interrupted-compaction rollback regression pass. All four prepared source-integrity checks pass. The
+full multi-day integration proof remains pending. Remaining
+steady-state risks include retired identities, accumulated native journals/receipts,
+Pons enrollment metadata, provider/crash matrices and full workflow adapters.

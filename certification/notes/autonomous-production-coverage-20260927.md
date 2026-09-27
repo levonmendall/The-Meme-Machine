@@ -7,8 +7,8 @@ Authority: `autonomous_paper_task_manifest.json`; four sleeves, six active regim
 | discovery | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | target-market routing | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | authoritative evidence | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
-| reconstruction | PROVEN | BROKEN | PROVEN | BROKEN | PROVEN | PROVEN |
-| feature computation | PROVEN | BROKEN | PROVEN | PROVEN | PROVEN | PROVEN |
+| reconstruction | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
+| feature computation | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | qualification | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | commit-time revalidation | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | capacity/sizing | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
@@ -60,3 +60,5 @@ Current Pump now resumes through its native production restore/monitor and reatt
 Both Survivor acquisition compositions are now PROVEN by `test_survivor_acquisition`: Pump raw migration decoder → linked finalized census → shared read-only reader → durable discovery, including unsealed/non-native/gap rejection; Pons captured graduation bytes → receipt/ABI/lineage proof → history, plus shared V4 transport → separate pool authentication → candidate histories. These regressions exposed and repaired the dropped Pump migration binding and Pons one-candidate scheduling starvation. Timeout/receipt/reorg failures preserve cursors and resume without duplicate evidence. Four-hour aging across normal workflow boundaries remains MISSING under restart/replay; this acquisition proof does not close that gate.
 
 Long-horizon probes now mark both Survivor history reconstructions BROKEN at the unchanged 100,000-point cap inside the approved seven-day age window. Pump's exact six-hour slope also has measured quadratic cost (263/514/1,012 points: 0.0342/0.1191/0.4918 seconds). Preserve policy arithmetic, evidence provenance and the point cap while repairing these causes. The existing short-history qualification proofs remain valid but cannot close these operational defects.
+
+Archived-prefix repair restores the two Survivor reconstruction rows and Pump feature row to PROVEN: declared native overlays preserve complete decisions with original graduation anchors and exact 24-hour histories; Pump retains the exact older reset scan state and linear exact covariance arithmetic. Dense capacity/restart/rollback tests preserve the 100,000-point guard and archived provenance. Normal and position-only claim validation is exercised. Cross-window native adapter integration and the complete multi-day resource soak remain MISSING under restart/replay and Phase D.

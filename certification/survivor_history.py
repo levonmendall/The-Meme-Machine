@@ -5,6 +5,9 @@ identity is immutable. Missing continuity is a sticky entry block until a new
 authenticated graduation identity, rather than a manufactured historical value.
 """
 import json
+import hashlib
+import os
+from pathlib import Path
 import time
 import sqlite3
 from fractions import Fraction
@@ -14,6 +17,10 @@ from certification.journal import canonical,digest
 
 class History:
     def __init__(self,path,*,policy,maximum_candidates=64,maximum_points=100000):
+        self.path=Path(path)
+        self.initial_file_sha256=None
+        if (os.environ.get('MM_AUTONOMOUS_STATE_RECEIPT') or os.environ.get('MM_AUTONOMOUS_POSITION_STATE')) and self.path.is_file():
+            with self.path.open('rb') as source:self.initial_file_sha256=hashlib.file_digest(source,'sha256').hexdigest()
         self.db=sqlite3.connect(path,isolation_level=None)
         self.db.execute('PRAGMA journal_mode=WAL');self.db.execute('PRAGMA synchronous=FULL')
         self.db.executescript('''
@@ -26,7 +33,7 @@ class History:
         self.maximum_candidates=maximum_candidates;self.maximum_points=maximum_points
         old=self.get_meta('policy')
         if old is not None and old!=policy:raise ValueError('survivor_history_policy_drift')
-        self.set_meta('policy',policy)
+        if old is None:self.set_meta('policy',policy)
 
     @contextmanager
     def transaction(self):
@@ -80,10 +87,13 @@ class History:
                 if old and self._verified(old)!=event:raise ValueError('survivor_history_event_conflict')
                 self.db.execute('INSERT OR IGNORE INTO events VALUES(?,?,?,?,?)',
                     (identity,event['id'],event['at'],canonical(event),digest(event)))
+            prefix=self.get_meta('archive_prefix:'+identity)
             for at,price in points:
                 if at>through:raise ValueError('survivor_future_price')
                 bar=dict(price) if isinstance(price,dict) else dict(price=str(price),low=str(price),high=str(price))
                 old=self.db.execute('SELECT price,hash FROM points WHERE candidate=? AND at=?',(identity,int(at))).fetchone()
+                if prefix and int(at)<=prefix['through']:
+                    if not old or old[0]!=canonical(bar):raise ValueError('survivor_archived_price_rewrite')
                 if old:
                     if digest([identity,int(at),old[0]])!=old[1]:raise ValueError('survivor_price_corruption')
                     prior=json.loads(old[0])
@@ -100,12 +110,53 @@ class History:
             return row
 
     def facts(self,identity,now):
+        prefix=self.get_meta('archive_prefix:'+identity)
+        if prefix and now<prefix['through']:raise ValueError('survivor_archived_history_query')
         events=[self._verified(r) for r in self.db.execute('SELECT body,hash FROM events WHERE candidate=? AND at<=? ORDER BY at,id',(identity,now))]
         points=[]
         for at,price,h in self.db.execute('SELECT at,price,hash FROM points WHERE candidate=? AND at<=? ORDER BY at',(identity,now)):
             if digest([identity,at,price])!=h:raise ValueError('survivor_price_corruption')
             points.append(dict(at=at,**json.loads(price)))
         return points,events
+
+    def prefix(self,identity):
+        value=self.get_meta('archive_prefix:'+identity)
+        return None if value is None else value['reducer_state']
+
+    def compact_archived(self,authority,*,reducer=None):
+        """Replace already-preserved old observations with exact sufficient state.
+
+        All removed bytes remain in the verified predecessor artifact. One original
+        graduation anchor and the boundary witness remain alongside the exact last
+        24 hours; the unchanged 100,000-point guard still applies to new ingestion.
+        """
+        prior=authority['state_hash']
+        if self.get_meta('compacted_from_state')==prior:return False
+        if self.initial_file_sha256!=authority['history_sha256']:
+            raise ValueError('survivor_history_archive_source_changed')
+        with self.transaction():
+            for row in self.rows():
+                identity=row['id'];cut=row['through']-86400
+                older=[]
+                for at,price,checksum in self.db.execute(
+                        'SELECT at,price,hash FROM points WHERE candidate=? AND at<=? ORDER BY at',(identity,cut)):
+                    if digest([identity,at,price])!=checksum:raise ValueError('survivor_price_corruption')
+                    older.append(dict(at=at,**json.loads(price)))
+                if len(older)<3:continue
+                previous=self.get_meta('archive_prefix:'+identity)
+                before=None if previous is None else previous['reducer_state']
+                folded=[p for p in older if previous is None or p['at']>previous['through']]
+                state=None if reducer is None else reducer(folded,before)
+                removed=older[1:-1]
+                record=dict(schema='survivor-archived-prefix-v1',through=older[-1]['at'],
+                    reducer_state=state,authority=authority,removed_count=len(removed),
+                    removed_hash=digest(removed),previous_prefix_hash=None if previous is None else digest(previous))
+                self.set_meta('archive_prefix:'+identity,record)
+                self.db.execute('DELETE FROM points WHERE candidate=? AND at>? AND at<?',
+                    (identity,older[0]['at'],older[-1]['at']))
+            self.set_meta('compacted_from_state',prior)
+        self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+        return True
 
     def rows(self,*,include_retired=False):
         # Tombstones preserve identity but never enter the monitoring hot set.
@@ -123,6 +174,30 @@ class History:
             self.db.execute('DELETE FROM events WHERE candidate=?',(row['id'],))
 
     def close(self):self.db.close()
+
+
+def compact_restored_history(history,*,lane,reducer=None):
+    from certification.campaign_state import restored_window
+    position=os.environ.get('MM_AUTONOMOUS_POSITION_STATE')
+    if position:
+        from certification.position_continuation import _runtime_identity
+        _runtime_identity(position,lane)  # Exact no-entry claim and installed capsule.
+        claim=json.loads((Path(position)/'autonomous-position-authority.json').read_text())
+        receipt=json.loads((Path(position)/'certification-position/restored-campaign-state.json').read_text())
+    else:
+        claim=restored_window()
+        if claim is None:return False
+        receipt=json.loads(Path(os.environ['MM_AUTONOMOUS_STATE_RECEIPT']).read_text())
+    name={'pump':'pump/pump-survivor/history.sqlite',
+          'pons':'pons/pons-selective-continuation-v1-cohort/pons-survivor/history.sqlite'}[lane]
+    expected=receipt.get('history_snapshots',{}).get(name)
+    previous=claim['previous'];artifact=previous.get('artifact') or {}
+    if (not expected or not isinstance(artifact.get('digest'),str)
+            or not artifact['digest'].startswith('sha256:')):
+        raise ValueError('survivor_history_archive_authority_missing')
+    authority=dict(state_hash=receipt['state_hash'],history_sha256=expected,
+        artifact=artifact,campaign_id=claim['campaign_id'],window_index=previous['index'])
+    return history.compact_archived(authority,reducer=reducer)
 
 
 class Worker:

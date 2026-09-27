@@ -166,6 +166,27 @@ class CampaignStateTests(unittest.TestCase):
             self.assertEqual(set(positions['positions']),set(claim['window']['positions'][lane]))
             self.assertEqual(positions['natural_entries'],1)
 
+    def test_verified_normal_window_can_compact_only_its_preserved_history_snapshot(self):
+        from certification.survivor_history import compact_restored_history
+        claim=self.claim();claim['previous']['artifact']={'digest':'sha256:'+'a'*64}
+        for lane in ('pump','pons'):claim['previous']['positions'][lane]=['original-paper-books:position']
+        claim['window']['positions']=deepcopy(claim['previous']['positions'])
+        self.target_run.mkdir()
+        transfer.prepare_window(claim,worktrees=self.target,run=self.target_run,
+            phase='hourly',seconds=3600,prior_state=self.capsule)
+        receipt=self.target_run/'restored-campaign-state.json'
+        path=self.target/'pons/pons-selective-continuation-v1-cohort/pons-survivor/history.sqlite'
+        with patch.dict(os.environ,MM_AUTONOMOUS_STATE_RECEIPT=str(receipt),
+                        MM_CERTIFICATION_RUN_ID=claim['window']['native_run_id']):
+            h=History(path,policy='frozen-pons')
+            self.assertTrue(compact_restored_history(h,lane='pons'));h.close()
+            h=History(path,policy='frozen-pons')
+            self.assertFalse(compact_restored_history(h,lane='pons'));h.close()
+            wrong=json.loads(receipt.read_text());wrong['state_hash']='changed';receipt.write_text(json.dumps(wrong))
+            h=History(path,policy='frozen-pons')
+            with self.assertRaisesRegex(ValueError,'authority'):compact_restored_history(h,lane='pons')
+            h.close()
+
     def test_window_requires_exact_claim_before_installing_state(self):
         # The successor must carry the exact position set admitted by the prior review.
         claim=self.claim();claim['previous']['positions']['pump']=['original-paper-books:position']

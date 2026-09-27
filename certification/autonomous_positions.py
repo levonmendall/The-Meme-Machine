@@ -71,6 +71,7 @@ def run(claim, worktrees, output, previous):
             folder=runtime/lane;folder.mkdir();audit=folder/'audit'
             env=lane_environment(lane,spec['lanes'][lane],runtime,window['native_run_id'],'position_continuation')
             env['MM_CONTINUATION_LANE_ROOT']=str(worktrees/lane)
+            env['MM_AUTONOMOUS_POSITION_STATE']=str(state)
             command=[sys.executable,'-m','certification.position_continuation','--lane',lane,
                 '--state-dir',str(state),'--slice-seconds',str(window['seconds']),
                 '--output',str(folder/'position-continuation-result.json'),'--audit-output',str(audit)]

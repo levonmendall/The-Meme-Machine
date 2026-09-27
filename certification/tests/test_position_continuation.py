@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -98,9 +99,17 @@ class PositionContinuationTests(unittest.TestCase):
                 campaign_id=fixture.window['campaign_id'],prior_index=0,authorization_hash=fixture.window['authorization_hash'])
             claim=fixture.claim();claim['window'].update(mode='position',entry_authority=False,
                 positions={lane:['original-paper-books:position'] if lane in ('pump','pons') else [] for lane in transfer.LANES})
+            claim['previous']['artifact']={'digest':'sha256:'+'a'*64}
             path=state/'autonomous-position-authority.json';path.write_text(json.dumps(claim))
             result=_runtime_identity(state,'pump')
             self.assertFalse(result['entry_authority']);self.assertEqual(result['campaign_id'],fixture.window['campaign_id'])
+            from certification.survivor_history import History,compact_restored_history
+            with patch.dict(os.environ,MM_AUTONOMOUS_POSITION_STATE=str(state),
+                            MM_AUTONOMOUS_STATE_RECEIPT=str(runtime/'restored-campaign-state.json')):
+                history=History(state/'certification-native/position/pons/pons-selective-continuation-v1-cohort/pons-survivor/history.sqlite',policy='frozen-pons')
+                self.assertTrue(compact_restored_history(history,lane='pons'))
+                self.assertFalse(compact_restored_history(history,lane='pons'))
+                history.close()
             for changes in ({'entry_authority':True},{'native_run_id':'new-capital'},
                             {'parent_state_hash':'0'*64},{'index':5},{'mode':'hourly'}):
                 changed=deepcopy(claim);changed['window'].update(changes);path.write_text(json.dumps(changed))
