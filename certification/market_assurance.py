@@ -166,6 +166,11 @@ def native_positions(root,lane):
                 for event in events:
                     identity=event['position']['id'];by_id.setdefault(identity,[]).append(event)
             elif lane=='pons' and 'capital_positions' in tables:
+                from certification.pons_terminal_archive import anchor
+                prefix=anchor(db)
+                if prefix:
+                    for key,value in prefix['folded']['metrics'].items():
+                        folded_metrics[key]=folded_metrics.get(key,0)+value
                 cohort.extend(json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions'))
             elif lane=='ramses' and 'ramses_strategy_journal' in tables:
                 from certification.ramses_archive import anchor

@@ -1150,3 +1150,39 @@ raw predecessors), within an 8KiB hot DB band. Five focused tests PASS including
 source-order replay, corruption, prepublication rollback, missing projection and
 position-only live-state preservation. No seven-day component soak repeated.
 Owner 1 CLOSED subject to the later joined proof. Next: current-Pons owner.
+
+Robinhood repair published as 9ae3f94a80c77b0fd6b8cf4d5169fcd8923b46e6;
+ordinary CI 36354538489 PASS. The parked current-Pons composition is now declared
+and exact manifest-matching autonomous-composed-lanes source integrity passes for
+all four lanes. The former recovery-composed-lanes tree is stale for this candidate.
+
+Current Pons owner CLOSED subject to joined proof. Existing immutable predecessor,
+capital replay, shared-sleeve prefix and lifecycle-window fencing now retire only
+verified completed trials whose pre-graduation re-entry eligibility expired under
+the unchanged 900-second token-age policy. Recent re-entry vectors, unresolved and
+live trials remain hot. Hashed cumulative capital/P&L/cost/sequence/trial anchors
+preserve accounting and duplicate prevention. Twenty-four changing trials across
+six actual capsule handoffs retain four recent trials; hot bytes after warmup:
+731150, 731174, 731174, 731174. Native partial realization and settlement execute
+for every trial. Real normal-successor recover_cohort retains next trial 24 and all
+24 qualification counts; position-only receipt cannot grant discovery authority.
+Precommit rollback, post-books/prepublication interruption, old-entry replay and
+corrupt-anchor rejection PASS. Sixteen native capital/current recovery regressions
+and three policy/native handoff tests PASS. One test-fixture omission (production
+checkpoint window fields/log paths) was corrected; no runtime authority relaxed.
+
+Current-strategy sleeve terminal owner CLOSED subject to joined proof. Current Pons
+folds with its native trial proof; current Pump extends the existing shared-sleeve
+preserved checkpoint and terminal retirement primitive. Exact native replay,
+terminal hash, zero exposure and immutable raw predecessor are required. Scoped
+current-Pump lifecycle IDs preserve duplicate fencing without policy changes.
+Six changing windows fold 47 terminal IDs; hot sleeve bytes plateau at 65536.
+Original partial current reservation and Survivor reservation retain 100 and 200
+units respectively. Three new owner-2/3 focused regressions PASS. Frozen strategies,
+policy hashes, allocations, markets and all resource/history bounds are unchanged.
+
+All three specified D component owners are now closed; no further component census
+or repeated successful 168-hour component proof is authorized/needed. Next is the
+single joined seven-day production/campaign proof. It must measure all hot owners
+and expose any composition regression before D can close. No final certificate,
+market smoke, or final-SHA real-dispatch verification has been launched.

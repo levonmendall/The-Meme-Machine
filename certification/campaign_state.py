@@ -172,6 +172,10 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity, di
     robinhood_handoff=archive_robinhood(destination,preserved_artifact,window) if preserved_artifact is not None else None
     from certification.pons_window_archive import externalize
     pons_handoff=externalize(destination,preserved_artifact,window) if preserved_artifact is not None else None
+    from certification.pons_terminal_archive import externalize as archive_pons_terminals
+    pons_terminals=archive_pons_terminals(destination,preserved_artifact,window,Path(worktrees)/'pons') if preserved_artifact is not None else None
+    from certification.current_sleeve_archive import externalize as archive_current_sleeve
+    current_sleeve=archive_current_sleeve(destination,preserved_artifact,window,Path(worktrees)/'pump') if preserved_artifact is not None else None
     from certification.ramses_archive import externalize as archive_ramses
     ramses_handoff=archive_ramses(destination,preserved_artifact,window) if preserved_artifact is not None else None
     files = []
@@ -193,6 +197,8 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity, di
                 accounting={lane: terminal['lanes'][lane]['terminal_reconciliation'] for lane in LANES})
     if archive_handoff is not None:body['archive_handoff']=archive_handoff
     if pons_handoff is not None:body['pons_observation_handoff']=pons_handoff
+    if pons_terminals is not None:body['pons_terminal_handoff']=pons_terminals
+    if current_sleeve is not None:body['current_sleeve_handoff']=current_sleeve
     if ramses_handoff is not None:body['ramses_campaign_log_handoff']=ramses_handoff
     if robinhood_handoff is not None:body['robinhood_history_handoff']=robinhood_handoff
     body['state_hash'] = digest(body)

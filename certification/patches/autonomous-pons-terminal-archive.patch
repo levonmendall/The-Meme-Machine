@@ -1,0 +1,189 @@
+diff --git a/robinhood_research/pons_selective_capital.py b/robinhood_research/pons_selective_capital.py
+index de8fca78d7f18cde481edea33e0484db7f702aac..4672bfc0e92b59e9625577b2c69ddd8cfd1067a9 100644
+--- a/robinhood_research/pons_selective_capital.py
++++ b/robinhood_research/pons_selective_capital.py
+@@ -86,28 +86,30 @@ class CohortCapital:
+             replay[identity]=row
+         projection={identity:json.loads(raw) for identity,raw in db.execute('SELECT id,body FROM capital_positions')}
+         if projection!=replay:raise BoundaryError('selective_cohort_projection_mismatch')
++        from certification.pons_terminal_archive import anchor
++        prefix=anchor(db);folded=(prefix or {}).get('folded',{})
+         rows=list(replay.values())
+         reserved=sum(x['reserved'] for x in rows)
+-        realized=sum(x['pnl'] for x in rows if x['status']=='settled')
++        realized=folded.get('realized',0)+sum(x['pnl'] for x in rows if x['status']=='settled')
+         available=self.capital+realized-reserved
+         if available<0:raise BoundaryError('selective_cohort_capital_invariant')
+         observed=[x for x in rows if 'native_position' in x]
+         complete=len(observed)==len(rows) and all(x['native_accounting']['replay_verified'] for x in observed)
+-        cash=self.capital-sum(x['native_position']['cost'] for x in observed)+sum(x['native_position']['realized_proceeds'] for x in observed)
++        cash=self.capital+folded.get('realized',0)-sum(x['native_position']['cost'] for x in observed)+sum(x['native_position']['realized_proceeds'] for x in observed)
+         basis=sum(x['native_position']['remaining_cost'] for x in observed)
+-        booked=sum(x['native_position']['realized_pnl'] for x in observed)
++        booked=folded.get('realized',0)+sum(x['native_position']['realized_pnl'] for x in observed)
+         if complete and (cash<0 or self.capital+booked!=cash+basis):
+             raise BoundaryError('selective_cohort_cash_basis_invariant')
+         return dict(genesis=self.capital,available=available,reserved=reserved,realized=realized,
+-                    unsettled=sum(x['status']!='settled' for x in rows),positions=len(rows),
++                    unsettled=sum(x['status']!='settled' for x in rows),positions=folded.get('positions',0)+len(rows),
+                     policy_hash=POLICY_HASH,namespace=STRATEGY_NAMESPACE,
+                     conservation=self.capital+realized==available+reserved,
+                     native_observation_complete=complete,
+                     cash=cash if complete else None,remaining_cost_basis=basis if complete else None,
+                     booked_realized=booked if complete else None,
+                     cash_basis_conservation=self.capital+booked==cash+basis if complete else None,
+-                    native_execution_cost=sum(x['native_accounting']['native_execution_cost'] for x in observed) if complete else None,
+-                    capital_at_risk_unit_nanoseconds=sum(x['native_accounting']['capital_at_risk_unit_nanoseconds'] for x in observed) if complete else None,
++                    native_execution_cost=folded.get('native_execution_cost',0)+sum(x['native_accounting']['native_execution_cost'] for x in observed) if complete else None,
++                    capital_at_risk_unit_nanoseconds=folded.get('capital_at_risk_unit_nanoseconds',0)+sum(x['native_accounting']['capital_at_risk_unit_nanoseconds'] for x in observed) if complete else None,
+                     capital_integral_complete=complete and all(x['native_accounting']['integral_complete'] for x in observed))
+ 
+     def observe(self,paper,position):
+@@ -172,7 +174,10 @@ class CohortCapital:
+     def _write(self,db,row,action):
+         raw=canonical(row)
+         db.execute('INSERT OR REPLACE INTO capital_positions VALUES(?,?)',(row['id'],raw))
+-        db.execute('INSERT INTO capital_journal(id,action,body,hash) VALUES(?,?,?,?)',(row['id'],action,raw,digest(row)))
++        from certification.pons_terminal_archive import anchor
++        prefix=anchor(db)
++        seq=max((prefix or {}).get('sequence',0),db.execute('SELECT COALESCE(MAX(seq),0) FROM capital_journal').fetchone()[0])+1
++        db.execute('INSERT INTO capital_journal(seq,id,action,body,hash) VALUES(?,?,?,?,?)',(seq,row['id'],action,raw,digest(row)))
+ 
+     def reserve(self,identity,amount,*,at,decision_hash,trial_path,native_reservation_intent=None):
+         if type(amount) is not int or amount<=0:raise BoundaryError('selective_cohort_reservation_invalid')
+@@ -185,6 +190,10 @@ class CohortCapital:
+                     or intent['amount']+intent['gas_budget']!=amount
+                     or digest(intent['features'])!=decision_hash):
+                 raise BoundaryError('selective_cohort_native_intent_identity')
++        from certification.lifecycle_identity import validate_new
++        from certification.pons_terminal_archive import anchor
++        with closing(self._connect()) as db:
++            validate_new(identity,archived=(anchor(db) or {}).get('archived_entry_scope'))
+         from certification.directional_sleeve import open_sleeve
+         sleeve=open_sleeve('pons',self.capital)
+         if sleeve is not None:
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+index 505e7af50a737ef992abe84bd729e782e1b00d2e..36701d2e835a9a205b9d90f943e9cacab3cebe85 100644
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@ -118,13 +118,21 @@ def _enrolled_count(result):
+     return result.get('archived_observations',{}).get('count',0)+len(result['rows'])
+ 
+ 
++def _qualifier_count(result):
++    return result.get('archived_trials',{}).get('qualifiers',0)+len(result['qualifiers'])
++
++
++def _next_trial_index(result):
++    return max([result.get('archived_trials',{}).get('next_index',0)]+[q['index']+1 for q in result['qualifiers']])
++
++
+ def _summary_snapshot(result):
+     rejection_counts=dict(result.get('archived_observations',{}).get('rejections',{}))
+     for row in result["rows"]:
+         vector=row.get("vector") or {}
+         for reason in vector.get("all_rejections") or []:
+             rejection_counts[reason]=rejection_counts.get(reason,0)+1
+-    lifecycle_status_counts={}
++    lifecycle_status_counts=dict(result.get('archived_trials',{}).get('lifecycle_status_counts',{}))
+     realized=[]
+     for life in result["lifecycles"]:
+         status=life.get("status","unknown")
+@@ -133,15 +141,16 @@ def _summary_snapshot(result):
+             realized.append(int(life["realized_pnl_quote"]))
+     return dict(
+         enrolled=_enrolled_count(result),
+-        qualified=len(result["qualifiers"]),
+-        qualifiers_with_wallet_convergence=sum(
++        qualified=_qualifier_count(result),
++        qualifiers_with_wallet_convergence=result.get('archived_trials',{}).get('wallet_converged',0)+sum(
+             bool(q["wallet_convergence"].get("converged"))
+             for q in result["qualifiers"]
+         ),
+         lifecycle_status_counts=dict(sorted(lifecycle_status_counts.items())),
+         rejection_counts=dict(sorted(rejection_counts.items())),
+         realized_pnl_quote=realized,
+-        graduated_lifecycles=sum(
++        archived_realized_pnl_quote=result.get('archived_trials',{}).get('realized_pnl_quote',0),
++        graduated_lifecycles=result.get('archived_trials',{}).get('graduated_lifecycles',0)+sum(
+             bool(x.get("carried_through_graduation"))
+             for x in result["lifecycles"]
+         ),
+@@ -217,7 +226,7 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
+         evidence_acquisition=result.get('evidence_acquisition'),
+         capacity_censored=result.get('capacity_censored',0),
+         persisted_candidate_rows=len(result["rows"]),
+-        persisted_qualifiers=len(result["qualifiers"]),
++        persisted_qualifiers=_qualifier_count(result),
+     )
+     _atomic_json(PROGRESS,snapshot)
+     return snapshot
+@@ -745,7 +754,7 @@ def run(endpoint,*,campaign=False):
+         while (
+             time.monotonic()<deadline
+             and (campaign or (len(result["rows"])<MAX_ENROLLED
+-                              and len(result["qualifiers"])<COHORT_TARGET))
++                              and _qualifier_count(result)<COHORT_TARGET))
+         ):
+             if discovery_future is None:
+                 discovery_future=discovery_pool.submit(_discover_observations,
+@@ -915,7 +924,7 @@ def run(endpoint,*,campaign=False):
+                     evaluation["vector"].get("current_threshold_pass")
+                     and authorization_rejection is None
+                 ):
+-                    qindex=len(result["qualifiers"])
++                    qindex=_next_trial_index(result)
+                     qualifier=dict(
+                         index=qindex,sequence=sequence,token=evaluation["token"],
+                         curve=curve,
+@@ -972,7 +981,7 @@ def run(endpoint,*,campaign=False):
+         terminal_provider=rpc.telemetry()
+         result["discovery_sessions"].append(terminal_provider)
+         _append_jsonl(PROVIDER_LOG,terminal_provider)
+-        result["target_reached"]=len(result["qualifiers"])>=COHORT_TARGET
++        result["target_reached"]=_qualifier_count(result)>=COHORT_TARGET
+         if not result["target_reached"]:
+             result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
+ 
+@@ -1026,7 +1035,7 @@ def run(endpoint,*,campaign=False):
+         vector=row.get("vector") or {}
+         for reason in vector.get("all_rejections") or []:
+             counts[reason]=counts.get(reason,0)+1
+-    statuses={}
++    statuses=dict(result.get("archived_trials",{}).get("lifecycle_status_counts",{}))
+     returns=[]
+     for life in result["lifecycles"]:
+         status=life.get("status","unknown")
+@@ -1035,15 +1044,16 @@ def run(endpoint,*,campaign=False):
+             returns.append(int(life["realized_pnl_quote"]))
+     result["summary"]=dict(
+         enrolled=_enrolled_count(result),
+-        qualified=len(result["qualifiers"]),
+-        qualifiers_with_wallet_convergence=sum(
++        qualified=_qualifier_count(result),
++        qualifiers_with_wallet_convergence=result.get('archived_trials',{}).get('wallet_converged',0)+sum(
+             bool(q["wallet_convergence"].get("converged"))
+             for q in result["qualifiers"]
+         ),
+         lifecycle_status_counts=statuses,
+         rejection_counts=dict(sorted(counts.items())),
+         realized_pnl_quote=returns,
+-        graduated_lifecycles=sum(
++        archived_realized_pnl_quote=result.get("archived_trials",{}).get("realized_pnl_quote",0),
++        graduated_lifecycles=result.get('archived_trials',{}).get('graduated_lifecycles',0)+sum(
+             bool(x.get("carried_through_graduation"))
+             for x in result["lifecycles"]
+         ),
+diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
+index 5a714c629c05008d350c1384d12a9521376cf0db..6814a1c87a1f433d3ee8d69176dedb8d63c7700b 100644
+--- a/robinhood_research/pons_selective_paper.py
++++ b/robinhood_research/pons_selective_paper.py
+@@ -508,6 +508,8 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
+                     if 'candidate_broker_identity' in evaluation else str(uuid.uuid4()))+":"+evaluation["token"]+":"+
+                 evaluation["source_transaction"]
+             )
++            from certification.lifecycle_identity import issue
++            identity=issue(identity)
+             result["lifecycle_id"]=identity
+             if evaluation.get('candidate_plane_path'):
+                 from certification.robinhood.plane import Plane

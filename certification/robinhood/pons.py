@@ -249,6 +249,8 @@ def recover_cohort(path,policy):
                 raise BoundaryError('selective_completed_window_identity')
         if alive(saved['owner']):raise BoundaryError('selective_cohort_owner_still_alive')
         result=saved['result']
+        from certification.pons_terminal_archive import controller_anchor
+        controller_anchor(result)
         for key,name in result.get('native_archive_paths',{}).items():
             file=Path(name);expected=saved.get('archive_counts',{}).get(key,0)
             if not file.exists():
