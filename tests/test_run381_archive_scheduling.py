@@ -1,5 +1,5 @@
 """Measured archive contention: no overtaking or duplicate worker publication."""
-import asyncio,concurrent.futures,sqlite3,tempfile,threading,time,unittest
+import asyncio,concurrent.futures,json,sqlite3,tempfile,threading,time,unittest
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -41,6 +41,31 @@ class ArchiveSchedulingTests(unittest.TestCase):
 
 
 class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
+ async def test_periodic_telemetry_does_not_preempt_background_durable_work(self):
+  priorities=[];context=threading.local()
+  submit=PriorityOwner.submit;health=service.FinalizedFence.health
+  def tagged(owner,fn,*,priority=1,expires=None):
+   def run(state):context.priority=priority;return fn(state)
+   return submit(owner,run,priority=priority,expires=expires)
+  def observed(fence,key,value):
+   if key in ('ipc','owner_scheduler'):priorities.append(context.priority)
+   return health(fence,key,value)
+  class Wire:
+   async def __aenter__(self):return self
+   async def __aexit__(self,*args):pass
+   async def send(self,raw):pass
+   async def recv(self,decode=None):await asyncio.Future()
+  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch.object(PriorityOwner,'submit',tagged),patch.object(service.FinalizedFence,'health',observed),patch('websockets.asyncio.client.connect',return_value=Wire()):
+   stop=asyncio.Event();runner=asyncio.create_task(service.serve(Path(td)/'db','https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+   try:
+    deadline=time.monotonic()+3
+    while len(priorities)<4 and time.monotonic()<deadline:
+     if runner.done():await runner
+     await asyncio.sleep(.01)
+    self.assertGreaterEqual(len(priorities),4,'periodic health fixture did not publish twice')
+    self.assertEqual(set(priorities),{4},'telemetry wakes preempt archive and retention as urgent requests')
+   finally:stop.set();await runner
+
  async def test_cooperative_commit_yield_reuses_already_published_archive(self):
   await self.exercise(False)
 
@@ -88,7 +113,10 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
     self.assertIs(attempts[0],attempts[1])
     self.assertEqual(archived,40)
    finally:stop.set();await runner
-   with sqlite3.connect(path) as db:self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+   with sqlite3.connect(path) as db:
+    self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+    metrics=json.loads(db.execute("SELECT value FROM service_health WHERE key='storage_maintenance'").fetchone()[0])
+    self.assertEqual(metrics['archive_worker.records.total'],40,'worker telemetry double-counted a retained receipt retry')
 
 
 if __name__=='__main__':unittest.main()

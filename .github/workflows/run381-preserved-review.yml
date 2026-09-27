@@ -1,4 +1,4 @@
-name: Run 381 archive scheduling pressure verification
+name: Run 381 background health pressure verification
 on:
   push:
     branches: [analysis/run381-preserved-evidence-20260927]
@@ -30,7 +30,7 @@ jobs:
           if [ "$PROFILE_RUNTIME" = old ]; then
             git show 3d4be5c538fdde44b37c159c5c5dad9200a5039e:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
             git show 3d4be5c538fdde44b37c159c5c5dad9200a5039e:meme_machine/solana_evidence_control.py > meme_machine/solana_evidence_control.py
-            for test in ArchiveSchedulingTests.test_new_source_commits_cannot_overtake_completed_archive_and_cleanup ArchiveReceiptRetryTests.test_cooperative_commit_yield_reuses_already_published_archive ArchiveReceiptRetryTests.test_yield_after_durable_commit_retries_idempotently; do
+            for test in ArchiveSchedulingTests.test_new_source_commits_cannot_overtake_completed_archive_and_cleanup ArchiveReceiptRetryTests.test_cooperative_commit_yield_reuses_already_published_archive ArchiveReceiptRetryTests.test_yield_after_durable_commit_retries_idempotently ArchiveReceiptRetryTests.test_periodic_telemetry_does_not_preempt_background_durable_work; do
               python -m certification.run381_expected_failure "tests.test_run381_archive_scheduling.$test" 2>&1 | tee -a pressure-output/regression-before.log
             done
           else
@@ -73,7 +73,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: run381-archive-scheduling-${{ matrix.runtime }}
+          name: run381-background-health-${{ matrix.runtime }}
           path: pressure-output/
           retention-days: 90
           if-no-files-found: error

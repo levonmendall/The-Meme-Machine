@@ -522,6 +522,7 @@ class ServiceState:
         self.repair_after={};self.failed=False
         prior=self.writer.db.execute("SELECT value FROM service_health WHERE key='storage_maintenance'").fetchone()
         self.storage_metrics=json.loads(prior[0]) if prior else {}
+        self.last_measured_archive_receipt=None
 
     def _storage_stage(self,name,fn):
         """Fixed stage names, numeric costs only; retained across service restarts."""
@@ -654,6 +655,16 @@ class ServiceState:
         if snapshot is None:self.retention()
         return snapshot
 
+    def publish_health(self,http,ipc,scheduler):
+        # Telemetry is background work, not a lifecycle/foreground request. One
+        # owner request cannot enqueue urgent callbacks that interrupt our own
+        # archive/retention transactions. Actual source heartbeats and
+        # finalized frontiers remain part of their durable source commit.
+        self.maintenance_health(http)
+        with self.writer.transaction():
+            self.fence.health('ipc',ipc)
+            self.fence.health('owner_scheduler',scheduler)
+
     def archive_plan(self):
         snapshot=self._storage_stage('archive_plan',lambda:self.writer.archive_snapshot(time.time()-180,max_records=1000))
         if snapshot:
@@ -662,12 +673,20 @@ class ServiceState:
         return snapshot
 
     def archive_commit(self,plan,receipt,*,retain=True):
+        metrics={}
         for name in ('prepare_microseconds','publish_microseconds','records'):
             value=(receipt or {}).get('worker_metrics',{}).get(name,0)
             if type(value) is not int or value<0:raise EvidenceUnavailable('archive_worker_metric')
-            key='archive_worker.'+name
-            self.storage_metrics[key+'.total']=self.storage_metrics.get(key+'.total',0)+value
-            self.storage_metrics[key+'.peak']=max(self.storage_metrics.get(key+'.peak',0),value)
+            metrics[name]=value
+        # A retained receipt may be committed repeatedly after SQL yield. Count
+        # worker cost once, not once per owner retry. Only one bounded receipt
+        # reference is retained; it is telemetry, never commit authority.
+        if receipt is not self.last_measured_archive_receipt:
+            self.last_measured_archive_receipt=receipt
+            for name,value in metrics.items():
+                key='archive_worker.'+name
+                self.storage_metrics[key+'.total']=self.storage_metrics.get(key+'.total',0)+value
+                self.storage_metrics[key+'.peak']=max(self.storage_metrics.get(key+'.peak',0),value)
         self._storage_stage('archive_commit',lambda:self.writer.commit_archive(plan,receipt))
         if retain:self.retention()
 
@@ -1185,11 +1204,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             while not stop.is_set():
                 try:
                     http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
-                    await work(lambda state:state.maintenance_health(http),4,label='maintenance_health')
                     snapshot=dict(counts)
-                    await work(lambda state:state.fence.health('ipc',snapshot),1,label='health_ipc')
                     scheduler=owner.telemetry()
-                    await work(lambda state:state.fence.health('owner_scheduler',scheduler),1,label='health_scheduler')
+                    await work(lambda state:state.publish_health(http,snapshot,scheduler),4,label='maintenance_health')
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                 try:await asyncio.wait_for(stop.wait(),1)

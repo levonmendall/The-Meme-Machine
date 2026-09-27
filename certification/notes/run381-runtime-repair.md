@@ -322,3 +322,33 @@ abandoned receipt after a post-commit planning yield. Focused repaired scheduler
 subscription, archive/retention/repair and durability tests pass. Sustained
 measured-contention verification remains mandatory before selecting another
 full-certificate candidate. Strategy policies and allocations are unchanged.
+
+### Archive scheduling pressure result and health self-preemption repair
+
+Diagnostic `a4a4eb146fbccc60cb4ad029433394be3fd9f16b`, workflow `36296068550`,
+failed retention pressure at 2,035 frames. Artifact `10924315488`, SHA256
+`2e387c7edc30fbd50b51de7e52821b3914b0b1b73f0b14b1ec36f7209c1d74c4`.
+Old-code regression artifact `10923922595`, SHA256
+`02a5f9d9bdf24711a51597cee9439cee73cff9f5bc39ba0fabce486b589abd0f`,
+independently verifies all three behavioral assertion failures without setup errors.
+Standard CI `36296068549` passed 742 tests plus resource/synthetic lifecycle gates.
+
+Source lag peaked at 4.216 seconds, hot storage at 1,273,606,696 bytes. Oldest
+retained evidence reached 240.008 seconds. Archival committed 304,936 records and
+cleanup retired 303,899; this remains insufficient throughput and is not accepted.
+Queue wait per archive owner attempt fell to about 0.496 seconds, but 126 of 434
+commit attempts yielded. The service's own periodic telemetry callbacks were
+still submitted at foreground priority one, preempting its archive/retention SQL.
+The new fairness and retained-receipt repairs remain useful but are insufficient
+alone. No market workflow or full-certificate retry was launched for this tree.
+
+Health publication now uses one background owner request: existing health and
+storage checks followed by an atomic IPC/scheduler telemetry pair. It cannot
+preempt other background maintenance as urgent work. Actual lifecycle/foreground
+requests retain priorities zero/one and cooperative SQL preemption. Source
+heartbeat and finalized frontier writes still occur in the durable source commit.
+Cadence, freshness, storage, provider and strategy boundaries are unchanged.
+A regression observes two periodic publications in the real service and fails
+the old code's priority-one dispatch. Retained-receipt worker metrics are counted
+once per receipt, not again on each owner retry; only one bounded receipt
+reference is retained for this telemetry deduplication.
