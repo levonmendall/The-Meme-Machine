@@ -1,31 +1,62 @@
-name: Run 381 focused integration bindings
+name: Run 381 failed full-certificate evidence review
 on:
   push:
     branches: [analysis/run381-sqlite-lifetime-20260927]
 permissions:
   contents: read
+  actions: read
 jobs:
-  deterministic:
+  review:
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
-      - run: python -m pip install -r requirements.txt
-      - name: Readiness and full-certificate regression gates
-        run: python -m unittest certification.tests.test_final_acceptance certification.tests.test_run381_storage_readiness -v
-      - name: Verify exact composed source and frozen six-regime policy bindings
+      - name: Read exact preserved pressure failure
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          python -m certification.run prepare --worktrees "$RUNNER_TEMP/run381-integrated" > "$RUNNER_TEMP/run381-prepare.log" 2>&1
           python - <<'PY'
-          import json,os
-          from pathlib import Path
-          from certification.run import source_integrity
-          print('VERIFIED_SOURCE_IDENTITIES',json.dumps(source_integrity(Path(os.environ['RUNNER_TEMP'])/'run381-integrated'),sort_keys=True))
+          import hashlib,json,pathlib,os,urllib.request,urllib.error,zipfile
+          repo='levonmendall/The-Meme-Machine'
+          def api(path):
+              request=urllib.request.Request('https://api.github.com/repos/'+repo+path,headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(request,timeout=60) as response:return json.load(response)
+          a=api('/actions/artifacts/10922502269')
+          assert a['workflow_run']['head_sha']=='7854901becf9af529c9a774f7350f271d2fd75ff'
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs):return None
+          request=urllib.request.Request(a['archive_download_url'],headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN']})
+          try:response=urllib.request.build_opener(NoRedirect()).open(request,timeout=60)
+          except urllib.error.HTTPError as exc:
+              if exc.code!=302:raise
+              response=urllib.request.urlopen(exc.headers['Location'],timeout=120)
+          path=pathlib.Path('certificate.zip')
+          with response,path.open('wb') as target:
+              while chunk:=response.read(1024*1024):target.write(chunk)
+          with path.open('rb') as source:checksum=hashlib.file_digest(source,'sha256').hexdigest()
+          assert checksum=='c65a85bca388412ec37d27f89efd7daa20f98c5b26bd5d8a65d834c08423eca4'
+          assert a['digest']=='sha256:'+checksum
+          out=pathlib.Path('failure-review');out.mkdir()
+          with zipfile.ZipFile(path) as archive:
+              for suffix in ('run381-pressure/result.json','run381-pressure/run.log'):
+                  names=[n for n in archive.namelist() if n.endswith('/'+suffix)]
+                  assert len(names)==1,(suffix,names)
+                  body=archive.read(names[0]).decode()
+                  assert len(body)<256*1024
+                  (out/pathlib.Path(suffix).name).write_text(body)
+                  print('PRESERVED_FILE',suffix)
+                  print(body)
+          print('VERIFIED_ARTIFACT',a['id'],checksum)
           PY
-          python -m certification.protocol_freeze --output "$RUNNER_TEMP/run381-protocol.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: run381-full-certificate-pressure-failure
+          path: failure-review/
+          retention-days: 90
+          if-no-files-found: error
