@@ -246,7 +246,7 @@ class FinalizedFence:
                     log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
                     notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
                     records=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
-                    self.writer.ingest(records)
+                    if records:self.writer.ingest(records)
                     self._delivery(subscription.scope,slot,signature,log,seen)
                 elif subscription.evidence_class=='transactions':self._delivery(subscription.scope,slot,signature,tx,seen)
         else:
@@ -443,7 +443,7 @@ class ServiceState:
         self.fence._health('phase','ACTIVE');self.fence._health('heartbeat',time.time())
 
     def source(self,sub,message,seen,byte_count):
-        with self.writer.transaction():
+        with self.writer.source_frame():
             self._source_locked(sub,message,seen,byte_count)
 
     def source_batch(self,items):
@@ -465,7 +465,7 @@ class ServiceState:
         with self.writer.transaction():
             for item in items:
                 try:
-                    with self.writer.transaction():
+                    with self.writer.source_frame():
                         self._source_locked(*item)
                 except Exception as exc:
                     failure=exc

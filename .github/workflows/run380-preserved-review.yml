@@ -1,32 +1,44 @@
-name: Run 380 preserved evidence review
+name: Run 380 source-clock pressure comparison
 on:
   push:
     branches: [analysis/run380-preserved-evidence-20260926]
 permissions:
   contents: read
-  actions: read
 jobs:
-  review:
+  pressure:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [old, repaired]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
-      - name: Review digest-pinned archived evidence without provider credentials
+      - run: python -m pip install -r requirements.txt
+      - name: Select preserved or repaired source
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          REVIEW_RUN_ID: '36278710306'
-          REVIEW_SHA: ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6
-          REVIEW_PHASE: smoke
-        run: python -m certification.run380_preserved_review
+          PROFILE_RUNTIME: ${{ matrix.runtime }}
+        run: |
+          if [ "$PROFILE_RUNTIME" = old ]; then
+            git show ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
+            git show ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
+          fi
+      - name: Reconstructed production pressure without provider credentials
+        env:
+          PRESSURE_FRAMES: '480'
+        run: |
+          mkdir -p pressure-output
+          python -m certification.run380_pressure_profile > pressure-output/pressure.jsonl 2>&1
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: run380-preserved-evidence-review
-          path: frozen-review/
+          name: run380-source-clock-pressure-${{ matrix.runtime }}
+          path: pressure-output/
           retention-days: 90
           if-no-files-found: error

@@ -83,6 +83,19 @@ class FinalizedRecord:
 
     def body(self):
         public_value(self.__dict__)
+        return self._body()
+
+    def serialized_body(self):
+        # Source/availability are lineage rather than economic content. Check
+        # them separately, then reuse the immutable canonical body for the
+        # credential scan, hash, bound and hot encoding instead of dumping the
+        # entire large payload once just to scan it and again to persist it.
+        public_value(dict(source=self.source,endpoint_identity=self.endpoint_identity,
+                          observed_at=self.observed_at))
+        body=self._body();raw=canonical(body);public_value(raw)
+        return body,raw
+
+    def _body(self):
         if (not all((self.identity, self.scope, self.program))
                 or self.kind != 'account' and not self.signature
                 or type(self.slot) is not int or self.slot < 0
@@ -229,6 +242,11 @@ class EvidenceWriter:
     @contextmanager
     def transaction(self):
         self._check()
+        if getattr(self,'_source_frame_depth',0):
+            # The source frame's enclosing savepoint owns rollback. Its helpers
+            # propagate errors to that boundary; commands/repair never enter it.
+            yield
+            return
         # A source batch or command receipt owns the outer commit. Inner helpers
         # must roll back with it; one fsync publishes the entire atomic operation.
         if self.db.in_transaction:
@@ -249,6 +267,16 @@ class EvidenceWriter:
         except BaseException:
             self.db.execute('ROLLBACK')
             raise
+
+    @contextmanager
+    def source_frame(self):
+        """One rollback boundary for a complete ordered source frame."""
+        if getattr(self,'_source_frame_depth',0):
+            raise EvidenceUnavailable('nested_source_frame')
+        with self.transaction():
+            self._source_frame_depth=getattr(self,'_source_frame_depth',0)+1
+            try:yield
+            finally:self._source_frame_depth-=1
 
     def _count(self, key, count=1):
         self.db.execute('INSERT INTO counters VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=value+excluded.value', (key, count))
@@ -286,13 +314,14 @@ class EvidenceWriter:
         for record in records:
             floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
             if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
-        try:bodies = [(record, record.body()) for record in records]
+        try:prepared = [(record,*record.serialized_body()) for record in records]
         except ValueError:
             with self.transaction():self._count('rejected_evidence_records',len(records))
             raise
         # One immutable serialization supplies the size bound, content hash and
         # hot encoding. It is local to this bounded ingest call, never a cache.
-        serialized = [canonical(body) for _, body in bodies]
+        bodies=[(record,body) for record,body,_ in prepared]
+        serialized=[raw for _,_,raw in prepared]
         if sum(len(raw.encode()) for raw in serialized) > 16 * 1024 * 1024:
             raise EvidenceUnavailable('ingestion_payload_bound')
         hot_bytes=sum(p.stat().st_size for p in (self.path,Path(str(self.path)+'-wal')) if p.exists())
