@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "084b1b627101073f2f8ea0f93b761fb5da9a80cae54ebb16a28b2d4abdaec22f",
+      "source_diff_sha256": "e71882fe9f7dedb1a6fce15c0e1bf1e4f7c15e70b4c578c5adc73e591951c5f0",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -333,7 +333,7 @@
         "meme_machine/pumpswap_survivor_evidence.py": "99786102761a538b0a3e5694e95bae827adceaf5cca986b96ac4b4653b571323",
         "meme_machine/pumpswap_survivor_runtime.py": "66b09dbc39a83ea9cf4501eae0eabe6c68e365cbe3ebf7325fcf654f2904407d",
         "meme_machine/solana_evidence_runtime.py": "076f62432840bc1caab499f239fb728a7b469670cd016723a30068c9de6b11fd",
-        "meme_machine/solana_evidence_service.py": "a3094637bf982c0bf6bc41dc7776d9b58d8a16199225acf6caf84e67bac519ed",
+        "meme_machine/solana_evidence_service.py": "1e609bfca55c2de9bdc6f670306ff6369de7b364f9c199305a445cb8a9c41158",
         "tests/pump_acceleration_natural_prospective.py": "fb2055be97ea7a5c023e92ab6423870a08a3abc9c47d7182cacf2cba7f902d40",
         "tests/test_directional_capacity.py": "cf03c522706e8eda4c5f93bc53762bf5dfc6c47765a990a55a4258120f26e8e8",
         "tests/test_evidence_runtime_cutover.py": "ee7a5140ceca1f188cecd89948789163e1a902fd23977d88305e1354bf578351",
@@ -390,7 +390,8 @@
         "tests/test_run380_production_pressure.py",
         "tests/test_run381_retention_progress.py",
         "tests/test_run381_repair_pagination.py",
-        "tests/test_run381_maintenance_overlap.py"
+        "tests/test_run381_maintenance_overlap.py",
+        "tests/test_run381_archive_canonical.py"
       ]
     },
     "meteora": {
@@ -398,7 +399,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "c3bc023d66e9843ba17ee6a122bcb4b3c414423d62688a368e12bb449ce3a457",
+      "source_diff_sha256": "973cf8f30efff6a1d63f062f703a9544bc87a00f37b59427e9289f5e38e95e80",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -701,7 +702,8 @@
         "tests/test_run380_production_pressure.py",
         "tests/test_run381_retention_progress.py",
         "tests/test_run381_repair_pagination.py",
-        "tests/test_run381_maintenance_overlap.py"
+        "tests/test_run381_maintenance_overlap.py",
+        "tests/test_run381_archive_canonical.py"
       ],
       "composed_file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",

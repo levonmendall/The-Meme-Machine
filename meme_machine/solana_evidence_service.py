@@ -698,12 +698,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
                            for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
-    async def work(fn,priority=1):
-        submitted=time.monotonic()
+    async def work(fn,priority=1,*,label=None):
+        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler'):
+            raise EvidenceUnavailable('owner_stage_identity')
+        submitted=time.monotonic();execution=[None,None]
         def timed(state):
-            started=time.monotonic()
-            value=fn(state)
-            return value,int((started-submitted)*1_000_000),int((time.monotonic()-started)*1_000_000)
+            started=time.monotonic();execution[0]=started
+            try:value=fn(state)
+            finally:execution[1]=time.monotonic()
+            return value,int((started-submitted)*1_000_000),int((execution[1]-started)*1_000_000)
         wrapped=asyncio.wrap_future(owner.submit(timed,priority=priority))
         try:value,queued,executed=await asyncio.shield(wrapped)
         except asyncio.CancelledError:
@@ -712,6 +715,17 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             # finishes after shutdown has cancelled that background coroutine.
             wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
             raise
+        finally:
+            # Fixed labels distinguish archive scheduling from cleanup and health.
+            # Include completed cooperative yields, which aggregate success-only
+            # priority metrics otherwise miss. Never retain request/evidence text.
+            if label is not None and execution[1] is not None:
+                key='owner.stage.'+label
+                counts[key+'.calls']=counts.get(key+'.calls',0)+1
+                for stage,duration in (('queue',execution[0]-submitted),('execution',execution[1]-execution[0])):
+                    metric=key+'.'+stage;micros=int(max(0,duration)*1_000_000)
+                    counts[metric+'_total_microseconds']=counts.get(metric+'_total_microseconds',0)+micros
+                    counts[metric+'_peak_microseconds']=max(counts.get(metric+'_peak_microseconds',0),micros)
         # Separate scheduler wait from actual writer work; the prior "commit"
         # metric included both and could not identify the saturated stage.
         for stage,duration in (('queue',queued),('execution',executed)):
@@ -1143,8 +1157,24 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
+        async def health():
+            # Health publication has its own single outstanding owner request.
+            # Its scheduler wait must not idle a completed archive worker.
+            while not stop.is_set():
+                try:
+                    http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
+                    await work(lambda state:state.maintenance_health(http),4,label='maintenance_health')
+                    snapshot=dict(counts)
+                    await work(lambda state:state.fence.health('ipc',snapshot),1,label='health_ipc')
+                    scheduler=owner.telemetry()
+                    await work(lambda state:state.fence.health('owner_scheduler',scheduler),1,label='health_scheduler')
+                except EvidenceUnavailable as exc:
+                    if str(exc)!='evidence_background_yield':raise
+                try:await asyncio.wait_for(stop.wait(),1)
+                except TimeoutError:pass
+
         async def maintenance():
-            next_health=0;archive_future=None;archive_started=0
+            archive_future=None;archive_started=0
             def prepare(snapshot):
                 # Exactly one bounded encoded snapshot can be in flight. The
                 # preceding archive is durable/committed before selecting this.
@@ -1152,15 +1182,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             while not stop.is_set():
                 yielded=False
                 try:
-                    if time.monotonic()>=next_health:
-                        http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
-                        await work(lambda state:state.maintenance_health(http),4);next_health=time.monotonic()+1
-                        snapshot=dict(counts)
-                        await work(lambda state:state.fence.health('ipc',snapshot),1)
-                        scheduler=owner.telemetry()
-                        await work(lambda state:state.fence.health('owner_scheduler',scheduler),1)
                     if archive_future is None:
-                        snapshot=await work(lambda state:state.archive_plan(),4)
+                        snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
                         if snapshot:
                             archive_started=time.monotonic();archive_future=prepare(snapshot)
                     if archive_future is not None:
@@ -1168,7 +1191,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         archive_elapsed=int((time.monotonic()-archive_started)*1_000_000)
                         counts['archive.worker_wait_total_microseconds']=counts.get('archive.worker_wait_total_microseconds',0)+archive_elapsed
                         counts['archive.worker_wait_peak_microseconds']=max(counts.get('archive.worker_wait_peak_microseconds',0),archive_elapsed)
-                        snapshot=await work(lambda state:state.archive_commit_and_plan(plan,receipt),4)
+                        snapshot=await work(lambda state:state.archive_commit_and_plan(plan,receipt),4,label='archive_commit_plan')
                         # Preparation of the next archive overlaps bounded hot
                         # cleanup. Source/consumer work retains owner priority.
                         if snapshot:
@@ -1189,7 +1212,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             # archive worker prepares/publishes immutable evidence. Coupling one
             # cleanup call to each archive left Meteora's dense indexes behind.
             while not stop.is_set():
-                try:progress=await work(lambda state:state.retention(),4)
+                try:progress=await work(lambda state:state.retention(),4,label='retention')
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     progress=True
@@ -1199,7 +1222,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
-        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(stop.wait())]
+        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(health()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception

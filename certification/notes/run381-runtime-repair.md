@@ -184,3 +184,80 @@ or a successful natural-market PAPER smoke.
 
 Supporting standard CI `36290462108` passed 731 tests (12 skips), resource
 checks and synthetic lifecycle. This is not the four-lane full certificate.
+
+## Full-certificate archive throughput failure and measured follow-up
+
+The candidate `7854901becf9af529c9a774f7350f271d2fd75ff` did **not** certify.
+Full workflow `36290961701` passed 376 supervisor tests, all 1,694 native tests,
+SIGKILL/restart, integrated acceptance and resource checks, then failed the mature
+pressure gate. Artifact `10922502269` has SHA256
+`c65a85bca388412ec37d27f89efd7daa20f98c5b26bd5d8a65d834c08423eca4`.
+Digest-verified review `36291981425` preserves the causal result.
+At 1,560 frames, oldest retained evidence exceeded 240 seconds. Archival lag grew
+from roughly 180 to 239 seconds despite healthy source processing; hot storage
+peaked at 1,279,760,912 bytes. There were no runtime gaps, capacity stops or lost
+admitted frames. This is insufficient maintenance throughput, not strategy
+rejection. The preceding standalone pass cannot override the failed full gate.
+
+Bounded stage instrumentation in `fc2dd3d5d58f1e26b8ada9b66b56b61e1aff56bb`,
+diagnostic workflow `36292139263`, measured roughly 94 seconds waiting for health
+owner work over 459 seconds. Those waits serialized the same coroutine that
+committed and submitted archives. CPU profile `36292392237` independently showed
+that repeated JSON parsing/serialization consumed over half of archive-worker
+CPU; fsync was a small share. These measurements motivate two narrow repairs:
+
+- A separate health coroutine has at most one outstanding owner request and
+  retains existing priorities, storage checks, failure propagation and cadence.
+  Health scheduling cannot stall the single bounded archive pipeline.
+- The archive worker reuses canonical hot-body/log bytes. Each raw log chunk is
+  hash-verified and cached only within a 4 MiB snapshot-local bound. Only the two
+  existing chunk-reference paths are eligible; ambiguous marker lookalikes fall
+  back to ordinary decoding. Substitution is one pass, so inserted content is
+  never reinterpreted. The complete reconstructed body hash is checked before
+  credential scanning and durable publication. Archive bytes remain identical.
+
+No queue, pressure, retention, freshness, authority, policy or allocation bound
+changes. The source/decode pool remains two workers with one archive in flight.
+Existing finality, gap pins, late lifecycle pin rechecks and idempotent commits
+remain intact.
+
+New regressions prove repeated health yields cannot starve archives and eliminate
+full-body JSON churn on shared log chunks. Both fail the preserved implementation
+with one behavioral assertion, rather than an import/setup error. Nineteen focused
+cases pass, including exact archive bytes, Unicode/escaped content, legitimate
+marker lookalikes, nested marker content, missing/corrupt chunks, full body hash
+mismatch, bounded cache, partial worker budget, late pins, duplicate commits,
+SQLite interruption cleanup, retention fairness and repair pagination.
+
+The repair is under full 600-second provider-free pressure verification in
+workflow `36293113748`, source `a77090e551efed37afc339dbe55e8233ae0deed2`.
+This source is a diagnostic candidate, not a certificate or market authorization.
+The integrated Pump native diff is
+`e71882fe9f7dedb1a6fce15c0e1bf1e4f7c15e70b4c578c5adc73e591951c5f0`;
+Meteora is
+`973cf8f30efff6a1d63f062f703a9544bc87a00f37b59427e9289f5e38e95e80`.
+Pons/Ramses diffs and all six regime policies remain unchanged.
+
+### Follow-up sustained-pressure acceptance
+
+Workflow `36293113748` completed successfully. Artifact `10923585351`, SHA256
+`47705e33740ec44c070245c7b21bdf891a5d27dfbf50df1bd29056e8df32e59f`;
+result SHA256 `742c7797c6476370fbc47e6505dd6df569b11f8a3b6072be1bd7e4c7ea537afa`.
+All 2,223 frames / 9,074,297,113 bytes completed over 600.21 source seconds.
+No runtime disconnect, rejected frame, capacity stop or unresolved runtime gap;
+all 2,224 admitted messages drained. Final gaps were the three explicit normal
+shutdown boundaries. Candidate evidence progressed in 59 three-scope checks.
+Peak source lag 1.808 seconds; 3/64 outstanding frames; 12,246,015/100,663,296
+queued bytes; 4,082,005/16,777,216 commit bytes. Hot DB/WAL peaked at
+989,012,352 bytes. Oldest hot body was 183.54 seconds and oldest retained index
+record 184.50 seconds; no growing archive or cleanup debt. 411,312 records
+archived, 410,171 compacted, 1,141 in bounded pending cleanup at shutdown.
+All 417,800 published archive records verified hashes and provenance; SQLite
+integrity was ok. The artifact digest and runtime source hashes were independently
+verified against this integrated candidate before selecting it for full certification.
+
+Standard CI `36293113700` completed 734 tests (12 skips), resource and synthetic
+lifecycle gates on the diagnostic tree. Canonical four-lane preparation, exact
+native source integrity, protocol freeze, six-regime integration and eight
+readiness/certificate regressions passed locally on the integrated tree.
+This is still not a full certificate or a natural-market success claim.
