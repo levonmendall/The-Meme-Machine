@@ -43,6 +43,17 @@ class AutonomousLaunchTests(unittest.TestCase):
         self.assertEqual(result['workflow_contract']['sha'],SHA)
         self.assertEqual(self.posts(),[]);self.assertEqual(self.api.mutations,[])
 
+    def test_verification_dispatch_uses_no_certificate_or_campaign_authority(self):
+        value=dict(self.value,operation='verify',certification_run_id=0)
+        result=launch.launch(self.api,value,1,'1')
+        self.assertFalse(result['entry_authority']);self.assertFalse(result['retry_allowed'])
+        self.assertEqual(self.posts()[0][2]['inputs']['operation'],'verify')
+        self.assertEqual(len(self.posts()),1)
+        from certification.autonomous_control import store_for
+        self.assertIsNone(store_for(self.api,CAMPAIGN).read())
+        with self.assertRaisesRegex(ValueError,'already_consumed'):launch.launch(self.api,value,1,'1')
+        self.assertEqual(len(self.posts()),1)
+
     def test_response_loss_is_a_consumed_intent_and_stale_smoke_acceptance_is_rejected(self):
         self.api.post_error=TimeoutError('ambiguous POST')
         with self.assertRaises(TimeoutError):launch.launch(self.api,self.value,1,'1')

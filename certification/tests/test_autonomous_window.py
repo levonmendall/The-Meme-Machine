@@ -35,6 +35,21 @@ class AutonomousWorkflowAdapterTests(unittest.TestCase):
                 self.assertEqual(envfile.read_text(),f'AUTONOMOUS_ARTIFACT_NAME=autonomous-paper-{CAMPAIGN}-0-2\n')
                 with self.assertRaisesRegex(ValueError,'duplicate'):adapter.main()
 
+    def test_actual_verify_operation_never_creates_campaign_or_provider_authority(self):
+        api=GitAPI();api.run(1)
+        with tempfile.TemporaryDirectory() as td:
+            output=Path(td)/'verify.json'
+            with patch.dict(os.environ,OPERATION='verify',AUTONOMOUS_CAMPAIGN=CAMPAIGN,
+                    GITHUB_RUN_ID='1',GITHUB_RUN_ATTEMPT='1',GITHUB_REF_NAME=REF), \
+                    patch.object(adapter,'GitHub',return_value=api),patch.object(adapter,'exact_checkout',return_value=IDENTITY), \
+                    patch('sys.argv',['autonomous_window','control','--output',str(output)]):
+                adapter.main()
+            value=json.loads(output.read_text())
+            self.assertEqual(value['identity'],IDENTITY)
+            for field in ('entry_authority','provider_authority','market_dispatch'):self.assertFalse(value[field])
+            self.assertEqual(api.mutations,[])
+            self.assertFalse(any(method=='POST' for method,path,body in api.calls))
+
     def test_missing_current_claim_blocks_all_source_provider_and_native_work(self):
         api=GitAPI()
         with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,AUTONOMOUS_CAMPAIGN=CAMPAIGN,GITHUB_RUN_ID='2'), \

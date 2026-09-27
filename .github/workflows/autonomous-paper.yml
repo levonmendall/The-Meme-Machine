@@ -9,7 +9,7 @@ on:
       operation:
         description: Explicit authorization, reviewed smoke acceptance, or consumed window claim
         type: choice
-        options: [authorize, accept, window]
+        options: [verify, authorize, accept, window]
         required: true
       expected_sha:
         description: Exact complete machinery-certified source SHA
@@ -71,8 +71,26 @@ jobs:
           MAXIMUM_WINDOWS: ${{ inputs.maximum_normal_windows }}
         run: python -m certification.autonomous_window control --output autonomous-claim.json
       - name: Prepare frozen native sources
-        if: inputs.operation == 'window'
+        if: inputs.operation == 'window' || inputs.operation == 'verify'
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/autonomous-lanes"
+      - name: Verify both successor contracts through native state without provider access
+        if: inputs.operation == 'verify'
+        env:
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/autonomous-lanes
+        run: |
+          mkdir -p autonomous-control-proof
+          set -o pipefail
+          python -m unittest -v certification.tests.test_autonomous_control certification.tests.test_autonomous_launch certification.tests.test_autonomous_window certification.tests.test_autonomous_native_handoff certification.tests.test_campaign_state certification.tests.test_position_continuation 2>&1 | tee autonomous-control-proof/tests.log
+      - name: Preserve non-market control-plane proof
+        if: always() && inputs.operation == 'verify'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: autonomous-control-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            autonomous-claim.json
+            autonomous-control-proof/
+          if-no-files-found: error
+          retention-days: 90
       - name: Restore verified state and run one bounded PAPER window
         if: inputs.operation == 'window'
         env:

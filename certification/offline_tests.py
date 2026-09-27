@@ -13,16 +13,7 @@ import time
 import unittest
 
 
-def main():
-    parser=argparse.ArgumentParser()
-    parser.add_argument('--lane',required=True)
-    parser.add_argument('--output',required=True)
-    parser.add_argument('--barrier',required=True)
-    args=parser.parse_args()
-    # Match production worker import precedence.
-    sys.path.insert(0,os.getcwd())
-    # Same root fallback as certification.worker, without shadowing lane modules.
-    sys.path.append(str(Path(__file__).resolve().parents[1]))
+def install_network_guard():
     forbidden=[]
     def network_guard(event,values):
         if event!='socket.connect':return
@@ -35,6 +26,20 @@ def main():
             forbidden.append({'event':event,'reason':'external_socket_forbidden'})
             raise RuntimeError('non_market_external_socket_forbidden')
     sys.addaudithook(network_guard)
+    return forbidden
+
+
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--lane',required=True)
+    parser.add_argument('--output',required=True)
+    parser.add_argument('--barrier',required=True)
+    args=parser.parse_args()
+    # Match production worker import precedence.
+    sys.path.insert(0,os.getcwd())
+    # Same root fallback as certification.worker, without shadowing lane modules.
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+    forbidden=install_network_guard()
     barrier=Path(args.barrier)
     (barrier/args.lane).touch()
     deadline=time.monotonic()+20

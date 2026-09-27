@@ -1,8 +1,8 @@
 {
-  "operation": "check",
-  "runtime_sha": "66898d47bda438dffe24e24724baa2a6486583fe",
-  "runtime_ref": "cert/autonomous-paper-control-66898d4",
-  "campaign_id": "autonomous-control-66898d4",
+  "operation": "verify",
+  "runtime_sha": "d63caf33f6d0cbbac98a4e2622257a4dd13a0bc8",
+  "runtime_ref": "cert/autonomous-paper-control-d63caf3",
+  "campaign_id": "autonomous-control-d63caf3",
   "certification_run_id": 0,
   "reviewed_artifact_digest": "",
   "maximum_normal_windows": 2

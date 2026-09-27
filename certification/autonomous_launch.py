@@ -24,7 +24,7 @@ FIELDS={'operation','runtime_sha','runtime_ref','campaign_id','certification_run
 
 
 def request(value):
-    if set(value)!=FIELDS or value['operation'] not in ('check','authorize','accept'):
+    if set(value)!=FIELDS or value['operation'] not in ('check','verify','authorize','accept'):
         raise ValueError('autonomous_launch_request_fields')
     if (not re.fullmatch('[0-9a-f]{40}',value['runtime_sha'])
             or not re.fullmatch('cert/autonomous-paper-[a-z0-9-]+',value['runtime_ref'])):
@@ -69,7 +69,7 @@ def launch(api,value,run_id,attempt):
             raise ValueError('autonomous_launch_certificate_not_exact_terminal_success')
         # Full artifact certificate verification remains mandatory in authorize;
         # this request does not grant provider or PAPER entry authority.
-    else:
+    elif value['operation']=='accept':
         control._bound(state,expected)
         if (state['phase']!='SMOKE_REVIEW' or
                 state['previous']['artifact']['digest']!=value['reviewed_artifact_digest']):
