@@ -4,15 +4,54 @@ Preserved templates remain immutable on disk. Envelopes, identity suffixes and
 event timestamps are synthetically replayed against the fixed source clock.
 The default replay spans 600 real seconds and crosses the actual retention age.
 """
-import argparse,asyncio,base64,gzip,hashlib,json,re,sqlite3,struct,subprocess,tempfile,time,traceback
+import argparse,asyncio,base64,gzip,hashlib,json,os,re,resource,sqlite3,struct,subprocess,tempfile,time,traceback
+from concurrent.futures import ProcessPoolExecutor as NativeProcessPool
 from pathlib import Path
 from unittest.mock import patch
 from tests.test_run380_production_pressure import Wire as PreservedWire
 from tests.test_run373_dispatch_throughput import database_ready
 from tests.evidence_ipc_harness import ipc_transport
-from meme_machine.solana_evidence_plane import EvidenceReader,digest
+from meme_machine.solana_evidence_plane import EvidenceReader,EvidenceWriter,digest
 from meme_machine.solana_evidence_runtime import RuntimeEvidence
 import meme_machine.solana_evidence_service as service
+
+# Full certificate 36293751021 measured ~0.163 s owner time/frame and
+# ~0.358 s archive worker time/1,000 records. Enforce rounded-up floors in
+# the diagnostic profile so fast hosted hardware cannot hide that contention.
+OWNER_SECONDS_PER_FRAME=.165
+ARCHIVE_SECONDS_PER_THOUSAND=.36
+
+def process_profile():
+ # Executable names/counts only: never arguments, environment or credentials.
+ try:
+  lines=subprocess.check_output(['ps','-eo','pid=,ppid=,comm=,pcpu=','--sort=-pcpu'],text=True,timeout=5).splitlines()
+  rows=[]
+  for line in lines[:32]:
+   pid,parent,name,cpu=line.split()
+   rows.append(dict(pid=int(pid),parent=int(parent),process_class='python' if name.startswith('python') else
+       'node' if name.startswith('node') else 'other',cpu_percent=float(cpu)))
+  return dict(available=True,total_processes=len(lines),top_cpu=rows)
+ except (OSError,ValueError,subprocess.SubprocessError) as exc:
+  return dict(available=False,error_type=type(exc).__name__)
+
+def measured_archive(path,snapshot,**kwargs):
+ started=time.monotonic()
+ result=EvidenceWriter.prepare_and_write_archive(path,snapshot,**kwargs)
+ time.sleep(max(0,ARCHIVE_SECONDS_PER_THOUSAND*len(result[0])/1000-(time.monotonic()-started)))
+ return result
+
+class MeasuredProcessPool:
+ def __init__(self,*args,**kwargs):self.pool=NativeProcessPool(*args,**kwargs)
+ def submit(self,fn,*args,**kwargs):
+  return self.pool.submit(measured_archive if fn is EvidenceWriter.prepare_and_write_archive else fn,*args,**kwargs)
+ def shutdown(self,*args,**kwargs):return self.pool.shutdown(*args,**kwargs)
+
+class MeasuredServiceState(service.ServiceState):
+ def source_batch(self,items):
+  started=time.monotonic()
+  result=super().source_batch(items)
+  time.sleep(max(0,OWNER_SECONDS_PER_FRAME*len(items)-(time.monotonic()-started)))
+  return result
 
 class Wire(PreservedWire):
  """Retiming is test-only: old event clocks must not force premature archival."""
@@ -35,10 +74,16 @@ class Wire(PreservedWire):
    result=b'Program data: '+base64.b64encode(raw);cache[encoded]=result;return result
   return re.sub(rb'Program data: ([A-Za-z0-9+/=]+)',retime,message)
 
-async def run(frames,output):
+async def run(frames,output,*,measured_contention=False):
  output=Path(output);output.mkdir(parents=True,exist_ok=True)
+ quota=Path('/sys/fs/cgroup/cpu.max')
+ environment=dict(cpu_count=os.cpu_count(),affinity_count=len(os.sched_getaffinity(0)) if hasattr(os,'sched_getaffinity') else None,
+   cpu_quota=quota.read_text().strip() if quota.exists() else None,load_start=list(os.getloadavg()),
+   processes_start=process_profile())
  wire=Wire();wire.frames=frames;stop=asyncio.Event();lags=[];hot_peak=0;oldest_hot_age_peak=0;oldest_retained_age_peak=0;started=time.monotonic();queries=[];last_report=0
- with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('websockets.asyncio.client.connect',return_value=wire):
+ with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('websockets.asyncio.client.connect',return_value=wire),\
+      patch.object(service,'ServiceState',MeasuredServiceState if measured_contention else service.ServiceState),\
+      patch('concurrent.futures.ProcessPoolExecutor',MeasuredProcessPool if measured_contention else NativeProcessPool):
   path=Path(td)/'db';runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
   def snapshot():
    if not database_ready(path):return {},None,0,None,None
@@ -113,6 +158,14 @@ async def run(frames,output):
       row=json.loads(line);assert digest(row['body'])==row['hash'];assert row['lineage'];archive_records+=1
    result=dict(passed=failure is None,failure=failure,frames=frames,frame_bytes=len(wire.template),source_seconds=frames*.27,elapsed=time.monotonic()-started,lag_peak=max(lags,default=0),hot_peak=hot_peak,candidate_checks=len(queries),archive_records_verified=archive_records,counters=counters,ipc=ipc,owner=health.get('owner_scheduler'),integrity=integrity,provider_calls=0)
    result['integration_sha']=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+   result['environment_profile']=dict(environment,load_end=list(os.getloadavg()),processes_end=process_profile(),
+       cpu_user_seconds=resource.getrusage(resource.RUSAGE_SELF).ru_utime,
+       cpu_system_seconds=resource.getrusage(resource.RUSAGE_SELF).ru_stime,
+       child_cpu_user_seconds=resource.getrusage(resource.RUSAGE_CHILDREN).ru_utime,
+       child_cpu_system_seconds=resource.getrusage(resource.RUSAGE_CHILDREN).ru_stime)
+   result['measured_contention']=dict(profile='run381-fullcert-36293751021' if measured_contention else 'native',
+       owner_seconds_per_frame=OWNER_SECONDS_PER_FRAME if measured_contention else 0,
+       archive_seconds_per_thousand=ARCHIVE_SECONDS_PER_THOUSAND if measured_contention else 0)
    result['source_hashes']={name:hashlib.sha256((Path(service.__file__).parent/name).read_bytes()).hexdigest() for name in ('solana_evidence_plane.py','solana_evidence_service.py','solana_evidence_storage.py','solana_evidence_control.py','solana_program_decoders.py')}
    result['storage_maintenance']=health.get('storage_maintenance',{})
    result['failure_frames']=failure_frames
@@ -126,4 +179,4 @@ async def run(frames,output):
    return 0 if result['passed'] else 1
 
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--frames',type=int,default=2223);p.add_argument('--output',required=True);a=p.parse_args();raise SystemExit(asyncio.run(run(a.frames,a.output)))
+ p=argparse.ArgumentParser();p.add_argument('--frames',type=int,default=2223);p.add_argument('--output',required=True);p.add_argument('--measured-contention',action='store_true');a=p.parse_args();raise SystemExit(asyncio.run(run(a.frames,a.output,measured_contention=a.measured_contention)))

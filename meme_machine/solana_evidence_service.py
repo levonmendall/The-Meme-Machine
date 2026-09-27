@@ -194,8 +194,12 @@ def source_decoder_probe():
 
 class FinalizedFence:
     def __init__(self,writer,*,endpoint_identity,decoders=None):
+        import threading
         self.writer=writer;self.endpoint_identity=endpoint_identity
         self.decoders=decoders or {};self.session=uuid.uuid4().hex
+        # A thread-safe hint, never subscription/evidence authority. The owner
+        # still reads durable interests at the original priority and cadence.
+        self.subscriptions_dirty=threading.Event();self.subscriptions_dirty.set()
         writer.db.executescript(SERVICE_SCHEMA)
         if writer.db.execute('SELECT 1 FROM stream_receipts LIMIT 1').fetchone():self.disconnect('service_restart')
         with writer.transaction():
@@ -228,6 +232,7 @@ class FinalizedFence:
             self.writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
             self.writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
             self.writer.db.execute('DELETE FROM interest_owners WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_owners.owner)')
+        if n:self.subscriptions_dirty.set()
 
     def disconnect(self,reason='stream_disconnect'):
         # Account notifications are content observations, never interval sources.
@@ -398,6 +403,15 @@ class FinalizedFence:
         return [replace(record,payload=tx,addresses=tuple(sorted(set(keys+[record.program]))),transaction_index=index)]
 
     def command(self,request):
+        response=self._command(request)
+        # Signal after the command/receipt transaction has completed, even when
+        # its socket waiter has already disconnected. Failed mutations grant no
+        # subscription authority; a reconnect always reloads durable interests.
+        if request.get('op') in ('interest','release') and response.get('ok'):
+            self.subscriptions_dirty.set()
+        return response
+
+    def _command(self,request):
         from .solana_evidence_control import MAX_RECEIPTS,COMMAND_SECONDS,command_envelope
         # Direct in-process fixture callers retain the same whitelist. Production
         # IPC requires the versioned envelope before it reaches this method.
@@ -508,6 +522,7 @@ class ServiceState:
         self.repair_after={};self.failed=False
         prior=self.writer.db.execute("SELECT value FROM service_health WHERE key='storage_maintenance'").fetchone()
         self.storage_metrics=json.loads(prior[0]) if prior else {}
+        self.last_measured_archive_receipt=None
 
     def _storage_stage(self,name,fn):
         """Fixed stage names, numeric costs only; retained across service restarts."""
@@ -640,6 +655,16 @@ class ServiceState:
         if snapshot is None:self.retention()
         return snapshot
 
+    def publish_health(self,http,ipc,scheduler):
+        # Telemetry is background work, not a lifecycle/foreground request. One
+        # owner request cannot enqueue urgent callbacks that interrupt our own
+        # archive/retention transactions. Actual source heartbeats and
+        # finalized frontiers remain part of their durable source commit.
+        self.maintenance_health(http)
+        with self.writer.transaction():
+            self.fence.health('ipc',ipc)
+            self.fence.health('owner_scheduler',scheduler)
+
     def archive_plan(self):
         snapshot=self._storage_stage('archive_plan',lambda:self.writer.archive_snapshot(time.time()-180,max_records=1000))
         if snapshot:
@@ -648,12 +673,20 @@ class ServiceState:
         return snapshot
 
     def archive_commit(self,plan,receipt,*,retain=True):
+        metrics={}
         for name in ('prepare_microseconds','publish_microseconds','records'):
             value=(receipt or {}).get('worker_metrics',{}).get(name,0)
             if type(value) is not int or value<0:raise EvidenceUnavailable('archive_worker_metric')
-            key='archive_worker.'+name
-            self.storage_metrics[key+'.total']=self.storage_metrics.get(key+'.total',0)+value
-            self.storage_metrics[key+'.peak']=max(self.storage_metrics.get(key+'.peak',0),value)
+            metrics[name]=value
+        # A retained receipt may be committed repeatedly after SQL yield. Count
+        # worker cost once, not once per owner retry. Only one bounded receipt
+        # reference is retained; it is telemetry, never commit authority.
+        if receipt is not self.last_measured_archive_receipt:
+            self.last_measured_archive_receipt=receipt
+            for name,value in metrics.items():
+                key='archive_worker.'+name
+                self.storage_metrics[key+'.total']=self.storage_metrics.get(key+'.total',0)+value
+                self.storage_metrics[key+'.peak']=max(self.storage_metrics.get(key+'.peak',0),value)
         self._storage_stage('archive_commit',lambda:self.writer.commit_archive(plan,receipt))
         if retain:self.retention()
 
@@ -736,6 +769,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
     clients=set();counts={}
     def count(key):counts[key]=counts.get(key,0)+1
+    subscriptions_dirty=await work(lambda state:state.fence.subscriptions_dirty,0)
 
     async def consumer(reader,stream):
         task=asyncio.current_task();admitted=len(clients)<32
@@ -830,8 +864,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                 counts.get('stream.subscription_sync_peak_microseconds',0),elapsed)
 
                         async def subscription_manager():
+                            restore=True
                             while not stop.is_set() and not connection_stop.is_set():
-                                await sync_subscriptions_once()
+                                if restore or subscriptions_dirty.is_set():
+                                    # Clear before enqueueing the read. A mutation
+                                    # during that read/send sets a fresh hint for
+                                    # the next cycle; no wakeup can be erased.
+                                    subscriptions_dirty.clear()
+                                    await sync_subscriptions_once();restore=False
+                                else:count('stream.subscription_unchanged_polls')
                                 try:await asyncio.wait_for(connection_stop.wait(),STREAM_SUBSCRIPTION_SYNC_SECONDS)
                                 except TimeoutError:pass
 
@@ -1163,18 +1204,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             while not stop.is_set():
                 try:
                     http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
-                    await work(lambda state:state.maintenance_health(http),4,label='maintenance_health')
                     snapshot=dict(counts)
-                    await work(lambda state:state.fence.health('ipc',snapshot),1,label='health_ipc')
                     scheduler=owner.telemetry()
-                    await work(lambda state:state.fence.health('owner_scheduler',scheduler),1,label='health_scheduler')
+                    await work(lambda state:state.publish_health(http,snapshot,scheduler),4,label='maintenance_health')
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
         async def maintenance():
-            archive_future=None;archive_started=0
+            archive_future=None;archive_started=0;pending_archive=None
             def prepare(snapshot):
                 # Exactly one bounded encoded snapshot can be in flight. The
                 # preceding archive is durable/committed before selecting this.
@@ -1182,16 +1221,23 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             while not stop.is_set():
                 yielded=False
                 try:
-                    if archive_future is None:
+                    if archive_future is None and pending_archive is None:
                         snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
                         if snapshot:
                             archive_started=time.monotonic();archive_future=prepare(snapshot)
                     if archive_future is not None:
-                        plan,receipt=await archive_future;archive_future=None
+                        pending_archive=await archive_future;archive_future=None
                         archive_elapsed=int((time.monotonic()-archive_started)*1_000_000)
                         counts['archive.worker_wait_total_microseconds']=counts.get('archive.worker_wait_total_microseconds',0)+archive_elapsed
                         counts['archive.worker_wait_peak_microseconds']=max(counts.get('archive.worker_wait_peak_microseconds',0),archive_elapsed)
+                    if pending_archive is not None:
+                        plan,receipt=pending_archive
                         snapshot=await work(lambda state:state.archive_commit_and_plan(plan,receipt),4,label='archive_commit_plan')
+                        # A cooperative SQL yield must retry this already durable
+                        # archive, not decode/compress/publish the same hot rows
+                        # again. Commit is idempotent even if the following plan
+                        # query yielded after the commit completed.
+                        pending_archive=None
                         # Preparation of the next archive overlaps bounded hot
                         # cleanup. Source/consumer work retains owner priority.
                         if snapshot:
@@ -1199,7 +1245,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     yielded=True
-                if archive_future is not None or yielded:
+                if archive_future is not None or pending_archive is not None or yielded:
                     # One bounded snapshot is in flight; completion itself paces
                     # backlog work. An artificial delay loses archive capacity.
                     await asyncio.sleep(0)

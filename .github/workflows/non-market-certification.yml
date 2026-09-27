@@ -81,7 +81,7 @@ jobs:
         timeout-minutes: 13
         run: |
           mkdir -p non-market-evidence/run381-pressure
-          python -m certification.run381_pressure --output non-market-evidence/run381-pressure > non-market-evidence/run381-pressure/run.log 2>&1
+          python -m certification.run381_pressure --measured-contention --output non-market-evidence/run381-pressure > non-market-evidence/run381-pressure/run.log 2>&1
       - name: Prepare original historical Meteora accounting implementation
         run: |
           git worktree add --detach "$RUNNER_TEMP/historical-meteora" 3370a0a3a283b4e3901ae51e294eeb00ef69832d

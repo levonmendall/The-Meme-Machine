@@ -261,3 +261,138 @@ lifecycle gates on the diagnostic tree. Canonical four-lane preparation, exact
 native source integrity, protocol freeze, six-regime integration and eight
 readiness/certificate regressions passed locally on the integrated tree.
 This is still not a full certificate or a natural-market success claim.
+
+## Measured contention follow-up: certificate 36293751021
+
+Candidate `3d4be5c538fdde44b37c159c5c5dad9200a5039e` failed full certificate
+`36293751021` after supervisor/native/crash/restart/integrated/resource gates.
+Artifact `10923193063`, SHA256
+`f1d7c62e6e5861a79526d4f7e12ccca2674b5566384094c967fa61418b79eb40`.
+At 1,743 accepted frames, oldest retained evidence exceeded 240 seconds. Source
+lag remained 2.41 seconds, all 1,744 admitted messages drained, and no runtime
+capacity stop/disconnect/gap occurred. This failed certificate overrides the
+preceding standalone pass. No market run was authorized.
+
+Measured source-owner cost was about 0.163 seconds/frame, and archive preparation
+plus publication about 0.358 seconds/1,000 records. The pressure fixture now has
+an explicit test-only profile enforcing rounded-up floors of 0.165 and 0.36.
+Full certification requires this profile. Production has no artificial delays;
+the existing queue, freshness, retention, storage and policy bounds are unchanged.
+The fixture records bounded CPU/process statistics without arguments or secrets.
+
+1,552 priority-zero subscription synchronizations occurred despite unchanged,
+empty interests. A thread-safe dirty hint now signals only committed interest or
+release commands and actual candidate expiry. Reconnect always loads durable
+interests; clearing before reconciliation preserves mutations during an await.
+The hint grants no evidence authority. Real subscription reconciliation retains
+priority zero. Four regressions cover unchanged polls, mutation during subscribe,
+release, disconnected IPC waiters, expiry and restart. The old code fails the
+unchanged-poll regression (five owner reads versus one).
+
+Diagnostic `9db4ea686bc8b9d080394558730be3e125e754e3`, workflow `36295397221`,
+reproduced archival failure under measured contention in both versions:
+
+- Old artifact `10923488749`, SHA256
+  `c94945d434085d72cf0f8e0a3fa46add21a3e4366d195b20b62cd6a07fc1e2a0`:
+  1,381 frames, retention-clock failure, 1,242 subscription synchronizations.
+- Subscription repair artifact `10924025254`, SHA256
+  `ef11434cfb7486eba529f237c9e7103ad108ee7d41beb55878439e88d044ef6f`:
+  1,659 frames, archive-clock failure, one subscription synchronization, 1,779
+  unchanged polls skipped. Archive commit/plan requests spent 149.8 seconds queued
+  across 225 calls (about 0.666 seconds each). Twenty archive commits yielded.
+
+These digest-verified results prove the subscription defect was removed but do
+not establish sufficient throughput. The residual causes are scheduling and
+retry progress: one-second aging permits newer source commits repeatedly to
+pass completed archives, idling the single worker; cooperative commit yields
+also discard already published receipts and rerun archive preparation.
+
+The next repair retains strict priority zero/one for lifecycle and foreground
+work and uses admission order for nonurgent source/background slices. Source
+and maintenance cannot repeatedly overtake each other. The owner remains bounded
+at 64 entries with eight reserved urgent slots, and background SQL still yields
+to urgent work. The single archive receipt remains pending through cooperative
+SQL yield and is retried idempotently, including a yield after commit but before
+the next snapshot. It is not serialized/published again. There is still only
+one bounded archive snapshot/future/receipt in flight.
+
+Three new regressions fail the old implementation with behavioral assertions:
+source overtaking, duplicate archive publication after commit interruption, and
+abandoned receipt after a post-commit planning yield. Focused repaired scheduler,
+subscription, archive/retention/repair and durability tests pass. Sustained
+measured-contention verification remains mandatory before selecting another
+full-certificate candidate. Strategy policies and allocations are unchanged.
+
+### Archive scheduling pressure result and health self-preemption repair
+
+Diagnostic `a4a4eb146fbccc60cb4ad029433394be3fd9f16b`, workflow `36296068550`,
+failed retention pressure at 2,035 frames. Artifact `10924315488`, SHA256
+`2e387c7edc30fbd50b51de7e52821b3914b0b1b73f0b14b1ec36f7209c1d74c4`.
+Old-code regression artifact `10923922595`, SHA256
+`02a5f9d9bdf24711a51597cee9439cee73cff9f5bc39ba0fabce486b589abd0f`,
+independently verifies all three behavioral assertion failures without setup errors.
+Standard CI `36296068549` passed 742 tests plus resource/synthetic lifecycle gates.
+
+Source lag peaked at 4.216 seconds, hot storage at 1,273,606,696 bytes. Oldest
+retained evidence reached 240.008 seconds. Archival committed 304,936 records and
+cleanup retired 303,899; this remains insufficient throughput and is not accepted.
+Queue wait per archive owner attempt fell to about 0.496 seconds, but 126 of 434
+commit attempts yielded. The service's own periodic telemetry callbacks were
+still submitted at foreground priority one, preempting its archive/retention SQL.
+The new fairness and retained-receipt repairs remain useful but are insufficient
+alone. No market workflow or full-certificate retry was launched for this tree.
+
+Health publication now uses one background owner request: existing health and
+storage checks followed by an atomic IPC/scheduler telemetry pair. It cannot
+preempt other background maintenance as urgent work. Actual lifecycle/foreground
+requests retain priorities zero/one and cooperative SQL preemption. Source
+heartbeat and finalized frontier writes still occur in the durable source commit.
+Cadence, freshness, storage, provider and strategy boundaries are unchanged.
+A regression observes two periodic publications in the real service and fails
+the old code's priority-one dispatch. Retained-receipt worker metrics are counted
+once per receipt, not again on each owner retry; only one bounded receipt
+reference is retained for this telemetry deduplication.
+
+### Measured-contention sustained acceptance
+
+Workflow `36296804209` passed on diagnostic source
+`c72bc65bbbfbf617da9ef168f1c14dfd8b63dfc4`. Repaired artifact `10924736061`,
+SHA256 `8299d7ae2224dbb10254b844323dc4644455445b3dbc89036e99b2d934bff9b1`;
+result SHA256 `1215b0988b37f377bf9e15bda564f2a2a648851202ee1d467a9e18336bfbfa1c`.
+All runtime source hashes were checked against this integrated tree. The exact
+measured-contention profile was active: 0.165 seconds/source frame and 0.36
+seconds/1,000 archived records, enforced only in the offline fixture.
+
+All 2,223 frames / 9,074,297,113 bytes completed over 600.21 source seconds.
+All 2,224 admitted messages drained. No runtime disconnect, capacity stop,
+rejected frame or unresolved runtime gap; three final gaps explicitly mark
+normal shutdown boundaries. Candidate-local evidence progressed in 59 checks
+covering all three shared Solana scopes. Source lag peaked at 2.350 seconds.
+Outstanding frames peaked at 6/64; dispatch bytes 24,492,030/100,663,296;
+commit bytes 12,246,015/16,777,216. Hot storage peaked at 972,212,856 bytes.
+
+Oldest hot evidence peaked at 182.351 seconds; oldest retained indexes at
+183.317 seconds. Thirty-second observations after maturation stayed around
+181–183 seconds through the end, rather than accumulating maintenance debt.
+411,256 records archived, 410,256 compacted, 1,000 in bounded pending cleanup.
+All 412,104 published archive records verified canonical hashes and provenance;
+SQLite integrity was ok. Total time including archive verification: 690.625s.
+Archive owner queue wait fell to about 0.170 seconds/attempt. Commit yields fell
+to two; all remaining urgent preemption remains enabled. There was one initial
+subscription synchronization and 2,386 unchanged polls required no owner read.
+
+Standard CI `36296804214` passed 743 tests (12 skips), resource and synthetic
+lifecycle gates. Thirty-one focused archive/scheduling/subscription regressions
+passed on the diagnostic tree; the latest sixteen affected tests passed in each
+composed Pump and Meteora worktree. Exact four-lane source integrity, frozen
+protocol, six-regime strategy identities and focused native integration passed.
+Latest promoted strategy ref was refreshed and remains
+`4ab66653a23475a72abe88bc96adf9f6e0b7fd9a`; all six policies are unchanged.
+
+Pump native diff:
+`eccc0f8dea928f309b75a48b82d450b39f3e852eb7fddb8d762800fd0794668d`.
+Meteora native diff:
+`7a40dc7604de75d07891b91c05a4476f16429a1a5b27efe5399cf7b6a52e65ef`.
+Pons and Ramses native diffs remain unchanged. This measured standalone result
+selects the integrated tree for full certification; it is not itself a full
+certificate, promotion, smoke authorization or natural-market success claim.

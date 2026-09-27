@@ -72,7 +72,11 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
     identity_pass=(not expected_sha or offline.get("integration_sha")==expected_sha)
     pressure_path=root/'run381-pressure/result.json'
     pressure=load(pressure_path) if pressure_path.exists() else {}
+    contention=pressure.get('measured_contention') or {}
     pressure_pass=(pressure.get('passed') is True
+        and contention.get('profile')=='run381-fullcert-36293751021'
+        and contention.get('owner_seconds_per_frame',0)>=.165
+        and contention.get('archive_seconds_per_thousand',0)>=.36
         and pressure.get('integration_sha')==offline.get('integration_sha')
         and pressure.get('provider_calls')==0
         and pressure.get('source_seconds',0)>=600
