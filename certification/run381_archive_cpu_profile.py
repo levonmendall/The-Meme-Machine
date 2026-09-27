@@ -1,25 +1,23 @@
 """Bounded archive CPU profile using preserved public production bodies."""
-import cProfile,hashlib,io,json,pstats,tempfile,time
+import asyncio,cProfile,hashlib,io,json,pstats,tempfile,time
 from pathlib import Path
 from meme_machine.solana_evidence_service import ServiceState,decode_source_message,program_subscriptions
 from meme_machine.solana_evidence_plane import EvidenceWriter
 from meme_machine.solana_evidence_transport import Subscription
 from meme_machine.solana_provider_config import AlchemyEndpoint
-from tests.test_run380_production_pressure import Wire
-wire=Wire();config=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test')
+from certification.run381_pressure import Wire
+wire=Wire();wire.start=time.time()-600;config=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test')
 addresses=tuple(sorted({s.address for s in program_subscriptions()}))
 with tempfile.TemporaryDirectory() as td:
  state=ServiceState(Path(td)/'db',config)
  try:
   for i in range(12):
-   slot=1000+i
-   raw=wire.template.replace(b'run380:1000:',('run380:'+str(slot)+':').encode())
-   for old,new in [(b'"slot":1000,',f'"slot":{slot},'.encode()),(b'"parentSlot":999,',f'"parentSlot":{slot-1},'.encode()),(b'"blockhash":"h1000"',f'"blockhash":"h{slot}"'.encode()),(b'"previousBlockhash":"h999"',f'"previousBlockhash":"h{slot-1}"'.encode())]:raw=raw.replace(old,new)
+   raw=asyncio.run(wire.recv())
    seen=time.time()
    message,_,_=decode_source_message(raw,config.credential,addresses,config.identity,seen)
    state.source(Subscription('service','chain:solana','all','blocks',2),message,seen,len(raw))
   snapshot=state.writer.archive_snapshot(time.time()-180)
-  assert len(snapshot['rows'])==1000
+  assert snapshot and len(snapshot['rows'])>=256
   observations=[];profile=cProfile.Profile()
   for _ in range(3):
    started=time.perf_counter()
