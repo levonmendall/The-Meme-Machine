@@ -816,3 +816,30 @@ real capsule recovery and mid-window restart keep the exact offset. This fixes
 capacity starvation, not the still-pending raw-history storage compaction problem.
 
 The Pons window-capacity repair passes 13 capsule/native-handoff/capacity tests and six native campaign regressions. The new observation counter resets only under verified successor authority; mid-window restart retains it. No threshold, trial ID, re-entry rule or allocation changed.
+
+Pons window-capacity batch pushed as `9389d72c705cced0d77d9877ac491d494db43b59`.
+A fixed-hot-set resource probe (one market, one held Survivor position, one sleeve
+candidate; six batches of 200 updates) measures persistent growth despite WAL
+checkpointing: Survivor journal 202→1,202 rows, DB 167,936→851,968 bytes; sleeve
+journal 200→1,200, DB 122,880→577,536 bytes; Robinhood observations/transitions/cache
+each 200→1,200, DB 139,264→434,176 bytes. This is a remaining Phase-D failure.
+Investigate preserved-prefix checkpoints, starting with the shared sleeve; exact
+native balances/identities/generations and duplicate-settlement checks must survive.
+Raw predecessor bytes must remain in verified native artifacts, with no limit change.
+
+Ordinary CI `36342939773` passes at `9389d72c705cced0d77d9877ac491d494db43b59`.
+Shared-sleeve preserved-prefix implementation now replaces only a predecessor
+journal prefix whose exact SQLite snapshot is bound by the verified controller
+receipt and native artifact. Newer hot journal rows stay. A transactional anchor
+retains every position, candidate generation, capital/P&L, reservation and original
+journal hash; regular append-only guards remain, including after rollback. Native
+artifact chains retain the raw old rows. Automatic normal-window restore is tested;
+missing preservation identity fails closed. Duplicate reservations/settlements,
+wrong prefix, changed snapshot and pre-commit interruption all preserve authority.
+
+Twenty-one affected controller/capsule/sleeve/accounting/native-handoff tests pass.
+The fixed-hot-set sleeve component passes 168 hourly cycles / 33,600 candidate
+updates with exactly 126,976 hot bytes after warmup and 168 distinct preserved
+snapshots. This proves journal-prefix boundedness only. Candidate/position churn,
+Survivor native journals, Robinhood raw histories/cache and the joined multi-day
+resource/provider proof remain unresolved; no complete Phase-D claim is made.

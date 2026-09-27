@@ -229,7 +229,9 @@ def restore(source, *, worktrees, run, expected_identity, expected_state_hash,
     expected = dict(state_hash=body['state_hash'], window=body['window'], identity=expected_identity,
                     entry_authority=False, files=len(body['files']),
                     history_snapshots={row['path']:row['sha256'] for row in body['files']
-                        if row['path'].endswith('/history.sqlite')})
+                        if row['path'].endswith('/history.sqlite')},
+                    ledger_snapshots={row['path']:row['sha256'] for row in body['files']
+                        if row['path'] in ('pump/directional-sleeve.sqlite','pons/directional-sleeve.sqlite')})
     if receipt_path.exists() and json.loads(receipt_path.read_text()) != expected:
         raise ValueError('campaign_state_restore_collision')
     for row in body['files']:

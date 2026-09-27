@@ -19,15 +19,26 @@ class SleeveReservations:
             raise ValueError('sleeve_identity')
         Path(path).parent.mkdir(parents=True,exist_ok=True)
         self.lock=threading.RLock()
+        self.identity=dict(lane=lane,capital=capital,policies=policies,cohort=cohort,paper_only=True)
+        from certification.preserved_checkpoint import snapshot
+        with snapshot(path,name=lane+'/directional-sleeve.sqlite',lane=lane) as preserved:
+            try:
+                self._open(path)
+                if preserved:self._compact_preserved(*preserved)
+            except BaseException:
+                if hasattr(self,'db'):self.db.close()
+                raise
+
+    def _open(self,path):
         self.db=sqlite3.connect(path,timeout=30,isolation_level=None,check_same_thread=False)
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')
-        self.identity=dict(lane=lane,capital=capital,policies=policies,cohort=cohort,paper_only=True)
         self.db.executescript('''
           CREATE TABLE IF NOT EXISTS sleeve_genesis(id INTEGER PRIMARY KEY,body TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS sleeve_positions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS sleeve_candidates(id TEXT PRIMARY KEY,generation INTEGER NOT NULL,body TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS sleeve_journal(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,previous TEXT NOT NULL,hash TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS sleeve_archive(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL,hash TEXT NOT NULL);
           CREATE TRIGGER IF NOT EXISTS sleeve_journal_no_update BEFORE UPDATE ON sleeve_journal BEGIN SELECT RAISE(ABORT,'append_only'); END;
           CREATE TRIGGER IF NOT EXISTS sleeve_journal_no_delete BEFORE DELETE ON sleeve_journal BEGIN SELECT RAISE(ABORT,'append_only'); END;
           CREATE TRIGGER IF NOT EXISTS sleeve_genesis_no_update BEFORE UPDATE ON sleeve_genesis BEGIN SELECT RAISE(ABORT,'immutable_genesis'); END;
@@ -52,7 +63,10 @@ class SleeveReservations:
 
     def _event(self,kind,row):
         old=self.db.execute('SELECT seq,hash FROM sleeve_journal ORDER BY seq DESC LIMIT 1').fetchone()
-        seq,prev=(old[0]+1,old[1]) if old else (1,'0'*64)
+        if old:seq,prev=old[0]+1,old[1]
+        else:
+            anchor=self._archive()
+            seq,prev=(anchor['seq']+1,anchor['final_hash']) if anchor else (1,'0'*64)
         body=dict(kind=kind,row=row,identity=self.identity)
         self.db.execute('INSERT INTO sleeve_journal VALUES(?,?,?,?)',(seq,canonical(body),prev,digest([seq,prev,body])))
         if kind=='candidate':
@@ -141,9 +155,58 @@ class SleeveReservations:
             self._event('settle',row)
             return row
 
+    def _archive(self):
+        # Pre-upgrade preserved snapshots have no prefix table.
+        if not self.db.execute("SELECT 1 FROM sqlite_master WHERE name='sleeve_archive'").fetchone():return None
+        row=self.db.execute('SELECT body,hash FROM sleeve_archive WHERE id=1').fetchone()
+        if row is None:return None
+        value=json.loads(row[0])
+        if digest(value)!=row[1] or value.get('identity')!=self.identity:
+            raise ValueError('sleeve_archive_integrity')
+        return value
+
+    def _compact_preserved(self,path,authority):
+        """Replace only the already-preserved prefix; concurrent new rows stay."""
+        import hashlib
+        with Path(path).open('rb') as source:
+            if hashlib.file_digest(source,'sha256').hexdigest()!=authority['snapshot_sha256']:
+                raise ValueError('sleeve_archive_snapshot_identity')
+        source=object.__new__(SleeveReservations);source.identity=self.identity
+        source.db=sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True)
+        try:
+            source.db.execute('BEGIN')
+            proof=source.reconcile();prior=source._archive()
+            last=source.db.execute('SELECT MAX(seq) FROM sleeve_journal').fetchone()[0]
+            seq=last if last is not None else prior['seq'] if prior else 0
+            if not seq:return False
+            anchor=dict(identity=self.identity,seq=seq,final_hash=proof['final_hash'],
+                positions={i:json.loads(b) for i,b in source.db.execute('SELECT * FROM sleeve_positions')},
+                candidates={i:json.loads(b) for i,_,b in source.db.execute('SELECT * FROM sleeve_candidates')},
+                authority=authority,previous_archive_hash=digest(prior) if prior else None)
+        finally:source.db.close()
+        with self.transaction():
+            old=self._archive()
+            if old and old['seq']>=seq:
+                if old['seq']==seq and old['final_hash']!=anchor['final_hash']:
+                    raise ValueError('sleeve_archive_prefix_conflict')
+                return False
+            before=self.reconcile()
+            row=self.db.execute('SELECT hash FROM sleeve_journal WHERE seq=?',(seq,)).fetchone()
+            if row is None or row[0]!=anchor['final_hash']:
+                raise ValueError('sleeve_archive_prefix_conflict')
+            self.db.execute('INSERT OR REPLACE INTO sleeve_archive VALUES(1,?,?)',(canonical(anchor),digest(anchor)))
+            # DDL is transactional here; never use executescript (implicit commit).
+            self.db.execute('DROP TRIGGER sleeve_journal_no_delete')
+            self.db.execute('DELETE FROM sleeve_journal WHERE seq<=?',(seq,))
+            self.db.execute("CREATE TRIGGER sleeve_journal_no_delete BEFORE DELETE ON sleeve_journal BEGIN SELECT RAISE(ABORT,'append_only'); END")
+            if self.reconcile()!=before:raise ValueError('sleeve_archive_state_changed')
+        return True
+
     def reconcile(self):
-        positions,candidates,previous={}, {},'0'*64
-        for expected,(seq,raw,prev,checksum) in enumerate(self.db.execute('SELECT * FROM sleeve_journal ORDER BY seq'),1):
+        archive=self._archive()
+        positions,candidates,previous,offset=({}, {},'0'*64,0) if archive is None else (
+            archive['positions'],archive['candidates'],archive['final_hash'],archive['seq'])
+        for expected,(seq,raw,prev,checksum) in enumerate(self.db.execute('SELECT * FROM sleeve_journal ORDER BY seq'),offset+1):
             body=json.loads(raw);row=body['row'];kind=body['kind']
             if seq!=expected or prev!=previous or checksum!=digest([seq,prev,body]) or body['identity']!=self.identity:
                 raise ValueError('sleeve_journal_corruption')
