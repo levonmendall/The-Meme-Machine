@@ -33,13 +33,15 @@ jobs:
           fi
       - name: Reproduce old scope starvation and verify bounded repair
         run: |
+          mkdir -p pressure-output
+          set -o pipefail
           git show 76fb6e6b8d337b540ecac3eacdc91d6e673c5e35:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
-          if python -m unittest tests.test_run381_retention_progress.RetentionProgressTests.test_recurring_urgent_work_cannot_starve_later_retention_scopes; then
+          if python -m unittest tests.test_run381_retention_progress.RetentionProgressTests.test_recurring_urgent_work_cannot_starve_later_retention_scopes 2>&1 | tee pressure-output/starvation-before.log; then
             echo "Old implementation did not reproduce the required regression"
             exit 1
           fi
           git restore --source=HEAD -- meme_machine/solana_evidence_plane.py
-          python -m unittest tests.test_run381_retention_progress tests.test_run381_repair_pagination -q
+          python -m unittest tests.test_run381_retention_progress tests.test_run381_repair_pagination -q 2>&1 | tee pressure-output/starvation-after.log
       - name: Reconstructed production pressure without provider credentials
         env:
           PRESSURE_FRAMES: '2223'
