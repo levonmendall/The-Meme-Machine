@@ -21,6 +21,19 @@ import meme_machine.solana_evidence_service as service
 OWNER_SECONDS_PER_FRAME=.165
 ARCHIVE_SECONDS_PER_THOUSAND=.36
 
+def process_profile():
+ # Executable names/counts only: never arguments, environment or credentials.
+ try:
+  lines=subprocess.check_output(['ps','-eo','pid=,ppid=,comm=,pcpu=','--sort=-pcpu'],text=True,timeout=5).splitlines()
+  rows=[]
+  for line in lines[:32]:
+   pid,parent,name,cpu=line.split()
+   rows.append(dict(pid=int(pid),parent=int(parent),process_class='python' if name.startswith('python') else
+       'node' if name.startswith('node') else 'other',cpu_percent=float(cpu)))
+  return dict(available=True,total_processes=len(lines),top_cpu=rows)
+ except (OSError,ValueError,subprocess.SubprocessError) as exc:
+  return dict(available=False,error_type=type(exc).__name__)
+
 def measured_archive(path,snapshot,**kwargs):
  started=time.monotonic()
  result=EvidenceWriter.prepare_and_write_archive(path,snapshot,**kwargs)
@@ -65,7 +78,8 @@ async def run(frames,output,*,measured_contention=False):
  output=Path(output);output.mkdir(parents=True,exist_ok=True)
  quota=Path('/sys/fs/cgroup/cpu.max')
  environment=dict(cpu_count=os.cpu_count(),affinity_count=len(os.sched_getaffinity(0)) if hasattr(os,'sched_getaffinity') else None,
-   cpu_quota=quota.read_text().strip() if quota.exists() else None,load_start=list(os.getloadavg()))
+   cpu_quota=quota.read_text().strip() if quota.exists() else None,load_start=list(os.getloadavg()),
+   processes_start=process_profile())
  wire=Wire();wire.frames=frames;stop=asyncio.Event();lags=[];hot_peak=0;oldest_hot_age_peak=0;oldest_retained_age_peak=0;started=time.monotonic();queries=[];last_report=0
  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('websockets.asyncio.client.connect',return_value=wire),\
       patch.object(service,'ServiceState',MeasuredServiceState if measured_contention else service.ServiceState),\
@@ -144,7 +158,7 @@ async def run(frames,output,*,measured_contention=False):
       row=json.loads(line);assert digest(row['body'])==row['hash'];assert row['lineage'];archive_records+=1
    result=dict(passed=failure is None,failure=failure,frames=frames,frame_bytes=len(wire.template),source_seconds=frames*.27,elapsed=time.monotonic()-started,lag_peak=max(lags,default=0),hot_peak=hot_peak,candidate_checks=len(queries),archive_records_verified=archive_records,counters=counters,ipc=ipc,owner=health.get('owner_scheduler'),integrity=integrity,provider_calls=0)
    result['integration_sha']=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-   result['environment_profile']=dict(environment,load_end=list(os.getloadavg()),
+   result['environment_profile']=dict(environment,load_end=list(os.getloadavg()),processes_end=process_profile(),
        cpu_user_seconds=resource.getrusage(resource.RUSAGE_SELF).ru_utime,
        cpu_system_seconds=resource.getrusage(resource.RUSAGE_SELF).ru_stime,
        child_cpu_user_seconds=resource.getrusage(resource.RUSAGE_CHILDREN).ru_utime,

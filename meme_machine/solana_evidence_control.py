@@ -60,19 +60,20 @@ class PriorityOwner:
                 with self.cv:
                     self.cv.wait_for(lambda:self.queue or self.closed)
                     if not self.queue and self.closed: break
-                    # Exit/reservation work and foreground requests retain strict
-                    # precedence. Continuous commits must not starve counters,
-                    # gap repair or bounded retention until their queues overflow.
-                    # After one second, oldest waiting non-urgent work gets the
-                    # next slot; the 64-entry owner bound is unchanged.
-                    aged=[]
+                    # Exit/reservation and foreground work retain strict priority.
+                    # Source commits and bounded background slices share FIFO
+                    # admission order. A one-second aging rescue still made each
+                    # completed archive wait behind newer source commits, idling
+                    # its worker and accumulating hot history (Run 381). Neither
+                    # source nor maintenance may repeatedly overtake the other.
+                    eligible=[]
                     if self.queue[0][0]>=2:
-                        now=self.clock()
-                        aged=[(row[1],i) for i,row in enumerate(self.queue)
-                              if now-self.enqueued[row[1]]>=1.0]
-                    if aged:
-                        self.metrics['aged_selections']=self.metrics.get('aged_selections',0)+1
-                        _,index=min(aged);item=self.queue[index]
+                        eligible=[(row[1],i) for i,row in enumerate(self.queue)]
+                    if eligible:
+                        _,index=min(eligible);item=self.queue[index]
+                        self.metrics['nonurgent_fifo_selections']=self.metrics.get('nonurgent_fifo_selections',0)+1
+                        if self.clock()-self.enqueued[item[1]]>=1.0:
+                            self.metrics['aged_selections']=self.metrics.get('aged_selections',0)+1
                         self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)
                     else:item=heapq.heappop(self.queue)
                     priority,sequence,expires,fn,future=item

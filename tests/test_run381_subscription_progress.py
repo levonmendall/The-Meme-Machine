@@ -6,8 +6,11 @@ from meme_machine import solana_evidence_service as service
 from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceUnavailable
 from meme_machine.solana_evidence_runtime import RuntimeEvidence,PUMP_SCOPE
 from meme_machine.postgrad import PUMPSWAP_PROGRAM
-from tests.test_solana_evidence_service_runtime import FakeSocket
+from tests.test_run373_dispatch_throughput import SustainedSocket
 from tests.evidence_ipc_harness import ipc_transport
+
+class FakeSocket(SustainedSocket):
+ def __init__(self):super().__init__(frames=0,interval=0,padding_bytes=0)
 
 
 class SubscriptionProgressTests(unittest.IsolatedAsyncioTestCase):
@@ -32,7 +35,7 @@ class SubscriptionProgressTests(unittest.IsolatedAsyncioTestCase):
 
  async def test_new_interest_during_subscription_send_and_release_are_not_lost(self):
   with tempfile.TemporaryDirectory() as td,ipc_transport():
-   path=Path(td)/'db';stop=asyncio.Event();plane=None
+   path=Path(td)/'db';stop=asyncio.Event()
    def command(**kw):
     p=RuntimeEvidence(path,owner='pump')
     try:return p.command(**kw)

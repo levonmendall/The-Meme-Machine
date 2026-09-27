@@ -1196,7 +1196,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 except TimeoutError:pass
 
         async def maintenance():
-            archive_future=None;archive_started=0
+            archive_future=None;archive_started=0;pending_archive=None
             def prepare(snapshot):
                 # Exactly one bounded encoded snapshot can be in flight. The
                 # preceding archive is durable/committed before selecting this.
@@ -1204,16 +1204,23 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             while not stop.is_set():
                 yielded=False
                 try:
-                    if archive_future is None:
+                    if archive_future is None and pending_archive is None:
                         snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
                         if snapshot:
                             archive_started=time.monotonic();archive_future=prepare(snapshot)
                     if archive_future is not None:
-                        plan,receipt=await archive_future;archive_future=None
+                        pending_archive=await archive_future;archive_future=None
                         archive_elapsed=int((time.monotonic()-archive_started)*1_000_000)
                         counts['archive.worker_wait_total_microseconds']=counts.get('archive.worker_wait_total_microseconds',0)+archive_elapsed
                         counts['archive.worker_wait_peak_microseconds']=max(counts.get('archive.worker_wait_peak_microseconds',0),archive_elapsed)
+                    if pending_archive is not None:
+                        plan,receipt=pending_archive
                         snapshot=await work(lambda state:state.archive_commit_and_plan(plan,receipt),4,label='archive_commit_plan')
+                        # A cooperative SQL yield must retry this already durable
+                        # archive, not decode/compress/publish the same hot rows
+                        # again. Commit is idempotent even if the following plan
+                        # query yielded after the commit completed.
+                        pending_archive=None
                         # Preparation of the next archive overlaps bounded hot
                         # cleanup. Source/consumer work retains owner priority.
                         if snapshot:
@@ -1221,7 +1228,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     yielded=True
-                if archive_future is not None or yielded:
+                if archive_future is not None or pending_archive is not None or yielded:
                     # One bounded snapshot is in flight; completion itself paces
                     # backlog work. An artificial delay loses archive capacity.
                     await asyncio.sleep(0)
