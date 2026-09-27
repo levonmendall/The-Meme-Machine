@@ -1,7 +1,7 @@
 name: Pump Pons six-regime offline certification
 on:
   push:
-    branches: [strategy/pump-pons-six-regime-upgrade-20260926]
+    branches: [strategy/pump-pons-six-regime-upgrade-20260926, cert/autonomous-paper-machinery-20260927]
   workflow_dispatch:
 permissions:
   contents: read

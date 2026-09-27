@@ -28,6 +28,8 @@ with tempfile.TemporaryDirectory() as td:
   costs=dict(mint=1,unwind=1,rebalance=1))))
  before=campaign.reconcile();campaign.close()
  assert reconcile('ramses',root)['durable_handoff']
+ # Raw native worker fixture has no preserved capsule; archive authority is
+ # covered by the joined real-capsule crash and successor matrix.
  claim=dict(identity={'frozen':'exact'},campaign_id='same-campaign',authorization_hash='same-authority',
   window=dict(index=1,positions={'ramses':['original']}))
  ready=threading.Event();release=threading.Event();clock=[0]
@@ -46,7 +48,7 @@ with tempfile.TemporaryDirectory() as td:
  def bounded(*a,**kw):
   kw['slice_seconds']=20
   return real_resume(*a,**kw)
- with patch.dict(os.environ,MM_CERTIFICATION_PHASE='hourly'),patch('certification.campaign_state.restored_window',return_value=claim),patch.object(continuation,'_resume_ramses_native',side_effect=bounded),patch.object(continuation,'time',SimpleNamespace(monotonic=lambda:clock[0],sleep=sleep,time=lambda:1000)),patch.object(native,'BoundedMultiRpc',Rpc),patch.object(native,'_new_position_reader',return_value=rpc),patch.object(native,'scan',side_effect=scan):
+ with patch.dict(os.environ,MM_CERTIFICATION_PHASE='hourly'),patch('certification.campaign_state.restored_window',return_value=claim),patch('certification.preserved_checkpoint.authority',return_value=None),patch.object(continuation,'_resume_ramses_native',side_effect=bounded),patch.object(continuation,'time',SimpleNamespace(monotonic=lambda:clock[0],sleep=sleep,time=lambda:1000)),patch.object(native,'BoundedMultiRpc',Rpc),patch.object(native,'_new_position_reader',return_value=rpc),patch.object(native,'scan',side_effect=scan):
   timing.install_ramses(extended)
   campaign=CampaignBooks.recover(folder)
   assert ready.wait(5)

@@ -26,16 +26,18 @@ if index==0:
 with patch('certification.campaign_state.active_window',return_value=window):
  for n in range(8):
   at=index*3600+n*10;identity=issue('current:'+str(index)+':'+str(n))
-  sleeve.reserve(identity,strategy=STRATEGY_ID,amount=100,at=at)
-  book.reserve(identity,100,at,{'native_fixture':True})
-  with sleeve.commit_fence(identity):book.transition(identity,'filled',at+1,amount=100,tokens=100)
+  from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
+  from tests.test_pump_acceleration_paper import qualification
+  life=PumpAccelerationPaperLifecycle(book=book,lifecycle_id=identity)
+  life.reserve(qualification(),100,at)
+  with life.sleeve.commit_fence(identity):life.fill(100,100,at+1,'pump.fun')
+  life.mark(130,at+2,80);life.harvest(25,30,at+3)
   if index==0 and n==0:
-   book.transition(identity,'partial_harvest',at+2,amount=30,tokens=25)
    book.checkpoint_runtime(identity,'fill_context',{'original':True})
+   life.sleeve.close()
   else:
-   book.transition(identity,'partial_harvest',at+2,amount=30,tokens=25)
-   book.transition(identity,'settled',at+3,amount=80)
-   native_terminal(sleeve,identity,book._load(identity),at+3,verified=book.replay()['verified'])
+   assert life.mark(80,at+4,80)['exit_reason']
+   life.settle(80,at+5)
 print(json.dumps(sleeve.reconcile()));sleeve.close();book.close()
 '''
 
@@ -70,4 +72,23 @@ class CurrentSleeveArchive(unittest.TestCase):
             sizes.append((next_work/'pump/directional-sleeve.sqlite').stat().st_size)
             shutil.rmtree(f.lanes);shutil.rmtree(f.run);next_work.rename(f.lanes);next_run.rename(f.run);last=body['state_hash']
         self.assertLessEqual(max(sizes[2:])-min(sizes[2:]),8192,sizes)
+        code=r'''
+import json,os,sys
+from pathlib import Path
+from meme_machine.paper_accounting import PaperBook
+from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
+from meme_machine.pump_acceleration_strategy import STRATEGY_ID,policy_hash
+from certification.directional_sleeve import bind_pump_recovered_allocation
+root=Path(sys.argv[1]);os.environ.update(MM_DIRECTIONAL_SLEEVE_DB=str(root/'directional-sleeve.sqlite'),MM_DIRECTIONAL_COHORT_ID='original-paper-books')
+book=PaperBook(root/'pump-acceleration-natural-prospective.accounting.sqlite3',run_id='current',lane=STRATEGY_ID,policy_hash=policy_hash(),initial=1000000)
+assert book.db.execute('SELECT COUNT(*) FROM positions').fetchone()[0]==1
+assert book.db.execute('SELECT COUNT(*) FROM journal').fetchone()[0]==0
+identity=book.db.execute('SELECT id FROM positions').fetchone()[0]
+life=PumpAccelerationPaperLifecycle.restore(book,identity);bind_pump_recovered_allocation(book,life)
+assert life.position.partial_harvest_taken and life.position.tokens==75 and life.position.peak_return_bps==3000
+before=book.reconcile();life.sleeve.close();book.close()
+'''
+        result=subprocess.run([sys.executable,'-c',code,str(f.lanes/'pump')],cwd=native,
+            env=dict(os.environ,PYTHONPATH=str(Path(__file__).resolve().parents[2])),capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         print('Current Pump sleeve: 47 acknowledged terminals folded, live hold unchanged; hot bytes',sizes)

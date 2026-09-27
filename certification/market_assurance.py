@@ -10,6 +10,7 @@ import ast
 from collections import Counter
 import hashlib
 import json
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -156,7 +157,7 @@ def native_positions(root,lane):
     positions={};violations=[];journal=[];by_id={};cohort=[];prefixes={};folded_metrics={}
     for path in sorted(Path(root).rglob('*.sqlite*')):
         if not path.is_file() or path.name.endswith(('-wal','-shm')):continue
-        with ro(path) as db:
+        with closing(ro(path)) as db:
             tables={x[0] for x in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if lane=='pons' and 'pons_selective_paper' in tables:
                 rows=[json.loads(x[0]) for x in db.execute('SELECT body FROM pons_selective_paper')]

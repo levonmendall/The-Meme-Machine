@@ -9,6 +9,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+from contextlib import closing
 
 OUTCOMES = {
     'discovered': ('discovered', None),
@@ -108,8 +109,8 @@ def consistency(plane_path, pipeline_path, lane, *, reported_classes=None):
         expected_unique_classes={},transition_counts={},missing_memberships={},failures=[])
     if not Path(plane_path).is_file() or not pipeline_path or not Path(pipeline_path).is_file():
         result['failures']=['candidate_plane_or_pipeline_unavailable'];return result
-    with sqlite3.connect(Path(plane_path).resolve().as_uri()+'?mode=ro',uri=True) as plane, \
-            sqlite3.connect(Path(pipeline_path).resolve().as_uri()+'?mode=ro',uri=True) as pipeline:
+    with closing(sqlite3.connect(Path(plane_path).resolve().as_uri()+'?mode=ro',uri=True)) as plane, \
+            closing(sqlite3.connect(Path(pipeline_path).resolve().as_uri()+'?mode=ro',uri=True)) as pipeline:
         pipeline.execute('ATTACH DATABASE ? AS plane',(Path(plane_path).resolve().as_uri()+'?mode=ro',))
         for kind,n in plane.execute('SELECT t.kind,COUNT(*) FROM transitions t JOIN candidates c ON c.id=t.candidate WHERE c.lane=? GROUP BY t.kind',(lane,)):
             try:_,classification=classify(kind)

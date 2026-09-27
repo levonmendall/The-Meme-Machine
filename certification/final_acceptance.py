@@ -90,6 +90,13 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         and 0<pressure.get('oldest_retained_age_peak',float('inf'))<=240
         and 0<pressure.get('hot_peak',float('inf'))<2*1024**3
         and pressure.get('integrity')==['ok'])
+    joined_path=root/'joined/result.json'
+    joined=load(joined_path) if joined_path.exists() else {}
+    joined_pass=(joined.get('passed') is True
+        and joined.get('identity',{}).get('integration_sha')==offline.get('integration_sha')
+        and joined.get('paper_only') is True and joined.get('market_collection') is False
+        and joined.get('virtual_seconds',0)>=192*3600
+        and bool(joined.get('gates')) and all(joined['gates'].values()))
     gates={
         "exact_source_offline":offline.get("passed") is True,
         "native_crash_matrix":crash_pass,
@@ -100,6 +107,7 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         "production_adapter_connectivity":connectivity_pass,
         "resource_bounds":resource_pass,
         "mature_solana_pressure":pressure_pass,
+        "joined_eight_day_system":joined_pass,
         "exact_integration_identity":identity_pass,
     }
     if preserved_only:
@@ -132,6 +140,7 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         ),
         integrated_acceptance=integrated,
         mature_solana_pressure=pressure,
+        joined_paper_system=joined,
         historical_resolution=dict(
             disposition=historical.get("disposition"),
             original_artifact_preserved=historical.get("immutable_original_artifact_preserved"),

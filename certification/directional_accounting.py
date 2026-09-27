@@ -118,6 +118,17 @@ def terminal(lane,root,current):
                 raise ValueError('directional_unowned_capital')
         for identity,p in current_rows.items():
             held=sleeve.get(identity)
+            if held is None and lane=='pump' and p['status'] in ('settled','cancelled'):
+                # Current native raw journals can outlive their acknowledged
+                # sleeve projection. Only the verified preserved-prefix fence
+                # can prove that missing terminal allocation was retired.
+                from certification.lifecycle_identity import parsed
+                issued=parsed(identity);anchor=sleeve._archive()
+                fence=(anchor or {}).get('archived_entry_scopes',{}).get(current_strategy)
+                if (issued and fence and issued['campaign']==fence['campaign']
+                        and issued['index']<=fence['through']
+                        and not any(p[k] for k in ('reserved','basis','tokens'))):
+                    continue
             if not held or held['strategy']!=current_strategy:raise ValueError('current_sleeve_reservation_missing')
             required=p['basis']+p['reserved'] if lane=='pump' else p['reserved']
             if held['held']<required:raise ValueError('current_capital_unreserved')

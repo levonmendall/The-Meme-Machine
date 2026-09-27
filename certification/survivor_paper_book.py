@@ -264,7 +264,7 @@ class PaperBook:
             raise ValueError('paper_archive_integrity')
         return value
 
-    def _compact_preserved(self,path,authority):
+    def _compact_preserved(self,path,authority,*,cost_reader=None,risk_reader=None):
         """Checkpoint only replayed bytes already in the exact native artifact."""
         with Path(path).open('rb') as stream:
             if hashlib.file_digest(stream,'sha256').hexdigest()!=authority['snapshot_sha256']:
@@ -282,11 +282,11 @@ class PaperBook:
             for raw, in source.db.execute('SELECT body FROM journal ORDER BY seq'):
                 event=json.loads(raw);identity=event['position']['id']
                 summaries[identity]=extend([event],summaries.get(identity))
-                state=risk_record(risk.get(identity),event)
+                state=(risk_reader or risk_record)(risk.get(identity),event)
                 if state is not None:risk[identity]=state
             anchor=dict(identity=self.identity,seq=proof['events'],final_hash=proof['final_hash'],
                 cash=proof['cash'],positions=positions,risk_states=risk,journal_proofs=summaries,
-                execution_cost=execution_cost(source),authority=authority,
+                execution_cost=(cost_reader or execution_cost)(source),authority=authority,
                 previous_archive_hash=_hash(prior) if prior else None)
             if prior:
                 for key in ('folded','archived_entry_scope'):

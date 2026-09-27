@@ -82,6 +82,20 @@ jobs:
         run: |
           mkdir -p non-market-evidence/run381-pressure
           python -m certification.run381_pressure --measured-contention --output non-market-evidence/run381-pressure > non-market-evidence/run381-pressure/run.log 2>&1
+      - name: Joined eight-day PAPER campaign and recovery/provider gates
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/non-market-lanes
+        run: |
+          python -m certification.joined_soak --sources "$RUNNER_TEMP/non-market-lanes" --root "$RUNNER_TEMP/joined-soak" > non-market-evidence/joined-soak.log 2>&1
+          cp "$RUNNER_TEMP/joined-soak/result.json" non-market-evidence/joined-soak.json
+          python -m certification.joined_acceptance --sources "$RUNNER_TEMP/non-market-lanes" --soak "$RUNNER_TEMP/joined-soak" --output non-market-evidence/joined
+      - name: Preserve joined native predecessors
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/joined-soak" ]; then
+            tar -C "$RUNNER_TEMP" -czf non-market-evidence/joined-native-predecessors.tar.gz joined-soak
+          fi
       - name: Prepare original historical Meteora accounting implementation
         run: |
           git worktree add --detach "$RUNNER_TEMP/historical-meteora" 3370a0a3a283b4e3901ae51e294eeb00ef69832d

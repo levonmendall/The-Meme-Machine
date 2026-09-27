@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "e7ff50236aefc4a70f978de824318a8d113783d054f03a476594ee516ff7aec2",
+      "source_diff_sha256": "8f7cbee3cb26bc702b1d64fb9bdafd25df0c9d9425eb214b7bcc3f425d8e517a",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -329,13 +329,14 @@
         "certification/patches/autonomous-pump-evidence-checkpoints.patch",
         "certification/patches/autonomous-pump-survivor-retirement.patch",
         "certification/patches/autonomous-pump-survivor-terminal-archive.patch",
-        "certification/patches/autonomous-pump-current-window-identity.patch"
+        "certification/patches/autonomous-pump-current-window-identity.patch",
+        "certification/patches/autonomous-pump-terminal-archive.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
         "meme_machine/postgrad.py": "c28ad0995ec3cbde1e0649fbdc7e8b4950db988d9bd9cec09bae05e7de006808",
-        "meme_machine/pump_acceleration_paper.py": "eb6da16baff16d02e9181e7041bb024c0597586bcc7ee44e1b55db1470558198",
+        "meme_machine/pump_acceleration_paper.py": "d70ba5fb5450fedcc44eef075e24bed60b9701372f35e5c29a48079fa3f3d0d9",
         "meme_machine/pump_acceleration_strategy.py": "0b45f42ac6f9c529e72f1ab2f7c1475ebc50f889f94dbe62cd1ab8ed1a73c3c1",
         "meme_machine/pumpswap_survivor.py": "c5dd96bf2c211594be302f05bed07c7b2ddb0bc807df7d76b6b92258d4eedea1",
         "meme_machine/pumpswap_survivor_evidence.py": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946",
@@ -348,7 +349,8 @@
         "tests/test_pump_acceleration_policy_identity.py": "ccce07684bb60d9bcc2f109bfb8ed92b2768f9d4c5dacbc1bcf6841c484c4cbd",
         "tests/test_pump_shared_survivor.py": "6107efc1f49040827fcf7c5ad20c7f8dcb636b1cc33ca30fea0d77128614a594",
         "tests/test_pumpswap_survivor.py": "eb28501e28311fd9f57712de38ed2648156aa5cd46ace6d3a8b3855a39015790",
-        "tests/test_pumpswap_survivor_evidence.py": "d093ee1cbd26e66d8ef576ad5073d5e84ebfe1c93ee080d98a51efb2046c6a98"
+        "tests/test_pumpswap_survivor_evidence.py": "d093ee1cbd26e66d8ef576ad5073d5e84ebfe1c93ee080d98a51efb2046c6a98",
+        "meme_machine/paper_accounting.py": "d1941165d5c6ec1dea00e5c9f6eefdc53dd6e7d914a3c29214ff6fd8b5d13324"
       },
       "active_regimes": {
         "pump-acceleration-independent-v1": "a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d",

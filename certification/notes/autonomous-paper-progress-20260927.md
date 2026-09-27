@@ -1186,3 +1186,83 @@ or repeated successful 168-hour component proof is authorized/needed. Next is th
 single joined seven-day production/campaign proof. It must measure all hot owners
 and expose any composition regression before D can close. No final certificate,
 market smoke, or final-SHA real-dispatch verification has been launched.
+
+## Joined D proof — measured composition regressions
+
+Owner-2/3 batch published as 8cdd1a4ce1628415afa3659d30c9f03918165fa4;
+ordinary CI 36355477303 PASS. Joined proof now composes changing native current
+Pump/Pons/Meteora/Ramses lifecycle identities, both Survivor history/partial runners,
+actual Solana ingest/archive/retention, Robinhood projections, real capsule sealing,
+normal successor claims and no-entry position-only claims. It is NOT yet a passing
+seven-day certificate; final joined matrix/long-horizon coverage remains required.
+
+The joined second window exposed a real composition regression: directional terminal
+reconciliation required a hot current-Pump sleeve row even after verified retirement.
+The check now recognizes only exact campaign/window-scoped acknowledged terminal
+retirement, while requiring zero native exposure and retaining live allocation checks.
+The same joined audit measured retained read-only SQLite descriptors (including
+attached Robinhood DBs and native projection DBs). Explicit closing fixes the measured
+paths; the subsequent joined process retains exactly four FDs, one thread, after each
+window. No descriptor/resource limit changed.
+
+The joined changing-identity measurement then exposed current Pump native HOT growth:
+24 terminal positions and 168 raw journal rows after 12 windows (2 positions and 14
+rows per window). This is the only new storage owner admitted by measured joined
+evidence. Repair extends the existing preserved PaperBook/replay and terminal-fold
+primitives; net accounting, cumulative journal identity and reporting counts fold,
+while live current-Pump controllers retain their exact raw command sequence. No
+strategy methods, policy thresholds, allocation or exits changed. Actual partial
+controller restoration retains 75 tokens, partial-taken and 3000-bps high water after
+six capsules; 47 terminal identities fold and sleeve HOT bytes remain 65536. Six
+native durable Pump recovery regressions PASS. Survivor primitive defaults remain
+unchanged; current Pump supplies its own controller/cost representation because its
+native evidence does not use the Survivor gas/risk-event schema.
+
+Joined harness diagnosis: repeated directory rotation under the workspace produced
+reappearing empty trees and stale source text during preservation; no certificate was
+accepted. The identical run under /tmp passes beyond those cuts with preserved raw
+hash checks. No runtime preservation check was relaxed. Raw failing attempts remain
+in scratch; summarized measured evidence is in
+results/autonomous-joined-regressions-20260927.json. The joined soak remains OPEN;
+no final-SHA dispatch, full certificate or market run has been launched.
+
+## Joined measurement closure and final candidate gates
+
+The repaired draft joined run completed 192 hourly windows (691200 source seconds).
+Every native accounting proof verified. HOT capsule bytes were exactly 2487172
+through hours 144–167 and 2487172–2491268 through hours 168–191, across the
+seven-day Survivor age frontier. Parent FDs stayed 4, threads stayed 1, capsule
+WAL stayed zero, and hour 191 drained all four lanes. This is accelerated machinery
+evidence, not market/profitability evidence. Immutable native predecessors remain
+preserved. The final executable gate also measures pre-seal hot state, native worker
+resources, child reaping, all table classes and the bounded controller, and restores
+one terminal successor with exact accounting.
+
+Missing joined cuts PASS: after all native compactions/before capsule publication,
+mid-install, after restore receipt/before entry claim, and corrupt capsule. Raw
+predecessor hashes, live partial/risk projections, entry counts and accounting are
+unchanged after recovery. Existing isolated crash matrices remain in the complete
+certificate and are not being rebuilt. Forty existing provider tests PASS after
+correcting runner execution (multiprocessing requires a real module), native test
+import roots, and the Ramses raw-worker fixture's explicit lack of capsule authority.
+No production authority check was weakened. Existing Meteora approved full-hold and
+Ramses repeated-recenter/seven-day proofs are reused alongside representative churn.
+
+Final candidate hypothesis: the measured composition repairs plus the three closed
+owners have bounded joined HOT state through eight days, with exact restart,
+terminal drain and provider recovery. Discriminator: the executable joined gate
+requires all native accounting proofs, both window modes, both Survivors, all raw
+predecessors, two-day storage plateau, no remaining child processes and exact final
+restore; crash/provider/approved long-path receipts must share its complete identity.
+PASS closes Phase D and freezes the SHA immediately. FAIL authorizes repair only of
+the actual failed gate. No general owner census or optional optimization follows.
+
+Hosted final-dispatch hypothesis: the frozen workflow bytes accept one real external
+verify dispatch and prove normal/position-only handoff without provider or entry
+authority. PASS proceeds to the canonical complete non-market certificate on the
+same SHA; FAIL blocks market launch. Hosted certificate hypothesis: every canonical
+gate, including unchanged PID/proc ownership and full 600-second measured-contention
+pressure, passes together with the joined gate. Its exact-SHA final acceptance is
+the discriminator; failure is not waived. The machinery trigger ref is created only
+after final dispatch verification, so candidate engineering does not launch the full
+certificate. PAPER smoke and automatic succession remain pending these gates.

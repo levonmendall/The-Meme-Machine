@@ -44,6 +44,24 @@ class FinalAcceptanceTests(unittest.TestCase):
                 owner_seconds_per_frame=.165,archive_seconds_per_thousand=.36,
                 additional_commit_latency_seconds=.006,delayed_commits=100),
             integrity=['ok'],oldest_hot_age_peak=181,oldest_retained_age_peak=182)))
+        (root/'joined').mkdir()
+        (root/'joined/result.json').write_text(json.dumps(dict(passed=True,identity={'integration_sha':'sha'},
+            paper_only=True,market_collection=False,virtual_seconds=192*3600,gates={'complete':True})))
+
+    def test_missing_short_failed_or_wrong_sha_joined_proof_cannot_certify(self):
+        for change in ('missing','short','failed','wrong_sha','market','failed_subgate'):
+            with self.subTest(change=change),tempfile.TemporaryDirectory() as td:
+                root=Path(td);self.build(root);path=root/'joined/result.json';row=json.loads(path.read_text())
+                if change=='missing':path.unlink()
+                else:
+                    if change=='short':row['virtual_seconds']=167*3600
+                    if change=='failed':row['passed']=False
+                    if change=='wrong_sha':row['identity']['integration_sha']='other'
+                    if change=='market':row['market_collection']=True
+                    if change=='failed_subgate':row['gates']['recovery']=False
+                    path.write_text(json.dumps(row))
+                self.assertEqual(run(root,root/'result.json','sha',root/'registry.json'),1)
+                self.assertFalse(json.loads((root/'result.json').read_text())['gates']['joined_eight_day_system'])
 
     def test_missing_short_or_failed_mature_pressure_cannot_certify(self):
         for change in ('missing','short','wrong_sha','no_compaction','failed','growing_backlog','index_cleanup_backlog','missing_index_cleanup','no_contention','fast_owner','fast_archive','fast_durability','unused_durability'):
