@@ -28,6 +28,7 @@ jobs:
           if [ "$PROFILE_RUNTIME" = old ]; then
             git show ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
             git show ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
+            git show ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6:meme_machine/solana_evidence_storage.py > meme_machine/solana_evidence_storage.py
           fi
       - name: Reconstructed production pressure without provider credentials
         env:

@@ -74,7 +74,7 @@ STREAM_SOURCE_IDLE_SECONDS=20
 STREAM_COMMIT_STALL_SECONDS=15
 
 
-def decode_source_message(raw,credential,program_addresses=()):
+def decode_source_message(raw,credential,program_addresses=(),endpoint_identity=None,observed_at=None):
     """Decode and authority-preservingly compact one provider frame.
 
     This function is process-safe. For full block notifications it inspects every
@@ -121,7 +121,71 @@ def decode_source_message(raw,credential,program_addresses=()):
         result=dict(message['params']['result']);result['value']=value
         params=dict(message['params']);params['result']=result
         message=dict(message);message['params']=params
+    if endpoint_identity is not None and observed_at is not None and message.get('method')=='blockNotification':
+        scopes={};prepared_bytes=0;budget=[STREAM_MAX_MESSAGE_BYTES]
+        for sub in program_subscriptions():
+            if sub.evidence_class=='logs':continue
+            try:
+                scoped=prepare_block_scope(sub,message,observed_at,endpoint_identity,program_decoders(),include_logs=True,budget=budget)
+            except PreparationBudgetExceeded:
+                # An unusual multi-event block may expand beyond the preparation
+                # budget. Retain its exact former serial path, never drop content.
+                result=PreparedSource(message);result.scopes=None;result.prepared_bytes=0
+                return result,total,retained
+            prepared_bytes=STREAM_MAX_MESSAGE_BYTES-budget[0]
+            scopes[sub.scope]=scoped
+        result=PreparedSource(message);result.scopes=scopes;result.prepared_bytes=prepared_bytes
+        # Economic bodies now live only in the prepared records. Do not retain
+        # a second full transaction tree while waiting for the ordered commit.
+        result['params']=dict(message['params'],result=dict(message['params']['result'],
+            value=dict(value,block=dict(block,transactions=[]))))
+        message=result
     return message,total,retained
+
+
+class PreparedSource(dict):
+    """Local process-pool product, impossible to forge through provider JSON."""
+    pass
+
+
+class PreparationBudgetExceeded(Exception):pass
+
+def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,include_logs,budget):
+    """Pure decode/hash/compression, with no database or authority publication."""
+    from .solana_evidence_plane import prepare_record
+    def prepare(record):
+        result=prepare_record(record)
+        budget[0]-=result.byte_count
+        if budget[0]<0:raise PreparationBudgetExceeded()
+        return result
+    value=message['params']['result']['value'];slot=value['slot'];block=value['block']
+    transactions=block.get('transactions')
+    if not isinstance(transactions,list):raise EvidenceUnavailable('filtered_block_bound')
+    def keys(tx):
+        values=tx['transaction']['message']['accountKeys'];loaded=tx['meta'].get('loadedAddresses') or {}
+        return [k if isinstance(k,str) else k['pubkey'] for k in values]+list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
+    transactions=[tx for tx in transactions if subscription.address in keys(tx)]
+    if len(transactions)>2048:raise EvidenceUnavailable('filtered_block_bound')
+    signatures=[tx['transaction']['signatures'][0] for tx in transactions]
+    scoped=dict(method='blockNotification',params=dict(result=dict(value=dict(value,block=dict(block,transactions=transactions)))))
+    decoder=FinalizedNotificationDecoder(endpoint_identity=endpoint_identity)
+    records=decoder.decode(replace(subscription,evidence_class='transactions'),scoped,seen) if subscription.evidence_class=='transactions' else []
+    enriched=[];deliveries=[];batches=[]
+    for tx,record in zip(transactions,records):
+        body=dict(record.payload);body.pop('transactionIndex',None)
+        enriched.append(prepare(replace(record,payload=body,transaction_index=None,
+            addresses=tuple(sorted(set(keys(tx)+[subscription.address]))))))
+    if enriched:batches.append(tuple(enriched))
+    for tx,signature in zip(transactions,signatures):
+        if subscription.evidence_class=='census' and include_logs:
+            meta=tx['meta'];log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
+            notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
+            rows=FinalizedNotificationDecoder(endpoint_identity=endpoint_identity,log_decoder=decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
+            if rows:batches.append(tuple(prepare(row) for row in rows))
+            deliveries.append((signature,digest(log)))
+        elif subscription.evidence_class=='transactions':deliveries.append((signature,digest(tx)))
+    return dict(signatures=signatures,batches=tuple(batches),deliveries=tuple(deliveries),
+                endpoint_identity=endpoint_identity,observed_at=seen,slot=slot)
 
 
 def source_decoder_probe():
@@ -179,7 +243,9 @@ class FinalizedFence:
         self.session=uuid.uuid4().hex
 
     def _delivery(self,scope,slot,signature,payload,seen):
-        checksum=digest(payload)
+        self._delivery_hash(scope,slot,signature,digest(payload),seen)
+
+    def _delivery_hash(self,scope,slot,signature,checksum,seen):
         with self.writer.transaction():
             old=self.writer.db.execute('SELECT hash FROM stream_deliveries WHERE scope=? AND slot=? AND signature=?',
                 (scope,slot,signature)).fetchone()
@@ -201,7 +267,7 @@ class FinalizedFence:
         self.seal(subscription.scope,seen)
 
     @poison_conflicts
-    def block(self,subscription,message,seen,*,include_logs=False):
+    def block(self,subscription,message,seen,*,include_logs=False,prepared=None):
         value=message['params']['result']['value'];slot=value['slot'];block=value.get('block')
         if value.get('err') is not None or not isinstance(block,dict):
             self.writer.gap(subscription.scope,slot,slot,'filtered_block_unavailable')
@@ -211,44 +277,56 @@ class FinalizedFence:
                 or type(at) is not int or at>seen or not block.get('blockhash') or not block.get('previousBlockhash')):
             raise EvidenceUnavailable('finalized_block_fence_shape')
         if subscription.evidence_class in ('transactions','census'):
-            transactions=block.get('transactions')
-            if not isinstance(transactions,list):
-                raise EvidenceUnavailable('filtered_block_bound')
-            # Run 369: mentionsAccountOrProgram selected whole blocks. A signature
-            # list cannot prove which program was mentioned. Inspect authenticated
-            # static AND loaded keys, and persist only the scoped transactions.
-            def keys(tx):
-                values=tx['transaction']['message']['accountKeys']
-                loaded=tx['meta'].get('loadedAddresses') or {}
-                return [k if isinstance(k,str) else k['pubkey'] for k in values]+list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
-            transactions=[tx for tx in transactions if subscription.address in keys(tx)]
-            if len(transactions)>2048:raise EvidenceUnavailable('filtered_block_bound')
-            signatures=[tx['transaction']['signatures'][0] for tx in transactions]
-            scoped=dict(method='blockNotification',params=dict(result=dict(value=dict(value,block=dict(block,transactions=transactions)))))
-            decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity)
-            records=decoder.decode(replace(subscription,evidence_class='transactions'),scoped,seen) if subscription.evidence_class=='transactions' else []
-            enriched=[]
-            for rank,(tx,record) in enumerate(zip(transactions,records)):
-                message_keys=tx['transaction']['message'].get('accountKeys') or []
-                keys=[k if isinstance(k,str) else k['pubkey'] for k in message_keys]
-                loaded=(tx.get('meta') or {}).get('loadedAddresses') or {}
-                keys+=list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
-                body=dict(record.payload);body.pop('transactionIndex',None)
-                enriched.append(replace(record,payload=body,transaction_index=None,
-                    addresses=tuple(sorted(set(keys+[subscription.address])))))
-            self.writer.ingest(enriched)
-            with self.writer.transaction():
-                self.writer.db.executemany('INSERT OR IGNORE INTO stream_order VALUES(?,?,?,?,?)',
-                    [(subscription.scope,slot,sig,rank,block['blockhash']) for rank,sig in enumerate(signatures)])
-            for tx,signature in zip(transactions,signatures):
-                if subscription.evidence_class=='census' and include_logs:
-                    meta=tx['meta']
-                    log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
-                    notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
-                    records=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
-                    if records:self.writer.ingest(records)
-                    self._delivery(subscription.scope,slot,signature,log,seen)
-                elif subscription.evidence_class=='transactions':self._delivery(subscription.scope,slot,signature,tx,seen)
+            if prepared is None:
+                transactions=block.get('transactions')
+                if not isinstance(transactions,list):
+                    raise EvidenceUnavailable('filtered_block_bound')
+                # Run 369: mentionsAccountOrProgram selected whole blocks. A signature
+                # list cannot prove which program was mentioned. Inspect authenticated
+                # static AND loaded keys, and persist only the scoped transactions.
+                def keys(tx):
+                    values=tx['transaction']['message']['accountKeys']
+                    loaded=tx['meta'].get('loadedAddresses') or {}
+                    return [k if isinstance(k,str) else k['pubkey'] for k in values]+list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
+                transactions=[tx for tx in transactions if subscription.address in keys(tx)]
+                if len(transactions)>2048:raise EvidenceUnavailable('filtered_block_bound')
+                signatures=[tx['transaction']['signatures'][0] for tx in transactions]
+                scoped=dict(method='blockNotification',params=dict(result=dict(value=dict(value,block=dict(block,transactions=transactions)))))
+                decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity)
+                records=decoder.decode(replace(subscription,evidence_class='transactions'),scoped,seen) if subscription.evidence_class=='transactions' else []
+                enriched=[]
+                for rank,(tx,record) in enumerate(zip(transactions,records)):
+                    message_keys=tx['transaction']['message'].get('accountKeys') or []
+                    keys=[k if isinstance(k,str) else k['pubkey'] for k in message_keys]
+                    loaded=(tx.get('meta') or {}).get('loadedAddresses') or {}
+                    keys+=list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
+                    body=dict(record.payload);body.pop('transactionIndex',None)
+                    enriched.append(replace(record,payload=body,transaction_index=None,
+                        addresses=tuple(sorted(set(keys+[subscription.address])))))
+                self.writer.ingest(enriched)
+                with self.writer.transaction():
+                    self.writer.db.executemany('INSERT OR IGNORE INTO stream_order VALUES(?,?,?,?,?)',
+                        [(subscription.scope,slot,sig,rank,block['blockhash']) for rank,sig in enumerate(signatures)])
+                for tx,signature in zip(transactions,signatures):
+                    if subscription.evidence_class=='census' and include_logs:
+                        meta=tx['meta']
+                        log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
+                        notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
+                        records=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
+                        if records:self.writer.ingest(records)
+                        self._delivery(subscription.scope,slot,signature,log,seen)
+                    elif subscription.evidence_class=='transactions':self._delivery(subscription.scope,slot,signature,tx,seen)
+            else:
+                if (prepared['endpoint_identity']!=self.endpoint_identity or prepared['observed_at']!=seen or prepared['slot']!=slot):
+                    raise EvidenceUnavailable('prepared_source_identity_mismatch')
+                signatures=prepared['signatures']
+                for records in prepared['batches']:self.writer.ingest(records)
+                with self.writer.transaction():
+                    self.writer.db.executemany('INSERT OR IGNORE INTO stream_order VALUES(?,?,?,?,?)',
+                        [(subscription.scope,slot,sig,rank,block['blockhash']) for rank,sig in enumerate(signatures)])
+                for signature,checksum in prepared['deliveries']:
+                    self._delivery_hash(subscription.scope,slot,signature,checksum,seen)
+
         else:
             signatures=block.get('signatures')
         if (not isinstance(signatures,list) or len(signatures)>2048
@@ -434,7 +512,9 @@ class ServiceState:
             # One full block transport is reused by all three scopes. Empty
             # scoped blocks also retain their authenticated parent witness.
             for target in program_subscriptions():
-                if target.evidence_class!='logs':self.fence.block(target,message,seen,include_logs=True)
+                if target.evidence_class!='logs':
+                    prepared=message.scopes.get(target.scope) if isinstance(message,PreparedSource) and message.scopes is not None else None
+                    self.fence.block(target,message,seen,include_logs=True,prepared=prepared)
         else:
             self.writer.ingest(FinalizedNotificationDecoder(endpoint_identity=self.fence.endpoint_identity).decode(sub,message,seen))
         self.writer._count('stream_accepted_messages')
@@ -764,14 +844,18 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                         counts.get('stream.decode_queue_wait_peak_microseconds',0),queue_wait_us)
                                     if size>=STREAM_PROCESS_DECODE_MIN_BYTES:
                                         future=decoder_pool.submit(
-                                            decode_source_message,raw,config.credential,source_program_addresses)
+                                            decode_source_message,raw,config.credential,source_program_addresses,config.identity,seen)
                                         message,source_transactions,retained_transactions=await asyncio.shield(
                                             asyncio.wrap_future(future))
                                         counts['stream.decode_process_messages']=counts.get('stream.decode_process_messages',0)+1
                                     else:
                                         message,source_transactions,retained_transactions=await asyncio.to_thread(
-                                            decode_source_message,raw,config.credential,source_program_addresses)
+                                            decode_source_message,raw,config.credential,source_program_addresses,config.identity,seen)
                                         counts['stream.decode_thread_messages']=counts.get('stream.decode_thread_messages',0)+1
+                                    if isinstance(message,PreparedSource):
+                                        key='stream.prepared_messages' if message.scopes is not None else 'stream.preparation_fallbacks'
+                                        counts[key]=counts.get(key,0)+1
+                                        counts['stream.prepared_payload_peak_bytes']=max(counts.get('stream.prepared_payload_peak_bytes',0),message.prepared_bytes)
                                     decoded_at=time.monotonic()
                                     decode_us=int((decoded_at-decode_started)*1_000_000)
                                     counts['stream.decode_peak_microseconds']=max(
