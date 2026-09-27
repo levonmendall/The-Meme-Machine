@@ -585,10 +585,15 @@ class EvidenceWriter:
         archived=self.archive(before_time,max_records=max_records) if archive_first else 0
         # At most 256 records and max_records rows from each continuity index per
         # transaction. A later cooperative yield cannot undo earlier scopes.
-        for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
+        scopes=self.db.execute('SELECT scope,slot FROM cursors ORDER BY scope').fetchall()
+        resume=getattr(self,'_retention_next_scope',None)
+        start=next((i for i,row in enumerate(scopes) if row[0]==resume),0)
+        scopes=scopes[start:]+scopes[:start]
+        for index,(scope,top) in enumerate(scopes):
+            next_scope=scopes[(index+1)%len(scopes)][0]
             for offset in range(0,max_records,256):
                 limit=min(max_records-offset,256)
-                with self._retention_transaction():
+                with self._retention_transaction(next_scope=next_scope):
                     floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
                     floor=top+1 if floor is None else floor
                     recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
@@ -624,12 +629,16 @@ class EvidenceWriter:
         return archived
 
     @contextmanager
-    def _retention_transaction(self):
+    def _retention_transaction(self,*,next_scope=None):
         """Only the bounded retention mutation is protected from SQL preemption."""
         self._retention_atomic=True
         try:
             with self.transaction():yield
         finally:self._retention_atomic=False
+        # This is a scheduling hint, not evidence authority. Advance only after
+        # the durable slice commits, before an urgent-work yield. Restarting at
+        # the first scope on every yield starves later scopes under source load.
+        self._retention_next_scope=next_scope
         should_yield=getattr(self,'_retention_yield_requested',None)
         if should_yield and should_yield():raise EvidenceUnavailable('evidence_background_yield')
 

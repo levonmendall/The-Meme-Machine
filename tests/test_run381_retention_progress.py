@@ -16,6 +16,35 @@ def proof(lo,hi):
                            lineage_hash=digest(['pump',lo,hi])),100)
 
 class RetentionProgressTests(unittest.TestCase):
+ def test_recurring_urgent_work_cannot_starve_later_retention_scopes(self):
+  with tempfile.TemporaryDirectory() as td:
+   def factory():
+    writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+    rows=[replace(record(),scope=scope,identity=scope+':%04d'%i,signature=scope+':s:%04d'%i)
+          for scope in ('a','b') for i in range(900)]
+    writer.ingest(rows)
+    while writer.archive(1000):pass
+    return SimpleNamespace(writer=writer,close=writer.close)
+   owner=PriorityOwner(factory);owner.ready.result(5)
+   try:
+    for _ in range(2):
+     urgent=[]
+     def compact(state):
+      def on_statement(sql):
+       if not urgent and sql.startswith('DELETE FROM lineage'):
+        urgent.append(owner.submit(lambda s:1,priority=0))
+      state.writer.db.set_trace_callback(on_statement)
+      try:state.writer.retain(1000,max_records=128,archive_first=False)
+      finally:state.writer.db.set_trace_callback(None)
+     task=owner.submit(compact,priority=4)
+     try:task.result(5)
+     except EvidenceUnavailable as exc:self.assertEqual(str(exc),'evidence_background_yield')
+     self.assertEqual(urgent[0].result(5),1)
+    counts=owner.submit(lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),priority=0).result(5)
+    self.assertLess(counts['a'],900)
+    self.assertLess(counts['b'],900,'urgent yields always restarted cleanup at the first scope')
+   finally:owner.close()
+
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
   from meme_machine.solana_evidence_service import ServiceState
   from meme_machine.solana_provider_config import AlchemyEndpoint

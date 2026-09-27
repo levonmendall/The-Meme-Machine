@@ -91,7 +91,9 @@ async def run(frames,output):
    except BaseException as exc:failure=failure or type(exc).__name__+':'+str(exc)
    if control is not None:await asyncio.gather(control,return_exceptions=True)
    db=sqlite3.connect(path);health={k:json.loads(v) for k,v in db.execute('select key,value from service_health')};ipc=health.get('ipc',{})
-   counters=dict(db.execute('select key,value from counters'));integrity=db.execute('pragma integrity_check').fetchone();db.close()
+   counters=dict(db.execute('select key,value from counters'));integrity=db.execute('pragma integrity_check').fetchone()
+   retained_by_scope=[dict(scope=scope,hot=hot,archived_pending=archived,oldest_slot=slot) for scope,hot,archived,slot in db.execute('SELECT scope,SUM(body IS NOT NULL),SUM(body IS NULL),MIN(slot) FROM records GROUP BY scope')]
+   db.close()
    archive_records=0
    for archive in path.parent.glob('*.archive/*.gz'):
     assert hashlib.sha256(archive.read_bytes()).hexdigest()==archive.name.split('.')[0]
@@ -103,6 +105,8 @@ async def run(frames,output):
    result['source_hashes']={name:hashlib.sha256((Path(service.__file__).parent/name).read_bytes()).hexdigest() for name in ('solana_evidence_plane.py','solana_evidence_service.py','solana_evidence_storage.py','solana_evidence_control.py','solana_program_decoders.py')}
    result['storage_maintenance']=health.get('storage_maintenance',{})
    result['oldest_hot_age_peak']=oldest_hot_age_peak
+   result['retained_by_scope']=retained_by_scope
+   result['archived_pending_compaction']=sum(r['archived_pending'] for r in retained_by_scope)
    for condition,name in [(integrity==('ok',),'integrity'),(ipc.get('stream.received_messages')==ipc.get('stream.commit_messages'),'admitted_drain'),(ipc.get('stream.outstanding_frames_peak',0)<=64,'frame_bound'),(ipc.get('stream.dispatch_bytes_peak',0)<=96*1024*1024,'byte_bound'),(ipc.get('stream.commit_batch_bytes_peak',0)<=16*1024*1024,'commit_bound'),(hot_peak<2*1024**3,'hot_store_bound')]:
     if not condition:result['passed']=False;result['failure']=result['failure'] or name
    (output/'result.json').write_text(json.dumps(result,indent=2));print(json.dumps(result),flush=True)
