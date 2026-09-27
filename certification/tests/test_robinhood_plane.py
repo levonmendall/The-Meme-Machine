@@ -172,6 +172,21 @@ os._exit(0)
         with self.assertRaisesRegex(ValueError,'conflict'):
             project_native_position(self.path,'pons','curve',dict(id='n',version=1,status='settled'),**kwargs)
 
+    def test_native_projection_relocation_preserves_book_and_economic_identity(self):
+        from certification.robinhood.plane import project_native_position
+        for lane,book in (('pons','pons-selective-continuation-v1-cohort/trial-001.sqlite'),
+                          ('ramses','robinhood-ramses-extended-market.sqlite.campaign/0x'+'1'*40+'.sqlite')):
+            position=dict(id=lane+'-original',version=1,status='open',tokens=300)
+            project_native_position(self.path,lane,'curve',position,ledger_path='/old-worker/'+book,policy='frozen')
+            before=self.p.checkpoint_read('native_position:'+lane+':'+position['id'])
+            project_native_position(self.path,lane,'curve',position,ledger_path='/restored-worker/'+book,policy='frozen')
+            self.assertEqual(self.p.checkpoint_read('native_position:'+lane+':'+position['id']),before)
+            for changes in (dict(position=dict(position,tokens=299)),dict(policy='other'),
+                            dict(ledger_path='/restored-worker/'+book.replace('.sqlite','2.sqlite'))):
+                args=dict(position=position,policy='frozen',ledger_path='/restored-worker/'+book);args.update(changes)
+                with self.assertRaisesRegex(ValueError,'conflict'):
+                    project_native_position(self.path,lane,'curve',**args)
+
     def test_native_open_priority_restored_without_new_genesis(self):
         from certification.robinhood.plane import project_native_position
         self.observe()

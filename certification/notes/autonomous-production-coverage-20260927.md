@@ -25,7 +25,7 @@ Authority: `autonomous_paper_task_manifest.json`; four sleeves, six active regim
 | realized/unrealized P&L | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | lane accounting | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | portfolio accounting | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
-| restart/replay | MISSING | MISSING | MISSING | MISSING | MISSING | MISSING |
+| restart/replay | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 
 ## Existing proof map
 
@@ -62,3 +62,26 @@ Both Survivor acquisition compositions are now PROVEN by `test_survivor_acquisit
 Long-horizon probes now mark both Survivor history reconstructions BROKEN at the unchanged 100,000-point cap inside the approved seven-day age window. Pump's exact six-hour slope also has measured quadratic cost (263/514/1,012 points: 0.0342/0.1191/0.4918 seconds). Preserve policy arithmetic, evidence provenance and the point cap while repairing these causes. The existing short-history qualification proofs remain valid but cannot close these operational defects.
 
 Archived-prefix repair restores the two Survivor reconstruction rows and Pump feature row to PROVEN: declared native overlays preserve complete decisions with original graduation anchors and exact 24-hour histories; Pump retains the exact older reset scan state and linear exact covariance arithmetic. Dense capacity/restart/rollback tests preserve the 100,000-point guard and archived provenance. Normal and position-only claim validation is exercised. Cross-window native adapter integration and the complete multi-day resource soak remain MISSING under restart/replay and Phase D.
+
+
+## Phase-B closure on autonomous native handoff candidate
+
+All six restart/replay cells are now PROVEN by the combined existing native
+recovery tests and `test_autonomous_native_handoff`: six simultaneous real native
+books/controllers (Pons current post-graduation partial, both Survivor partials,
+Meteora mark, Pump current fill, Ramses position) pass actual artifact snapshot,
+ZIP extraction, source-directory deletion, relocated normal-window preparation,
+native replay/reconciliation, four-hour Survivor history advancement and subsequent
+no-entry position-window authority/restore. The actual Ramses constructor is
+reopened against the restored shared evidence plane in both modes, closing the
+absolute-locator conflict found by this integration test. Native policy, quantity,
+journal prefix, original clocks, sleeve reservation and capital remain unchanged.
+Current-Pump/Pons continuation and Meteora/Ramses manager tests prove subsequent
+management using those same restored formats; no substitute state machine is used.
+
+Thirty-five affected canonical tests pass. Three unchanged local Plane ownership
+tests still hit the previously established PID/proc namespace mismatch; they
+remain required in hosted certification and were not relaxed or skipped.
+Phase C still requires final-SHA real control-plane availability. Phase D still
+requires the accelerated resource/provider soak. The earlier chronological open-gap
+entries above are retained as investigation history, not current matrix status.

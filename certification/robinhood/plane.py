@@ -327,6 +327,24 @@ class Plane:
         with self.lock:self.db.close()
 
 
+def native_ledger_locator(lane,ledger_path):
+    """Portable locator for the two fixed native book namespaces.
+
+    Worker roots change across restored campaign windows. They are not economic
+    evidence identity. The native position, version, policy and asset/trial book
+    remain part of the exact projection; unrecognized paths are not normalized.
+    """
+    import re
+    path=Path(ledger_path)
+    if '..' in path.parts:raise ValueError('native_ledger_path')
+    parent=path.parent.name;name=path.name
+    known=(lane=='pons' and parent=='pons-selective-continuation-v1-cohort'
+           and re.fullmatch(r'trial-[0-9]+\.sqlite',name)) or (
+           lane=='ramses' and parent=='robinhood-ramses-extended-market.sqlite.campaign'
+           and re.fullmatch(r'0x[0-9a-f]{40}\.sqlite',name))
+    return str(Path(parent)/name) if known else str(path)
+
+
 def project_native_position(path,lane,candidate_id,position,*,ledger_path,policy):
     """Post-commit projection. Native accounting remains the sole authority.
 
@@ -336,7 +354,7 @@ def project_native_position(path,lane,candidate_id,position,*,ledger_path,policy
     plane=Plane(path)
     try:
         native_id=position['id'];version=position['version']
-        proof=dict(lane=lane,policy=policy,native_ledger=str(ledger_path),schema=1)
+        proof=dict(lane=lane,policy=policy,native_ledger=native_ledger_locator(lane,ledger_path),schema=1)
         with plane.transaction():
             key='native_position:'+lane+':'+native_id
             raw=plane.db.execute('SELECT body FROM runtime WHERE key=?',(key,)).fetchone()
@@ -347,7 +365,12 @@ def project_native_position(path,lane,candidate_id,position,*,ledger_path,policy
                 prior=old['position']
                 if version<prior['version']:return
                 if version==prior['version']:
-                    if old!=value:raise ValueError('native_position_projection_conflict')
+                    # Retain the original provenance bytes on an idempotent
+                    # historical projection; compare only its portable locator.
+                    comparable=dict(old,provenance=dict(old['provenance']))
+                    comparable['provenance']['native_ledger']=native_ledger_locator(
+                        lane,comparable['provenance']['native_ledger'])
+                    if comparable!=value:raise ValueError('native_position_projection_conflict')
                     return
             plane.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body',(key,canonical(value)))
             row=plane._row(candidate_id)

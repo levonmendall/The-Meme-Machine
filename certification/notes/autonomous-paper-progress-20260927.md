@@ -690,3 +690,41 @@ approved strategy, policy, source and target-scope identities checked; mutation
 regressions reject policy, strategy-file, target and unreviewed-overlay drift.
 
 Focused six-regime directional acceptance passes all eleven gates on the composed crash-recovery candidate. No market work or full certification was dispatched.
+
+Crash-boundary batch is `8f8952476d772bf9e0c0c0b138b16db84ddad387`.
+Ordinary CI `36339852293` ran 805 tests; the two new policy-contract tests failed
+because generic CI intentionally uses a shallow checkout without the historical
+Git objects. Preserve the exact two baseline source rows as checksum-bound test
+fixtures (with source SHA/path provenance), eliminating that test-only history
+dependency. The production directional gate still compares the original refs.
+Also corrected market-assurance scope text from stale six-hour Survivor age to
+the already-approved four-hour age; no executable thresholds changed.
+
+Six-regime capsule integration now uses actual current Pump fill, current Pons
+post-graduation partial/controller state, both Survivor partials, a Meteora native
+mark and a Ramses native position. Actual archive snapshot, digest-bound ZIP
+extraction, original-worker deletion and relocated normal restore reconcile all
+six without capital or journal changes. Extending this to the native Ramses book
+constructor reproduced `native_position_projection_conflict`: identical native
+positions carried different absolute worker-root locators in the shared evidence
+projection. Fixed only known native trial/asset locators to lane-relative paths;
+position/version/candidate/policy/book identity still compare exactly. Historical
+projection bytes remain untouched on idempotent reads. Added conflict regressions
+for changed quantities, policy and book identity. Position-only transport and
+four-hour Survivor history advancement are included in the same native fixture.
+
+Thirty-five focused workflow/controller/capsule/native-handoff/policy/projection
+tests pass. The actual Ramses constructor now reopens against restored shared
+projection state in both normal and position-only modes. Six native positions
+retain accounting and journal prefixes; Survivor history crosses four hours.
+The Phase-B matrix is now all PROVEN using this integration plus existing actual
+native continuation tests. This is not final certification or market validation.
+Three unchanged local Plane ownership tests retain the established PID/proc
+namespace limitation; hosted gates still require them unchanged. Phase-C real
+final-ref availability and Phase-D steady-state/provider soak remain pending.
+
+Next measured storage discriminator: Solana retention removes completed archive
+manifests from the hot DB, but campaign capsules copy the entire local cold archive
+directory. Repeated windows can therefore recopy evidence already preserved in
+native artifacts. Probe bounded archive-reference transport before changing it;
+preserve all referenced chunks and every raw file in the preceding artifact.
