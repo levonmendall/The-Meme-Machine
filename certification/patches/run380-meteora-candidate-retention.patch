@@ -1,7 +1,7 @@
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
-@@ -1904,114 +1904,121 @@
+@@ -1904,124 +1904,141 @@
                  _stage(candidate['address'],'terminal',admission['reason'],stage_failed='evidence_admission')
                  checkpoint('evidence_admission_unavailable')
                  continue
@@ -223,14 +223,41 @@ diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent
 +                plane.command(op='release',owner='meteora:candidate:'+candidate['address'],
 +                    scope=METEORA_SCOPE,resolved=False)
 +                plane.count('meteora.candidate_interests_released')
- 
+
      finally:
-         try:candidate_stream.close()
+-        try:candidate_stream.close()
++        try:
++            try:candidate_stream.close()
++            finally:
++                if discovery_source is not None:
++                    try:discovery_source.close()
++                    finally:
++                        if hasattr(discovery_source,'final_snapshot'):
++                            report['discovery_acquisition']=discovery_source.final_snapshot
++                            checkpoint('discovery_source_stopped')
+         finally:
+-            if discovery_source is not None:
+-                try:discovery_source.close()
+-                finally:
+-                    if hasattr(discovery_source,'final_snapshot'):
+-                        report['discovery_acquisition']=discovery_source.final_snapshot
+-                        checkpoint('discovery_source_stopped')
++            if sys.exc_info()[0] is not None:
++                # An exceptional native run must not leave a callback or worker
++                # attached to its closed candidate/report databases.
++                PROGRESS_HOOK=None
++                stream_stop.set();wake_thread.join(timeout=5)
++                try:pipeline.close()
++                finally:broker.close()
++
+
+
+     resolved=[x for x in report["qualified_lifecycles"]
 diff --git a/tests/test_run380_candidate_retention.py b/tests/test_run380_candidate_retention.py
 new file mode 100644
 --- /dev/null
 +++ b/tests/test_run380_candidate_retention.py
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,74 @@
 +"""Run 380 terminal candidates must not keep the program's retention floor pinned."""
 +from contextlib import ExitStack
 +from pathlib import Path
@@ -289,6 +316,7 @@ new file mode 100644
 +                            result=lane.run_live(target=1,max_attempted=1,max_runtime_seconds=60)
 +                            self.assertTrue(result['accounting']['reconciled'])
 +                            self.assertEqual(result['accounting']['unsettled'],0)
++                        self.assertIsNone(lane.PROGRESS_HOOK)
 +                        active=writer.db.execute('SELECT owner FROM interests WHERE active=1').fetchall()
 +                        self.assertEqual(active,[('meteora:position:unresolved',)])
 +                        self.assertEqual(plane.counts.get('meteora.candidate_interests_released'),1)

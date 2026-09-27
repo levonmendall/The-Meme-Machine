@@ -159,3 +159,33 @@ requires a 600-second non-market native suite budget and 20-minute hosted job
 budget; these changes affect certification scheduling only, never market runtime
 deadlines or evidence freshness. Exact integrated certification remains mandatory
 before any new market contact.
+
+
+## Integrated certification iteration, before any new smoke
+
+Candidate `2e9876a32db5bb8665697689e62c10413aa30d66` passed standard CI
+`36282155287`: 713 tests, 12 skips, source-clock lag 2.00 seconds. Full certificate
+`36282155426` failed in Meteora's native suite; Pump 399, Pons 423 and Ramses 363
+passed. The failed artifact is `10919546193`, SHA256
+`d6fab03827244f79c63877ca8b6664a933137ca1f20ae96b02163bc79f271be7`.
+No smoke was dispatched on this SHA.
+
+The mixed-scope regression exposed dependence on the Meteora predecessor's Pump
+module, which lacks CreateEvent decoding and emits an older TradeEvent shape.
+The shared program decoder now owns protocol-only copies of the already-approved
+Pump CreateEvent and TradeEvent parsers. No strategy rule or economic calculation
+changes. A golden preserved-body regression verifies all fields from sixteen
+trades and one creation while predecessor helpers are deliberately unavailable.
+Canonical output hash:
+`156e865a72d75311af3cd6c62a749004a95807ccb979950debc818d5542ecc10`.
+
+The injected exceptional candidate path also exposed a leaked native progress
+callback after its temporary report database was gone. The native exception
+boundary now stops the wake worker, clears that callback, and closes the pipeline
+and broker after preserving its terminal checkpoint. Normal report finalization
+is unchanged. The production-runner regression asserts callback cleanup as well
+as candidate-only retention release; later discovery/trigger tests remain isolated.
+
+Focused certification-repair verification passes 38 native Meteora tests (including
+the sustained mixed-scope replay and subsequent discovery/trigger tests), plus
+11 shared evidence-plane checks. No source-policy or allocation change was made.

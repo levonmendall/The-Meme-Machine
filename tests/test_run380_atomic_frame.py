@@ -62,6 +62,21 @@ class AtomicSourceFrameTests(unittest.TestCase):
    finally:state.close()
 
 class PreparedSourceTests(unittest.TestCase):
+ def test_shared_pump_codecs_do_not_depend_on_predecessor_lane_helpers(self):
+  import hashlib
+  from meme_machine import solana_program_decoders as codecs
+  path=Path(__import__('certification').__file__).parent/'tests/fixtures/run380-production-templates.json.gz'
+  templates=json.loads(gzip.decompress(path.read_bytes()))['templates']['pump']
+  # Golden output was computed from the approved integration's original Pump
+  # codecs. The Meteora predecessor lacks create_events and has an older trade
+  # shape, so neither predecessor helper may own the shared evidence authority.
+  with patch.object(codecs.pump,'create_events',create=True,side_effect=AssertionError('legacy_create_codec')), \
+       patch.object(codecs.pump,'trade_events',side_effect=AssertionError('legacy_trade_codec')):
+   events=[event for tx in templates for event in codecs.pump_events(dict(tx,slot=1000))]
+  self.assertEqual(len(events),17)
+  self.assertEqual(hashlib.sha256(json.dumps(events,sort_keys=True,separators=(',',':')).encode()).hexdigest(),
+    '156e865a72d75311af3cd6c62a749004a95807ccb979950debc818d5542ecc10')
+
  def test_preparation_is_byte_identical_and_keeps_authority_in_the_owner(self):
   from meme_machine import solana_evidence_service as service
   from meme_machine.solana_evidence_plane import decode_body

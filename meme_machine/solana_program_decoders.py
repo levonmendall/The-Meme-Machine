@@ -17,8 +17,8 @@ PUMPSWAP_SELL_EVENT=bytes([62,47,55,10,165,3,220,42])
 
 def pump_events(tx):
     return (
-        [dict(e,event_type='trade') for e in pump.trade_events(tx)]
-        +[dict(e,event_type='create') for e in pump.create_events(tx)]
+        [dict(e,event_type='trade') for e in _pump_trade_events(tx)]
+        +[dict(e,event_type='create') for e in _pump_create_events(tx)]
     )
 
 
@@ -74,4 +74,89 @@ def pumpswap_trade_events(tx):
             if event is not None:
                 event.update(index=index,slot=int(tx.get('slot',0)))
                 out.append(event)
+    return out
+
+
+# Protocol-only copies of the certified Pump event codecs. Keeping these in the
+# shared plane avoids dependence on a lane-specific legacy decoder revision.
+def _pump_create_events(tx):
+    """Decode prospectively observed Pump CreateEvent launch parameters."""
+    if not tx or not tx.get('meta') or tx['meta']['err']:
+        return []
+    stack,out=[],[]
+    for index,line in enumerate(tx['meta'].get('logMessages') or []):
+        if line.startswith('Program ') and ' invoke [' in line:
+            stack.append(line.split()[1])
+        elif line.startswith('Program ') and (' success' in line or ' failed:' in line):
+            if stack:
+                stack.pop()
+        elif line.startswith('Program data: ') and stack and stack[-1] == pump.PROGRAM:
+            raw=base64.b64decode(line[14:],validate=True)
+            if raw[:8] != bytes([27,114,169,77,222,235,99,118]):
+                continue
+            offset=8
+            try:
+                for _ in range(3):
+                    if offset+4>len(raw):
+                        raise ValueError('truncated create event')
+                    size=struct.unpack_from('<I',raw,offset)[0]
+                    offset+=4
+                    if size>4096 or offset+size>len(raw):
+                        raise ValueError('truncated create event')
+                    offset+=size
+                if offset+168>len(raw):
+                    raise ValueError('truncated create event')
+                mint=pump.b58(raw[offset:offset+32]);offset+=32
+                bonding_curve=pump.b58(raw[offset:offset+32]);offset+=32
+                user=pump.b58(raw[offset:offset+32]);offset+=32
+                creator=pump.b58(raw[offset:offset+32]);offset+=32
+                timestamp=struct.unpack_from('<q',raw,offset)[0];offset+=8
+                virtual_token=struct.unpack_from('<Q',raw,offset)[0];offset+=8
+                virtual_quote=struct.unpack_from('<Q',raw,offset)[0];offset+=8
+                real_token=struct.unpack_from('<Q',raw,offset)[0];offset+=8
+                supply=struct.unpack_from('<Q',raw,offset)[0]
+            except (struct.error,IndexError):
+                raise ValueError('truncated create event') from None
+            if min(virtual_token,virtual_quote,real_token,supply)<=0:
+                raise ValueError('invalid create reserves')
+            out.append(dict(
+                mint=mint,bonding_curve=bonding_curve,wallet=user,creator=creator,
+                market_time=int(timestamp),index=index,slot=int(tx['slot']),
+                initial_virtual_token_reserves=int(virtual_token),
+                initial_virtual_quote_reserves=int(virtual_quote),
+                initial_real_token_reserves=int(real_token),
+                token_total_supply=int(supply),
+            ))
+    return out
+
+
+def _pump_trade_events(tx):
+    """Only successful finalized RPC transactions; verify actual invocation stack."""
+    if not tx or not tx.get('meta') or tx['meta']['err']:
+        return []
+    stack, out = [], []
+    for index, line in enumerate(tx['meta'].get('logMessages') or []):
+        if line.startswith('Program ') and ' invoke [' in line:
+            stack.append(line.split()[1])
+        elif line.startswith('Program ') and (' success' in line or ' failed:' in line):
+            if stack:
+                stack.pop()
+        elif line.startswith('Program data: ') and stack and stack[-1] == pump.PROGRAM:
+            raw = base64.b64decode(line[14:], validate=True)
+            if raw[:8] != bytes([189,219,127,211,78,230,97,238]):
+                continue
+            if len(raw) < 225:
+                raise ValueError('truncated trade event')
+            mint = pump.b58(raw[8:40])
+            amount, tokens, is_buy = struct.unpack_from('<QQ?', raw, 40)
+            user = pump.b58(raw[57:89])
+            timestamp = struct.unpack_from('<q', raw, 89)[0]
+            out.append(dict(mint=mint, wallet=user, amount=amount, tokens=tokens,
+                            buy=is_buy, market_time=timestamp, index=index, slot=tx['slot'],
+                            virtual_quote_reserves=struct.unpack_from('<Q',raw,97)[0],
+                            virtual_token_reserves=struct.unpack_from('<Q',raw,105)[0],
+                            real_quote_reserves=struct.unpack_from('<Q',raw,113)[0],
+                            real_token_reserves=struct.unpack_from('<Q',raw,121)[0],
+                            creator=pump.b58(raw[177:209]),
+                            fees_lamports=struct.unpack_from('<Q',raw,169)[0]+struct.unpack_from('<Q',raw,217)[0]))
     return out
