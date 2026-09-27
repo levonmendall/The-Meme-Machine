@@ -13,6 +13,7 @@ from tests.test_run373_dispatch_throughput import database_ready
 from tests.evidence_ipc_harness import ipc_transport
 from meme_machine.solana_evidence_plane import EvidenceReader,EvidenceWriter,digest
 from meme_machine.solana_evidence_runtime import RuntimeEvidence
+from certification.pressure_diagnostics import SQLTimings,environment as diagnostic_environment
 import meme_machine.solana_evidence_service as service
 
 # Full certificate 36293751021 measured ~0.163 s owner time/frame and
@@ -74,16 +75,19 @@ class Wire(PreservedWire):
    result=b'Program data: '+base64.b64encode(raw);cache[encoded]=result;return result
   return re.sub(rb'Program data: ([A-Za-z0-9+/=]+)',retime,message)
 
-async def run(frames,output,*,measured_contention=False):
+async def run(frames,output,*,measured_contention=False,diagnostics=False):
  output=Path(output);output.mkdir(parents=True,exist_ok=True)
  quota=Path('/sys/fs/cgroup/cpu.max')
  environment=dict(cpu_count=os.cpu_count(),affinity_count=len(os.sched_getaffinity(0)) if hasattr(os,'sched_getaffinity') else None,
    cpu_quota=quota.read_text().strip() if quota.exists() else None,load_start=list(os.getloadavg()),
    processes_start=process_profile())
+ timings=SQLTimings();diagnostic_samples=[]
  wire=Wire();wire.frames=frames;stop=asyncio.Event();lags=[];hot_peak=0;oldest_hot_age_peak=0;oldest_retained_age_peak=0;started=time.monotonic();queries=[];last_report=0
+ if diagnostics:diagnostic_samples.append(dict(elapsed=0,environment=diagnostic_environment(output)))
  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('websockets.asyncio.client.connect',return_value=wire),\
       patch.object(service,'ServiceState',MeasuredServiceState if measured_contention else service.ServiceState),\
-      patch('concurrent.futures.ProcessPoolExecutor',MeasuredProcessPool if measured_contention else NativeProcessPool):
+      patch('concurrent.futures.ProcessPoolExecutor',MeasuredProcessPool if measured_contention else NativeProcessPool),\
+      (timings.enabled() if diagnostics else __import__('contextlib').nullcontext()):
   path=Path(td)/'db';runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
   def snapshot():
    if not database_ready(path):return {},None,0,None,None
@@ -121,6 +125,8 @@ async def run(frames,output,*,measured_contention=False):
      control=asyncio.create_task(asyncio.to_thread(candidate));next_query=elapsed+10
     if elapsed-last_report>=30:
      last_report=elapsed;print(json.dumps(dict(elapsed=elapsed,frames=c.get('stream_accepted_messages',0),hot_bytes=hot,lag=lags[-1] if lags else None,oldest_hot_age=oldest_hot_age,oldest_retained_age=oldest_retained_age,archived=c.get('archived_records',0),compacted=c.get('compacted_records',0))),flush=True)
+     if diagnostics and len(diagnostic_samples)<26:
+      diagnostic_samples.append(dict(elapsed=elapsed,environment=diagnostic_environment(path.parent),sql=timings.snapshot()))
     if elapsed>frames*.27+120:raise AssertionError('pressure_deadline')
     if lags and max(lags)>45:raise AssertionError('source_clock_fell_behind')
     # This fixture has no lifecycle pins. A growing archive backlog cannot pass
@@ -168,6 +174,7 @@ async def run(frames,output,*,measured_contention=False):
        archive_seconds_per_thousand=ARCHIVE_SECONDS_PER_THOUSAND if measured_contention else 0)
    result['source_hashes']={name:hashlib.sha256((Path(service.__file__).parent/name).read_bytes()).hexdigest() for name in ('solana_evidence_plane.py','solana_evidence_service.py','solana_evidence_storage.py','solana_evidence_control.py','solana_program_decoders.py')}
    result['storage_maintenance']=health.get('storage_maintenance',{})
+   if diagnostics:result['diagnostics']=dict(samples=diagnostic_samples,sql=timings.snapshot(),environment_end=diagnostic_environment(output))
    result['failure_frames']=failure_frames
    result['oldest_hot_age_peak']=oldest_hot_age_peak
    result['oldest_retained_age_peak']=oldest_retained_age_peak
@@ -179,4 +186,4 @@ async def run(frames,output,*,measured_contention=False):
    return 0 if result['passed'] else 1
 
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--frames',type=int,default=2223);p.add_argument('--output',required=True);p.add_argument('--measured-contention',action='store_true');a=p.parse_args();raise SystemExit(asyncio.run(run(a.frames,a.output,measured_contention=a.measured_contention)))
+ p=argparse.ArgumentParser();p.add_argument('--frames',type=int,default=2223);p.add_argument('--output',required=True);p.add_argument('--measured-contention',action='store_true');p.add_argument('--diagnostics',action='store_true');a=p.parse_args();raise SystemExit(asyncio.run(run(a.frames,a.output,measured_contention=a.measured_contention,diagnostics=a.diagnostics)))
