@@ -1153,7 +1153,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         watched=[receiver,*decoders,committer,subscriptions,watchdog,stopper]
                         done,_=await asyncio.wait(watched,return_when=asyncio.FIRST_COMPLETED)
 
-                        if stopper in done:
+                        # A subscription/watchdog task can observe the stop flag
+                        # before the dedicated waiter runs. The flag, not which
+                        # task wins FIRST_COMPLETED, owns admitted-frame drain.
+                        if stop.is_set():
                             connection_stop.set();receiver.cancel()
                             await asyncio.gather(receiver,return_exceptions=True)
                             for _ in decoders:await inbound.put(None)

@@ -125,3 +125,34 @@ class ProductionPressureTests(unittest.IsolatedAsyncioTestCase):
    self.assertLessEqual(ipc['stream.dispatch_bytes_peak'],96*1024*1024)
    self.assertEqual(ipc['stream.received_messages'],ipc['stream.commit_messages'])
    self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',));db.close()
+
+class StopSchedulingTests(unittest.IsolatedAsyncioTestCase):
+ async def test_subscription_exit_before_stop_waiter_still_drains_admitted_frames(self):
+  class DelayedWaiter(asyncio.Event):
+   async def wait(self):
+    await super().wait()
+    # A maintenance task can observe is_set before this waiter is scheduled.
+    await asyncio.sleep(.15)
+    return True
+  socket=BurstSocket(frames=32);stop=DelayedWaiter();original=service.ServiceState.source_batch
+  def delayed(state,items):time.sleep(.08);return original(state,items)
+  with tempfile.TemporaryDirectory() as td,\
+    patch('websockets.asyncio.client.connect',return_value=socket),\
+    patch('asyncio.start_unix_server',side_effect=local_server),\
+    patch.object(service,'STREAM_SUBSCRIPTION_SYNC_SECONDS',.005),\
+    patch.object(service.ServiceState,'source_batch',delayed):
+   path=Path(td)/'db';runner=asyncio.create_task(service.serve(path,
+       'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+   for _ in range(1000):
+    if socket.remaining==0:break
+    if runner.done():await runner
+    await asyncio.sleep(.002)
+   self.assertEqual(socket.remaining,0)
+   stop.set();await runner
+   with sqlite3.connect(path) as db:
+    health=dict(db.execute('SELECT key,value FROM service_health'));ipc=json.loads(health['ipc'])
+    self.assertEqual(ipc['stream.received_messages'],33)
+    self.assertEqual(ipc['stream.commit_messages'],33)
+    self.assertEqual(dict(db.execute('SELECT key,value FROM counters'))['stream_accepted_messages'],32)
+    self.assertEqual(json.loads(health['phase']),'OFF')
+    self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))

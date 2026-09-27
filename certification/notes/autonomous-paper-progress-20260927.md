@@ -328,3 +328,44 @@ composed/diff identities in sources/protocol; all approved policy hashes,
 strategy versions, source/execution SHAs and task-manifest bytes stay unchanged.
 Remaining coverage gaps are tracked in the matrix; no full certification or
 market workflow has been started.
+
+First B batch pushed as `b52018b552d668ebbd916f0ce978df0746765ab6`.
+Next reproduced defect: current Pons native run_lifecycle was interrupted directly
+after its real partial PAPER exit committed. Journal preserved reserve, entry,
+mark, exit intent and exit; 667 of 1,000 original tokens remained. No durable
+controller context preserved high-water/streak/partial/graduation state, and no
+current-strategy resume entrypoint exists. Existing restart_safety explicitly
+proves only a fail-closed guard. Reproduction is a virtual-time native lifecycle
+with transport fixtures, not a policy-only test. Repair must checkpoint controller
+state atomically with native journal actions and reuse the same production monitor
+on restart; no new entry or reconstructed profitability authority.
+
+B recovery prototype now atomically binds current-Pons controller context to the
+native position journal: original hold clock, partial quantities, high-water and
+confirmation counters, graduation state and pending action. Exact buyer sets are
+normalized with journal-bound digests; recovery reuses the existing production
+monitor and has no entry authority. Six real native crash cuts (before entry,
+after entry, mark, exit intent, partial fill and final fill) now resume with one
+entry, one partial and one final exit; duplicate settlement acknowledgement is
+idempotent and provider-free. Concurrent controllers and corrupted buyer sets
+fail closed. Integration into cohort/continuation still pending; do not mark the
+restart matrix complete. Eighty-seven affected native tests passed before the
+expanded crash matrix; focused recovery/accounting/provider checks now pass.
+
+Ordinary CI `36328163432` failed one short pressure shutdown assertion (received
+41, committed 40). A new deterministic scheduling regression reproduces the cause:
+a subscription task observes stop before the dedicated stop waiter is scheduled;
+old shutdown treats this as structural completion and cancels admitted work
+(1/33 committed). Production now branches on the actual stop flag and drains
+33/33. All five persistence/stop tests pass, including the original dense workload.
+No pressure load, retention bound or durability setting changed. This is a newly
+reproduced shutdown defect, separate from the closed Phase-A throughput cause.
+
+Expanded current-Pons regression passes nine lifecycle crash cuts, including
+native graduation commit, post-graduation admission mark and V4 runner mark.
+An injected SQLite abort proves buyer-set inserts, controller projection and
+native journal roll back together. Ninety-one affected native tests pass. The
+recovery entrypoint is protected by an OS-released nonblocking controller lock;
+restart cannot authorize a second simultaneous manager or any new entry.
+Declared recovery overlay now preserves this work in repository source composition.
+Cohort startup and full workflow continuation remain the next integration work.

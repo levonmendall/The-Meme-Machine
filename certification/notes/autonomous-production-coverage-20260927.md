@@ -25,7 +25,7 @@ Authority: `autonomous_paper_task_manifest.json`; four sleeves, six active regim
 | realized/unrealized P&L | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | lane accounting | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | portfolio accounting | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
-| restart/replay | MISSING | MISSING | MISSING | MISSING | MISSING | MISSING |
+| restart/replay | MISSING | MISSING | BROKEN | MISSING | MISSING | MISSING |
 
 ## Existing proof map
 
@@ -50,3 +50,5 @@ Authority: `autonomous_paper_task_manifest.json`; four sleeves, six active regim
 On the Phase-A candidate checkout, 38 canonical production conformance/Survivor/accounting/continuity tests passed using prepared native lanes. No provider calls or market workflows were used. Prepared native lanes still contain parked scheduling prototypes and need final manifest composition before certification.
 
 Fresh declared-overlay preparation and source-integrity verification pass for all four lanes. Forty focused canonical native conformance/worker-policy/Survivor/accounting tests pass on those fresh lanes. Policies and approved base source/execution SHAs are unchanged.
+
+Current Pons restart was reproduced BROKEN after a real partial exit: its native book survived but controller state did not. Atomic state/resume and crash regressions now pass in the prepared-lane prototype. Keep BROKEN until cohort and workflow continuation are connected and verified.
