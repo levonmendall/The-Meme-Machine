@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory() as td:
    raw=wire.template.replace(b'run380:1000:',('run380:'+str(slot)+':').encode())
    for old,new in [(b'"slot":1000,',f'"slot":{slot},'.encode()),(b'"parentSlot":999,',f'"parentSlot":{slot-1},'.encode()),(b'"blockhash":"h1000"',f'"blockhash":"h{slot}"'.encode()),(b'"previousBlockhash":"h999"',f'"previousBlockhash":"h{slot-1}"'.encode())]:raw=raw.replace(old,new)
    seen=time.time()
-   message=decode_source_message(raw,config.credential,addresses,config.identity,seen)
+   message,_,_=decode_source_message(raw,config.credential,addresses,config.identity,seen)
    state.source(Subscription('service','chain:solana','all','blocks',2),message,seen,len(raw))
   snapshot=state.writer.archive_snapshot(time.time()-180)
   assert len(snapshot['rows'])==1000
