@@ -20,7 +20,7 @@ import threading
 import time
 import uuid
 from .solana_provider_config import public_value
-from .solana_evidence_storage import install as install_storage, encode as encode_body, decode as _decode_body, collect as collect_storage, prepare as prepare_storage, publish as publish_storage
+from .solana_evidence_storage import install as install_storage, encode as encode_body, decode as _decode_body, archive_body, collect as collect_storage, prepare as prepare_storage, publish as publish_storage
 
 STORAGE_WARNING_BYTES = 512 * 1024 * 1024
 STORAGE_CRITICAL_BYTES = 128 * 1024 * 1024
@@ -496,11 +496,16 @@ class EvidenceWriter:
         return [row for row,raw in EvidenceWriter._archive_rows(snapshot,max_bytes=max_bytes)]
 
     @staticmethod
-    def _archive_rows(snapshot,*,max_bytes,cache_chunks=False):
-        size=0;decoded_chunks={} if cache_chunks else None
+    def _archive_rows(snapshot,*,max_bytes,raw_bodies=False):
+        size=0;raw_chunks={}
         if not snapshot:return
         for row in snapshot['rows']:
-            body=decode_body(row['encoded'],chunks=snapshot['chunks'],decoded_chunks=decoded_chunks);raw=canonical(body);cost=len(raw.encode())
+            if raw_bodies:
+                try:body,raw=archive_body(row['encoded'],chunks=snapshot['chunks'],raw_chunks=raw_chunks)
+                except (ValueError,TypeError,KeyError) as exc:raise EvidenceConflict('hot_evidence_corrupt') from exc
+            else:
+                body=decode_body(row['encoded'],chunks=snapshot['chunks']);raw=canonical(body)
+            cost=len(raw.encode())
             if hashlib.sha256(raw.encode()).hexdigest()!=row['hash']:raise EvidenceConflict('archive_body_hash_mismatch')
             if size and size+cost>max_bytes:break
             yield dict(identity=row['identity'],body=body,hash=row['hash'],
@@ -511,7 +516,7 @@ class EvidenceWriter:
     @staticmethod
     def prepare_and_write_archive(path,snapshot,*,max_bytes=4*1024*1024):
         started=time.monotonic();lines=[];commit=[]
-        for row,body_raw in EvidenceWriter._archive_rows(snapshot,max_bytes=max_bytes,cache_chunks=True):
+        for row,body_raw in EvidenceWriter._archive_rows(snapshot,max_bytes=max_bytes,raw_bodies=True):
             metadata={k:v for k,v in row.items() if k!='body'}
             # "body" is the first canonical key. Reuse its already hash-checked
             # serialization instead of serializing the full economic record twice.

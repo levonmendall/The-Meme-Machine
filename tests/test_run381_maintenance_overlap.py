@@ -10,6 +10,39 @@ from tests.test_run373_dispatch_throughput import block_frame,database_ready
 from tests.evidence_ipc_harness import ipc_transport
 
 class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
+ async def test_repeated_health_yields_cannot_starve_archive_progress(self):
+  calls=[]
+  class SeededState(service.ServiceState):
+   def __init__(self,path,config):
+    super().__init__(path,config)
+    self.writer.ingest([replace(record(),identity='health-overlap:'+str(i),market_time=10) for i in range(40)])
+   def maintenance_health(self,http):
+    calls.append(1)
+    raise service.EvidenceUnavailable('evidence_background_yield')
+  class Wire:
+   async def __aenter__(self):return self
+   async def __aexit__(self,*a):pass
+   async def send(self,raw):pass
+   async def recv(self,decode=None):await asyncio.Future()
+  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch.object(service,'ServiceState',SeededState),patch('websockets.asyncio.client.connect',return_value=Wire()):
+   path=Path(td)/'db';stop=asyncio.Event()
+   runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+   archived=0;deadline=time.monotonic()+3
+   try:
+    while time.monotonic()<deadline:
+     if runner.done():await runner
+     if database_ready(path):
+      db=sqlite3.connect(path)
+      try:
+       row=db.execute("SELECT value FROM counters WHERE key='archived_records'").fetchone()
+       archived=row[0] if row else 0
+      finally:db.close()
+     if len(calls)>=2 and archived==40:break
+     await asyncio.sleep(.02)
+    self.assertGreaterEqual(len(calls),2,'fixture did not exercise repeated health yields')
+    self.assertEqual(archived,40,'health scheduling blocked the independent archive pipeline')
+   finally:stop.set();await runner
+
  async def test_hot_cleanup_progresses_while_next_archive_worker_is_pending(self):
   real_pool=concurrent.futures.ProcessPoolExecutor;pending=[]
   class Pool:

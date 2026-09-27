@@ -6,6 +6,7 @@ and archived bodies still cover the original complete canonical JSON.
 """
 import hashlib
 import json
+import re
 import zlib
 
 
@@ -126,6 +127,52 @@ def decode(raw,db=None,*,chunks=None,decoded_chunks=None):
         if decoded_chunks is not None and sum(v[0] for v in decoded_chunks.values())+len(logs)<=4*1024*1024:
             decoded_chunks[checksum]=(len(logs),section[key])
     return value
+
+
+def archive_body(raw,*,chunks,raw_chunks):
+    """Restore canonical bytes without parsing/serializing repeated log arrays.
+
+    Only the two existing log-reference paths are eligible. Ambiguous marker
+    occurrences use the ordinary decoder. The caller must verify the complete
+    restored body hash before publication; the hot format/authority is unchanged.
+    Returned fields are only the immutable commit-time pin keys.
+    """
+    if isinstance(raw,str):
+        value=json.loads(raw)
+        return dict(scope=value['scope'],slot=value['slot']),_json(value)
+    if not isinstance(raw,bytes) or not raw.startswith(b'SEP1'):raise ValueError('hot_body_encoding')
+    try:encoded=_inflate(raw[4:])
+    except zlib.error as exc:raise ValueError('hot_body_corrupt') from exc
+    value=json.loads(encoded);references={}
+    for parent,key in (('raw_lineage','logs'),('meta','logMessages')):
+        section=value['payload'].get(parent)
+        ref=section.get(key) if isinstance(section,dict) else None
+        if isinstance(ref,dict) and set(ref)=={'_hot_log_chunk'}:
+            checksum=ref['_hot_log_chunk']
+            references[checksum]=references.get(checksum,0)+1
+    for checksum,count in references.items():
+        marker=_json({'_hot_log_chunk':checksum}).encode()
+        if encoded.count(marker)!=count:
+            body=decode(raw,chunks=chunks)
+            return dict(scope=body['scope'],slot=body['slot']),_json(body)
+    replacements={}
+    for checksum in references:
+        if checksum in raw_chunks:logs=raw_chunks[checksum]
+        else:
+            if checksum not in chunks:raise ValueError('hot_chunk_missing')
+            try:logs=_inflate(chunks[checksum])
+            except zlib.error as exc:raise ValueError('hot_chunk_corrupt') from exc
+            if hashlib.sha256(logs).hexdigest()!=checksum:raise ValueError('hot_chunk_hash_mismatch')
+            if sum(map(len,raw_chunks.values()))+len(logs)<=4*1024*1024:
+                raw_chunks[checksum]=logs
+        replacements[_json({'_hot_log_chunk':checksum}).encode()]=logs
+    # One pass: content inside an inserted log chunk is never interpreted as
+    # another reference, even if a legitimate log contains a marker-shaped value.
+    if len(replacements)==1:
+        marker,logs=next(iter(replacements.items()));encoded=encoded.replace(marker,logs)
+    elif replacements:
+        encoded=re.sub(b'|'.join(re.escape(k) for k in replacements),lambda m:replacements[m[0]],encoded)
+    return dict(scope=value['scope'],slot=value['slot']),encoded.decode()
 
 
 def collect(db,limit=1000):

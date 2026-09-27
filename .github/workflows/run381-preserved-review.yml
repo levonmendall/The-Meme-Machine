@@ -31,17 +31,19 @@ jobs:
             git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_storage.py > meme_machine/solana_evidence_storage.py
             git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_control.py > meme_machine/solana_evidence_control.py
           fi
-      - name: Reproduce old scope starvation and verify bounded repair
+      - name: Reproduce old archive stalls and verify bounded repair
         run: |
           mkdir -p pressure-output
           set -o pipefail
-          git show 76fb6e6b8d337b540ecac3eacdc91d6e673c5e35:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
-          python -m certification.run381_expected_failure tests.test_run381_retention_progress.RetentionProgressTests.test_recurring_urgent_work_cannot_starve_later_retention_scopes 2>&1 | tee pressure-output/starvation-before.log
-          git restore --source=HEAD -- meme_machine/solana_evidence_plane.py
-          python -m unittest tests.test_run381_retention_progress tests.test_run381_repair_pagination tests.test_run381_maintenance_overlap -q 2>&1 | tee pressure-output/starvation-after.log
+          git show fc2dd3d5d58f1e26b8ada9b66b56b61e1aff56bb:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
+          git show fc2dd3d5d58f1e26b8ada9b66b56b61e1aff56bb:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
+          python -m certification.run381_expected_failure tests.test_run381_archive_canonical.ArchiveCanonicalTests.test_archival_reuses_authenticated_canonical_logs_without_full_body_decode 2>&1 | tee pressure-output/archive-before.log
+          python -m certification.run381_expected_failure tests.test_run381_maintenance_overlap.ArchiveCleanupOverlapTests.test_repeated_health_yields_cannot_starve_archive_progress 2>&1 | tee pressure-output/health-before.log
+          git restore --source=HEAD -- meme_machine/solana_evidence_plane.py meme_machine/solana_evidence_service.py
+          python -m unittest tests.test_run381_archive_canonical tests.test_run381_retention_progress tests.test_run381_repair_pagination tests.test_run381_maintenance_overlap -q 2>&1 | tee pressure-output/repair-after.log
       - name: Reconstructed production pressure without provider credentials
         env:
-          PRESSURE_FRAMES: '1700'
+          PRESSURE_FRAMES: '2223'
         run: |
           mkdir -p pressure-output
           python -m certification.run381_pressure --frames "$PRESSURE_FRAMES" --output pressure-output > pressure-output/pressure.jsonl 2>&1

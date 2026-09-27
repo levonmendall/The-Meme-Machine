@@ -1157,8 +1157,24 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
+        async def health():
+            # Health publication has its own single outstanding owner request.
+            # Its scheduler wait must not idle a completed archive worker.
+            while not stop.is_set():
+                try:
+                    http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
+                    await work(lambda state:state.maintenance_health(http),4,label='maintenance_health')
+                    snapshot=dict(counts)
+                    await work(lambda state:state.fence.health('ipc',snapshot),1,label='health_ipc')
+                    scheduler=owner.telemetry()
+                    await work(lambda state:state.fence.health('owner_scheduler',scheduler),1,label='health_scheduler')
+                except EvidenceUnavailable as exc:
+                    if str(exc)!='evidence_background_yield':raise
+                try:await asyncio.wait_for(stop.wait(),1)
+                except TimeoutError:pass
+
         async def maintenance():
-            next_health=0;archive_future=None;archive_started=0
+            archive_future=None;archive_started=0
             def prepare(snapshot):
                 # Exactly one bounded encoded snapshot can be in flight. The
                 # preceding archive is durable/committed before selecting this.
@@ -1166,13 +1182,6 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             while not stop.is_set():
                 yielded=False
                 try:
-                    if time.monotonic()>=next_health:
-                        http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
-                        await work(lambda state:state.maintenance_health(http),4,label='maintenance_health');next_health=time.monotonic()+1
-                        snapshot=dict(counts)
-                        await work(lambda state:state.fence.health('ipc',snapshot),1,label='health_ipc')
-                        scheduler=owner.telemetry()
-                        await work(lambda state:state.fence.health('owner_scheduler',scheduler),1,label='health_scheduler')
                     if archive_future is None:
                         snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
                         if snapshot:
@@ -1213,7 +1222,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
-        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(stop.wait())]
+        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(health()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception
