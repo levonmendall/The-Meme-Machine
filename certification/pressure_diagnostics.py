@@ -72,7 +72,10 @@ def statement_class(sql):
 
 
 class SQLTimings:
-    def __init__(self):
+    def __init__(self, *, commit_latency_seconds=0):
+        if not 0 <= commit_latency_seconds <= .1:
+            raise ValueError('diagnostic_commit_latency_bound')
+        self.commit_latency_seconds = commit_latency_seconds
         self.rows = collections.defaultdict(lambda: dict(calls=0, wall_us=0,
             cpu_us=0, peak_wall_us=0, errors=0))
         self.lock = threading.Lock()
@@ -103,6 +106,13 @@ class SQLTimings:
 
         class TimedConnection(sqlite3.Connection):
             def execute(self, sql, *args, **kwargs):
+                if timings.commit_latency_seconds:
+                    if sql.startswith('BEGIN'):
+                        self.diagnostic_begin_changes = self.total_changes
+                    elif sql == 'COMMIT' and self.total_changes != getattr(
+                            self, 'diagnostic_begin_changes', self.total_changes):
+                        timings.measure('injected_commit_wait',
+                            lambda: time.sleep(timings.commit_latency_seconds))
                 label=statement_class(sql)
                 if label is None:
                     return super().execute(sql,*args,**kwargs)

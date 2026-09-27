@@ -95,6 +95,36 @@ The next controlled comparison uses stage-level v2 on one runner, indexed first
 and legacy second, both at all 2,223 frames / 600.21 source seconds with identical
 contention floors and unchanged runtime. It makes no market/certification claim.
 
+The stage-level v2 comparison `36302144874` on exact SHA
+`d6a7645639b6abed245887191ae5f2404367f359` passed BOTH variants. Artifact
+`10925634877` was verified against SHA256
+`28cbe79ab678fa804786e81f77d71af5119f7aa625e7a5271a4436ef891d1534`.
+Indexed versus legacy: observer CPU 18.94 versus 87.90 seconds; requested reads
+141.25 versus 405.62 GB; peak lag 1.69 versus 1.95 seconds; retained age 183.37
+versus 183.47 seconds. Both processed 2,223 frames and verified 411,840 archive
+records. This disproves the observer query as a sufficient causal explanation.
+The observer repair is preserved, but Phase A is NOT closed from this pass.
+
+Canonical, uninstrumented local pressure on that same exact clean SHA passed:
+2,223 frames / 600.21 seconds, peak lag 3.288 seconds, hot peak 973,230,112 bytes,
+retained peak 184.183 seconds, 59 candidate checks, 411,840 verified archive
+records, 2,224 admitted/committed messages, integrity OK, zero provider calls.
+Result SHA256: `1923a0df9f0cb057f75758fd481ec288219c85732a2db563878544a3abf3d465`.
+Standard CI `36302144866` passed all 748 tests, resource and synthetic lifecycle.
+Four prepared lane worktrees passed exact source-integrity comparison.
+
+The remaining measured difference is durable owner latency, not decode speed.
+Original full-certificate health publication averaged 37.84 ms; the new paired
+runner averaged 2.82 ms. Real production health publication performs SIX changed
+outer commits. A focused production-method probe at 7.5 ms additional commit
+latency measured 46.36 ms per publication versus 7.94 ms when enclosed in one
+outer transaction (same fields, no source change). The next diagnostic adds a
+bounded 6 ms latency per changed commit, derived from (37.84 - 2.82) / 6, and
+compares existing health against that atomic-publication prototype at full
+600-second pressure. This is an offline causal experiment, not certification.
+No-op reads and rolled-back writes incur no injected delay. Five focused probe,
+observer and instrumentation checks pass. Production runtime remains unchanged.
+
 ## Recovered lineage and mandatory later control-plane proof
 
 Preserve Run 377's repaired process/provider/bounds issues, Run 378's preflight
