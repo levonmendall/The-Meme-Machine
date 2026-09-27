@@ -279,12 +279,17 @@ class EvidenceWriter:
                 self.db.execute('RELEASE '+name)
                 raise
             return
-        self.db.execute('BEGIN IMMEDIATE')
         try:
+            # SQLITE_INTERRUPT can be reported after BEGIN has already entered
+            # a write transaction. Cleanup must cover admission as well as body
+            # and commit, or the next checkpoint fails with SQLITE_LOCKED.
+            self.db.execute('BEGIN IMMEDIATE')
             yield
             self.db.execute('COMMIT')
         except BaseException:
-            self.db.execute('ROLLBACK')
+            # SQLite may already roll back an interrupted statement itself.
+            # Preserve its original error when there is no transaction to undo.
+            if self.db.in_transaction:self.db.execute('ROLLBACK')
             raise
 
     @contextmanager

@@ -48,6 +48,7 @@ for archived in (False,True):
       state.writer.db.set_progress_handler(None,0);state.writer.db.set_trace_callback(None)
      row=dict(operation=name,archived=archived,target=target,instruction_budget=instruction_budget,interrupted=interrupted,last_sql=last,
        errors=[dict(type=type(e).__name__,message=str(e),code=getattr(e,'sqlite_errorcode',None)) for e in held])
+     row['in_transaction']=state.writer.db.in_transaction
      try:row['checkpoint']=state.writer.db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchall()
      except Exception as exc:
       row['checkpoint_error']=dict(type=type(exc).__name__,message=str(exc),code=getattr(exc,'sqlite_errorcode',None))
