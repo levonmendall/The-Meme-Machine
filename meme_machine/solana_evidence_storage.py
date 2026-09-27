@@ -17,12 +17,30 @@ def install(db):
     CREATE INDEX IF NOT EXISTS hot_ref_hash ON hot_refs(hash);
     CREATE TABLE IF NOT EXISTS address_keys(id INTEGER PRIMARY KEY,address TEXT NOT NULL UNIQUE);
     CREATE TABLE IF NOT EXISTS address_refs(address_id INTEGER NOT NULL,record_id INTEGER NOT NULL,slot INTEGER NOT NULL,
-      PRIMARY KEY(address_id,record_id)) WITHOUT ROWID;
-    CREATE INDEX IF NOT EXISTS address_record ON address_refs(record_id);
+      PRIMARY KEY(record_id,address_id)) WITHOUT ROWID;
     ''')
     old=db.execute("SELECT type FROM sqlite_master WHERE name='addresses'").fetchone()
     db.execute('BEGIN IMMEDIATE')
     try:
+        # Run 381's 5.6M references made every record deletion fan out over the
+        # address-keyed primary tree AND a redundant record index. Cluster the
+        # immutable references by record; address_window still serves consumers.
+        # Migration is atomic, disk-backed and preserves all integer identities.
+        primary={r[1]:r[5] for r in db.execute('PRAGMA table_info(address_refs)')}
+        if primary.get('record_id')!=1:
+            from .solana_evidence_plane import require_storage
+            path=next(r[2] for r in db.execute('PRAGMA database_list') if r[1]=='main')
+            pages=db.execute('PRAGMA page_count').fetchone()[0]*db.execute('PRAGMA page_size').fetchone()[0]
+            require_storage(path,required_bytes=2*pages)
+            if old and old[0]=='view':db.execute('DROP VIEW addresses')
+            db.execute('DROP TRIGGER IF EXISTS record_storage_delete')
+            db.execute('''CREATE TABLE ordered_address_refs(address_id INTEGER NOT NULL,
+              record_id INTEGER NOT NULL,slot INTEGER NOT NULL,
+              PRIMARY KEY(record_id,address_id)) WITHOUT ROWID''')
+            db.execute('INSERT INTO ordered_address_refs SELECT * FROM address_refs')
+            db.execute('DROP TABLE address_refs')
+            db.execute('ALTER TABLE ordered_address_refs RENAME TO address_refs')
+        db.execute('DROP INDEX IF EXISTS address_record')
         if old and old[0]=='table':
             db.execute('INSERT OR IGNORE INTO address_keys(address) SELECT DISTINCT address FROM addresses')
             db.execute('INSERT OR IGNORE INTO address_refs SELECT k.id,r.rowid,a.slot FROM addresses a JOIN address_keys k ON k.address=a.address JOIN records r ON r.identity=a.identity')

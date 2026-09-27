@@ -179,6 +179,7 @@ CREATE INDEX IF NOT EXISTS records_scope_slot ON records(scope,slot,event_index)
 CREATE INDEX IF NOT EXISTS records_scope_time ON records(scope,market_time,slot,event_index);
 CREATE INDEX IF NOT EXISTS records_signature ON records(signature);
 CREATE INDEX IF NOT EXISTS records_archive_time ON records(COALESCE(market_time,first_seen),identity) WHERE body IS NOT NULL;
+CREATE INDEX IF NOT EXISTS records_archive_ref ON records(archive) WHERE archive IS NOT NULL;
 CREATE TABLE IF NOT EXISTS lineage(
  identity TEXT NOT NULL REFERENCES records(identity),source TEXT NOT NULL,
  endpoint TEXT NOT NULL,observed REAL NOT NULL,PRIMARY KEY(identity,source,endpoint));
@@ -529,9 +530,13 @@ class EvidenceWriter:
         A monotone floor rejects reintroduction of pruned history; offline replay
         uses a separate store. No consumer can grant coverage below that floor.
         """
+        if not 1 <= max_records <= 1000:raise EvidenceUnavailable('retention_batch_bound')
         archived=self.archive(before_time,max_records=max_records) if archive_first else 0
-        with self.transaction():
-            for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
+        # At most 256 records and 256 rows from each continuity index per
+        # transaction. A later cooperative yield cannot undo earlier scopes.
+        limit=min(max_records,256)
+        for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
+            with self._retention_transaction():
                 floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
                 floor=top+1 if floor is None else floor
                 recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
@@ -541,17 +546,19 @@ class EvidenceWriter:
                 if self._account_pinned(scope):floor=0
                 old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
                 floor=max(int(old[0]) if old else 0,floor)
-                ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,max_records))]
+                ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit))]
                 for identity in ids:
                     self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
                     self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
-                self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
-                self.db.execute('DELETE FROM coverage WHERE scope=? AND hi<?',(scope,floor))
-                self.db.execute('DELETE FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))
+                if old is None or floor!=int(old[0]):
+                    self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
+                self.db.execute('DELETE FROM coverage WHERE id IN (SELECT id FROM coverage WHERE scope=? AND hi<? LIMIT ?)',(scope,floor,limit))
+                self.db.execute('DELETE FROM gaps WHERE id IN (SELECT id FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL LIMIT ?)',(scope,floor,limit))
                 for table in ('stream_receipts','stream_deliveries','stream_order'):
                     if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
-                        self.db.execute('DELETE FROM '+table+' WHERE scope=? AND slot<?',(scope,floor))
-                self._count('compacted_records',len(ids))
+                        self.db.execute('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE scope=? AND slot<? LIMIT ?)',(scope,floor,limit))
+                if ids:self._count('compacted_records',len(ids))
+        with self.transaction():
             # The archive directory is the immutable content-addressed inventory;
             # old completed hot manifests need not grow without bound.
             self.db.execute('DELETE FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL)')
@@ -561,6 +568,14 @@ class EvidenceWriter:
         self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
         self.db.execute('PRAGMA incremental_vacuum(256)')
         return archived
+
+    @contextmanager
+    def _retention_transaction(self):
+        """Only the bounded retention mutation is protected from SQL preemption."""
+        self._retention_atomic=True
+        try:
+            with self.transaction():yield
+        finally:self._retention_atomic=False
 
     def close(self):
         self._check()

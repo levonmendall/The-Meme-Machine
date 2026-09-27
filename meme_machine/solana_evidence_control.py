@@ -90,6 +90,11 @@ class PriorityOwner:
                     def yield_background():
                         nonlocal interrupted
                         if interrupted:return 0 # allow rollback to finish
+                        # Retention commits bounded slices. Interrupting their
+                        # DELETEs repeatedly rolled back all cleanup in Run 381.
+                        # Other background SQL, including repair transactions,
+                        # remains interruptible; urgent work runs between slices.
+                        if getattr(writer,'_retention_atomic',False):return 0
                         with self.cv:urgent=bool(self.queue and self.queue[0][0]<2)
                         if urgent:
                             interrupted=True;return 1
