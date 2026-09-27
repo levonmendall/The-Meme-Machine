@@ -1286,3 +1286,34 @@ follows. The canonical certificate must independently rerun the complete joined
 proof on the final frozen SHA, so the development receipt is not substituted for
 exact-SHA certification. Final dispatch verification, certificate, smoke and real
 automatic succession remain the mandatory next gates.
+
+
+## Final certification orchestration repair
+
+Frozen 4f6c155cacae065268971721b1107ada7f232611 passed ordinary CI
+36358254197 and real external dispatch verification (launcher 36358284820,
+verification 36358303201). Exact workflow bytes and both native handoff modes
+passed with no provider, entry or market authority.
+
+Complete certificate 36358377885 reached the joined proof after passing the
+unchanged 480-test supervisor/PID suite, all four native suites (430/436/511/366),
+native SIGKILL, restart, integrated acceptance, resource gates and the full
+600-second measured-contention pressure. The job's existing 30-minute budget
+cancelled the joined step; this is NOT a passing certificate. The interrupted
+archive was still changing and is not accepted as a completed predecessor proof.
+Failure evidence is preserved in artifact 10945447382, ZIP SHA256
+ a3e3cc171f94c0c909f25ee8f28cd4db2410722b5918d7628f6f2dc62a5a1868.
+
+Repair moves the unchanged pressure and joined proof steps into a prerequisite
+job, retaining both 30-minute job budgets and every runtime, pressure, storage,
+history and resource limit. The final certificate downloads only the successful
+same-run, same-attempt, exact-SHA proof through the already-proven digest-bound
+artifact machinery. All final acceptance gates remain unchanged.
+
+Hosted hypothesis: separating the two complete proof batches resolves the measured
+orchestration timeout without reducing coverage or accepting partial evidence.
+Discriminator: both jobs and the final aggregate must pass on the new frozen SHA;
+missing, failed, stale or mismatched prerequisite evidence rejects certification.
+PASS proceeds immediately to one PAPER smoke; FAIL repairs only the failed gate.
+This source change requires a new exact-SHA dispatch verification and complete
+certificate; the earlier certificate attempt grants no market authority.

@@ -15,7 +15,7 @@ concurrency:
   group: non-market-certification-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  offline-prerequisites:
+  durability-prerequisites:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[non-market-cert]')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -29,6 +29,75 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/non-market-lanes"
+      - run: mkdir -p non-market-evidence
+      - name: Ten-minute mature Solana retention and source-clock pressure
+        timeout-minutes: 13
+        run: |
+          mkdir -p non-market-evidence/run381-pressure
+          python -m certification.run381_pressure --measured-contention --output non-market-evidence/run381-pressure > non-market-evidence/run381-pressure/run.log 2>&1
+      - name: Joined eight-day PAPER campaign and recovery/provider gates
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/non-market-lanes
+        run: |
+          python -m certification.joined_soak --sources "$RUNNER_TEMP/non-market-lanes" --root "$RUNNER_TEMP/joined-soak" > non-market-evidence/joined-soak.log 2>&1
+          cp "$RUNNER_TEMP/joined-soak/result.json" non-market-evidence/joined-soak.json
+          python -m certification.joined_acceptance --sources "$RUNNER_TEMP/non-market-lanes" --soak "$RUNNER_TEMP/joined-soak" --output non-market-evidence/joined
+      - name: Preserve joined native predecessors
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/joined-soak" ]; then
+            tar -C "$RUNNER_TEMP" -czf non-market-evidence/joined-native-predecessors.tar.gz joined-soak
+          fi
+      - name: Preserve exact-SHA durability evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: non-market-durability-${{ github.sha }}-${{ github.run_attempt }}
+          path: non-market-evidence/
+          if-no-files-found: error
+          retention-days: 90
+  offline-prerequisites:
+    needs: durability-prerequisites
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[non-market-cert]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/non-market-lanes"
+      - name: Restore same-run exact-SHA durability evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PYCODE'
+          import os
+          from pathlib import Path
+          import shutil
+          from certification.autonomous_control import _artifact_metadata
+          from certification.autonomous_window import extract_artifact
+          from certification.prospective_program import GitHub
+          api = GitHub()
+          run_id = int(os.environ['GITHUB_RUN_ID'])
+          run = api.request('GET', f'actions/runs/{run_id}')
+          if (run['head_sha'] != os.environ['GITHUB_SHA']
+                  or str(run['run_attempt']) != os.environ['GITHUB_RUN_ATTEMPT']):
+              raise ValueError('durability_run_identity')
+          jobs = api.pages(f'actions/runs/{run_id}/attempts/{run["run_attempt"]}/jobs', 'jobs')
+          proof = [j for j in jobs if j['name'].split(' / ')[-1] == 'durability-prerequisites']
+          if len(proof) != 1 or proof[0]['conclusion'] != 'success':
+              raise ValueError('durability_job_not_passed')
+          name = f'non-market-durability-{run["head_sha"]}-{run["run_attempt"]}'
+          reference = _artifact_metadata(api, run_id, name)
+          source = extract_artifact(api, reference, Path(os.environ['RUNNER_TEMP'])/'durability-evidence')
+          shutil.copytree(source, 'non-market-evidence', dirs_exist_ok=True)
+          PYCODE
       - name: Verify frozen profitability portfolio autonomy protocol
         run: python -m certification.protocol_freeze --output non-market-evidence/profitability-protocol-freeze.json
       - name: Reject retired provider references in prepared runtime
@@ -77,25 +146,6 @@ jobs:
           (cd "$RUNNER_TEMP/non-market-lanes/pump" && python -m tests.resource_check) > non-market-evidence/pump-resource.json
           (cd "$RUNNER_TEMP/non-market-lanes/meteora" && python -m tests.resource_check) > non-market-evidence/meteora-resource.json
           (cd "$RUNNER_TEMP/non-market-lanes/meteora" && python -m tests.dlmm_resource_check) > non-market-evidence/meteora-dlmm-resource.json
-      - name: Ten-minute mature Solana retention and source-clock pressure
-        timeout-minutes: 13
-        run: |
-          mkdir -p non-market-evidence/run381-pressure
-          python -m certification.run381_pressure --measured-contention --output non-market-evidence/run381-pressure > non-market-evidence/run381-pressure/run.log 2>&1
-      - name: Joined eight-day PAPER campaign and recovery/provider gates
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/non-market-lanes
-        run: |
-          python -m certification.joined_soak --sources "$RUNNER_TEMP/non-market-lanes" --root "$RUNNER_TEMP/joined-soak" > non-market-evidence/joined-soak.log 2>&1
-          cp "$RUNNER_TEMP/joined-soak/result.json" non-market-evidence/joined-soak.json
-          python -m certification.joined_acceptance --sources "$RUNNER_TEMP/non-market-lanes" --soak "$RUNNER_TEMP/joined-soak" --output non-market-evidence/joined
-      - name: Preserve joined native predecessors
-        if: always()
-        run: |
-          if [ -d "$RUNNER_TEMP/joined-soak" ]; then
-            tar -C "$RUNNER_TEMP" -czf non-market-evidence/joined-native-predecessors.tar.gz joined-soak
-          fi
       - name: Prepare original historical Meteora accounting implementation
         run: |
           git worktree add --detach "$RUNNER_TEMP/historical-meteora" 3370a0a3a283b4e3901ae51e294eeb00ef69832d
