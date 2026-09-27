@@ -21,6 +21,10 @@ import meme_machine.solana_evidence_service as service
 # the diagnostic profile so fast hosted hardware cannot hide that contention.
 OWNER_SECONDS_PER_FRAME=.165
 ARCHIVE_SECONDS_PER_THOUSAND=.36
+# Full certificate 36297528197 health cost was 37.84 ms for six commits;
+# fast-runner comparison 36302144874 cost 2.82 ms. Preserve the rounded-up
+# per-commit difference so a fast filesystem cannot hide serial durability cost.
+COMMIT_LATENCY_SECONDS=.006
 
 def oldest_retained_time(db):
  # Polling age must not reread the entire payload-bearing table. The existing
@@ -90,13 +94,13 @@ async def run(frames,output,*,measured_contention=False,diagnostics=False):
  environment=dict(cpu_count=os.cpu_count(),affinity_count=len(os.sched_getaffinity(0)) if hasattr(os,'sched_getaffinity') else None,
    cpu_quota=quota.read_text().strip() if quota.exists() else None,load_start=list(os.getloadavg()),
    processes_start=process_profile())
- timings=SQLTimings();diagnostic_samples=[]
+ timings=SQLTimings(commit_latency_seconds=COMMIT_LATENCY_SECONDS if measured_contention else 0);diagnostic_samples=[]
  wire=Wire();wire.frames=frames;stop=asyncio.Event();lags=[];hot_peak=0;oldest_hot_age_peak=0;oldest_retained_age_peak=0;started=time.monotonic();queries=[];last_report=0
  if diagnostics:diagnostic_samples.append(dict(elapsed=0,environment=diagnostic_environment(output)))
  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('websockets.asyncio.client.connect',return_value=wire),\
       patch.object(service,'ServiceState',MeasuredServiceState if measured_contention else service.ServiceState),\
       patch('concurrent.futures.ProcessPoolExecutor',MeasuredProcessPool if measured_contention else NativeProcessPool),\
-      (timings.enabled() if diagnostics else __import__('contextlib').nullcontext()):
+      (timings.enabled() if diagnostics or measured_contention else __import__('contextlib').nullcontext()):
   path=Path(td)/'db';runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
   def snapshot():
    if not database_ready(path):return {},None,0,None,None
@@ -180,7 +184,9 @@ async def run(frames,output,*,measured_contention=False,diagnostics=False):
        child_cpu_system_seconds=resource.getrusage(resource.RUSAGE_CHILDREN).ru_stime)
    result['measured_contention']=dict(profile='run381-fullcert-36293751021' if measured_contention else 'native',
        owner_seconds_per_frame=OWNER_SECONDS_PER_FRAME if measured_contention else 0,
-       archive_seconds_per_thousand=ARCHIVE_SECONDS_PER_THOUSAND if measured_contention else 0)
+       archive_seconds_per_thousand=ARCHIVE_SECONDS_PER_THOUSAND if measured_contention else 0,
+       additional_commit_latency_seconds=COMMIT_LATENCY_SECONDS if measured_contention else 0,
+       delayed_commits=timings.snapshot().get('injected_commit_wait',{}).get('calls',0))
    result['source_hashes']={name:hashlib.sha256((Path(service.__file__).parent/name).read_bytes()).hexdigest() for name in ('solana_evidence_plane.py','solana_evidence_service.py','solana_evidence_storage.py','solana_evidence_control.py','solana_program_decoders.py')}
    result['storage_maintenance']=health.get('storage_maintenance',{})
    if diagnostics:result['diagnostics']=dict(samples=diagnostic_samples,sql=timings.snapshot(),environment_end=diagnostic_environment(output))

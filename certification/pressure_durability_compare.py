@@ -26,16 +26,29 @@ def batched_health(original):
     return publish
 
 
+def legacy_health(state, http, ipc, scheduler):
+    # Exact pre-repair publication boundary, for offline counterfactual only.
+    state.maintenance_health(http)
+    with state.writer.transaction():
+        state.fence.health('ipc', ipc)
+        state.fence.health('owner_scheduler', scheduler)
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--variant', choices=('legacy', 'batched'), required=True)
+    parser.add_argument('--variant', choices=('legacy', 'repaired'), required=True)
     parser.add_argument('--output', required=True)
     args = parser.parse_args()
-    original = service.ServiceState.publish_health
-    prototype = (patch.object(service.ServiceState, 'publish_health', batched_health(original))
-                 if args.variant == 'batched' else nullcontext())
+    original_init = service.ServiceState.__init__
+    def legacy_init(state, *args, **kwargs):
+        original_init(state, *args, **kwargs)
+        state.writer.db.execute('PRAGMA wal_autocheckpoint=1000')
+    checkpoint = (patch.object(service.ServiceState, '__init__', legacy_init)
+                  if args.variant == 'legacy' else nullcontext())
+    publication = (patch.object(service.ServiceState, 'publish_health', legacy_health)
+                   if args.variant == 'legacy' else nullcontext())
     timings = SQLTimings(commit_latency_seconds=COMMIT_DELAY_SECONDS)
-    with prototype, patch.object(run381_pressure, 'SQLTimings', return_value=timings):
+    with checkpoint, publication, patch.object(run381_pressure, 'SQLTimings', return_value=timings):
         result = asyncio.run(run381_pressure.run(2223, args.output,
             measured_contention=True, diagnostics=True))
     path = Path(args.output) / 'result.json'

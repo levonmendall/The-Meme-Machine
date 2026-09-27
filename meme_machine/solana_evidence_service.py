@@ -513,6 +513,12 @@ class ServiceState:
         # Whole-program history is an archive workload. Keep a bounded three-minute
         # hot tail plus explicit lifecycle pins, not two hours of every transaction.
         self.writer=EvidenceWriter(path,max_hot_bytes=2*1024*1024*1024)
+        # FULL WAL commits remain durable. The independently scheduled bounded
+        # retention worker owns PASSIVE checkpoints; SQLite's default automatic
+        # checkpoint otherwise copies/syncs the database inside source commits
+        # (and again in subsequent metadata commits while a reader pins the WAL).
+        # Keep this service-only: standalone writers need their default policy.
+        self.writer.db.execute('PRAGMA wal_autocheckpoint=0')
         self.fence=FinalizedFence(self.writer,endpoint_identity=config.identity,decoders=program_decoders())
         self.fence.health('provider',dict(provider=config.provider,network=config.network,endpoint_identity=config.identity))
         self.fence.health('phase','WARMING');self.fence.health('heartbeat',time.time())
@@ -660,8 +666,8 @@ class ServiceState:
         # owner request cannot enqueue urgent callbacks that interrupt our own
         # archive/retention transactions. Actual source heartbeats and
         # finalized frontiers remain part of their durable source commit.
-        self.maintenance_health(http)
         with self.writer.transaction():
+            self.maintenance_health(http)
             self.fence.health('ipc',ipc)
             self.fence.health('owner_scheduler',scheduler)
 

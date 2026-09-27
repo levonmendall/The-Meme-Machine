@@ -150,3 +150,42 @@ tests or historical success with current real control-plane validation.
 
 Phase A remains in progress. Phases B–G have not yet been executed for this task.
 PAPER ONLY; no signing, submission, live money, deployment or Render interaction.
+
+
+## Resumption at 6feea40 — checkpoint-owner causal candidate
+
+2026-09-27 refresh: remote continuation head is still
+`6feea40bffb74053f8e90ad01d17b3922f0c0f35`; CI `36303678377` passed,
+durability diagnostic `36303678366` failed, and no newer Actions run exists.
+Run 381 remains the latest market run. Recovered uncommitted stage-3 candidate
+changes were preserved and reviewed; no strategy/source manifest changed.
+
+Artifact `10925884118` independently matches SHA256
+`57ce5ace61528fcb9ea6422e4310134af46cce1ac6a1de8ccc6692f035fd62d5`.
+Legacy and atomic-health variants both hit 45-second source lag. Atomic health
+reduced health stage time (20.41s to 7.19s), but SQLite COMMIT still consumed
+177.99 wall seconds / 9.21 CPU seconds; injected delay was only 11.19 seconds.
+That isolates remaining investigation to real durable commit work.
+
+Causal candidate: service source/metadata commits implicitly run SQLite's
+1,000-page automatic checkpoints in addition to retention's explicit PASSIVE
+checkpoints. Keep FULL synchronous WAL commits, move checkpoint initiation to
+the already bounded retention path, and publish periodic health atomically.
+A production-writer microprobe (five batches / 640 records) measured source-path
+writes of 24,904,680 versus 14,025,640 bytes; main DB growth during source commits
+was 10,702,848 versus zero. Both independent readers saw all 640 durable rows;
+retention copied the same 13,385,728 DB bytes, with integrity OK. This proves
+redundant source-path copying; sustained sufficiency remains unproven.
+The checkpoint regression fails the restored old 1,000-page policy and passes
+the candidate. Health regressions preserve all fields, require six-to-one commit
+reduction, and prove rollback of an interrupted publication.
+
+Next hosted verification hypothesis: eliminating implicit source checkpoints
+and health commit amplification restores owner headroom under measured slow
+durability. Discriminator: unchanged 2,223-frame / 600.21-second replay with
+0.165s/frame owner floor, 0.36s/1,000-record archive floor and 6ms extra per changed
+commit. PASS establishes sustained candidate capacity only if lag, 240s retained
+age, 2GiB storage, archive/cleanup, local reads, gaps and integrity gates all pass.
+FAIL disproves repair sufficiency and requires stage evidence review before any
+new run. Run candidate once; do not repeat the already failed legacy 600s replay.
+The final certificate must repeat this durability profile independently.

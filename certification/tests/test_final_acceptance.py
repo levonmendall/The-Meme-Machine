@@ -41,11 +41,12 @@ class FinalAcceptanceTests(unittest.TestCase):
             candidate_checks=60,archive_records_verified=200000,
             counters={'compacted_records':200000},lag_peak=2,hot_peak=1000000000,
             measured_contention=dict(profile='run381-fullcert-36293751021',
-                owner_seconds_per_frame=.165,archive_seconds_per_thousand=.36),
+                owner_seconds_per_frame=.165,archive_seconds_per_thousand=.36,
+                additional_commit_latency_seconds=.006,delayed_commits=100),
             integrity=['ok'],oldest_hot_age_peak=181,oldest_retained_age_peak=182)))
 
     def test_missing_short_or_failed_mature_pressure_cannot_certify(self):
-        for change in ('missing','short','wrong_sha','no_compaction','failed','growing_backlog','index_cleanup_backlog','missing_index_cleanup','no_contention','fast_owner','fast_archive'):
+        for change in ('missing','short','wrong_sha','no_compaction','failed','growing_backlog','index_cleanup_backlog','missing_index_cleanup','no_contention','fast_owner','fast_archive','fast_durability','unused_durability'):
             with self.subTest(change=change),tempfile.TemporaryDirectory() as td:
                 root=Path(td);self.build(root);path=root/'run381-pressure/result.json'
                 row=json.loads(path.read_text())
@@ -61,6 +62,8 @@ class FinalAcceptanceTests(unittest.TestCase):
                     if change=='no_contention':row.pop('measured_contention')
                     if change=='fast_owner':row['measured_contention']['owner_seconds_per_frame']=0
                     if change=='fast_archive':row['measured_contention']['archive_seconds_per_thousand']=0
+                    if change=='fast_durability':row['measured_contention']['additional_commit_latency_seconds']=0
+                    if change=='unused_durability':row['measured_contention']['delayed_commits']=0
                     path.write_text(json.dumps(row))
                 self.assertEqual(run(root,root/'result.json','sha',root/'registry.json'),1)
                 self.assertFalse(json.loads((root/'result.json').read_text())['gates']['mature_solana_pressure'])

@@ -77,6 +77,8 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         and contention.get('profile')=='run381-fullcert-36293751021'
         and contention.get('owner_seconds_per_frame',0)>=.165
         and contention.get('archive_seconds_per_thousand',0)>=.36
+        and contention.get('additional_commit_latency_seconds',0)>=.006
+        and contention.get('delayed_commits',0)>0
         and pressure.get('integration_sha')==offline.get('integration_sha')
         and pressure.get('provider_calls')==0
         and pressure.get('source_seconds',0)>=600

@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from certification.pressure_diagnostics import SQLTimings
-from certification.pressure_durability_compare import batched_health
+from certification.pressure_durability_compare import legacy_health
 from meme_machine.solana_evidence_service import ServiceState
 from meme_machine.solana_provider_config import AlchemyEndpoint
 
@@ -34,11 +34,10 @@ class DurabilityProbeTests(unittest.TestCase):
                     'https://solana-mainnet.g.alchemy.com/v2/offline-test'))
                 try:
                     before = timings.snapshot()['injected_commit_wait']['calls']
-                    state.publish_health({'calls': 1}, {'frames': 2}, {'queue': 0})
+                    legacy_health(state, {'calls': 1}, {'frames': 2}, {'queue': 0})
                     legacy = timings.snapshot()['injected_commit_wait']['calls'] - before
                     before += legacy
-                    batched_health(ServiceState.publish_health)(state,
-                        {'calls': 3}, {'frames': 4}, {'queue': 0})
+                    state.publish_health({'calls': 3}, {'frames': 4}, {'queue': 0})
                     batched = timings.snapshot()['injected_commit_wait']['calls'] - before
                     self.assertEqual((legacy, batched), (6, 1))
                     self.assertEqual(state.writer.db.execute(
