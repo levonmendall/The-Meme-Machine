@@ -22,6 +22,15 @@ import meme_machine.solana_evidence_service as service
 OWNER_SECONDS_PER_FRAME=.165
 ARCHIVE_SECONDS_PER_THOUSAND=.36
 
+def oldest_retained_time(db):
+ # Polling age must not reread the entire payload-bearing table. The existing
+ # scope/time index supplies every market_time; SQLite defers the table lookup
+ # to the rows whose market_time is NULL and still uses their real first_seen.
+ # This returns the identical minimum across ALL retained rows, including
+ # archived index rows. It changes no retention/freshness threshold or pressure
+ # input and requires no additional production index, cache or resource limit.
+ return db.execute('SELECT MIN(COALESCE(market_time,first_seen)) FROM records INDEXED BY records_scope_time').fetchone()[0]
+
 def process_profile():
  # Executable names/counts only: never arguments, environment or credentials.
  try:
@@ -96,7 +105,7 @@ async def run(frames,output,*,measured_contention=False,diagnostics=False):
     c=dict(db.execute('select key,value from counters'));f=db.execute("select value from service_health where key='finalized_frontier:program:meteora'").fetchone()
     gaps=db.execute('select count(*) from gaps where repaired is null').fetchone()[0]
     oldest=db.execute('SELECT COALESCE(market_time,first_seen) FROM records WHERE body IS NOT NULL ORDER BY COALESCE(market_time,first_seen),identity LIMIT 1').fetchone()
-    retained=db.execute('SELECT MIN(COALESCE(market_time,first_seen)) FROM records').fetchone()[0]
+    retained=oldest_retained_time(db)
     return c,json.loads(f[0]) if f else None,gaps,oldest[0] if oldest else None,retained
    finally:db.close()
   def candidate():

@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   pressure:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[phase-a-diagnostic]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[phase-a-compare]')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -19,30 +19,25 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Record fresh-runner pressure diagnostics
+      - name: Verify observer semantics, read budget and bounded instrumentation
         run: |
-          python -m certification.run381_pressure --measured-contention --diagnostics --output pressure-before > pressure-before.log 2>&1
-      - name: Reproduce preceding resource-gate filesystem workload
+          python -m unittest tests.test_pressure_observer_io tests.test_pressure_diagnostics certification.tests.test_run381_contention_profile -v
+      - name: Indexed observer at unchanged full source-clock pressure
+        run: |
+          python -m certification.pressure_observer_compare --variant indexed --output pressure-indexed > pressure-indexed.log 2>&1
+      - name: Legacy observer on the identical runner and runtime
         if: always()
         run: |
-          python -m certification.run prepare --worktrees "$RUNNER_TEMP/phase-a-lanes"
-          (cd "$RUNNER_TEMP/phase-a-lanes/pump" && python -m tests.resource_check) > pump-resource.json
-          (cd "$RUNNER_TEMP/phase-a-lanes/meteora" && python -m tests.resource_check) > meteora-resource.json
-          (cd "$RUNNER_TEMP/phase-a-lanes/meteora" && python -m tests.dlmm_resource_check) > meteora-dlmm-resource.json
-      - name: Record same-runner pressure after resource workload
-        if: always()
-        run: |
-          python -m certification.run381_pressure --measured-contention --diagnostics --output pressure-after > pressure-after.log 2>&1
+          python -m certification.pressure_observer_compare --variant legacy --output pressure-legacy > pressure-legacy.log 2>&1
       - name: Preserve bounded diagnostic evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: phase-a-pressure-${{ github.sha }}
           path: |
-            pressure-before/
-            pressure-before.log
-            pressure-after/
-            pressure-after.log
-            *-resource.json
+            pressure-indexed/
+            pressure-indexed.log
+            pressure-legacy/
+            pressure-legacy.log
           if-no-files-found: error
           retention-days: 90

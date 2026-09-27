@@ -59,18 +59,16 @@ def environment(path):
 
 
 def statement_class(sql):
-    sql = ' '.join(sql.upper().split())
-    if sql.startswith('PRAGMA WAL_CHECKPOINT'): return 'checkpoint'
-    if sql.startswith('PRAGMA INCREMENTAL_VACUUM'): return 'vacuum'
+    # Never normalize or time each record's INSERT/DELETE. Millions of timing
+    # calls can become the measured contention rather than reveal its cause.
+    if sql.startswith('PRAGMA wal_checkpoint'): return 'checkpoint'
+    if sql.startswith('PRAGMA incremental_vacuum'): return 'vacuum'
     if sql in ('COMMIT', 'END'): return 'commit'
-    if sql.startswith(('BEGIN', 'SAVEPOINT', 'RELEASE', 'ROLLBACK')): return 'transaction'
-    if sql.startswith('SELECT MIN(COALESCE(MARKET_TIME,FIRST_SEEN)) FROM RECORDS'):
+    if sql.startswith('SELECT MIN(COALESCE(market_time,first_seen)) FROM records'):
         return 'observer_retained_min'
-    if sql.startswith('SELECT COALESCE(MARKET_TIME,FIRST_SEEN) FROM RECORDS'):
+    if sql.startswith('SELECT COALESCE(market_time,first_seen) FROM records'):
         return 'observer_hot_min'
-    for verb in ('SELECT', 'INSERT', 'UPDATE', 'DELETE'):
-        if sql.startswith(verb): return verb.lower()
-    return 'other'
+    return None
 
 
 class SQLTimings:
@@ -105,15 +103,28 @@ class SQLTimings:
 
         class TimedConnection(sqlite3.Connection):
             def execute(self, sql, *args, **kwargs):
-                return timings.measure(statement_class(sql),
+                label=statement_class(sql)
+                if label is None:
+                    return super().execute(sql,*args,**kwargs)
+                return timings.measure(label,
                     lambda: super(TimedConnection, self).execute(sql, *args, **kwargs))
-
-            def executemany(self, sql, *args, **kwargs):
-                return timings.measure(statement_class(sql),
-                    lambda: super(TimedConnection, self).executemany(sql, *args, **kwargs))
 
         def connect(*args, **kwargs):
             kwargs.setdefault('factory', TimedConnection)
             return native_connect(*args, **kwargs)
 
-        with patch('sqlite3.connect', connect): yield self
+        from meme_machine.solana_evidence_service import ServiceState
+        storage_stage=ServiceState._storage_stage
+        source_batch=ServiceState.source_batch
+        health=ServiceState.publish_health
+        def storage(state,name,fn):
+            return timings.measure('stage_'+name,lambda:storage_stage(state,name,fn))
+        def source(state,items):
+            return timings.measure('stage_source',lambda:source_batch(state,items))
+        def publish(state,*args):
+            return timings.measure('stage_health',lambda:health(state,*args))
+        with patch('sqlite3.connect', connect), \
+             patch.object(ServiceState,'_storage_stage',storage), \
+             patch.object(ServiceState,'source_batch',source), \
+             patch.object(ServiceState,'publish_health',publish):
+            yield self
