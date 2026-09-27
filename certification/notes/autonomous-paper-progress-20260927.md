@@ -983,3 +983,54 @@ unresolved failure, changed source, incomplete projection and interrupted compac
 cannot publish a restorable capsule. This proves a fixed candidate set only:
 candidate/settled projections, rolling-cache key churn, other native journals and
 the joined multi-day crash/provider/resource gate remain pending.
+
+Robinhood history batch pushed as `07b0882e15e182b6a2729e6931f7aaf7b55d6013`;
+ordinary CI `36347857435` PASS. Closed-projection growth is independently
+reproduced after successful prefix checkpoints: 100→300 cancelled Survivor book
+positions grow 217,088→438,272 bytes; matching sleeve positions grow
+184,320→331,776 bytes, with zero exposure and unchanged capital.
+Candidate repair must fold only terminal projections with verified native/sleeve
+acknowledgement and no remaining controller reference. Duplicate protection cannot
+depend on forgetting old IDs: bind newly issued autonomous IDs to the exact existing
+campaign/authorization/window, reject archived-window entry replay, and retain every
+still-relevant Survivor re-entry regime until its native controller retires it.
+This is an engineering identity/storage change, not strategy or allocation authority.
+
+
+Continuation refreshed at exact `07b0882e15e182b6a2729e6931f7aaf7b55d6013`; no
+active/queued workflow. The manifest-matching prepared lanes are the existing
+`autonomous-composed-lanes`/`recovery-composed-lanes` trees. Older `autonomous-lanes`
+fails source integrity and was not used for measurements.
+
+D1 owner measurement (six windows × 20 changing identities, offline production
+storage APIs) is recorded in `results/autonomous-owner-churn-baseline-20260927.json`.
+After existing prefix checkpoints: Survivor/sleeve grows 221,184→483,328 bytes,
+20→120 terminal positions and sleeve candidates. After real capsule handoff:
+Robinhood candidates/latest observations/receipts/rolling cache grow 20→120 rows;
+transitions plateau at zero. Native header cache has the unchanged 4,096-entry
+finite bound and must not be classified unbounded from this sub-capacity sample.
+Current-Pons completed trials/capital journal grow 1,167,360→6,901,760 bytes
+(160→960 journal rows). Meteora completed native entries grow 61→361 journal rows,
+442,368→2,600,960 bytes. Ramses positions grow 20→120, journal 100→600, campaign
+state 149,981→737,789 bytes. Books reconcile with zero remaining exposure. These
+are owner-level storage measurements, not strategy qualification or joined proof.
+Remaining unmeasured controller/projection structures are explicitly UNKNOWN in
+the report. Do not run the joined soak while these linear hot owners remain.
+
+D1 supplemental discriminator measures current Pons qualifiers/lifecycles/re-entry
+vectors 4→24 and shared native-position projections 4→24 across six windows,
+using production persistence/projection APIs. The real autonomous controller's
+12-window hot blob reaches 32 recent events, one current window and one predecessor
+(~10.6 KiB); full history stays in its existing immutable Git chain. No control-plane
+redesign is indicated.
+
+Accepted narrow D2 rolling-cache repair: old six-window regression fails at 40
+retired-key rows after one handoff. Verified capsule archival now externalizes all
+rolling normalized cache rows while retaining original native artifact bytes. Six
+changing-key windows each restore zero rolling rows; cache misses still require
+the same authenticated builder. Four focused tests pass, covering missing/changed
+preservation, incomplete projection, post-delete/pre-publication crash rollback,
+append-only guards, cache authority/conflict checks and current-Pons partial position
+continuation. No cache limit, policy, allocation or source identity was relaxed.
+This closes rolling-cache-key churn only. All measured economic/candidate projection
+growth remains Phase-D work; no full certificate or market run was launched.

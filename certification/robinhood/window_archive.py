@@ -89,7 +89,7 @@ def externalize(destination,artifact,window):
                     classes={k:n for k,n in p.execute('SELECT classification,COUNT(DISTINCT candidate) FROM progress WHERE classification IS NOT NULL GROUP BY classification')})
                 pipelines.append((pipeline,source,last,summary))
         counts={table:db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]
-                for table in ('observations','transitions','evidence','result_consumption')}
+                for table in ('observations','transitions','evidence','result_consumption','rolling')}
         proof=dict(schema='robinhood-window-history-v1',window=window,preserved_snapshot_hash=digest(snapshot),
             previous=old.get('chain_hash'),windows=old.get('windows',0)+1,
             reporting_scope='current_window; exact prior decisions remain in verified native artifacts',
@@ -103,6 +103,12 @@ def externalize(destination,artifact,window):
                 ' WHERE NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=observations.candidate AND c.latest_id=observations.observation)')
             _erase(db,'transitions','history_no_delete')
             db.execute('DELETE FROM result_consumption WHERE NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
+            # Per-candidate rolling eviction cannot retire keys for candidates
+            # that never update again. Their exact normalized rows are already
+            # in the verified immutable predecessor. This is a cache, never a
+            # cursor, position or continuity authority: misses use the same
+            # receipt/header-authenticated builder, with unchanged limits.
+            db.execute('DELETE FROM rolling')
             # Cache misses still require the original authenticated provider path.
             for namespace, in db.execute('SELECT DISTINCT namespace FROM evidence').fetchall():
                 limit=CACHE_LIMITS.get(namespace.rsplit(':',1)[-1])

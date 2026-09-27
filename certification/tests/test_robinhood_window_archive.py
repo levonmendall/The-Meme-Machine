@@ -20,6 +20,78 @@ from certification.tests import test_pons_window_archive as helpers
 class RobinhoodWindowArchive(unittest.TestCase):
     fixture=helpers.PonsWindowArchive.fixture
     staged=helpers.PonsWindowArchive.staged
+    def test_changing_rolling_keys_leave_only_preserved_raw_history(self):
+        f,pons,ramses=self.initialize();sizes=[];parent=None
+        for window in range(6):
+            self.populate(f,pons,ramses,window,count=1)
+            path=f.run/'shared-robinhood-evidence.candidates.sqlite'
+            plane=Plane(path,clock=lambda:window*3600.)
+            for index in range(40):
+                plane.rolling_put('retired-curve:'+str(window*40+index),'tx:'+str(index),
+                    window*3600+index,index,{'authenticated':index},
+                    {'authority':'authenticated_receipt_header'})
+            plane.close();output,runtime,artifact=self.staged(f,window)
+            window_identity=dict(f.window,index=window,workflow_run_id=window+1)
+            if parent:window_identity['parent_state_hash']=parent
+            body=transfer.seal(output/'capsule',worktrees=f.lanes,run=runtime,
+                window=window_identity,
+                terminal=f.terminal,expected_identity=f.identity,preserved_artifact=artifact)
+            archived=artifact/'certification-hourly'/path.name
+            with sqlite3.connect(archived) as db:
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM rolling').fetchone()[0],40)
+            copied=output/'capsule/files/shared'/path.name
+            with sqlite3.connect(copied) as db:
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM rolling').fetchone()[0],0)
+                self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0],'ok')
+            self.assertEqual(body['robinhood_history_handoff']['before']['rolling'],40)
+            self.assertEqual(body['robinhood_history_handoff']['after']['rolling'],0)
+            # Cache miss must reacquire and validate through the existing adapter;
+            # a same-window conflicting value remains a hard failure.
+            cache_probe=output/'cache-probe.sqlite';shutil.copyfile(copied,cache_probe)
+            plane=Plane(cache_probe)
+            proof={'authority':'authenticated_receipt_header'}
+            self.assertIsNone(plane.rolling_get('retired-curve:0','tx:0',proof))
+            plane.rolling_put('fresh','tx',window*3600,1,{'authenticated':1},proof)
+            with self.assertRaisesRegex(ValueError,'rolling_evidence_conflict'):
+                plane.rolling_put('fresh','tx',window*3600,1,{'authenticated':2},proof)
+            with self.assertRaisesRegex(ValueError,'rolling_authority'):
+                plane.rolling_put('fresh','untrusted',window*3600,1,{}, {})
+            plane.close()
+            # The sealed capsule remains immutable during the cache probe.
+            next_work=f.root/'next-lanes';next_run=f.root/'next-run'
+            transfer.restore(output/'capsule',worktrees=next_work,run=next_run,
+                expected_identity=f.identity,expected_state_hash=body['state_hash'],
+                campaign_id=window_identity['campaign_id'],prior_index=window,
+                authorization_hash=window_identity['authorization_hash'])
+            shutil.rmtree(f.lanes);shutil.rmtree(f.run)
+            next_work.rename(f.lanes);next_run.rename(f.run);parent=body['state_hash']
+            sizes.append(path.stat().st_size)
+        self.assertLessEqual(max(sizes[2:])-min(sizes[2:]),65536)
+
+    def test_rolling_archive_publication_cut_rolls_back_and_corruption_blocks_seal(self):
+        from certification.robinhood import window_archive
+        f,pons,ramses=self.initialize();self.populate(f,pons,ramses,0,count=1)
+        path=f.run/'shared-robinhood-evidence.candidates.sqlite';plane=Plane(path)
+        plane.rolling_put('old','tx',1,1,{'exact':True},{'authority':'authenticated_receipt_header'})
+        plane.close();output,runtime,artifact=self.staged(f,0)
+        original=window_archive.canonical
+        def cut(value):
+            if value.get('schema')=='robinhood-window-history-v1':raise SystemExit('after cache deletion before commit')
+            return original(value)
+        with patch.object(window_archive,'canonical',side_effect=cut),self.assertRaises(SystemExit):
+            transfer.seal(output/'cut',worktrees=f.lanes,run=runtime,window=f.window,
+                terminal=f.terminal,expected_identity=f.identity,preserved_artifact=artifact)
+        self.assertFalse((output/'cut/campaign-state.json').exists())
+        with sqlite3.connect(output/'cut/files/shared'/path.name) as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM rolling').fetchone()[0],1)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM transitions').fetchone()[0],3)
+            with self.assertRaises(sqlite3.IntegrityError):db.execute('DELETE FROM transitions')
+        with sqlite3.connect(artifact/'certification-hourly'/path.name) as db:
+            db.execute("UPDATE rolling SET body='{}'")
+        with self.assertRaises(ValueError):
+            transfer.seal(output/'corrupt',worktrees=f.lanes,run=runtime,window=f.window,
+                terminal=f.terminal,expected_identity=f.identity,preserved_artifact=artifact)
+        self.assertFalse((output/'corrupt/campaign-state.json').exists())
     def native_pipeline(self,lane):
         roots=os.environ.get('MM_TEST_LANE_WORKTREES')
         if not roots:self.skipTest('requires canonical prepared native lanes')

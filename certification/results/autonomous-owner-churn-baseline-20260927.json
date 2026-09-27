@@ -1,0 +1,895 @@
+{
+  "schema": "autonomous-owner-churn-measurement-v1",
+  "integration_sha": "07b0882e15e182b6a2729e6931f7aaf7b55d6013",
+  "source": {
+    "pump": "e8e07480feb8adfe96094689679e6158d4d8019938a85e195eced3d845cd6247",
+    "meteora": "948f040d3add6cef34117a350279c5eb9dd902adeab696350157ba3e882a8235",
+    "pons": "bf974c08ada73d018d44f6ca97f5bb8517509d9d7aabe3841ab7f0910a20f19c",
+    "ramses": "ec4b79e22f0bdd87bfde06124244d36f8903c70a21cbf89af1f7bda79752970c"
+  },
+  "windows": 6,
+  "identities_per_window": 20,
+  "provider_calls": 0,
+  "raw_measurement_sha256": "892d551611d42709a1b15704b5773b8e887187cd96aea1efa753e8180b136da5",
+  "scope": "Storage-owner primitives, not joined production certification or profitability",
+  "owners": {
+    "directional": {
+      "bytes": [
+        221184,
+        274432,
+        331776,
+        380928,
+        430080,
+        483328
+      ],
+      "db_bytes": [
+        155648,
+        208896,
+        266240,
+        315392,
+        364544,
+        417792
+      ],
+      "wal_bytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tables": {
+        "paper.sqlite:genesis": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "paper.sqlite:journal": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "paper.sqlite:journal_archive": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "paper.sqlite:positions": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "paper.sqlite:runtime_state": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "sleeve.sqlite:sleeve_archive": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "sleeve.sqlite:sleeve_candidates": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "sleeve.sqlite:sleeve_genesis": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "sleeve.sqlite:sleeve_journal": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "sleeve.sqlite:sleeve_positions": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        }
+      }
+    },
+    "robinhood": {
+      "bytes": [
+        104151,
+        120622,
+        132910,
+        137006,
+        141102,
+        153390
+      ],
+      "db_bytes": [
+        102400,
+        118784,
+        131072,
+        135168,
+        139264,
+        151552
+      ],
+      "wal_bytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tables": {
+        "shared-robinhood-evidence.candidates.sqlite:candidates": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "shared-robinhood-evidence.candidates.sqlite:evidence": {
+          "classification": "BOUNDED",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0,
+          "finite_bound": "header_hash 4096 per stable domain; exact-frontier route cache clears each verified window",
+          "note": "Measured below native cache capacity; growth is not evidence of an unbounded cache."
+        },
+        "shared-robinhood-evidence.candidates.sqlite:observation_archive": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "shared-robinhood-evidence.candidates.sqlite:observation_counts": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "shared-robinhood-evidence.candidates.sqlite:observations": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "shared-robinhood-evidence.candidates.sqlite:result_consumption": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "shared-robinhood-evidence.candidates.sqlite:rolling": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "shared-robinhood-evidence.candidates.sqlite:runtime": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "shared-robinhood-evidence.candidates.sqlite:service": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "shared-robinhood-evidence.candidates.sqlite:transitions": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "solana-evidence-plane.sqlite:evidence": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0,
+          "finite_bound": "header_hash 4096 per stable domain; exact-frontier route cache clears each verified window",
+          "note": "Measured below native cache capacity; growth is not evidence of an unbounded cache."
+        }
+      }
+    },
+    "pons": {
+      "bytes": [
+        1167360,
+        2314240,
+        3461120,
+        4608000,
+        5754880,
+        6901760
+      ],
+      "db_bytes": [
+        1167360,
+        2314240,
+        3461120,
+        4608000,
+        5754880,
+        6901760
+      ],
+      "wal_bytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tables": {
+        "capital.sqlite:capital_genesis": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "capital.sqlite:capital_journal": {
+          "classification": "LINEAR",
+          "counts": [
+            160,
+            320,
+            480,
+            640,
+            800,
+            960
+          ],
+          "rows_per_window": 160.0
+        },
+        "capital.sqlite:capital_positions": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "trial-*.sqlite:cursors": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "trial-*.sqlite:paper": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "trial-*.sqlite:pons_selective_paper": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        },
+        "trial-*.sqlite:records": {
+          "classification": "LINEAR",
+          "counts": [
+            160,
+            320,
+            480,
+            640,
+            800,
+            960
+          ],
+          "rows_per_window": 160.0
+        }
+      }
+    },
+    "meteora": {
+      "bytes": [
+        442368,
+        872448,
+        1306624,
+        1736704,
+        2170880,
+        2600960
+      ],
+      "db_bytes": [
+        442368,
+        872448,
+        1306624,
+        1736704,
+        2170880,
+        2600960
+      ],
+      "wal_bytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tables": {
+        "book.sqlite:events": {
+          "classification": "LINEAR",
+          "counts": [
+            61,
+            121,
+            181,
+            241,
+            301,
+            361
+          ],
+          "rows_per_window": 60.0
+        }
+      }
+    },
+    "ramses": {
+      "bytes": [
+        149981,
+        265065,
+        384245,
+        503445,
+        622645,
+        737789
+      ],
+      "db_bytes": [
+        131072,
+        229376,
+        331776,
+        434176,
+        536576,
+        634880
+      ],
+      "wal_bytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tables": {
+        "campaign/0x5fc5360d0400a0fd4f2af552add042d716f1d168.sqlite:ramses_strategy_journal": {
+          "classification": "LINEAR",
+          "counts": [
+            100,
+            200,
+            300,
+            400,
+            500,
+            600
+          ],
+          "rows_per_window": 100.0
+        },
+        "campaign/0x5fc5360d0400a0fd4f2af552add042d716f1d168.sqlite:ramses_strategy_meta": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "campaign/0x5fc5360d0400a0fd4f2af552add042d716f1d168.sqlite:ramses_strategy_position": {
+          "classification": "LINEAR",
+          "counts": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "rows_per_window": 20.0
+        }
+      }
+    }
+  },
+  "remaining_unknown": [
+    "Survivor native History-to-sleeve retirement composition",
+    "Meteora replay cost and Ramses held-position checkpoint growth"
+  ],
+  "additional_measurement_sha256": "992c833d26958b1135ef90b63ea09b3a7ae43c47430f065d82ea53033df5f618",
+  "additional_measurements": {
+    "pons": {
+      "bytes": [
+        339968,
+        577536,
+        819200,
+        1056768,
+        1294336,
+        1536000
+      ],
+      "tables": {
+        "candidate.sqlite:candidates": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "candidate.sqlite:evidence": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "candidate.sqlite:observation_archive": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "candidate.sqlite:observation_counts": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "candidate.sqlite:observations": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "candidate.sqlite:result_consumption": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "candidate.sqlite:rolling": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "candidate.sqlite:runtime": {
+          "classification": "LINEAR",
+          "counts": [
+            5,
+            9,
+            13,
+            17,
+            21,
+            25
+          ],
+          "rows_per_window": 4.0
+        },
+        "candidate.sqlite:service": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "candidate.sqlite:transitions": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "capital.sqlite:capital_genesis": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "capital.sqlite:capital_journal": {
+          "classification": "LINEAR",
+          "counts": [
+            32,
+            64,
+            96,
+            128,
+            160,
+            192
+          ],
+          "rows_per_window": 32.0
+        },
+        "capital.sqlite:capital_positions": {
+          "classification": "LINEAR",
+          "counts": [
+            4,
+            8,
+            12,
+            16,
+            20,
+            24
+          ],
+          "rows_per_window": 4.0
+        },
+        "controller:lifecycles": {
+          "classification": "LINEAR",
+          "counts": [
+            4,
+            8,
+            12,
+            16,
+            20,
+            24
+          ],
+          "rows_per_window": 4.0
+        },
+        "controller:qualifiers": {
+          "classification": "LINEAR",
+          "counts": [
+            4,
+            8,
+            12,
+            16,
+            20,
+            24
+          ],
+          "rows_per_window": 4.0
+        },
+        "controller:reentry_vectors": {
+          "classification": "LINEAR",
+          "counts": [
+            4,
+            8,
+            12,
+            16,
+            20,
+            24
+          ],
+          "rows_per_window": 4.0
+        },
+        "trial-*.sqlite:cursors": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "trial-*.sqlite:paper": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "trial-*.sqlite:pons_selective_paper": {
+          "classification": "LINEAR",
+          "counts": [
+            4,
+            8,
+            12,
+            16,
+            20,
+            24
+          ],
+          "rows_per_window": 4.0
+        },
+        "trial-*.sqlite:records": {
+          "classification": "LINEAR",
+          "counts": [
+            32,
+            64,
+            96,
+            128,
+            160,
+            192
+          ],
+          "rows_per_window": 32.0
+        }
+      }
+    },
+    "controller": {
+      "bytes": [
+        6425,
+        6925,
+        7425,
+        7924,
+        8424,
+        8924,
+        9432,
+        9937,
+        10438,
+        10641,
+        10565,
+        10573
+      ],
+      "tables": {
+        "controller:position_ids": {
+          "classification": "BOUNDED",
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "rows_per_window": 0.0
+        },
+        "controller:predecessor": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        },
+        "controller:recent_events": {
+          "classification": "BOUNDED",
+          "counts": [
+            8,
+            11,
+            14,
+            17,
+            20,
+            23,
+            26,
+            29,
+            32,
+            32,
+            32,
+            32
+          ],
+          "rows_per_window": 2.1818181818181817
+        },
+        "controller:window": {
+          "classification": "BOUNDED",
+          "counts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "rows_per_window": 0.0
+        }
+      }
+    }
+  },
+  "additional_scope": "Six windows x four native Pons trials, production checkpoint/native-position projection calls, plus 12 real controller state transitions against existing Git/Actions transport fixture. No market/provider authority."
+}
