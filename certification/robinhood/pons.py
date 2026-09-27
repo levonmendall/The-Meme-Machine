@@ -200,8 +200,9 @@ def save_cohort_checkpoint(result,cursor,phase):
         counts={k:len(result.get(k,[])) for k in archives}
         metadata={k:v for k,v in result.items() if k not in archives}
         metadata.update({k:[] for k in archives})
+        from certification.campaign_state import active_window
         plane.checkpoint('pons_cohort',dict(result=metadata,archive_counts=counts,
-            cursor=cursor,phase=phase,owner=process_identity()))
+            cursor=cursor,phase=phase,owner=process_identity(),autonomous_window=active_window()))
     finally:plane.close()
 
 
@@ -236,7 +237,16 @@ def recover_cohort(path,policy):
         saved=plane.checkpoint_read('pons_cohort')
         if not saved or saved['result'].get('policy_hash')!=policy:
             raise BoundaryError('selective_existing_run_requires_explicit_recovery')
-        if saved['phase']=='finalizing':raise BoundaryError('selective_completed_run_cannot_restart')
+        rollover=None
+        if saved['phase']=='finalizing':
+            from certification.campaign_state import restored_window
+            rollover=restored_window()
+            if not rollover:raise BoundaryError('selective_completed_run_cannot_restart')
+            previous=rollover['previous'].get('discovery_window') or {}
+            required=dict(campaign_id=rollover['campaign_id'],authorization_hash=rollover['authorization_hash'],
+                index=previous['index'],workflow_run_id=previous['workflow_run_id'])
+            if saved.get('autonomous_window')!=required:
+                raise BoundaryError('selective_completed_window_identity')
         if alive(saved['owner']):raise BoundaryError('selective_cohort_owner_still_alive')
         result=saved['result']
         for key,name in result.get('native_archive_paths',{}).items():
@@ -248,6 +258,10 @@ def recover_cohort(path,policy):
             except (ValueError,OSError):raise BoundaryError('candidate_archive_unproven') from None
             if len(rows)<expected:raise BoundaryError('candidate_archive_regression')
             result[key]=coalesce_lifecycle_rows(rows) if key=='lifecycles' else rows
+        if rollover:
+            result['started_at']=time.time()
+            result.pop('ended_at',None);result.pop('summary',None)
+            result['autonomous_predecessor']=required
         return result
     finally:plane.close()
 

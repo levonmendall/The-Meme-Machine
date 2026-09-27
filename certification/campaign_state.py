@@ -79,11 +79,17 @@ def _window(window):
         raise ValueError('campaign_state_parent_identity')
 
 
-def seal(destination, *, worktrees, run, window, terminal, expected_identity):
+def seal(destination, *, worktrees, run, window, terminal, expected_identity, discovery_window=None):
     """Called after all owners drain; the ordinary artifact retains the originals."""
     if identity() != expected_identity:
         raise ValueError('campaign_state_source_changed')
     _window(window)
+    discovery_window=window if discovery_window is None else discovery_window
+    _window(discovery_window)
+    if (any(discovery_window[k]!=window[k] for k in ('campaign_id','authorization_hash','native_run_id'))
+            or discovery_window['index']>window['index']
+            or (terminal.get('phase')!='position_continuation' and discovery_window!=window)):
+        raise ValueError('campaign_state_discovery_window')
     if (terminal.get('status') != 'FINISHED' or terminal.get('integration_sha') != expected_identity['integration_sha']
             or terminal.get('implementation_hash') != expected_identity['implementation_hash']
             or set(terminal.get('lanes', {})) != set(LANES)):
@@ -125,8 +131,8 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity):
         raise ValueError('campaign_state_incomplete_lanes')
     if not {'shared/'+name for name in SHARED if name.endswith('.sqlite')} <= {r['path'] for r in files}:
         raise ValueError('campaign_state_missing_evidence')
-    body = dict(schema=SCHEMA, identity=expected_identity, window=window,
-                terminal_hash=digest(terminal), files=files, entry_authority=False,
+    body = dict(schema=SCHEMA, identity=expected_identity, window=window, discovery_window=discovery_window,
+                terminal_hash=digest(terminal), terminal=terminal, files=files, entry_authority=False,
                 accounting={lane: terminal['lanes'][lane]['terminal_reconciliation'] for lane in LANES})
     body['state_hash'] = digest(body)
     _atomic(destination/MANIFEST, body)
@@ -196,3 +202,85 @@ def restore(source, *, worktrees, run, expected_identity, expected_state_hash,
         finally: os.close(fd)
     _atomic(receipt_path, expected)
     return expected
+
+
+def prepare_window(claim, *, worktrees, run, phase, seconds, prior_state=None):
+    """Install a controller-claimed window before any owner or provider starts."""
+    expected = identity()
+    if (claim.get('schema') != 'autonomous-paper-window-claim-v1'
+            or claim.get('identity') != expected):
+        raise ValueError('campaign_claim_identity')
+    certificate = claim.get('certificate') or {}
+    for key in ('integration_sha', 'implementation_hash', 'source_manifest_hash', 'source_diff_hashes'):
+        if certificate.get(key) != expected[key]:
+            raise ValueError('campaign_claim_certificate')
+    if certificate.get('passed') is not True:
+        raise ValueError('campaign_claim_certificate')
+    window = claim.get('window') or {}
+    if (window.get('mode') != phase or window.get('seconds') != seconds
+            or phase not in ('smoke', 'hourly') or window.get('entry_authority') is not True):
+        raise ValueError('campaign_claim_entry_authority')
+    bound = dict(campaign_id=claim.get('campaign_id'), index=window.get('index'),
+                 workflow_run_id=window.get('workflow_run_id'), native_run_id=window.get('native_run_id'),
+                 authorization_hash=claim.get('authorization_hash'))
+    prior = claim.get('previous')
+    if bound['index']:
+        bound['parent_state_hash'] = window.get('parent_state_hash')
+    _window(bound)
+    if bound['index'] == 0:
+        if prior or prior_state or phase != 'smoke':
+            raise ValueError('campaign_claim_initial_window')
+    else:
+        if (not prior or not prior_state or prior.get('index') != bound['index'] - 1
+                or prior.get('state_hash') != bound['parent_state_hash']
+                or prior.get('native_run_id') != bound['native_run_id']
+                or set(prior.get('positions', {})) != set(LANES)
+                or any(prior['positions'].values())):
+            raise ValueError('campaign_claim_prior_state_or_open_positions')
+        proof=verify(prior_state,expected_identity=expected,expected_state_hash=prior['state_hash'],
+            campaign_id=bound['campaign_id'],prior_index=prior['index'],authorization_hash=bound['authorization_hash'])
+        if (set(proof.get('accounting',{}))!=set(LANES)
+                or any(row.get('open_positions') != 0 for row in proof['accounting'].values())):
+            raise ValueError('campaign_claim_native_exposure_requires_continuation')
+        restore(prior_state, worktrees=worktrees, run=run, expected_identity=expected,
+                expected_state_hash=prior['state_hash'], campaign_id=bound['campaign_id'],
+                prior_index=prior['index'], authorization_hash=bound['authorization_hash'])
+    _atomic(Path(run)/'autonomous-window-claim.json', claim)
+    return bound
+
+
+def restored_window():
+    """Lane-side validation of the supervisor's completed state-install receipt."""
+    value = os.environ.get('MM_AUTONOMOUS_STATE_RECEIPT')
+    if not value:
+        return None
+    path = Path(value)
+    receipt = json.loads(path.read_text())
+    claim = json.loads((path.parent/'autonomous-window-claim.json').read_text())
+    previous = claim.get('previous') or {}
+    if (receipt.get('identity') != identity() or claim.get('identity') != receipt['identity']
+            or receipt.get('entry_authority') is not False
+            or claim.get('schema') != 'autonomous-paper-window-claim-v1'
+            or claim.get('window', {}).get('entry_authority') is not True
+            or previous.get('state_hash') != receipt.get('state_hash')
+            or previous.get('index') != receipt.get('window', {}).get('index')
+            or previous.get('native_run_id') != os.environ.get('MM_CERTIFICATION_RUN_ID')
+            or claim.get('campaign_id') != receipt.get('window', {}).get('campaign_id')
+            or claim.get('authorization_hash') != receipt.get('window', {}).get('authorization_hash')):
+        raise ValueError('campaign_restored_window_authority')
+    return claim
+
+
+def active_window():
+    value = os.environ.get('MM_AUTONOMOUS_WINDOW_CLAIM')
+    if not value:
+        return None
+    claim = json.loads(Path(value).read_text())
+    window = claim.get('window') or {}
+    if (claim.get('schema') != 'autonomous-paper-window-claim-v1'
+            or claim.get('identity') != identity()
+            or window.get('entry_authority') is not True
+            or window.get('native_run_id') != os.environ.get('MM_CERTIFICATION_RUN_ID')):
+        raise ValueError('campaign_active_window_identity')
+    return dict(campaign_id=claim['campaign_id'], authorization_hash=claim['authorization_hash'],
+                index=window['index'], workflow_run_id=window['workflow_run_id'])

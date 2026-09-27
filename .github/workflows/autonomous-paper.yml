@@ -1,0 +1,112 @@
+name: Autonomous exact-SHA PAPER windows
+run-name: PAPER ${{ inputs.campaign_id }} ${{ inputs.nonce }}
+on:
+  push:
+    branches: [repair/autonomous-paper-runtime-20260927]
+    paths: [.github/workflows/autonomous-paper.yml]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Explicit authorization, reviewed smoke acceptance, or consumed window claim
+        type: choice
+        options: [authorize, accept, window]
+        required: true
+      expected_sha:
+        description: Exact complete machinery-certified source SHA
+        required: true
+        type: string
+      campaign_id:
+        description: Unique durable PAPER authorization identity
+        required: true
+        type: string
+      certification_run_id:
+        description: Complete non-market certificate, required for authorization
+        type: string
+      nonce:
+        description: Controller-created one-use dispatch identity
+        type: string
+      reviewed_artifact_digest:
+        description: Digest of the native smoke artifact reviewed before acceptance
+        type: string
+      maximum_normal_windows:
+        description: Bounded hourly windows after smoke, from 2 through 168
+        type: string
+        default: '168'
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: autonomous-paper-market
+  cancel-in-progress: false
+jobs:
+  register:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Workflow registration only; no market authority.'
+  controller:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      AUTONOMOUS_CAMPAIGN: ${{ inputs.campaign_id }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Consume exact controller authority before provider access
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CERTIFICATE_RUN: ${{ inputs.certification_run_id }}
+          DISPATCH_NONCE: ${{ inputs.nonce }}
+          REVIEWED_ARTIFACT_DIGEST: ${{ inputs.reviewed_artifact_digest }}
+          MAXIMUM_WINDOWS: ${{ inputs.maximum_normal_windows }}
+        run: python -m certification.autonomous_window control --output autonomous-claim.json
+      - name: Prepare frozen native sources
+        if: inputs.operation == 'window'
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/autonomous-lanes"
+      - name: Restore verified state and run one bounded PAPER window
+        if: inputs.operation == 'window'
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+          MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
+          MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
+        run: >-
+          python -m certification.autonomous_window run
+          --claim autonomous-claim.json --worktrees "$RUNNER_TEMP/autonomous-lanes"
+          --output autonomous-evidence
+      - name: Preserve native success or failure evidence
+        if: always() && inputs.operation == 'window'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}
+          path: autonomous-evidence/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Review preserved outcome and record one successor intent
+        if: always() && inputs.operation == 'window'
+        env:
+          WINDOW_JOB_RESULT: ${{ job.status }}
+        run: >-
+          python -m certification.autonomous_window finish
+          --claim autonomous-claim.json --output autonomous-evidence
+      - name: Preserve controller receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: autonomous-controller-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            autonomous-claim.json
+            autonomous-controller.json
+          if-no-files-found: warn
+          retention-days: 90

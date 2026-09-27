@@ -66,6 +66,48 @@ class PositionContinuationTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'exactly_one_open_position'):
             _meteora_open_identity(events)
 
+    def test_all_lane_artifact_does_not_mix_directional_book_namespaces(self):
+        from certification.position_continuation import native_lane_root
+        from certification.market_assurance import native_positions
+        from certification.survivor_paper_book import PaperBook
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            for lane in ('pump','pons'):
+                folder=root/'certification-native/hourly'/lane;folder.mkdir(parents=True)
+                book=PaperBook(folder/'paper.sqlite',run_id='original',lane=lane,policy_hash='frozen-'+lane,initial=1000)
+                book.reserve('original:'+lane,100,1,{'qualified':True})
+                book.transition('original:'+lane,'filled',2,amount=100,tokens=100);book.close()
+            # The former whole-artifact scan mixes identical ledger schemas.
+            self.assertEqual(len(native_positions(root,'pump')['positions']),2)
+            for lane in ('pump','pons'):
+                observed=native_positions(native_lane_root(root,lane),lane)
+                self.assertEqual(set(observed['positions']),{'original:'+lane})
+                self.assertEqual(observed['natural_entries'],1)
+            (root/'certification-native/duplicate/pump').mkdir(parents=True)
+            with self.assertRaisesRegex(RuntimeError,'ambiguous'):native_lane_root(root,'pump')
+
+    def test_autonomous_position_claim_carries_original_authority_but_no_entry(self):
+        from copy import deepcopy
+        from certification.tests.test_campaign_state import CampaignStateTests
+        from certification import campaign_state as transfer
+        fixture=CampaignStateTests();fixture.setUp()
+        try:
+            state=fixture.root/'position-state';runtime=state/'certification-position'
+            transfer.restore(fixture.capsule,worktrees=state/'certification-native/position',run=runtime,
+                expected_identity=fixture.identity,expected_state_hash=fixture.body['state_hash'],
+                campaign_id=fixture.window['campaign_id'],prior_index=0,authorization_hash=fixture.window['authorization_hash'])
+            claim=fixture.claim();claim['window'].update(mode='position',entry_authority=False,
+                positions={lane:['original-paper-books:position'] if lane in ('pump','pons') else [] for lane in transfer.LANES})
+            path=state/'autonomous-position-authority.json';path.write_text(json.dumps(claim))
+            result=_runtime_identity(state,'pump')
+            self.assertFalse(result['entry_authority']);self.assertEqual(result['campaign_id'],fixture.window['campaign_id'])
+            for changes in ({'entry_authority':True},{'native_run_id':'new-capital'},
+                            {'parent_state_hash':'0'*64},{'index':5},{'mode':'hourly'}):
+                changed=deepcopy(claim);changed['window'].update(changes);path.write_text(json.dumps(changed))
+                with self.subTest(changes=changes),self.assertRaisesRegex(RuntimeError,'authority_identity'):
+                    _runtime_identity(state,'pump')
+        finally:fixture.doCleanups()
+
 
 if __name__=='__main__':
     unittest.main()

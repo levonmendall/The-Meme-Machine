@@ -44,7 +44,7 @@ OFFLINE_WORKFLOWS = {
 }
 OFFLINE_JOBS = {'test', 'tests', 'lint', 'build', 'offline-prerequisites',
                 'inspect-retained-failure', 'review', 'deterministic', 'qualification'}
-MARKET_WORKFLOWS = {'four-lane-certification.yml', 'position-continuation.yml',
+MARKET_WORKFLOWS = {'four-lane-certification.yml', 'position-continuation.yml', 'autonomous-paper.yml',
     'single-campaign-launch.yml', 'prospective-cohort-review.yml',
     'all-market-certification.yml', 'coverage-repair-certification.yml',
     'pump-acceleration-natural-prospective.yml', 'pump-http-primary-soak.yml',

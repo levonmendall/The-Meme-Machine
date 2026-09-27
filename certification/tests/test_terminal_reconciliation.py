@@ -67,6 +67,62 @@ print(json.dumps({'lane':lane,'read_only':True,'reserve_retained':reserved,'open
 '''
 
 
+RAMSES_HANDOFF=r'''
+import hashlib,json,tempfile
+from pathlib import Path
+from copy import deepcopy
+from certification.terminal_reconciliation import reconcile
+from certification.continuity_state import checkpoint,recover,write
+from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger
+from robinhood_research.ramses_strategy import POLICY_HASH
+from robinhood_tests.test_ramses_connected_lifecycle import _decision
+for cut in ('none','before_commit','after_commit'):
+ with tempfile.TemporaryDirectory() as td:
+  root=Path(td);folder=root/'robinhood-ramses-extended-market.sqlite.campaign';folder.mkdir()
+  path=root/'robinhood-ramses-continuation.json'
+  (folder/'capital-manifest.json').write_text(json.dumps(dict(policy_hash=POLICY_HASH,genesis_by_quote_asset={'quote':1000})))
+  book=RamsesStrategyLedger(folder/'quote.sqlite',paper_capital=1000,quote_asset='quote')
+  decision=_decision();book.reserve('original',pool='pool',decision=decision,at=10);book.open('original',at=10)
+  state=dict(schema='ramses-position-continuation-v1',lifecycle_id='original',ledger_path=str(folder/'quote.sqlite'),
+   paper_capital=1000,quote_asset='quote',pool='pool',entry_at=10,entry_block=1,segment_start=1,
+   decision=decision,position_phase='deployed',segments=[],current_capital=100)
+  write(path,state)
+  if cut!='none':
+   def crash(identity,**kw):
+    if cut=='after_commit':book.checkpoint(identity,**kw)
+    raise SystemExit('cut')
+   try:checkpoint(book,'original',state=state,path=path,action='monitor',detail={'validated':True},at=11,
+      next_state=deepcopy(state),commit=crash)
+   except SystemExit:pass
+  expected=book.reconcile();book.close()
+  def files():return {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*')
+      if p.is_file() and not p.name.endswith(('-wal','-shm'))}
+  before=files();proof=reconcile('ramses',root)
+  assert proof['verified'] and proof['durable_handoff'],(cut,proof)
+  assert proof['continuation_state']['entry_at']==10 and not proof['continuation_state']['entry_authority']
+  assert proof['continuation_state']['recoverable_checkpoint_intent']==(cut!='none')
+  assert files()==before,'handoff audit wrote native state'
+  original=json.loads(path.read_text())
+  for field,value in (('entry_at',11),('ledger_path','another.sqlite'),('lifecycle_id','another-position')):
+   changed=deepcopy(original);changed[field]=value;write(path,changed)
+   assert not reconcile('ramses',root)['durable_handoff'],field
+  write(path,original)
+  book=RamsesStrategyLedger(folder/'quote.sqlite',paper_capital=1000,quote_asset='quote')
+  if cut!='none':assert recover(book,'original',original,path)
+  assert book.reconcile()['available']==expected['available']
+  book.close();assert reconcile('ramses',root)['durable_handoff']
+  path.unlink();proof=reconcile('ramses',root)
+  assert proof['verified'] and proof['open_positions']==1 and not proof['durable_handoff']
+print('Ramses native journal and sidecar handoff: original clock, identity, read-only audit and both crash cuts')
+'''
+
+
+class RamsesDurableHandoffTests(unittest.TestCase):
+    def test_open_native_controller_and_recoverable_intent_are_bound_read_only(self):
+        from certification.tests.test_survivor_candidate_progress import SurvivorCandidateProgressTests
+        SurvivorCandidateProgressTests.run_native(self,RAMSES_HANDOFF,lanes=('ramses',))
+
+
 class MeteoraDurableHandoffTests(unittest.TestCase):
     def test_open_replayable_journal_is_a_durable_handoff(self):
         from certification.terminal_reconciliation import meteora_handoff

@@ -583,6 +583,10 @@ def lane_environment(lane,source,run,run_id=None,phase=None):
     else:env.update(MM_CERTIFICATION_PROVIDER_DB=str(run/'shared-robinhood-admission.sqlite'),MM_CERTIFICATION_LANE=lane,
                     MM_CERTIFICATION_RPC_CACHE_DB=str(run/'shared-robinhood-evidence.sqlite'),
                     MM_CERTIFICATION_RPC_CAPABILITIES=str(run/'rpc-capabilities.json'))
+    if (run/'restored-campaign-state.json').is_file():
+        env['MM_AUTONOMOUS_STATE_RECEIPT']=str(run/'restored-campaign-state.json')
+    if (run/'autonomous-window-claim.json').is_file():
+        env['MM_AUTONOMOUS_WINDOW_CLAIM']=str(run/'autonomous-window-claim.json')
     return env
 
 
@@ -644,6 +648,8 @@ def finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees=None)
                     if receipt.get('durable_handoff') is True:
                         row['durable_handoff']=True
                         row['continuation_state']=receipt.get('continuation_state')
+                    elif 'durable_handoff' in receipt:
+                        row['durable_handoff']=False;row['continuation_state']=None
                     if lane in stopped:row['shutdown_positions']='durable_native_state_reconciled'
                 else:row['accounting_reconciled']=False
             except Exception as exc:
@@ -665,7 +671,7 @@ def finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees=None)
     return bool(stopped)
 
 
-def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
+def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None,*,campaign_claim=None,prior_state=None):
     if phase=='sustained' and seconds<14400:raise ValueError('four_hour_minimum')
     if phase=='hourly' and seconds!=3600:raise ValueError('one_hour_window_required')
     integration_integrity()
@@ -675,10 +681,19 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     if gate.get('implementation_hash')!=implementation_hash():raise ValueError('implementation_gate_mismatch')
     if gate.get('source_diff_hashes')!=source_integrity(worktrees):raise ValueError('source_gate_mismatch')
     run=Path(output).resolve();run.mkdir(parents=True,exist_ok=False)
-    spec=manifest();run_id=str(uuid.uuid4())
+    spec=manifest();run_id=str(uuid.uuid4());native_run_id=run_id;campaign_window=None
+    if campaign_claim is not None:
+        from certification.campaign_state import prepare_window
+        campaign_window=prepare_window(campaign_claim,worktrees=worktrees,run=run,
+            phase=phase,seconds=seconds,prior_state=prior_state)
+        native_run_id=campaign_window['native_run_id']
+    elif prior_state is not None:
+        raise ValueError('campaign_claim_required_for_state_restore')
     capabilities=Path(gate_file).parent/'rpc-capabilities.json'
     if capabilities.exists():atomic(run/'rpc-capabilities.json',json.loads(capabilities.read_text()))
     runtime_manifest=dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id)
+    if campaign_window is not None:
+        runtime_manifest.update(campaign_window=campaign_window,native_run_id=native_run_id)
     if 'meteora' in spec.get('lanes',{}):
         overlay=ROOT/'certification/patches/meteora-checkpoint.patch'
         if not overlay.is_file():
@@ -725,14 +740,14 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     from certification.evidence_supervisor import EvidenceProcess
     from meme_machine.solana_evidence_health import HealthWatch
     evidence_watches={lane:HealthWatch(time.monotonic()) for lane in ('pump','meteora')}
-    evidence=EvidenceProcess(run,Path(worktrees)/'pump',lane_environment('pump',spec['lanes']['pump'],run,run_id,phase))
+    evidence=EvidenceProcess(run,Path(worktrees)/'pump',lane_environment('pump',spec['lanes']['pump'],run,native_run_id,phase))
     try:
         evidence.start()
         for lane,row in spec['lanes'].items():
             folder=run/lane;folder.mkdir()
             out=(folder/'process.log').open('wb');files[lane]=out
             cmd=[sys.executable,'-m','certification.worker','--lane',lane,'--output',str(folder),'--policy-hash',row['policy_hash'],'--seconds',str(seconds),'--campaign']
-            proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id,phase),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
+            proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,native_run_id,phase),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
             launched=time.monotonic();processes[lane]=(proc,launched)
             rows[lane]=dict(pid=proc.pid,strategy_version=row['strategy_version'],policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,
                 max_no_activity_seconds=0,gates=dict(responsive=True,state_isolated=True))
@@ -881,6 +896,8 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         if phase=='smoke':result['smoke_engineering']=smoke_engineering(result)
         provider_efficiency(result);result['certification']=evaluate(result)
         if phase=='hourly':result['hourly_engineering']=hourly_engineering(result)
+        if campaign_window is not None:
+            result.update(campaign_window=campaign_window,native_run_id=native_run_id)
         provider_efficiency(result);atomic(run/'result.json',result);journal.close()
         publish_dashboard(result,run/'status.html')
         from certification.analysis import report

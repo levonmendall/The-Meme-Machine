@@ -62,6 +62,29 @@ def _runtime_identity(state_dir,lane):
     if not isinstance(expected,dict):
         raise RuntimeError('continuation_current_lane_missing')
 
+    autonomous=Path(state_dir)/'autonomous-position-authority.json'
+    if autonomous.is_file():
+        from certification.campaign_state import identity
+        claim=json.loads(autonomous.read_text());window=claim.get('window') or {}
+        receipt=json.loads((Path(state_dir)/'certification-position/restored-campaign-state.json').read_text())
+        if (claim.get('schema')!='autonomous-paper-window-claim-v1' or claim.get('identity')!=identity()
+                or window.get('mode')!='position' or window.get('entry_authority') is not False
+                or not (window.get('positions') or {}).get(lane)
+                or receipt.get('identity')!=claim['identity'] or receipt.get('entry_authority') is not False
+                or receipt.get('state_hash')!=window.get('parent_state_hash')
+                or receipt.get('window',{}).get('native_run_id')!=window.get('native_run_id')
+                or receipt.get('window',{}).get('workflow_run_id')!=(claim.get('previous') or {}).get('workflow_run_id')
+                or receipt.get('window',{}).get('campaign_id')!=claim.get('campaign_id')
+                or receipt.get('window',{}).get('authorization_hash')!=claim.get('authorization_hash')
+                or receipt.get('window',{}).get('index')!=window.get('index',0)-1):
+            raise RuntimeError('continuation_autonomous_authority_identity')
+        return dict(lane=lane,phase='position_continuation',source_sha=expected['source_sha'],
+            policy_hash=expected['policy_hash'],strategy_version=expected['strategy_version'],
+            integration_sha=claim['identity']['integration_sha'],implementation_hash=claim['identity']['implementation_hash'],
+            manifest_path=str(autonomous),result_path=str(Path(state_dir)/'certification-position/prior-native-result.json'),
+            engineering_recovery=False,economic_sample_eligible=False,entry_authority=False,
+            campaign_id=claim['campaign_id'],authorization_hash=claim['authorization_hash'])
+
     manifests=[]
     for path in Path(state_dir).rglob('manifest.json'):
         try:value=json.loads(path.read_text())
@@ -689,7 +712,7 @@ class PumpCurrentContinuation:
                 if self.book is not None:self.book.close()
 
 
-def resume_directional(state_dir,*,lane,slice_seconds):
+def resume_directional(state_dir,*,lane,slice_seconds,shared_evidence=False):
     """Resume verified filled directional positions under the one frozen sleeve."""
     from contextlib import closing
     from concurrent.futures import ThreadPoolExecutor
@@ -718,7 +741,7 @@ def resume_directional(state_dir,*,lane,slice_seconds):
                MM_DIRECTIONAL_SLEEVE_DB=str(root/'directional-sleeve.sqlite'))
     prior={k:os.environ.get(k) for k in env};os.environ.update(env)
     evidence=None;runtime=None;current_pool=None;current_futures=[];current_results=[]
-    pump_current=None;pump_status=None
+    pump_current=None;pump_status=None;status={}
     try:
         if lane=='pump':
             from certification.evidence_supervisor import EvidenceProcess
@@ -727,7 +750,8 @@ def resume_directional(state_dir,*,lane,slice_seconds):
             confirmations=ConfirmationBook.from_files(
                 Path(lane_root)/'tests/fixtures/solana_alpha_wallet_cohort_frozen.json',
                 Path(lane_root)/'tests/fixtures/solana_skilled_wallet_prospective_contract.json')
-            evidence=EvidenceProcess(original_run,lane_root,env);evidence.start()
+            if not shared_evidence:
+                evidence=EvidenceProcess(original_run,lane_root,env);evidence.start()
             runtime=Runtime(folder,genesis['initial'],genesis['run_id'],confirmations)
             if (before.get('continuation_state') or {}).get('current'):
                 pump_current=PumpCurrentContinuation(root,confirmations)
@@ -780,8 +804,15 @@ def resume_directional(state_dir,*,lane,slice_seconds):
         terminal_replay_verified=after['verified'],survivor=after['survivor'],
         current_lifecycles=current_results,
         pump_current=pump_status,
+        last_provider_boundary=status.get('last_boundary'),
         newly_settled=after['survivor']['accounting']['settled']-original_settled+current_settled,
         new_entries=0,discovery_enabled=False)
+
+
+def native_lane_root(state_dir,lane):
+    paths=sorted(Path(state_dir).glob('certification-native/*/'+lane))
+    if len(paths)!=1:raise RuntimeError('continuation_native_lane_root_ambiguous')
+    return paths[0]
 
 
 def main():
@@ -791,9 +822,12 @@ def main():
     p.add_argument('--slice-seconds',type=int,default=3000)
     p.add_argument('--output',default='position-continuation-result.json')
     p.add_argument('--audit-output')
+    p.add_argument('--shared-evidence',action='store_true')
     a=p.parse_args()
     if not 60<=a.slice_seconds<=3300:raise SystemExit('continuation_slice_bound')
     state_dir=Path(a.state_dir).resolve();output=Path(a.output).resolve()
+    if a.shared_evidence and not (state_dir/'autonomous-position-authority.json').is_file():
+        raise RuntimeError('continuation_shared_owner_requires_autonomous_claim')
     audit=Path(a.audit_output).resolve() if a.audit_output else state_dir/'continuation-audits'/str(time.time_ns())
     audit.mkdir(parents=True,exist_ok=True)
     _activate_lane_root()
@@ -804,19 +838,19 @@ def main():
     from certification.run import git
     os.environ['MM_CERT_INTEGRATION_SHA']=git('rev-parse','HEAD')
     # Snapshot the lane book once; subsequent changes must extend its prefix.
-    before=native_positions(state_dir,a.lane);_atomic(audit/'position-before.json',before)
+    native_root=native_lane_root(state_dir,a.lane)
+    before=native_positions(native_root,a.lane);_atomic(audit/'position-before.json',before)
     if a.lane in ('pump','pons'):os.environ['MM_DIRECTIONAL_COMPOSITE_REQUIRED']='1'
     conformance=install(audit,a.lane,source['policy_hash'])
     try:
-        native_paths=sorted(state_dir.glob('certification-native/*/'+a.lane))
-        cwd=native_paths[0] if len(native_paths)==1 else state_dir
-        with chdir(cwd):
+        with chdir(native_root):
             result=(resume_meteora(state_dir,slice_seconds=a.slice_seconds)
                     if a.lane=='meteora' else resume_ramses(state_dir,slice_seconds=a.slice_seconds)
-                    if a.lane=='ramses' else resume_directional(state_dir,lane=a.lane,slice_seconds=a.slice_seconds))
+                    if a.lane=='ramses' else resume_directional(state_dir,lane=a.lane,slice_seconds=a.slice_seconds,
+                                                              shared_evidence=a.shared_evidence))
     finally:
         conformance.close()
-        after=native_positions(state_dir,a.lane);_atomic(audit/'position-after.json',after)
+        after=native_positions(native_root,a.lane);_atomic(audit/'position-after.json',after)
         transfer=continuity(before,after);_atomic(audit/'continuity.json',transfer)
     import subprocess
     replay=subprocess.run([sys.executable,'-m','certification.decision_conformance',

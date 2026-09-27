@@ -476,3 +476,57 @@ exact SHA/policy/campaign/authorization lock, corruption/collision rejection,
 interrupted installation before receipt publication, and real Survivor history,
 partial/native ledger and sleeve transfer without creating capital. This module
 does not yet dispatch or authorize a successor; runtime/controller wiring is next.
+
+Ramses/state transfer batch pushed as `65d11fdf739623c35d6933f9ca8cc48e8754b12f`;
+ordinary CI `36333697273` passes. No market or pressure dispatch.
+
+Cross-window bridge now preserves a separate native book identity while each
+supervisor window keeps its own run ID. Native Pons completed checkpoints still
+reject ordinary reruns; an exact verified successor can restore one only when
+campaign, authorization, predecessor index/run and copied checkpoint agree.
+Nine capsule/native-checkpoint tests pass, including refusal to hide native open
+exposure behind a flat controller claim. Pons bounded-history rollover and full
+six-regime cross-window integration remain unfinished.
+
+New controller prototype reuses the actual Git StateStore and global contention
+inventory; the old single-campaign policy remains unchanged. Eight deterministic
+tests pass using a Git API model with real non-fast-forward enforcement and the
+actual workflow bytes: smoke review barrier, two normal successors, position-only
+authority/identity, competing workflow rejection, CAS collisions, lost dispatch
+response, and crash after durable intent before POST. A pending intent is never
+retried. Workflow checks require both active registration and exact-ref content.
+New autonomous workflow/adapter are uncommitted and still being wired; these are
+not control-plane certification or market evidence. The same workflow will run
+bounded native continuation before allowing new entry when positions remain.
+
+Ramses terminal audit currently proves capital conservation but omits a durable
+handoff proof for its sidecar/controller. The new state capsule correctly rejects
+such open exposure. Next repair must read-only bind original entry clock, native
+position/book/geometry and recoverable write-ahead intent to the existing sidecar;
+do not weaken the capsule gate or infer flatness from an absent sidecar.
+
+Ramses read-only handoff now binds the original native reservation clock, book,
+asset, position, geometry and sidecar, including recoverable intents on both sides
+of native commit. Missing/mismatched state retains open exposure and provides no
+handoff authority. Native regression proves no writes during audit. Supervisor
+clears stale report handoff flags when authoritative native proof is false.
+
+The rolling workflow adapter now claims before provider access, reuses exact
+certification and existing endpoint preflights, verifies preserved artifact/state
+digests, restores the original book namespace, runs existing native windows, and
+requires native review before successor intent. Position windows reuse the actual
+continuation runners with a shared Solana owner and no discovery/entry authority.
+Inspection exposed whole-artifact directional journal scans mixing Pump/Pons
+schemas; each continuation audit now reads only its own native lane. Regression
+demonstrates the old mixed count and the corrected separate identities. A capsule
+also retains the last discovery window across intermediate position-only slices,
+so Pons can bind its original discovery checkpoint after positions settle.
+
+Ninety-four focused authority/runtime/continuity/accounting tests pass, including
+workflow command claim/export, source-artifact corruption rejection and native
+checkpoint transfer. Workflow YAML parses with seven dispatch inputs. No full
+certificate, pressure rerun or market dispatch occurred. Remaining before Phase C
+closure: execute the workflow adapters offline through all six actual native
+states and position paths (not only controller transitions), verify failure
+artifact/drain behavior, then query final-SHA registered dispatch availability.
+Phase B restart/replay and Phase D long-horizon/steady-state gaps remain open.

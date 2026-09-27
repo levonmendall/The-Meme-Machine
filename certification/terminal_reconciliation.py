@@ -68,6 +68,53 @@ def meteora_handoff(events,accounting,replay):
     )
 
 
+def ramses_handoff(root,positions):
+    """Read-only binding of the existing native position to its durable controller."""
+    from certification.journal import digest
+    if len(positions)!=1:return None
+    native=positions[0];position=native['position']
+    path=Path(root)/'robinhood-ramses-continuation.json'
+    if not path.is_file() or path.is_symlink():return None
+    state=json.loads(path.read_text())
+    if (state.get('schema')!='ramses-position-continuation-v1'
+            or state.get('lifecycle_id')!=position['id']
+            or Path(state.get('ledger_path','')).name!=native['book_name']
+            or state.get('paper_capital')!=native['paper_capital']
+            or state.get('quote_asset')!=native['quote_asset']
+            or state.get('entry_at')!=native['reserved_at']
+            or str(state.get('pool','')).lower()!=position['pool']
+            or type(state.get('entry_block')) is not int or state['entry_block']<=0):
+        return None
+    effective=state;proposal=position['proposal_hash'];intent=state.get('pending_native_checkpoint')
+    if intent:
+        previous=intent.get('previous_version');detail=intent.get('detail') or {}
+        if (intent.get('identity')!=position['id'] or type(previous) is not int
+                or position['version'] not in (previous,previous+1)
+                or (position['version']==previous+1 and
+                    (position.get('last_controller')!=detail or position.get('at')!=intent.get('at')))):
+            return None
+        effective=intent.get('next_state') or {}
+        if (effective.get('lifecycle_id')!=position['id']
+                or effective.get('entry_at')!=native['reserved_at']):return None
+        if intent.get('action')=='rebalance':proposal=detail.get('proposal_hash')
+    elif state.get('last_native_version') is not None and state['last_native_version']!=position['version']:
+        return None
+    elif state.get('last_native_version') is None and position.get('last_controller') is not None:
+        return None
+    pending=effective.get('pending_rebalance') or {}
+    decisions=(effective.get('decision'),pending.get('old_decision'),pending.get('new_decision'))
+    if (not proposal or not any(isinstance(d,dict) and (d.get('freeze') or {}).get('proposal_hash')==proposal for d in decisions)
+            or effective.get('position_phase') not in ('deployed','flat_quote')
+            or type(effective.get('segment_start')) is not int or effective['segment_start']<=0
+            or type(effective.get('current_capital')) is not int or effective['current_capital']<=0
+            or not isinstance(effective.get('segments',[]),list)):
+        return None
+    return dict(schema='ramses-durable-position-handoff-v1',lane='ramses',
+        lifecycle_id=position['id'],native_version=position['version'],entry_at=native['reserved_at'],
+        ledger_name=native['book_name'],quote_asset=native['quote_asset'],controller_hash=digest(state),
+        recoverable_checkpoint_intent=bool(intent),entry_authority=False)
+
+
 def pump_current_handoff(book):
     """Use the native startup reconstruction without issuing provider or pin writes."""
     from types import SimpleNamespace
@@ -188,7 +235,7 @@ def reconcile(lane,root):
                     or list(root.glob('robinhood-ramses-continuation*.sqlite'))):
                 raise ValueError('ramses_unfunded_state_unproven')
             return dict(verified=True,accounting=accounting,open_positions=0)
-        frozen=json.loads(manifest.read_text());rows={}
+        frozen=json.loads(manifest.read_text());rows={};positions=[]
         if frozen['policy_hash']!=POLICY_HASH:raise ValueError('terminal_policy_identity')
         for asset,amount in frozen['genesis_by_quote_asset'].items():
             with closing(connect(folder/(asset+'.sqlite'))) as db:
@@ -200,10 +247,19 @@ def reconcile(lane,root):
                 book=RamsesStrategyLedger.__new__(RamsesStrategyLedger)
                 book.db=db;book.paper_capital=amount;book.quote_asset=asset
                 rows[asset]=book.reconcile()
+                for identity, in db.execute('SELECT id FROM ramses_strategy_position'):
+                    position=book.position(identity)
+                    if position['status']=='settled':continue
+                    first=db.execute('SELECT body FROM ramses_strategy_journal WHERE id=? AND action=\'reserve\' ORDER BY seq LIMIT 1',(identity,)).fetchone()
+                    if first is None:raise ValueError('ramses_original_reservation_missing')
+                    positions.append(dict(position=position,book_name=asset+'.sqlite',paper_capital=amount,
+                        quote_asset=asset,reserved_at=json.loads(first[0])['at']))
         verified=all(r['paper_capital']+r['realized']==r['available']+r['committed'] for r in rows.values())
         accounting=dict(manifest=frozen,by_quote_asset=rows,conservation=verified,
             unlike_quote_units_summed=False,open_positions=sum(r['open_positions'] for r in rows.values()))
-        return dict(verified=verified,accounting=accounting,open_positions=accounting['open_positions'])
+        handoff=ramses_handoff(root,positions)
+        return dict(verified=verified,accounting=accounting,open_positions=accounting['open_positions'],
+                    durable_handoff=handoff is not None,continuation_state=handoff)
     raise ValueError('unknown_lane')
 
 
