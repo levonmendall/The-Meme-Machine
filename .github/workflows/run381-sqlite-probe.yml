@@ -21,20 +21,10 @@ jobs:
         run: |
           python -m py_compile tests/test_run381_retention_progress.py tests/test_run381_maintenance_overlap.py
           git show 674b4a1e8efb9576c31f4815b57fce395706369d:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
-          python - <<'PY'
-          import unittest
-          suite=unittest.defaultTestLoader.loadTestsFromName('tests.test_run381_retention_progress.RetentionProgressTests.test_interrupted_begin_cannot_leave_an_open_write_transaction')
-          result=unittest.TextTestRunner(verbosity=2).run(suite)
-          assert result.testsRun==1 and len(result.failures)==1 and not result.errors, 'expected exactly one behavioral assertion failure'
-          PY
+          python -m certification.run381_expected_failure tests.test_run381_retention_progress.RetentionProgressTests.test_interrupted_begin_cannot_leave_an_open_write_transaction
           git restore --source=HEAD -- meme_machine/solana_evidence_plane.py
           git show 674b4a1e8efb9576c31f4815b57fce395706369d:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
-          python - <<'PY'
-          import unittest
-          suite=unittest.defaultTestLoader.loadTestsFromName('tests.test_run381_maintenance_overlap')
-          result=unittest.TextTestRunner(verbosity=2).run(suite)
-          assert result.testsRun==1 and len(result.failures)==1 and not result.errors, 'expected exactly one behavioral assertion failure'
-          PY
+          python -m certification.run381_expected_failure tests.test_run381_maintenance_overlap
           git restore --source=HEAD -- meme_machine/solana_evidence_service.py
       - name: Repaired deterministic regressions and interruption matrix
         run: |
