@@ -519,6 +519,15 @@ class ServiceState:
         # (and again in subsequent metadata commits while a reader pins the WAL).
         # Keep this service-only: standalone writers need their default policy.
         self.writer.db.execute('PRAGMA wal_autocheckpoint=0')
+        # Retention deletes fan out across the address index. SQLite's 2 MiB
+        # default cache repeatedly evicts those pages, and file-backed statement
+        # rollback journals copy them again for each delete. Give the sole owner
+        # a fixed 16 MiB working cache and keep temporary rollback work in memory.
+        # Source/retention transaction bounds and cache spill remain enabled;
+        # durable evidence still uses FULL-synchronous WAL and the same 2 GiB
+        # guard. Configure before any temporary schema or owner work is created.
+        self.writer.db.execute('PRAGMA cache_size=-16384')
+        self.writer.db.execute('PRAGMA temp_store=MEMORY')
         self.fence=FinalizedFence(self.writer,endpoint_identity=config.identity,decoders=program_decoders())
         self.fence.health('provider',dict(provider=config.provider,network=config.network,endpoint_identity=config.identity))
         self.fence.health('phase','WARMING');self.fence.health('heartbeat',time.time())

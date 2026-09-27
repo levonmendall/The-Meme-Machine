@@ -62,8 +62,8 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Verify bounded durability injection and conserved health fields
-        run: python -m unittest tests.test_pressure_durability_probe tests.test_pressure_diagnostics tests.test_pressure_observer_io tests.test_solana_checkpoint_owner tests.test_solana_health_atomicity -v
-      - name: Production checkpoint owner and atomic health at observed durable latency
+        run: python -m unittest tests.test_pressure_durability_probe tests.test_pressure_diagnostics tests.test_pressure_observer_io tests.test_solana_checkpoint_owner tests.test_solana_health_atomicity tests.test_solana_retention_working_set -v
+      - name: Production durable owner at observed commit latency
         run: python -m certification.pressure_durability_compare --variant repaired --output durability-repaired > durability-repaired.log 2>&1
       - name: Preserve latency comparison evidence
         if: always()

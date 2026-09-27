@@ -43,6 +43,8 @@ def main():
     def legacy_init(state, *args, **kwargs):
         original_init(state, *args, **kwargs)
         state.writer.db.execute('PRAGMA wal_autocheckpoint=1000')
+        state.writer.db.execute('PRAGMA cache_size=-2000')
+        state.writer.db.execute('PRAGMA temp_store=FILE')
     checkpoint = (patch.object(service.ServiceState, '__init__', legacy_init)
                   if args.variant == 'legacy' else nullcontext())
     publication = (patch.object(service.ServiceState, 'publish_health', legacy_health)

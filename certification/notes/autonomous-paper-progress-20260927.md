@@ -189,3 +189,76 @@ age, 2GiB storage, archive/cleanup, local reads, gaps and integrity gates all pa
 FAIL disproves repair sufficiency and requires stage evidence review before any
 new run. Run candidate once; do not repeat the already failed legacy 600s replay.
 The final certificate must repeat this durability profile independently.
+
+
+Candidate `a7bba25b7be05db390293fe00040cfbb6926d500` is pushed on the
+continuation branch. Hosted durability verification `36325689034` and ordinary
+CI `36325689045` are running. Local focused/instrumentation/acceptance checks:
+16 passed; affected archive/retention/atomic-frame/storage checks: 40 passed.
+
+Read-only B/C gap mapping during hosted verification: existing native Survivor
+commit/monitor, frozen risk boundaries, shared-sleeve concurrency and restart
+accounting tests are reusable. Normal successor dispatch is explicitly disabled
+by the current single-campaign policy; extend durable orchestration under this
+task's explicit autonomous authority, preserving standalone single-run semantics.
+A short production Pump Runtime.step reproduction filled History capacity (one
+candidate) with an expired candidate and offered a new graduation: result was
+`survivor_candidate_capacity`, old candidate remained `graduated`, and retirement
+did not progress. Existing positions run before discovery, so this reproduction
+establishes candidate-progress starvation only. Add a focused regression and
+bounded scheduling repair in B/D; do not claim wider lifecycle failure from it.
+
+Ordinary CI `36325689045` passed for `a7bba25`; pressure still running at this
+checkpoint. The same full-capacity Runtime.step retirement stall reproduced in
+Pons Survivor. The final source composition must refresh only engineering overlay
+file/diff identities for Pump/Meteora after the service repair; leave all approved
+strategy versions, policy hashes, source/execution commits and allocations intact.
+B/C audit must explicitly check transfer of unfilled Survivor candidate history
+across normal campaign windows: their six-hour minimum age exceeds an hourly
+window, and the current normal workflow prepares fresh worktrees. No conclusion
+of working long-horizon Survivor acquisition is justified by within-window tests.
+
+
+Hosted checkpoint candidate `36325689034` FAILED at the unchanged 240s retained
+age gate (240.334s; source lag 42.334s; 1,200,610,440-byte hot peak). Verified
+artifact `10934002779`, SHA256
+`19d067642564f9eb2884331ec0df78109e9bc7ccd34aed43101f1a3118945d7b`.
+Moving checkpoints did remove measured commit amplification: COMMIT wall time
+14.89s versus prior atomic-health 177.99s, despite more processed frames.
+However retention still consumed 97.38 wall / 61.34 CPU seconds; explicit
+checkpoints consumed 23.56s, and process write requests reached 77.27GB for
+6.07GB of admitted source. The repair is useful but NOT sufficient. No rerun.
+Next cheap discriminator: fixed mature-store maintenance slices measuring write
+amplification with unchanged transaction sizes, comparing SQLite spill behavior
+and a bounded page-cache working set. Do not relax any pressure/resource gate.
+Uncommitted B candidate-progress patches/tests are parked; both old native
+runtimes failed the regression and both scheduling prototypes pass, but they are
+not composed/promoted and Phase A remains the only active completion gate.
+
+Bounded mature-store probes isolate remaining retention amplification to record
+deletion's temporary statement journals and address-index page-cache churn. With
+24,000 records / 384,000 address refs, one unchanged 1,000-record retention slice
+requested ~126MB writes / 73MB reads using default disk temp / 2MiB cache;
+memory temp / fixed 16MiB cache needed ~34MB writes / 20MB reads. Factor probes
+independently reduce writes with memory temp and reads with the bounded cache.
+Bulk delete was rejected: fewer write requests but more actual durable bytes.
+Disabling cache spill added little; retain normal spill and transaction bounds.
+
+Accepted candidate configures only ServiceState's owner connection with memory
+temporary work and a fixed 16MiB page cache. FULL WAL, 256-record retention
+transactions, source bounds, pins, provenance and all acceptance limits remain.
+New production-retention regression fails old behavior at 125,901,768 requested
+write bytes. Candidate passes; injected trigger abort restores rows, lineage and
+address refs, then reopening/retrying produces correct durable deletion and
+integrity. Twelve 1,000-record cycles on a 100,000-record store stabilized at
+37,052–37,056KiB RSS, eight FDs, and decreasing hot bytes after initial WAL reuse.
+Focused checks: 11 passed. Affected storage/archive/atomic/crash/acceptance checks:
+66 passed. No market/provider access occurred.
+
+Next hosted verification hypothesis: removing temporary-journal write
+amplification and page-cache churn restores sustained owner capacity after the
+already measured checkpoint repair. Discriminator remains the full 2,223-frame /
+600.21-second replay with the same source/archive floors and 6ms changed-commit
+delay. PASS requires all existing lag, age, storage, archive/cleanup, local-read,
+gap and integrity gates. FAIL disproves sufficiency and requires reviewing stage
+evidence before any further hosted run. No limit or source load is relaxed.
