@@ -39,6 +39,75 @@ def _erase(db,table,trigger,where='',args=()):
     db.execute(sql[0])
 
 
+def _retire_identities(db,files,artifact,snapshot,window,inventory,old):
+    """Retire acknowledged predecessors; retained controllers always win.
+
+    The latest source frontier for each lane remains hot. A bounded lane fence
+    replaces retired per-candidate fences, so historical source replay cannot
+    become a fresh nomination after a campaign handoff.
+    """
+    from certification.lifecycle_identity import parsed,scope
+    protected=set();retired_positions=[];terminal_candidates=set()
+    campaign=scope(window);position_scope=dict(campaign=campaign['campaign'],through=campaign['index'])
+    for key,raw in db.execute('SELECT key,body FROM runtime').fetchall():
+        value=json.loads(raw)
+        if key=='pons_cohort':
+            # Re-entry and recovery references are removed only by the native
+            # current-Pons archival proof, never guessed by this shared owner.
+            result=value.get('result',{})
+            protected.update(r['curve'].lower() for kind in ('qualifiers','lifecycles')
+                for r in result.get(kind,[]) if r.get('curve'))
+            for kind in ('qualifiers','lifecycles'):
+                name=result.get('native_archive_paths',{}).get(kind)
+                if name:
+                    path=files/'pons'/name
+                    if Path(name).is_absolute() or '..' in Path(name).parts:
+                        raise ValueError('robinhood_controller_path')
+                    if path.exists():
+                        for line in path.read_text().splitlines():
+                            row=json.loads(line)
+                            if row.get('curve'):protected.add(row['curve'].lower())
+        if not key.startswith('native_position:'):continue
+        p=value['position'];issued=parsed(p['id']);lane=value['provenance']['lane']
+        eligible=(p['status']=='settled' and issued and issued['campaign']==position_scope['campaign']
+                  and issued['index']<=position_scope['through'])
+        locator=Path(value['provenance']['native_ledger'])
+        if eligible and not locator.is_absolute() and '..' not in locator.parts:
+            source=artifact/('certification-native/'+snapshot['phase'])/lane/locator
+            if source not in inventory:raise ValueError('robinhood_terminal_projection_not_preserved')
+            table={'pons':'pons_selective_paper','ramses':'ramses_strategy_position'}[lane]
+            with closing(sqlite3.connect(source.resolve().as_uri()+'?mode=ro',uri=True)) as native:
+                row=native.execute('SELECT body FROM '+table+' WHERE id=?',(p['id'],)).fetchone()
+            if row is None or json.loads(row[0])!=p:raise ValueError('robinhood_terminal_projection_changed')
+            # Native controllers are authoritative. An unresolved controller
+            # sidecar or safety intent keeps the projection hot.
+            safety=db.execute('SELECT body FROM runtime WHERE key=?',('position_safety:'+p['id'],)).fetchone()
+            if safety:protected.add(value['candidate']);continue
+            retired_positions.append(key)
+            terminal_candidates.add(value['candidate'])
+        else:protected.add(value['candidate'])
+    rows=[dict(r) for r in db.execute('SELECT * FROM candidates')]
+    frontier={lane:max(tuple(json.loads(r['ordering'])) for r in rows if r['lane']==lane)
+              for lane in {r['lane'] for r in rows}}
+    floors=dict(old.get('retired_ordering',{}));retired=[]
+    for row in rows:
+        key=row['id'];order=tuple(json.loads(row['ordering']))
+        if (key in protected or key.rsplit(':',1)[-1].lower() in protected or row['pending']
+                or row['claim'] or order>=frontier[row['lane']]):continue
+        if row['state'] not in ('canonical_evidence_complete','strategy_rejected','structural_excluded','settled','entry_cancelled') and key not in terminal_candidates:continue
+        if not db.execute('SELECT 1 FROM result_consumption WHERE candidate=? AND generation=?',
+                          (key,row['generation'])).fetchone() and row['state'] not in ('strategy_rejected','structural_excluded'):continue
+        retired.append(key)
+        floors[row['lane']]=list(max(tuple(floors.get(row['lane'],[])),order))
+    for key in retired_positions:db.execute('DELETE FROM runtime WHERE key=?',(key,))
+    for key in retired:
+        db.execute('DELETE FROM candidates WHERE id=?',(key,))
+        db.execute('DELETE FROM observation_archive WHERE candidate=?',(key,))
+    return dict(retired_ordering=floors,retired_position_scope=position_scope,
+                retired_candidates=len(retired),retired_candidate_hash=digest(retired),
+                retired_positions=len(retired_positions),retired_projection_hash=digest(retired_positions))
+
+
 def externalize(destination,artifact,window):
     from certification.autonomous_window import verify_snapshot
     files=Path(destination)/'files';path=files/'shared/shared-robinhood-evidence.candidates.sqlite'
@@ -99,6 +168,7 @@ def externalize(destination,artifact,window):
             db.execute('BEGIN IMMEDIATE')
             db.execute('CREATE TABLE IF NOT EXISTS observation_archive(candidate TEXT PRIMARY KEY,ordering TEXT NOT NULL)')
             db.execute('INSERT OR REPLACE INTO observation_archive SELECT id,ordering FROM candidates')
+            proof.update(_retire_identities(db,files,artifact,snapshot,window,inventory,old))
             _erase(db,'observations','observations_no_delete',
                 ' WHERE NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=observations.candidate AND c.latest_id=observations.observation)')
             _erase(db,'transitions','history_no_delete')

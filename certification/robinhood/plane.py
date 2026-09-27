@@ -149,6 +149,12 @@ class Plane:
                 # Redelivery never refreshes an observation's deadline.
                 return 'duplicate'
             archived=self.db.execute('SELECT ordering FROM observation_archive WHERE candidate=?',(key,)).fetchone()
+            floor=(self.history_archive() or {}).get('retired_ordering',{}).get(lane)
+            if row is None and floor is not None and ordering<=tuple(floor):
+                # A restored window cannot re-admit an already-consumed source
+                # prefix as a new candidate. Live candidates retain their own
+                # fences and may still complete older, explicitly retained work.
+                return 'archived'
             if archived and ordering<=tuple(json.loads(archived[0])):
                 # The raw prefix remains in the verified predecessor artifact.
                 # Its replay grants no generation, fresh deadline or work.
@@ -380,6 +386,22 @@ def project_native_position(path,lane,candidate_id,position,*,ledger_path,policy
             key='native_position:'+lane+':'+native_id
             raw=plane.db.execute('SELECT body FROM runtime WHERE key=?',(key,)).fetchone()
             old=json.loads(raw[0]) if raw else None
+            if old is None:
+                from certification.lifecycle_identity import parsed
+                issued=parsed(native_id)
+                retired=(plane.history_archive() or {}).get('retired_position_scope')
+                if issued and retired and issued['campaign']==retired['campaign'] and issued['index']<=retired['through']:
+                    # A terminal acknowledgement replay cannot recreate a hot
+                    # projection. A crash before the first live projection may
+                    # recover only from the exact still-live native row.
+                    if position['status']=='settled':return
+                    table={'pons':'pons_selective_paper','ramses':'ramses_strategy_position'}[lane]
+                    source=sqlite3.connect(Path(ledger_path).resolve().as_uri()+'?mode=ro',uri=True)
+                    try:
+                        native=source.execute('SELECT body FROM '+table+' WHERE id=?',(native_id,)).fetchone()
+                        if native is None or json.loads(native[0])!=position:
+                            raise ValueError('archived_native_projection_replay')
+                    finally:source.close()
             value=dict(candidate=candidate_id,position=position,provenance=proof,
                 priority=0 if position['status']!='settled' else None)
             if old:

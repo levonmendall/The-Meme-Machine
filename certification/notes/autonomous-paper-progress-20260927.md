@@ -1124,3 +1124,29 @@ pins are accepted only at their reviewed hashes; changed hashes and policy mutat
 still reject. No thresholds changed. Remaining measured LINEAR: shared Robinhood
 candidate/projection IDs, current Pons trials/capital/re-entry, current-strategy sleeve
 projections. D remains OPEN; no final certificate or market workflow launched.
+
+## 9b01484 resumption — final three measured D owners
+
+Remote/source refresh confirms starting SHA 9b01484eddeb69f0e928dfbd0b5779fc04ec6b54
+and ordinary CI 36353219573 PASS. Existing uncommitted current-Pons candidate is
+preserved. Only recovery-composed-lanes currently matches the source manifest;
+autonomous-composed-lanes contains that undeclared Pons prototype and is not used
+as certified source. A/B/C and the completed storage owners remain closed.
+
+Robinhood candidate/projection owner repair extends the existing verified window
+archive. It preserves the latest lane frontier, pending/unconsumed/infrastructure
+state and referenced/live projections. Older acknowledged candidates fold into a
+bounded per-lane source-order fence. Terminal projections leave only after exact
+native terminal bytes are verified in the immutable predecessor. Scoped lifecycle
+replay cannot recreate retired projections; missing live post-commit projection
+recovery requires the exact current native row. Existing monotone transition and
+projection-source receipts remain unchanged; this grants no window/entry authority.
+
+The existing D1 driver with retirement disabled reproduces 20→40→60 candidates.
+With repair, six changing-identity windows retain exactly one candidate, observation,
+fence and acknowledgement each. Six native Pons projection windows retain only the
+original live position plus current frontier (23 settled projections preserved in
+raw predecessors), within an 8KiB hot DB band. Five focused tests PASS including
+source-order replay, corruption, prepublication rollback, missing projection and
+position-only live-state preservation. No seven-day component soak repeated.
+Owner 1 CLOSED subject to the later joined proof. Next: current-Pons owner.

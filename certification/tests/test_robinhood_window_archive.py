@@ -92,6 +92,98 @@ class RobinhoodWindowArchive(unittest.TestCase):
             transfer.seal(output/'corrupt',worktrees=f.lanes,run=runtime,window=f.window,
                 terminal=f.terminal,expected_identity=f.identity,preserved_artifact=artifact)
         self.assertFalse((output/'corrupt/campaign-state.json').exists())
+    def test_d1_changing_identities_plateau_and_preserved_prefix_cannot_reenter(self):
+        from tempfile import TemporaryDirectory
+        from certification.resource_churn import robinhood
+        from certification.robinhood import window_archive
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp);(root/'old').mkdir();(root/'new').mkdir()
+            # Same D1 driver: removing only retirement reproduces the old leak.
+            with patch.object(window_archive,'_retire_identities',return_value={}):
+                old=robinhood(root/'old',3,20)
+            new=robinhood(root/'new',6,20)
+            table='shared-robinhood-evidence.candidates.sqlite:candidates'
+            self.assertEqual([s['tables'][table] for s in old],[20,40,60])
+            self.assertEqual([s['tables'][table] for s in new],[1]*6)
+            for sample in new:
+                for name in ('observations','observation_archive','result_consumption'):
+                    self.assertEqual(sample['tables'][table.rsplit(':',1)[0]+':'+name],1)
+            archive=root/'new/window-5/artifact/certification-hourly/shared-robinhood-evidence.candidates.sqlite'
+            with sqlite3.connect(archive) as db:
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM candidates').fetchone()[0],21)
+            copied=root/'new/window-5/capsule/files/shared/shared-robinhood-evidence.candidates.sqlite'
+            plane=Plane(copied,clock=lambda:22000.)
+            try:
+                before=plane.history_archive();latest=plane.get('curve:119')
+                self.assertEqual(plane.observe('curve:0','pons','replayed',{},ordering=(0,),watermark={},
+                    interpretation={'policy':'frozen'},observed=22000,deadline=22005,priority=4),'archived')
+                self.assertIsNone(plane.get('curve:0'));self.assertEqual(plane.get('curve:119'),latest)
+                self.assertEqual(plane.observe('new','pons','new',{},ordering=(120,),watermark={},
+                    interpretation={'policy':'frozen'},observed=22000,deadline=22005,priority=4),'created')
+                self.assertGreater(plane.db.execute('SELECT MAX(seq) FROM transitions').fetchone()[0],before['transition_high_water'])
+                bad=dict(before,retired_ordering={'pons':[999999]});plane.checkpoint('window_history_archive',bad)
+                with self.assertRaisesRegex(ValueError,'archive_corruption'):
+                    plane.observe('unknown','pons','x',{},ordering=(121,),watermark={},
+                        interpretation={},observed=22000,deadline=22005,priority=4)
+            finally:plane.close()
+
+    def test_scoped_native_terminal_projections_plateau_and_live_projection_survives(self):
+        from certification.lifecycle_identity import scope,MARKER
+        f,pons,ramses=self.initialize();parent=None;sizes=[]
+        for window in range(6):
+            identity=dict(f.window,index=window,workflow_run_id=window+1)
+            if parent:identity['parent_state_hash']=parent
+            tag=scope(identity);suffix=MARKER+tag['campaign']+':'+str(window)
+            code="""import sys,json
+from pathlib import Path
+from certification.offline_tests import install_network_guard
+install_network_guard()
+from certification.robinhood.plane import Plane,project_native_position
+from certification.robinhood.accounting import project
+from robinhood_research.pipeline import Pipeline
+from robinhood_research.evidence import Store
+from robinhood_research.pons_selective_ledger import SelectivePaper,STRATEGY_NAMESPACE
+from robinhood_research.pons_selective_continuation import POLICY_HASH
+from robinhood_tests.test_pons_partial_accounting import PartialAccountingTests
+root=Path(sys.argv[1]);plane_path=sys.argv[2];window=int(sys.argv[3]);suffix=sys.argv[4]
+case=PartialAccountingTests();plane=Plane(plane_path,clock=lambda:window*3600+100.)
+pipe=Pipeline(root/'opportunity-pipeline.sqlite','pons','frozen')
+for n in range(4):
+ at=window*3600+n*10;key='curve:'+str(window*4+n);identity='trial:'+str(window*4+n)+suffix
+ plane.observe(key,'pons',key,{},ordering=(window*4+n,),watermark={},interpretation={},observed=at,deadline=at+500,priority=4)
+ work=plane.claim(key=key);assert plane.finish(work,result={'rejected':False});assert plane.consume(key,work['generation'])
+ path=root/('trial-'+str(window*4+n)+'.sqlite');store=Store(path)
+ book=SelectivePaper(store,STRATEGY_NAMESPACE,1000,delay=1,natural_policy_hash=POLICY_HASH)
+ book.reserve(identity,market='m',amount=100,gas_budget=20,now=at,features=case.features(at))
+ p=book.advance(identity,now=at+1,action='entry',quote=case.quote(at+1,'buy',100,1000))
+ project_native_position(plane_path,'pons',key,p,ledger_path=path,policy=POLICY_HASH)
+ if not (window==0 and n==0):
+  book.advance(identity,now=at+2,action='exit_intent')
+  p=book.advance(identity,now=at+3,action='exit',quote=case.quote(at+3,'sell',1000,106))
+  project_native_position(plane_path,'pons',key,p,ledger_path=path,policy=POLICY_HASH)
+ book.reconcile();store.close()
+while project(plane,pipe)==256:pass
+pipe.close();plane.close()
+"""
+            native=subprocess.run([sys.executable,'-c',code,str(pons.parent),str(f.run/'shared-robinhood-evidence.candidates.sqlite'),str(window),suffix],
+                cwd=Path(os.environ['MM_TEST_LANE_WORKTREES'])/'pons',env=dict(os.environ,PYTHONPATH=str(Path(__file__).resolve().parents[2])),capture_output=True,text=True,timeout=20)
+            self.assertEqual(native.returncode,0,native.stdout+native.stderr)
+            output,runtime,artifact=self.staged(f,window)
+            body=transfer.seal(output/'capsule',worktrees=f.lanes,run=runtime,window=identity,
+                terminal=f.terminal,expected_identity=f.identity,preserved_artifact=artifact)
+            self.assertEqual(body['robinhood_history_handoff']['retired_positions'],3 if window==0 else 4)
+            copied=output/'capsule/files/shared/shared-robinhood-evidence.candidates.sqlite'
+            with sqlite3.connect(copied) as db:
+                projections=db.execute("SELECT body FROM runtime WHERE key LIKE 'native_position:%'").fetchall()
+                self.assertEqual(len(projections),1);self.assertEqual(json.loads(projections[0][0])['position']['status'],'open')
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM candidates').fetchone()[0],2)
+            next_work=f.root/'next-lanes';next_run=f.root/'next-run'
+            transfer.restore(output/'capsule',worktrees=next_work,run=next_run,
+                expected_identity=f.identity,expected_state_hash=body['state_hash'],campaign_id=identity['campaign_id'],prior_index=window,authorization_hash=identity['authorization_hash'])
+            shutil.rmtree(f.lanes);shutil.rmtree(f.run);next_work.rename(f.lanes);next_run.rename(f.run);parent=body['state_hash']
+            sizes.append((f.run/copied.name).stat().st_size)
+        self.assertLessEqual(max(sizes[2:])-min(sizes[2:]),8192)
+
     def native_pipeline(self,lane):
         roots=os.environ.get('MM_TEST_LANE_WORKTREES')
         if not roots:self.skipTest('requires canonical prepared native lanes')
