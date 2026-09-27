@@ -14,13 +14,21 @@ class TimedDB:
   finally:
    key=' '.join(sql.split());r=self.times.setdefault(key,[0,0]);r[0]+=1;r[1]+=time.perf_counter()-t
 stats['variants']={}
-for variant in ('baseline','indexed'):
+for variant in ('baseline','clustered'):
  with tempfile.TemporaryDirectory() as td:
   path=pathlib.Path(td)/'copy.sqlite';target=sqlite3.connect(path);db.backup(target);target.close()
   w=EvidenceWriter(path,max_hot_bytes=2147483648)
-  if variant=='indexed':
-   w.db.execute('create index if not exists records_hot_scope_slot on records(scope,slot) where body is not null')
+  if variant=='clustered':
    w.db.execute('create index if not exists records_archive_ref on records(archive) where archive is not null')
+   definitions=w.db.execute("select type,name,sql from sqlite_master where name in ('addresses','addresses_insert','addresses_delete','record_storage_delete')").fetchall()
+   w.db.execute('begin immediate')
+   for kind,name,sql in definitions:w.db.execute('drop '+kind+' '+name)
+   w.db.execute('create table ordered_refs(address_id integer not null,record_id integer not null,slot integer not null,primary key(record_id,address_id)) without rowid')
+   w.db.execute('insert into ordered_refs select * from address_refs')
+   w.db.execute('drop table address_refs');w.db.execute('alter table ordered_refs rename to address_refs')
+   w.db.execute('create index address_window on address_refs(address_id,slot)')
+   for kind,name,sql in definitions:w.db.execute(sql)
+   w.db.execute('commit')
   w.db=TimedDB(w.db);results=[]
   for i in range(12):
    t=time.perf_counter();plan=w.archive_plan(cutoff,max_records=512);planned=time.perf_counter();receipt=w.write_archive(path,plan);written=time.perf_counter();n=w.commit_archive(plan,receipt);committed=time.perf_counter();w.retain(cutoff,max_records=512,archive_first=False);ended=time.perf_counter()
