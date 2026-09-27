@@ -1450,7 +1450,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "ec4b79e22f0bdd87bfde06124244d36f8903c70a21cbf89af1f7bda79752970c",
+      "source_diff_sha256": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -1469,7 +1469,8 @@
         "certification/patches/run371-ramses-transient-pressure.patch",
         "certification/patches/run377-ramses-rpc-state-attribution.patch",
         "certification/patches/autonomous-ramses-campaign-recovery.patch",
-        "certification/patches/autonomous-ramses-atomic-funding.patch"
+        "certification/patches/autonomous-ramses-atomic-funding.patch",
+        "certification/patches/autonomous-ramses-terminal-archive.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
@@ -1477,7 +1478,9 @@
         "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
         "robinhood_research/ramses_campaign.py": "9d27575983f9206f81b1f83d97352fce5f545c46f60191f64b4894e1b4aaa000",
         "robinhood_research/ramses_extended_test.py": "ff8233dd253ec3504f7a5a900645c77ca1b687a728ebe23edb774cefce1b2661",
-        "robinhood_tests/test_ramses_continuous_campaign.py": "a51065aae8e220b943bfdaf73ff6083f0cb33162198a042675fcfc051c0f4c9c"
+        "robinhood_tests/test_ramses_continuous_campaign.py": "a51065aae8e220b943bfdaf73ff6083f0cb33162198a042675fcfc051c0f4c9c",
+        "robinhood_research/ramses_strategy_ledger.py": "8bded272f4edbf37a08a0070ab4d469318c47f485860b0feb20f05032fea1dcf",
+        "robinhood_research/ramses_all_pool_lifecycle.py": "a3296a19f3645ff26c3191631e209d6e773c8ecd25114fb456cc8cdb28db769e"
       }
     }
   },

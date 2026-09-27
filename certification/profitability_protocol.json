@@ -48,7 +48,7 @@
       "strategy_version": "ramses-active-wide-maker-v4",
       "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
-      "source_diff_sha256": "ec4b79e22f0bdd87bfde06124244d36f8903c70a21cbf89af1f7bda79752970c",
+      "source_diff_sha256": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9",
       "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3"
     }
   },

@@ -48,8 +48,8 @@
   "remaining": [
     "robinhood_candidate_and_projection_ids",
     "pons_current_trial_capital_reentry",
-    "ramses_position_campaign_journal",
-    "current_strategy_sleeve_projections"
+    "current_strategy_sleeve_projections",
+    "ramses_active_command_history_under_provider_interruption"
   ],
   "focused_logs": {
     "survivor-terminal-final.log": {
@@ -128,6 +128,72 @@
         "",
         "OK"
       ]
+    },
+    "ramses-accepted.log": {
+      "sha256": "377d34aa17513f0d3e275e0957b9cc36f5df9e6c4478670c89a7ef2169b35fd7",
+      "tail": [
+        "test_changing_completed_positions_plateau (certification.tests.test_ramses_terminal_archive.RamsesTerminalArchiveTests.test_changing_completed_positions_plateau) ... ok",
+        "",
+        "----------------------------------------------------------------------",
+        "Ran 6 tests in 0.751s",
+        "",
+        "OK",
+        "Ramses completed churn: 12 windows, 96 positions, exact P&L 144 quote units, hot SQLite bytes [90112, 90112, 90112, 90112, 90112, 90112, 90112, 90112, 90112, 90112, 90112, 90112]"
+      ]
+    },
+    "ramses-terminal-recovery.log": {
+      "sha256": "0673cf4bfa64e079b077a5e6ae749b50d4d6c7e0c8a1fe445758ea890dd4b66f",
+      "tail": [
+        "test_campaign_log_corruption_and_publication_cut_cannot_seal (certification.tests.test_ramses_terminal_archive.RamsesTerminalArchiveTests.test_campaign_log_corruption_and_publication_cut_cannot_seal) ... ok",
+        "test_campaign_logs_leave_hot_capsule_only_after_verified_preservation (certification.tests.test_ramses_terminal_archive.RamsesTerminalArchiveTests.test_campaign_logs_leave_hot_capsule_only_after_verified_preservation) ... ok",
+        "",
+        "----------------------------------------------------------------------",
+        "Ran 3 tests in 0.323s",
+        "",
+        "OK"
+      ]
+    },
+    "ramses-native-replay-focused.log": {
+      "sha256": "a6c8245d39868b6250cb012ef04294bd0f7fd8a57dbefd2ed7de1c45a723ee17",
+      "tail": [
+        "test_funding_crashes_publish_once_with_original_budget_and_no_exposure (robinhood_tests.test_ramses_continuous_campaign.RamsesCampaignTests.test_funding_crashes_publish_once_with_original_budget_and_no_exposure) ... ok",
+        "test_missing_book_or_modified_pinned_screen_cannot_refund_capital (robinhood_tests.test_ramses_continuous_campaign.RamsesCampaignTests.test_missing_book_or_modified_pinned_screen_cannot_refund_capital) ... ok",
+        "",
+        "----------------------------------------------------------------------",
+        "Ran 7 tests in 0.044s",
+        "",
+        "OK"
+      ]
     }
+  },
+  "ramses_completed_native_identities": {
+    "classification": "BOUNDED",
+    "windows": 12,
+    "settlements": 96,
+    "hot_sqlite_bytes": [
+      90112,
+      90112,
+      90112,
+      90112,
+      90112,
+      90112,
+      90112,
+      90112,
+      90112,
+      90112,
+      90112,
+      90112
+    ],
+    "hot_retired_positions": 0,
+    "hot_retired_journal_rows": 0,
+    "realized_quote_units": 144,
+    "accounting_conserved": true,
+    "scope": "settled identities; active command history retained"
+  },
+  "ramses_campaign_log": {
+    "classification": "BOUNDED",
+    "windows": 6,
+    "records_preserved": 72,
+    "hot_raw_records_after_seal": 0
   }
 }

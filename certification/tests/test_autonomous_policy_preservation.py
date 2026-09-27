@@ -24,6 +24,9 @@ class AutonomousPolicyPreservation(unittest.TestCase):
             self.assertNotEqual(strategy_contract(changed),strategy_contract(original))
         changed=deepcopy(current);changed['composed_file_hashes']['robinhood_research/ramses_strategy.py']='changed'
         self.assertNotEqual(strategy_contract(changed),strategy_contract(original))
+        for name in ('robinhood_research/ramses_strategy_ledger.py','robinhood_research/ramses_all_pool_lifecycle.py'):
+            changed=deepcopy(current);changed['composed_file_hashes'][name]='changed'
+            self.assertNotEqual(strategy_contract(changed),strategy_contract(original))
         changed=deepcopy(current);changed['overlay_patches'].append('unreviewed.patch')
         self.assertNotEqual(strategy_contract(changed),strategy_contract(original))
 

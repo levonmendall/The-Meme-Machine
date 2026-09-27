@@ -1099,3 +1099,28 @@ the required joined soak. Remaining LINEAR owners: Robinhood candidate/projectio
 identities, current Pons trial/capital/re-entry state, Ramses position/campaign
 journals, current-strategy sleeve terminal projections. D remains OPEN; no final
 certification or market run launched.
+
+D2 Ramses settled-identity/campaign-log repair accepted at the continuation of
+4f9d4c94608070881ae218b77c9a6760775c716b. Exact preserved native replay precedes
+atomic retirement of scoped settled positions and their journal rows. Folded
+position/P&L/action totals remain; open/reserved/unresolved positions retain their
+complete command journal and exact recenter retry identity. Campaign JSONL leaves
+only copied unsealed state after immutable native snapshot verification; bounded
+hash-linked counts preserve the raw-artifact linkage. Actual constructor recovery,
+precommit rollback, anchor/log corruption and interrupted capsule publication pass.
+Twelve windows × eight changing settled/recentered positions: 96 positions, exact
+144 quote-unit P&L, zero retired hot rows/journals, 90112 SQLite bytes EVERY window.
+Six actual seal/relocated-restore windows preserve 72 campaign records in immutable
+predecessors. Seven focused native replay/funding/recovery regressions PASS; six
+archive/policy tests PASS; source integrity and protocol freeze PASS. Active command
+journal bounds under extended provider interruption remain a joined-soak question;
+this closes settled churn only. No policy/risk/resource bounds changed.
+
+Ordinary CI 36352299896 rejected the preceding Meteora commit at exactly one gate:
+the implementation-only overlay was absent from the exact infrastructure registry.
+Failure excerpt preserved in results/ci-36352299896-meteora-overlay-gate.txt. Old gate
+reproduced offline; exact overlay registration fixes it. Ramses newly explicit file
+pins are accepted only at their reviewed hashes; changed hashes and policy mutations
+still reject. No thresholds changed. Remaining measured LINEAR: shared Robinhood
+candidate/projection IDs, current Pons trials/capital/re-entry, current-strategy sleeve
+projections. D remains OPEN; no final certificate or market workflow launched.

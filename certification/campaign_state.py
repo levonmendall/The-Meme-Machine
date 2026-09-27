@@ -172,6 +172,8 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity, di
     robinhood_handoff=archive_robinhood(destination,preserved_artifact,window) if preserved_artifact is not None else None
     from certification.pons_window_archive import externalize
     pons_handoff=externalize(destination,preserved_artifact,window) if preserved_artifact is not None else None
+    from certification.ramses_archive import externalize as archive_ramses
+    ramses_handoff=archive_ramses(destination,preserved_artifact,window) if preserved_artifact is not None else None
     files = []
     for path in sorted((destination/'files').rglob('*')):
         if path.is_symlink():
@@ -191,6 +193,7 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity, di
                 accounting={lane: terminal['lanes'][lane]['terminal_reconciliation'] for lane in LANES})
     if archive_handoff is not None:body['archive_handoff']=archive_handoff
     if pons_handoff is not None:body['pons_observation_handoff']=pons_handoff
+    if ramses_handoff is not None:body['ramses_campaign_log_handoff']=ramses_handoff
     if robinhood_handoff is not None:body['robinhood_history_handoff']=robinhood_handoff
     body['state_hash'] = digest(body)
     _atomic(destination/MANIFEST, body)
@@ -240,7 +243,8 @@ def restore(source, *, worktrees, run, expected_identity, expected_state_hash,
                         if row['path'] in ('pump/directional-sleeve.sqlite','pons/directional-sleeve.sqlite',
                             'pump/pump-survivor/paper.sqlite',
                             'meteora/solana-dlmm-independent-v1-live.accounting.sqlite3',
-                            'pons/pons-selective-continuation-v1-cohort/pons-survivor/paper.sqlite')})
+                            'pons/pons-selective-continuation-v1-cohort/pons-survivor/paper.sqlite')
+                        or re.fullmatch(r'ramses/robinhood-ramses-extended-market\.sqlite\.campaign/0x[0-9a-f]{40}\.sqlite',row['path'])})
     if receipt_path.exists() and json.loads(receipt_path.read_text()) != expected:
         raise ValueError('campaign_state_restore_collision')
     for row in body['files']:

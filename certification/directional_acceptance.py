@@ -14,12 +14,20 @@ INFRA_OVERLAYS=PRESERVED_INFRA|{
  'certification/patches/autonomous-ramses-atomic-funding.patch',
  'certification/patches/autonomous-meteora-unfilled-recovery.patch',
  'certification/patches/autonomous-meteora-evidence-checkpoints.patch',
+ 'certification/patches/autonomous-meteora-terminal-archive.patch',
+ 'certification/patches/autonomous-ramses-terminal-archive.patch',
 }
 # These implementation-only files are additionally pinned by source_integrity.
 # Strategy/policy/workflow hashes remain identical to the approved contracts.
 RAMSES_RECOVERY_FILES={
  'robinhood_research/ramses_campaign.py','robinhood_research/ramses_extended_test.py',
  'robinhood_tests/test_ramses_continuous_campaign.py',
+}
+# These newly explicit pins permit only the reviewed archive binding bytes.
+# Any other hash stays in the strategy contract and fails the frozen comparison.
+RAMSES_TERMINAL_FILES={
+ 'robinhood_research/ramses_strategy_ledger.py':'8bded272f4edbf37a08a0070ab4d469318c47f485860b0feb20f05032fea1dcf',
+ 'robinhood_research/ramses_all_pool_lifecycle.py':'a3296a19f3645ff26c3191631e209d6e773c8ecd25114fb456cc8cdb28db769e',
 }
 METEORA_RECOVERY_FILES={
  'meme_machine/dlmm_independent_accounting.py','tests/solana_dlmm_independent_v1.py',
@@ -56,7 +64,8 @@ def strategy_contract(row):
  value.pop('source_diff_sha256',None)
  value.pop('integration_overlay_files',None)
  composed=value.pop('composed_file_hashes',value.get('file_hashes',{}))
- value['file_hashes']={k:v for k,v in composed.items() if k not in RAMSES_RECOVERY_FILES}
+ value['file_hashes']={k:v for k,v in composed.items() if k not in RAMSES_RECOVERY_FILES
+                      and RAMSES_TERMINAL_FILES.get(k)!=v}
  value['overlay_patches']=[p for p in value.get('overlay_patches',[]) if p not in INFRA_OVERLAYS]
  return value
 
