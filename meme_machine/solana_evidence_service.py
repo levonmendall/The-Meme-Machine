@@ -194,8 +194,12 @@ def source_decoder_probe():
 
 class FinalizedFence:
     def __init__(self,writer,*,endpoint_identity,decoders=None):
+        import threading
         self.writer=writer;self.endpoint_identity=endpoint_identity
         self.decoders=decoders or {};self.session=uuid.uuid4().hex
+        # A thread-safe hint, never subscription/evidence authority. The owner
+        # still reads durable interests at the original priority and cadence.
+        self.subscriptions_dirty=threading.Event();self.subscriptions_dirty.set()
         writer.db.executescript(SERVICE_SCHEMA)
         if writer.db.execute('SELECT 1 FROM stream_receipts LIMIT 1').fetchone():self.disconnect('service_restart')
         with writer.transaction():
@@ -228,6 +232,7 @@ class FinalizedFence:
             self.writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
             self.writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
             self.writer.db.execute('DELETE FROM interest_owners WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_owners.owner)')
+        if n:self.subscriptions_dirty.set()
 
     def disconnect(self,reason='stream_disconnect'):
         # Account notifications are content observations, never interval sources.
@@ -398,6 +403,15 @@ class FinalizedFence:
         return [replace(record,payload=tx,addresses=tuple(sorted(set(keys+[record.program]))),transaction_index=index)]
 
     def command(self,request):
+        response=self._command(request)
+        # Signal after the command/receipt transaction has completed, even when
+        # its socket waiter has already disconnected. Failed mutations grant no
+        # subscription authority; a reconnect always reloads durable interests.
+        if request.get('op') in ('interest','release') and response.get('ok'):
+            self.subscriptions_dirty.set()
+        return response
+
+    def _command(self,request):
         from .solana_evidence_control import MAX_RECEIPTS,COMMAND_SECONDS,command_envelope
         # Direct in-process fixture callers retain the same whitelist. Production
         # IPC requires the versioned envelope before it reaches this method.
@@ -736,6 +750,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
     clients=set();counts={}
     def count(key):counts[key]=counts.get(key,0)+1
+    subscriptions_dirty=await work(lambda state:state.fence.subscriptions_dirty,0)
 
     async def consumer(reader,stream):
         task=asyncio.current_task();admitted=len(clients)<32
@@ -830,8 +845,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                 counts.get('stream.subscription_sync_peak_microseconds',0),elapsed)
 
                         async def subscription_manager():
+                            restore=True
                             while not stop.is_set() and not connection_stop.is_set():
-                                await sync_subscriptions_once()
+                                if restore or subscriptions_dirty.is_set():
+                                    # Clear before enqueueing the read. A mutation
+                                    # during that read/send sets a fresh hint for
+                                    # the next cycle; no wakeup can be erased.
+                                    subscriptions_dirty.clear()
+                                    await sync_subscriptions_once();restore=False
+                                else:count('stream.subscription_unchanged_polls')
                                 try:await asyncio.wait_for(connection_stop.wait(),STREAM_SUBSCRIPTION_SYNC_SECONDS)
                                 except TimeoutError:pass
 

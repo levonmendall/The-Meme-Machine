@@ -1,4 +1,4 @@
-name: Run 381 source-clock pressure comparison
+name: Run 381 measured-contention pressure comparison
 on:
   push:
     branches: [analysis/run381-preserved-evidence-20260927]
@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [repaired]
+        runtime: [old, repaired]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -21,53 +21,55 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install -r requirements.txt
-      - name: Select preserved or repaired source
+      - name: Verify subscription progress and preserve old behavioral failure
         env:
           PROFILE_RUNTIME: ${{ matrix.runtime }}
         run: |
-          if [ "$PROFILE_RUNTIME" = old ]; then
-            git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
-            git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
-            git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_storage.py > meme_machine/solana_evidence_storage.py
-            git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_control.py > meme_machine/solana_evidence_control.py
-          fi
-      - name: Reproduce old archive stalls and verify bounded repair
-        run: |
           mkdir -p pressure-output
           set -o pipefail
-          git show fc2dd3d5d58f1e26b8ada9b66b56b61e1aff56bb:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
-          git show fc2dd3d5d58f1e26b8ada9b66b56b61e1aff56bb:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
-          python -m certification.run381_expected_failure tests.test_run381_archive_canonical.ArchiveCanonicalTests.test_archival_reuses_authenticated_canonical_logs_without_full_body_decode 2>&1 | tee pressure-output/archive-before.log
-          python -m certification.run381_expected_failure tests.test_run381_maintenance_overlap.ArchiveCleanupOverlapTests.test_repeated_health_yields_cannot_starve_archive_progress 2>&1 | tee pressure-output/health-before.log
-          git restore --source=HEAD -- meme_machine/solana_evidence_plane.py meme_machine/solana_evidence_service.py
-          python -m unittest tests.test_run381_archive_canonical tests.test_run381_retention_progress tests.test_run381_repair_pagination tests.test_run381_maintenance_overlap -q 2>&1 | tee pressure-output/repair-after.log
-      - name: Reconstructed production pressure without provider credentials
+          if [ "$PROFILE_RUNTIME" = old ]; then
+            git show 3d4be5c538fdde44b37c159c5c5dad9200a5039e:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
+            python -m certification.run381_expected_failure tests.test_run381_subscription_progress.SubscriptionProgressTests.test_unchanged_interests_do_not_enqueue_repeated_priority_zero_reads 2>&1 | tee pressure-output/regression-before.log
+          else
+            python -m unittest certification.tests.test_run381_contention_profile tests.test_run381_subscription_progress tests.test_run381_archive_canonical tests.test_run381_retention_progress tests.test_run381_repair_pagination tests.test_run381_maintenance_overlap -q 2>&1 | tee pressure-output/regression-after.log
+          fi
+      - name: Full source-clock replay at measured failed-certificate timing floors
         env:
-          PRESSURE_FRAMES: '2223'
+          PROFILE_RUNTIME: ${{ matrix.runtime }}
         run: |
-          mkdir -p pressure-output
-          python -m certification.run381_pressure --frames "$PRESSURE_FRAMES" --output pressure-output > pressure-output/pressure.jsonl 2>&1
-      - name: Publish bounded offline diagnostic result
+          status=0
+          python -m certification.run381_pressure --measured-contention --output pressure-output > pressure-output/pressure.jsonl 2>&1 || status=$?
+          PROFILE_EXIT="$status" python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads(Path('pressure-output/result.json').read_text())
+          assert r['measured_contention']['profile']=='run381-fullcert-36293751021'
+          if os.environ['PROFILE_RUNTIME']=='old':
+              assert os.environ['PROFILE_EXIT']=='1' and r['passed'] is False
+              assert r['failure'] in ('AssertionError:archive_clock_fell_behind','AssertionError:retention_clock_fell_behind'),r['failure']
+              assert r['counters']['stream_accepted_messages']>1000
+          else:
+              assert os.environ['PROFILE_EXIT']=='0' and r['passed'] is True
+          PY
+      - name: Publish bounded causal result
         if: always()
         run: |
           python - <<'PY'
-          import hashlib,json
+          import hashlib
           from pathlib import Path
           path=Path('pressure-output/result.json')
           if path.exists():
-              raw=path.read_bytes()
-              assert len(raw)<=128*1024
+              raw=path.read_bytes();assert len(raw)<=128*1024
               print('PRESSURE_RESULT_SHA256',hashlib.sha256(raw).hexdigest())
               print('PRESSURE_RESULT',raw.decode())
           else:
               log=Path('pressure-output/pressure.jsonl')
-              if log.exists():
-                  print('PRESSURE_FAILURE_LOG',log.read_text()[-8000:])
+              if log.exists():print('PRESSURE_FAILURE_LOG',log.read_text()[-8000:])
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: run381-mature-pressure-${{ matrix.runtime }}
+          name: run381-measured-contention-${{ matrix.runtime }}
           path: pressure-output/
           retention-days: 90
           if-no-files-found: error
