@@ -644,3 +644,49 @@ interrupted-compaction rollback regression pass. All four prepared source-integr
 full multi-day integration proof remains pending. Remaining
 steady-state risks include retired identities, accumulated native journals/receipts,
 Pons enrollment metadata, provider/crash matrices and full workflow adapters.
+
+History batch pushed as `d493c28625dc9dbee5d6530f7e0b31ce7c33dabc`; prepared
+Pump/Pons composed identities are `594150374d3137f3994082b7fce7485d2a93bab0fe221bc67544e98ac9c5ae1d`
+and `7f7df98287b655e333e5b52fc7cf63db351c2a07df9858b9c5414ed627a8840f`.
+Ordinary CI pending refresh. Phase-D native Ramses integration now runs actual
+qualification, controller, geometry requalification, cost/P&L decomposition,
+write-ahead checkpointing and ledger settlement with virtual provider evidence.
+It crosses compound/recenter, three-day hold and original seven-day exit; restores
+both sides of rebalance commit; discards a 211-second stale recenter and re-decides;
+repeated final replay does not settle twice. This exposed only a terminal-reason
+loss: the continuation settled correctly but overwrote the frozen controller's
+maximum-hold reason with a generic flat-quote reason. Preserve the native reason.
+Seven affected lifecycle tests pass; this repair/test batch remains uncommitted.
+
+
+Ordinary CI `36338490587` passes at `d493c28625dc9dbee5d6530f7e0b31ce7c33dabc`.
+Meteora crash-boundary audit found the existing deterministic restart guard
+permanently halted on a journal-proven reserved-but-unfilled intent. A native
+BEGIN IMMEDIATE recovery transaction now appends cancellation only for those
+unfilled intents, before providers/workers start. Committed open/unresolved
+positions remain occupied; an entry racing after cancellation fails its existing
+state-machine guard. Regression covers idempotent reopen, mixed filled/unfilled
+state, interrupted multi-cancel rollback and the actual run_live startup boundary.
+This is PAPER execution recovery; no evidence or economic policy changed.
+
+Pons had a second crash cut between cohort reservation and native reservation:
+resume required one native position, so the original capital stayed held forever.
+The cohort now atomically records its exact native reservation intent; recovery
+under the existing exclusive lifecycle lock replays that missing intent and
+immediately uses native cancellation. No provider or entry runs; original cohort
+and shared-sleeve amounts release once. Eighteen affected native recovery,
+cohort-capital and shared-sleeve tests pass, including the new actual startup cut.
+
+Ramses first funding now uses one unpublished directory and durable original
+funding intent. All original books must exist and be empty before atomic directory
+publication; restart finishes the same budgets/run identity after interrupted
+initialization. Already-published missing books still fail closed. Four cuts
+(before/after first genesis, before/after publication) and nine campaign tests pass.
+Meteora's eight accounting/recovery tests pass. Nine canonical long-horizon,
+continuity, concurrent discovery/recovery and frozen-policy contract tests pass.
+All four composed source checks and protocol freeze pass. Updated the directional
+contract gate to recognize only the declared recovery files/overlays while keeping
+approved strategy, policy, source and target-scope identities checked; mutation
+regressions reject policy, strategy-file, target and unreviewed-overlay drift.
+
+Focused six-regime directional acceptance passes all eleven gates on the composed crash-recovery candidate. No market work or full certification was dispatched.

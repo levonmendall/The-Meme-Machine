@@ -8,7 +8,22 @@ from certification.run import ROOT,source_integrity,manifest,git
 # overlays may change. Pin the successful Run 376 operational Ramses patch.
 PRESERVED_INFRA={'certification/patches/run371-ramses-transient-pressure.patch'}
 METEORA_RUNTIME_PATCH='certification/patches/run380-meteora-candidate-retention.patch'
-INFRA_OVERLAYS=PRESERVED_INFRA|{'certification/patches/run377-ramses-rpc-state-attribution.patch',METEORA_RUNTIME_PATCH}
+INFRA_OVERLAYS=PRESERVED_INFRA|{
+ 'certification/patches/run377-ramses-rpc-state-attribution.patch',METEORA_RUNTIME_PATCH,
+ 'certification/patches/autonomous-ramses-campaign-recovery.patch',
+ 'certification/patches/autonomous-ramses-atomic-funding.patch',
+ 'certification/patches/autonomous-meteora-unfilled-recovery.patch',
+}
+# These implementation-only files are additionally pinned by source_integrity.
+# Strategy/policy/workflow hashes remain identical to the approved contracts.
+RAMSES_RECOVERY_FILES={
+ 'robinhood_research/ramses_campaign.py','robinhood_research/ramses_extended_test.py',
+ 'robinhood_tests/test_ramses_continuous_campaign.py',
+}
+METEORA_RECOVERY_FILES={
+ 'meme_machine/dlmm_independent_accounting.py','tests/solana_dlmm_independent_v1.py',
+ 'tests/test_dlmm_independent_accounting.py',
+}
 METEORA_THRESHOLD_PATCH='certification/patches/meteora-moderate-admission-thresholds-v1.patch'
 METEORA_POLICY_HASH='78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408'
 METEORA_COMPOSED_FILES={
@@ -39,6 +54,8 @@ def strategy_contract(row):
  value=json.loads(json.dumps(row))
  value.pop('source_diff_sha256',None)
  value.pop('integration_overlay_files',None)
+ composed=value.pop('composed_file_hashes',value.get('file_hashes',{}))
+ value['file_hashes']={k:v for k,v in composed.items() if k not in RAMSES_RECOVERY_FILES}
  value['overlay_patches']=[p for p in value.get('overlay_patches',[]) if p not in INFRA_OVERLAYS]
  return value
 
@@ -64,10 +81,9 @@ def meteora_threshold_revision_is_bounded(row,prior):
  return all((
   meteora_base_contract(row)==meteora_base_contract(prior),
   row.get('policy_hash')==METEORA_POLICY_HASH,
-  row.get('overlay_patches') in (
-   list(prior.get('overlay_patches',[]))+[METEORA_THRESHOLD_PATCH],
-   list(prior.get('overlay_patches',[]))+[METEORA_THRESHOLD_PATCH,METEORA_RUNTIME_PATCH]),
-  row.get('composed_file_hashes')==METEORA_COMPOSED_FILES,
+  [p for p in row.get('overlay_patches',[]) if p not in INFRA_OVERLAYS]==
+   [p for p in prior.get('overlay_patches',[]) if p not in INFRA_OVERLAYS]+[METEORA_THRESHOLD_PATCH],
+  {k:v for k,v in row.get('composed_file_hashes',{}).items() if k not in METEORA_RECOVERY_FILES}==METEORA_COMPOSED_FILES,
   (row.get('execution_certification') or {}).get('moderate_admission_thresholds_v1')==METEORA_MODERATE_NOTE,
   prospect.get('investment_evaluation_scope')==METEORA_ADMISSION_SCOPE,
   prospect.get('strategy_thresholds_changed') is True,

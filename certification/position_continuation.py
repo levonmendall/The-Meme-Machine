@@ -671,7 +671,8 @@ def _resume_ramses_native(state_dir,*,slice_seconds,runtime_identity):
 
         position=book.position(identity)
         if position.get('status')=='open' and state.get('position_phase')=='flat_quote':
-            return settle_flat('flat_quote_without_committed_replacement')
+            action=(state.get('last_controller') or {}).get('action') or {}
+            return settle_flat(action.get('reason') or 'flat_quote_without_committed_replacement')
         state.update(active=True,handoff_required=True,ledger_path=str(ledger_path),
                      paper_capital=int(state['paper_capital']),quote_asset=state['quote_asset'])
         _atomic(state_path,state)

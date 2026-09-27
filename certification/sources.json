@@ -405,7 +405,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "264521da22075616cb487e20096ae180d1bf551f8bf23ca0304a0fc37e9e840d",
+      "source_diff_sha256": "412acdfd29a0018030874f3132a18f317939c9ffee5df9a76e442bd2a53fa4a3",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -686,7 +686,8 @@
         "certification/patches/run370-capacity-meteora.patch",
         "certification/patches/run370-discovery-snapshot-meteora.patch",
         "certification/patches/meteora-moderate-admission-thresholds-v1.patch",
-        "certification/patches/run380-meteora-candidate-retention.patch"
+        "certification/patches/run380-meteora-candidate-retention.patch",
+        "certification/patches/autonomous-meteora-unfilled-recovery.patch"
       ],
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "integration_overlay_files": [
@@ -715,7 +716,10 @@
       ],
       "composed_file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
-        "SOLANA_DLMM_INDEPENDENT_V1.json": "f64304f125edfde0af5dff04b53332bd811bce47cf27fd72e611dafc09abd916"
+        "SOLANA_DLMM_INDEPENDENT_V1.json": "f64304f125edfde0af5dff04b53332bd811bce47cf27fd72e611dafc09abd916",
+        "meme_machine/dlmm_independent_accounting.py": "d827a3796c5703843da49c48b1f08a158681c84dfaa19acd8a6336f69d034170",
+        "tests/solana_dlmm_independent_v1.py": "35c1f612520b0f01d126ee995962ae4eedfcfc4e7db3f60e4325b8acd1199961",
+        "tests/test_dlmm_independent_accounting.py": "8d19e2fd67ab5bd6e4461796eff022769495d84235e2ff73bce250520ca68a2d"
       }
     },
     "pons": {
@@ -1027,7 +1031,7 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "7f7df98287b655e333e5b52fc7cf63db351c2a07df9858b9c5414ed627a8840f",
+      "source_diff_sha256": "39e358f083770b026f31b4bf025590b442e039afc3556ddbe1116a9f7a2db81c",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -1052,17 +1056,18 @@
         "certification/patches/autonomous-pons-current-continuation.patch",
         "certification/patches/autonomous-pons-survivor-acquisition.patch",
         "certification/patches/autonomous-pons-normal-recovery.patch",
-        "certification/patches/autonomous-pons-survivor-history.patch"
+        "certification/patches/autonomous-pons-survivor-history.patch",
+        "certification/patches/autonomous-pons-reservation-intent.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
         "robinhood_research/pons_natural_paper.py": "fab9210ef7d11eaba8f8c1c09d154a991bf9b285e3b1aad6dac328a990abadfa",
         "robinhood_research/pons_postgrad_survivor.py": "17870496ccfa340bd85ee27820dfac798916f5a3ea090b691f5b11d4b8e998fe",
-        "robinhood_research/pons_selective_capital.py": "400537c9f7f42c9c931c5eb28bad91d359249e406864f8b7ccdae6733c2db945",
+        "robinhood_research/pons_selective_capital.py": "87c57bb37d611e012e3e4154c9c78fe97ee52e0e8057abe9186c35dbc7c313ec",
         "robinhood_research/pons_selective_cohort.py": "4af8e5ce2f04f2e06071f7dfc78b215a8e26b33f492c5763f21999247faff976",
         "robinhood_research/pons_selective_continuation.py": "cfe06339efd62224f9c3fe5328c44b0c9c99c6cc68ab064d7a5853a763e1e643",
         "robinhood_research/pons_selective_ledger.py": "4dddeeb7d07ab5f8e00994ef82928da50b45f5adafa29afa2ca704e5bf2c2d37",
-        "robinhood_research/pons_selective_paper.py": "2a7226a5281f849b3bbd099cc04f5b3412294e23bfb2842b550f069ff711eb4d",
+        "robinhood_research/pons_selective_paper.py": "ae02f4af8527ec130bd49e2c946c86977ede2b68b86f95f7f22edcf5881b985d",
         "robinhood_research/pons_survivor_runtime.py": "ec3f9414c8b5d880a74e62ab8ba2b222d38f7d6a843233a4dbeb4dea7999bd3d",
         "robinhood_tests/test_pons_capacity_persistence.py": "f75fe9aa976fb7f051c60695db2920ab6c7c09a87af5714c3f3195f108dab3ec",
         "robinhood_tests/test_pons_entry_confirmation_ordering.py": "005bd2f36441fe44af59ddea28cdaa77f8058198628ac4b62e601ab41b18c0ec",
@@ -1071,8 +1076,8 @@
         "robinhood_tests/test_pons_postgrad_survivor.py": "11ff86f3b1b27a8d92c663a8773a98fe9a79f66a99dd2a8b71758078559252bf",
         "robinhood_tests/test_pons_selective_continuation.py": "39ff1c60b729e4e26ba9c348f8b1245f356e7e8fed7dedfd4da9f6152995e6db",
         "robinhood_tests/test_pons_shared_survivor.py": "93a012622fdcc8ceb8ca3640a06a5c33fb0abec829cfb3d371f4241e10456e65",
-        "robinhood_research/pons_selective_recovery.py": "f53511931199274196f76950ce2524f0aed81c91a336ab0397027a91c73fc086",
-        "robinhood_tests/test_pons_current_recovery.py": "ef139697f1f5bf45211f8531b9afc3e2b1314588e732875e1d67303cea949a28",
+        "robinhood_research/pons_selective_recovery.py": "2647877188d605a7764befe2621c755bc889adc007cebf81e2d65bdae6096a63",
+        "robinhood_tests/test_pons_current_recovery.py": "ed4a671b855b91406b4cdeda8758e83d7b079a130769b7fb678003a89849b0f1",
         "robinhood_research/pons_selective_v4.py": "ff88e19bfdb32d3449a792b15f0550611ca1622b2de989c9a51acb566af063c1",
         "robinhood_tests/test_run379_survivor_graduation.py": "39f85ddc6e8571c629c38766e289b8c069aaf8d940357576b2c97ee9523b016b"
       },
@@ -1436,7 +1441,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "7cb3462e1bd7da69da4a8276e696480c6dd4075706bf7d369c15bdc596e1bcae",
+      "source_diff_sha256": "ec4b79e22f0bdd87bfde06124244d36f8903c70a21cbf89af1f7bda79752970c",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -1454,15 +1459,16 @@
         "certification/patches/robinhood-provider-authority-ramses.patch",
         "certification/patches/run371-ramses-transient-pressure.patch",
         "certification/patches/run377-ramses-rpc-state-attribution.patch",
-        "certification/patches/autonomous-ramses-campaign-recovery.patch"
+        "certification/patches/autonomous-ramses-campaign-recovery.patch",
+        "certification/patches/autonomous-ramses-atomic-funding.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
         "robinhood_research/ramses_strategy.py": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
         "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
-        "robinhood_research/ramses_campaign.py": "649f552f2553c7ca7f8791adc9016c2278446f9bb05b935f4f00e79789d03e66",
-        "robinhood_research/ramses_extended_test.py": "a8f77847772645dbf393cf7708fc345628fc47e9642efd15761e2334b840bcb5",
-        "robinhood_tests/test_ramses_continuous_campaign.py": "97468f53bebd9468a59efb8d9e4d3a7bacdda3b5854cb60b9b9ddcfab6851294"
+        "robinhood_research/ramses_campaign.py": "9d27575983f9206f81b1f83d97352fce5f545c46f60191f64b4894e1b4aaa000",
+        "robinhood_research/ramses_extended_test.py": "ff8233dd253ec3504f7a5a900645c77ca1b687a728ebe23edb774cefce1b2661",
+        "robinhood_tests/test_ramses_continuous_campaign.py": "a51065aae8e220b943bfdaf73ff6083f0cb33162198a042675fcfc051c0f4c9c"
       }
     }
   },

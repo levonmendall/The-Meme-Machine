@@ -53,14 +53,6 @@ from unittest.mock import patch
 from tests import solana_dlmm_independent_v1 as m
 from meme_machine.dlmm_independent_accounting import PaperBook
 from meme_machine.provider import Unavailable
-class Broker:
-    def __init__(self,*a,**k):pass
-    def stream_status(self,*a,**k):return {}
-    def telemetry(self):return {}
-    def close(self):pass
-class Wake:
-    def __init__(self,*a,**k):pass
-    def run(self,stop,ready):ready.set()
 with tempfile.TemporaryDirectory() as td:
     m.OUT=Path(td)/"meteora.json"
     policy=m.load_policy();ph=m.digest(policy)
@@ -68,19 +60,21 @@ with tempfile.TemporaryDirectory() as td:
     book=PaperBook(path,run_id="restart-contract",policy_hash=ph,capital=1_000_000_000)
     ident=book.identity();book.append(ident,"reserve",dict(amount=1_000_000))
     before=book.reconcile()
-    with patch.dict(os.environ,{"MM_CERTIFICATION_RUN_ID":"restart-contract"}),\
-         patch.object(m,"_prove_network_identity",return_value={"verified":True}),\
-         patch.object(m,"EvidenceBroker",Broker),\
-         patch.object(m,"ProgramAccountWakeStream",Wake),\
-         patch.object(m,"_campaign_candidates",return_value=(row for row in [{"address":"candidate"}])):
-        try:
-            m.run_live(target=1,max_attempted=1,max_runtime_seconds=60,campaign=True)
-        except Unavailable as exc:
-            assert str(exc)=="solana_dlmm_unresolved_reservation_requires_context",str(exc)
-        else:
-            raise AssertionError("meteora_restart_guard_missing")
-    reopened=PaperBook(path,run_id="restart-contract",policy_hash=ph,capital=1_000_000_000)
-    assert reopened.reconcile()==before
+    for attempt in range(2):
+        with patch.dict(os.environ,{"MM_CERTIFICATION_RUN_ID":"restart-contract"}),\
+             patch.object(m,"_prove_network_identity",side_effect=Unavailable("injected_provider_boundary")):
+            try:
+                m.run_live(target=1,max_attempted=1,max_runtime_seconds=60,campaign=True)
+            except Unavailable as exc:
+                assert str(exc)=="injected_provider_boundary",str(exc)
+            else:
+                raise AssertionError("meteora_provider_boundary_not_reached")
+        reopened=PaperBook(path,run_id="restart-contract",policy_hash=ph,capital=1_000_000_000)
+        after=reopened.reconcile()
+        assert after["cash"]==before["cash"]==1_000_000_000
+        assert after["unsettled"]==after["reserved"]==after["pending"]==0
+        assert after["journal_events"]==before["journal_events"]+1
+        assert after["realized_pnl_lamports"]==after["unrealized_pnl_lamports"]==0
 print("PROVEN")
 ''',
 "ramses": r'''
@@ -117,7 +111,7 @@ def run(worktrees,output):
         passed=all(r["proven"] for r in rows.values()),
         lanes=rows,
         contract=(
-            "durable pre-existing lane state is preserved and fresh campaign admission "
+            "durable exposure is preserved, journal-proven unfilled Meteora reservations are cancelled once, and unsafe fresh campaign admission "
             "fails closed; automatic volatile-controller reconstruction is not inferred"
         ),
         natural_market_required=False,
