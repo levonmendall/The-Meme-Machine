@@ -172,14 +172,22 @@ def native_positions(root,lane):
                     row=json.loads(raw);positions[identity]=row
                     by_id.setdefault(identity,[]).append(dict(action=action,position=row))
             elif lane=='meteora' and 'events' in tables and 'accounting' in path.name:
-                for raw, in db.execute('SELECT body FROM events ORDER BY seq'):
+                from certification.meteora_archive import anchor
+                genesis=json.loads(db.execute('SELECT body FROM events WHERE seq=1').fetchone()[0])['data']
+                prefix=anchor(db,genesis)
+                if prefix:
+                    prefixes.update(prefix['journal_proofs']);positions.update(prefix['position_projections'])
+                    for key,value in prefix.get('folded',{}).get('metrics',{}).items():
+                        folded_metrics[key]=folded_metrics.get(key,0)+value
+                for raw, in db.execute('SELECT body FROM events WHERE seq>? ORDER BY seq',
+                        (prefix['state']['events'] if prefix else 0,)):
                     event=json.loads(raw);identity=event.get('identity')
                     if identity:by_id.setdefault(identity,[]).append(event)
                 for identity,events in by_id.items():
                     last=events[-1];terminal=last['action'] in ('cancel','settle','writeoff')
-                    entered=any(e['action']=='entry' for e in events)
+                    entered=any(e['action']=='entry' for e in events) or bool(prefixes.get(identity,{}).get('actions',{}).get('entry'))
                     positions[identity]=dict(id=identity,status='settled' if terminal else 'open' if entered else 'reserved',
-                        version=len(events)-1,at=last.get('at'),last_action=last['action'])
+                        version=prefixes.get(identity,{}).get('events',0)+len(events)-1,at=last.get('at'),last_action=last['action'])
             elif lane in ('pump','pons') and 'journal' in tables and 'positions' in tables:
                 if 'journal_archive' in tables:
                     saved=db.execute('SELECT body,hash FROM journal_archive WHERE id=1').fetchone()

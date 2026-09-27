@@ -408,7 +408,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "948f040d3add6cef34117a350279c5eb9dd902adeab696350157ba3e882a8235",
+      "source_diff_sha256": "10c7161d9e56f44982ee16d862acd76a0dedfe9adfe3f60bf011521dff8e9ad8",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -691,7 +691,8 @@
         "certification/patches/meteora-moderate-admission-thresholds-v1.patch",
         "certification/patches/run380-meteora-candidate-retention.patch",
         "certification/patches/autonomous-meteora-unfilled-recovery.patch",
-        "certification/patches/autonomous-meteora-evidence-checkpoints.patch"
+        "certification/patches/autonomous-meteora-evidence-checkpoints.patch",
+        "certification/patches/autonomous-meteora-terminal-archive.patch"
       ],
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "integration_overlay_files": [
@@ -721,8 +722,8 @@
       "composed_file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "f64304f125edfde0af5dff04b53332bd811bce47cf27fd72e611dafc09abd916",
-        "meme_machine/dlmm_independent_accounting.py": "d827a3796c5703843da49c48b1f08a158681c84dfaa19acd8a6336f69d034170",
-        "tests/solana_dlmm_independent_v1.py": "0c7287cb137690a87a99b8c8c2361c81266f1ffef05374d5f7eeb6a90dba3a67",
+        "meme_machine/dlmm_independent_accounting.py": "45220427e4b6ae8d748fe867c4d9f79098e579223a6f84e74234702e0b2d1e66",
+        "tests/solana_dlmm_independent_v1.py": "66ae4152aa50efa004c324cc1127e361e38c5f0ce1f8be474c7ed7510c47e3a9",
         "tests/test_dlmm_independent_accounting.py": "8d19e2fd67ab5bd6e4461796eff022769495d84235e2ff73bce250520ca68a2d"
       }
     },

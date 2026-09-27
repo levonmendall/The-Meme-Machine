@@ -239,6 +239,7 @@ def restore(source, *, worktrees, run, expected_identity, expected_state_hash,
                     ledger_snapshots={row['path']:row['sha256'] for row in body['files']
                         if row['path'] in ('pump/directional-sleeve.sqlite','pons/directional-sleeve.sqlite',
                             'pump/pump-survivor/paper.sqlite',
+                            'meteora/solana-dlmm-independent-v1-live.accounting.sqlite3',
                             'pons/pons-selective-continuation-v1-cohort/pons-survivor/paper.sqlite')})
     if receipt_path.exists() and json.loads(receipt_path.read_text()) != expected:
         raise ValueError('campaign_state_restore_collision')

@@ -213,8 +213,7 @@ def reconcile(lane,root):
             replay=book.replay_economics(
                 strategy._build_position,strategy._advance_position,strategy._mark)
         with closing(connect(path)) as db:
-            events=[json.loads(raw) for raw, in db.execute(
-                'SELECT body FROM events ORDER BY seq')]
+            events=list(book.events(db))
         handoff=meteora_handoff(events,accounting,replay)
         return dict(verified=accounting['reconciled'] and replay.get('verified') is True,
                     accounting=accounting,accounting_replay=replay,

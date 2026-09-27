@@ -1,0 +1,143 @@
+diff --git a/meme_machine/dlmm_independent_accounting.py b/meme_machine/dlmm_independent_accounting.py
+index 348eae9491faaf33b51d654a27233f94755f867e..34253201792d957690eee8c4797d9c7020f4d744 100644
+--- a/meme_machine/dlmm_independent_accounting.py
++++ b/meme_machine/dlmm_independent_accounting.py
+@@ -4,7 +4,7 @@ The journal is the state. Failed evidence leaves inventory and capital occupied.
+ Captured tapes support deterministic economic replay; capture itself is not proof
+ of chain authentication. Only the existing authenticated lifecycle writes them.
+ """
+-from contextlib import closing
++from contextlib import closing,nullcontext
+ import json
+ from pathlib import Path
+ import sqlite3
+@@ -21,13 +21,24 @@ def integer(value):
+ 
+ 
+ class PaperBook:
+-    def __init__(self,path,*,run_id,policy_hash,capital):
++    def __init__(self,path,*,run_id,policy_hash,capital,economic_replay=None):
+         self.path=Path(path);self.run_id=run_id;self.policy_hash=policy_hash
+         self.genesis=dict(namespace=NAMESPACE,asset='SOL_lamports',run_id=run_id,
+                           policy_hash=policy_hash,capital=integer(capital),paper_only=True)
+         self.path.parent.mkdir(parents=True,exist_ok=True)
++        from certification.preserved_checkpoint import snapshot
++        preserved=(snapshot(path,name='meteora/solana-dlmm-independent-v1-live.accounting.sqlite3',lane='meteora')
++                   if economic_replay else nullcontext(None))
++        with preserved as source:
++            self._initialize()
++            if source:
++                from certification.meteora_archive import compact
++                compact(self,*source,economic_replay)
++
++    def _initialize(self):
+         with closing(self.connect()) as db:
+-            db.executescript('''CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL);
++            db.executescript('''CREATE TABLE IF NOT EXISTS events_archive(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL,hash TEXT NOT NULL);
++                CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL);
+                 CREATE TRIGGER IF NOT EXISTS no_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT,'append_only'); END;
+                 CREATE TRIGGER IF NOT EXISTS no_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
+             db.execute('BEGIN IMMEDIATE')
+@@ -41,12 +52,26 @@ class PaperBook:
+         db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
+         return db
+ 
+-    def identity(self):return NAMESPACE+':'+self.run_id+':'+str(uuid.uuid4())
++    def identity(self):
++        from certification.lifecycle_identity import issue
++        return issue(NAMESPACE+':'+self.run_id+':'+str(uuid.uuid4()))
++
++    def events(self,db):
++        from certification.meteora_archive import events
++        return events(db,self.genesis)
+ 
+     def _replay(self,db):
+         state=dict(cash=self.genesis['capital'],positions={},realized=0,net_cash_flows=0,
+                    capital_unit_nanoseconds=0,last_at_ns=0,hash='0'*64,events=0)
+-        for seq,raw,checksum in db.execute('SELECT seq,body,hash FROM events ORDER BY seq'):
++        from certification.meteora_archive import anchor
++        saved=anchor(db,self.genesis)
++        if saved:
++            genesis=db.execute('SELECT body,hash FROM events WHERE seq=1').fetchone()
++            if (genesis is None or digest(json.loads(genesis[0]))!=genesis[1]
++                    or json.loads(genesis[0])['data']!=self.genesis):
++                raise ValueError('dlmm_accounting_genesis_mismatch')
++            state=saved['state']
++        for seq,raw,checksum in db.execute('SELECT seq,body,hash FROM events WHERE seq>? ORDER BY seq',(state['events'],)):
+             body=json.loads(raw)
+             if seq!=state['events']+1 or digest(body)!=checksum or body['previous']!=state['hash']:
+                 raise ValueError('dlmm_accounting_journal_integrity')
+@@ -106,6 +131,10 @@ class PaperBook:
+     def append(self,identity,action,data,*,at_ns=None):
+         with closing(self.connect()) as db:
+             db.execute('BEGIN IMMEDIATE');state=self._replay(db)
++            if action=='reserve':
++                from certification.lifecycle_identity import validate_new
++                from certification.meteora_archive import anchor
++                validate_new(identity,archived=(anchor(db,self.genesis) or {}).get('archived_entry_scope'))
+             event=dict(action=action,identity=identity,data=data,previous=state['hash'],at_ns=time.time_ns() if at_ns is None else at_ns)
+             self._apply(state,event)
+             db.execute('INSERT INTO events VALUES(?,?,?)',(state['events']+1,encode(event),digest(event)));db.commit()
+@@ -142,9 +171,13 @@ class PaperBook:
+         if row and row['status'] in ('reserved','open','unresolved'):
+             self.append(identity,'cancel' if row['status']=='reserved' else 'unresolved',dict(reason=reason))
+ 
+-    def reconcile(self):
+-        with closing(self.connect()) as db:
+-            db.execute('BEGIN');s=self._replay(db)
++    def reconcile(self,*,db=None):
++        owned=db is None
++        with closing(self.connect()) if owned else nullcontext(db) as db:
++            if owned:db.execute('BEGIN')
++            s=self._replay(db)
++            from certification.meteora_archive import anchor
++            folded=(anchor(db,self.genesis) or {}).get('folded',{})
+         open_rows=[p for p in s['positions'].values() if p['status'] in ('open','unresolved')]
+         marked=sum(p['mark']['ending_sol_lamports']-p['exit_cost'] for p in open_rows)
+         unrealized=sum(p['mark']['pnl_lamports'] for p in open_rows)
+@@ -155,20 +188,24 @@ class PaperBook:
+         return dict(genesis=self.genesis,cash=s['cash'],reserved=reserved,available=s['cash']-reserved,
+                     open_positions=len(open_rows),pending=sum(p['status']=='reserved' for p in s['positions'].values()),
+                     unsettled=sum(p['status'] in ('open','unresolved','reserved') for p in s['positions'].values()),
+-                    settled=sum(p['status']=='settled' for p in s['positions'].values()),
+-                    writeoffs=sum(p['status']=='written_off' for p in s['positions'].values()),
++                    settled=folded.get('settled',0)+sum(p['status']=='settled' for p in s['positions'].values()),
++                    writeoffs=folded.get('writeoffs',0)+sum(p['status']=='written_off' for p in s['positions'].values()),
+                     realized_pnl_lamports=s['realized'],unrealized_pnl_lamports=unrealized,marked_equity=equity,
+                     capital_unit_nanoseconds=s['capital_unit_nanoseconds'],capital_time_through_ns=s['last_at_ns'],
+                     net_cash_flows=s['net_cash_flows'],journal_hash=s['hash'],journal_events=s['events'],reconciled=True,
+                     stale_marks=sum(p['status']=='unresolved' for p in open_rows),economic_replay_verified=False)
+ 
+-    def replay_economics(self,build,advance,mark):
++    def replay_economics(self,build,advance,mark,*,db=None):
+         from .dlmm_tape import VerifiedTape
+         positions={};real_hashes={};checked=0
+-        with closing(self.connect()) as db:
+-            db.execute('BEGIN');self._replay(db)
+-            for (raw,) in db.execute('SELECT body FROM events ORDER BY seq'):
+-                event=json.loads(raw);data=event['data'];identity=event['identity']
++        owned=db is None
++        with closing(self.connect()) if owned else nullcontext(db) as db:
++            if owned:db.execute('BEGIN')
++            self._replay(db)
++            from certification.meteora_archive import anchor
++            checked=(anchor(db,self.genesis) or {}).get('folded',{}).get('economic_events',0)
++            for event in self.events(db):
++                data=event['data'];identity=event['identity']
+                 if event['action']=='entry':
+                     position=build(data['entry_state'],data['features'],data['policy'])
+                     if digest(position)!=digest(data['position']) or digest(mark(position))!=digest(data['mark']):raise ValueError('dlmm_accounting_entry_replay')
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index 9826b456653db9b18d56ecbcb1a60f6ec0de9bca..ea0289c23506ec5c0c2e14cee520d6a7b4afce04 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -1811,7 +1811,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+             genesis=json.loads(db.execute('SELECT body FROM events ORDER BY seq LIMIT 1').fetchone()[0])['data']
+         if os.environ.get('MM_CERTIFICATION_RUN_ID') not in (None,genesis['run_id']):raise ValueError('runtime_run_identity_mismatch')
+         run_id=genesis['run_id']
+-    book=PaperBook(book_path,run_id=run_id,policy_hash=digest(policy),capital=1_000_000_000)
++    book=PaperBook(book_path,run_id=run_id,policy_hash=digest(policy),capital=1_000_000_000,
++                   economic_replay=(_build_position,_advance_position,_mark))
+     # No providers or lifecycle workers exist yet. Only the native journal can
+     # establish whether a crashed reservation ever became PAPER inventory.
+     book.recover_unfilled_reservations()

@@ -142,8 +142,9 @@ def _runtime_identity(state_dir,lane):
 
 def _meteora_events(path):
     with sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True) as db:
-        return [json.loads(raw) for raw, in db.execute(
-            'SELECT body FROM events ORDER BY seq')]
+        from certification.meteora_archive import events
+        genesis=json.loads(db.execute('SELECT body FROM events WHERE seq=1').fetchone()[0])['data']
+        return list(events(db,genesis))
 
 
 def _meteora_open_identity(events):
@@ -184,7 +185,7 @@ def restore_meteora_strategy(book,module):
     with closing(book.connect()) as db:
         db.execute('BEGIN')
         book._replay(db)
-        events=[json.loads(raw) for raw, in db.execute('SELECT body FROM events ORDER BY seq')]
+        events=list(book.events(db))
     identity,entry_event=_meteora_open_identity(events)
     entry_data=entry_event['data']
     policy=entry_data['policy'];features=entry_data['features'];entry=entry_data['entry_state']
@@ -245,7 +246,8 @@ def resume_meteora(state_dir,*,slice_seconds):
     entry_data=entry_event['data']
     policy=entry_data['policy'];features=entry_data['features'];entry=entry_data['entry_state']
     book=PaperBook(db_path,run_id=genesis['run_id'],policy_hash=genesis['policy_hash'],
-                   capital=int(genesis['capital']))
+                   capital=int(genesis['capital']),
+                   economic_replay=(module._build_position,module._advance_position,module._mark))
 
     recovered=restore_meteora_strategy(book,module)
     position=recovered['position'];current=recovered['current'];elapsed=recovered['elapsed']

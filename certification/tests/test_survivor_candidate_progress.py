@@ -197,6 +197,7 @@ class SurvivorCandidateProgressTests(unittest.TestCase):
             self.skipTest('requires canonical prepared native lanes')
         roots=Path(root_value).resolve()
         repo=Path(__file__).resolve().parents[2]
+        outputs={}
         for lane in lanes:
             with self.subTest(lane=lane):
                 self.assertTrue((roots/lane).is_dir(), 'prepared lane missing')
@@ -205,3 +206,5 @@ class SurvivorCandidateProgressTests(unittest.TestCase):
                     env=dict(os.environ,PYTHONPATH=str(repo)),capture_output=True,
                     text=True,timeout=20)
                 self.assertEqual(proc.returncode,0,proc.stdout+proc.stderr)
+                outputs[lane]=proc.stdout
+        return outputs

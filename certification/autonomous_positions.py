@@ -29,6 +29,14 @@ def live_ids(snapshot):
         if row.get('status') not in ('settled','cancelled','written_off'))
 
 
+def no_new_native_entries(previous,current):
+    # Native replay independently verifies folded terminal accounting. Retiring
+    # a preserved terminal projection cannot be mistaken for entry or exposure.
+    return (set(current['positions'])<=set(previous['positions'])
+        and set(live_ids(previous))<=set(current['positions'])
+        and current['natural_entries']==previous['natural_entries'])
+
+
 def run(claim, worktrees, output, previous):
     try:return _run(claim,worktrees,output,previous)
     except BaseException as exc:
@@ -129,8 +137,7 @@ def _run(claim, worktrees, output, previous):
     transfers={lane:continuity(before[lane],after[lane]) for lane in campaign_state.LANES}
     positions={lane:live_ids(after[lane]) for lane in campaign_state.LANES}
     _atomic(output/'position-after.json',after);_atomic(output/'position-continuity.json',transfers)
-    no_new_entries=all(set(after[lane]['positions'])==set(before[lane]['positions']) and
-        after[lane]['natural_entries']==before[lane]['natural_entries'] for lane in campaign_state.LANES)
+    no_new_entries=all(no_new_native_entries(before[lane],after[lane]) for lane in campaign_state.LANES)
     health_failures=[]
     for lane in solana:
         health_failures.extend(evidence_continuity({},lane,snapshot)['failures'])

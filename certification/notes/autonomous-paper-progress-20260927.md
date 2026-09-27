@@ -1064,3 +1064,38 @@ composition defect, not Phase D. Remaining LINEAR owners: shared Robinhood candi
 and projection identities; current Pons trials/capital/lifecycle/re-entry; Meteora
 completed native ledger; Ramses position/campaign journals; current-strategy sleeve
 terminal projections. Joined soak/crash/provider matrices and final C/E/F/G remain.
+
+D2 continuation at 2f1bfb6bc6daebf84cc4fb3b5b9a68e00ad33513; ordinary CI
+36351179125 PASS. Position-only review incorrectly required every historical
+terminal ID to stay hot. Regression now permits preserved terminal retirement while
+requiring unchanged natural-entry totals, no new IDs and retention of every prior
+live ID. Native accounting replay and continuity remain mandatory.
+
+Accepted Meteora completed-identity checkpoint: replay the exact preserved snapshot
+and frozen economic tapes before atomic prefix compaction. Scoped terminal IDs fold
+into conserved P&L/capital-time/settlement/writeoff totals with an archived-window
+re-entry fence. Live entry/tape/exit-progress state stays exact. Repeated unresolved
+receipts retain the last status plus exact journal summaries and immutable raw
+predecessors. No unresolved inventory/reserve is dropped. Normal startup, position
+continuation, read-only terminal reconciliation and native review use this prefix.
+Original genesis/hash/sequence/policy remain bound; only engineering composition
+hashes changed. Frozen task manifest unchanged; source integrity/protocol freeze PASS.
+
+Eight windows × two changing native lifecycles exercise reserve/fill/mark/approved
+immediate range exit/settlement: 16 settlements retained, 180224 hot SQLite bytes in
+EVERY window, one raw genesis row, zero retired positions, conserved accounting.
+Source/economic corruption and pre-commit interruption reject/rollback. Actual
+constructor restore preserves exact live strategy state and resumes one settlement;
+independent native terminal proof passes. Cancellation/writeoff/unresolved exposure
+remain truthful across six checkpoints. Three new tests PASS, three native reserve
+regressions PASS, native evidence commit/ack cuts PASS, nine continuation/receipt
+checks PASS. Evidence: `results/autonomous-owner-churn-repairs-20260927.json`.
+
+Rejected D2 diagnostic: repeating 16 full maximum-hold paths exceeded 20s then 180s
+process timeouts while progressing through marks; interrupted raw ledgers retained
+locally. The owner churn discriminator uses the approved immediate-exit branch;
+no runtime/storage/history/strategy bounds changed. Full 4–24h behavior remains in
+the required joined soak. Remaining LINEAR owners: Robinhood candidate/projection
+identities, current Pons trial/capital/re-entry state, Ramses position/campaign
+journals, current-strategy sleeve terminal projections. D remains OPEN; no final
+certification or market run launched.

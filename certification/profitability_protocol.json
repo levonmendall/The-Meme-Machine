@@ -35,7 +35,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "948f040d3add6cef34117a350279c5eb9dd902adeab696350157ba3e882a8235"
+      "source_diff_sha256": "10c7161d9e56f44982ee16d862acd76a0dedfe9adfe3f60bf011521dff8e9ad8"
     },
     "pons": {
       "strategy_version": "pons-shared-sleeve-six-regime-v1",

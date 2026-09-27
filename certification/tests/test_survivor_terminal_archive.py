@@ -16,6 +16,7 @@ from certification.sleeve_reservations import SleeveReservations
 from certification import survivor_terminal_archive as archive
 from certification.market_assurance import native_positions
 from certification.directional_accounting import execution_cost
+from certification.autonomous_positions import no_new_native_entries
 
 
 class SurvivorTerminalArchiveTests(unittest.TestCase):
@@ -76,6 +77,7 @@ class SurvivorTerminalArchiveTests(unittest.TestCase):
             self.assertEqual(self.book.reconcile(),before);self.assertEqual(self.sleeve.reconcile(),shared)
             self.assertEqual(execution_cost(self.book),costs)
             now=native_positions(self.hot,'pump')
+            self.assertTrue(no_new_native_entries(counts,now))
             for key in ('natural_entries','natural_settlements','natural_partial_realizations','natural_exits'):
                 self.assertEqual(now[key],counts[key])
             self.assertEqual(self.book.db.execute('SELECT COUNT(*) FROM positions').fetchone()[0],0)
@@ -143,6 +145,13 @@ class SurvivorTerminalArchiveTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'pending_corruption'):
             archive.compact(self.book,self.sleeve,self.history)
         self.assertEqual(self.book.reconcile(),before);self.assertEqual(self.sleeve.reconcile(),shared)
+
+    def test_position_only_review_rejects_lost_exposure_and_new_identity(self):
+        before=dict(positions={'live':{'status':'open'},'old':{'status':'settled'}},natural_entries=2)
+        self.assertTrue(no_new_native_entries(before,dict(before,positions={'live':{'status':'open'}})))
+        self.assertFalse(no_new_native_entries(before,dict(before,positions={})))
+        self.assertFalse(no_new_native_entries(before,dict(before,natural_entries=3)))
+        self.assertFalse(no_new_native_entries(before,dict(before,positions=dict(before['positions'],new={'status':'settled'}))))
 
     def test_post_sleeve_commit_retry_and_native_rollback_keep_exact_totals(self):
         self.populate(0,count=2);self.preserve(0);before=self.book.reconcile();shared=self.sleeve.reconcile()
