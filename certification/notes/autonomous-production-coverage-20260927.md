@@ -4,9 +4,9 @@ Authority: `autonomous_paper_task_manifest.json`; four sleeves, six active regim
 
 | Production path | Pump current | Pump Survivor | Pons current | Pons Survivor | Meteora | Ramses |
 |---|---|---|---|---|---|---|
-| discovery | PROVEN | MISSING | PROVEN | MISSING | PROVEN | PROVEN |
+| discovery | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | target-market routing | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
-| authoritative evidence | PROVEN | MISSING | PROVEN | MISSING | PROVEN | PROVEN |
+| authoritative evidence | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | reconstruction | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | feature computation | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | qualification | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
@@ -54,3 +54,7 @@ Fresh declared-overlay preparation and source-integrity verification pass for al
 Current Pons restart was reproduced BROKEN after a real partial exit: its native book survived but controller state did not. Atomic state/resume and crash regressions now pass in the prepared-lane prototype. Keep BROKEN until cohort and workflow continuation are connected and verified.
 
 Current-Pons controller recovery is now connected to cohort startup and the actual position-continuation runner. Native crash/rollback/quantity tests and a current-position/shared-sleeve continuation test pass. Terminal proof is read-only and bounded slices preserve context. The reproduced BROKEN paths are repaired; MISSING remains for final control-plane and campaign-boundary proof.
+
+Current Pump now resumes through its native production restore/monitor and reattaches only the existing shared-sleeve reservation. Partial → restart → final native exit → exact sleeve release passes with finalized local history. Final workflow/campaign control-plane proof remains MISSING for every regime.
+
+Both Survivor acquisition compositions are now PROVEN by `test_survivor_acquisition`: Pump raw migration decoder → linked finalized census → shared read-only reader → durable discovery, including unsealed/non-native/gap rejection; Pons captured graduation bytes → receipt/ABI/lineage proof → history, plus shared V4 transport → separate pool authentication → candidate histories. These regressions exposed and repaired the dropped Pump migration binding and Pons one-candidate scheduling starvation. Timeout/receipt/reorg failures preserve cursors and resume without duplicate evidence. Four-hour aging across normal workflow boundaries remains MISSING under restart/replay; this acquisition proof does not close that gate.

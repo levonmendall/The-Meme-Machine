@@ -414,3 +414,44 @@ uses finalized local history, performs a real native partial, reopens, preserves
 the original clock/partial/high-water context, stops and settles once, and releases
 exact shared-sleeve P&L. Missing allocation fails without creating a database.
 Twenty-two affected native Pump tests pass; policies and capital remain unchanged.
+
+Pump continuation batch `6f66880552e29d3651e4ae97a9c4e4d8fb10381f` passed
+ordinary CI `36331425729`. Phase A remains closed; no new pressure or market run.
+
+Survivor acquisition audit reproduced Pons history starvation with an offline
+five-block/second clock: after 24 five-second production steps, the bounded
+64-candidate hot set has maximum lag 600 blocks. Discovery also admits only ten
+blocks per step. This is scheduling throughput, not a strategy rejection.
+Prototype shares authenticated transport across separate pool identities and
+advances all history cursors in the existing 40-block work slice; each provider
+log query remains at most ten blocks. The same probe now stays current. Captured
+Pons graduation bytes traverse actual discovery/ABI/receipt/lineage/history code;
+missing initialization fails closed. Two-market swaps, wrong-pool/receipt/reorg
+rejection, interruption recovery and reopen/idempotence pass. Policy unchanged.
+
+The required native Pons suite ran 433 tests: two fixture errors require adding
+the new batch transport interface to its old discovery stub. Four other failures
+match the already documented workspace PID/proc namespace mismatch: direct
+`alive(process_identity())` is false here. Keep production liveness fences intact;
+the final hosted certificate must pass those concurrency tests. No retry is being
+used as evidence. Acquisition composition and source-identity recording pending.
+
+Composed Pump discovery regression now reproduces a separate BROKEN binding:
+the shared `program_decoders()` path replaces the old lane overlay and omits
+authenticated migration events. Raw migration parsing passes in isolation but
+the real finalized census/read path produces zero Survivor candidates. Repair
+moves the existing migration codec into the neutral shared decoder, invokes it
+alongside trade/create parsing, and makes the lane helper reuse it. No parsing,
+lineage, native-quote or strategy gate is relaxed. Full composed regression is
+being verified, including unsealed evidence, non-native quote and gap rejection.
+
+Survivor acquisition batch passes 59 canonical/transport/finality tests, 25 native
+Pump tests and 30 affected native Pons tests. Pump composed discovery now admits
+one authenticated SOL migration only after its linked finalized census, excludes
+non-native quote, survives reopen and rejects an unresolved gap. Pons uses the
+same receipt/ABI/sender authentication for each pool in shared transport; the
+64-candidate probe and independent discovery keep pace without widening a single
+ten-block log query or the 40-block history slice. Thirty-two-event graduation
+and 256-event per-pool limits remain. Frozen policies and allocation unchanged.
+Declared overlays/source identities are being recorded. Next: cross-window
+candidate history, bounded long-horizon storage, and durable controller gates.

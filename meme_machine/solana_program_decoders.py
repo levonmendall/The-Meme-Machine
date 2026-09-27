@@ -6,19 +6,48 @@ qualification, accounting, or execution authority.
 from __future__ import annotations
 
 import base64
+import hashlib
 import struct
 
 from . import pump
-from .postgrad import PUMPSWAP_PROGRAM
+from .postgrad import PUMPSWAP_PROGRAM,WSOL,pumpswap_pool
 
 PUMPSWAP_BUY_EVENT=bytes([103,244,82,31,44,245,119,119])
 PUMPSWAP_SELL_EVENT=bytes([62,47,55,10,165,3,220,42])
 
 
+MIGRATION_DISC=hashlib.sha256(b'event:CompletePumpAmmMigrationEvent').digest()[:8]
+
+def migration_events(tx):
+    if not tx or not tx.get('meta') or tx['meta'].get('err'):return []
+    stack=[];out=[]
+    for index,line in enumerate(tx['meta'].get('logMessages') or []):
+        if line.startswith('Program ') and ' invoke [' in line:stack.append(line.split()[1])
+        elif line.startswith('Program ') and (' success' in line or ' failed:' in line):
+            if stack:stack.pop()
+        elif line.startswith('Program data: ') and stack and stack[-1]==pump.PROGRAM:
+            raw=base64.b64decode(line[14:],validate=True)
+            if raw[:8]!=MIGRATION_DISC:continue
+            if len(raw) not in (168,200):raise ValueError('migration_event_layout')
+            mint=pump.b58(raw[40:72]);quantity,quote,fee=struct.unpack_from('<QQQ',raw,72)
+            curve=pump.b58(raw[96:128]);at=struct.unpack_from('<q',raw,128)[0]
+            pool=pump.b58(raw[136:168])
+            quote_mint=pump.b58(raw[168:200]) if len(raw)==200 else '11111111111111111111111111111111'
+            if quote_mint not in (WSOL,'11111111111111111111111111111111'):continue
+            if (quantity<=0 or quote<=0 or at<=0 or pool!=pumpswap_pool(mint)
+                    or curve!=pump.pda([b'bonding-curve',pump.un58(mint)])):
+                raise ValueError('migration_lineage')
+            out.append(dict(event_type='migration',mint=mint,pool=pool,bonding_curve=curve,
+                market_time=at,index=index,slot=int(tx['slot']),mint_amount=quantity,
+                quote_amount=quote,migration_fee=fee,quote_mint=quote_mint,
+                quote_asset='SOL' if quote_mint in (WSOL,'11111111111111111111111111111111') else 'OTHER'))
+    return out
+
 def pump_events(tx):
     return (
         [dict(e,event_type='trade') for e in _pump_trade_events(tx)]
         +[dict(e,event_type='create') for e in _pump_create_events(tx)]
+        +migration_events(tx)
     )
 
 
