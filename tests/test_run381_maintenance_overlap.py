@@ -59,5 +59,14 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(len(pending),1,'archive task admission became unbounded')
    finally:
     stop.set();await runner
+   db=sqlite3.connect(path)
+   try:
+    counters=json.loads(db.execute("SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
+    self.assertGreater(counters['owner.stage.retention.calls'],0)
+    self.assertGreater(counters['owner.stage.archive_plan.calls'],0)
+    self.assertGreaterEqual(counters['owner.stage.retention.queue_total_microseconds'],0)
+    labels={k.split('.')[2] for k in counters if k.startswith('owner.stage.')}
+    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler'})
+   finally:db.close()
 
 if __name__=='__main__':unittest.main()
