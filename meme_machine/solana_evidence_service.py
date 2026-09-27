@@ -662,7 +662,9 @@ class ServiceState:
         return self.archive_plan()
 
     def retention(self):
+        before=self.writer.db.total_changes
         self._storage_stage('retention',lambda:self.writer.retain(time.time()-180,max_records=1000,archive_first=False))
+        return self.writer.db.total_changes>before
 
     def close(self):
         try:
@@ -1171,7 +1173,6 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         # cleanup. Source/consumer work retains owner priority.
                         if snapshot:
                             archive_started=time.monotonic();archive_future=prepare(snapshot)
-                    await work(lambda state:state.retention(),4)
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     yielded=True
@@ -1183,7 +1184,22 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
-        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(stop.wait())]
+        async def retention():
+            # Independent bounded cleanup fills owner capacity while the one
+            # archive worker prepares/publishes immutable evidence. Coupling one
+            # cleanup call to each archive left Meteora's dense indexes behind.
+            while not stop.is_set():
+                try:progress=await work(lambda state:state.retention(),4)
+                except EvidenceUnavailable as exc:
+                    if str(exc)!='evidence_background_yield':raise
+                    progress=True
+                if progress:
+                    await asyncio.sleep(0)
+                    continue
+                try:await asyncio.wait_for(stop.wait(),1)
+                except TimeoutError:pass
+
+        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception

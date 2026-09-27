@@ -16,6 +16,30 @@ def proof(lo,hi):
                            lineage_hash=digest(['pump',lo,hi])),100)
 
 class RetentionProgressTests(unittest.TestCase):
+ def test_interrupted_begin_cannot_leave_an_open_write_transaction(self):
+  with tempfile.TemporaryDirectory() as td:
+   writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+   class InterruptedBegin:
+    def __init__(self,db):self.db=db;self.once=True
+    def __getattr__(self,key):return getattr(self.db,key)
+    def execute(self,sql,*args):
+     cursor=self.db.execute(sql,*args)
+     if sql=='BEGIN IMMEDIATE' and self.once:
+      self.once=False;cursor.close()
+      raise sqlite3.OperationalError('interrupted')
+     return cursor
+   writer.db=InterruptedBegin(writer.db)
+   try:
+    with self.assertRaisesRegex(sqlite3.OperationalError,'^interrupted$'):
+     with writer.transaction():self.fail('interrupted BEGIN executed transaction body')
+    self.assertFalse(writer.db.in_transaction)
+    self.assertEqual(writer.db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()[0],0)
+    with writer.transaction():writer._count('after-interrupted-begin')
+    db=sqlite3.connect(writer.path)
+    try:self.assertEqual(db.execute("SELECT value FROM counters WHERE key='after-interrupted-begin'").fetchone()[0],1)
+    finally:db.close()
+   finally:writer.close()
+
  def test_recurring_urgent_work_cannot_starve_later_retention_scopes(self):
   with tempfile.TemporaryDirectory() as td:
    def factory():

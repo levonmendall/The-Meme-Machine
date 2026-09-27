@@ -37,17 +37,18 @@ class Wire(PreservedWire):
 
 async def run(frames,output):
  output=Path(output);output.mkdir(parents=True,exist_ok=True)
- wire=Wire();wire.frames=frames;stop=asyncio.Event();lags=[];hot_peak=0;oldest_hot_age_peak=0;started=time.monotonic();queries=[];last_report=0
+ wire=Wire();wire.frames=frames;stop=asyncio.Event();lags=[];hot_peak=0;oldest_hot_age_peak=0;oldest_retained_age_peak=0;started=time.monotonic();queries=[];last_report=0
  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('websockets.asyncio.client.connect',return_value=wire):
   path=Path(td)/'db';runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
   def snapshot():
-   if not database_ready(path):return {},None,0,None
+   if not database_ready(path):return {},None,0,None,None
    db=sqlite3.connect(path)
    try:
     c=dict(db.execute('select key,value from counters'));f=db.execute("select value from service_health where key='finalized_frontier:program:meteora'").fetchone()
     gaps=db.execute('select count(*) from gaps where repaired is null').fetchone()[0]
     oldest=db.execute('SELECT COALESCE(market_time,first_seen) FROM records WHERE body IS NOT NULL ORDER BY COALESCE(market_time,first_seen),identity LIMIT 1').fetchone()
-    return c,json.loads(f[0]) if f else None,gaps,oldest[0] if oldest else None
+    retained=db.execute('SELECT MIN(COALESCE(market_time,first_seen)) FROM records').fetchone()[0]
+    return c,json.loads(f[0]) if f else None,gaps,oldest[0] if oldest else None,retained
    finally:db.close()
   def candidate():
    plane=RuntimeEvidence(path,owner='meteora')
@@ -62,9 +63,11 @@ async def run(frames,output):
   try:
    while c.get('stream_accepted_messages',0)<frames:
     if runner.done():await runner
-    c,f,gaps,oldest=await asyncio.to_thread(snapshot);assert not gaps,('runtime_gap',gaps)
+    c,f,gaps,oldest,retained=await asyncio.to_thread(snapshot);assert not gaps,('runtime_gap',gaps)
     oldest_hot_age=max(0,time.time()-oldest) if oldest is not None else 0
     oldest_hot_age_peak=max(oldest_hot_age_peak,oldest_hot_age)
+    oldest_retained_age=max(0,time.time()-retained) if retained is not None else 0
+    oldest_retained_age_peak=max(oldest_retained_age_peak,oldest_retained_age)
     if f:lags.append(time.time()-f['time'])
     hot=sum(p.stat().st_size for p in (path,Path(str(path)+'-wal')) if p.exists());hot_peak=max(hot_peak,hot)
     elapsed=time.monotonic()-started
@@ -72,12 +75,15 @@ async def run(frames,output):
     if c.get('stream_accepted_messages',0)>10 and elapsed>=next_query and control is None:
      control=asyncio.create_task(asyncio.to_thread(candidate));next_query=elapsed+10
     if elapsed-last_report>=30:
-     last_report=elapsed;print(json.dumps(dict(elapsed=elapsed,frames=c.get('stream_accepted_messages',0),hot_bytes=hot,lag=lags[-1] if lags else None,oldest_hot_age=oldest_hot_age,archived=c.get('archived_records',0),compacted=c.get('compacted_records',0))),flush=True)
+     last_report=elapsed;print(json.dumps(dict(elapsed=elapsed,frames=c.get('stream_accepted_messages',0),hot_bytes=hot,lag=lags[-1] if lags else None,oldest_hot_age=oldest_hot_age,oldest_retained_age=oldest_retained_age,archived=c.get('archived_records',0),compacted=c.get('compacted_records',0))),flush=True)
     if elapsed>frames*.27+120:raise AssertionError('pressure_deadline')
     if lags and max(lags)>45:raise AssertionError('source_clock_fell_behind')
     # This fixture has no lifecycle pins. A growing archive backlog cannot pass
     # merely because the ten-minute test ended before the storage guard fired.
     if oldest_hot_age>240:raise AssertionError('archive_clock_fell_behind')
+    # With no lifecycle/gap pins, archived index rows must retire within the
+    # same 180-second retention plus 60-second backlog bound as hot payloads.
+    if oldest_retained_age>240:raise AssertionError('retention_clock_fell_behind')
     await asyncio.sleep(.25)
    if control is not None:queries.append(await control);control=None
    assert queries
@@ -111,6 +117,7 @@ async def run(frames,output):
    result['storage_maintenance']=health.get('storage_maintenance',{})
    result['failure_frames']=failure_frames
    result['oldest_hot_age_peak']=oldest_hot_age_peak
+   result['oldest_retained_age_peak']=oldest_retained_age_peak
    result['retained_by_scope']=retained_by_scope
    result['archived_pending_compaction']=sum(r['archived_pending'] for r in retained_by_scope)
    for condition,name in [(integrity==('ok',),'integrity'),(ipc.get('stream.received_messages')==ipc.get('stream.commit_messages'),'admitted_drain'),(ipc.get('stream.outstanding_frames_peak',0)<=64,'frame_bound'),(ipc.get('stream.dispatch_bytes_peak',0)<=96*1024*1024,'byte_bound'),(ipc.get('stream.commit_batch_bytes_peak',0)<=16*1024*1024,'commit_bound'),(hot_peak<2*1024**3,'hot_store_bound')]:

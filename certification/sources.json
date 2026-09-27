@@ -387,7 +387,10 @@
         "tests/test_run379_production_pressure.py",
         "tests/evidence_ipc_harness.py",
         "tests/test_run380_atomic_frame.py",
-        "tests/test_run380_production_pressure.py"
+        "tests/test_run380_production_pressure.py",
+        "tests/test_run381_retention_progress.py",
+        "tests/test_run381_repair_pagination.py",
+        "tests/test_run381_maintenance_overlap.py"
       ]
     },
     "meteora": {
@@ -695,7 +698,10 @@
         "tests/test_run379_production_pressure.py",
         "tests/evidence_ipc_harness.py",
         "tests/test_run380_atomic_frame.py",
-        "tests/test_run380_production_pressure.py"
+        "tests/test_run380_production_pressure.py",
+        "tests/test_run381_retention_progress.py",
+        "tests/test_run381_repair_pagination.py",
+        "tests/test_run381_maintenance_overlap.py"
       ],
       "composed_file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
