@@ -369,3 +369,35 @@ recovery entrypoint is protected by an OS-released nonblocking controller lock;
 restart cannot authorize a second simultaneous manager or any new entry.
 Declared recovery overlay now preserves this work in repository source composition.
 Cohort startup and full workflow continuation remain the next integration work.
+
+Pushed recovery foundation `44cee91b4f0eae30cebc078e82f498ef942e1a36`;
+fresh composed lanes pass source integrity, 91 affected native tests and 38
+canonical checks. Startup integration now invokes the same bounded native
+recovery before fresh discovery. Recovery receipts coalesce by verified lifecycle
+identity, preserving the append-only archive without duplicate economic counts.
+A separate actual V4 pending-partial/max-hold regression exposed false terminal
+reporting: old loop said settled with 667 tokens still open. Repair preserves the
+pending partial, then exits the remainder on fresh evidence before final settlement.
+The expanded native recovery tests pass. Workflow continuation integration is
+still in progress; no new certificate or market run was launched.
+
+Ordinary CI `36329901006` passed for `44cee91`. The next recovery batch passes
+96 affected native tests plus 14 canonical continuation/terminal/accounting tests.
+Actual position-continuation code now resumes current Pons alongside Survivor
+management under the same sleeve, reports one newly settled native position,
+and grants no discovery/entry authority. Read-only handoff proof verifies the
+controller journal without modifying the native DB; bounded slices retain the
+original hold clock and partial state. Real GitHub dispatch availability remains
+unproven until the final-SHA control-plane gate.
+A related exit regression reproduces both curve/V4 helpers returning an unfilled
+pending position after the ledger rejects a wrong-market quote. Helpers now
+propagate that native rejection instead of allowing callers to report completion.
+The original intent, quantities and capital remain held; no evidence check changed.
+
+Continuation batch stable locally: 97 affected native tests and 20 canonical
+conformance/terminal/continuation tests pass. Its declared overlay also applies
+cleanly to a separately prepared foundation Pons lane; all four composed source
+identities verify. Existing frozen policy/base-source identities are unchanged.
+Next audit work: current Pump workflow continuation, both Survivor acquisition
+composition and cross-window unfilled histories, durable rolling controller,
+then the missing multi-day/crash/provider matrix. No Phase-B–G gate is yet closed.

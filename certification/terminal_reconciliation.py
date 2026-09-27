@@ -68,6 +68,35 @@ def meteora_handoff(events,accounting,replay):
     )
 
 
+def pons_current_handoff(root,capital_path):
+    """Read-only proof that every filled current-Pons position has its controller."""
+    from robinhood_research.evidence import Store
+    from robinhood_research.pons_selective_ledger import SelectivePaper,STRATEGY_NAMESPACE
+    from robinhood_research.pons_selective_recovery import LifecycleState
+    positions=[]
+    with closing(connect(capital_path)) as db:
+        rows=[json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')]
+    for row in rows:
+        if row['status']=='settled':continue
+        path=Path(row['trial_path'])
+        if not path.is_absolute():path=Path(root)/path
+        if path.resolve().parent!=Path(capital_path).resolve().parent:
+            raise ValueError('pons_handoff_trial_path_identity')
+        with closing(connect(path)) as db:
+            store=Store.__new__(Store);store.db=db
+            paper=SelectivePaper.__new__(SelectivePaper)
+            paper.store=store;paper.experiment=STRATEGY_NAMESPACE
+            position=paper._get(row['id'])
+            if position['status'] not in ('open','exit_pending') or position['tokens']<=0:
+                return None
+            state=LifecycleState.restore(paper,row['id'])
+            positions.append(dict(id=row['id'],version=position['version'],
+                trial_path=row['trial_path'],opened_at=state.opened_at,
+                policy_hash=position['controller_state']['policy_hash']))
+    return (dict(schema='pons-current-controller-handoff-v1',positions=positions,
+        entry_authority=False,accounting_reconciled=True) if positions else None)
+
+
 def reconcile(lane,root):
     root=Path(root).resolve()
     if lane=='pump':
@@ -97,7 +126,10 @@ def reconcile(lane,root):
                   and accounting.get('cash_basis_conservation') is True
                   and accounting.get('native_observation_complete') is True)
         from certification.directional_accounting import terminal
-        return terminal(lane,root,dict(verified=verified,accounting=accounting,open_positions=accounting['unsettled']))
+        handoff=pons_current_handoff(root,path) if verified and accounting['unsettled'] else None
+        return terminal(lane,root,dict(verified=verified,accounting=accounting,
+            open_positions=accounting['unsettled'],durable_handoff=handoff is not None,
+            continuation_state=handoff))
     if lane=='meteora':
         from meme_machine.dlmm_independent_accounting import PaperBook
         from tests import solana_dlmm_independent_v1 as strategy

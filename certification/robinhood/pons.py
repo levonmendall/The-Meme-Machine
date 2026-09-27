@@ -205,6 +205,28 @@ def save_cohort_checkpoint(result,cursor,phase):
     finally:plane.close()
 
 
+def coalesce_lifecycle_rows(rows):
+    """Retain append-only recovery receipts without counting a lifecycle twice."""
+    from robinhood_research import BoundaryError
+    result=[];indices={}
+    for row in rows:
+        index=row.get('index')
+        if index is None or index not in indices:
+            if index is not None:indices[index]=len(result)
+            result.append(row);continue
+        previous=result[indices[index]]
+        position=row.get('final_position') or {}
+        if (row.get('recovery_replaces_index')!=index or row.get('entry_authority') is not False
+                or not row.get('lifecycle_id') or position.get('id')!=row['lifecycle_id']
+                or (previous.get('lifecycle_id') and previous['lifecycle_id']!=row['lifecycle_id'])
+                or (previous.get('curve') and previous['curve']!=row.get('curve'))
+                or (previous.get('status') in ('settled','entry_failed')
+                    and previous.get('final_position')!=position)):
+            raise BoundaryError('selective_recovery_lifecycle_identity')
+        result[indices[index]]=row
+    return result
+
+
 def recover_cohort(path,policy):
     from .plane import alive
     from robinhood_research import BoundaryError
@@ -225,7 +247,7 @@ def recover_cohort(path,policy):
             try:rows=[json.loads(line) for line in file.read_text().splitlines() if line]
             except (ValueError,OSError):raise BoundaryError('candidate_archive_unproven') from None
             if len(rows)<expected:raise BoundaryError('candidate_archive_regression')
-            result[key]=rows
+            result[key]=coalesce_lifecycle_rows(rows) if key=='lifecycles' else rows
         return result
     finally:plane.close()
 

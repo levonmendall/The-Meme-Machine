@@ -1,0 +1,425 @@
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+index 1f1ac4cdee429ce41a49beb924564aa88db792e6..ee9ef94bda19eaf668f6f2ce854a51f8b71a500a 100644
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@ -574,13 +574,14 @@ def run(endpoint,*,campaign=False):
+     )
+ 
+     if recovered:
+-        # Native capital is never recreated. Unresolved position controller state
+-        # remains an explicit safety boundary, retaining priority in the broker.
+-        if initial_accounting.get('reserved',0) or initial_accounting.get('unsettled',0):
+-            from certification.robinhood.pons import restore_position_needs
+-            restore_position_needs(plane_path(ROOT/'candidate-evidence.sqlite'),ROOT/'pons-selective-cohort-capital.sqlite')
+-            raise BoundaryError('selective_existing_position_requires_controller_recovery')
+         result=recovered
++        from certification.robinhood.pons import restore_position_needs
++        from .pons_selective_recovery import recover_existing_lifecycles
++        restore_position_needs(plane_path(ROOT/'candidate-evidence.sqlite'),ROOT/'pons-selective-cohort-capital.sqlite')
++        result['lifecycles']=recover_existing_lifecycles(endpoint,ROOT,
++            result['qualifiers'],result['lifecycles'],
++            on_recovered=lambda life:_append_jsonl(ROOT/'completed-lifecycles.jsonl',life))
++        result['cohort_accounting']=_cohort_accounting()
+     result['candidate_plane_path']=str(plane_path(ROOT/'candidate-evidence.sqlite'))
+     result['native_archive_paths']=dict(rows=str(ROWS_LOG),qualifiers=str(QUALIFIERS_LOG),
+         lifecycles=str(ROOT/'completed-lifecycles.jsonl'),discovery_sessions=str(PROVIDER_LOG),
+diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
+index 17f2c988ba56305612db7727d86d8a4449d1dab6..a3bb88f2e6ed2083f6c3ac7c913a7ee9b1de75d1 100644
+--- a/robinhood_research/pons_selective_paper.py
++++ b/robinhood_research/pons_selective_paper.py
+@@ -418,6 +418,8 @@ def _delayed_exit(
+         identity,now=quote.stamp.observed_at,action="exit",quote=quote,
+         finality_ledger=ledger,
+     )
++    if position['status'] not in ('open','settled'):
++        raise BoundaryError(position.get('reason') or 'selective_exit_not_realized')
+     return position,meta
+ 
+ 
+@@ -442,11 +444,14 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
+         identity,now=quote.stamp.observed_at,action="exit",quote=quote,
+         finality_ledger=ledger,
+     )
++    if position['status'] not in ('open','settled'):
++        raise BoundaryError(position.get('reason') or 'selective_exit_not_realized')
+     return position,meta
+ 
+ 
+ @position_work
+-def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None):
++def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None):
++    deadline=time.monotonic()+slice_seconds if slice_seconds is not None else None
+     vector=evaluation["vector"]
+     if not vector.get("current_threshold_pass"):
+         raise BoundaryError("selective_unqualified_lifecycle")
+@@ -717,6 +722,9 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
+         rpc=PositionSessions(rpc,lambda:paper_rpc(endpoint),record_session_rotation)
+ 
+         while paper._get(identity)['status']!='settled':
++            if deadline is not None and time.monotonic()>=deadline:
++                result.update(status='handoff_required',entry_authority=False)
++                break
+             try:
+                 rpc.rotate_if_needed()
+                 time.sleep(EXIT_POLICY["monitor_seconds"])
+@@ -747,6 +755,13 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
+                             raise
+                     else:
+                         continue
++                    if position['status']=='open':
++                        # A pre-existing partial intent remains partial even when
++                        # its fill arrives after max hold. Exit the remainder on
++                        # the next fresh observation before claiming settlement.
++                        result.setdefault('exits',[]).append(dict(
++                            reason=state.recovery_exit_reason,quote=meta,position=position))
++                        continue
+                     result["exit"]=dict(reason="max_total_hold",quote=meta,position=position)
+                     result["status"]="settled"
+                     break
+diff --git a/robinhood_research/pons_selective_recovery.py b/robinhood_research/pons_selective_recovery.py
+index 84d881f0fb5a6b752051de29d23188cf493bbb50..e031cd7162632a65b0afcdcf9d61a508fa9e04bf 100644
+--- a/robinhood_research/pons_selective_recovery.py
++++ b/robinhood_research/pons_selective_recovery.py
+@@ -115,7 +115,6 @@ class LifecycleState(SimpleNamespace):
+         entries=[e for e in entries if e['position']['id']==identity and e['action']=='entry']
+         if len(entries)!=1 or entries[0]['at']!=raw['opened_at'] or raw['opened_at']!=base['opened_at']:
+             raise BoundaryError('selective_controller_original_hold_clock')
+-        cls._table(paper.store)
+         data=dict(raw);data.pop('schema');data.pop('policy_hash')
+         for kind in ('preholders','seen_v4_buyers'):
+             values=[r[0] for r in paper.store.db.execute(
+@@ -145,10 +144,24 @@ def settle_recovered(guard,paper,position,*,at):
+     return guard.settle(position['id'],position,at=at)
+ 
+ 
++def recovery_evaluation(base,db_path):
++    evaluation=json.loads(canonical(base['evaluation']))
++    if evaluation.get('candidate_plane_path'):
++        from certification.robinhood.plane import plane_path
++        path=plane_path(Path(db_path).parent/'candidate-evidence.sqlite')
++        if not path.is_file():raise BoundaryError('selective_recovery_candidate_plane_missing')
++        # Only the local artifact locator changes. Candidate, policy, ledger and
++        # source identities remain bound by the original immutable base record.
++        evaluation['candidate_plane_path']=str(path)
++    return evaluation
++
++
+ @exclusive_lifecycle
+-def resume_lifecycle(endpoint,*,db_path,capital_path=None):
++def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None):
+     """Reconcile and manage one existing native lifecycle; never reserve or enter."""
+     from .pons_selective_paper import _run_lifecycle,STRATEGY_NAMESPACE,STRATEGY_CAPITAL_QUOTE,_cancel_proven_unfilled
++    if slice_seconds is not None and not 1<=slice_seconds<=3300:
++        raise BoundaryError('selective_recovery_slice_bound')
+     store=Store(str(db_path),max_records=8192)
+     try:
+         genesis=store.get(GENESIS_CATEGORY,STRATEGY_NAMESPACE)
+@@ -171,13 +184,68 @@ def resume_lifecycle(endpoint,*,db_path,capital_path=None):
+             return dict(status='entry_failed',entry_authority=False,final_position=cancelled,
+                 reconciliation=paper.reconcile())
+         LifecycleState.restore(paper,identity)
++        base=store.get(BASE,identity)
++        evaluation=recovery_evaluation(base,db_path)
+         if p['status']=='settled':
+             result=dict(status='settled',resumed=True,entry_authority=False,
+                 final_position=p,reconciliation=paper.reconcile(),realized_pnl_quote=p['pnl'])
+             if capital_path:
+                 guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
+                 result['cohort_reconciliation']=settle_recovered(guard,paper,p,at=p['last_at'])
++            if evaluation.get('candidate_plane_path'):
++                from certification.robinhood.plane import project_native_position
++                project_native_position(evaluation['candidate_plane_path'],'pons',
++                    evaluation['candidate_broker_identity'],p,ledger_path=db_path,policy=POLICY_HASH)
+             return result
+-        base=store.get(BASE,identity)
+     finally:store.close()
+-    return _run_lifecycle(endpoint,base['evaluation'],db_path=db_path,capital_path=capital_path,_recovery=base)
++    return _run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path,
++        _recovery=base,slice_seconds=slice_seconds)
++
++
++def recover_existing_lifecycles(endpoint,root,qualifiers,lifecycles,*,on_recovered):
++    """Restore native trial ownership before the cohort admits another candidate."""
++    from contextlib import closing
++    from concurrent.futures import ThreadPoolExecutor
++    import re
++    from certification.robinhood.pons import coalesce_lifecycle_rows
++    from .pons_selective_paper import STRATEGY_CAPITAL_QUOTE
++    root=Path(root)
++    capital_path=root/'pons-selective-cohort-capital.sqlite'
++    guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
++    with closing(guard._connect()) as db:
++        guard._reconcile(db)
++        rows=[json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')]
++    completed={r['index']:r for r in coalesce_lifecycle_rows(lifecycles) if 'index' in r}
++    qualified={r['index']:r for r in qualifiers}
++    pending=[]
++    for row in rows:
++        path=Path(row['trial_path'])
++        match=re.fullmatch(r'trial-(\d+)\.sqlite',path.name)
++        if not match or path.resolve().parent!=root.resolve() or not path.is_file():
++            raise BoundaryError('selective_recovery_trial_path_identity')
++        index=int(match.group(1));prior=completed.get(index)
++        if row['status']=='settled' and prior and prior.get('status') in ('settled','entry_failed'):
++            continue
++        qualifier=qualified.get(index)
++        if not qualifier or qualifier.get('vector',{}).get('policy_hash')!=POLICY_HASH:
++            raise BoundaryError('selective_recovery_qualifier_identity')
++        pending.append((index,path,qualifier,prior))
++    if len(pending)>8:raise BoundaryError('selective_recovery_controller_capacity')
++    receipts=[]
++    # Same production concurrency bound, shared provider governor and sleeve.
++    with ThreadPoolExecutor(max_workers=8) as pool:
++        futures=[pool.submit(resume_lifecycle,endpoint,db_path=path,capital_path=capital_path)
++                 for _,path,_,_ in pending]
++        for (index,path,qualifier,prior),future in zip(pending,futures):
++            life=dict(prior or {});life.update(future.result())
++            life.update(index=index,curve=qualifier['curve'],token=qualifier['token'],
++                source_transaction=qualifier['source_transaction'],
++                recovery_replaces_index=index,entry_authority=False)
++            position=life.get('final_position') or {}
++            life['lifecycle_id']=position.get('id',life.get('lifecycle_id'))
++            on_recovered(life);receipts.append(life)
++    merged=coalesce_lifecycle_rows(lifecycles+receipts)
++    rec=guard.reconcile()
++    if rec['unsettled'] or rec['reserved'] or not rec.get('cash_basis_conservation'):
++        raise BoundaryError('selective_recovery_incomplete_exposure')
++    return merged
+diff --git a/robinhood_tests/test_pons_current_recovery.py b/robinhood_tests/test_pons_current_recovery.py
+index 1952697d97f06b134af8c6a04e180dc61539a024..67e99f9423584f79990af061c8b62260a834d4f9 100644
+--- a/robinhood_tests/test_pons_current_recovery.py
++++ b/robinhood_tests/test_pons_current_recovery.py
+@@ -15,7 +15,9 @@ from certification.execution_capacity import resize
+ class ProcessCut(BaseException):pass
+ 
+ class CurrentRecoveryTests(unittest.TestCase):
+-    def case(self,folder,cut):
++    def case(self,folder,cut,*,cohort=False,workflow=None,bounded=False):
++        import time
++        real_sleep=time.sleep
+         clock=[100];fixture=accounting_fixture.PartialAccountingTests()
+         state=MagicMock();state.buy_with_snipe.return_value=dict(refund=0,ready_to_graduate=False,tokens_out=1000)
+         evaluation=dict(vector=dict(current_threshold_pass=True,policy_hash=POLICY_HASH,
+@@ -27,6 +29,7 @@ class CurrentRecoveryTests(unittest.TestCase):
+         def sleep(n):
+             clock[0]+=max(0,n)
+             if clock[0]>170:clock[0]=max(clock[0],100+EXIT_POLICY['max_total_hold_seconds']+10)
++            if workflow is not None:real_sleep(.001)
+         def quote(_rpc,_candidate,side,amount,*a,**kw):
+          return fixture.quote(int(clock[0]),side,amount,1000 if side=='buy' else amount*148//1000),dict(block=int(clock[0]),block_hash='h'+str(int(clock[0])),event_at=int(clock[0]))
+         def wait_quote(*a,**kw):q,m=quote(*a,**kw);return q,m,None
+@@ -39,7 +42,7 @@ class CurrentRecoveryTests(unittest.TestCase):
+          '_fresh_fill_full_exit_check':lambda *a:dict(executable=True),
+          '_latest_header':lambda *a:dict(number=hex(int(clock[0]))),
+          '_graduation_transition':lambda *a:None,'time.time':lambda:clock[0],'time.sleep':sleep}
+-        if cut in ('transition','postgrad_mark','runner_mark'):
++        if cut in ('transition','postgrad_mark','runner_mark','v4_pending_timeout'):
+             from dataclasses import replace
+             from robinhood_research.protocols import PoolKey
+             key=PoolKey('0x'+'1'*40,'0x'+'2'*40,3000,60,'0x'+'3'*40)
+@@ -50,12 +53,24 @@ class CurrentRecoveryTests(unittest.TestCase):
+             def v4_quote(_rpc,_key,market,amount,*args,**kwargs):
+                 q,m=quote(_rpc,{},'sell',amount)
+                 return replace(q,market=market),m,None
++            if cut=='v4_pending_timeout':
++                original_quote=quote
++                def quote(*args,**kwargs):
++                    q,m=original_quote(*args,**kwargs)
++                    if args[2]=='sell' and clock[0]<134:q=replace(q,amount_out=args[3]*108//1000)
++                    return q,m
++                def growing_signal(*args):
++                    trajectory,demand,sessions=recovery_fixture.PositionRecoveryTests.persistent_entry_signal()
++                    trajectory['recent_progress_bps']=600
++                    return trajectory,demand,sessions
++                patches['_refresh_curve_signal']=growing_signal
++                patches['_curve_quote']=quote
+             patches.update(_graduation_transition=graduated,_v4_quote=v4_quote,
+                 evidence_rpc=lambda *a:rpc,_header_search=lambda *a:dict(number=hex(int(clock[0])-10)),
+                 collect_v4_activity=lambda *a,**kw:dict(provider_sessions=[],new_independent_buyers=4,
+                     buy_quote=3000,sell_quote=1000,net_quote=2000,preholder_sell_quote=200,
+                     largest_buyer_flow_bps=80,buyer_groups=['a','b','c','d']))
+-        db=Path(folder)/'trial.sqlite';capital=Path(folder)/'capital.sqlite'
++        db=Path(folder)/'trial-000.sqlite';capital=Path(folder)/'pons-selective-cohort-capital.sqlite'
+         original=SelectivePaper.advance
+         def advance(paper,*args,**kwargs):
+             action=kwargs['action']
+@@ -63,6 +78,7 @@ class CurrentRecoveryTests(unittest.TestCase):
+             p=original(paper,*args,**kwargs)
+             if (cut==action or (cut=='partial' and action=='exit' and p['status']=='open')
+                     or (cut=='final' and action=='exit' and p['status']=='settled')
++                    or (cut=='v4_pending_timeout' and action=='exit_intent' and p['controller_state']['v4_key'])
+                     or (cut=='postgrad_mark' and action=='mark' and p['controller_state']['post_grad_checked'])
+                     or (cut=='runner_mark' and action=='mark' and p['controller_state']['post_grad_checked']
+                         and p['version']>=9)):
+@@ -78,6 +94,13 @@ class CurrentRecoveryTests(unittest.TestCase):
+                 self.assertEqual(before['controller_state']['opened_at'],102)
+                 self.assertEqual(before['controller_state']['policy_hash'],POLICY_HASH)
+             if cut=='partial':
++                import hashlib
++                from certification.terminal_reconciliation import pons_current_handoff
++                before_bytes=hashlib.sha256(db.read_bytes()).hexdigest()
++                handoff=pons_current_handoff(folder,capital)
++                self.assertEqual(handoff['positions'][0]['id'],before['id'])
++                self.assertFalse(handoff['entry_authority'])
++                self.assertEqual(hashlib.sha256(db.read_bytes()).hexdigest(),before_bytes)
+                 self.assertEqual(before['tokens'],667)
+                 self.assertTrue(before['controller_state']['partial_taken'])
+                 self.assertGreater(before['controller_state']['high_water'],1800)
+@@ -85,6 +108,7 @@ class CurrentRecoveryTests(unittest.TestCase):
+             if cut=='mark':self.assertEqual(before['controller_state']['pending_action']['exit_tokens'],333)
+             if cut=='exit_intent':self.assertEqual(before['pending_exit_tokens'],333)
+             if cut=='entry':clock[0]+=5
++            if cut=='v4_pending_timeout':clock[0]=100+EXIT_POLICY['max_total_hold_seconds']+10
+             if cut in ('transition','postgrad_mark','runner_mark'):
+                 self.assertEqual(before['controller_state']['graduation_at'],134)
+                 self.assertTrue(before['controller_state']['partial_taken'])
+@@ -94,8 +118,43 @@ class CurrentRecoveryTests(unittest.TestCase):
+                     self.assertEqual(before['controller_state']['seen_v4_buyers']['count'],4)
+             # Resume without advancing past the partial: duplicate harvesting would
+             # show up as an extra exit. The native policy eventually reaches max hold.
+-            result=runtime.resume_lifecycle('unused',db_path=db,capital_path=capital)
++            if bounded:
++                with patch.object(runtime.time,'monotonic',side_effect=lambda:clock[0]):
++                    sliced=runtime.resume_lifecycle('unused',db_path=db,capital_path=capital,slice_seconds=1)
++                self.assertEqual(sliced['status'],'handoff_required')
++                self.assertEqual(sliced['final_position']['tokens'],667)
++                self.assertEqual(sliced['final_position']['controller_state']['opened_at'],102)
++                self.assertTrue(sliced['final_position']['controller_state']['partial_taken'])
++                self.assertEqual(sliced['cohort_reconciliation']['unsettled'],1)
++            if workflow is not None:
++                from contextlib import chdir
++                from certification.position_continuation import resume_directional
++                from robinhood_research.pons_survivor_runtime import Runtime
++                original=Path(workflow)/'source-result.json'
++                original.write_text(json.dumps(dict(lanes={'pons':{'survivor':{'accounting':{'settled':0}}}})))
++                with patch('certification.position_continuation._runtime_identity',return_value=dict(result_path=str(original))),\
++                     patch.object(Runtime,'_provider'),chdir(Path(folder).parent):
++                    continued=resume_directional(workflow,lane='pons',slice_seconds=60)
++                self.assertEqual(continued['status'],'settled')
++                self.assertEqual(continued['new_entries'],0);self.assertFalse(continued['discovery_enabled'])
++                self.assertEqual(continued['newly_settled'],1)
++                self.assertEqual(len(continued['current_lifecycles']),1)
++                result=continued['current_lifecycles'][0]
++            elif cohort:
++                from robinhood_research.pons_selective_recovery import recover_existing_lifecycles
++                qualifier=dict(index=0,token='token',curve='m',source_transaction='source',vector=evaluation['vector'])
++                receipts=[]
++                prior=dict(index=0,lifecycle_id=before['id'],curve='m',status='boundary')
++                rows=recover_existing_lifecycles('unused',folder,[qualifier],[prior],on_recovered=receipts.append)
++                self.assertEqual(len(rows),1);self.assertEqual(len(receipts),1)
++                result=rows[0]
++                with patch.object(runtime,'paper_rpc',side_effect=AssertionError('completed recovery must be idempotent')):
++                    self.assertEqual(recover_existing_lifecycles('unused',folder,[qualifier],rows,
++                        on_recovered=receipts.append),rows)
++                self.assertEqual(len(receipts),1)
++            else:result=runtime.resume_lifecycle('unused',db_path=db,capital_path=capital)
+             self.assertEqual(result['status'],'entry_failed' if cut=='before_entry' else 'settled',result)
++            self.assertEqual(result['final_position']['status'],'settled',result.get('status'))
+             with StoreForTest(db) as store:
+                 events=[json.loads(r[0]) for r in store.db.execute('SELECT body FROM records WHERE category=?',(JOURNAL_CATEGORY,))]
+                 count=len(events)
+@@ -121,6 +180,42 @@ class CurrentRecoveryTests(unittest.TestCase):
+         for cut in ('before_entry','entry','mark','exit_intent','partial','final','transition','postgrad_mark','runner_mark'):
+             with self.subTest(cut=cut),tempfile.TemporaryDirectory() as td:self.case(td,cut)
+ 
++    def test_v4_pending_partial_at_max_hold_does_not_claim_full_settlement(self):
++        with tempfile.TemporaryDirectory() as td:self.case(td,'v4_pending_timeout')
++
++    def test_bounded_position_slice_preserves_runner_for_next_window(self):
++        with tempfile.TemporaryDirectory() as td:self.case(td,'partial',bounded=True)
++
++    def test_cohort_startup_recovers_actual_native_partial_without_new_entry(self):
++        with tempfile.TemporaryDirectory() as td:self.case(td,'partial',cohort=True)
++
++    def test_position_workflow_resumes_native_current_and_shared_sleeve_without_entry(self):
++        import os
++        from robinhood_research.pons_survivor_runtime import Runtime
++        from certification import position_continuation
++        protocol=json.loads(Path(position_continuation.__file__).with_name('profitability_protocol.json').read_text())
++        with tempfile.TemporaryDirectory() as td:
++            state=Path(td);root=state/'certification-native/source/pons'
++            folder=root/'pons-selective-continuation-v1-cohort';folder.mkdir(parents=True)
++            with patch.dict(os.environ,dict(MM_DIRECTIONAL_COMPOSITE_REQUIRED='1',
++                    MM_DIRECTIONAL_COHORT_ID=protocol['cohort_id'],
++                    MM_DIRECTIONAL_SLEEVE_DB=str(root/'directional-sleeve.sqlite'),
++                    MM_ROBINHOOD_READ_RPC_URL='https://robinhood-mainnet.g.alchemy.com/v2/offline')):
++                survivor=Runtime(folder/'pons-survivor',runtime.STRATEGY_CAPITAL_QUOTE,'native-continuation','unused')
++                survivor.close()
++                self.case(folder,'partial',workflow=state)
++
++    def test_recovery_receipts_reject_identity_changes_and_duplicate_counting(self):
++        from certification.robinhood.pons import coalesce_lifecycle_rows
++        prior=dict(index=0,curve='m',lifecycle_id='x',status='boundary')
++        final=dict(index=0,curve='m',lifecycle_id='x',status='settled',recovery_replaces_index=0,
++            entry_authority=False,final_position=dict(id='x',status='settled',tokens=0))
++        self.assertEqual(coalesce_lifecycle_rows([prior,final,final]),[final])
++        for change in (dict(curve='other'),dict(lifecycle_id='other'),dict(entry_authority=True),
++                       dict(recovery_replaces_index=1)):
++            with self.assertRaisesRegex(BoundaryError,'recovery_lifecycle_identity'):
++                coalesce_lifecycle_rows([prior,dict(final,**change)])
++
+     def test_concurrent_controller_cannot_enter_or_resume(self):
+         from robinhood_research.pons_selective_recovery import exclusive_lifecycle
+         @exclusive_lifecycle
+@@ -130,7 +225,7 @@ class CurrentRecoveryTests(unittest.TestCase):
+             with self.assertRaisesRegex(BoundaryError,'controller_already_running'):
+                 runtime.run_lifecycle('unused',{},db_path=db_path)
+         with tempfile.TemporaryDirectory() as td:
+-            path=Path(td)/'trial.sqlite'
++            path=Path(td)/'trial-000.sqlite'
+             owner(db_path=path)
+             owner(db_path=path)  # ownership releases after the earlier call
+ 
+@@ -138,18 +233,18 @@ class CurrentRecoveryTests(unittest.TestCase):
+         from robinhood_research.pons_selective_recovery import GROUPS
+         with tempfile.TemporaryDirectory() as td:
+             self.case(td,'partial')
+-            with StoreForTest(Path(td)/'trial.sqlite') as store:
++            with StoreForTest(Path(td)/'trial-000.sqlite') as store:
+                 identity=json.loads(store.db.execute('SELECT body FROM pons_selective_paper').fetchone()[0])['id']
+                 store.db.execute(f'INSERT INTO {GROUPS} VALUES(?,?,?)',(identity,'seen_v4_buyers','forged'))
+             with patch.object(runtime,'paper_rpc',side_effect=AssertionError('provider must not be called')):
+                 with self.assertRaisesRegex(BoundaryError,'controller_group_replay'):
+-                    runtime.resume_lifecycle('unused',db_path=Path(td)/'trial.sqlite')
++                    runtime.resume_lifecycle('unused',db_path=Path(td)/'trial-000.sqlite')
+ 
+     def test_controller_groups_and_native_journal_rollback_together(self):
+         import sqlite3
+         from robinhood_research.pons_selective_recovery import LifecycleState,GROUPS
+         f=accounting_fixture.PartialAccountingTests()
+-        with tempfile.TemporaryDirectory() as td,StoreForTest(Path(td)/'trial.sqlite') as store:
++        with tempfile.TemporaryDirectory() as td,StoreForTest(Path(td)/'trial-000.sqlite') as store:
+             paper=SelectivePaper(store,runtime.STRATEGY_NAMESPACE,1000,delay=1,natural_policy_hash=POLICY_HASH)
+             paper.reserve('x',market='m',amount=100,gas_budget=20,now=10,features=f.features(10))
+             evaluation=dict(token='token',curve='m',source_transaction='source',
+@@ -176,6 +271,30 @@ class CurrentRecoveryTests(unittest.TestCase):
+             self.assertEqual(restored.seen_v4_buyers,{'new'})
+             self.assertEqual(restored.high_water,2000)
+ 
++    def test_unexecuted_quote_cannot_be_reported_as_a_completed_exit(self):
++        from dataclasses import replace
++        f=accounting_fixture.PartialAccountingTests()
++        for venue in ('curve','v4'):
++            with self.subTest(venue=venue),StoreForTest(':memory:') as store:
++                paper=SelectivePaper(store,runtime.STRATEGY_NAMESPACE,1000,delay=1,natural_policy_hash=POLICY_HASH)
++                paper.reserve('x',market='m',amount=100,gas_budget=20,now=10,features=f.features(10))
++                paper.advance('x',now=11,action='entry',quote=f.quote(11,'buy',100,1000))
++                paper.advance('x',now=12,action='exit_intent',exit_tokens=1000)
++                bad=replace(f.quote(14,'sell',1000,110),market='wrong-market')
++                with patch.object(runtime,'_wait_curve_quote',return_value=(bad,{},None)),\
++                     patch.object(runtime,'_v4_quote',return_value=(bad,{},None)),\
++                     patch.object(runtime.time,'time',return_value=14),patch.object(runtime.time,'sleep'):
++                    with self.assertRaisesRegex(BoundaryError,'quote_identity_mismatch'):
++                        if venue=='curve':
++                            runtime._delayed_exit('unused',paper=paper,identity='x',rpc=None,candidate={},
++                                gas_units=1,store=store,transition=None,v4_key=None,label='test',exit_tokens=1000)
++                        else:runtime._complete_pending_v4_exit(paper=paper,identity='x',rpc=None,
++                            v4_key=None,gas_units=1,store=store,label='test')
++                position=paper._get('x')
++                self.assertEqual(position['status'],'exit_pending')
++                self.assertEqual(position['tokens'],1000)
++                self.assertEqual(position['realized_proceeds'],0)
++
+ class StoreForTest(Store):
+     def __enter__(self):return self
+     def __exit__(self,*args):self.close()

@@ -25,7 +25,7 @@ Authority: `autonomous_paper_task_manifest.json`; four sleeves, six active regim
 | realized/unrealized P&L | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | lane accounting | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | portfolio accounting | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
-| restart/replay | MISSING | MISSING | BROKEN | MISSING | MISSING | MISSING |
+| restart/replay | MISSING | MISSING | MISSING | MISSING | MISSING | MISSING |
 
 ## Existing proof map
 
@@ -52,3 +52,5 @@ On the Phase-A candidate checkout, 38 canonical production conformance/Survivor/
 Fresh declared-overlay preparation and source-integrity verification pass for all four lanes. Forty focused canonical native conformance/worker-policy/Survivor/accounting tests pass on those fresh lanes. Policies and approved base source/execution SHAs are unchanged.
 
 Current Pons restart was reproduced BROKEN after a real partial exit: its native book survived but controller state did not. Atomic state/resume and crash regressions now pass in the prepared-lane prototype. Keep BROKEN until cohort and workflow continuation are connected and verified.
+
+Current-Pons controller recovery is now connected to cohort startup and the actual position-continuation runner. Native crash/rollback/quantity tests and a current-position/shared-sleeve continuation test pass. Terminal proof is read-only and bounded slices preserve context. The reproduced BROKEN paths are repaired; MISSING remains for final control-plane and campaign-boundary proof.

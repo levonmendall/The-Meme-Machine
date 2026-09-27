@@ -127,8 +127,13 @@ def terminal(lane,root,current):
             durable_handoff=accounting['pending']==0,active=True,strategy=strategy,policy_hash=expected[strategy])
         aggregate=combine(lane,current['accounting'],status)
         opened=current['open_positions']+accounting['open_positions']+accounting['pending']
-        handoff=bool(current['open_positions']==0 and accounting['open_positions']>0 and accounting['pending']==0)
+        handoff=bool(opened>0 and accounting['pending']==0 and
+            (current['open_positions']==0 or current.get('durable_handoff') is True))
+        continuation=(dict(schema='directional-survivor-handoff-v1',lane=lane,
+            positions=accounting['open_positions']) if current['open_positions']==0 else
+            dict(schema='directional-controller-handoff-v2',lane=lane,
+                current=current.get('continuation_state'),survivor_positions=accounting['open_positions']))
         return dict(current,accounting=aggregate,open_positions=opened,verified=current['verified'] and replay['verified'],
             strategy_accounting=dict(current=current['accounting'],survivor=accounting),
             survivor=status,durable_handoff=handoff,
-            continuation_state=dict(schema='directional-survivor-handoff-v1',lane=lane,positions=accounting['open_positions']) if handoff else None)
+            continuation_state=continuation if handoff else None)

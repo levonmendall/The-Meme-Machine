@@ -642,8 +642,9 @@ def resume_ramses(state_dir,*,slice_seconds):
 
 
 def resume_directional(state_dir,*,lane,slice_seconds):
-    """Resume only already-filled Survivor positions under the frozen sleeve."""
+    """Resume verified filled directional positions under the one frozen sleeve."""
     from contextlib import closing
+    from concurrent.futures import ThreadPoolExecutor
     from certification.terminal_reconciliation import connect,reconcile
     from certification.run import lane_environment
     runtime_identity=_runtime_identity(state_dir,lane)
@@ -653,7 +654,7 @@ def resume_directional(state_dir,*,lane,slice_seconds):
     root=paths[0]
     before=reconcile(lane,root)
     if not before.get('verified') or not before.get('durable_handoff'):
-        raise RuntimeError('directional_continuation_filled_survivor_required')
+        raise RuntimeError('directional_continuation_verified_position_required')
     folder=root/'pump-survivor' if lane=='pump' else root/'pons-selective-continuation-v1-cohort/pons-survivor'
     with closing(connect(folder/'paper.sqlite')) as db:
         genesis=json.loads(db.execute('SELECT body FROM genesis').fetchone()[0])
@@ -662,14 +663,13 @@ def resume_directional(state_dir,*,lane,slice_seconds):
     protocol=json.loads(Path(__file__).with_name('profitability_protocol.json').read_text())
     if allocation['cohort']!=protocol['cohort_id']:raise RuntimeError('directional_continuation_cohort')
     source=json.loads(Path(__file__).with_name('sources.json').read_text())['lanes'][lane]
-    original_result=json.loads(Path(runtime_identity['result_path']).read_text())
-    original_settled=original_result['lanes'][lane]['survivor']['accounting']['settled']
+    original_settled=before['survivor']['accounting']['settled']
     original_run=Path(runtime_identity['result_path']).parent
     env=lane_environment(lane,source,original_run,genesis['run_id'],'position_continuation')
     env.update(MM_DIRECTIONAL_COMPOSITE_REQUIRED='1',MM_DIRECTIONAL_COHORT_ID=allocation['cohort'],
                MM_DIRECTIONAL_SLEEVE_DB=str(root/'directional-sleeve.sqlite'))
     prior={k:os.environ.get(k) for k in env};os.environ.update(env)
-    evidence=None;runtime=None
+    evidence=None;runtime=None;current_pool=None;current_futures=[];current_results=[]
     try:
         if lane=='pump':
             from certification.evidence_supervisor import EvidenceProcess
@@ -683,14 +683,27 @@ def resume_directional(state_dir,*,lane,slice_seconds):
         else:
             from robinhood_research.pons_survivor_runtime import Runtime
             runtime=Runtime(folder,genesis['initial'],genesis['run_id'],os.environ['MM_ROBINHOOD_READ_RPC_URL'])
+            from robinhood_research.pons_selective_recovery import resume_lifecycle
+            current=(before.get('continuation_state') or {}).get('current') or {}
+            positions=current.get('positions',[])
+            if len(positions)>8:raise RuntimeError('pons_continuation_controller_capacity')
+            if positions:
+                current_pool=ThreadPoolExecutor(max_workers=8)
+                capital=root/'pons-selective-continuation-v1-cohort/pons-selective-cohort-capital.sqlite'
+                current_futures=[current_pool.submit(resume_lifecycle,os.environ['MM_ROBINHOOD_READ_RPC_URL'],
+                    db_path=p['trial_path'],capital_path=capital,slice_seconds=slice_seconds) for p in positions]
         deadline=time.monotonic()+slice_seconds
         while time.monotonic()<deadline:
             if evidence is not None:evidence.check()
             status=runtime.step(admit=False)
             if not status.get('durable_handoff'):raise RuntimeError('directional_continuation_unfilled_state')
-            if status['accounting']['open_positions']==0:break
+            if status['accounting']['open_positions']==0 and all(f.done() for f in current_futures):break
             time.sleep(min(5,max(0,deadline-time.monotonic())))
+        current_results=[f.result() for f in current_futures]
+        if any(r.get('status') not in ('settled','handoff_required') for r in current_results):
+            raise RuntimeError('pons_continuation_provider_or_authority_boundary')
     finally:
+        if current_pool is not None:current_pool.shutdown(wait=True,cancel_futures=True)
         if runtime is not None:runtime.close()
         if evidence is not None:evidence.close()
         for k,value in prior.items():
@@ -698,11 +711,19 @@ def resume_directional(state_dir,*,lane,slice_seconds):
             else:os.environ[k]=value
     after=reconcile(lane,root)
     if not after['verified']:raise RuntimeError('directional_continuation_replay_failed')
+    current_settled=0
+    if lane=='pons':
+        initial=before['strategy_accounting']['current'];terminal=after['strategy_accounting']['current']
+        if initial['positions']!=terminal['positions']:
+            raise RuntimeError('pons_continuation_created_position')
+        current_settled=initial['unsettled']-terminal['unsettled']
+        if current_settled<0:raise RuntimeError('pons_continuation_created_exposure')
     handoff=after['open_positions']>0
     return dict(lane=lane,status='handoff_required' if handoff else 'settled',handoff_required=handoff,
         runtime_identity=runtime_identity,accounting=after['accounting'],
         terminal_replay_verified=after['verified'],survivor=after['survivor'],
-        newly_settled=after['survivor']['accounting']['settled']-original_settled,
+        current_lifecycles=current_results,
+        newly_settled=after['survivor']['accounting']['settled']-original_settled+current_settled,
         new_entries=0,discovery_enabled=False)
 
 
