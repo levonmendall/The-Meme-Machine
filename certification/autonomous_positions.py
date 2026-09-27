@@ -137,7 +137,7 @@ def run(claim, worktrees, output, previous):
     artifact.rename(output/'artifact')
     capsule=campaign_state.seal(output/'capsule',worktrees=native,run=runtime,
         window=bound_window(claim),terminal=terminal,expected_identity=claim['identity'],
-        discovery_window=capsule['discovery_window'])
+        discovery_window=capsule['discovery_window'],preserved_artifact=output/'artifact')
     gates=dict(identity=True,engineering=all(r.get('assurance_passed') is True for r in outcomes.values()),
         native_assurance=all(p['verified'] is True for p in proofs.values()),evidence_snapshot=True,state_capsule=True,
         accounting=all(proofs[lane]['open_positions']==len(positions[lane]) for lane in campaign_state.LANES),

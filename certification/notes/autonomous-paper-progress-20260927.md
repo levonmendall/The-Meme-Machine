@@ -728,3 +728,28 @@ manifests from the hot DB, but campaign capsules copy the entire local cold arch
 directory. Repeated windows can therefore recopy evidence already preserved in
 native artifacts. Probe bounded archive-reference transport before changing it;
 preserve all referenced chunks and every raw file in the preceding artifact.
+
+Native-handoff batch pushed as `900a8349d0932550f9a39642d49dcca31e45a454`;
+ordinary CI pending refresh. Archive probe reproduced 3 files recopied into a
+successor with only 1 live DB reference (2 completed cold chunks duplicated).
+Candidate repair filters only continuation capsules, after verifying the complete
+native artifact snapshot. All referenced archive hashes/files and exact pinned/gap
+DB state remain; no source/native-artifact file is deleted. The capsule binds the
+full inventory and preserved snapshot hashes and reports transferred/externalized
+counts/bytes. Both normal and position-only workflow adapters pass the verified
+artifact to sealing. Referenced-copy and corrupted-preservation regressions pass;
+this does not yet close the complete accelerated multi-day resource gate.
+
+Ordinary CI `36340575811` passes at `900a8349d0932550f9a39642d49dcca31e45a454`.
+The archive-handoff component now passes 168 virtual hourly windows (seven days)
+through actual ServiceState archive/retention and capsule snapshot/restore. Every
+restart first exposes an unavailable interval, then authoritative fixture repair
+restores local reads; stale reinsertion remains rejected. One hot record remains
+per boundary, one local cold chunk is preserved per window and zero completed cold
+chunks transfer to successors. Inactive interests stay <=3, SQLite integrity stays
+OK, hot files stay within a 1-MiB band after warmup, FD growth <=2, threads unchanged,
+no temporary publication files remain. This is a bounded component soak; full
+cross-lifecycle/provider/resource coverage remains pending. Missing/modified live
+archive files and corrupt preserved snapshots fail closed.
+
+Twenty-seven affected archive/capsule/native-adapter tests pass. Seven-day archive component hot footprint is exactly 546,624 bytes after warmup in this fixture; 168 distinct cold chunks remain preserved, with no cold duplication across the restored boundaries.

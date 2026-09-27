@@ -121,7 +121,7 @@ def normal_review(claim, output, worktrees, previous=None):
             _atomic(prior_assurance,dict(lanes={lane:dict(snapshot=row) for lane,row in snapshots.items()}))
     assurance=audit(artifact,worktrees,artifact/'assurance',previous=prior_assurance)
     capsule=campaign_state.seal(output/'capsule',worktrees=worktrees,run=runtime,
-        window=bound_window(claim),terminal=result,expected_identity=claim['identity'])
+        window=bound_window(claim),terminal=result,expected_identity=claim['identity'],preserved_artifact=artifact)
     campaign_state.verify(output/'capsule',expected_identity=claim['identity'],expected_state_hash=capsule['state_hash'],
         campaign_id=claim['campaign_id'],prior_index=claim['window']['index'],authorization_hash=claim['authorization_hash'])
     positions={lane:sorted(identity for identity,row in assurance['lanes'][lane]['snapshot']['positions'].items()

@@ -79,7 +79,55 @@ def _window(window):
         raise ValueError('campaign_state_parent_identity')
 
 
-def seal(destination, *, worktrees, run, window, terminal, expected_identity, discovery_window=None):
+def _archive_handoff(run,destination,artifact,records):
+    """Carry only live archive references after verifying the full native copy.
+
+    This never deletes evidence. The uploaded native artifact keeps every cold
+    chunk; its snapshot hash binds their inventory. Current record references,
+    lifecycle pins and gap pins stay in the exact copied database.
+    """
+    from contextlib import closing
+    import sqlite3
+    from certification.autonomous_window import verify_snapshot
+    source=Path(run)/'solana-evidence-plane.sqlite.archive'
+    if not source.exists():return None
+    snapshot=verify_snapshot(artifact)
+    prefix='certification-'+snapshot['phase']+'/solana-evidence-plane.sqlite.archive/'
+    saved={r['target'][len(prefix):]:r for r in snapshot['files']
+           if r.get('target','').startswith(prefix)}
+    inventory=[]
+    for path in sorted(source.iterdir()):
+        if (path.is_symlink() or not path.is_file()
+                or not re.fullmatch(r'[0-9a-f]{64}\.jsonl\.gz',path.name)):
+            raise ValueError('campaign_archive_file_identity')
+        receipt=saved.get(path.name)
+        if (not receipt or receipt['sha256']!=path.name[:-9]
+                or receipt['bytes']!=path.stat().st_size):
+            raise ValueError('campaign_archive_not_preserved')
+        inventory.append(dict(name=path.name,sha256=receipt['sha256'],bytes=receipt['bytes']))
+    db_path=Path(destination)/'files/shared/solana-evidence-plane.sqlite'
+    with closing(sqlite3.connect(db_path.resolve().as_uri()+'?mode=ro',uri=True)) as db:
+        references={r[0] for r in db.execute('SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL')}
+        catalog={name:dict(sha256=checksum,bytes=size) for name,checksum,size in db.execute(
+            'SELECT name,hash,bytes FROM archives')}
+    known={r['name']:r for r in inventory}
+    for name in sorted(references):
+        if (name not in known or name not in catalog
+                or catalog[name]!={k:known[name][k] for k in ('sha256','bytes')}):
+            raise ValueError('campaign_live_archive_missing_or_unverified')
+        copy_snapshot(source/name,Path(destination)/'files/shared'/source.name/name,records)
+        if records[-1].get('sha256')!=catalog[name]['sha256']:
+            raise ValueError('campaign_live_archive_changed')
+    cold=[r for r in inventory if r['name'] not in references]
+    return dict(schema='campaign-archive-handoff-v1',preserved_snapshot_hash=digest(snapshot),
+        complete_inventory_hash=digest(inventory),preserved_files=len(inventory),
+        transferred_files=len(references),externalized_files=len(cold),
+        externalized_bytes=sum(r['bytes'] for r in cold),
+        raw_evidence_authority='verified_predecessor_native_artifact',source_files_deleted=False)
+
+
+def seal(destination, *, worktrees, run, window, terminal, expected_identity, discovery_window=None,
+         preserved_artifact=None):
     """Called after all owners drain; the ordinary artifact retains the originals."""
     if identity() != expected_identity:
         raise ValueError('campaign_state_source_changed')
@@ -112,9 +160,12 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity, di
                 found.add(source)
                 copy_snapshot(source, destination/'files'/lane/source.name, records)
     for name in SHARED:
+        if preserved_artifact is not None and name.endswith('.archive'):continue
         source = Path(run)/name
         if source.exists():
             copy_snapshot(source, destination/'files/shared'/name, records)
+    archive_handoff=(_archive_handoff(run,destination,preserved_artifact,records)
+                     if preserved_artifact is not None else None)
     if any(r.get('error_type') for r in records):
         raise ValueError('campaign_state_snapshot_incomplete')
     files = []
@@ -134,6 +185,7 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity, di
     body = dict(schema=SCHEMA, identity=expected_identity, window=window, discovery_window=discovery_window,
                 terminal_hash=digest(terminal), terminal=terminal, files=files, entry_authority=False,
                 accounting={lane: terminal['lanes'][lane]['terminal_reconciliation'] for lane in LANES})
+    if archive_handoff is not None:body['archive_handoff']=archive_handoff
     body['state_hash'] = digest(body)
     _atomic(destination/MANIFEST, body)
     return body
