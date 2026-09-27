@@ -56,4 +56,5 @@ jobs:
             if line.startswith('{'):
              row=json.loads(line)
              if 'elapsed' in row and 'passed' not in row:print('PRESSURE_TIMELINE',json.dumps(row,sort_keys=True))
+            elif line:print('PRESSURE_DIAGNOSTIC',line[:2000])
           PY
