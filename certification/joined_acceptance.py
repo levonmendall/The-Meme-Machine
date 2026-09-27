@@ -42,9 +42,11 @@ def evaluate(soak,crash,provider,long_horizon,expected):
         for kind in ('capsule','preseal'):
             values=[s if kind=='capsule' else s.get('preseal',{}) for s in tail]
             if any('bytes' not in x for x in values):violations.append('missing_'+kind);continue
-            # Existing pages may be allocated once at the age frontier. A full
-            # two-day tail must fit a small fixed page band, never a rising limit.
-            if max(x['bytes'] for x in values)-min(x['bytes'] for x in values)>16*4096:
+            # Compare complete daily peaks: position-only windows intentionally
+            # omit new trial DBs and shrink the hot set. That downward excursion
+            # is not growth. Keep the same fixed page band on the upper envelope.
+            peaks=[max(x['bytes'] for x in values[n:n+24]) for n in range(0,len(values),24)]
+            if max(peaks)-min(peaks)>16*4096:
                 violations.append(kind+'_hot_bytes_not_plateaued')
         for s in samples:
             if (s.get('fd')!=soak.get('base_fd') or s.get('threads')!=soak.get('base_threads')

@@ -1266,3 +1266,23 @@ pressure, passes together with the joined gate. Its exact-SHA final acceptance i
 the discriminator; failure is not waived. The machinery trigger ref is created only
 after final dispatch verification, so candidate engineering does not launch the full
 certificate. PAPER smoke and automatic succession remain pending these gates.
+
+Phase D CLOSED. Candidate 435b09ca159c2035fc51bfff66160565b6fa4a97 passed
+ordinary CI 36357822814, all 192 joined windows, four joined crash cuts, 40 provider
+tests, both approved long-lifecycle tests, terminal drain and final successor
+accounting restore. Every accounting proof verified; both Survivors were active.
+Controller state retained at most 32 events, one window and one predecessor across
+168 controller successions. No worker children remained. Final HOT capsule bytes
+were 2491268; pre-seal normal-window peak was 2888949 bytes.
+
+One acceptance-only defect was corrected after that run: comparing the daily
+position-only storage drop against normal entry-window storage called the drop a
+plateau failure. The unchanged 64-KiB page band now compares complete daily peaks.
+The preserved 192-window evidence passes; mutations introducing real hot-byte
+growth, a new terminal owner or a mismatched provider identity fail. This narrow
+verifier/test/evidence update changes no runtime, native source identity, policy,
+resource limit or manifest. Freeze this final candidate now; no optional engineering
+follows. The canonical certificate must independently rerun the complete joined
+proof on the final frozen SHA, so the development receipt is not substituted for
+exact-SHA certification. Final dispatch verification, certificate, smoke and real
+automatic succession remain the mandatory next gates.

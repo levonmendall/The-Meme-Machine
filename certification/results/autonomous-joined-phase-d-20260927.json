@@ -1,0 +1,52 @@
+{
+  "crash_cuts": [
+    "after_all_native_compactions_before_capsule_manifest",
+    "during_file_install",
+    "after_receipt_before_entry_claim",
+    "corrupt_capsule"
+  ],
+  "gates": {
+    "accounting": true,
+    "approved_long_lifecycles": true,
+    "both_survivors_active": true,
+    "bounded_controller": true,
+    "bounded_hot_state": true,
+    "crash": true,
+    "eight_days": true,
+    "exact_identity": true,
+    "final_successor": true,
+    "normal_and_position_windows": true,
+    "paper_only": true,
+    "provider": true,
+    "terminal_drain": true
+  },
+  "identity": {
+    "implementation_hash": "287a6d620b56b886a7e1ec2cfb684b133f6145112703ae5a3a86c02cae0f3d84",
+    "integration_sha": "435b09ca159c2035fc51bfff66160565b6fa4a97",
+    "live_money": false,
+    "paper_only": true,
+    "policy_manifest_hash": "cef3c087864dfe58b1f5dc58cbe8767ba9a88779f08f01c0ea88f58fe151d424",
+    "source_diff_hashes": {
+      "meteora": "10c7161d9e56f44982ee16d862acd76a0dedfe9adfe3f60bf011521dff8e9ad8",
+      "pons": "bddf5e0b288e1e51141d5be0849c468788acb7cc20a6eb4ecefe1aecda9d96da",
+      "pump": "8f7cbee3cb26bc702b1d64fb9bdafd25df0c9d9425eb214b7bcc3f425d8e517a",
+      "ramses": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9"
+    },
+    "source_manifest_hash": "60639d76d0c2bafc7df78d197294aacf03f9b2876e5870753e06a1090057f903"
+  },
+  "long_horizon_tests": 2,
+  "market_collection": false,
+  "paper_only": true,
+  "passed": true,
+  "provider_tests": 40,
+  "schema": "joined-paper-system-acceptance-v1",
+  "steady_hot_bytes": [
+    2487172,
+    2491268
+  ],
+  "violations": [],
+  "virtual_seconds": 691200,
+  "windows": 192,
+  "evidence_scope": "Phase-D development proof on the recorded source identity; final-SHA canonical certificate independently reruns this proof",
+  "ordinary_ci_run": 36357822814
+}
