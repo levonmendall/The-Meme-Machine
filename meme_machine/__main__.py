@@ -250,6 +250,9 @@ def main():
     ap.add_argument('--tape')
     ap.add_argument('--seconds',type=int,default=60)
     ap.add_argument('--port',type=int,default=8080)
+    ap.add_argument('--dashboard-inception',help='Explicit canonical USD portfolio inception receipt')
+    ap.add_argument('--dashboard-accounting',help='Persisted epoch-bound USD accounting export')
+    ap.add_argument('--dashboard-telemetry',help='Persisted four-lane supervisor result.json')
     args=ap.parse_args()
     with open(args.config) as f:
         config=json.load(f)
@@ -298,8 +301,15 @@ def main():
     published=dict(engine.status(int(time.time())),release=release,
                    discovery_mode='market_native',scout_lane_active=False,
                    scout_storage_active=False)
+    # The observer has no Engine/Store/provider handle and never initializes them.
+    from dashboard.api import Dashboard
+    from dashboard.model import Reader
+    dashboard=Dashboard(Reader(args.dashboard_inception,args.dashboard_accounting,
+                               args.dashboard_telemetry))
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
+            if dashboard.serve(self):
+                return
             if self.path not in ('/live','/ready','/status'):
                 self.send_error(404)
                 return
