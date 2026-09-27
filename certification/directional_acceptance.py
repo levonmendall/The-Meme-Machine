@@ -7,7 +7,8 @@ from certification.run import ROOT,source_integrity,manifest,git
 # The approved alpha remains byte-identical while certified infrastructure
 # overlays may change. Pin the successful Run 376 operational Ramses patch.
 PRESERVED_INFRA={'certification/patches/run371-ramses-transient-pressure.patch'}
-INFRA_OVERLAYS=PRESERVED_INFRA|{'certification/patches/run377-ramses-rpc-state-attribution.patch'}
+METEORA_RUNTIME_PATCH='certification/patches/run380-meteora-candidate-retention.patch'
+INFRA_OVERLAYS=PRESERVED_INFRA|{'certification/patches/run377-ramses-rpc-state-attribution.patch',METEORA_RUNTIME_PATCH}
 METEORA_THRESHOLD_PATCH='certification/patches/meteora-moderate-admission-thresholds-v1.patch'
 METEORA_POLICY_HASH='78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408'
 METEORA_COMPOSED_FILES={
@@ -63,7 +64,9 @@ def meteora_threshold_revision_is_bounded(row,prior):
  return all((
   meteora_base_contract(row)==meteora_base_contract(prior),
   row.get('policy_hash')==METEORA_POLICY_HASH,
-  row.get('overlay_patches')==list(prior.get('overlay_patches',[]))+[METEORA_THRESHOLD_PATCH],
+  row.get('overlay_patches') in (
+   list(prior.get('overlay_patches',[]))+[METEORA_THRESHOLD_PATCH],
+   list(prior.get('overlay_patches',[]))+[METEORA_THRESHOLD_PATCH,METEORA_RUNTIME_PATCH]),
   row.get('composed_file_hashes')==METEORA_COMPOSED_FILES,
   (row.get('execution_certification') or {}).get('moderate_admission_thresholds_v1')==METEORA_MODERATE_NOTE,
   prospect.get('investment_evaluation_scope')==METEORA_ADMISSION_SCOPE,

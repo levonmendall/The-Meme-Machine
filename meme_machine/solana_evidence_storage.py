@@ -51,9 +51,11 @@ def install(db):
 def _json(value):return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)
 
 
-def encode(body,db,*,canonical_body=None):
+def prepare(body,*,canonical_body=None):
+    """Pure lossless encoding; SQLite remains owned by the serial commit worker."""
     raw=_json(body) if canonical_body is None else canonical_body
-    if len(raw)<2048:return raw
+    if len(raw)<2048:return raw,()
+    chunks=[]
     # Copy only modified containers; callers retain their immutable original.
     value=dict(body,payload=dict(body['payload']))
     for parent,key in (('raw_lineage','logs'),('meta','logMessages')):
@@ -62,10 +64,19 @@ def encode(body,db,*,canonical_body=None):
         logs=_json(section[key]).encode()
         if len(logs)<512:continue
         checksum=hashlib.sha256(logs).hexdigest()
-        db.execute('INSERT OR IGNORE INTO hot_chunks VALUES(?,?)',(checksum,zlib.compress(logs,1)))
-        db.execute('INSERT OR IGNORE INTO hot_refs VALUES(?,?)',(body['identity'],checksum))
+        chunks.append((checksum,zlib.compress(logs,1)))
         value['payload'][parent]=dict(section,**{key:{'_hot_log_chunk':checksum}})
-    return b'SEP1'+zlib.compress(_json(value).encode(),1)
+    return b'SEP1'+zlib.compress(_json(value).encode(),1),tuple(chunks)
+
+def publish(db,identity,encoded,chunks):
+    for checksum,body in chunks:
+        db.execute('INSERT OR IGNORE INTO hot_chunks VALUES(?,?)',(checksum,body))
+        db.execute('INSERT OR IGNORE INTO hot_refs VALUES(?,?)',(identity,checksum))
+    return encoded
+
+def encode(body,db,*,canonical_body=None):
+    encoded,chunks=prepare(body,canonical_body=canonical_body)
+    return publish(db,body['identity'],encoded,chunks)
 
 
 def _inflate(raw):

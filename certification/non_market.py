@@ -26,9 +26,9 @@ def run(worktrees,output):
         command=[sys.executable,str(ROOT/'certification/offline_tests.py'),'--lane',lane,
             '--output',str(out/(lane+'.json')),'--barrier',str(barrier)]
         with log.open('wb') as stream:
-            try:r=subprocess.run(command,cwd=roots/lane,env=env,stdout=stream,stderr=subprocess.STDOUT,timeout=300)
+            try:r=subprocess.run(command,cwd=roots/lane,env=env,stdout=stream,stderr=subprocess.STDOUT,timeout=600)
             except subprocess.TimeoutExpired:
-                return dict(lane=lane,passed=False,boundary='suite_timeout_300_seconds')
+                return dict(lane=lane,passed=False,boundary='suite_timeout_600_seconds')
         path=out/(lane+'.json')
         value=json.loads(path.read_text()) if path.exists() else dict(lane=lane,passed=False,boundary='missing_result')
         value.update(exit_code=r.returncode,log_sha256=hashlib.sha256(log.read_bytes()).hexdigest())

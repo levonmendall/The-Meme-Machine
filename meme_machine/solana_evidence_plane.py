@@ -20,7 +20,7 @@ import threading
 import time
 import uuid
 from .solana_provider_config import public_value
-from .solana_evidence_storage import install as install_storage, encode as encode_body, decode as _decode_body, collect as collect_storage
+from .solana_evidence_storage import install as install_storage, encode as encode_body, decode as _decode_body, collect as collect_storage, prepare as prepare_storage, publish as publish_storage
 
 STORAGE_WARNING_BYTES = 512 * 1024 * 1024
 STORAGE_CRITICAL_BYTES = 128 * 1024 * 1024
@@ -83,6 +83,19 @@ class FinalizedRecord:
 
     def body(self):
         public_value(self.__dict__)
+        return self._body()
+
+    def serialized_body(self):
+        # Source/availability are lineage rather than economic content. Check
+        # them separately, then reuse the immutable canonical body for the
+        # credential scan, hash, bound and hot encoding instead of dumping the
+        # entire large payload once just to scan it and again to persist it.
+        public_value(dict(source=self.source,endpoint_identity=self.endpoint_identity,
+                          observed_at=self.observed_at))
+        body=self._body();raw=canonical(body);public_value(raw)
+        return body,raw
+
+    def _body(self):
         if (not all((self.identity, self.scope, self.program))
                 or self.kind != 'account' and not self.signature
                 or type(self.slot) is not int or self.slot < 0
@@ -106,6 +119,24 @@ class FinalizedRecord:
                     addresses=sorted(set(self.addresses)), market_time=self.market_time,
                     event_index=self.event_index, transaction_index=self.transaction_index,
                     kind=self.kind, payload=self.payload)
+
+
+@dataclass(frozen=True)
+class PreparedRecord:
+    """Trusted local decoder output; never accepted from a provider/consumer JSON."""
+    record: FinalizedRecord
+    addresses: tuple
+    checksum: str
+    byte_count: int
+    encoded: str | bytes
+    chunks: tuple
+
+
+def prepare_record(record):
+    body,raw=record.serialized_body()
+    encoded,chunks=prepare_storage(body,canonical_body=raw)
+    return PreparedRecord(record,tuple(body['addresses']),hashlib.sha256(raw.encode()).hexdigest(),
+                          len(raw.encode()),encoded,chunks)
 
 
 @dataclass(frozen=True)
@@ -229,6 +260,11 @@ class EvidenceWriter:
     @contextmanager
     def transaction(self):
         self._check()
+        if getattr(self,'_source_frame_depth',0):
+            # The source frame's enclosing savepoint owns rollback. Its helpers
+            # propagate errors to that boundary; commands/repair never enter it.
+            yield
+            return
         # A source batch or command receipt owns the outer commit. Inner helpers
         # must roll back with it; one fsync publishes the entire atomic operation.
         if self.db.in_transaction:
@@ -249,6 +285,16 @@ class EvidenceWriter:
         except BaseException:
             self.db.execute('ROLLBACK')
             raise
+
+    @contextmanager
+    def source_frame(self):
+        """One rollback boundary for a complete ordered source frame."""
+        if getattr(self,'_source_frame_depth',0):
+            raise EvidenceUnavailable('nested_source_frame')
+        with self.transaction():
+            self._source_frame_depth=getattr(self,'_source_frame_depth',0)+1
+            try:yield
+            finally:self._source_frame_depth-=1
 
     def _count(self, key, count=1):
         self.db.execute('INSERT INTO counters VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=value+excluded.value', (key, count))
@@ -280,20 +326,17 @@ class EvidenceWriter:
     def ingest(self, records, *, proof=None, repair_receipt=None):
         self._check()
         require_storage(self.path, required_bytes=32 * 1024 * 1024)
-        records = tuple(records)
-        if len(records) > 2048:
-            raise EvidenceUnavailable('ingestion_batch_bound')
+        inputs=tuple(records)
+        if len(inputs)>2048:raise EvidenceUnavailable('ingestion_batch_bound')
+        records=tuple(row.record if isinstance(row,PreparedRecord) else row for row in inputs)
         for record in records:
             floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
             if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
-        try:bodies = [(record, record.body()) for record in records]
+        try:prepared=tuple(row if isinstance(row,PreparedRecord) else prepare_record(row) for row in inputs)
         except ValueError:
             with self.transaction():self._count('rejected_evidence_records',len(records))
             raise
-        # One immutable serialization supplies the size bound, content hash and
-        # hot encoding. It is local to this bounded ingest call, never a cache.
-        serialized = [canonical(body) for _, body in bodies]
-        if sum(len(raw.encode()) for raw in serialized) > 16 * 1024 * 1024:
+        if sum(row.byte_count for row in prepared)>16*1024*1024:
             raise EvidenceUnavailable('ingestion_payload_bound')
         hot_bytes=sum(p.stat().st_size for p in (self.path,Path(str(self.path)+'-wal')) if p.exists())
         if hot_bytes >= self.max_hot_bytes:
@@ -310,8 +353,8 @@ class EvidenceWriter:
                 raise EvidenceConflict('evidence_store_poisoned')
             # Check the entire batch before persisting any of it.
             staged = {}
-            for (record, body), raw in zip(bodies, serialized):
-                checksum = hashlib.sha256(raw.encode()).hexdigest()
+            for row in prepared:
+                record=row.record;checksum=row.checksum
                 old = self.db.execute('SELECT hash FROM records WHERE identity=?', (record.identity,)).fetchone()
                 previous = old[0] if old else staged.get(record.identity)
                 if previous and previous != checksum:
@@ -323,13 +366,14 @@ class EvidenceWriter:
                 self.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
                 self._count('evidence_conflicts')
             else:
-                for (record, body), raw in zip(bodies, serialized):
+                for row in prepared:
+                    record=row.record
                     inserted = self.db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
                         (record.identity, record.scope, record.slot, record.signature, record.program,
                          record.market_time, record.event_index, record.transaction_index, record.kind,
-                         encode_body(body,self.db,canonical_body=raw), staged[record.identity], record.observed_at)).rowcount
+                         publish_storage(self.db,record.identity,row.encoded,row.chunks), staged[record.identity], record.observed_at)).rowcount
                     self.db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',
-                        [(address, record.identity, record.slot) for address in body['addresses']])
+                        [(address, record.identity, record.slot) for address in row.addresses])
                     self.db.execute('INSERT OR IGNORE INTO lineage VALUES(?,?,?,?)',
                         (record.identity, record.source, record.endpoint_identity, record.observed_at))
                     self.db.execute('INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated',
