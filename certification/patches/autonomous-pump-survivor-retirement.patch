@@ -1,0 +1,24 @@
+diff --git a/meme_machine/pumpswap_survivor_runtime.py b/meme_machine/pumpswap_survivor_runtime.py
+index 61773e0a4c543433159d59a62949b47dd48447b2..39d7a279229297e79cbbbc37435b1f64bce6b69e 100644
+--- a/meme_machine/pumpswap_survivor_runtime.py
++++ b/meme_machine/pumpswap_survivor_runtime.py
+@@ -79,7 +79,9 @@ class Runtime:
+             evidence=dict(event,at=event['market_time'],identity=row['identity'],
+                           signature=row['signature'],source='solana_finalized_evidence_plane')
+             prior=self.history.get(event['mint'])
+-            self.history.graduate(event['mint'],evidence)
++            if prior is None and self.history.expired(evidence):continue
++            current=self.history.graduate(event['mint'],evidence)
++            if current['state']=='retired':continue
+             if prior is None:
+                 self.history.append(event['mint'],through=event['market_time'],events=[],
+                     points=[(event['market_time'],str(Fraction(event['quote_amount'],event['mint_amount'])))],complete=True)
+@@ -250,7 +252,7 @@ class Runtime:
+                 row=rows[0];row['last_checked']=self.now();self.history.save(row)
+                 age=self.now()-row['graduation']['at']
+                 if age>POLICY['maximum_age_seconds']:
+-                    self.history.retire(row)
++                    self.history.retire(row,expired_before=self.now()-POLICY['maximum_age_seconds'])
+                     self.plane.command(op='release',owner='pump:survivor:'+row['id'],scope=SWAP_SCOPE,resolved=False)
+                 else:
+                     # Incremental local monitoring starts at graduation, without

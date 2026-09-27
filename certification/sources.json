@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "b09f03f68a2c59fe1317385dea0ae38f56d864b8d617fd1f2d48acc7e27d70dc",
+      "source_diff_sha256": "e8e07480feb8adfe96094689679e6158d4d8019938a85e195eced3d845cd6247",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -326,7 +326,8 @@
         "certification/patches/autonomous-pump-current-allocation-recovery.patch",
         "certification/patches/autonomous-pump-survivor-acquisition.patch",
         "certification/patches/autonomous-pump-survivor-history.patch",
-        "certification/patches/autonomous-pump-evidence-checkpoints.patch"
+        "certification/patches/autonomous-pump-evidence-checkpoints.patch",
+        "certification/patches/autonomous-pump-survivor-retirement.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
@@ -336,7 +337,7 @@
         "meme_machine/pump_acceleration_strategy.py": "0b45f42ac6f9c529e72f1ab2f7c1475ebc50f889f94dbe62cd1ab8ed1a73c3c1",
         "meme_machine/pumpswap_survivor.py": "c5dd96bf2c211594be302f05bed07c7b2ddb0bc807df7d76b6b92258d4eedea1",
         "meme_machine/pumpswap_survivor_evidence.py": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946",
-        "meme_machine/pumpswap_survivor_runtime.py": "9e266d4b01aff51a76df7128de385c92df1010538c02aebfe591c884850161b0",
+        "meme_machine/pumpswap_survivor_runtime.py": "b70a9fff8960fc967ab5f6c98f6475e27f2487d0fbecacf18dca9d003f792449",
         "meme_machine/solana_evidence_runtime.py": "07253419f6385f6da4d6426e2a5737c5cf0826252a2d8ad039ec658ce0c092bd",
         "meme_machine/solana_evidence_service.py": "e586cbfa2a913396aac9f43d16321f3711ef4f448d3eb0cb5cd38bd3e45f2211",
         "tests/pump_acceleration_natural_prospective.py": "96d04fa785c0f59a4f9debfd41910c980853b9a0d2cc7646557dee417d5983a4",
@@ -1033,7 +1034,7 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "913e160df7a25cf769411180464139626dd2cc4f21f4b0861ed1f7728acce779",
+      "source_diff_sha256": "bf974c08ada73d018d44f6ca97f5bb8517509d9d7aabe3841ab7f0910a20f19c",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -1061,7 +1062,8 @@
         "certification/patches/autonomous-pons-survivor-history.patch",
         "certification/patches/autonomous-pons-reservation-intent.patch",
         "certification/patches/autonomous-pons-window-capacity.patch",
-        "certification/patches/autonomous-pons-window-archive.patch"
+        "certification/patches/autonomous-pons-window-archive.patch",
+        "certification/patches/autonomous-pons-survivor-retirement.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
@@ -1072,7 +1074,7 @@
         "robinhood_research/pons_selective_continuation.py": "cfe06339efd62224f9c3fe5328c44b0c9c99c6cc68ab064d7a5853a763e1e643",
         "robinhood_research/pons_selective_ledger.py": "4dddeeb7d07ab5f8e00994ef82928da50b45f5adafa29afa2ca704e5bf2c2d37",
         "robinhood_research/pons_selective_paper.py": "ae02f4af8527ec130bd49e2c946c86977ede2b68b86f95f7f22edcf5881b985d",
-        "robinhood_research/pons_survivor_runtime.py": "ec3f9414c8b5d880a74e62ab8ba2b222d38f7d6a843233a4dbeb4dea7999bd3d",
+        "robinhood_research/pons_survivor_runtime.py": "276b82acbe0656937e507d8b89b7075a49cfcf7ab570fc668c538b1c5ebe08de",
         "robinhood_tests/test_pons_capacity_persistence.py": "f75fe9aa976fb7f051c60695db2920ab6c7c09a87af5714c3f3195f108dab3ec",
         "robinhood_tests/test_pons_entry_confirmation_ordering.py": "005bd2f36441fe44af59ddea28cdaa77f8058198628ac4b62e601ab41b18c0ec",
         "robinhood_tests/test_pons_execution_acquisition.py": "c04c654de6cc3e0cc01e6b110dae03089ccde1510a083a1f31846946b18093fc",

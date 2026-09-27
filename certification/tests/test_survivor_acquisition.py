@@ -59,7 +59,7 @@ print('64 candidate cursors and discovery keep pace; all log ranges <=10 blocks'
 
 
 PONS_LINEAGE = r'''
-import copy,json,os,tempfile
+import copy,hashlib,json,os,shutil,tempfile
 from pathlib import Path
 from unittest.mock import patch
 from robinhood_research import BoundaryError
@@ -103,6 +103,22 @@ for corrupt in (False,True):
     assert runtime.history.get_meta('discovery_block')==block
     runtime.discover();assert len(runtime.history.rows())==1
     points,events=runtime.history.facts(token,100);assert len(points)==1 and not events
+    runtime.history.retire(row,expired_before=101)
+    runtime.history.set_meta('discovery_block',block-1)
+    runtime.discover()
+    assert runtime.history.get(token)['state']=='retired'
+    assert runtime.history.facts(token,100)==([],[])
+    assert runtime.history.get_meta('discovery_block')==block
+    path=runtime.history.path;runtime.history.close()
+    preserved=Path(td)/'archived-history';shutil.copyfile(path,preserved)
+    checksum=hashlib.sha256(preserved.read_bytes()).hexdigest()
+    from certification.survivor_history import History
+    with patch.dict(os.environ,MM_AUTONOMOUS_STATE_RECEIPT='verified'):
+     runtime.history=History(path,policy=__import__('robinhood_research.pons_survivor_runtime',fromlist=['POLICY_HASH']).POLICY_HASH)
+    runtime.history.compact_archived(dict(state_hash='preserved',history_sha256=checksum))
+    runtime.history.set_meta('discovery_block',block-1);runtime.discover()
+    assert runtime.history.get_meta('discovery_block')==block and runtime.history.get(token) is None
+    assert hashlib.sha256(preserved.read_bytes()).hexdigest()==checksum
    assert runtime.book.reconcile()['open_positions']==0
   finally:runtime.close()
 print('captured V2 lineage traversed production discovery, receipt/ABI proof, history and duplicate gate')
@@ -187,7 +203,7 @@ print('native shared acquisition authenticates separate pools, fails closed, rec
 
 
 PUMP_LINEAGE = r'''
-import tempfile
+import hashlib,os,shutil,tempfile
 from pathlib import Path
 from unittest.mock import patch
 from meme_machine import pump
@@ -270,6 +286,20 @@ for excluded in (False,True):
     assert h.get(mint)['through']==102 and pin()==101
     h.close();h=History(Path(td)/'history',policy=POLICY_HASH);r.history=h
     r._increment(h.get(mint),102,102);assert pin()==101
+    row=h.get(mint);row['position']=None;h.save(row);h.retire(row,expired_before=row['graduation']['at']+1)
+    plane.command(op='release',owner=owner,scope=SWAP_SCOPE,resolved=True)
+    h.set_meta('discovery_slot',99);r.discover()
+    assert writer.db.execute('SELECT active FROM interests WHERE owner=? AND scope=?',(owner,SWAP_SCOPE)).fetchone()==(0,)
+    assert h.get(mint)['state']=='retired' and h.facts(mint,102)==([],[])
+    h.close();preserved=Path(td)/'archived-history';shutil.copyfile(Path(td)/'history',preserved)
+    checksum=hashlib.sha256(preserved.read_bytes()).hexdigest()
+    with patch.dict(os.environ,MM_AUTONOMOUS_STATE_RECEIPT='verified'):
+     h=History(Path(td)/'history',policy=POLICY_HASH)
+    r.history=h;h.compact_archived(dict(state_hash='preserved',history_sha256=checksum))
+    h.set_meta('discovery_slot',99);r.discover()
+    assert h.get(mint) is None and h.get_meta('discovery_slot')==100
+    assert writer.db.execute('SELECT active FROM interests WHERE owner=? AND scope=?',(owner,SWAP_SCOPE)).fetchone()==(0,)
+    assert hashlib.sha256(preserved.read_bytes()).hexdigest()==checksum
    writer.gap(PUMP_SCOPE,100,100)
    h.set_meta('discovery_slot',99)
    try:r.discover()

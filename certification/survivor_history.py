@@ -34,6 +34,8 @@ class History:
         old=self.get_meta('policy')
         if old is not None and old!=policy:raise ValueError('survivor_history_policy_drift')
         if old is None:self.set_meta('policy',policy)
+        self.initial_changes=self.db.total_changes
+        self.initial_data_version=self.db.execute('PRAGMA data_version').fetchone()[0]
 
     @contextmanager
     def transaction(self):
@@ -68,11 +70,16 @@ class History:
         if old:
             if old['graduation']!=evidence:raise ValueError('conflicting_survivor_graduation')
             return old
+        if self.expired(evidence):raise ValueError('survivor_graduation_expired')
         if len(self.rows())>=self.maximum_candidates:
             raise ValueError('survivor_candidate_capacity')
         row=dict(id=identity,graduation=evidence,state='graduated',through=evidence['at'],
                  complete=True,last_checked=0,position=None)
         self.save(row);return row
+
+    def expired(self,evidence):
+        floor=self.get_meta('graduation_floor')
+        return floor is not None and evidence['at']<floor
 
     def append(self,identity,*,through,events,points,complete,evidence_checkpoint=None):
         with self.transaction():
@@ -137,7 +144,9 @@ class History:
         """
         prior=authority['state_hash']
         if self.get_meta('compacted_from_state')==prior:return False
-        if self.initial_file_sha256!=authority['history_sha256']:
+        if (self.initial_file_sha256!=authority['history_sha256']
+                or self.db.total_changes!=self.initial_changes
+                or self.db.execute('PRAGMA data_version').fetchone()[0]!=self.initial_data_version):
             raise ValueError('survivor_history_archive_source_changed')
         with self.transaction():
             for row in self.rows():
@@ -160,6 +169,25 @@ class History:
                 self.db.execute('DELETE FROM points WHERE candidate=? AND at>? AND at<?',
                     (identity,older[0]['at'],older[-1]['at']))
             self.set_meta('compacted_from_state',prior)
+            floor=self.get_meta('graduation_floor')
+            if floor is not None:
+                removed=hashlib.sha256();count=0
+                for body,checksum in self.db.execute("""SELECT body,hash FROM candidates
+                        WHERE json_extract(body,'$.state')='retired'
+                        AND json_extract(body,'$.graduation.at')<? ORDER BY id""",(floor,)):
+                    row=self._verified((body,checksum));identity=row['id']
+                    if row.get('position'):raise ValueError('survivor_open_position_retirement')
+                    prefix=self.get_meta('archive_prefix:'+identity)
+                    removed.update((canonical(dict(candidate=row,prefix=prefix))+'\n').encode())
+                    count+=1
+                    self.db.execute('DELETE FROM candidates WHERE id=?',(identity,))
+                    self.db.execute('DELETE FROM meta WHERE key=?',('archive_prefix:'+identity,))
+                if count:
+                    previous=self.get_meta('retired_archive')
+                    self.set_meta('retired_archive',dict(schema='survivor-retired-prefix-v1',
+                        graduation_floor=floor,removed_count=count,removed_hash=removed.hexdigest(),
+                        total_count=count+(previous['total_count'] if previous else 0),
+                        previous_prefix_hash=digest(previous) if previous else None,authority=authority))
         self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
         return True
 
@@ -170,9 +198,14 @@ class History:
         rows=[self._verified(row) for row in self.db.execute(sql)]
         return sorted(rows,key=lambda r:(r['last_checked'],r['id']))
 
-    def retire(self,row):
+    def retire(self,row,*,expired_before=None):
         if row.get('position'):raise ValueError('survivor_open_position_retirement')
+        if expired_before is not None and row['graduation']['at']>=expired_before:
+            raise ValueError('survivor_retirement_age')
         with self.transaction():
+            if expired_before is not None:
+                previous=self.get_meta('graduation_floor')
+                self.set_meta('graduation_floor',max(expired_before,previous) if previous is not None else expired_before)
             row=dict(id=row['id'],graduation=row['graduation'],state='retired',last_checked=row['last_checked'],position=None)
             self.save(row)
             self.db.execute('DELETE FROM points WHERE candidate=?',(row['id'],))

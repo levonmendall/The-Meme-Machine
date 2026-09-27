@@ -46,6 +46,7 @@ with tempfile.TemporaryDirectory() as td:
         history=History(Path(td)/'history',policy='offline-scheduler-probe',maximum_candidates=1)
         assert history.get('expired')['state']=='retired'
         assert len(history.rows())==0
+        assert history.get_meta('graduation_floor')==2
     finally:
         history.close()
 print('bounded native candidate retirement survives saturated discovery and restart')

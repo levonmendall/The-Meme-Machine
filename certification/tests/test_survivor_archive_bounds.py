@@ -102,3 +102,64 @@ class SurvivorArchiveTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'archived_history_query'):h.facts('coin',2)
             self.assertEqual([r['at'] for r in h.facts('coin',100000)[0]],[0,13600,99999,100000])
             h.close()
+
+    def test_retired_churn_compacts_only_preserved_expired_identity(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);path=root/'history.sqlite';sizes=[]
+            h=History(path,policy='frozen')
+            held=h.graduate('held',dict(at=0));held['position']='open';h.save(held)
+            recent=h.graduate('recent-retirement',dict(at=10**9));h.retire(recent)
+            h.close()
+            for window in range(24):
+                h=History(path,policy='frozen')
+                for n in range(200):
+                    at=window*3600+n+1;identity=str(at)
+                    row=h.graduate(identity,dict(at=at))
+                    h.set_meta('archive_prefix:'+identity,dict(reducer_state=None,through=at))
+                    h.retire(row,expired_before=at+1)
+                floor=h.get_meta('graduation_floor')
+                self.assertEqual(len(h.rows(include_retired=True)),202)
+                h.close();preserved=root/('preserved-'+str(window)+'.sqlite')
+                shutil.copyfile(path,preserved);checksum=hashlib.sha256(preserved.read_bytes()).hexdigest()
+                authority=dict(state_hash=str(window),history_sha256=checksum,
+                    artifact={'digest':'sha256:'+checksum})
+                with patch.dict(os.environ,MM_AUTONOMOUS_STATE_RECEIPT='verified'):
+                    h=History(path,policy='frozen')
+                self.assertTrue(h.compact_archived(authority))
+                self.assertEqual(h.get('held'),held)
+                self.assertEqual(len(h.rows(include_retired=True)),2)
+                self.assertEqual(h.db.execute("SELECT count(*) FROM meta WHERE key LIKE 'archive_prefix:%'").fetchone()[0],0)
+                receipt=h.get_meta('retired_archive')
+                self.assertEqual(receipt['total_count'],(window+1)*200)
+                self.assertEqual(receipt['authority'],authority)
+                with self.assertRaisesRegex(ValueError,'graduation_expired'):
+                    h.graduate(str(at),dict(at=at))
+                with self.assertRaisesRegex(ValueError,'conflicting_survivor_graduation'):
+                    h.graduate('held',dict(at=1))
+                # The exact inclusive approved maximum-age boundary is retained.
+                if window==23:
+                    edge=h.graduate('edge',dict(at=floor))
+                    with self.assertRaisesRegex(ValueError,'retirement_age'):h.retire(edge,expired_before=floor)
+                self.assertEqual(h.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+                h.close();sizes.append(path.stat().st_size)
+                self.assertEqual(hashlib.sha256(preserved.read_bytes()).hexdigest(),checksum)
+            self.assertLessEqual(max(sizes[4:])-min(sizes[4:]),8192,sizes)
+
+    def test_retired_prefix_crash_and_unpreserved_mutation_fail_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'history.sqlite';h=History(path,policy='frozen')
+            row=h.graduate('expired',dict(at=1));h.retire(row,expired_before=2);h.close()
+            original=path.read_bytes();authority=dict(state_hash='first',history_sha256=hashlib.sha256(original).hexdigest())
+            with patch.dict(os.environ,MM_AUTONOMOUS_STATE_RECEIPT='verified'):
+                h=History(path,policy='frozen')
+                original_set=h.set_meta
+                def cut(key,value):
+                    if key=='retired_archive':raise SystemExit('after deleting expired prefix')
+                    return original_set(key,value)
+                with patch.object(h,'set_meta',side_effect=cut),self.assertRaises(SystemExit):h.compact_archived(authority)
+                self.assertIsNotNone(h.get('expired'));self.assertIsNone(h.get_meta('compacted_from_state'));h.close()
+                self.assertEqual(path.read_bytes(),original)
+                h=History(path,policy='frozen')
+                fresh=h.graduate('new',dict(at=3))
+                with self.assertRaisesRegex(ValueError,'source_changed'):h.compact_archived(authority)
+                self.assertEqual(h.get('new'),fresh);self.assertIsNotNone(h.get('expired'));h.close()

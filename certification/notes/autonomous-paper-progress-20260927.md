@@ -937,3 +937,25 @@ raw-log/capsule/six-native/capacity tests and six native campaign tests PASS.
 Both independent source preparations match; protocol freeze passes. Remaining
 Phase-D gaps still include Robinhood candidate/transition/cache history and
 candidate/settlement churn; this is not the joined multi-day proof.
+
+Raw-log batch `7d433c287537941852e7652dfe8130fb286bcd85` passes ordinary CI
+`36346080048`; refresh confirms no running workflow or new market run.
+Retired Survivor churn reproduces with zero active candidates: 200→1,200 retained
+tombstones grow the hot DB from 90,112→360,448 bytes. Native replay regressions
+also expose Pons rehydrating a retired row (missing `through`) and Pump recreating
+a released interest. Repair candidate: retain retired identity until the exact
+predecessor snapshot is preserved, then fold expired tombstones into a fixed-size
+archive receipt plus monotone graduation floor derived from the unchanged maximum
+candidate age. Existing/open candidates remain hot; old discovery replay must
+advance its cursor without rehydrating or re-pinning expired candidates.
+
+The retired-candidate repair passes 31 affected acquisition/history/capsule/native
+handoff tests. Both actual discovery paths preserve cursor progress before and
+after archival while rejecting rehydration; conflicting held identity and the exact
+inclusive age boundary remain protected. Twenty-four churn/checkpoint cycles retain
+at most one window's 200 expired tombstones, with an 8KiB maximum warm-state band,
+unchanged open candidate and verified predecessor files. Interrupted pruning rolls
+back; post-open mutation makes compaction fail closed rather than discard newer
+unpreserved state. Both source preparations and protocol freeze pass. This closes
+retired Survivor history churn only; native economic projections and Robinhood
+cumulative state remain Phase-D work.
