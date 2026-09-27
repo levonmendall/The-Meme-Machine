@@ -149,7 +149,7 @@ def meteora_source_coverage(runtime,native,source):
 
 def native_positions(root,lane):
     """Project native append-only events and retain their digest chain for transfers."""
-    positions={};violations=[];journal=[];by_id={};cohort=[]
+    positions={};violations=[];journal=[];by_id={};cohort=[];prefixes={}
     for path in sorted(Path(root).rglob('*.sqlite*')):
         if not path.is_file() or path.name.endswith(('-wal','-shm')):continue
         with ro(path) as db:
@@ -177,20 +177,33 @@ def native_positions(root,lane):
                     positions[identity]=dict(id=identity,status='settled' if terminal else 'open' if entered else 'reserved',
                         version=len(events)-1,at=last.get('at'),last_action=last['action'])
             elif lane in ('pump','pons') and 'journal' in tables and 'positions' in tables:
+                if 'journal_archive' in tables:
+                    saved=db.execute('SELECT body,hash FROM journal_archive WHERE id=1').fetchone()
+                    if saved:
+                        prefix=json.loads(saved[0])
+                        if digest(prefix)!=saved[1]:raise ValueError('native_archived_prefix_integrity')
+                        prefixes.update(prefix['journal_proofs'])
                 for raw, in db.execute('SELECT body FROM positions'):
                     position=json.loads(raw);positions[position['id']]=position
                 for raw, in db.execute('SELECT body FROM journal ORDER BY seq'):
                     event=json.loads(raw);identity=event['position']['id']
                     by_id.setdefault(identity,[]).append(event)
             # No speculative table reads: an unsupported schema stays unknown.
+    for identity in prefixes:by_id.setdefault(identity,[])
     entries=settlements=monitoring=partials=exits=complete=0
     entry_times={};monitor_times={}
     for identity,events in by_id.items():
+        from certification.journal_proof import extend
+        prefix=prefixes.get(identity)
+        summary=extend(events,prefix)
         actions=[e.get('action') for e in events]
-        entered=any(x in ('entry','open','fill','filled') for x in actions)
-        terminal=any(x in ('settle','settlement','settled') for x in actions)
-        if lane=='pons' and positions.get(identity,{}).get('status')=='settled' and 'exit' in actions:
+        counts=summary['actions']
+        entered=any(counts.get(x,0) for x in ('entry','open','fill','filled'))
+        terminal=any(counts.get(x,0) for x in ('settle','settlement','settled'))
+        if lane=='pons' and positions.get(identity,{}).get('status')=='settled' and counts.get('exit',0):
             terminal=True
+        if summary['entry_at'] is not None:entry_times[identity]=summary['entry_at']
+        if summary['last_monitor_at'] is not None:monitor_times[identity]=summary['last_monitor_at']
         for event in events:
             position=event.get('position') or {}
             at=event.get('at',position.get('last_at',position.get('at')))
@@ -199,14 +212,16 @@ def native_positions(root,lane):
             if event.get('action') in ('mark','monitor') and isinstance(at,(int,float)):
                 monitor_times[identity]=at
         entries+=entered;settlements+=bool(entered and terminal)
-        monitoring+=bool(entered and any(x in ('mark','monitor') for x in actions))
-        partials+=sum(x in ('partial_exit','partial','partial_realization','partial_harvest') for x in actions)
-        exits+=sum(x in ('exit','exit_intent','segment_close','settled') for x in actions)
-        complete+=bool(entered and terminal and any(x in ('mark','monitor') for x in actions)
-                       and any(x in ('exit','exit_intent','segment_close','settle','settled') for x in actions))
-        if sum(actions.count(k) for k in ('entry','open','filled'))>1:violations.append(dict(id=identity,reason='duplicate_entry'))
-        if sum(actions.count(k) for k in ('settle','settled'))>1:violations.append(dict(id=identity,reason='duplicate_realization'))
-        previous_version=None
+        monitoring+=bool(entered and any(counts.get(x,0) for x in ('mark','monitor')))
+        partials+=sum(counts.get(x,0) for x in ('partial_exit','partial','partial_realization','partial_harvest'))
+        exits+=sum(counts.get(x,0) for x in ('exit','exit_intent','segment_close','settled'))
+        complete+=bool(entered and terminal and any(counts.get(x,0) for x in ('mark','monitor'))
+                       and any(counts.get(x,0) for x in ('exit','exit_intent','segment_close','settle','settled')))
+        if sum(counts.get(k,0) for k in ('entry','open','filled'))>1:violations.append(dict(id=identity,reason='duplicate_entry'))
+        if sum(counts.get(k,0) for k in ('settle','settled'))>1:violations.append(dict(id=identity,reason='duplicate_realization'))
+        previous_version=prefix['last_version'] if prefix else None
+        if prefix and prefix.get('version_violations',0):
+            violations.append(dict(id=identity,reason='lifecycle_version_discontinuity'))
         for event in events:
             p=event.get('position') or {};version=p.get('version')
             if previous_version is not None and version is not None and version!=previous_version+1:
@@ -215,7 +230,9 @@ def native_positions(root,lane):
         row=positions.get(identity,{})
         if row.get('status')=='settled' and any(row.get(k,0)!=0 for k in ('tokens','reserved','remaining_cost')):
             violations.append(dict(id=identity,reason='terminal_residual_exposure'))
-        journal.append(dict(id=identity,events=len(events),event_hashes=[digest(e) for e in events]))
+        journal.append(dict(id=identity,events=summary['events'],event_hashes=[digest(e) for e in events],
+            event_offset=prefix['events'] if prefix else 0,prefix_hash=prefix['chain_hash'] if prefix else '0'*64,
+            chain_hash=summary['chain_hash']))
     for row in cohort:
         native=positions.get(row['id'])
         if native is None:violations.append(dict(id=row['id'],reason='missing_native_position'))
@@ -229,6 +246,7 @@ def native_positions(root,lane):
         natural_counts_source='native append-only action records; cancellations are not entries or settlements')
 
 def continuity(previous,current):
+    from certification.journal_proof import continues
     failures=[];spanning=0
     prior_j={r['id']:r for r in previous.get('journals',[])}
     next_j={r['id']:r for r in current.get('journals',[])}
@@ -236,11 +254,10 @@ def continuity(previous,current):
         if row.get('status') in ('settled','cancelled','written_off'):continue
         if identity not in current.get('positions',{}):
             failures.append(dict(id=identity,reason='open_position_lost_across_block'));continue
-        spanning+=1;old=prior_j.get(identity,{}).get('event_hashes',[])
-        new=next_j.get(identity,{}).get('event_hashes',[])
-        if not old or new[:len(old)]!=old:
+        spanning+=1;old=prior_j.get(identity,{});new=next_j.get(identity,{})
+        if not continues(old,new):
             failures.append(dict(id=identity,reason='unexplained_cross_block_state_mutation'))
-        elif len(old)==len(new) and row!=current['positions'][identity]:
+        elif old.get('events',len(old.get('event_hashes',[])))==new.get('events',len(new.get('event_hashes',[]))) and row!=current['positions'][identity]:
             failures.append(dict(id=identity,reason='projection_changed_without_event'))
     return dict(status='fail' if failures else 'pass',positions_spanning_blocks=spanning,failures=failures)
 

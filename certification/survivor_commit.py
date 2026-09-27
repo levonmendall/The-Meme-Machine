@@ -95,23 +95,28 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
 def restore_risk(book,identity):
     """Rebuild runner state from the same immutable economic journal as fills."""
     book.replay()
-    state=None
+    prefix=book._archive()
+    state=prefix['risk_states'].get(identity) if prefix else None
     import json
     for raw, in book.db.execute('SELECT body FROM journal ORDER BY seq'):
         row=json.loads(raw)
         if row['position']['id']!=identity:continue
-        p=row['position'];action=row['action'];e=row['evidence']
-        if action=='filled':
-            state=dict(opened_at=row['at'],original_quantity=p['tokens'],remaining_quantity=p['tokens'],
-                       original_basis=p['basis'],high_water_bps=0,high_at=row['at'],
-                       realization_taken=False,tightened=False,deterioration_streak=0)
-        elif action=='mark' and state is not None:
-            state=dict(e['risk_state'])
-        elif action=='partial_harvest' and state is not None:
-            state.update(realization_taken=True,remaining_quantity=p['tokens'])
-        elif action=='settled' and state is not None:
-            state.update(settled=True,remaining_quantity=0)
+        state=risk_record(state,row)
     if state is None:raise ValueError('survivor_fill_missing')
+    return state
+
+
+def risk_record(state,row):
+    """One unchanged native replay step, also used to seal a durable prefix."""
+    p=row['position'];action=row['action'];e=row['evidence']
+    if action=='filled':
+        state=dict(opened_at=row['at'],original_quantity=p['tokens'],remaining_quantity=p['tokens'],
+                   original_basis=p['basis'],high_water_bps=0,high_at=row['at'],
+                   realization_taken=False,tightened=False,deterioration_streak=0)
+    elif action=='mark' and state is not None:state=dict(e['risk_state'])
+    elif action=='partial_harvest' and state is not None:
+        state.update(realization_taken=True,remaining_quantity=p['tokens'])
+    elif action=='settled' and state is not None:state.update(settled=True,remaining_quantity=0)
     return state
 
 

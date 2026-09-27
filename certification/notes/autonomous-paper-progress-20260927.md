@@ -843,3 +843,25 @@ updates with exactly 126,976 hot bytes after warmup and 168 distinct preserved
 snapshots. This proves journal-prefix boundedness only. Candidate/position churn,
 Survivor native journals, Robinhood raw histories/cache and the joined multi-day
 resource/provider proof remain unresolved; no complete Phase-D claim is made.
+
+Shared-sleeve batch `eb6fb8b46968ff4da9fa490a8ef3447cb614c5cd` passes ordinary CI
+`36343459928`. The component's virtual observation clocks now span 168 actual
+hourly boundaries; its 126,976-byte plateau is unchanged.
+
+Survivor prefix checkpoints address the measured 202→1,202-row fixed-position
+journal growth. Only exact predecessor snapshots already preserved in the verified
+native artifact may compact. The anchor preserves native cash/positions/hash chain,
+actual risk replay (including partial/high-water/trailing state), committed execution
+costs and exact action counts. Newer hot rows remain. Campaign review proves an
+archived prefix against the preceding report's event hashes; wrong prefixes,
+eventless state changes and skipped historical proof fail closed. Raw old journal
+rows remain in predecessor artifacts. No strategy/risk/exit policy changed.
+
+Both frozen Survivor policies pass actual partial→restart→stop→settlement with
+checkpoint cuts before/after partial. Automatic constructors in the real six-native
+capsule handoff also compact and retain exact reconciliation/continuity. Thirty-five
+affected tests pass; the 168-checkpoint storage component preserves 33,600 marks and
+168 distinct raw snapshots with exactly 200,704 hot bytes after warmup. This is a
+fixed-position storage proof, not a policy-horizon or full Phase-D completion claim.
+Candidate/settled-position churn and Robinhood/Pons cumulative histories remain
+pending. No market or full certification was dispatched.

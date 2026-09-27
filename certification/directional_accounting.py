@@ -38,7 +38,8 @@ def combine(lane,current,survivor):
 def execution_cost(book):
     """Count only gas actually committed in native fills/realizations/exits."""
     import json
-    total=0
+    prefix=book._archive()
+    total=prefix['execution_cost'] if prefix else 0
     for raw, in book.db.execute('SELECT body FROM journal ORDER BY seq'):
         e=json.loads(raw)
         if e['action'] in ('filled','partial_harvest','settled'):

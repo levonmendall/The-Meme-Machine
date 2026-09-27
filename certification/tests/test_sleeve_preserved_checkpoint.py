@@ -103,7 +103,7 @@ class SleevePreservedCheckpointTests(unittest.TestCase):
         self.book.reserve('held',strategy='current',amount=100,at=0)
         with self.book.commit_fence('held'):pass
         for hour in range(168):
-            for tick in range(200):self.observe(hour*200+tick)
+            for tick in range(200):self.observe(hour*3600+tick)
             before=self.book.reconcile();source,authority=self.snapshot(hour)
             hashes.append(authority['snapshot_sha256'])
             self.book._compact_preserved(source,authority)

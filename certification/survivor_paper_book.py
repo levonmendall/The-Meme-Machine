@@ -4,11 +4,12 @@ No signer, transport, strategy thresholds or trade authority. Reservations enfor
 one caller-supplied genesis across concurrent lifecycles instead of minting capital
 for each trial. Runtime evidence belongs in the run artifact, never in git.
 """
-from contextlib import contextmanager
+from contextlib import contextmanager,nullcontext
 import hashlib
 import json
 import sqlite3
 import threading
+from pathlib import Path
 
 
 def _json(value):
@@ -30,6 +31,19 @@ class PaperBook:
         _integer(initial)
         self.identity = dict(run_id=run_id, lane=lane, policy_hash=policy_hash, initial=initial)
         self.lock = threading.RLock()
+        from certification.preserved_checkpoint import snapshot
+        native_lane={'pumpswap-survivor-momentum-v1':'pump','pons-postgrad-survivor-momentum-v1':'pons'}.get(lane)
+        folder='pump-survivor' if native_lane=='pump' else 'pons-selective-continuation-v1-cohort/pons-survivor'
+        preserved=snapshot(path,name=native_lane+'/'+folder+'/paper.sqlite',lane=native_lane) if native_lane else nullcontext(None)
+        with preserved as source:
+            try:
+                self._open(path)
+                if source:self._compact_preserved(*source)
+            except BaseException:
+                if hasattr(self,'db'):self.db.close()
+                raise
+
+    def _open(self,path):
         self.db = sqlite3.connect(path, isolation_level=None, timeout=30, check_same_thread=False)
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')
@@ -39,6 +53,7 @@ class PaperBook:
           CREATE TABLE IF NOT EXISTS positions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS journal(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,
             previous TEXT NOT NULL,hash TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS journal_archive(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL,hash TEXT NOT NULL);
           CREATE TRIGGER IF NOT EXISTS journal_no_update BEFORE UPDATE ON journal
             BEGIN SELECT RAISE(ABORT,'append_only'); END;
           CREATE TRIGGER IF NOT EXISTS journal_no_delete BEFORE DELETE ON journal
@@ -79,7 +94,10 @@ class PaperBook:
         body = dict(identity=self.identity, action=action, at=at, position=position,
                     evidence=evidence, evidence_hash=_hash(evidence))
         row = self.db.execute('SELECT seq,hash FROM journal ORDER BY seq DESC LIMIT 1').fetchone()
-        seq, previous = (row[0] + 1, row[1]) if row else (1, '0' * 64)
+        if row:seq,previous=row[0]+1,row[1]
+        else:
+            anchor=self._archive()
+            seq,previous=(anchor['seq']+1,anchor['final_hash']) if anchor else (1,'0'*64)
         self.db.execute('INSERT INTO journal VALUES(?,?,?,?)',
                         (seq, _json(body), previous, _hash([seq, previous, body])))
         self.db.execute('INSERT OR REPLACE INTO positions VALUES(?,?)',
@@ -174,8 +192,9 @@ class PaperBook:
     def replay(self):
         """Verify immutable chain, then independently rebuild cash and occupations."""
         with self.lock:
-            positions = {}; previous = '0' * 64; count = 0
-            cash = self.identity['initial']
+            anchor=self._archive()
+            positions,previous,count,cash=({},'0'*64,0,self.identity['initial']) if anchor is None else (
+                anchor['positions'],anchor['final_hash'],anchor['seq'],anchor['cash'])
             for seq, raw, prior, checksum in self.db.execute('SELECT * FROM journal ORDER BY seq'):
                 count += 1; body = json.loads(raw); p = body['position']; identity = p['id']
                 if (seq != count or prior != previous or body['identity'] != self.identity
@@ -230,6 +249,57 @@ class PaperBook:
             if positions != actual or cash != self.reconcile()['cash']:
                 raise ValueError('paper_projection_differs_from_replay')
             return dict(verified=True, events=count, final_hash=previous, cash=cash)
+
+    def _archive(self):
+        if not self.db.execute("SELECT 1 FROM sqlite_master WHERE name='journal_archive'").fetchone():return None
+        row=self.db.execute('SELECT body,hash FROM journal_archive WHERE id=1').fetchone()
+        if row is None:return None
+        value=json.loads(row[0])
+        if _hash(value)!=row[1] or value.get('identity')!=self.identity:
+            raise ValueError('paper_archive_integrity')
+        return value
+
+    def _compact_preserved(self,path,authority):
+        """Checkpoint only replayed bytes already in the exact native artifact."""
+        with Path(path).open('rb') as stream:
+            if hashlib.file_digest(stream,'sha256').hexdigest()!=authority['snapshot_sha256']:
+                raise ValueError('paper_archive_snapshot_identity')
+        source=object.__new__(PaperBook);source.identity=self.identity;source.lock=threading.RLock()
+        source.db=sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True)
+        try:
+            source.db.execute('BEGIN');proof=source.replay();prior=source._archive()
+            if not proof['events']:return False
+            positions={i:json.loads(b) for i,b in source.db.execute('SELECT * FROM positions')}
+            from certification.survivor_commit import risk_record
+            from certification.directional_accounting import execution_cost
+            from certification.journal_proof import extend
+            risk={} if prior is None else json.loads(_json(prior['risk_states']))
+            summaries={} if prior is None else json.loads(_json(prior['journal_proofs']))
+            for raw, in source.db.execute('SELECT body FROM journal ORDER BY seq'):
+                event=json.loads(raw);identity=event['position']['id']
+                summaries[identity]=extend([event],summaries.get(identity))
+                state=risk_record(risk.get(identity),event)
+                if state is not None:risk[identity]=state
+            anchor=dict(identity=self.identity,seq=proof['events'],final_hash=proof['final_hash'],
+                cash=proof['cash'],positions=positions,risk_states=risk,journal_proofs=summaries,
+                execution_cost=execution_cost(source),authority=authority,
+                previous_archive_hash=_hash(prior) if prior else None)
+        finally:source.db.close()
+        with self.transaction():
+            old=self._archive();seq=anchor['seq']
+            if old and old['seq']>=seq:
+                if old['seq']==seq and old['final_hash']!=anchor['final_hash']:
+                    raise ValueError('paper_archive_prefix_conflict')
+                return False
+            before=self.replay();accounting=self.reconcile()
+            row=self.db.execute('SELECT hash FROM journal WHERE seq=?',(seq,)).fetchone()
+            if row is None or row[0]!=anchor['final_hash']:raise ValueError('paper_archive_prefix_conflict')
+            self.db.execute('INSERT OR REPLACE INTO journal_archive VALUES(1,?,?)',(_json(anchor),_hash(anchor)))
+            self.db.execute('DROP TRIGGER journal_no_delete')
+            self.db.execute('DELETE FROM journal WHERE seq<=?',(seq,))
+            self.db.execute("CREATE TRIGGER journal_no_delete BEFORE DELETE ON journal BEGIN SELECT RAISE(ABORT,'append_only'); END")
+            if self.replay()!=before or self.reconcile()!=accounting:raise ValueError('paper_archive_state_changed')
+        return True
 
     def runtime_state(self,identity,key):
         with self.lock:

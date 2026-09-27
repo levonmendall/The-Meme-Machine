@@ -194,6 +194,25 @@ class AutonomousNativeHandoff(unittest.TestCase):
                             entry_authority=True,nonce='c'*32,parent_state_hash=capsule['state_hash'],positions=prior['positions']))
             successor=root/'relocated';runtime=root/'relocated-runtime';runtime.mkdir()
             state.prepare_window(claim,worktrees=successor,run=runtime,prior_state=downloaded/'capsule',phase='hourly',seconds=3600)
+            compact_survivor='''import json,sqlite3,sys
+from pathlib import Path
+from certification.survivor_paper_book import PaperBook
+path=Path(sys.argv[1])
+with sqlite3.connect('file:'+str(path)+'?mode=ro',uri=True) as db:
+    identity=json.loads(db.execute('SELECT body FROM genesis').fetchone()[0])
+book=PaperBook(path,**identity)
+assert book._archive() is not None
+assert book.db.execute('SELECT COUNT(*) FROM journal').fetchone()[0]==0
+assert book.replay()['verified'] is True
+book.close()
+'''
+            for lane in ('pump','pons'):
+                folder='pump-survivor' if lane=='pump' else 'pons-selective-continuation-v1-cohort/pons-survivor'
+                process=subprocess.run([sys.executable,'-c',compact_survivor,str(successor/lane/folder/'paper.sqlite')],
+                    cwd=sources/lane,env=dict(os.environ,PYTHONPATH=str(repo),
+                        MM_AUTONOMOUS_STATE_RECEIPT=str(runtime/'restored-campaign-state.json'),
+                        MM_CERTIFICATION_RUN_ID='gate'),capture_output=True,text=True,timeout=30)
+                self.assertEqual(process.returncode,0,process.stdout+process.stderr)
             reopen='''import sys
 from pathlib import Path
 from robinhood_research.ramses_campaign import CampaignBooks
