@@ -517,7 +517,9 @@ class ServiceState:
         try:return fn()
         except Exception as exc:
             import sqlite3
-            suffix='yielded' if isinstance(exc,sqlite3.OperationalError) and str(exc)=='interrupted' else 'failed'
+            yielded=(isinstance(exc,sqlite3.OperationalError) and str(exc)=='interrupted'
+                     or isinstance(exc,EvidenceUnavailable) and str(exc)=='evidence_background_yield')
+            suffix='yielded' if yielded else 'failed'
             key=name+'.'+suffix;self.storage_metrics[key]=self.storage_metrics.get(key,0)+1
             raise
         finally:
@@ -631,10 +633,12 @@ class ServiceState:
         self.fence.health('repair_http',http);require_storage(self.writer.path)
         self.fence.health('storage_maintenance',dict(self.storage_metrics))
         # A small archive slice yields to the control queue after every commit.
-        return self.archive_plan()
+        snapshot=self.archive_plan()
+        if snapshot is None:self.retention()
+        return snapshot
 
     def archive_plan(self):
-        snapshot=self._storage_stage('archive_plan',lambda:self.writer.archive_snapshot(time.time()-180,max_records=512))
+        snapshot=self._storage_stage('archive_plan',lambda:self.writer.archive_snapshot(time.time()-180,max_records=1000))
         if snapshot:
             self.storage_metrics['archive_snapshot.encoded_peak_bytes']=max(self.storage_metrics.get('archive_snapshot.encoded_peak_bytes',0),snapshot['encoded_bytes'])
             self.storage_metrics['archive_snapshot.records_peak']=max(self.storage_metrics.get('archive_snapshot.records_peak',0),len(snapshot['rows']))
@@ -642,7 +646,10 @@ class ServiceState:
 
     def archive_commit(self,plan,receipt):
         self._storage_stage('archive_commit',lambda:self.writer.commit_archive(plan,receipt))
-        self._storage_stage('retention',lambda:self.writer.retain(time.time()-180,max_records=512,archive_first=False))
+        self.retention()
+
+    def retention(self):
+        self._storage_stage('retention',lambda:self.writer.retain(time.time()-180,max_records=1000,archive_first=False))
 
     def close(self):
         try:
@@ -1135,7 +1142,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         await work(lambda state:state.fence.health('owner_scheduler',scheduler),1)
                     else:plan=await work(lambda state:state.archive_plan(),4)
                     if plan:
-                        plan,receipt=await asyncio.wrap_future(decoder_pool.submit(EvidenceWriter.prepare_and_write_archive,path,plan))
+                        # Amortize publication at the existing 1000-record API
+                        # bound and the same 16-MiB canonical bound as ingestion.
+                        # Exactly one encoded snapshot/archive task is admitted.
+                        plan,receipt=await asyncio.wrap_future(decoder_pool.submit(EvidenceWriter.prepare_and_write_archive,path,plan,max_bytes=16*1024*1024))
                         await work(lambda state:state.archive_commit(plan,receipt),4)
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise

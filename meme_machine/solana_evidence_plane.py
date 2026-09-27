@@ -471,17 +471,19 @@ class EvidenceWriter:
               AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
           ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records))
         snapshot=[];chunks={};size=0
-        for k,b,h in rows:
-            shared=dict(self.db.execute('SELECT c.hash,c.body FROM hot_refs r JOIN hot_chunks c ON c.hash=r.hash WHERE r.identity=?',(k,)))
-            scope,slot=self.db.execute('SELECT scope,slot FROM records WHERE identity=?',(k,)).fetchone()
-            lineage=self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,)).fetchall()
-            coverage=self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(scope,slot,slot)).fetchall()
-            cost=len(b)+sum(len(v) for key,v in shared.items() if key not in chunks)+len(canonical((lineage,coverage)).encode())
-            if snapshot and size+cost>max_bytes:break
-            if size+cost>20*1024*1024:raise EvidenceUnavailable('archive_snapshot_bound')
-            snapshot.append(dict(identity=k,encoded=b,hash=h,lineage=lineage,coverage=coverage))
-            chunks.update(shared)
-            size+=cost
+        try:
+            for k,b,h in rows:
+                shared=dict(self.db.execute('SELECT c.hash,c.body FROM hot_refs r JOIN hot_chunks c ON c.hash=r.hash WHERE r.identity=?',(k,)))
+                scope,slot=self.db.execute('SELECT scope,slot FROM records WHERE identity=?',(k,)).fetchone()
+                lineage=self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,)).fetchall()
+                coverage=self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(scope,slot,slot)).fetchall()
+                cost=len(b)+sum(len(v) for key,v in shared.items() if key not in chunks)+len(canonical((lineage,coverage)).encode())
+                if snapshot and size+cost>max_bytes:break
+                if size+cost>20*1024*1024:raise EvidenceUnavailable('archive_snapshot_bound')
+                snapshot.append(dict(identity=k,encoded=b,hash=h,lineage=lineage,coverage=coverage))
+                chunks.update(shared)
+                size+=cost
+        finally:rows.close()
         return dict(rows=snapshot,chunks=chunks,encoded_bytes=size) if snapshot else None
 
     @staticmethod
@@ -499,16 +501,19 @@ class EvidenceWriter:
         return plan
 
     @staticmethod
-    def prepare_and_write_archive(path,snapshot):
-        plan=EvidenceWriter.prepare_archive(snapshot)
+    def prepare_and_write_archive(path,snapshot,*,max_bytes=4*1024*1024):
+        plan=EvidenceWriter.prepare_archive(snapshot,max_bytes=max_bytes)
         return plan,EvidenceWriter.write_archive(path,plan)
 
     @staticmethod
     def write_archive(path,plan):
         if not plan:return None
-        public_value(plan)
-        raw=('\n'.join(canonical(row) for row in plan)+'\n').encode()
-        compressed=gzip.compress(raw,mtime=0);checksum=hashlib.sha256(compressed).hexdigest()
+        raw='\n'.join(canonical(row) for row in plan)+'\n'
+        public_value(raw)
+        # Archival must keep pace with the authenticated stream. Level 1 is
+        # lossless and avoids spending the shared worker budget on compression
+        # ratio; canonical bodies and content-addressed publication are unchanged.
+        compressed=gzip.compress(raw.encode(),compresslevel=1,mtime=0);checksum=hashlib.sha256(compressed).hexdigest()
         require_storage(path, required_bytes=len(compressed) + 32 * 1024 * 1024)
         path=Path(path);directory=path.parent/(path.name+'.archive');directory.mkdir(exist_ok=True)
         target=directory/(checksum+'.jsonl.gz');publish_bytes(target,compressed)
@@ -558,32 +563,35 @@ class EvidenceWriter:
         """
         if not 1 <= max_records <= 1000:raise EvidenceUnavailable('retention_batch_bound')
         archived=self.archive(before_time,max_records=max_records) if archive_first else 0
-        # At most 256 records and 256 rows from each continuity index per
+        # At most 256 records and max_records rows from each continuity index per
         # transaction. A later cooperative yield cannot undo earlier scopes.
-        limit=min(max_records,256)
         for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
-            with self._retention_transaction():
-                floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
-                floor=top+1 if floor is None else floor
-                recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
-                if recent is not None:floor=min(floor,recent)
-                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
-                if pins:floor=min(floor,min(pins))
-                if self._account_pinned(scope):floor=0
-                old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
-                floor=max(int(old[0]) if old else 0,floor)
-                ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit))]
-                for identity in ids:
-                    self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
-                    self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
-                if old is None or floor!=int(old[0]):
-                    self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
-                self.db.execute('DELETE FROM coverage WHERE id IN (SELECT id FROM coverage WHERE scope=? AND hi<? LIMIT ?)',(scope,floor,limit))
-                self.db.execute('DELETE FROM gaps WHERE id IN (SELECT id FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL LIMIT ?)',(scope,floor,limit))
-                for table in ('stream_receipts','stream_deliveries','stream_order'):
-                    if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
-                        self.db.execute('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE scope=? AND slot<? LIMIT ?)',(scope,floor,limit))
-                if ids:self._count('compacted_records',len(ids))
+            for offset in range(0,max_records,256):
+                limit=min(max_records-offset,256)
+                with self._retention_transaction():
+                    floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
+                    floor=top+1 if floor is None else floor
+                    recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
+                    if recent is not None:floor=min(floor,recent)
+                    pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
+                    if pins:floor=min(floor,min(pins))
+                    if self._account_pinned(scope):floor=0
+                    old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
+                    floor=max(int(old[0]) if old else 0,floor)
+                    ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit))]
+                    for identity in ids:
+                        self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
+                        self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
+                    if old is None or floor!=int(old[0]):
+                        self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
+                    removed=[]
+                    removed.append(self.db.execute('DELETE FROM coverage WHERE id IN (SELECT id FROM coverage WHERE scope=? AND hi<? LIMIT ?)',(scope,floor,max_records)).rowcount)
+                    removed.append(self.db.execute('DELETE FROM gaps WHERE id IN (SELECT id FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL LIMIT ?)',(scope,floor,max_records)).rowcount)
+                    for table in ('stream_receipts','stream_deliveries','stream_order'):
+                        if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
+                            removed.append(self.db.execute('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE scope=? AND slot<? LIMIT ?)',(scope,floor,max_records)).rowcount)
+                    if ids:self._count('compacted_records',len(ids))
+                if len(ids)<limit and all(n<max_records for n in removed):break
         with self.transaction():
             # The archive directory is the immutable content-addressed inventory;
             # old completed hot manifests need not grow without bound.
@@ -602,6 +610,8 @@ class EvidenceWriter:
         try:
             with self.transaction():yield
         finally:self._retention_atomic=False
+        should_yield=getattr(self,'_retention_yield_requested',None)
+        if should_yield and should_yield():raise EvidenceUnavailable('evidence_background_yield')
 
     def close(self):
         self._check()

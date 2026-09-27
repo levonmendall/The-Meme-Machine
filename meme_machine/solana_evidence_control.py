@@ -99,13 +99,17 @@ class PriorityOwner:
                         if urgent:
                             interrupted=True;return 1
                         return 0
-                    if priority==4 and writer:writer.db.set_progress_handler(yield_background,1000)
+                    if priority==4 and writer:
+                        writer._retention_yield_requested=yield_background
+                        writer.db.set_progress_handler(yield_background,1000)
                     try:result=fn(self.state)
                     except sqlite3.OperationalError as exc:
                         if interrupted:raise EvidenceUnavailable('evidence_background_yield') from exc
                         raise
                     finally:
-                        if priority==4 and writer:writer.db.set_progress_handler(None,0)
+                        if priority==4 and writer:
+                            writer.db.set_progress_handler(None,0)
+                            writer._retention_yield_requested=None
                 except BaseException as exc: future.set_exception(exc)
                 else: future.set_result(result)
                 finally:
