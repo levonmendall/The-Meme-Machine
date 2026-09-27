@@ -4,7 +4,7 @@ Preserved templates remain immutable on disk. Envelopes, identity suffixes and
 event timestamps are synthetically replayed against the fixed source clock.
 The default replay spans 600 real seconds and crosses the actual retention age.
 """
-import argparse,asyncio,base64,gzip,hashlib,json,re,sqlite3,struct,tempfile,time
+import argparse,asyncio,base64,gzip,hashlib,json,re,sqlite3,struct,subprocess,tempfile,time
 from pathlib import Path
 from unittest.mock import patch
 from tests.test_run380_production_pressure import Wire as PreservedWire
@@ -93,6 +93,9 @@ async def run(frames,output):
      for line in source:
       row=json.loads(line);assert digest(row['body'])==row['hash'];assert row['lineage'];archive_records+=1
    result=dict(passed=failure is None,failure=failure,frames=frames,frame_bytes=len(wire.template),source_seconds=frames*.27,elapsed=time.monotonic()-started,lag_peak=max(lags,default=0),hot_peak=hot_peak,candidate_checks=len(queries),archive_records_verified=archive_records,counters=counters,ipc=ipc,owner=health.get('owner_scheduler'),integrity=integrity,provider_calls=0)
+   result['integration_sha']=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+   result['source_hashes']={name:hashlib.sha256((Path(service.__file__).parent/name).read_bytes()).hexdigest() for name in ('solana_evidence_plane.py','solana_evidence_service.py','solana_evidence_storage.py','solana_evidence_control.py','solana_program_decoders.py')}
+   result['storage_maintenance']=health.get('storage_maintenance',{})
    for condition,name in [(integrity==('ok',),'integrity'),(ipc.get('stream.received_messages')==ipc.get('stream.commit_messages'),'admitted_drain'),(ipc.get('stream.outstanding_frames_peak',0)<=64,'frame_bound'),(ipc.get('stream.dispatch_bytes_peak',0)<=96*1024*1024,'byte_bound'),(ipc.get('stream.commit_batch_bytes_peak',0)<=16*1024*1024,'commit_bound'),(hot_peak<2*1024**3,'hot_store_bound')]:
     if not condition:result['passed']=False;result['failure']=result['failure'] or name
    (output/'result.json').write_text(json.dumps(result,indent=2));print(json.dumps(result),flush=True)

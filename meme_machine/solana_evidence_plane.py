@@ -59,8 +59,8 @@ class EvidenceConflict(EvidenceUnavailable):
     pass
 
 
-def decode_body(raw,db):
-    try:return _decode_body(raw,db)
+def decode_body(raw,db=None,*,chunks=None):
+    try:return _decode_body(raw,db,chunks=chunks)
     except (ValueError,TypeError,KeyError) as exc:raise EvidenceConflict('hot_evidence_corrupt') from exc
 
 
@@ -450,7 +450,10 @@ class EvidenceWriter:
         self._count('gap_repair_calls')
 
     def archive_plan(self,before_time,*,max_records=1000,max_bytes=4*1024*1024):
-        """Snapshot a bounded immutable batch; filesystem work runs off-writer."""
+        return self.prepare_archive(self.archive_snapshot(before_time,max_records=max_records),max_bytes=max_bytes)
+
+    def archive_snapshot(self,before_time,*,max_records=1000,max_bytes=4*1024*1024):
+        """Copy bounded encoded rows/chunks; decoding/compression need no SQLite."""
         self._check()
         if not 1 <= max_records <= 1000:
             raise EvidenceUnavailable('archive_batch_bound')
@@ -466,16 +469,39 @@ class EvidenceWriter:
              AND r.kind='account' AND s.address=substr(r.scope,9))
           AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
               AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
-          ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
-        plan=[];size=0
+          ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records))
+        snapshot=[];chunks={};size=0
         for k,b,h in rows:
-            body=decode_body(b,self.db);cost=len(canonical(body).encode())
+            shared=dict(self.db.execute('SELECT c.hash,c.body FROM hot_refs r JOIN hot_chunks c ON c.hash=r.hash WHERE r.identity=?',(k,)))
+            scope,slot=self.db.execute('SELECT scope,slot FROM records WHERE identity=?',(k,)).fetchone()
+            lineage=self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,)).fetchall()
+            coverage=self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(scope,slot,slot)).fetchall()
+            cost=len(b)+sum(len(v) for key,v in shared.items() if key not in chunks)+len(canonical((lineage,coverage)).encode())
+            if snapshot and size+cost>max_bytes:break
+            if size+cost>20*1024*1024:raise EvidenceUnavailable('archive_snapshot_bound')
+            snapshot.append(dict(identity=k,encoded=b,hash=h,lineage=lineage,coverage=coverage))
+            chunks.update(shared)
+            size+=cost
+        return dict(rows=snapshot,chunks=chunks,encoded_bytes=size) if snapshot else None
+
+    @staticmethod
+    def prepare_archive(snapshot,*,max_bytes=4*1024*1024):
+        plan=[];size=0
+        if not snapshot:return plan
+        for row in snapshot['rows']:
+            body=decode_body(row['encoded'],chunks=snapshot['chunks']);raw=canonical(body);cost=len(raw.encode())
+            if hashlib.sha256(raw.encode()).hexdigest()!=row['hash']:raise EvidenceConflict('archive_body_hash_mismatch')
             if plan and size+cost>max_bytes:break
-            plan.append(dict(identity=k,body=body,hash=h,
-                lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
-                coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(body['scope'],body['slot'],body['slot']))]))
+            plan.append(dict(identity=row['identity'],body=body,hash=row['hash'],
+                lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in row['lineage']],
+                coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in row['coverage']]))
             size+=cost
         return plan
+
+    @staticmethod
+    def prepare_and_write_archive(path,snapshot):
+        plan=EvidenceWriter.prepare_archive(snapshot)
+        return plan,EvidenceWriter.write_archive(path,plan)
 
     @staticmethod
     def write_archive(path,plan):

@@ -103,7 +103,7 @@ def _inflate(raw):
     return value
 
 
-def decode(raw,db):
+def decode(raw,db=None,*,chunks=None):
     if isinstance(raw,str):return json.loads(raw) # original stores/small bodies
     if not isinstance(raw,bytes) or not raw.startswith(b'SEP1'):raise ValueError('hot_body_encoding')
     try:value=json.loads(_inflate(raw[4:]))
@@ -112,7 +112,7 @@ def decode(raw,db):
         section=value['payload'].get(parent)
         ref=section.get(key) if isinstance(section,dict) else None
         if not isinstance(ref,dict) or set(ref)!={'_hot_log_chunk'}:continue
-        row=db.execute('SELECT body FROM hot_chunks WHERE hash=?',(ref['_hot_log_chunk'],)).fetchone()
+        row=((chunks[ref['_hot_log_chunk']],) if ref['_hot_log_chunk'] in chunks else None) if chunks is not None else db.execute('SELECT body FROM hot_chunks WHERE hash=?',(ref['_hot_log_chunk'],)).fetchone()
         if row is None:raise ValueError('hot_chunk_missing')
         try:logs=_inflate(row[0])
         except zlib.error as exc:raise ValueError('hot_chunk_corrupt') from exc
