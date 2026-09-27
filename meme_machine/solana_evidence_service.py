@@ -506,6 +506,27 @@ class ServiceState:
         self.fence.health('pid',os.getpid())
         self.fence.health('hot_limit_bytes',self.writer.max_hot_bytes)
         self.repair_after={};self.failed=False
+        prior=self.writer.db.execute("SELECT value FROM service_health WHERE key='storage_maintenance'").fetchone()
+        self.storage_metrics=json.loads(prior[0]) if prior else {}
+
+    def _storage_stage(self,name,fn):
+        """Fixed stage names, numeric costs only; retained across service restarts."""
+        if name not in ('archive_plan','archive_commit','retention','repair_apply'):
+            raise EvidenceUnavailable('storage_stage_identity')
+        started=time.monotonic()
+        try:return fn()
+        except Exception as exc:
+            import sqlite3
+            yielded=(isinstance(exc,sqlite3.OperationalError) and str(exc)=='interrupted'
+                     or isinstance(exc,EvidenceUnavailable) and str(exc)=='evidence_background_yield')
+            suffix='yielded' if yielded else 'failed'
+            key=name+'.'+suffix;self.storage_metrics[key]=self.storage_metrics.get(key,0)+1
+            raise
+        finally:
+            elapsed=int((time.monotonic()-started)*1_000_000)
+            for suffix,value in (('calls',1),('total_microseconds',elapsed)):
+                key=name+'.'+suffix;self.storage_metrics[key]=self.storage_metrics.get(key,0)+value
+            key=name+'.peak_microseconds';self.storage_metrics[key]=max(self.storage_metrics.get(key,0),elapsed)
 
     def _source_locked(self,sub,message,seen,byte_count):
         self.writer._count('stream_messages');self.writer._count('stream_bytes',byte_count)
@@ -571,21 +592,24 @@ class ServiceState:
         # background priority. Open lifecycles can still repair missing evidence;
         # they never wait for this worker to perform their current-state refresh.
         if self.writer.db.execute("SELECT value FROM meta WHERE key='poisoned'").fetchone():return None
-        rows=self.writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,attempts FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY attempts,created LIMIT 64').fetchall()
-        for gid,scope,lo,hi,cursor,attempts in rows:
+        rows=self.writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,attempts,pages FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY attempts,created LIMIT 64').fetchall()
+        for gid,scope,lo,hi,cursor,attempts,pages in rows:
             if now<self.repair_after.get(gid,0):continue
             sub=next((s for s in program_subscriptions() if s.scope==scope),None)
             if sub is None:continue
             state=json.loads(cursor) if cursor else {}
             cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters={'slot':{'gte':lo,'lte':hi}})
             if state.get('next'):cfg['paginationToken']=state['next']
+            # Each successful page has one dispatch attempt and one durable
+            # apply receipt. Pagination itself is not a failed provider retry.
+            failures=max(0,attempts-2*pages)
             with self.writer.transaction():
                 self.writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
                 self.writer._count('gap_repair_attempts')
-                if attempts:self.writer._count('gap_repair_retries')
+                if failures:self.writer._count('gap_repair_retries')
             # At most 64 bounded retry leases; completed/old leases are expendable.
             self.repair_after={k:v for k,v in self.repair_after.items() if v>now}
-            self.repair_after[gid]=now+min(60,2**min(attempts,6))
+            self.repair_after[gid]=now+min(60,2**min(failures,6))
             return gid,sub.address,cfg
 
     def repair_apply(self,plan,value):
@@ -596,25 +620,55 @@ class ServiceState:
         class ReceiptRPC:
             def call(self,*args):return value
         try:
-            AddressGapRepair(ReceiptRPC(),self.writer,endpoint_identity=self.fence.endpoint_identity,record_mapper=self.fence.repair_records).step(gid,address,now=time.time(),finalized_through=frontier)
+            self._storage_stage('repair_apply',lambda:AddressGapRepair(ReceiptRPC(),self.writer,endpoint_identity=self.fence.endpoint_identity,record_mapper=self.fence.repair_records).step(gid,address,now=time.time(),finalized_through=frontier))
+            self.repair_after[gid]=time.time()+1
         except (ValueError,KeyError,TypeError) as exc:
             self.fence.count('gap_repair_failures')
             self.fence.health('last_repair_error',str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__)
 
-    def maintenance(self,http):
+    def maintenance_health(self,http):
         from .solana_evidence_plane import require_storage,storage_health
         now=time.time();self.fence.expire_candidates(now)
         self.fence.health('heartbeat',now);self.fence.health('storage',storage_health(self.writer.path))
         self.fence.health('repair_http',http);require_storage(self.writer.path)
-        # A small archive slice yields to the control queue after every commit.
-        return self.writer.archive_plan(now-180,max_records=512)
+        self.fence.health('storage_maintenance',dict(self.storage_metrics))
 
-    def archive_commit(self,plan,receipt):
-        self.writer.commit_archive(plan,receipt)
-        self.writer.retain(time.time()-180,max_records=512,archive_first=False)
+    def maintenance(self,http):
+        self.maintenance_health(http)
+        # A small archive slice yields to the control queue after every commit.
+        snapshot=self.archive_plan()
+        if snapshot is None:self.retention()
+        return snapshot
+
+    def archive_plan(self):
+        snapshot=self._storage_stage('archive_plan',lambda:self.writer.archive_snapshot(time.time()-180,max_records=1000))
+        if snapshot:
+            self.storage_metrics['archive_snapshot.encoded_peak_bytes']=max(self.storage_metrics.get('archive_snapshot.encoded_peak_bytes',0),snapshot['encoded_bytes'])
+            self.storage_metrics['archive_snapshot.records_peak']=max(self.storage_metrics.get('archive_snapshot.records_peak',0),len(snapshot['rows']))
+        return snapshot
+
+    def archive_commit(self,plan,receipt,*,retain=True):
+        for name in ('prepare_microseconds','publish_microseconds','records'):
+            value=(receipt or {}).get('worker_metrics',{}).get(name,0)
+            if type(value) is not int or value<0:raise EvidenceUnavailable('archive_worker_metric')
+            key='archive_worker.'+name
+            self.storage_metrics[key+'.total']=self.storage_metrics.get(key+'.total',0)+value
+            self.storage_metrics[key+'.peak']=max(self.storage_metrics.get(key+'.peak',0),value)
+        self._storage_stage('archive_commit',lambda:self.writer.commit_archive(plan,receipt))
+        if retain:self.retention()
+
+    def archive_commit_and_plan(self,plan,receipt):
+        self.archive_commit(plan,receipt,retain=False)
+        return self.archive_plan()
+
+    def retention(self):
+        before=self.writer.db.total_changes
+        self._storage_stage('retention',lambda:self.writer.retain(time.time()-180,max_records=1000,archive_first=False))
+        return self.writer.db.total_changes>before
 
     def close(self):
         try:
+            self.fence.health('storage_maintenance',dict(self.storage_metrics))
             self.fence.disconnect('service_shutdown')
             self.fence.health('phase','FAILED' if self.failed else 'OFF')
             self.fence.health('heartbeat',time.time())
@@ -1090,27 +1144,62 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 except TimeoutError:pass
 
         async def maintenance():
-            next_health=0
+            next_health=0;archive_future=None;archive_started=0
+            def prepare(snapshot):
+                # Exactly one bounded encoded snapshot can be in flight. The
+                # preceding archive is durable/committed before selecting this.
+                return asyncio.wrap_future(decoder_pool.submit(EvidenceWriter.prepare_and_write_archive,path,snapshot,max_bytes=16*1024*1024))
             while not stop.is_set():
-                plan=None
+                yielded=False
                 try:
                     if time.monotonic()>=next_health:
                         http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
-                        plan=await work(lambda state:state.maintenance(http),4);next_health=time.monotonic()+1
+                        await work(lambda state:state.maintenance_health(http),4);next_health=time.monotonic()+1
                         snapshot=dict(counts)
                         await work(lambda state:state.fence.health('ipc',snapshot),1)
                         scheduler=owner.telemetry()
                         await work(lambda state:state.fence.health('owner_scheduler',scheduler),1)
-                    else:plan=await work(lambda state:state.writer.archive_plan(time.time()-180,max_records=512),4)
-                    if plan:
-                        receipt=await asyncio.to_thread(EvidenceWriter.write_archive,path,plan)
-                        await work(lambda state:state.archive_commit(plan,receipt),4)
+                    if archive_future is None:
+                        snapshot=await work(lambda state:state.archive_plan(),4)
+                        if snapshot:
+                            archive_started=time.monotonic();archive_future=prepare(snapshot)
+                    if archive_future is not None:
+                        plan,receipt=await archive_future;archive_future=None
+                        archive_elapsed=int((time.monotonic()-archive_started)*1_000_000)
+                        counts['archive.worker_wait_total_microseconds']=counts.get('archive.worker_wait_total_microseconds',0)+archive_elapsed
+                        counts['archive.worker_wait_peak_microseconds']=max(counts.get('archive.worker_wait_peak_microseconds',0),archive_elapsed)
+                        snapshot=await work(lambda state:state.archive_commit_and_plan(plan,receipt),4)
+                        # Preparation of the next archive overlaps bounded hot
+                        # cleanup. Source/consumer work retains owner priority.
+                        if snapshot:
+                            archive_started=time.monotonic();archive_future=prepare(snapshot)
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
-                try:await asyncio.wait_for(stop.wait(),.1 if plan else 1)
+                    yielded=True
+                if archive_future is not None or yielded:
+                    # One bounded snapshot is in flight; completion itself paces
+                    # backlog work. An artificial delay loses archive capacity.
+                    await asyncio.sleep(0)
+                    continue
+                try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
-        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(stop.wait())]
+        async def retention():
+            # Independent bounded cleanup fills owner capacity while the one
+            # archive worker prepares/publishes immutable evidence. Coupling one
+            # cleanup call to each archive left Meteora's dense indexes behind.
+            while not stop.is_set():
+                try:progress=await work(lambda state:state.retention(),4)
+                except EvidenceUnavailable as exc:
+                    if str(exc)!='evidence_background_yield':raise
+                    progress=True
+                if progress:
+                    await asyncio.sleep(0)
+                    continue
+                try:await asyncio.wait_for(stop.wait(),1)
+                except TimeoutError:pass
+
+        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception

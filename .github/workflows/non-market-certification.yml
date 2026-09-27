@@ -18,7 +18,7 @@ jobs:
   offline-prerequisites:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[non-market-cert]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -77,6 +77,11 @@ jobs:
           (cd "$RUNNER_TEMP/non-market-lanes/pump" && python -m tests.resource_check) > non-market-evidence/pump-resource.json
           (cd "$RUNNER_TEMP/non-market-lanes/meteora" && python -m tests.resource_check) > non-market-evidence/meteora-resource.json
           (cd "$RUNNER_TEMP/non-market-lanes/meteora" && python -m tests.dlmm_resource_check) > non-market-evidence/meteora-dlmm-resource.json
+      - name: Ten-minute mature Solana retention and source-clock pressure
+        timeout-minutes: 13
+        run: |
+          mkdir -p non-market-evidence/run381-pressure
+          python -m certification.run381_pressure --output non-market-evidence/run381-pressure > non-market-evidence/run381-pressure/run.log 2>&1
       - name: Prepare original historical Meteora accounting implementation
         run: |
           git worktree add --detach "$RUNNER_TEMP/historical-meteora" 3370a0a3a283b4e3901ae51e294eeb00ef69832d

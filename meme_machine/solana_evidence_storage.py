@@ -17,12 +17,30 @@ def install(db):
     CREATE INDEX IF NOT EXISTS hot_ref_hash ON hot_refs(hash);
     CREATE TABLE IF NOT EXISTS address_keys(id INTEGER PRIMARY KEY,address TEXT NOT NULL UNIQUE);
     CREATE TABLE IF NOT EXISTS address_refs(address_id INTEGER NOT NULL,record_id INTEGER NOT NULL,slot INTEGER NOT NULL,
-      PRIMARY KEY(address_id,record_id)) WITHOUT ROWID;
-    CREATE INDEX IF NOT EXISTS address_record ON address_refs(record_id);
+      PRIMARY KEY(record_id,address_id)) WITHOUT ROWID;
     ''')
     old=db.execute("SELECT type FROM sqlite_master WHERE name='addresses'").fetchone()
     db.execute('BEGIN IMMEDIATE')
     try:
+        # Run 381's 5.6M references made every record deletion fan out over the
+        # address-keyed primary tree AND a redundant record index. Cluster the
+        # immutable references by record; address_window still serves consumers.
+        # Migration is atomic, disk-backed and preserves all integer identities.
+        primary={r[1]:r[5] for r in db.execute('PRAGMA table_info(address_refs)')}
+        if primary.get('record_id')!=1:
+            from .solana_evidence_plane import require_storage
+            path=next(r[2] for r in db.execute('PRAGMA database_list') if r[1]=='main')
+            pages=db.execute('PRAGMA page_count').fetchone()[0]*db.execute('PRAGMA page_size').fetchone()[0]
+            require_storage(path,required_bytes=2*pages)
+            if old and old[0]=='view':db.execute('DROP VIEW addresses')
+            db.execute('DROP TRIGGER IF EXISTS record_storage_delete')
+            db.execute('''CREATE TABLE ordered_address_refs(address_id INTEGER NOT NULL,
+              record_id INTEGER NOT NULL,slot INTEGER NOT NULL,
+              PRIMARY KEY(record_id,address_id)) WITHOUT ROWID''')
+            db.execute('INSERT INTO ordered_address_refs SELECT * FROM address_refs')
+            db.execute('DROP TABLE address_refs')
+            db.execute('ALTER TABLE ordered_address_refs RENAME TO address_refs')
+        db.execute('DROP INDEX IF EXISTS address_record')
         if old and old[0]=='table':
             db.execute('INSERT OR IGNORE INTO address_keys(address) SELECT DISTINCT address FROM addresses')
             db.execute('INSERT OR IGNORE INTO address_refs SELECT k.id,r.rowid,a.slot FROM addresses a JOIN address_keys k ON k.address=a.address JOIN records r ON r.identity=a.identity')
@@ -85,7 +103,7 @@ def _inflate(raw):
     return value
 
 
-def decode(raw,db):
+def decode(raw,db=None,*,chunks=None,decoded_chunks=None):
     if isinstance(raw,str):return json.loads(raw) # original stores/small bodies
     if not isinstance(raw,bytes) or not raw.startswith(b'SEP1'):raise ValueError('hot_body_encoding')
     try:value=json.loads(_inflate(raw[4:]))
@@ -94,12 +112,19 @@ def decode(raw,db):
         section=value['payload'].get(parent)
         ref=section.get(key) if isinstance(section,dict) else None
         if not isinstance(ref,dict) or set(ref)!={'_hot_log_chunk'}:continue
-        row=db.execute('SELECT body FROM hot_chunks WHERE hash=?',(ref['_hot_log_chunk'],)).fetchone()
+        checksum=ref['_hot_log_chunk']
+        if decoded_chunks is not None and checksum in decoded_chunks:
+            section[key]=decoded_chunks[checksum][1];continue
+        row=((chunks[ref['_hot_log_chunk']],) if ref['_hot_log_chunk'] in chunks else None) if chunks is not None else db.execute('SELECT body FROM hot_chunks WHERE hash=?',(ref['_hot_log_chunk'],)).fetchone()
         if row is None:raise ValueError('hot_chunk_missing')
         try:logs=_inflate(row[0])
         except zlib.error as exc:raise ValueError('hot_chunk_corrupt') from exc
         if hashlib.sha256(logs).hexdigest()!=ref['_hot_log_chunk']:raise ValueError('hot_chunk_hash_mismatch')
         section[key]=json.loads(logs)
+        # Used only inside one immutable off-owner archive snapshot. Repeated
+        # authenticated log chunks need one hash/decode; bound cache by raw bytes.
+        if decoded_chunks is not None and sum(v[0] for v in decoded_chunks.values())+len(logs)<=4*1024*1024:
+            decoded_chunks[checksum]=(len(logs),section[key])
     return value
 
 

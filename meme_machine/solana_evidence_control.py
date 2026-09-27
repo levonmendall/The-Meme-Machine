@@ -90,17 +90,26 @@ class PriorityOwner:
                     def yield_background():
                         nonlocal interrupted
                         if interrupted:return 0 # allow rollback to finish
+                        # Retention commits bounded slices. Interrupting their
+                        # DELETEs repeatedly rolled back all cleanup in Run 381.
+                        # Other background SQL, including repair transactions,
+                        # remains interruptible; urgent work runs between slices.
+                        if getattr(writer,'_retention_atomic',False):return 0
                         with self.cv:urgent=bool(self.queue and self.queue[0][0]<2)
                         if urgent:
                             interrupted=True;return 1
                         return 0
-                    if priority==4 and writer:writer.db.set_progress_handler(yield_background,1000)
+                    if priority==4 and writer:
+                        writer._retention_yield_requested=yield_background
+                        writer.db.set_progress_handler(yield_background,1000)
                     try:result=fn(self.state)
                     except sqlite3.OperationalError as exc:
                         if interrupted:raise EvidenceUnavailable('evidence_background_yield') from exc
                         raise
                     finally:
-                        if priority==4 and writer:writer.db.set_progress_handler(None,0)
+                        if priority==4 and writer:
+                            writer.db.set_progress_handler(None,0)
+                            writer._retention_yield_requested=None
                 except BaseException as exc: future.set_exception(exc)
                 else: future.set_result(result)
                 finally:

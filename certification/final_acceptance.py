@@ -70,6 +70,20 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         and resource_rss_kib(resources["meteora_dlmm"])>0
     )
     identity_pass=(not expected_sha or offline.get("integration_sha")==expected_sha)
+    pressure_path=root/'run381-pressure/result.json'
+    pressure=load(pressure_path) if pressure_path.exists() else {}
+    pressure_pass=(pressure.get('passed') is True
+        and pressure.get('integration_sha')==offline.get('integration_sha')
+        and pressure.get('provider_calls')==0
+        and pressure.get('source_seconds',0)>=600
+        and pressure.get('candidate_checks',0)>1
+        and pressure.get('archive_records_verified',0)>0
+        and pressure.get('counters',{}).get('compacted_records',0)>0
+        and 0<=pressure.get('lag_peak',float('inf'))<45
+        and 0<pressure.get('oldest_hot_age_peak',float('inf'))<=240
+        and 0<pressure.get('oldest_retained_age_peak',float('inf'))<=240
+        and 0<pressure.get('hot_peak',float('inf'))<2*1024**3
+        and pressure.get('integrity')==['ok'])
     gates={
         "exact_source_offline":offline.get("passed") is True,
         "native_crash_matrix":crash_pass,
@@ -79,6 +93,7 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         "historical_registry_released":registry_pass,
         "production_adapter_connectivity":connectivity_pass,
         "resource_bounds":resource_pass,
+        "mature_solana_pressure":pressure_pass,
         "exact_integration_identity":identity_pass,
     }
     if preserved_only:
@@ -110,6 +125,7 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
             "preserve durable exposure and fail closed against fresh admission"
         ),
         integrated_acceptance=integrated,
+        mature_solana_pressure=pressure,
         historical_resolution=dict(
             disposition=historical.get("disposition"),
             original_artifact_preserved=historical.get("immutable_original_artifact_preserved"),
