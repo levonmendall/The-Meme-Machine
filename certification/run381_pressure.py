@@ -4,7 +4,7 @@ Preserved templates remain immutable on disk. Envelopes, identity suffixes and
 event timestamps are synthetically replayed against the fixed source clock.
 The default replay spans 600 real seconds and crosses the actual retention age.
 """
-import argparse,asyncio,base64,gzip,hashlib,json,re,sqlite3,struct,subprocess,tempfile,time
+import argparse,asyncio,base64,gzip,hashlib,json,re,sqlite3,struct,subprocess,tempfile,time,traceback
 from pathlib import Path
 from unittest.mock import patch
 from tests.test_run380_production_pressure import Wire as PreservedWire
@@ -58,7 +58,7 @@ async def run(frames,output):
     assert results['program:pump']>0 and results['program:pumpswap']>0,results
     return results
    finally:plane.close()
-  c={};failure=None;control=None;next_query=0
+  c={};failure=None;failure_frames=[];control=None;next_query=0
   try:
    while c.get('stream_accepted_messages',0)<frames:
     if runner.done():await runner
@@ -84,11 +84,16 @@ async def run(frames,output):
    if frames>=1000:
     assert c.get('archived_records',0)>0 and c.get('compacted_records',0)>0,c
    assert not {k:v for k,v in c.items() if (k.startswith('disconnect:') or k=='capacity_stops') and v},c
-  except BaseException as exc:failure=type(exc).__name__+':'+str(exc)
+  except BaseException as exc:
+   failure=type(exc).__name__+':'+str(exc)
+   failure_frames=[dict(file=Path(f.filename).name,line=f.lineno,function=f.name) for f in traceback.extract_tb(exc.__traceback__)][-16:]
   finally:
    stop.set()
    try:await runner
-   except BaseException as exc:failure=failure or type(exc).__name__+':'+str(exc)
+   except BaseException as exc:
+    if failure is None:
+     failure=type(exc).__name__+':'+str(exc)
+     failure_frames=[dict(file=Path(f.filename).name,line=f.lineno,function=f.name) for f in traceback.extract_tb(exc.__traceback__)][-16:]
    if control is not None:await asyncio.gather(control,return_exceptions=True)
    db=sqlite3.connect(path);health={k:json.loads(v) for k,v in db.execute('select key,value from service_health')};ipc=health.get('ipc',{})
    counters=dict(db.execute('select key,value from counters'));integrity=db.execute('pragma integrity_check').fetchone()
@@ -104,6 +109,7 @@ async def run(frames,output):
    result['integration_sha']=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
    result['source_hashes']={name:hashlib.sha256((Path(service.__file__).parent/name).read_bytes()).hexdigest() for name in ('solana_evidence_plane.py','solana_evidence_service.py','solana_evidence_storage.py','solana_evidence_control.py','solana_program_decoders.py')}
    result['storage_maintenance']=health.get('storage_maintenance',{})
+   result['failure_frames']=failure_frames
    result['oldest_hot_age_peak']=oldest_hot_age_peak
    result['retained_by_scope']=retained_by_scope
    result['archived_pending_compaction']=sum(r['archived_pending'] for r in retained_by_scope)

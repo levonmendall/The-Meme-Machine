@@ -1,60 +1,74 @@
-name: Run 381 bounded offline pressure artifact review
+name: Run 381 source-clock pressure comparison
 on:
   push:
     branches: [analysis/run381-preserved-evidence-20260927]
 permissions:
   contents: read
-  actions: read
 jobs:
-  review:
+  pressure:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [repaired]
     steps:
-      - name: Read digest-verified offline result
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install -r requirements.txt
+      - name: Select preserved or repaired source
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          PROFILE_RUNTIME: ${{ matrix.runtime }}
+        run: |
+          if [ "$PROFILE_RUNTIME" = old ]; then
+            git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
+            git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
+            git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_storage.py > meme_machine/solana_evidence_storage.py
+            git show 510872d8cc5d2fde2ae7ef412b5b31e5e4c1cfbf:meme_machine/solana_evidence_control.py > meme_machine/solana_evidence_control.py
+          fi
+      - name: Reproduce old scope starvation and verify bounded repair
+        run: |
+          mkdir -p pressure-output
+          set -o pipefail
+          git show 76fb6e6b8d337b540ecac3eacdc91d6e673c5e35:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
+          if python -m unittest tests.test_run381_retention_progress.RetentionProgressTests.test_recurring_urgent_work_cannot_starve_later_retention_scopes 2>&1 | tee pressure-output/starvation-before.log; then
+            echo "Old implementation did not reproduce the required regression"
+            exit 1
+          fi
+          git restore --source=HEAD -- meme_machine/solana_evidence_plane.py
+          python -m unittest tests.test_run381_retention_progress tests.test_run381_repair_pagination -q 2>&1 | tee pressure-output/starvation-after.log
+      - name: Reconstructed production pressure without provider credentials
+        env:
+          PRESSURE_FRAMES: '2223'
+        run: |
+          mkdir -p pressure-output
+          python -m certification.run381_pressure --frames "$PRESSURE_FRAMES" --output pressure-output > pressure-output/pressure.jsonl 2>&1
+      - name: Publish bounded offline diagnostic result
+        if: always()
         run: |
           python - <<'PY'
-          import hashlib,io,json,os,time,urllib.request,urllib.error,zipfile
-          repo='levonmendall/The-Meme-Machine'
-          run_id=36288580636
-          expected_sha='aa6db426082cfbe32645af6a6107cfb00dd5689d'
-          base='https://api.github.com/repos/'+repo
-          def api(path):
-           req=urllib.request.Request(base+path,headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json'})
-           with urllib.request.urlopen(req,timeout=30) as r:return json.load(r)
-          run=api('/actions/runs/'+str(run_id))
-          assert run['head_sha']==expected_sha
-          for attempt in range(36):
-           rows=api('/actions/runs/'+str(run_id)+'/artifacts')['artifacts']
-           matches=[a for a in rows if a['name']=='run381-mature-pressure-repaired' and not a['expired']]
-           if matches:break
-           time.sleep(10)
-          else:raise RuntimeError('preserved_pressure_artifact_unavailable')
-          assert len(matches)==1
-          a=matches[0]
-          class NoRedirect(urllib.request.HTTPRedirectHandler):
-           def redirect_request(self,*args,**kwargs):return None
-          request=urllib.request.Request(a['archive_download_url'],headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN']})
-          try:
-           with urllib.request.build_opener(NoRedirect()).open(request,timeout=30) as response:raw=response.read(1024*1024+1)
-          except urllib.error.HTTPError as exc:
-           if exc.code not in (301,302,303,307,308):raise
-           url=exc.headers['Location']
-           assert url.startswith('https://')
-           with urllib.request.urlopen(url,timeout=30) as response:raw=response.read(1024*1024+1)
-          assert len(raw)<=1024*1024
-          actual=hashlib.sha256(raw).hexdigest()
-          assert a['digest']=='sha256:'+actual
-          with zipfile.ZipFile(io.BytesIO(raw)) as archive:
-           info=archive.getinfo('result.json');assert info.file_size<=128*1024
-           result=json.loads(archive.read(info))
-           print('PRESSURE_ARTIFACT',json.dumps(dict(id=a['id'],sha256=actual,run_id=run_id,sha=expected_sha)))
-           print('PRESSURE_RESULT',json.dumps(result,sort_keys=True))
-           info=archive.getinfo('pressure.jsonl');assert info.file_size<=256*1024
-           for line in archive.read(info).decode().splitlines():
-            if line.startswith('{'):
-             row=json.loads(line)
-             if 'elapsed' in row and 'passed' not in row:print('PRESSURE_TIMELINE',json.dumps(row,sort_keys=True))
-            elif line:print('PRESSURE_DIAGNOSTIC',line[:2000])
+          import hashlib,json
+          from pathlib import Path
+          path=Path('pressure-output/result.json')
+          if path.exists():
+              raw=path.read_bytes()
+              assert len(raw)<=128*1024
+              print('PRESSURE_RESULT_SHA256',hashlib.sha256(raw).hexdigest())
+              print('PRESSURE_RESULT',raw.decode())
+          else:
+              log=Path('pressure-output/pressure.jsonl')
+              if log.exists():
+                  print('PRESSURE_FAILURE_LOG',log.read_text()[-8000:])
           PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: run381-mature-pressure-${{ matrix.runtime }}
+          path: pressure-output/
+          retention-days: 90
+          if-no-files-found: error
