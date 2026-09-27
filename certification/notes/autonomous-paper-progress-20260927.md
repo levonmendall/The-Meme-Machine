@@ -530,3 +530,34 @@ closure: execute the workflow adapters offline through all six actual native
 states and position paths (not only controller transitions), verify failure
 artifact/drain behavior, then query final-SHA registered dispatch availability.
 Phase B restart/replay and Phase D long-horizon/steady-state gaps remain open.
+
+Wiring batch pushed as `b2ca5fa2920dd41a8f69310a087c5661131e262e`;
+ordinary CI `36335523112` passes and registration-only workflow `36335523146`
+passes. Prepared source identities remain unchanged. The connected GitHub tool
+has no dispatch operation and rejects direct workflow-registration GET endpoints.
+Reuse the repository's external launch-request architecture: a separate request
+branch checks out the exact runtime, verifies real workflow availability, consumes
+a durable one-use launch intent, then calls workflow_dispatch. Four tests pass,
+including read-only contract checks, malformed requests, exact certificate SHA,
+ambiguous POST and duplicate rejection. No launcher has been executed yet.
+
+Control-path audit found the engineering gate still recognized only Survivor-v1
+handoffs, while current Pump/Pons terminal recovery produces controller-v2.
+Added a strict v2 binding to the actual native proof, current controller schema,
+unique position identities, no-entry authority and exact combined position count.
+Both-lane tests now pass; mismatched/stale/native-missing/duplicate proofs fail.
+Nineteen affected control/smoke-continuation/launch tests pass. This repairs gate
+binding, not strategy or exposure policy. Full adapter and long-horizon proofs
+remain pending; no market run or new pressure dispatch.
+
+Two bounded long-horizon probes identify real remaining work. Actual Pump Survivor
+evaluation at 263/514/1,012 points takes 0.0342/0.1191/0.4918 seconds, while retaining
+the same qualified fixture decision. Its six-hour slope recomputes both exact
+means inside every summand: quadratic work. Precomputing those two Fraction means
+can preserve every arithmetic result; prove equality and linear operation count.
+The unchanged History default also rejects 100,001 one-second observations at
+age 100,000 seconds, well inside the approved 604,800-second candidate horizon.
+The transaction rolls back and leaves the watermark at zero in this single-batch
+causal probe. Do not raise the point limit: a durable archived boundary and exact
+bounded feature-history representation are required. No repair to these two
+findings has been implemented yet.

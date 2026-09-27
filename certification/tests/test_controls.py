@@ -101,6 +101,27 @@ class ControlsTests(unittest.TestCase):
         self.assertIn('pump:unsettled_position_without_durable_handoff',
                       hourly_engineering(result)['failures'])
 
+    def test_current_and_survivor_handoff_requires_matching_native_v2_proof(self):
+        from copy import deepcopy
+        from certification.controls import position_handoff
+        for lane in ('pump','pons'):
+            state=dict(schema='directional-controller-handoff-v2',lane=lane,survivor_positions=1,
+                current=dict(schema=lane+'-current-controller-handoff-v1',entry_authority=False,
+                    positions=[dict(id='current:one',opened_at=10)]))
+            proof=dict(verified=True,durable_handoff=True,open_positions=2,continuation_state=state)
+            row=dict(durable_handoff=True,open_positions=2,continuation_state=state,terminal_reconciliation=proof)
+            self.assertTrue(position_handoff(lane,row))
+            smoke=self.smoke();smoke['lanes'][lane].update(row)
+            self.assertEqual(smoke_engineering(smoke)['status'],'PASS')
+            for kind in ('duplicate','count','missing_native','authority','stale_report'):
+                bad=deepcopy(row)
+                if kind=='duplicate':bad['continuation_state']['current']['positions']*=2
+                if kind=='count':bad['open_positions']=3
+                if kind=='missing_native':bad['terminal_reconciliation']['durable_handoff']=False
+                if kind=='authority':bad['continuation_state']['current']['entry_authority']=True
+                if kind=='stale_report':bad['terminal_reconciliation']['continuation_state']={}
+                with self.subTest(lane=lane,kind=kind):self.assertFalse(position_handoff(lane,bad))
+
     def test_raw_transport_hash_missing_record_and_terminal_policy_are_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);journal=Journal(root/'telemetry.sqlite')

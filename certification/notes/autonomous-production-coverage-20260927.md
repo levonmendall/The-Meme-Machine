@@ -7,8 +7,8 @@ Authority: `autonomous_paper_task_manifest.json`; four sleeves, six active regim
 | discovery | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | target-market routing | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | authoritative evidence | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
-| reconstruction | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
-| feature computation | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
+| reconstruction | PROVEN | BROKEN | PROVEN | BROKEN | PROVEN | PROVEN |
+| feature computation | PROVEN | BROKEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | qualification | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | commit-time revalidation | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
 | capacity/sizing | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN | PROVEN |
@@ -58,3 +58,5 @@ Current-Pons controller recovery is now connected to cohort startup and the actu
 Current Pump now resumes through its native production restore/monitor and reattaches only the existing shared-sleeve reservation. Partial → restart → final native exit → exact sleeve release passes with finalized local history. Final workflow/campaign control-plane proof remains MISSING for every regime.
 
 Both Survivor acquisition compositions are now PROVEN by `test_survivor_acquisition`: Pump raw migration decoder → linked finalized census → shared read-only reader → durable discovery, including unsealed/non-native/gap rejection; Pons captured graduation bytes → receipt/ABI/lineage proof → history, plus shared V4 transport → separate pool authentication → candidate histories. These regressions exposed and repaired the dropped Pump migration binding and Pons one-candidate scheduling starvation. Timeout/receipt/reorg failures preserve cursors and resume without duplicate evidence. Four-hour aging across normal workflow boundaries remains MISSING under restart/replay; this acquisition proof does not close that gate.
+
+Long-horizon probes now mark both Survivor history reconstructions BROKEN at the unchanged 100,000-point cap inside the approved seven-day age window. Pump's exact six-hour slope also has measured quadratic cost (263/514/1,012 points: 0.0342/0.1191/0.4918 seconds). Preserve policy arithmetic, evidence provenance and the point cap while repairing these causes. The existing short-history qualification proofs remain valid but cannot close these operational defects.

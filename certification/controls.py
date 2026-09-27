@@ -97,6 +97,19 @@ def position_handoff(lane,row):
     if lane in ('meteora','ramses'):return row.get('open_positions')==1
     state=row.get('continuation_state') or {}
     proof=row.get('terminal_reconciliation') or {}
+    if lane in ('pump','pons') and state.get('schema')=='directional-controller-handoff-v2':
+        current=state.get('current') or {};positions=current.get('positions')
+        survivor=state.get('survivor_positions')
+        if (proof.get('verified') is not True or proof.get('durable_handoff') is not True
+                or proof.get('continuation_state')!=state or state.get('lane')!=lane
+                or current.get('schema')!=lane+'-current-controller-handoff-v1'
+                or current.get('entry_authority') is not False
+                or not isinstance(positions,list) or not positions
+                or type(survivor) is not int or survivor<0):return False
+        identities=[p.get('id') for p in positions if isinstance(p,dict)]
+        return (len(identities)==len(positions) and all(isinstance(i,str) and i for i in identities)
+                and len(set(identities))==len(identities)
+                and row.get('open_positions')==proof.get('open_positions')==len(positions)+survivor)
     return bool(lane in ('pump','pons') and proof.get('verified') is True
         and state.get('schema')=='directional-survivor-handoff-v1'
         and state.get('lane')==lane and state.get('positions',0)>0
