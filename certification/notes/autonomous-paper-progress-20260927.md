@@ -455,3 +455,24 @@ ten-block log query or the 40-block history slice. Thirty-two-event graduation
 and 256-event per-pool limits remain. Frozen policies and allocation unchanged.
 Declared overlays/source identities are being recorded. Next: cross-window
 candidate history, bounded long-horizon storage, and durable controller gates.
+
+Acquisition batch pushed as `48e7cd03121d9a2337038658071717b9db4f3e72`.
+Independent prepared checkouts have identical source identities for all lanes.
+Normal-window audit reproduced Ramses rejecting its existing capital directory
+on a second production campaign invocation. Prototype verifies the original
+pinned screen, manifest, exact asset/book set and each native genesis, then
+reopens existing journals before discovery. Missing books or changed screen/policy
+fail without writes; no re-funding. Eight native campaign tests pass, including
+an open position across reopen, loss preservation and two production campaign
+windows with one original genesis and four distinct settlements. Old production
+startup fails that same second-window regression. Workflow transfer remains pending.
+
+Ordinary CI `36332509437` passed the acquisition batch. Ramses recovery composes
+identically in both prepared checkouts. Its complete native suite ran 365 tests:
+362 pass and three fail at the previously established workspace PID/proc liveness
+boundary (two immutable-RPC, one candidate-plane); no production fence weakened.
+Final hosted certification remains mandatory. Five new state-capsule tests pass:
+exact SHA/policy/campaign/authorization lock, corruption/collision rejection,
+interrupted installation before receipt publication, and real Survivor history,
+partial/native ledger and sleeve transfer without creating capital. This module
+does not yet dispatch or authorize a successor; runtime/controller wiring is next.

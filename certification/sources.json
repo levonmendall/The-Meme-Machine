@@ -1433,7 +1433,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "255e286c4f2544127cbce9d3303eb4634da2c09aa48f4cc9396d3923fe597092",
+      "source_diff_sha256": "7cb3462e1bd7da69da4a8276e696480c6dd4075706bf7d369c15bdc596e1bcae",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -1450,8 +1450,17 @@
         "certification/patches/robinhood-evidence-plane-ramses.patch",
         "certification/patches/robinhood-provider-authority-ramses.patch",
         "certification/patches/run371-ramses-transient-pressure.patch",
-        "certification/patches/run377-ramses-rpc-state-attribution.patch"
-      ]
+        "certification/patches/run377-ramses-rpc-state-attribution.patch",
+        "certification/patches/autonomous-ramses-campaign-recovery.patch"
+      ],
+      "composed_file_hashes": {
+        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+        "robinhood_research/ramses_strategy.py": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+        "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
+        "robinhood_research/ramses_campaign.py": "649f552f2553c7ca7f8791adc9016c2278446f9bb05b935f4f00e79789d03e66",
+        "robinhood_research/ramses_extended_test.py": "a8f77847772645dbf393cf7708fc345628fc47e9642efd15761e2334b840bcb5",
+        "robinhood_tests/test_ramses_continuous_campaign.py": "97468f53bebd9468a59efb8d9e4d3a7bacdda3b5854cb60b9b9ddcfab6851294"
+      }
     }
   },
   "execution_certification": {
