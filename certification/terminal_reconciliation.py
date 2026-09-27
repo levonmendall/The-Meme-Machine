@@ -68,6 +68,21 @@ def meteora_handoff(events,accounting,replay):
     )
 
 
+def pump_current_handoff(book):
+    """Use the native startup reconstruction without issuing provider or pin writes."""
+    from types import SimpleNamespace
+    from tests import pump_acceleration_natural_prospective as strategy
+    from meme_machine.pump_acceleration_confirmations import ConfirmationBook
+    from certification.decision_conformance import restoring_recorded_state
+    plane=SimpleNamespace(interest=lambda *args,**kwargs:None)
+    with restoring_recorded_state():
+        _,_,pending,active,_=strategy.restore_runtime(book,plane,ConfirmationBook({},60),bind_allocation=False)
+    if pending or not active:return None
+    return dict(schema='pump-current-controller-handoff-v1',entry_authority=False,
+        positions=[dict(id=row['lifecycle'].lifecycle_id,opened_at=row['opened'])
+                   for row in active.values()],accounting_reconciled=True)
+
+
 def pons_current_handoff(root,capital_path):
     """Read-only proof that every filled current-Pons position has its controller."""
     from robinhood_research.evidence import Store
@@ -107,9 +122,11 @@ def reconcile(lane,root):
             book.identity=json.loads(db.execute('SELECT body FROM genesis WHERE id=1').fetchone()[0])
             if book.identity['policy_hash']!=policy_hash():raise ValueError('terminal_policy_identity')
             replay=book.replay();accounting=book.reconcile()
+            handoff=pump_current_handoff(book) if accounting['open_positions'] else None
         from certification.directional_accounting import terminal
         return terminal(lane,root,dict(verified=True,accounting=accounting,accounting_replay=replay,
-                    open_positions=accounting['open_positions']+accounting['pending']))
+                    open_positions=accounting['open_positions']+accounting['pending'],
+                    durable_handoff=handoff is not None,continuation_state=handoff))
     if lane=='pons':
         from robinhood_research.pons_selective_capital import CohortCapital
         from robinhood_research.pons_selective_continuation import POLICY_HASH

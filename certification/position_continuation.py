@@ -641,6 +641,54 @@ def resume_ramses(state_dir,*,slice_seconds):
         book.close()
 
 
+class PumpCurrentContinuation:
+    """The native Pump monitor with discovery and pending-entry execution absent."""
+    def __init__(self,root,confirmations):
+        from tests import pump_acceleration_natural_prospective as strategy
+        from meme_machine.paper_accounting import PaperBook
+        from meme_machine.solana_evidence_runtime import RuntimeEvidence,LocalPumpTape
+        from certification.terminal_reconciliation import connect
+        from certification.decision_conformance import restoring_recorded_state
+        from contextlib import closing
+        self.strategy=strategy;self.confirmations=confirmations
+        self.book=self.plane=self.sessions=None
+        path=Path(root)/'pump-acceleration-natural-prospective.accounting.sqlite3'
+        try:
+            with closing(connect(path)) as db:
+                genesis=json.loads(db.execute('SELECT body FROM genesis WHERE id=1').fetchone()[0])
+            if genesis['policy_hash']!=strategy.policy_hash():raise RuntimeError('pump_continuation_policy')
+            self.book=PaperBook(path,**genesis)
+            self.plane=RuntimeEvidence(owner='pump');self.tape=LocalPumpTape(self.plane)
+            with restoring_recorded_state():
+                self.created,self.postgrad,pending,self.active,qualifiers=strategy.restore_runtime(
+                    self.book,self.plane,confirmations)
+            if pending:raise RuntimeError('pump_continuation_pending_entry_forbidden')
+            self.sessions=strategy.Sessions();self.sessions.plane=self.plane
+            self.report=dict(settled=[],qualifiers=qualifiers,entry_authority=False)
+        except BaseException:
+            self.close();raise
+
+    def step(self):
+        self.strategy._monitor_positions(self.report,self.active,self.sessions,self.created,
+            self.postgrad,self.tape,self.confirmations,int(time.time()))
+        return dict(open_positions=len(self.active),accounting=self.book.reconcile(),
+            settled=list(self.report['settled']),new_entries=0,
+            monitor_failures={row['lifecycle'].lifecycle_id:row.get('monitor_failures',[])
+                for row in self.active.values()})
+
+    def close(self):
+        try:
+            if self.sessions is not None:self.sessions.finish()
+        finally:
+            try:
+                for row in getattr(self,'active',{}).values():
+                    life=row['lifecycle']
+                    if life.sleeve is not None:life.sleeve.close();life.sleeve=None
+                if self.plane is not None:self.plane.close()
+            finally:
+                if self.book is not None:self.book.close()
+
+
 def resume_directional(state_dir,*,lane,slice_seconds):
     """Resume verified filled directional positions under the one frozen sleeve."""
     from contextlib import closing
@@ -670,6 +718,7 @@ def resume_directional(state_dir,*,lane,slice_seconds):
                MM_DIRECTIONAL_SLEEVE_DB=str(root/'directional-sleeve.sqlite'))
     prior={k:os.environ.get(k) for k in env};os.environ.update(env)
     evidence=None;runtime=None;current_pool=None;current_futures=[];current_results=[]
+    pump_current=None;pump_status=None
     try:
         if lane=='pump':
             from certification.evidence_supervisor import EvidenceProcess
@@ -680,6 +729,8 @@ def resume_directional(state_dir,*,lane,slice_seconds):
                 Path(lane_root)/'tests/fixtures/solana_skilled_wallet_prospective_contract.json')
             evidence=EvidenceProcess(original_run,lane_root,env);evidence.start()
             runtime=Runtime(folder,genesis['initial'],genesis['run_id'],confirmations)
+            if (before.get('continuation_state') or {}).get('current'):
+                pump_current=PumpCurrentContinuation(root,confirmations)
         else:
             from robinhood_research.pons_survivor_runtime import Runtime
             runtime=Runtime(folder,genesis['initial'],genesis['run_id'],os.environ['MM_ROBINHOOD_READ_RPC_URL'])
@@ -695,15 +746,18 @@ def resume_directional(state_dir,*,lane,slice_seconds):
         deadline=time.monotonic()+slice_seconds
         while time.monotonic()<deadline:
             if evidence is not None:evidence.check()
+            if pump_current is not None:pump_status=pump_current.step()
             status=runtime.step(admit=False)
             if not status.get('durable_handoff'):raise RuntimeError('directional_continuation_unfilled_state')
-            if status['accounting']['open_positions']==0 and all(f.done() for f in current_futures):break
+            if (status['accounting']['open_positions']==0 and all(f.done() for f in current_futures)
+                    and (pump_status is None or pump_status['open_positions']==0)):break
             time.sleep(min(5,max(0,deadline-time.monotonic())))
         current_results=[f.result() for f in current_futures]
         if any(r.get('status') not in ('settled','handoff_required') for r in current_results):
             raise RuntimeError('pons_continuation_provider_or_authority_boundary')
     finally:
         if current_pool is not None:current_pool.shutdown(wait=True,cancel_futures=True)
+        if pump_current is not None:pump_current.close()
         if runtime is not None:runtime.close()
         if evidence is not None:evidence.close()
         for k,value in prior.items():
@@ -718,11 +772,14 @@ def resume_directional(state_dir,*,lane,slice_seconds):
             raise RuntimeError('pons_continuation_created_position')
         current_settled=initial['unsettled']-terminal['unsettled']
         if current_settled<0:raise RuntimeError('pons_continuation_created_exposure')
+    elif pump_current is not None:
+        current_settled=after['strategy_accounting']['current']['settled']-before['strategy_accounting']['current']['settled']
     handoff=after['open_positions']>0
     return dict(lane=lane,status='handoff_required' if handoff else 'settled',handoff_required=handoff,
         runtime_identity=runtime_identity,accounting=after['accounting'],
         terminal_replay_verified=after['verified'],survivor=after['survivor'],
         current_lifecycles=current_results,
+        pump_current=pump_status,
         newly_settled=after['survivor']['accounting']['settled']-original_settled+current_settled,
         new_entries=0,discovery_enabled=False)
 

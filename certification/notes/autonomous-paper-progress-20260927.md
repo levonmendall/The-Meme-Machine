@@ -401,3 +401,16 @@ identities verify. Existing frozen policy/base-source identities are unchanged.
 Next audit work: current Pump workflow continuation, both Survivor acquisition
 composition and cross-window unfilled histories, durable rolling controller,
 then the missing multi-day/crash/provider matrix. No Phase-B–G gate is yet closed.
+
+Pons continuation batch pushed as `4c4b22e5275960b25933a707306d9edf3a421f31`;
+ordinary CI `36330743539` passed. Current Pump already had exact native strategy
+replay but lacked workflow continuation. Reusing its production restore/monitor
+exposed a shared-sleeve defect: after a recovered native settlement, 255,569,215
+fixture lamports remained held because replay never reattached its allocation.
+A startup binding now verifies and attaches only the existing reservation; it
+cannot reserve again or recreate a missing sleeve. Read-only terminal replay
+explicitly omits that operational binding. The production monitor regression
+uses finalized local history, performs a real native partial, reopens, preserves
+the original clock/partial/high-water context, stops and settles once, and releases
+exact shared-sleeve P&L. Missing allocation fails without creating a database.
+Twenty-two affected native Pump tests pass; policies and capital remain unchanged.

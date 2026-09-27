@@ -50,6 +50,25 @@ def native_terminal(sleeve,identity,position,at,*,verified):
                    cancelled=position['status']=='cancelled')
 
 
+def bind_pump_recovered_allocation(book,life):
+    """Attach an existing allocation to a replayed controller; never reserve again."""
+    from pathlib import Path
+    if life.position is None and life.reservation is None:return
+    path=os.environ.get('MM_DIRECTIONAL_SLEEVE_DB')
+    if path and not Path(path).is_file():raise ValueError('pump_recovery_sleeve_missing')
+    sleeve=open_sleeve('pump',book.identity['initial'])
+    if sleeve is None:return
+    try:
+        sleeve.reconcile();position=book._load(life.lifecycle_id)
+        held=sleeve.get(life.lifecycle_id)
+        if (not held or held['strategy']!=book.identity['lane']
+                or held['held']<position['reserved']+position['basis']):
+            raise ValueError('pump_recovery_allocation_identity')
+        life.sleeve=sleeve
+    except BaseException:
+        sleeve.close();raise
+
+
 def recover_pump_terminals(book):
     """Finish only the allocation-side acknowledgement of an existing terminal."""
     import json
