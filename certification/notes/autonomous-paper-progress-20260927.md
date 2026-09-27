@@ -1034,3 +1034,33 @@ append-only guards, cache authority/conflict checks and current-Pons partial pos
 continuation. No cache limit, policy, allocation or source identity was relaxed.
 This closes rolling-cache-key churn only. All measured economic/candidate projection
 growth remains Phase-D work; no full certificate or market run was launched.
+
+D2 Survivor economic/candidate retirement accepted (continuing from published
+016dfeae2587aac7832841c3637c0f73e1b8c822; ordinary CI 36349912186 PASS).
+The measured prefix-only plateau hypothesis was false: terminal projections and
+sleeve candidate identities survived journal compaction. The repair folds only
+native terminals with an exact sleeve acknowledgement and a retired native
+candidate into existing preserved-prefix accounting. Raw rows stay in the verified
+immutable predecessor. Original active/legacy IDs, re-entry state, risk/high-water,
+quantities, timestamps, execution costs and all live reservations remain intact.
+New autonomous Survivor IDs carry the existing campaign/authorization/window scope;
+a bounded archived-window floor rejects replay after terminal rows leave hot state.
+No strategy or policy identity changed. Native runtime overlays only bind issuance
+and startup compaction; composed engineering hashes updated and protocol freeze PASS.
+
+Twelve windows × eight changing completed identities (including partial realization)
+retain all 96 settlements, P&L and execution costs. After each restore: zero archived
+position/candidate rows; SQLite hot bytes 163840,163840,163840, then 167936 for all
+nine remaining windows. Candidate-only and delayed-retirement windows also plateau;
+empty/no-new-event prefixes refresh only against preserved snapshot authority.
+Existing current-strategy sleeve startup tails survive unchanged. Active partial
+runner high-water, tightening, original identity and held allocation are unchanged.
+Crash cuts before native commit, between books, and after sleeve commit recover
+once; altered pending receipts fail closed. Both actual native Survivor constructors
+consume exact snapshot receipt fixtures and reject predecessor entry replay.
+Focused suite 31 PASS plus the final eight-test churn/corruption suite PASS; no
+seven-day component soak rerun. This closes the targeted Survivor settled/candidate
+composition defect, not Phase D. Remaining LINEAR owners: shared Robinhood candidate
+and projection identities; current Pons trials/capital/lifecycle/re-entry; Meteora
+completed native ledger; Ramses position/campaign journals; current-strategy sleeve
+terminal projections. Joined soak/crash/provider matrices and final C/E/F/G remain.

@@ -106,6 +106,9 @@ class SleeveReservations:
                 if all(old[k]==v for k,v in dict(strategy=strategy,amount=amount,candidate=candidate,generation=generation).items()):
                     return old
                 raise ValueError('sleeve_reservation_conflict')
+            from certification.lifecycle_identity import validate_new
+            archive=self._archive()
+            validate_new(identity,archived=(archive or {}).get('archived_entry_scopes',{}).get(strategy))
             if candidate is not None:
                 current=self.candidate(candidate)
                 if not current or current['generation']!=generation or current['state']!='qualified':
@@ -183,16 +186,20 @@ class SleeveReservations:
                 positions={i:json.loads(b) for i,b in source.db.execute('SELECT * FROM sleeve_positions')},
                 candidates={i:json.loads(b) for i,_,b in source.db.execute('SELECT * FROM sleeve_candidates')},
                 authority=authority,previous_archive_hash=digest(prior) if prior else None)
+            if prior:
+                for key in ('folded','archived_entry_scopes'):
+                    if key in prior:anchor[key]=prior[key]
         finally:source.db.close()
         with self.transaction():
             old=self._archive()
             if old and old['seq']>=seq:
                 if old['seq']==seq and old['final_hash']!=anchor['final_hash']:
                     raise ValueError('sleeve_archive_prefix_conflict')
-                return False
+                if old['seq']>seq or old['authority']['state_hash']==authority['state_hash']:return False
             before=self.reconcile()
             row=self.db.execute('SELECT hash FROM sleeve_journal WHERE seq=?',(seq,)).fetchone()
-            if row is None or row[0]!=anchor['final_hash']:
+            if not ((row and row[0]==anchor['final_hash'])
+                    or (old and old['seq']==seq and old['final_hash']==anchor['final_hash'])):
                 raise ValueError('sleeve_archive_prefix_conflict')
             self.db.execute('INSERT OR REPLACE INTO sleeve_archive VALUES(1,?,?)',(canonical(anchor),digest(anchor)))
             # DDL is transactional here; never use executescript (implicit commit).
@@ -222,11 +229,12 @@ class SleeveReservations:
             raise ValueError('sleeve_projection_corruption')
         if candidates!={i:json.loads(b) for i,_,b in self.db.execute('SELECT * FROM sleeve_candidates')}:
             raise ValueError('sleeve_candidate_corruption')
-        held=sum(p['held'] for p in positions.values());realized=sum(p['pnl'] for p in positions.values())
+        folded=archive.get('folded',{}) if archive else {}
+        held=sum(p['held'] for p in positions.values());realized=folded.get('realized',0)+sum(p['pnl'] for p in positions.values())
         available=self.identity['capital']+realized-held
         if available<0:raise ValueError('sleeve_capital_invariant')
         return dict(capital=self.identity['capital'],available=available,reserved=held,realized=realized,
-                    positions=len(positions),reconciled=True,final_hash=previous)
+                    positions=folded.get('positions',0)+len(positions),reconciled=True,final_hash=previous)
 
     def close(self):
         self.reconcile();self.db.close()

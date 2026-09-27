@@ -153,7 +153,7 @@ def meteora_source_coverage(runtime,native,source):
 
 def native_positions(root,lane):
     """Project native append-only events and retain their digest chain for transfers."""
-    positions={};violations=[];journal=[];by_id={};cohort=[];prefixes={}
+    positions={};violations=[];journal=[];by_id={};cohort=[];prefixes={};folded_metrics={}
     for path in sorted(Path(root).rglob('*.sqlite*')):
         if not path.is_file() or path.name.endswith(('-wal','-shm')):continue
         with ro(path) as db:
@@ -187,6 +187,8 @@ def native_positions(root,lane):
                         prefix=json.loads(saved[0])
                         if digest(prefix)!=saved[1]:raise ValueError('native_archived_prefix_integrity')
                         prefixes.update(prefix['journal_proofs'])
+                        for key,value in prefix.get('folded',{}).get('metrics',{}).items():
+                            folded_metrics[key]=folded_metrics.get(key,0)+value
                 for raw, in db.execute('SELECT body FROM positions'):
                     position=json.loads(raw);positions[position['id']]=position
                 for raw, in db.execute('SELECT body FROM journal ORDER BY seq'):
@@ -194,7 +196,9 @@ def native_positions(root,lane):
                     by_id.setdefault(identity,[]).append(event)
             # No speculative table reads: an unsupported schema stays unknown.
     for identity in prefixes:by_id.setdefault(identity,[])
-    entries=settlements=monitoring=partials=exits=complete=0
+    entries,settlements,monitoring,partials,exits,complete=[folded_metrics.get(key,0) for key in (
+        'natural_entries','natural_settlements','natural_monitoring','natural_partial_realizations',
+        'natural_exits','complete_natural_lifecycles')]
     entry_times={};monitor_times={}
     for identity,events in by_id.items():
         from certification.journal_proof import extend

@@ -46,7 +46,7 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
     sleeve.reserve(identity,strategy=strategy,amount=budget,at=at,candidate=candidate,
                    generation=generation,regime=regime)
     if existing is None:
-        book.reserve(identity,budget,at,dict(decision=decision,generation=generation,regime=regime))
+        book.reserve(identity,budget,at,dict(candidate=candidate,decision=decision,generation=generation,regime=regime))
     try:
         # A slow first incremental reconstruction can exhaust the native five-
         # second freshness budget. One bounded complete refresh uses the now-

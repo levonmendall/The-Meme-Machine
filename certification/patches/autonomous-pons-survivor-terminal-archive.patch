@@ -1,0 +1,23 @@
+diff --git a/robinhood_research/pons_survivor_runtime.py b/robinhood_research/pons_survivor_runtime.py
+index be68d595bc32e28929978d1804c5211b590d6c32..9fef85b16154e2eee7df8d5d1e6c5324a3a60fc6 100644
+--- a/robinhood_research/pons_survivor_runtime.py
++++ b/robinhood_research/pons_survivor_runtime.py
+@@ -97,6 +97,8 @@ class Runtime:
+         compact_restored_history(self.history,lane='pons')
+         self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_VERSION,
+                             policy_hash=POLICY_HASH,initial=capital)
++        from certification.survivor_terminal_archive import compact
++        compact(self.book,self.sleeve,self.history)
+         self.plane=Plane(plane_path(self.root/'candidate-evidence.sqlite'))
+         self.rpc=None;self.current=None;self.last_error=None
+ 
+@@ -358,7 +360,8 @@ class Runtime:
+                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
+                             generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
+                         if decision['candidate'] and sum(bool(r.get('position')) for r in self.history.rows())<POLICY['execution']['max_open_positions']:
+-                            row['position']=self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime])
++                            from certification.lifecycle_identity import issue
++                            row['position']=issue(self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime]))
+                             row['state']='reserved';self.history.save(row);self._enter(row)
+                             row=self.history.get(row['id']);row['state']='filled'
+                         self.history.save(row)

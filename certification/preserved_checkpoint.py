@@ -32,7 +32,8 @@ def authority(name,lane):
         raise ValueError('native_checkpoint_preservation_authority')
     return dict(schema='preserved-native-prefix-v1',state_hash=receipt['state_hash'],
         snapshot_sha256=expected,snapshot_name=name,artifact=artifact,
-        campaign_id=claim['campaign_id'],window_index=claim['previous']['index'])
+        campaign_id=claim['campaign_id'],authorization_hash=claim['authorization_hash'],
+        window_index=claim['previous']['index'])
 
 
 @contextmanager

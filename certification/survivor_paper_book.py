@@ -110,11 +110,15 @@ class PaperBook:
         with self.transaction():
             if self.db.execute('SELECT 1 FROM positions WHERE id=?', (identity,)).fetchone():
                 raise ValueError('duplicate_paper_lifecycle')
+            from certification.lifecycle_identity import validate_new
+            anchor=self._archive()
+            validate_new(identity,archived=anchor.get('archived_entry_scope') if anchor else None)
             if amount > self.reconcile()['cash']:
                 raise ValueError('paper_capital_exhausted')
             position = dict(id=identity, status='reserved', reserved=amount, basis=0,
                             mark=0, tokens=0, realized=0, capital_unit_seconds=0,
                             capital_at_risk=amount, risk_at=at, last_at=at)
+            if 'candidate' in evidence:position['candidate']=evidence['candidate']
             self._record(position, 'reserved', at, evidence)
 
     def transition(self, identity, action, at, *, amount=0, tokens=0, evidence=None):
@@ -171,8 +175,9 @@ class PaperBook:
 
     def reconcile(self):
         with self.lock:
+            anchor=self._archive();folded=anchor.get('folded',{}) if anchor else {}
             positions = [json.loads(x[0]) for x in self.db.execute('SELECT body FROM positions')]
-            realized = sum(x['realized'] for x in positions)
+            realized = folded.get('realized',0)+sum(x['realized'] for x in positions)
             reserved = sum(x['reserved'] for x in positions)
             basis = sum(x['basis'] for x in positions)
             marks = sum(x['mark'] for x in positions)
@@ -182,11 +187,11 @@ class PaperBook:
             return dict(**self.identity, cash=cash, reserved=reserved, basis=basis,
                         realized=realized, unrealized=marks-basis,
                         marked_equity=cash+reserved+marks,
-                        capital_unit_seconds=sum(x['capital_unit_seconds'] for x in positions),
+                        capital_unit_seconds=folded.get('capital_unit_seconds',0)+sum(x['capital_unit_seconds'] for x in positions),
                         capital_hour_denominator=3600,
                         open_positions=sum(x['status']=='open' for x in positions),
                         pending=sum(x['status']=='reserved' for x in positions),
-                        settled=sum(x['status']=='settled' for x in positions),
+                        settled=folded.get('settled',0)+sum(x['status']=='settled' for x in positions),
                         reconciled=True)
 
     def replay(self):
@@ -268,7 +273,6 @@ class PaperBook:
         source.db=sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True)
         try:
             source.db.execute('BEGIN');proof=source.replay();prior=source._archive()
-            if not proof['events']:return False
             positions={i:json.loads(b) for i,b in source.db.execute('SELECT * FROM positions')}
             from certification.survivor_commit import risk_record
             from certification.directional_accounting import execution_cost
@@ -284,16 +288,23 @@ class PaperBook:
                 cash=proof['cash'],positions=positions,risk_states=risk,journal_proofs=summaries,
                 execution_cost=execution_cost(source),authority=authority,
                 previous_archive_hash=_hash(prior) if prior else None)
+            if prior:
+                for key in ('folded','archived_entry_scope'):
+                    if key in prior:anchor[key]=prior[key]
         finally:source.db.close()
         with self.transaction():
             old=self._archive();seq=anchor['seq']
             if old and old['seq']>=seq:
                 if old['seq']==seq and old['final_hash']!=anchor['final_hash']:
                     raise ValueError('paper_archive_prefix_conflict')
-                return False
+                if (old['seq']>seq or old['authority']['state_hash']==authority['state_hash']
+                        or old.get('retirement_pending')):return False
             before=self.replay();accounting=self.reconcile()
             row=self.db.execute('SELECT hash FROM journal WHERE seq=?',(seq,)).fetchone()
-            if row is None or row[0]!=anchor['final_hash']:raise ValueError('paper_archive_prefix_conflict')
+            if not ((row and row[0]==anchor['final_hash'])
+                    or (old and old['seq']==seq and old['final_hash']==anchor['final_hash'])
+                    or (seq==0 and anchor['final_hash']=='0'*64)):
+                raise ValueError('paper_archive_prefix_conflict')
             self.db.execute('INSERT OR REPLACE INTO journal_archive VALUES(1,?,?)',(_json(anchor),_hash(anchor)))
             self.db.execute('DROP TRIGGER journal_no_delete')
             self.db.execute('DELETE FROM journal WHERE seq<=?',(seq,))
