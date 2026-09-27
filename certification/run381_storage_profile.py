@@ -22,7 +22,7 @@ for variant in ('baseline','clustered'):
    w.db.execute('create index if not exists records_archive_ref on records(archive) where archive is not null')
    definitions=w.db.execute("select type,name,sql from sqlite_master where name in ('addresses','addresses_insert','addresses_delete','record_storage_delete')").fetchall()
    w.db.execute('begin immediate')
-   for kind,name,sql in definitions:w.db.execute('drop '+kind+' '+name)
+   for kind,name,sql in definitions:w.db.execute('drop '+kind+' if exists '+name)
    w.db.execute('create table ordered_refs(address_id integer not null,record_id integer not null,slot integer not null,primary key(record_id,address_id)) without rowid')
    w.db.execute('insert into ordered_refs select * from address_refs')
    w.db.execute('drop table address_refs');w.db.execute('alter table ordered_refs rename to address_refs')
