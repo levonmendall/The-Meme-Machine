@@ -959,3 +959,27 @@ back; post-open mutation makes compaction fail closed rather than discard newer
 unpreserved state. Both source preparations and protocol freeze pass. This closes
 retired Survivor history churn only; native economic projections and Robinhood
 cumulative state remain Phase-D work.
+
+Retirement batch `919c1305fb3604c8dc75be68d8840407242ed6ff` passes ordinary CI
+`36346882461`. No market/certification run was dispatched.
+
+Robinhood fixed-hot-set growth comes from keeping every consumed observation,
+transition, projection receipt and durable cache entry across windows. The native
+Pons cache is bounded; its durable adapter bypassed eviction. A copied-capsule
+archive candidate verifies the exact native snapshot and logical database first,
+then retains latest observation fences/current result acknowledgements, monotone
+transition sequence and projection source, and bounded authenticated caches.
+Pons pipeline acknowledgement/class reconciliation is required before raw transition
+externalization. Opportunity reports explicitly cover the new window and point to
+prior immutable decision history; no earlier failed window gains successor authority.
+Position-only native safety/settlement updates remain eligible for preservation,
+but unprojected entry or infrastructure failures fail closed.
+
+Twenty-six affected accounting/capsule/six-native tests and three native cache
+conflict/restart tests pass. The current 28-window fixture preserves 5,600 observations
+while hot state plateaus at 2,750,344 bytes after cache warmup. An additional actual
+current-Pons partial-fill ledger projection survives position-only archival;
+unresolved failure, changed source, incomplete projection and interrupted compaction
+cannot publish a restorable capsule. This proves a fixed candidate set only:
+candidate/settled projections, rolling-cache key churn, other native journals and
+the joined multi-day crash/provider/resource gate remain pending.

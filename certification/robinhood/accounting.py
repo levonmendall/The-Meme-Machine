@@ -70,9 +70,11 @@ def project(plane, pipeline, *, through=None, batch_size=256):
     if not 1<=batch_size<=256:raise ValueError('projection_batch_bound')
     with plane.lock:
         first=plane.db.execute('SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate WHERE c.lane=? ORDER BY t.seq LIMIT 1',(pipeline.lane,)).fetchone()
+        archive=plane.history_archive() or {}
+    source=archive.get('projection_sources',{}).get(pipeline.lane)
     if first is None:return 0
     # Immutable source identity survives relocation/restart of either database.
-    source='candidate-plane:'+hashlib.sha256(json.dumps(dict(first),sort_keys=True).encode()).hexdigest()
+    source=source or 'candidate-plane:'+hashlib.sha256(json.dumps(dict(first),sort_keys=True).encode()).hexdigest()
     with pipeline.lock:
         after=pipeline.db.execute('SELECT COALESCE(MAX(sequence),0) FROM progress_sources WHERE source=?',(source,)).fetchone()[0]
     with plane.lock:

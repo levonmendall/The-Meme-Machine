@@ -75,6 +75,7 @@ class Plane:
         CREATE TABLE IF NOT EXISTS observations(
           candidate TEXT NOT NULL,observation TEXT NOT NULL,body TEXT NOT NULL,at REAL NOT NULL,
           PRIMARY KEY(candidate,observation));
+        CREATE TABLE IF NOT EXISTS observation_archive(candidate TEXT PRIMARY KEY,ordering TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS transitions(
           seq INTEGER PRIMARY KEY,candidate TEXT,generation INTEGER,at REAL,kind TEXT,
           reason TEXT,watermark TEXT,interpretation TEXT,details TEXT);
@@ -119,8 +120,12 @@ class Plane:
         with self.lock:return self._row(key)
 
     def _audit(self,row,kind,reason=None,**details):
-        self.db.execute('INSERT INTO transitions(candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?)',
-            (row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))
+        tail=self.db.execute('SELECT MAX(seq) FROM transitions').fetchone()[0]
+        if tail is None:
+            archive=self.history_archive() or {}
+            tail=archive.get('transition_high_water',0)
+        self.db.execute('INSERT INTO transitions(seq,candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?,?)',
+            (tail+1,row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))
 
     def observe(self, key, lane, observation, payload, *, ordering, watermark,
                 interpretation, observed, deadline, priority, rank=0, needs_work=True):
@@ -143,6 +148,11 @@ class Plane:
                     return 'conflict'
                 # Redelivery never refreshes an observation's deadline.
                 return 'duplicate'
+            archived=self.db.execute('SELECT ordering FROM observation_archive WHERE candidate=?',(key,)).fetchone()
+            if archived and ordering<=tuple(json.loads(archived[0])):
+                # The raw prefix remains in the verified predecessor artifact.
+                # Its replay grants no generation, fresh deadline or work.
+                return 'archived'
             self.db.execute('INSERT INTO observations VALUES(?,?,?,?)',(key,observation,body,observed))
             if row and row['interpretation']!=policy:raise ValueError('candidate_interpretation_changed')
             if row and row['reason']=='conflicting_observation':
@@ -304,8 +314,16 @@ class Plane:
             row=self.db.execute('SELECT body FROM runtime WHERE key=?',(key,)).fetchone()
         return json.loads(row[0]) if row else None
 
+    def history_archive(self):
+        value=self.checkpoint_read('window_history_archive')
+        if value is not None and (value.get('schema')!='robinhood-window-history-v1'
+                or value.get('chain_hash')!=digest({k:v for k,v in value.items() if k!='chain_hash'})):
+            raise ValueError('robinhood_history_archive_corruption')
+        return value
+
     def snapshot(self,lane=None):
         with self.lock:
+            archive=self.history_archive()
             rows=self.db.execute('SELECT state,COUNT(*) n FROM candidates'+(' WHERE lane=?' if lane else '')+' GROUP BY state',((lane,) if lane else ())).fetchall()
             clause=' WHERE candidate IN (SELECT id FROM candidates WHERE lane=?)' if lane else ''
             params=(lane,) if lane else ()
@@ -320,6 +338,9 @@ class Plane:
             provider_jobs_claimed=counts.get('canonical_evidence_requested',0),
             complete_canonical_decisions=counts.get('canonical_evidence_complete',0),
             observations_superseded=counts.get('superseded',0),obsolete_completions_fenced=obsolete,
+            history_archive=None if archive is None else dict(chain_hash=archive['chain_hash'],
+                windows=archive['windows'],transition_high_water=archive['transition_high_water'],
+                reporting_scope=archive['reporting_scope']),
             database_bytes=Path(self.path).stat().st_size,
             wal_bytes=Path(self.path+'-wal').stat().st_size if Path(self.path+'-wal').exists() else 0)
 

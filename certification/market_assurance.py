@@ -60,6 +60,10 @@ def pipeline(root, *, candidate_plane=None, lane=None, reported_classes=None):
     if len(paths)!=1:return dict(available=False,reason='pipeline_missing_or_ambiguous',
         candidate_plane_consistency=dict(status='fail' if candidate_plane is not None else 'not_applicable',failures=['pipeline_missing_or_ambiguous']))
     with ro(paths[0]) as db:
+        history=None
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='window_history_archive'").fetchone():
+            saved=db.execute('SELECT body FROM window_history_archive WHERE id=1').fetchone()
+            if saved:history=json.loads(saved[0])
         stages={k:n for k,n in db.execute('SELECT stage,COUNT(DISTINCT candidate) FROM progress GROUP BY stage')}
         classes={k:n for k,n in db.execute('SELECT classification,COUNT(DISTINCT candidate) FROM progress WHERE classification IS NOT NULL GROUP BY classification')}
         reasons={k:n for k,n in db.execute('SELECT reason,COUNT(DISTINCT candidate) FROM progress WHERE reason IS NOT NULL GROUP BY reason')}
@@ -80,7 +84,7 @@ def pipeline(root, *, candidate_plane=None, lane=None, reported_classes=None):
     from certification.robinhood.accounting import consistency
     plane_check=(consistency(candidate_plane,paths[0],lane,reported_classes=reported_classes)
                  if candidate_plane is not None else dict(status='not_applicable'))
-    return dict(available=True,stages=stages,classes=classes,reasons=reasons,
+    return dict(available=True,stages=stages,classes=classes,reasons=reasons,history_archive=history,
         candidate_plane_consistency=plane_check,
         evidence_obligations=summarize_obligations(obligation_records),
         last_stage=last[0] if last else None,last_at=last[1] if last else None,
