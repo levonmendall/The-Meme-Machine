@@ -235,13 +235,17 @@ def prepare_window(claim, *, worktrees, run, phase, seconds, prior_state=None):
                 or prior.get('state_hash') != bound['parent_state_hash']
                 or prior.get('native_run_id') != bound['native_run_id']
                 or set(prior.get('positions', {})) != set(LANES)
-                or any(prior['positions'].values())):
+                or window.get('positions') != prior['positions']
+                or any(not isinstance(v,list) or len(set(v))!=len(v) for v in prior['positions'].values())):
             raise ValueError('campaign_claim_prior_state_or_open_positions')
         proof=verify(prior_state,expected_identity=expected,expected_state_hash=prior['state_hash'],
             campaign_id=bound['campaign_id'],prior_index=prior['index'],authorization_hash=bound['authorization_hash'])
         if (set(proof.get('accounting',{}))!=set(LANES)
-                or any(row.get('open_positions') != 0 for row in proof['accounting'].values())):
-            raise ValueError('campaign_claim_native_exposure_requires_continuation')
+                or any(row.get('verified') is not True
+                    or row.get('open_positions') != len(prior['positions'][lane])
+                    or (row.get('open_positions') and row.get('durable_handoff') is not True)
+                    for lane,row in proof['accounting'].items())):
+            raise ValueError('campaign_claim_native_exposure_identity')
         restore(prior_state, worktrees=worktrees, run=run, expected_identity=expected,
                 expected_state_hash=prior['state_hash'], campaign_id=bound['campaign_id'],
                 prior_index=prior['index'], authorization_hash=bound['authorization_hash'])

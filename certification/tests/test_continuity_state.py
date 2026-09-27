@@ -105,7 +105,54 @@ finally:case.tearDown();case.doCleanups()
 print('Meteora process cut restores compact evidence and elapsed strategy state without a shortened confirmation segment')
 '''
 
+METEORA_ASYNC_SCRIPT=METEORA_SCRIPT[:METEORA_SCRIPT.index(" with patch('certification.position_continuation._runtime_identity'")]+r'''
+ import os,threading,time
+ from contextlib import chdir
+ from certification.position_continuation import restore_meteora_strategy
+ from certification.lifecycle_timing import install_meteora
+ recovered=restore_meteora_strategy(case.book,m)
+ ready=threading.Event();release=threading.Event();finished=threading.Event()
+ observed=[0]
+ def next_segment(*args):
+  observed[0]+=1
+  if observed[0]>1:
+   finished.set()
+   return dict(verified=False,reason='synthetic_provider_interruption'),None,None,None,None
+  ready.set()
+  assert release.wait(5), 'discovery was blocked by recovered lifecycle'
+  return case.observe(*args)
+ with chdir(root),patch.dict(os.environ,MM_CERTIFICATION_PHASE='hourly'),patch.object(m,'_prove_network_identity'),patch.object(m,'_new_adapter',return_value=None),patch.object(m,'EvidenceBroker',return_value=SimpleNamespace(close=lambda:None)),patch.object(m,'_rotate',side_effect=lambda a,*args:a),patch.object(m,'_observe_window',side_effect=next_segment):
+  install_meteora(m)
+  proxy,_=m._position_lifecycle(None,recovered['entry']['pool'],recovered['entry'],recovered['features'],recovered['policy'],None,[],book=case.book,identity=recovered['identity'],recovered=recovered)
+  assert ready.wait(5)
+  assert proxy['handoff_required'] and proxy['lifecycle_id']==recovered['identity']
+  assert case.book.reconcile()==before
+  # This executes on the discovery caller while the real native monitor is blocked.
+  discovery_progress=['authenticated candidate while existing capital remains occupied']
+  assert discovery_progress and case.book.reconcile()['open_positions']==1
+  release.set();assert finished.wait(5),proxy
+  workers=[t for t in threading.enumerate() if t.name=='meteora-position-continuation']
+  for worker in workers:worker.join(5);assert not worker.is_alive()
+  assert not proxy['complete'] and proxy['handoff_required'],proxy
+  assert proxy['verified_hold_seconds']==600
+  final=case.book.reconcile();assert final['settled']==0 and final['unsettled']==1,final
+  journal=_meteora_events(case.path)
+  for action in ('reserve','entry'):assert sum(e['action']==action for e in journal)==1
+  assert sum(e['action']=='mark' for e in journal)==2
+  assert sum(e['action']=='settle' for e in journal)==0
+  assert restore_meteora_strategy(case.book,m)['elapsed']==600
+  assert journal[2]['data']['entry_state']==recovered['entry']
+  assert case.book.replay_economics(m._build_position,m._advance_position,m._mark)['verified']
+finally:
+ if 'release' in locals():release.set()
+ case.tearDown();case.doCleanups()
+print('recovered native Meteora lifecycle runs alongside discovery without reentry or a reset clock')
+'''
+
 class ContinuityTests(unittest.TestCase):
+    def test_meteora_recovered_native_lifecycle_does_not_block_discovery(self):
+        self.run_native(METEORA_ASYNC_SCRIPT,lane="meteora")
+
     def test_async_lifecycle_preserves_campaign_capital(self):
         self.run_native(SHARED_BOOK_SCRIPT)
 

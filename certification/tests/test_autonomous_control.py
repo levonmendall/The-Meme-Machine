@@ -176,13 +176,21 @@ class AutonomousControllerTests(unittest.TestCase):
 
     def test_position_window_keeps_campaign_position_and_no_entry_authority(self):
         positions={lane:[] for lane in c.LANES};positions['pump']=['original-current','original-survivor']
-        self.smoke(positions);claim=self.start(3,4)
+        self.smoke(positions)
+        for actor,run in ((3,4),(4,5)):
+            claim=self.start(actor,run)
+            self.assertEqual(claim['window']['mode'],'hourly')
+            self.assertTrue(claim['window']['entry_authority'])
+            self.assertEqual(claim['window']['positions'],positions)
+            self.finish(run,positions)
+        claim=self.start(5,6)
         self.assertEqual(claim['window']['mode'],'position');self.assertFalse(claim['window']['entry_authority'])
         self.assertEqual(claim['window']['positions'],positions)
         changed=deepcopy(positions);changed['pump'].append('unauthorized-new-position')
-        with self.assertRaisesRegex(ValueError,'created_position'):self.finish(4,changed)
-        self.finish(4)
-        claim=self.start(4,5);self.assertEqual(claim['window']['mode'],'hourly')
+        with self.assertRaisesRegex(ValueError,'created_position'):self.finish(6,changed)
+        self.finish(6)
+        result=c.dispatch_next(self.api,IDENTITY,CAMPAIGN,6)
+        self.assertEqual(result['phase'],'STOPPED')
 
     def test_artifact_loss_or_cas_failure_prevents_post_and_reruns_are_rejected(self):
         self.smoke();self.api.artifacts[2][0]['expired']=True

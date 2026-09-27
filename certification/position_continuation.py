@@ -369,6 +369,11 @@ def resume_ramses(state_dir,*,slice_seconds):
     runtime_identity=_runtime_identity(state_dir,'ramses')
     lane_root=_activate_lane_root()
     runtime_identity['lane_root']=lane_root
+    return _resume_ramses_native(state_dir,slice_seconds=slice_seconds,runtime_identity=runtime_identity)
+
+
+def _resume_ramses_native(state_dir,*,slice_seconds,runtime_identity):
+    """Existing native lifecycle core; callers must establish continuation authority."""
     from robinhood_research import BoundaryError
     from robinhood_research import ramses_all_pool_lifecycle as module
     from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger
@@ -442,6 +447,18 @@ def resume_ramses(state_dir,*,slice_seconds):
         last_scan_wall=time.monotonic();last_fee_reserve=None;last_fee_refresh_wall=0.0
         slice_deadline=time.monotonic()+int(slice_seconds)
         terminal_at=max(entry_at,int(book.position(identity).get('at') or entry_at))
+
+        def monitor_checkpoint(detail,at):
+            next_state=fields(state);next_state['last_controller']=deepcopy(detail)
+            return durable_checkpoint(book,identity,state=state,path=state_path,
+                action='monitor',detail=detail,at=at,next_state=next_state)
+
+        def provider_hold(*,stage,boundary,at):
+            # Provider holds also advance the native journal version. Commit their
+            # matching sidecar through the same write-ahead bridge as decisions.
+            from types import SimpleNamespace
+            proxy=SimpleNamespace(checkpoint=lambda _id,**kw:monitor_checkpoint(kw['detail'],kw['at']))
+            return module._record_provider_hold(state,proxy,identity,stage=stage,boundary=boundary,at=at)
 
         def settle_flat(reason):
             if not segments:
@@ -556,7 +573,7 @@ def resume_ramses(state_dir,*,slice_seconds):
                 frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='lifecycle_monitor')
             except BoundaryError as exc:
                 if not module._is_transient_provider_boundary(exc):raise
-                module._record_provider_hold(state,book,identity,stage='frontier',
+                provider_hold(stage='frontier',
                     boundary=exc,at=terminal_at);continue
             block=int(frontier['number'],16);at=int(frontier['timestamp'],16)
             terminal_at=max(terminal_at,at)
@@ -567,7 +584,7 @@ def resume_ramses(state_dir,*,slice_seconds):
                         signals_by_pool=signals_by_pool,cost_state=cost_state)
                 except BoundaryError as exc:
                     if not module._is_transient_provider_boundary(exc):raise
-                    module._record_provider_hold(state,book,identity,stage='rescan',
+                    provider_hold(stage='rescan',
                         boundary=exc,at=terminal_at)
                 finally:last_scan_wall=time.monotonic()
             row=next((r for r in latest_screen.get('rows',[])
@@ -577,7 +594,7 @@ def resume_ramses(state_dir,*,slice_seconds):
                 state_now=module._position_state(rpc,pool,decision,block)
             except BoundaryError as exc:
                 if not module._is_transient_provider_boundary(exc):raise
-                module._record_provider_hold(state,book,identity,stage='position_state',
+                provider_hold(stage='position_state',
                     boundary=exc,at=terminal_at);continue
             if (last_fee_reserve is None or
                     time.monotonic()-last_fee_refresh_wall>=module.FEE_RESERVE_REFRESH_SECONDS):
@@ -589,7 +606,7 @@ def resume_ramses(state_dir,*,slice_seconds):
                     last_fee_refresh_wall=time.monotonic()
                 except BoundaryError as exc:
                     if not module._is_transient_provider_boundary(exc):raise
-                    module._record_provider_hold(state,book,identity,stage='fee_reserve',
+                    provider_hold(stage='fee_reserve',
                         boundary=exc,at=terminal_at)
             total_cost=sum(costs.values());rebalance_cost=int(costs.get('rebalance',total_cost))
             unwind_cost=int(costs.get('unwind',costs.get('unwind_gas',0)))
@@ -616,10 +633,10 @@ def resume_ramses(state_dir,*,slice_seconds):
                     hold=dict(action='hold',reason='unwind_liquidity_unavailable',
                         stage='unwind',block=block,amount_in=unwind['amount_in'],
                         amount_in_left=unwind['amount_in_left'])
-                    book.checkpoint(identity,action='monitor',detail=hold,at=at);continue
+                    monitor_checkpoint(hold,at);continue
             except BoundaryError as exc:
                 if not module._is_transient_provider_boundary(exc):raise
-                module._record_provider_hold(state,book,identity,stage='exit_replay_or_unwind',
+                provider_hold(stage='exit_replay_or_unwind',
                     boundary=exc,at=terminal_at);continue
             pnl=module.decompose_pnl(decision,replay_result,unwind=unwind,costs=costs)
             segment=dict(

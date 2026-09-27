@@ -54,10 +54,8 @@ def ramses_recenter_clock(elapsed_seconds):
 
 
 def _atomic_json(path, value):
-    path = Path(path)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
-    os.replace(tmp, path)
+    from certification.position_continuation import _atomic
+    _atomic(path,value)
 
 
 def _hourly():
@@ -119,18 +117,27 @@ def install_meteora(module):
 
     module._triggered_warmup = triggered_warmup
     original_lifecycle = module._lifecycle
+    original_position_lifecycle = getattr(module, "_position_lifecycle", None)
 
-    def lifecycle(adapter, address, entry, features, policy, pacer, rpcs,
-                  deadline=None, broker=None, book=None):
-        if not _measurement_window() or book is None:
+    def start_lifecycle(adapter, address, entry, features, policy, pacer, rpcs,
+                        deadline=None, broker=None, book=None, *, identity=None, recovered=None):
+        def advance(life_adapter, life_pacer, life_rpcs, life_deadline, life_broker):
+            if recovered is not None:
+                return original_position_lifecycle(
+                    life_adapter, address, entry, features, policy, life_pacer,
+                    life_rpcs, life_deadline, life_broker, book, identity, recovered=recovered)
             return original_lifecycle(
-                adapter, address, entry, features, policy, pacer, rpcs,
-                deadline, broker, book
+                life_adapter, address, entry, features, policy, life_pacer,
+                life_rpcs, life_deadline, life_broker, book)
+
+        if not _measurement_window() or book is None:
+            return advance(
+                adapter, pacer, rpcs, deadline, broker
             )
 
         proxy = dict(
             complete=False,
-            lifecycle_id=None,
+            lifecycle_id=identity,
             reason="durable_position_continuation_active",
             handoff_required=True,
             paper_only=True,
@@ -153,7 +160,8 @@ def install_meteora(module):
                 updated_at=time.time(),
                 **extra,
             )
-            _atomic_json(state_path, row)
+            with module._cert_continuation_lock:
+                _atomic_json(state_path, row)
 
         # The lifecycle gets independent provider objects.  Shared physical transport
         # limits are still enforced by the certification transport wrapper/governor.
@@ -168,10 +176,7 @@ def install_meteora(module):
                 maximum = int(policy["range"]["max_holding_seconds"])
                 life_deadline = time.monotonic() + maximum + 300
                 snapshot("active")
-                result, _ = original_lifecycle(
-                    life_adapter, address, entry, features, policy,
-                    life_pacer, life_rpcs, life_deadline, life_broker, book
-                )
+                result, _ = advance(life_adapter, life_pacer, life_rpcs, life_deadline, life_broker)
                 proxy.clear()
                 proxy.update(result)
                 proxy["handoff_required"] = not bool(result.get("complete"))
@@ -228,7 +233,18 @@ def install_meteora(module):
         snapshot("active" if thread.is_alive() else "terminal")
         return proxy, adapter
 
-    module._lifecycle = lifecycle
+    module._lifecycle = start_lifecycle
+    if original_position_lifecycle is not None:
+        def position_lifecycle(adapter, address, entry, features, policy, pacer, rpcs,
+                               deadline=None, broker=None, book=None, identity=None, *, recovered=None):
+            # New entry already runs inside the worker above. Only startup recovery
+            # must create a worker; never nest workers or reserve existing capital.
+            if recovered is None:
+                return original_position_lifecycle(adapter, address, entry, features,
+                    policy, pacer, rpcs, deadline, broker, book, identity)
+            return start_lifecycle(adapter, address, entry, features, policy, pacer,
+                rpcs, deadline, broker, book, identity=identity, recovered=recovered)
+        module._position_lifecycle = position_lifecycle
 
 
 def _open_meteora_identities(path):
@@ -246,6 +262,8 @@ def _open_meteora_identities(path):
 
 def _ramses_write_state():
     with _RAMSES_LOCK:
+        if _RAMSES_STATE.get("native_resume_owner"):
+            return  # The recovered native controller owns sidecar commits.
         path = Path(_RAMSES_STATE["state_path"])
         row = {
             key: value for key, value in _RAMSES_STATE.items()
@@ -282,6 +300,80 @@ def _ramses_snapshot_accounting():
         book.close()
 
 
+def _ramses_public_state():
+    with _RAMSES_LOCK:
+        state={k:deepcopy(v) for k,v in _RAMSES_STATE.items() if k not in ('thread','proxy')}
+        if state.get('native_resume_owner'):
+            durable=json.loads(Path(state['state_path']).read_text())
+            # Discovery may observe while the controller writes; atomic replacement
+            # provides one complete sidecar version and never overwrites its intent.
+            state.update(durable)
+            state['observations_while_occupied']=_RAMSES_STATE['observations_while_occupied']
+        return state
+
+
+def _start_recovered_ramses(campaign):
+    """Resume one verified native position without delaying normal discovery."""
+    if not campaign.reconcile()['open_positions']:
+        return
+    from certification.campaign_state import restored_window
+    from certification.terminal_reconciliation import reconcile
+    from certification.position_continuation import _resume_ramses_native,_atomic
+    claim=restored_window()
+    if not claim:raise RuntimeError('ramses_recovery_requires_restored_window')
+    root=campaign.root.parent.resolve()
+    proof=reconcile('ramses',root)
+    if not proof.get('verified') or not proof.get('durable_handoff'):
+        raise RuntimeError('ramses_recovery_native_handoff_unproven')
+    identity=proof['continuation_state']['lifecycle_id']
+    if (claim['window'].get('positions') or {}).get('ramses')!=[identity]:
+        raise RuntimeError('ramses_recovery_claim_position_identity')
+    path=root/'robinhood-ramses-continuation.json'
+    saved=json.loads(path.read_text())
+    book=campaign.books[saved['quote_asset']]
+    saved['ledger_path']=str(Path(book.path).resolve());saved['state_path']=str(path)
+    runtime_identity=dict(lane='ramses',phase='normal_window_position_management',
+        entry_authority=False,identity=claim['identity'],campaign_id=claim['campaign_id'],
+        authorization_hash=claim['authorization_hash'],window_index=claim['window']['index'])
+    with _RAMSES_LOCK:
+        thread=_RAMSES_STATE.get('thread')
+        if _RAMSES_STATE.get('active') or (thread and thread.is_alive()):
+            raise RuntimeError('ramses_recovery_duplicate_controller')
+        _atomic(path,saved)
+        _RAMSES_STATE.update(saved,active=True,native_resume_owner=True,error=None,
+            proxy=dict(status='continuation_active',handoff_required=True,entry_authority=False))
+
+    def target():
+        value=None;error=None
+        try:
+            value=_resume_ramses_native(root,slice_seconds=RAMSES_MAX_HOLD_SECONDS+300,
+                runtime_identity=runtime_identity)
+        except BaseException as exc:
+            error=dict(type=type(exc).__name__,message=str(exc)[:200])
+        finally:
+            with _RAMSES_LOCK:
+                # The disk checkpoint, including any interrupted native intent,
+                # stays authoritative even when the provider/controller raised.
+                latest=json.loads(path.read_text())
+                _RAMSES_STATE.update(latest)
+                _RAMSES_STATE['native_resume_owner']=False
+                _RAMSES_STATE['error']=error
+                accounting=_ramses_snapshot_accounting()
+                _RAMSES_STATE['active']=accounting['open_positions']>0
+                if value is not None:
+                    value={k:v for k,v in value.items() if k not in ('state','runtime_identity')}
+                    value['lifecycle_id']=identity
+                    _RAMSES_STATE['result']=value
+                    _RAMSES_STATE['proxy'].update(value)
+                    if not _RAMSES_STATE['active']:
+                        done=_RAMSES_STATE.setdefault('completed_lifecycles',[])
+                        if not any(row.get('lifecycle_id')==identity for row in done):done.append(value)
+                _ramses_write_state()
+    thread=threading.Thread(target=target,name='ramses-position-continuation',daemon=True)
+    with _RAMSES_LOCK:_RAMSES_STATE['thread']=thread
+    thread.start()
+
+
 def install_ramses(extended_module):
     """Decouple Ramses discovery from one active long-horizon position."""
     if getattr(extended_module, "_cert_lifecycle_timing_installed", False):
@@ -290,6 +382,17 @@ def install_ramses(extended_module):
 
     from robinhood_research import ramses_all_pool_lifecycle as lifecycle
     from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger
+
+    from robinhood_research.ramses_campaign import CampaignBooks
+    original_recover=CampaignBooks.recover
+    def recover_campaign(cls,root):
+        campaign=original_recover(root)
+        try:
+            if _measurement_window():_start_recovered_ramses(campaign)
+            return campaign
+        except BaseException:
+            campaign.close();raise
+    CampaignBooks.recover=classmethod(recover_campaign)
 
     original_controller = lifecycle.controller_action
     original_requalify = lifecycle._requalify_current_pool
@@ -605,11 +708,7 @@ def install_ramses(extended_module):
     def persist(result):
         public = deepcopy(result)
         accounting = _ramses_snapshot_accounting()
-        with _RAMSES_LOCK:
-            continuation = {
-                key: deepcopy(value) for key, value in _RAMSES_STATE.items()
-                if key not in ("thread", "proxy")
-            }
+        continuation = _ramses_public_state()
         public["position_continuation"] = continuation
         completed=[
             deepcopy(row) for row in continuation.get("completed_lifecycles",[])
@@ -638,9 +737,4 @@ def install_ramses(extended_module):
 
 def ramses_continuation_snapshot():
     accounting = _ramses_snapshot_accounting()
-    with _RAMSES_LOCK:
-        state = {
-            key: deepcopy(value) for key, value in _RAMSES_STATE.items()
-            if key not in ("thread", "proxy")
-        }
-    return dict(state=state, accounting=accounting)
+    return dict(state=_ramses_public_state(), accounting=accounting)

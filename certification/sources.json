@@ -1026,7 +1026,7 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "3a5d2e65af2cb2fd5bd85dab54f24010e33c2461198e6441b101252f4b376cd0",
+      "source_diff_sha256": "e89f8932da9b982b4463473025798c0c3ceb30c664667df95e0e482d031cca3b",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -1049,14 +1049,15 @@
         "certification/patches/autonomous-pons-survivor-candidate-progress.patch",
         "certification/patches/autonomous-pons-current-recovery.patch",
         "certification/patches/autonomous-pons-current-continuation.patch",
-        "certification/patches/autonomous-pons-survivor-acquisition.patch"
+        "certification/patches/autonomous-pons-survivor-acquisition.patch",
+        "certification/patches/autonomous-pons-normal-recovery.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
         "robinhood_research/pons_natural_paper.py": "fab9210ef7d11eaba8f8c1c09d154a991bf9b285e3b1aad6dac328a990abadfa",
         "robinhood_research/pons_postgrad_survivor.py": "17870496ccfa340bd85ee27820dfac798916f5a3ea090b691f5b11d4b8e998fe",
         "robinhood_research/pons_selective_capital.py": "400537c9f7f42c9c931c5eb28bad91d359249e406864f8b7ccdae6733c2db945",
-        "robinhood_research/pons_selective_cohort.py": "29b370fc5569377b71f80fc7b19ef05e3f5bca73f2faa88e8f1d6336a43b0c29",
+        "robinhood_research/pons_selective_cohort.py": "4af8e5ce2f04f2e06071f7dfc78b215a8e26b33f492c5763f21999247faff976",
         "robinhood_research/pons_selective_continuation.py": "cfe06339efd62224f9c3fe5328c44b0c9c99c6cc68ab064d7a5853a763e1e643",
         "robinhood_research/pons_selective_ledger.py": "4dddeeb7d07ab5f8e00994ef82928da50b45f5adafa29afa2ca704e5bf2c2d37",
         "robinhood_research/pons_selective_paper.py": "2a7226a5281f849b3bbd099cc04f5b3412294e23bfb2842b550f069ff711eb4d",
@@ -1068,8 +1069,8 @@
         "robinhood_tests/test_pons_postgrad_survivor.py": "730f8258130621d1d915706e322aa4b0393b60efc20a5f2bea3f722c5173e40d",
         "robinhood_tests/test_pons_selective_continuation.py": "39ff1c60b729e4e26ba9c348f8b1245f356e7e8fed7dedfd4da9f6152995e6db",
         "robinhood_tests/test_pons_shared_survivor.py": "93a012622fdcc8ceb8ca3640a06a5c33fb0abec829cfb3d371f4241e10456e65",
-        "robinhood_research/pons_selective_recovery.py": "72625c84b9eaa74a0ef07ad1c92da9cbd81ec0063e1d0fc252b4bd3a2728d301",
-        "robinhood_tests/test_pons_current_recovery.py": "abadb3ab209f919d0cc301396df91e1cdf42d1a4dd3e2ae22b4ca8f590f0b5be",
+        "robinhood_research/pons_selective_recovery.py": "f53511931199274196f76950ce2524f0aed81c91a336ab0397027a91c73fc086",
+        "robinhood_tests/test_pons_current_recovery.py": "ef139697f1f5bf45211f8531b9afc3e2b1314588e732875e1d67303cea949a28",
         "robinhood_research/pons_selective_v4.py": "ff88e19bfdb32d3449a792b15f0550611ca1622b2de989c9a51acb566af063c1",
         "robinhood_tests/test_run379_survivor_graduation.py": "39f85ddc6e8571c629c38766e289b8c069aaf8d940357576b2c97ee9523b016b"
       },

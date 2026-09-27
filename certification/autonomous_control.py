@@ -257,7 +257,8 @@ def finish(api, expected, campaign, run_id, *, capsule, review, artifact):
     if window['mode'] == 'hourly':
         state['normal_windows_completed'] += 1
     state['phase'] = ('SMOKE_REVIEW' if window['mode'] == 'smoke' else
-                      'POSITION_CONTINUATION' if any(positions.values()) else 'AUTONOMOUS_PAPER_READY')
+                      'POSITION_CONTINUATION' if (any(positions.values()) and state['normal_windows_completed'] >=
+                        state['authorization']['maximum_normal_windows']) else 'AUTONOMOUS_PAPER_READY')
     _event(state, 'native_review_and_artifact_preserved', index=window['index'], artifact=actual)
     store.write(state); return state
 
@@ -274,8 +275,7 @@ def accept_smoke(api, expected, campaign, reviewed_artifact_digest, actor_run, *
     if _artifact_metadata(api, previous['workflow_run_id'], previous['artifact']['name']) != previous['artifact']:
         raise ValueError('autonomous_predecessor_artifact_drift')
     contention(api, exclude_run=actor_run)
-    state.update(smoke_accepted=True, phase='POSITION_CONTINUATION' if any(previous['positions'].values())
-                 else 'AUTONOMOUS_PAPER_READY')
+    state.update(smoke_accepted=True, phase='AUTONOMOUS_PAPER_READY')
     state['smoke_review']=deepcopy(previous)
     _event(state, 'reviewed_smoke_accepted', artifact_digest=reviewed_artifact_digest, actor_run=int(actor_run))
     store.write(state); return state

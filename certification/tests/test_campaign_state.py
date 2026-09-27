@@ -74,6 +74,7 @@ class CampaignStateTests(unittest.TestCase):
         previous=dict(index=0,state_hash=self.body['state_hash'],native_run_id=self.window['native_run_id'],
             workflow_run_id=1,discovery_window=self.body['discovery_window'],
             positions={lane:[] for lane in transfer.LANES}) if index else None
+        window['positions']=deepcopy(previous['positions']) if previous else {}
         return dict(schema='autonomous-paper-window-claim-v1',identity=self.identity,
             campaign_id=self.window['campaign_id'],authorization_hash=self.window['authorization_hash'],
             certificate=dict(self.identity,passed=True),window=window,previous=previous)
@@ -150,8 +151,23 @@ class CampaignStateTests(unittest.TestCase):
                 window=self.window,terminal=terminal,expected_identity=self.identity)
         self.assertFalse((self.root/'bad').exists())
 
+    def test_normal_window_restores_verified_existing_positions_without_new_capital(self):
+        claim=self.claim()
+        for lane in ('pump','pons'):
+            claim['previous']['positions'][lane]=['original-paper-books:position']
+        claim['window']['positions']=deepcopy(claim['previous']['positions'])
+        self.target_run.mkdir()
+        transfer.prepare_window(claim,worktrees=self.target,run=self.target_run,
+            phase='hourly',seconds=3600,prior_state=self.capsule)
+        self.assertTrue((self.target_run/'restored-campaign-state.json').is_file())
+        from certification.market_assurance import native_positions
+        for lane in ('pump','pons'):
+            positions=native_positions(self.target/lane,lane)
+            self.assertEqual(set(positions['positions']),set(claim['window']['positions'][lane]))
+            self.assertEqual(positions['natural_entries'],1)
+
     def test_window_requires_exact_claim_before_installing_state(self):
-        # An open predecessor must take the position-only path, never normal entry.
+        # The successor must carry the exact position set admitted by the prior review.
         claim=self.claim();claim['previous']['positions']['pump']=['original-paper-books:position']
         self.target_run.mkdir()
         with self.assertRaisesRegex(ValueError,'open_positions'):

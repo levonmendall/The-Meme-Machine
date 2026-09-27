@@ -561,3 +561,54 @@ The transaction rolls back and leaves the watermark at zero in this single-batch
 causal probe. Do not raise the point limit: a durable archived boundary and exact
 bounded feature-history representation are required. No repair to these two
 findings has been implemented yet.
+
+Launch/v2 handoff gate batch pushed as `a8f626f1dc8accad2eab06c1e2b3ca9f53cd46dc`;
+ordinary CI pending refresh. Prototype exact-mean optimization now passes all 16
+native Pump Survivor tests, including an independent pairwise covariance identity
+and a deterministic linear addition-count bound. Complete old/new decisions match
+at 263/514/1,012 points; new times are 0.0030/0.0078/0.0119 seconds. A dense full
+six-hour 21,602-point evaluation completes in 0.245 seconds and qualifies; the
+quadratic old full-density case was deliberately not rerun. Policy hash unchanged.
+Prototype remains unstaged in the primary prepared Pump tree, exported to
+`patches/autonomous-pump-survivor-history.patch`; it is not yet declared/composed
+in source manifests. Batch it with the pending bounded-history repair. The
+100,000-point/seven-day history defect remains open, as do full adapter execution
+proof and multi-day steady-state/crash/provider matrices.
+
+Do not close discovery/lifecycle decoupling with the current conservative rolling
+prototype: it routes any open book to a position-only window before fresh entry.
+This safely preserves positions but could suspend unrelated lane discovery for a
+long Ramses hold. Normal successor admission must also support verified existing
+positions once every native startup can resume its controller concurrently with
+discovery. Pump and Meteora already have native restore paths; audit Ramses
+async-manager restoration and Pons startup's synchronous recovery batch. Retain
+the separate no-entry continuation route for contexts without fresh-entry
+authority. This is pending engineering, not an accepted final orchestration design.
+
+Ordinary CI `36336215318` passes on `a8f626f`; branch refresh confirms no newer
+remote descendant. No market/certificate/pressure dispatch in this batch.
+Normal-window audit reproduced synchronous recovered Meteora/Pons management and
+missing Ramses recovered async ownership. Meteora now schedules its original
+native restored lifecycle on the existing worker; no second reserve/entry or
+nested worker. Native interrupted-mark regression preserves elapsed 300→600 and
+holds exposure through a transient observation boundary while discovery returns.
+A separate accelerated native 288-segment/24-hour run settled the same original
+entry once with economic replay. Pons startup submits verified original trials
+to the existing eight-worker pool before warmup; original curve exclusion and
+shared reservations stay authoritative. Recovery receipts coalesce by native
+identity while append-only receipts remain preserved. Seventeen native current
+recovery/campaign tests pass; source overlay is declared and composed.
+
+Ramses startup now reopens the funded campaign and starts its existing continuation
+core only after exact restored-window/position/native-handoff validation. Discovery
+can observe occupied capital without writing over the controller sidecar. A real
+native book/worker regression proves no new genesis/entry, duplicate-owner rejection,
+original clock preservation and durable handoff after a bounded provider-429 hold.
+This exposed a missing write-ahead bridge on continuation provider-hold checkpoints;
+those journal versions now commit matching sidecar state. Eleven affected canonical
+lifecycle/recovery tests pass. Normal successors retain entry authority with verified
+existing positions; no-entry position slices remain after the authorized normal
+window budget. Twenty-two controller/state/adapter tests pass, including two normal
+windows with retained positions followed by a no-entry continuation. Full native
+workflow adapter, bounded-history, multi-day/crash/provider matrices still pending;
+these focused results do not close Phases B–D.
