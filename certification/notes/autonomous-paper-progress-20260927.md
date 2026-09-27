@@ -801,3 +801,18 @@ Meteora startup reconciles same-book orphan/terminal pins after abrupt pre-reser
 or post-terminal cuts; unresolved and foreign-book pins remain. Both independently
 prepared source trees compose identically. Phase-B monitoring returns to PROVEN;
 the complete Phase-D joined resource/provider proof remains pending.
+
+Evidence checkpoint batch pushed as `1f9573756ce1f03f4103f2b25c045013e8471507`;
+ordinary CI `36342478094` PASS. Protocol freeze and all four composed
+source identities pass. No market or full certification was dispatched.
+
+Next causal reproduction: current Pons' actual campaign loop with 20,000 preserved
+predecessor observations dispatches zero new lifecycle work because it applies the
+per-window cap to cumulative history. A verified normal successor now records a
+durable observation offset; the unchanged 20,000 cap counts only that window's
+observations. Cumulative sequence/trial IDs, qualifiers, re-entry vectors, native
+books and sleeve remain intact. The same actual scheduling fixture now progresses;
+real capsule recovery and mid-window restart keep the exact offset. This fixes
+capacity starvation, not the still-pending raw-history storage compaction problem.
+
+The Pons window-capacity repair passes 13 capsule/native-handoff/capacity tests and six native campaign regressions. The new observation counter resets only under verified successor authority; mid-window restart retains it. No threshold, trial ID, re-entry rule or allocation changed.

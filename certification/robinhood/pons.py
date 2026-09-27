@@ -262,6 +262,9 @@ def recover_cohort(path,policy):
             result['started_at']=time.time()
             result.pop('ended_at',None);result.pop('summary',None)
             result['autonomous_predecessor']=required
+            # The same native trial/qualifier history and sleeve continue, but
+            # this verified successor has its own unchanged observation budget.
+            result['autonomous_observation_offset']=len(result.get('rows',[]))
         return result
     finally:plane.close()
 

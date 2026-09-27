@@ -275,7 +275,18 @@ try:
   r=recover_cohort(restored,'frozen')
   assert r['rows']==result['rows'] and r['started_at']>2 and 'ended_at' not in r
   assert r['autonomous_predecessor']['workflow_run_id']==1
-  p=Plane(restored);saved=p.checkpoint_read('pons_cohort');saved['autonomous_window']['index']=9;p.checkpoint('pons_cohort',saved);p.close()
+  assert r['autonomous_observation_offset']==1
+  # Mid-window restart retains the same budget offset and cumulative identity.
+  new=dict(index=1,curve='new-curve')
+  restored_rows=t.target/'pons'/cohort.name/rows.name
+  with restored_rows.open('a') as out:out.write(json.dumps(new)+'\n')
+  r['rows'].append(new);r['candidate_plane_path']=str(restored)
+  with patch.dict(os.environ,MM_AUTONOMOUS_WINDOW_CLAIM=str(t.target_run/'autonomous-window-claim.json')):
+   save_cohort_checkpoint(r,101,'discovery')
+  p=Plane(restored);saved=p.checkpoint_read('pons_cohort');saved['owner']='previous-boot:1:1';p.checkpoint('pons_cohort',saved);p.close()
+  again=recover_cohort(restored,'frozen')
+  assert again['rows']==r['rows'] and again['autonomous_observation_offset']==1
+  p=Plane(restored);saved=p.checkpoint_read('pons_cohort');saved['phase']='finalizing';saved['autonomous_window']['index']=9;p.checkpoint('pons_cohort',saved);p.close()
   try:recover_cohort(restored,'frozen')
   except BoundaryError as exc:assert str(exc)=='selective_completed_window_identity'
   else:raise AssertionError('wrong checkpoint window accepted')

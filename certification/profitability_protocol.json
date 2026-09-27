@@ -41,7 +41,7 @@
       "strategy_version": "pons-shared-sleeve-six-regime-v1",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "b9f3aff04336d22fac8a8a8f38c821a8fb776b8ccd891774a8d46012d9124db2",
-      "source_diff_sha256": "39e358f083770b026f31b4bf025590b442e039afc3556ddbe1116a9f7a2db81c",
+      "source_diff_sha256": "058243c3a2cdb9f7c5e862b43744302c274e2167cfa90beb80b3fb05a9bb07e7",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23"
     },
     "ramses": {
