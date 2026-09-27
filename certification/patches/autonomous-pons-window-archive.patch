@@ -1,0 +1,63 @@
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+index af9cb6d05cd2f26d322c360a08ca6daae5aebaca..505e7af50a737ef992abe84bd729e782e1b00d2e 100644
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@ -114,8 +114,12 @@ def _atomic_json(path,row):
+     os.replace(tmp,path)
+ 
+ 
++def _enrolled_count(result):
++    return result.get('archived_observations',{}).get('count',0)+len(result['rows'])
++
++
+ def _summary_snapshot(result):
+-    rejection_counts={}
++    rejection_counts=dict(result.get('archived_observations',{}).get('rejections',{}))
+     for row in result["rows"]:
+         vector=row.get("vector") or {}
+         for reason in vector.get("all_rejections") or []:
+@@ -128,7 +132,7 @@ def _summary_snapshot(result):
+         if life.get("realized_pnl_quote") is not None:
+             realized.append(int(life["realized_pnl_quote"]))
+     return dict(
+-        enrolled=len(result["rows"]),
++        enrolled=_enrolled_count(result),
+         qualified=len(result["qualifiers"]),
+         qualifiers_with_wallet_convergence=sum(
+             bool(q["wallet_convergence"].get("converged"))
+@@ -793,7 +797,7 @@ def run(endpoint,*,campaign=False):
+                     hydration=Future();hydration.set_result(value)
+                     replayed=True
+                     hydration_stages=[];hydration_started=time.monotonic()
+-                    sequence=len(result['rows']);dispatch=time.monotonic()
++                    sequence=_enrolled_count(result);dispatch=time.monotonic()
+                     observed_monotonic=dispatch-max(0,time.time()-scheduled['queued_at'])
+             if hydration is None:
+                 scheduled=queue.pop(now=time.time())
+@@ -804,7 +808,7 @@ def run(endpoint,*,campaign=False):
+                 if elapsed<0:raise BoundaryError('candidate_observation_clock_regression')
+                 observed_monotonic=time.monotonic()-elapsed
+                 identity=queue.identity(event)
+-                sequence=len(result['rows'])
++                sequence=_enrolled_count(result)
+                 dispatch=time.monotonic()
+                 if campaign and _window_observations(result)>=MAX_ENROLLED:
+                     queue.failure(scheduled,'selective_campaign_observation_capacity')
+@@ -1017,7 +1021,7 @@ def run(endpoint,*,campaign=False):
+         feed.close();skill.close();queue.close()
+ 
+     result["lifecycles"].sort(key=lambda row:row.get("index",-1))
+-    counts={}
++    counts=dict(result.get('archived_observations',{}).get('rejections',{}))
+     for row in result["rows"]:
+         vector=row.get("vector") or {}
+         for reason in vector.get("all_rejections") or []:
+@@ -1030,7 +1034,7 @@ def run(endpoint,*,campaign=False):
+         if life.get("realized_pnl_quote") is not None:
+             returns.append(int(life["realized_pnl_quote"]))
+     result["summary"]=dict(
+-        enrolled=len(result["rows"]),
++        enrolled=_enrolled_count(result),
+         qualified=len(result["qualifiers"]),
+         qualifiers_with_wallet_convergence=sum(
+             bool(q["wallet_convergence"].get("converged"))

@@ -168,6 +168,8 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity, di
                      if preserved_artifact is not None else None)
     if any(r.get('error_type') for r in records):
         raise ValueError('campaign_state_snapshot_incomplete')
+    from certification.pons_window_archive import externalize
+    pons_handoff=externalize(destination,preserved_artifact,window) if preserved_artifact is not None else None
     files = []
     for path in sorted((destination/'files').rglob('*')):
         if path.is_symlink():
@@ -186,6 +188,7 @@ def seal(destination, *, worktrees, run, window, terminal, expected_identity, di
                 terminal_hash=digest(terminal), terminal=terminal, files=files, entry_authority=False,
                 accounting={lane: terminal['lanes'][lane]['terminal_reconciliation'] for lane in LANES})
     if archive_handoff is not None:body['archive_handoff']=archive_handoff
+    if pons_handoff is not None:body['pons_observation_handoff']=pons_handoff
     body['state_hash'] = digest(body)
     _atomic(destination/MANIFEST, body)
     return body

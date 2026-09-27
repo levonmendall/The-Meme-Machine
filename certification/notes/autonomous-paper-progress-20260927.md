@@ -905,3 +905,35 @@ handoff regressions. PASS proves GitHub accepted the actual dispatch/ref/inputs
 and both production continuation formats pass on that exact source. FAIL localizes
 dispatch permission/contract or hosted adapter behavior. No pressure or market run
 is part of this verification. Final-SHA binding must be reconfirmed after Phase D.
+
+Phase-C real dispatch/control-plane proof PASS at
+`d63caf33f6d0cbbac98a4e2622257a4dd13a0bc8`: external launcher `36345626152`
+actually dispatched workflow `36345646046` on
+`cert/autonomous-paper-control-d63caf3`. Its 36 hosted controller/launch/capsule/
+native normal and position handoff tests pass with no skips. The downloaded proof
+artifact `10940471618` has verified ZIP SHA256
+`336980209f3fda39dc700300683de1b64ffc78caa593162984d0977541ed5081`.
+The exact-SHA receipt records entry_authority=false, provider_authority=false and
+market_dispatch=false. Real GitHub accepted the workflow/ref/inputs and persisted
+the launch intent; no market campaign was created. Phase C is proven on this
+candidate. Reconfirm the same actual verification operation on the final Phase-D
+candidate before its machinery certificate. Resume Phase D from parked Pons raw-log
+handoff work; do not repeat the completed component soaks without composition cause.
+
+Pons raw-log handoff repair now externalizes only terminal, artifact-verified
+candidate observations, discovery sessions and sequencer recovery logs from the
+successor capsule. Original files/artifacts stay unchanged. The copied checkpoint
+retains exact cumulative observation/rejection counts, a chained preservation
+receipt and cumulative next sequence; qualifiers, re-entry vectors, lifecycle
+receipts and economic books remain hot unchanged. Mid-window recovery still uses
+its own raw logs. Missing/changed preservation and interrupted seal publish no
+restorable capsule. Position-only handoffs leave the discovery checkpoint intact.
+
+New 168-hour component fixture preserves 33,600 observation rows in predecessor
+snapshots while restored hot state stays 247,686–247,690 bytes. Actual native Pons
+recovery opens the final capsule with no historical row list, unchanged qualifiers,
+next sequence 33,600 and a fresh unchanged per-window budget. Four affected
+raw-log/capsule/six-native/capacity tests and six native campaign tests PASS.
+Both independent source preparations match; protocol freeze passes. Remaining
+Phase-D gaps still include Robinhood candidate/transition/cache history and
+candidate/settlement churn; this is not the joined multi-day proof.
