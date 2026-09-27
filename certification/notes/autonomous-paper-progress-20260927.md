@@ -865,3 +865,43 @@ affected tests pass; the 168-checkpoint storage component preserves 33,600 marks
 fixed-position storage proof, not a policy-horizon or full Phase-D completion claim.
 Candidate/settled-position churn and Robinhood/Pons cumulative histories remain
 pending. No market or full certification was dispatched.
+
+Survivor checkpoint batch `66898d47bda438dffe24e24724baa2a6486583fe` passes ordinary
+CI `36344380666`. A new Pons raw-log handoff prototype is parked uncommitted while
+the updated execution order closes real Phase-C control-plane availability first.
+The prototype has not yet passed regression/composition and is not a candidate.
+
+Next hosted check (no market/provider authority): run the existing external launch
+request with operation `check`, bound to `66898d47bda438dffe24e24724baa2a6486583fe`.
+Hypothesis: the registered autonomous workflow and exact dispatch-ref bytes are
+available through the actual Actions token/control plane. Discriminator: native
+launch receipt verifies exact ref/SHA, active workflow ID/path and byte digest,
+with dispatch=false and provider_calls=0. PASS establishes current-ref availability;
+FAIL identifies the actual registration/ref/permission/source-contract boundary.
+This does not establish dispatch acceptance or final-candidate closure by itself.
+
+Real availability check `36345287362` PASS on runtime
+`66898d47bda438dffe24e24724baa2a6486583fe`, ref
+`cert/autonomous-paper-control-66898d4`, active workflow ID `368452537`, workflow
+bytes SHA256 `de3ef1ed78e5b71bc452d529450786ac428784776173f97559ce8784df669082`.
+Native receipt explicitly records dispatch=false/provider_calls=0. Artifact
+`10940143793`, digest `0a98747c29a1bf028ebaaed310283f3b8de05b1c88bbc6c42931fd4b66ee788e`.
+
+Phase-C adapter integration exposed a failure-preservation gap: position worker
+failure drained children but bypassed verified native snapshot creation. The outer
+production adapter now preserves standalone failure snapshots after drain and
+always closes evidence ownership even if its snapshot fails. The existing six-book
+handoff regression now enters the actual position adapter, starts four real child
+processes with a controlled failure, verifies all children stop and all six native
+books reconcile unchanged, and rejects success capsule creation. External provider
+transport alone is a fixture. Native construction uses the existing offline socket
+guard. Thirty-six focused controller/launch/adapter/capsule/native tests PASS.
+
+Next bounded hosted Phase-C discriminator: add explicit `verify` to the existing
+workflow/launcher and execute one real workflow_dispatch on the exact repair SHA.
+The verify path grants no campaign, provider or entry authority; it prepares the
+frozen sources and runs the existing normal/position controller and six-native
+handoff regressions. PASS proves GitHub accepted the actual dispatch/ref/inputs
+and both production continuation formats pass on that exact source. FAIL localizes
+dispatch permission/contract or hosted adapter behavior. No pressure or market run
+is part of this verification. Final-SHA binding must be reconfirmed after Phase D.

@@ -24,6 +24,8 @@ COMMON=r'''
 import json,os,sys
 from pathlib import Path
 from unittest.mock import patch
+from certification.offline_tests import install_network_guard
+install_network_guard()
 sys.path.insert(0,os.getcwd())
 root=Path(sys.argv[1]);root.mkdir(parents=True,exist_ok=True)
 run=Path(sys.argv[2]);run.mkdir(parents=True,exist_ok=True)
@@ -286,3 +288,45 @@ print(json.dumps(row))
                     MM_CERTIFICATION_RPC_CACHE_DB=str(position_runtime/'shared-robinhood-evidence.sqlite')),
                 capture_output=True,text=True,timeout=30)
             self.assertEqual(process.returncode,0,process.stdout+process.stderr)
+
+            # Exercise the production position workflow adapter with all six
+            # real restored states and a real child-process failure. Only the
+            # external evidence transport is replaced; native replay is actual.
+            from unittest.mock import patch
+            from certification import autonomous_positions as adapter
+            predecessor=root/'adapter-predecessor';predecessor.mkdir()
+            shutil.copytree(root/'second-capsule',predecessor/'capsule')
+            output=root/'adapter-failure';output.mkdir()
+            processes=[];commands=[];closed=[]
+            real_popen=subprocess.Popen
+            def launch_child(command,**kwargs):
+                if 'certification.position_continuation' not in command:
+                    return real_popen(command,**kwargs)
+                lane=command[command.index('--lane')+1];commands.append(command)
+                authority=Path(kwargs['env']['MM_AUTONOMOUS_POSITION_STATE'])/'autonomous-position-authority.json'
+                value=json.loads(authority.read_text())
+                self.assertFalse(value['window']['entry_authority'])
+                self.assertEqual(value['identity'],identity)
+                self.assertEqual(value['window']['positions'],prior['positions'])
+                code='import sys;sys.exit(7)' if lane=='pons' else 'import time;time.sleep(60)'
+                process=real_popen([sys.executable,'-c',code],**kwargs);processes.append(process)
+                return process
+            class EvidenceFixture:
+                def __init__(self,*args):pass
+                def start(self):pass
+                def check(self):return dict(lanes={lane:dict(usable=True) for lane in ('pump','meteora')})
+                def snapshot(self):return dict(fixture='provider-free-process-failure')
+                def close(self):closed.append(True);return dict(clean=True)
+            with patch.object(subprocess,'Popen',side_effect=launch_child), \
+                    patch('certification.evidence_supervisor.EvidenceProcess',EvidenceFixture):
+                with self.assertRaisesRegex(ValueError,'autonomous_position_process_failed'):
+                    adapter.run(position_claim,sources,output,predecessor)
+            self.assertEqual(len(commands),4);self.assertEqual(closed,[True])
+            self.assertTrue(all(process.poll() is not None for process in processes))
+            self.assertFalse((output/'capsule').exists())
+            self.assertTrue(verify_snapshot(output/'artifact')['snapshot_complete'])
+            failure=json.loads((output/'position-state/certification-position/failure.json').read_text())
+            self.assertEqual(failure['status'],'FAILED');self.assertFalse(failure['entry_authority'])
+            for lane in state.LANES:
+                copied=output/'artifact/certification-native/position'/lane
+                self.assertEqual(native_proof(lane,copied,sources/lane)['accounting'],before[lane]['accounting'])

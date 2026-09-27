@@ -30,6 +30,22 @@ def live_ids(snapshot):
 
 
 def run(claim, worktrees, output, previous):
+    try:return _run(claim,worktrees,output,previous)
+    except BaseException as exc:
+        # Drain happens in _run before preserving standalone SQLite snapshots.
+        # A failed window never receives a success capsule or successor authority.
+        output=Path(output);state=output/'position-state'
+        runtime=state/'certification-position';native=state/'certification-native/position'
+        if runtime.exists():
+            _atomic(runtime/'failure.json',dict(status='FAILED',entry_authority=False,
+                error_type=type(exc).__name__,identity=claim['identity']))
+            if not (output/'artifact').exists():
+                artifact=stage(native,state,'position')
+                artifact.rename(output/'artifact')
+        raise
+
+
+def _run(claim, worktrees, output, previous):
     from certification.autonomous_control import REVIEW_GATES
     from certification.evidence_supervisor import EvidenceProcess
     from certification.market_assurance import native_positions,continuity
@@ -106,7 +122,8 @@ def run(claim, worktrees, output, previous):
                     process.wait(timeout=5)
         for stream in files.values():stream.close()
         if evidence is not None:
-            snapshot=evidence.snapshot();shutdown=evidence.close()
+            try:snapshot=evidence.snapshot()
+            finally:shutdown=evidence.close()
     after={lane:native_positions(native/lane,lane) for lane in campaign_state.LANES}
     proofs={lane:native_proof(lane,native/lane,worktrees/lane) for lane in campaign_state.LANES}
     transfers={lane:continuity(before[lane],after[lane]) for lane in campaign_state.LANES}

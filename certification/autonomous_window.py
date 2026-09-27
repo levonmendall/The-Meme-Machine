@@ -216,7 +216,14 @@ def main():
     run_id=int(os.environ['GITHUB_RUN_ID']);attempt=os.environ['GITHUB_RUN_ATTEMPT']
     if a.operation=='control':
         operation=os.environ['OPERATION']
-        if operation=='authorize':
+        if operation=='verify':
+            # Real dispatch acceptance without campaign or market authority.
+            contract=control.workflow_contract(api,os.environ['GITHUB_REF_NAME'],expected)
+            control.contention(api,exclude_run=run_id)
+            value=dict(identity=expected,workflow_contract=contract,
+                entry_authority=False,provider_authority=False,market_dispatch=False,
+                verification_workflow_run_id=run_id)
+        elif operation=='authorize':
             value=control.authorize(api,expected,campaign,os.environ['GITHUB_REF_NAME'],
                 int(os.environ['CERTIFICATE_RUN']),run_id,attempt=attempt,
                 maximum_windows=int(os.environ.get('MAXIMUM_WINDOWS') or control.MAX_WINDOWS))
