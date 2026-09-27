@@ -1,4 +1,4 @@
-name: Run 381 focused SQLite and maintenance repair
+name: Run 381 focused integration bindings
 on:
   push:
     branches: [analysis/run381-sqlite-lifetime-20260927]
@@ -7,7 +7,7 @@ permissions:
 jobs:
   deterministic:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -17,16 +17,15 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install -r requirements.txt
-      - name: Prove preserved implementations fail by assertion, not setup errors
+      - name: Readiness and full-certificate regression gates
+        run: python -m unittest certification.tests.test_final_acceptance certification.tests.test_run381_storage_readiness -v
+      - name: Verify exact composed source and frozen six-regime policy bindings
         run: |
-          python -m py_compile tests/test_run381_retention_progress.py tests/test_run381_maintenance_overlap.py
-          git show 674b4a1e8efb9576c31f4815b57fce395706369d:meme_machine/solana_evidence_plane.py > meme_machine/solana_evidence_plane.py
-          python -m certification.run381_expected_failure tests.test_run381_retention_progress.RetentionProgressTests.test_interrupted_begin_cannot_leave_an_open_write_transaction
-          git restore --source=HEAD -- meme_machine/solana_evidence_plane.py
-          git show 674b4a1e8efb9576c31f4815b57fce395706369d:meme_machine/solana_evidence_service.py > meme_machine/solana_evidence_service.py
-          python -m certification.run381_expected_failure tests.test_run381_maintenance_overlap
-          git restore --source=HEAD -- meme_machine/solana_evidence_service.py
-      - name: Repaired deterministic regressions and interruption matrix
-        run: |
-          python -m unittest tests.test_run381_retention_progress tests.test_run381_repair_pagination tests.test_run381_maintenance_overlap tests.test_run379_production_pressure -q
-          python -m certification.run381_sqlite_probe
+          python -m certification.run prepare --worktrees "$RUNNER_TEMP/run381-integrated" > "$RUNNER_TEMP/run381-prepare.log" 2>&1
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from certification.run import source_integrity
+          print('VERIFIED_SOURCE_IDENTITIES',json.dumps(source_integrity(Path(os.environ['RUNNER_TEMP'])/'run381-integrated'),sort_keys=True))
+          PY
+          python -m certification.protocol_freeze --output "$RUNNER_TEMP/run381-protocol.json"

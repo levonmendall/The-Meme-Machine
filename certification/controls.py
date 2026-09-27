@@ -121,12 +121,17 @@ def evidence_continuity(row, lane, shared=None):
     incomplete=max(counts.get(lane+'.incomplete_local_reads',0),local.get(lane+'.incomplete_local_reads',0))
     capacity=max(counts.get('disconnect:local_receive_dispatch_capacity',0),ipc.get('stream.dispatch_queue_overflow',0))
     capacity+=counts.get('disconnect:local_receive_backpressure_ping_timeout',0)
+    storage_capacity=counts.get('capacity_stops',0)
     gaps=stream.get('unresolved_gaps',0)
     failures=[]
     if capacity and (blocked or gaps):failures.append(lane+':capacity_censored_local_evidence')
     elif capacity>1:failures.append(lane+':capacity_disconnect_churn')
     if gaps and blocked:failures.append(lane+':unresolved_gaps_block_local_evidence')
+    # Run 381 stopped the shared writer before Meteora could issue local reads.
+    # Zero query counters cannot certify continuity after a hot-store stop.
+    if storage_capacity and gaps:failures.append(lane+':storage_capacity_censored_evidence')
     return dict(failures=failures, capacity_disconnects=capacity, unresolved_gaps=gaps,
+                storage_capacity_stops=storage_capacity,
                 gap_blocked_queries=blocked, complete_local_reads=complete,
                 incomplete_local_reads=incomplete, classification=(
                     'infrastructure_censored' if failures else 'no_material_censoring_observed'))

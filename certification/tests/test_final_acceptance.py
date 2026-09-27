@@ -40,10 +40,10 @@ class FinalAcceptanceTests(unittest.TestCase):
             passed=True,integration_sha='sha',provider_calls=0,source_seconds=600.21,
             candidate_checks=60,archive_records_verified=200000,
             counters={'compacted_records':200000},lag_peak=2,hot_peak=1000000000,
-            integrity=['ok'],oldest_hot_age_peak=181)))
+            integrity=['ok'],oldest_hot_age_peak=181,oldest_retained_age_peak=182)))
 
     def test_missing_short_or_failed_mature_pressure_cannot_certify(self):
-        for change in ('missing','short','wrong_sha','no_compaction','failed','growing_backlog'):
+        for change in ('missing','short','wrong_sha','no_compaction','failed','growing_backlog','index_cleanup_backlog','missing_index_cleanup'):
             with self.subTest(change=change),tempfile.TemporaryDirectory() as td:
                 root=Path(td);self.build(root);path=root/'run381-pressure/result.json'
                 row=json.loads(path.read_text())
@@ -54,6 +54,8 @@ class FinalAcceptanceTests(unittest.TestCase):
                     if change=='no_compaction':row['counters']['compacted_records']=0
                     if change=='failed':row['passed']=False
                     if change=='growing_backlog':row['oldest_hot_age_peak']=300
+                    if change=='index_cleanup_backlog':row['oldest_retained_age_peak']=300
+                    if change=='missing_index_cleanup':row.pop('oldest_retained_age_peak')
                     path.write_text(json.dumps(row))
                 self.assertEqual(run(root,root/'result.json','sha',root/'registry.json'),1)
                 self.assertFalse(json.loads((root/'result.json').read_text())['gates']['mature_solana_pressure'])
