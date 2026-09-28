@@ -1,23 +1,16 @@
-name: Read-only refreshed-secret smoke failure review
+name: Read-only Solana finalized HTTP vs WebSocket comparison
 on:
   push:
     branches: [review/autonomous-paper-evidence-a60326b]
     paths: [.github/workflows/autonomous-paper-evidence-review.yml]
 permissions:
   contents: read
-  actions: read
 jobs:
-  evidence:
+  compare:
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 8
     env:
-      GH_TOKEN: ${{ github.token }}
-      EVIDENCE_RUN: '36384477317'
-      EVIDENCE_ARTIFACT: '10953634033'
-      EVIDENCE_NAME: autonomous-paper-autonomous-paper-df7b376-secret-refresh-20260927-0-36384477317-native
-      EVIDENCE_DIGEST: sha256:5386e1c84b493bbdc2eb375b4044ef556a441ec98f858e38099d9842307a7313
-      EVIDENCE_SHA: df7b376230a2cea0b9e6377662d7e5f2c3e66067
-      EVIDENCE_SIZE: '893835541'
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -28,70 +21,138 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Verify immutable artifact and extract exact failure evidence
+      - name: Compare production-shape finalized WebSocket frontier with authenticated HTTP finalized tip
         run: |
           python - <<'PYCODE'
-          import os,json,hashlib,zipfile
-          from pathlib import Path,PurePosixPath
-          from urllib.request import Request,build_opener,urlopen
-          from urllib.error import HTTPError
-          from certification.prospective_program import GitHub,NoRedirect
-          api=GitHub();run_id=int(os.environ['EVIDENCE_RUN'])
-          run=api.request('GET',f'actions/runs/{run_id}')
-          if run['head_sha']!=os.environ['EVIDENCE_SHA']:raise ValueError('review_source_identity')
-          items=[a for a in api.pages(f'actions/runs/{run_id}/artifacts','artifacts')
-                 if a['name']==os.environ['EVIDENCE_NAME']]
-          if len(items)!=1 or items[0].get('expired'):raise ValueError('review_artifact_missing')
-          item=items[0]
-          if item['id']!=int(os.environ['EVIDENCE_ARTIFACT']) or item['size_in_bytes']!=int(os.environ['EVIDENCE_SIZE']):
-              raise ValueError('review_exact_failure_size')
-          if item['digest']!=os.environ['EVIDENCE_DIGEST']:raise ValueError('review_artifact_identity')
-          req=Request(item['archive_download_url'],headers={'Authorization':'Bearer '+api.token})
-          try:response=build_opener(NoRedirect).open(req,timeout=30)
-          except HTTPError as exc:
-              if exc.code not in (301,302,303,307,308):raise
-              response=urlopen(exc.headers['Location'],timeout=60)
-          archive_path=Path(os.environ['RUNNER_TEMP'])/'failed-smoke.zip'
-          h=hashlib.sha256();size=0
-          with response,archive_path.open('wb') as out:
-              while block:=response.read(1024*1024):
-                  size+=len(block)
-                  if size>item['size_in_bytes']:raise ValueError('review_transport_size')
-                  h.update(block);out.write(block)
-          if size!=item['size_in_bytes'] or 'sha256:'+h.hexdigest()!=item['digest']:
-              raise ValueError('review_transport_digest')
-          root=Path('reviewed-evidence');root.mkdir()
-          suffixes=('evidence-process.log','process.log','service.log','status.json','health.json',
-                    'telemetry.json','window-review.json','market-assurance.json','result.json',
-                    'error.json','stream-state.json','stream_state.json','evidence-liveness.json',
-                    'evidence_liveness.json','terminal-reconciliation.json','diagnostics.json',
-                    'pump.log','pump-process.log','stderr.log','stdout.log','assurance.json')
-          selected=[];inventory=[];total=0
-          with zipfile.ZipFile(archive_path) as z:
-              for info in z.infolist():
-                  inventory.append({'path':info.filename,'bytes':info.file_size})
-                  low=info.filename.lower()
-                  exact=any(info.filename==s or info.filename.endswith('/'+s) for s in suffixes)
-                  keyed=(any(k in low for k in ('pump','solana','evidence','stream','wal','checkpoint','gap','retention','assurance'))
-                         and low.endswith(('.json','.log','.txt')))
-                  if not (exact or keyed):continue
-                  path=PurePosixPath(info.filename)
-                  if path.is_absolute() or '..' in path.parts or '\\' in info.filename:raise ValueError('review_artifact_path')
-                  if info.file_size>16*1024**2:continue
-                  if total+info.file_size>80*1024**2:continue
-                  raw=z.read(info);total+=len(raw)
-                  target=root/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
-                  selected.append({'path':info.filename,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
-          result={'run_id':run_id,'source_sha':run['head_sha'],'artifact_id':item['id'],
-                  'artifact_digest':item['digest'],'selected':selected,'inventory':inventory,
-                  'read_only':True,'provider_calls':0,'market_authority':False}
-          (root/'review-index.json').write_text(json.dumps(result,sort_keys=True,indent=2)+'\n')
-          print(json.dumps({k:result[k] for k in result if k!='inventory'},sort_keys=True))
+          import asyncio,json,os,re,time,urllib.request,statistics,hashlib
+          from pathlib import Path
+          from meme_machine.solana_provider_config import AlchemyEndpoint,GENESIS
+
+          DURATION=150
+          POLL=5
+          cfg=AlchemyEndpoint.parse(os.environ['MM_SOLANA_READ_RPC_URL'])
+
+          def rpc(method,params):
+              body=json.dumps({'jsonrpc':'2.0','id':1,'method':method,'params':params}).encode()
+              req=urllib.request.Request(cfg.http_url,body,{'Content-Type':'application/json'})
+              with urllib.request.urlopen(req,timeout=8) as resp:
+                  raw=resp.read(4*1024*1024)
+              value=json.loads(raw)
+              if value.get('id')!=1 or 'error' in value or 'result' not in value:
+                  raise RuntimeError('http_rpc_unavailable:'+method)
+              cfg.public(value)
+              return value['result']
+
+          def http_tip():
+              slot=rpc('getSlot',[{'commitment':'finalized'}])
+              if type(slot) is not int: raise RuntimeError('http_finalized_slot_shape')
+              probe=slot
+              market=None
+              for _ in range(12):
+                  market=rpc('getBlockTime',[probe])
+                  if type(market) is int: break
+                  probe-=1
+              if type(market) is not int: raise RuntimeError('http_finalized_time_unavailable')
+              return {'slot':slot,'time_slot':probe,'market_time':market}
+
+          async def main():
+              if await asyncio.to_thread(rpc,'getGenesisHash',[])!=GENESIS:
+                  raise RuntimeError('solana_network_identity_mismatch')
+              from websockets.asyncio.client import connect
+              latest={'slot':None,'market_time':None,'seen':None,'frame_bytes':0}
+              counters={'frames':0,'block_frames':0,'raw_peak':0,'acks':0}
+              samples=[];stop=asyncio.Event();errors=[]
+
+              async def ws_reader():
+                  try:
+                      async with connect(cfg.stream_url,max_size=16*1024*1024,max_queue=32,
+                                         ping_interval=10,ping_timeout=None,open_timeout=10) as ws:
+                          request={'jsonrpc':'2.0','id':1,'method':'blockSubscribe','params':[
+                              'all',{'commitment':'finalized','encoding':'json',
+                                     'transactionDetails':'full','showRewards':False,
+                                     'maxSupportedTransactionVersion':1}]}
+                          await ws.send(json.dumps(request,separators=(',',':')))
+                          while not stop.is_set():
+                              try: raw=await asyncio.wait_for(ws.recv(decode=False),1)
+                              except TimeoutError: continue
+                              counters['frames']+=1
+                              if not isinstance(raw,(bytes,str)): continue
+                              if isinstance(raw,str): raw=raw.encode()
+                              counters['raw_peak']=max(counters['raw_peak'],len(raw))
+                              if b'"id":1' in raw and b'"result":' in raw and b'"method"' not in raw:
+                                  counters['acks']+=1;continue
+                              if b'"method":"blockNotification"' not in raw: continue
+                              slot=re.search(rb'"slot":(\d+)',raw)
+                              bt=re.search(rb'"blockTime":(\d+)',raw)
+                              if slot and bt:
+                                  latest.update(slot=int(slot.group(1)),market_time=int(bt.group(1)),
+                                                seen=time.time(),frame_bytes=len(raw))
+                                  counters['block_frames']+=1
+                  except Exception as exc:
+                      errors.append(type(exc).__name__)
+
+              async def sampler():
+                  started=time.monotonic()
+                  while time.monotonic()-started<DURATION:
+                      now=time.time()
+                      tip=await asyncio.to_thread(http_tip)
+                      row={'elapsed':time.monotonic()-started,'observed_at':now,
+                           'http_slot':tip['slot'],'http_time_slot':tip['time_slot'],
+                           'http_market_time':tip['market_time'],
+                           'http_market_age':max(0,now-tip['market_time']),
+                           'ws_slot':latest['slot'],'ws_market_time':latest['market_time'],
+                           'ws_seen':latest['seen'],'ws_frame_bytes':latest['frame_bytes']}
+                      if latest['market_time'] is not None:
+                          row['ws_market_age']=max(0,now-latest['market_time'])
+                          row['ws_delivery_age']=max(0,now-latest['seen'])
+                          row['slot_gap']=max(0,tip['slot']-latest['slot'])
+                          row['market_age_gap']=row['ws_market_age']-row['http_market_age']
+                      samples.append(row)
+                      print(json.dumps(row,sort_keys=True),flush=True)
+                      await asyncio.sleep(POLL)
+                  stop.set()
+
+              reader=asyncio.create_task(ws_reader())
+              await sampler()
+              try: await asyncio.wait_for(reader,5)
+              except TimeoutError:
+                  reader.cancel();await asyncio.gather(reader,return_exceptions=True)
+
+              paired=[s for s in samples if s.get('ws_market_age') is not None]
+              if not paired: raise RuntimeError('no_websocket_finalized_samples')
+              def stat(key,fn=max):
+                  vals=[float(s[key]) for s in paired if key in s]
+                  return fn(vals) if vals else None
+              result={
+                'source_sha':'df7b376230a2cea0b9e6377662d7e5f2c3e66067',
+                'endpoint_identity':cfg.identity[:20],
+                'duration_seconds':DURATION,
+                'http_samples':len(samples),'paired_samples':len(paired),
+                'ws_frames':counters['frames'],'ws_block_frames':counters['block_frames'],
+                'ws_raw_peak_bytes':counters['raw_peak'],'ws_subscription_acks':counters['acks'],
+                'errors':errors,
+                'http_market_age_median':stat('http_market_age',statistics.median),
+                'http_market_age_peak':stat('http_market_age'),
+                'ws_market_age_median':stat('ws_market_age',statistics.median),
+                'ws_market_age_peak':stat('ws_market_age'),
+                'market_age_gap_median':stat('market_age_gap',statistics.median),
+                'market_age_gap_peak':stat('market_age_gap'),
+                'slot_gap_median':stat('slot_gap',statistics.median),
+                'slot_gap_peak':stat('slot_gap'),
+                'ws_delivery_age_peak':stat('ws_delivery_age'),
+                'last':paired[-1],
+                'provider_calls':1+len(samples)*2,
+                'paper_only':True,'market_authority':False,'entry_authority':False
+              }
+              Path('solana-frontier-comparison.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+              print('RESULT '+json.dumps(result,sort_keys=True),flush=True)
+              if errors: raise RuntimeError('websocket_comparison_transport_error')
+          asyncio.run(main())
           PYCODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: reviewed-smoke-10953634033
-          path: reviewed-evidence/
+          name: solana-frontier-comparison-df7b376
+          path: solana-frontier-comparison.json
           if-no-files-found: error
           retention-days: 90
