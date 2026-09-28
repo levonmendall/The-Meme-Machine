@@ -112,8 +112,8 @@ class RetentionProgressTests(unittest.TestCase):
     try:writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
     finally:writer.db.set_trace_callback(None)
     self.assertTrue(any(
-      s.startswith('DELETE FROM address_refs WHERE record_id IN (SELECT rowid FROM records WHERE identity IN (') for s in statements),
-      'retention did not pre-clean address refs as one bounded set')
+      s.startswith('DELETE FROM address_refs WHERE record_id IN (') and 'SELECT rowid FROM records' not in s for s in statements),
+      'retention did not reuse selected rowids for address-ref cleanup')
     self.assertTrue(any(
       s.startswith('DELETE FROM hot_refs WHERE identity IN (') for s in statements),
       'retention did not pre-clean hot refs as one bounded set')
@@ -121,8 +121,11 @@ class RetentionProgressTests(unittest.TestCase):
       s.startswith('DELETE FROM lineage WHERE identity IN (') for s in statements),
       'retention did not use bounded set deletion for lineage')
     self.assertTrue(any(
-      s.startswith('DELETE FROM records WHERE identity IN (') for s in statements),
-      'retention did not use bounded set deletion for records')
+      s.startswith('DELETE FROM records WHERE rowid IN (') for s in statements),
+      'retention did not reuse selected rowids for record retirement')
+    self.assertTrue(any(
+      s.startswith('SELECT MIN(slot) FROM records WHERE scope=') and 'slot>=' in s
+      for s in statements),'hot-floor search ignored the monotone retention floor')
     self.assertFalse(any(
       s.startswith('DELETE FROM lineage WHERE identity=') and ' IN (' not in s
       for s in statements),'retention regressed to per-record lineage deletes')
