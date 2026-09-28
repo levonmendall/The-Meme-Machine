@@ -12,10 +12,10 @@ jobs:
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
-      EVIDENCE_RUN: '36363200879'
-      EVIDENCE_ARTIFACT: '10947506577'
-      EVIDENCE_NAME: non-market-certification-4e52b4dddd237de2eb673bfd44805953dd93ca61-1
-      EVIDENCE_DIGEST: sha256:d314b69bd6a3aac623e4b180851bd6e75fc426db2958111f8813540f19369518
+      EVIDENCE_RUN: '36365805134'
+      EVIDENCE_ARTIFACT: '10947344120'
+      EVIDENCE_NAME: autonomous-paper-autonomous-paper-4e52b4d-20260927-0-36365805134
+      EVIDENCE_DIGEST: sha256:f62f806a2ad877a046a3e3b0b1b9bb0ea839a875ed81756809a173b9264fbb27
       EVIDENCE_SHA: 4e52b4dddd237de2eb673bfd44805953dd93ca61
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -38,7 +38,35 @@ jobs:
           run = api.request('GET', f'actions/runs/{run_id}')
           if run['head_sha'] != os.environ['EVIDENCE_SHA']:
               raise ValueError('review_source_identity')
-          archive, item = api.artifact(run_id, os.environ['EVIDENCE_NAME'])
+          # Read-only diagnosis of this exact preserved 2.6-GB failure artifact.
+          # Stream to disk; the certified runtime's transport bound stays unchanged.
+          from urllib.request import Request, build_opener, urlopen
+          from urllib.error import HTTPError
+          from certification.prospective_program import NoRedirect
+          import zipfile
+          items = [a for a in api.pages(f'actions/runs/{run_id}/artifacts', 'artifacts')
+                   if a['name'] == os.environ['EVIDENCE_NAME']]
+          if len(items) != 1 or items[0].get('expired'):
+              raise ValueError('review_artifact_missing')
+          item = items[0]
+          if item['id'] != 10947344120 or item['size_in_bytes'] != 2606362822:
+              raise ValueError('review_exact_failure_size')
+          request = Request(item['archive_download_url'], headers={'Authorization':'Bearer '+api.token})
+          try:
+              response = build_opener(NoRedirect).open(request, timeout=30)
+          except HTTPError as exc:
+              if exc.code not in (301,302,303,307,308): raise
+              response = urlopen(exc.headers['Location'], timeout=60)
+          target = Path(os.environ['RUNNER_TEMP'])/'failure-artifact.zip'
+          hasher = hashlib.sha256(); size = 0
+          with response, target.open('wb') as stream:
+              while block := response.read(1024*1024):
+                  size += len(block)
+                  if size > item['size_in_bytes']: raise ValueError('review_transport_size')
+                  hasher.update(block); stream.write(block)
+          if size != item['size_in_bytes'] or 'sha256:'+hasher.hexdigest() != item['digest']:
+              raise ValueError('review_transport_digest')
+          archive = zipfile.ZipFile(target)
           if item['id'] != int(os.environ['EVIDENCE_ARTIFACT']) or item['digest'] != os.environ['EVIDENCE_DIGEST']:
               raise ValueError('review_artifact_identity')
           root = Path('reviewed-evidence'); root.mkdir()
@@ -46,7 +74,9 @@ jobs:
               'final-acceptance.json', 'offline/result.json', 'window-review.json',
               'claim.json', 'market-assurance.json', 'manifest.json',
               'certification-smoke/result.json', 'certification-hourly/result.json',
-              'smoke-continuation-state.json', 'position-after.json', 'autonomous-controller.json')
+              'smoke-continuation-state.json', 'position-after.json', 'autonomous-controller.json',
+              'process.log', 'evidence-process.log', 'status.json', 'activity.json',
+              'terminal-reconciliation.json', 'error.json')
           selected = []
           inventory = []
           total = 0
@@ -62,7 +92,7 @@ jobs:
                   if info.file_size > 20*1024**2 or total > 24*1024**2:
                       raise ValueError('review_output_bound')
                   raw = archive.read(info)
-                  json.loads(raw)
+                  if info.filename.endswith('.json'): json.loads(raw)
                   target = root/path; target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(raw)
                   selected.append(dict(path=info.filename, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest()))
           result = dict(run_id=run_id, source_sha=run['head_sha'], artifact_id=item['id'],
