@@ -619,13 +619,13 @@ class EvidenceWriter:
         """
         if not 1 <= max_records <= 1000:raise EvidenceUnavailable('retention_batch_bound')
         archived=self.archive(before_time,max_records=max_records) if archive_first else 0
-        # Under ordinary source pressure, cleanup may consume one additional
-        # bounded transaction before returning the owner to FIFO source work.
+        # Under ordinary source pressure, cleanup may consume two additional
+        # bounded transactions before returning the owner to FIFO source work.
         # Each mutation remains capped at 256 records; urgent work still yields
-        # immediately after the current slice. This compresses the existing two-
-        # slice dense-scope allowance into one owner admission without enlarging
+        # immediately after the current slice. This grants at most three
+        # cleanup slices in one owner admission without enlarging any transaction
         # a SQLite transaction or permitting unbounded maintenance service.
-        source_yield_budget=[1]
+        source_yield_budget=[2]
         # At most 256 records and max_records rows from each continuity index per
         # transaction. A later cooperative yield cannot undo earlier scopes.
         scopes=self.db.execute('SELECT scope,slot FROM cursors ORDER BY scope').fetchall()
@@ -740,9 +740,10 @@ class EvidenceWriter:
             self._retention_source_resume_scope=None;self._retention_source_resume_count=0
         elif (yield_class=='source' and source_yield_budget is not None
               and source_yield_budget[0]>0):
-            # The fixed E22 cohort showed that one 256-record cleanup slice per
-            # owner admission can accumulate retirement debt even after the hot-
-            # floor lookup is O(1). Spend exactly one additional bounded slice.
+            # The fixed E22 cohorts showed that one or two 256-record cleanup
+            # slices per owner admission can still accumulate retirement debt
+            # after the hot-floor lookup is O(1). Spend at most two additional
+            # bounded slices; each remains a separate SQLite transaction.
             # The queued source request remains visible at the next transaction
             # boundary, where we yield (or yield sooner if urgent work arrived).
             source_yield_budget[0]-=1
@@ -750,7 +751,7 @@ class EvidenceWriter:
             self._retention_source_resume_scope=None;self._retention_source_resume_count=0
             return
         elif yield_class=='source' and urgent_next_scope is not None and resolved!=urgent_next_scope:
-            # Two bounded slices have now had one owner admission. Rotate before
+            # Three bounded slices have now had one owner admission. Rotate before
             # the next cleanup admission so a dense first scope cannot starve
             # later scopes while normal source work is continuously queued.
             self._retention_next_scope=urgent_next_scope

@@ -95,8 +95,8 @@ class RetentionProgressTests(unittest.TestCase):
     compacted=owner.submit(
       lambda s:(s.writer.db.execute("SELECT value FROM counters WHERE key='compacted_records'").fetchone() or (0,))[0],
       priority=0).result(5)
-    self.assertEqual(compacted,512,
-                     'normal source pressure did not receive exactly one extra bounded cleanup slice')
+    self.assertEqual(compacted,768,
+                     'normal source pressure did not receive exactly two extra bounded cleanup slices')
    finally:owner.close()
 
  def test_retention_compacts_one_slice_with_bounded_set_deletes(self):
@@ -135,12 +135,12 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertEqual(writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
    finally:writer.close()
 
- def test_source_pressure_grants_one_extra_dense_slice_then_rotates(self):
+ def test_source_pressure_grants_exactly_three_bounded_slices_then_yields(self):
   with tempfile.TemporaryDirectory() as td:
    def factory():
     writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
     rows=[replace(record(),scope='a',identity='a:dense:%04d'%i,
-                  signature='a:dense-s:%04d'%i) for i in range(700)]
+                  signature='a:dense-s:%04d'%i) for i in range(900)]
     rows += [replace(record(),scope='b',identity='b:sparse:%04d'%i,
                     signature='b:sparse-s:%04d'%i) for i in range(100)]
     writer.ingest(rows)
@@ -152,7 +152,7 @@ class RetentionProgressTests(unittest.TestCase):
      if not source and sql.startswith('DELETE FROM lineage'):
       source.append(owner.submit(lambda s:1,priority=2))
     state.writer.db.set_trace_callback(on_statement)
-    try:state.writer.retain(1000,max_records=512,archive_first=False)
+    try:state.writer.retain(1000,max_records=768,archive_first=False)
     finally:state.writer.db.set_trace_callback(None)
    try:
     task=owner.submit(compact,priority=4)
@@ -164,19 +164,19 @@ class RetentionProgressTests(unittest.TestCase):
     counts=owner.submit(
       lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
       priority=0).result(5)
-    self.assertEqual(resume,'b','two bounded cleanup slices did not rotate to the later scope')
-    self.assertEqual(counts['a'],188,'source service grant exceeded or missed the two-slice bound')
+    self.assertEqual(resume,'b','three-slice grant did not rotate to the later scope')
+    self.assertEqual(counts['a'],132,'source service grant exceeded or missed three bounded slices')
     self.assertEqual(counts['b'],100,'later scope ran before queued source work')
    finally:owner.close()
 
- def test_recurring_source_pressure_rotates_after_one_dense_resume(self):
+ def test_recurring_source_pressure_rotates_three_slice_grants_across_dense_scopes(self):
   with tempfile.TemporaryDirectory() as td:
    def factory():
     writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
     rows=[replace(record(),scope='a',identity='a:burst:%04d'%i,
                   signature='a:burst-s:%04d'%i) for i in range(900)]
     rows += [replace(record(),scope='b',identity='b:burst:%04d'%i,
-                    signature='b:burst-s:%04d'%i) for i in range(600)]
+                    signature='b:burst-s:%04d'%i) for i in range(900)]
     writer.ingest(rows)
     while writer.archive(1000):pass
     return SimpleNamespace(writer=writer,close=writer.close)
@@ -190,7 +190,7 @@ class RetentionProgressTests(unittest.TestCase):
        if not source and sql.startswith('DELETE FROM lineage'):
         source.append(owner.submit(lambda s:1,priority=2))
       state.writer.db.set_trace_callback(on_statement)
-      try:state.writer.retain(1000,max_records=512,archive_first=False)
+      try:state.writer.retain(1000,max_records=768,archive_first=False)
       finally:state.writer.db.set_trace_callback(None)
      task=owner.submit(compact,priority=4)
      with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
@@ -199,15 +199,11 @@ class RetentionProgressTests(unittest.TestCase):
      resumes.append(owner.submit(
        lambda s:getattr(s.writer,'_retention_next_scope',None),priority=0).result(5))
     self.assertEqual(resumes,['b','a'],
-                     'bounded two-slice grants did not preserve cross-scope rotation')
-    # The second admission rotates back to a after two bounded b slices; a
-    # third cleanup admission therefore advances a again without starving b.
-    task=owner.submit(lambda s:s.writer.retain(1000,max_records=256,archive_first=False),priority=4)
-    task.result(5)
+                     'three-slice grants did not preserve cross-scope rotation')
     counts=owner.submit(
       lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
       priority=0).result(5)
-    self.assertLess(counts.get('b',0),600,'bounded source-yield rotation did not advance the later scope')
+    self.assertEqual(counts,{'a':132,'b':132})
    finally:owner.close()
 
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
