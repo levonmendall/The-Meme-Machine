@@ -1,0 +1,83 @@
+name: Coordinated Stage E repair and interaction proof
+on:
+  push:
+    branches: [review/stagee-coordinated-20260928]
+permissions:
+  contents: write
+concurrency:
+  group: stagee-coordinated-review
+  cancel-in-progress: false
+jobs:
+  coordinated-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Prepare exact reviewed predecessor
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git worktree add --detach "$RUNNER_TEMP/stagee-baseline" 23f06ed84e5b5e2d4efd074618ab44ae7ed58011
+          (cd "$RUNNER_TEMP/stagee-baseline" && python -m certification.run prepare --worktrees "$RUNNER_TEMP/stagee-baseline-lanes") > evidence/baseline-prepare.log 2>&1
+      - name: Apply reviewed operational changes and prepare the complete candidate
+        run: |
+          set -euo pipefail
+          python -m certification.stagee_coordinated_apply > evidence/source-edit.json
+          git diff --check
+          git add meme_machine/solana_evidence_plane.py meme_machine/solana_evidence_service.py meme_machine/solana_evidence_control.py certification/sources.json certification/final_acceptance.py certification/tests/test_final_acceptance.py .github/workflows/non-market-certification.yml
+          git commit -m 'Coordinate archive set reads, checkpoint fencing, and certification preflight'
+          python -m certification.run prepare --worktrees "$RUNNER_TEMP/stagee-candidate-lanes" > evidence/candidate-prepare.log 2>&1
+          python -m certification.build_consistency refresh --worktrees "$RUNNER_TEMP/stagee-candidate-lanes" --baseline-worktrees "$RUNNER_TEMP/stagee-baseline-lanes" --output evidence/build-refresh.json
+          git add certification/sources.json certification/profitability_protocol.json
+          git commit -m 'Freeze complete reviewed operational identities without policy changes'
+          git rev-parse HEAD > evidence/runtime-sha.txt
+      - name: Verify actual prepared source imports and all frozen identities first
+        run: |
+          set -euo pipefail
+          python -m certification.build_consistency verify --worktrees "$RUNNER_TEMP/stagee-candidate-lanes" --expected-sha "$(cat evidence/runtime-sha.txt)" --output evidence/build-preflight.json
+          python -m certification.build_consistency refresh --worktrees "$RUNNER_TEMP/stagee-candidate-lanes" --baseline-worktrees "$RUNNER_TEMP/stagee-baseline-lanes" --output evidence/build-refresh-repeat.json
+          git diff --exit-code HEAD
+      - name: Compare actual old and new SQLite archive methods
+        run: python -m certification.archive_snapshot_probe --output evidence/archive-snapshot-proof.json > evidence/archive-snapshot-proof.log 2>&1
+      - name: Focused coupled machinery and build-rejection regressions
+        env:
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/stagee-candidate-lanes
+        run: |
+          python -m unittest -v tests.test_coordinated_database tests.test_run381_retention_progress tests.test_run381_maintenance_overlap tests.test_run381_archive_scheduling tests.test_run381_archive_canonical tests.test_solana_evidence_retention tests.test_run379_transport_backpressure tests.test_stagee19_maintenance_batch_fairness tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_run375_commit_batching_amortizes_full_sync_without_relaxing_bounds certification.tests.test_build_consistency certification.tests.test_combined_pressure certification.tests.test_final_acceptance certification.tests.test_run379_worker_policy > evidence/focused-regressions.log 2>&1
+      - name: Publish only the preflight-verified repair candidate; never promote or dispatch
+        run: |
+          set -euo pipefail
+          branch=repair/stagee19-batch-maintenance-fairness-20260928
+          actual=$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)
+          test "$actual" = 23f06ed84e5b5e2d4efd074618ab44ae7ed58011
+          test "$(git rev-parse HEAD)" = "$(cat evidence/runtime-sha.txt)"
+          git diff --exit-code HEAD
+          git push origin "HEAD:refs/heads/$branch"
+      - name: Original unchanged mature pressure gate
+        timeout-minutes: 13
+        run: |
+          python -m certification.run381_pressure --measured-contention --output evidence/run381-pressure > evidence/run381-pressure.log 2>&1
+      - name: Combined mature backlog reader checkpoint and urgent work
+        timeout-minutes: 15
+        run: |
+          python -m certification.combined_pressure --output evidence/combined-pressure > evidence/combined-pressure.log 2>&1
+      - name: Final exact-source immutability
+        if: always()
+        run: |
+          git diff --exit-code HEAD
+          if [ -f evidence/runtime-sha.txt ]; then test "$(git rev-parse HEAD)" = "$(cat evidence/runtime-sha.txt)"; fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: stagee-coordinated-proof-${{ github.run_attempt }}
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
