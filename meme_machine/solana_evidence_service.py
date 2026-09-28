@@ -1327,13 +1327,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 counts['checkpoint.bulk_incomplete']=counts.get('checkpoint.bulk_incomplete',0)+int(not bulk_complete)
                 # Do not ask the owner to TRUNCATE a checkpoint that a pinned
                 # reader prevented the off-owner PASSIVE copy from completing.
-                # When the bulk copy is complete, prioritize only the zero-wait
-                # reset handshake ahead of normal source work. That prevents a
-                # new multi-frame WAL tail from accumulating before TRUNCATE and
-                # keeps expensive page copying off the sole SQLite owner.
+                # When the bulk copy is complete, put only the zero-wait reset
+                # handshake in the same FIFO class as normal source commits.
+                # Older admitted source work completes first, but newer source
+                # work cannot overtake the reset. Priority >=2 also means the
+                # reset never interrupts and rolls back an archive SQL slice.
+                # Expensive page copying remains off the sole SQLite owner.
                 if bulk_complete:
                     try:
-                        final=await work(lambda state:state.writer.finish_checkpoint(),1,label='checkpoint_finish')
+                        final=await work(lambda state:state.writer.finish_checkpoint(),2,label='checkpoint_finish')
                         counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(
                             final[0]!=0 or final[1]!=final[2])
                         counts['checkpoint.reclaimed']=counts.get('checkpoint.reclaimed',0)+int(
