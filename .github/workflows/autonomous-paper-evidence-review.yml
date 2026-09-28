@@ -1,73 +1,101 @@
-name: Read-only autonomous PAPER checkpoint comparison
+name: Read-only autonomous PAPER evidence review
 on:
   push:
     branches: [review/autonomous-paper-evidence-a60326b]
     paths: [.github/workflows/autonomous-paper-evidence-review.yml]
 permissions:
   contents: read
+  actions: read
 jobs:
   evidence:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EVIDENCE_RUN: '36375944083'
+      EVIDENCE_ARTIFACT: '10951451596'
+      EVIDENCE_NAME: autonomous-paper-autonomous-paper-b408dec-20260927-0-36375944083-native
+      EVIDENCE_DIGEST: sha256:53e3705e4d276ab33caa8c8566b135d27b7308d063cacf5f50e0384081288896
+      EVIDENCE_SHA: b408dec85ef60d00705564db3aa3db2120dac03b
+      EVIDENCE_SIZE: '2854602823'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 518e8573d72150941a688b45c52b76e5fdac8e74
+          ref: b408dec85ef60d00705564db3aa3db2120dac03b
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Compare unchanged measured pressure with WAL allocation reuse
+      - name: Verify immutable failed smoke and extract bounded diagnostic evidence
         run: |
-          cat > "$RUNNER_TEMP/wal_compare.py" <<'PYCODE'
-          import asyncio,json,time,sqlite3,sys
-          from contextlib import closing
-          from pathlib import Path
-          from unittest.mock import patch
-          from meme_machine.solana_evidence_plane import EvidenceWriter
-          from certification.run381_pressure import run
-          import certification.pressure_diagnostics as diagnostics
-          classify=diagnostics.statement_class
-          def statement_class(sql):
-              if sql.startswith('PRAGMA wal_checkpoint'):return 'checkpoint_'+sql.split('(')[1][:-1]
-              if sql=='BEGIN IMMEDIATE':return 'writer_begin'
-              return classify(sql)
-          mode=None;calls=0
-          def checkpoint(path):
-              global calls
-              start=time.monotonic()
-              with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=rw',uri=True,isolation_level=None,timeout=0)) as db:
-                  first=db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
-                  result=db.execute('PRAGMA wal_checkpoint('+mode+')').fetchone()
-              calls+=1
-              if calls%10==0:
-                  print(json.dumps(dict(checkpoint=calls,mode=mode,passive=first,result=result,
-                      seconds=time.monotonic()-start,db=Path(path).stat().st_size,
-                      wal=Path(str(path)+'-wal').stat().st_size)),flush=True)
-              return result
-          if __name__=='__main__':
-              mode=sys.argv[1]
-              assert mode in ('TRUNCATE','RESTART')
-              with patch.object(EvidenceWriter,'checkpoint',checkpoint),patch.object(diagnostics,'statement_class',statement_class):
-                  asyncio.run(run(1000,'diagnostic/'+mode,measured_contention=True,diagnostics=True))
-          PYCODE
-          mkdir -p diagnostic/TRUNCATE diagnostic/RESTART
-          PYTHONPATH=. python "$RUNNER_TEMP/wal_compare.py" TRUNCATE > diagnostic/TRUNCATE/run.log 2>&1
-          PYTHONPATH=. python "$RUNNER_TEMP/wal_compare.py" RESTART > diagnostic/RESTART/run.log 2>&1
           python - <<'PYCODE'
-          import json
-          from pathlib import Path
-          for mode in ['TRUNCATE','RESTART']:
-              r=json.loads(Path('diagnostic',mode,'result.json').read_text())
-              print(mode,json.dumps({k:r[k] for k in ['passed','failure','hot_peak','lag_peak','elapsed','oldest_hot_age_peak','oldest_retained_age_peak']}))
-              print(mode,json.dumps(r['diagnostics']['sql']))
+          import os, json, hashlib, zipfile
+          from pathlib import Path, PurePosixPath
+          from urllib.request import Request, build_opener, urlopen
+          from urllib.error import HTTPError
+          from certification.prospective_program import GitHub, NoRedirect
+          api=GitHub(); run_id=int(os.environ['EVIDENCE_RUN'])
+          run=api.request('GET',f'actions/runs/{run_id}')
+          if run['head_sha']!=os.environ['EVIDENCE_SHA']: raise ValueError('review_source_identity')
+          items=[a for a in api.pages(f'actions/runs/{run_id}/artifacts','artifacts')
+                 if a['name']==os.environ['EVIDENCE_NAME']]
+          if len(items)!=1 or items[0].get('expired'): raise ValueError('review_artifact_missing')
+          item=items[0]
+          if item['id']!=int(os.environ['EVIDENCE_ARTIFACT']) or item['size_in_bytes']!=int(os.environ['EVIDENCE_SIZE']):
+              raise ValueError('review_exact_failure_size')
+          if item['digest']!=os.environ['EVIDENCE_DIGEST']: raise ValueError('review_artifact_identity')
+          req=Request(item['archive_download_url'],headers={'Authorization':'Bearer '+api.token})
+          try: response=build_opener(NoRedirect).open(req,timeout=30)
+          except HTTPError as exc:
+              if exc.code not in (301,302,303,307,308): raise
+              response=urlopen(exc.headers['Location'],timeout=60)
+          archive_path=Path(os.environ['RUNNER_TEMP'])/'failed-smoke.zip'
+          h=hashlib.sha256(); size=0
+          with response,archive_path.open('wb') as out:
+              while block:=response.read(1024*1024):
+                  size+=len(block)
+                  if size>item['size_in_bytes']: raise ValueError('review_transport_size')
+                  h.update(block); out.write(block)
+          if size!=item['size_in_bytes'] or 'sha256:'+h.hexdigest()!=item['digest']:
+              raise ValueError('review_transport_digest')
+          root=Path('reviewed-evidence'); root.mkdir()
+          suffixes=(
+              'window-review.json','market-assurance.json','manifest.json','claim.json',
+              'certification-smoke/result.json','smoke-readiness.json','smoke-continuation-state.json',
+              'result.json','status.json','activity.json','error.json','health.json','telemetry.json',
+              'terminal-reconciliation.json','evidence-process.log','process.log','service.log',
+              'stream-state.json','stream_state.json','evidence-liveness.json','evidence_liveness.json',
+              'provider-state.json','provider_state.json','diagnostics.json'
+          )
+          keywords=('solana','pump','meteora','shared-provider','evidence','stream','gap','retention','archive','checkpoint')
+          selected=[]; inventory=[]; total=0
+          with zipfile.ZipFile(archive_path) as z:
+              for info in z.infolist():
+                  inventory.append({'path':info.filename,'bytes':info.file_size})
+                  low=info.filename.lower()
+                  exact=any(info.filename==s or info.filename.endswith('/'+s) for s in suffixes)
+                  keyed=any(k in low for k in keywords) and low.endswith(('.json','.log','.txt'))
+                  if not (exact or keyed): continue
+                  path=PurePosixPath(info.filename)
+                  if path.is_absolute() or '..' in path.parts or '\\' in info.filename:
+                      raise ValueError('review_artifact_path')
+                  if info.file_size>8*1024**2: continue
+                  if total+info.file_size>48*1024**2: continue
+                  raw=z.read(info); total+=len(raw)
+                  target=root/path; target.parent.mkdir(parents=True,exist_ok=True); target.write_bytes(raw)
+                  selected.append({'path':info.filename,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
+          result={'run_id':run_id,'source_sha':run['head_sha'],'artifact_id':item['id'],
+                  'artifact_digest':item['digest'],'selected':selected,'inventory':inventory,
+                  'read_only':True,'provider_calls':0,'market_authority':False}
+          (root/'review-index.json').write_text(json.dumps(result,sort_keys=True,indent=2)+'\n')
+          print(json.dumps({k:result[k] for k in result if k!='inventory'},sort_keys=True))
           PYCODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: wal-reset-comparison-518e857
-          path: diagnostic/
+          name: reviewed-smoke-10951451596
+          path: reviewed-evidence/
           if-no-files-found: error
           retention-days: 90
