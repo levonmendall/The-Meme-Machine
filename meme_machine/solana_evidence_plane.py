@@ -661,7 +661,12 @@ class EvidenceWriter:
                 # instead of unconditionally rotating away from its backlog.
                 resume_scope=[scope]
                 with self._retention_transaction(next_scope=lambda r=resume_scope:r[0],urgent_next_scope=next_scope):
-                    floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
+                    old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
+                    old_floor=int(old[0]) if old else 0
+                    # retention_floor is monotone and ingest rejects records below
+                    # it. Start the hot-floor search there instead of rescanning
+                    # already-archived rows that are merely waiting for compaction.
+                    floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND slot>=? AND body IS NOT NULL',(scope,old_floor)).fetchone()[0]
                     floor=top+1 if floor is None else floor
                     recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
                     if recent is not None:floor=min(floor,recent)
@@ -669,23 +674,18 @@ class EvidenceWriter:
                     if pins:floor=min(floor,min(pins))
                     account_floor=self._account_floor(scope)
                     if account_floor is not None:floor=min(floor,account_floor)
-                    old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
-                    floor=max(int(old[0]) if old else 0,floor)
-                    ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit))]
+                    floor=max(old_floor,floor)
+                    selected=self.db.execute('SELECT rowid,identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit)).fetchall()
+                    rowids=[r[0] for r in selected];ids=[r[1] for r in selected]
                     if ids:
-                        # Delete the already-selected bounded slice as a set.
-                        # The 256-placeholder ceiling is below SQLite's variable
-                        # limit and preserves the exact durable transaction bound.
+                        # Carry the already-selected rowids through bounded
+                        # cleanup and retirement. This avoids repeating identity
+                        # -> rowid lookups for the same 256-record slice.
                         marks=','.join('?' for _ in ids)
-                        # Archived rows no longer need hot bodies, but their
-                        # address references remain until record retirement.
-                        # Remove both trigger targets as bounded sets first so
-                        # the per-record BEFORE DELETE trigger performs only
-                        # empty indexed lookups instead of repeated fan-out work.
-                        self.db.execute('DELETE FROM address_refs WHERE record_id IN (SELECT rowid FROM records WHERE identity IN ('+marks+'))',ids)
+                        self.db.execute('DELETE FROM address_refs WHERE record_id IN ('+marks+')',rowids)
                         self.db.execute('DELETE FROM hot_refs WHERE identity IN ('+marks+')',ids)
                         self.db.execute('DELETE FROM lineage WHERE identity IN ('+marks+')',ids)
-                        deleted=self.db.execute('DELETE FROM records WHERE identity IN ('+marks+')',ids).rowcount
+                        deleted=self.db.execute('DELETE FROM records WHERE rowid IN ('+marks+')',rowids).rowcount
                         if deleted!=len(ids):raise EvidenceConflict('retention_delete_identity_mismatch')
                     if old is None or floor!=int(old[0]):
                         self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
