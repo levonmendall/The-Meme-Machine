@@ -1718,3 +1718,50 @@ and Meteora
 These identities are frozen in the source/profitability manifests. The next
 authority is complete Stage-E non-market certification on this exact frozen
 lineage; no market or smoke run is authorized by this repair.
+
+
+## Stage-E retry after attempt 13 repair — residual Meteora retention density
+
+The first frozen repair SHA `6351d23acb96fe6c1b44cb2a30414a3c305d8cc7`
+passed ordinary CI but Stage-E run `36434229892` again failed only the
+unchanged ten-minute mature Solana retention-clock gate. Preserved artifact
+`10974819172` has ZIP SHA256
+`3dc4fbf7230b37ae1eda483c2670499c5b2720b8982b802d269d50ed935f8494`.
+The first repair materially removed source/checkpoint contention: peak
+finalized/source lag fell from 35.63 s to 3.11 s and pending compaction fell
+from 2,013 rows to 1,080. HOT peak remained bounded at 1,306,666,656 bytes and
+oldest hot payload age remained 239.283 s. The only failed value was oldest
+retained age 240.114 s versus the unchanged 240-second acceptance bound.
+
+All 1,080 rows still pending compaction were in `program:meteora`; Pump and
+PumpSwap had no pending archived rows. This isolated the remaining defect to
+retention scheduling/SQL throughput for an asymmetrically dense scope, not
+source ingestion, checkpoint correctness, storage capacity, strategy economics
+or provider behavior.
+
+The final repair keeps the existing 256-record durable retention slice and all
+existing pressure/resource limits. A full dense slice now resumes the same
+scope after queued priority-2/3 source/counter work runs, while priority-0/1
+urgent control work explicitly rotates to the next scope so repeated urgent
+arrivals cannot starve other retention domains. The selected bounded IDs are
+also deleted as two set operations (lineage then records) rather than two SQL
+statements per record. The transaction still contains at most the same 256
+selected records; identity rowcount is checked fail-closed.
+
+Focused verification run `36436478929` PASS on implementation candidate
+`732301bfdc4a1aa8ea21b4e2717226ed793373cb`: all 26
+retention/archive/checkpoint regressions passed, including normal-source yield,
+urgent cross-scope fairness, dense-scope resume, bounded set deletion, archive
+receipt idempotency and WAL checkpoint behavior. Repository-wide deterministic
+CI run `36436456656` also completed its test job successfully.
+
+Prepared source identities for this final repair are Pump
+`3bf52900a066fdb30ccc420e9bab1b5c19150187b8a9d46c52747e63e17edcec`
+and Meteora
+`04679cb4360f2ef2adb2f97b64fa3f2d7d24e0c85c8c7bc26f13484ba2ead294`;
+they are frozen in both source and profitability manifests. The 45-second
+source-clock guard, 240-second retained-age acceptance bound, 64-frame /
+96-MiB receive bounds, 16-MiB commit bound, 2-GiB hot-store ceiling, FULL
+synchronous durability, provider authority, strategy thresholds and economic
+policies remain unchanged. The next authority is complete Stage-E non-market
+certification only; no market or smoke run is authorized.
