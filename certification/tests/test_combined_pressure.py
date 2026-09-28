@@ -7,6 +7,12 @@ from certification.combined_pressure import verified
 
 
 def valid_report(sha='sha'):
+    samples=[]
+    for seconds in (216,378):
+        samples.append(dict(source_seconds=seconds,archived_records=10000,compacted_records=9000,
+            observed_pause_seconds=8.01,multiframe_batches=3,source_frames_while_reader=4,
+            reader_source_advance=4,reader_compaction_advance=256,
+            reader_snapshot_preserved=True,completed_tail_delayed=True))
     return dict(passed=True,integration_sha=sha,provider_calls=0,frames=2223,source_seconds=600.21,
         candidate_checks=60,archive_records_verified=200000,
         counters={'stream_accepted_messages':2223,'compacted_records':200000},
@@ -18,10 +24,8 @@ def valid_report(sha='sha'):
         lag_peak=8,hot_peak=1000000000,integrity=['ok'],oldest_hot_age_peak=188,oldest_retained_age_peak=189,
         measured_contention=dict(profile='run381-fullcert-36293751021',owner_seconds_per_frame=.165,
             archive_seconds_per_thousand=.36,additional_commit_latency_seconds=.006,delayed_commits=100),
-        combined_load=dict(profile='mature-burst-reader-tail-urgent-v1',held_reader_cycles=2,
-            tail_delay_cycles=2,urgent_acks=100,urgent_errors=[],burst_evidence=[
-                dict(source_seconds=216,archived_records=10000,compacted_records=9000),
-                dict(source_seconds=378,archived_records=20000,compacted_records=19000)]))
+        combined_load=dict(profile='mature-burst-reader-tail-urgent-v2',held_reader_cycles=2,
+            tail_delay_cycles=2,urgent_acks=100,urgent_errors=[],burst_evidence=samples))
 
 
 class CombinedPressureTests(unittest.TestCase):
@@ -34,10 +38,12 @@ class CombinedPressureTests(unittest.TestCase):
         for field in ('held_reader_cycles','tail_delay_cycles','urgent_acks'):
             row=valid_report();row['combined_load'][field]=0
             self.assertFalse(verified(row,'sha'),field)
-        row=valid_report();row['combined_load']['burst_evidence'][0]['compacted_records']=0
-        self.assertFalse(verified(row,'sha'))
-        self.assertFalse(verified(valid_report(),'other'))
-        self.assertFalse(verified({},'sha'))
+        for field in ('compacted_records','multiframe_batches','source_frames_while_reader',
+                      'reader_source_advance','reader_compaction_advance','observed_pause_seconds',
+                      'reader_snapshot_preserved','completed_tail_delayed'):
+            row=valid_report();row['combined_load']['burst_evidence'][0][field]=0
+            self.assertFalse(verified(row,'sha'),field)
+        self.assertFalse(verified(valid_report(),'other'));self.assertFalse(verified({},'sha'))
 
     def test_final_certificate_requires_combined_evidence(self):
         from certification.tests.test_final_acceptance import FinalAcceptanceTests

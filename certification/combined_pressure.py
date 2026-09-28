@@ -1,8 +1,9 @@
 """Supplemental mature-pressure interaction proof; canonical driver is unchanged.
 
-Two source-clock catch-up bursts occur only after archival/retention are mature.
-Real SQLite snapshot readers and delayed PASSIVE completions overlap the bursts;
-real priority-zero acknowledgements use service IPC. No provider is called.
+Catch-up bursts begin after retention is mature. Real SQLite readers are armed
+only by actual multi-frame source batches, not by the preceding source pause.
+Durable source and cleanup progress must occur during each held read snapshot.
+All control requests use real local IPC. No external provider is called.
 """
 from __future__ import annotations
 import argparse
@@ -16,8 +17,8 @@ import time
 from unittest.mock import patch
 
 
-def verified(row, expected_sha):
-    if not isinstance(row, dict):return False
+def verified(row,expected_sha):
+    if not isinstance(row,dict):return False
     c=row.get('counters') or {};ipc=row.get('ipc') or {}
     profile=row.get('measured_contention') or {};joint=row.get('combined_load') or {}
     samples=joint.get('burst_evidence') or []
@@ -47,19 +48,27 @@ def verified(row, expected_sha):
         and profile.get('archive_seconds_per_thousand',0)>=.36
         and profile.get('additional_commit_latency_seconds',0)>=.006
         and profile.get('delayed_commits',0)>0
-        and joint.get('profile')=='mature-burst-reader-tail-urgent-v1'
+        and joint.get('profile')=='mature-burst-reader-tail-urgent-v2'
         and joint.get('held_reader_cycles',0)>=2 and joint.get('tail_delay_cycles',0)>=2
         and joint.get('urgent_acks',0)>=10 and joint.get('urgent_errors')==[]
         and len(samples)==2
         and all(s.get('source_seconds',0)>=210 and s.get('archived_records',0)>0
-                and s.get('compacted_records',0)>0 for s in samples))
+                and s.get('compacted_records',0)>0
+                and s.get('observed_pause_seconds',0)>=8
+                and s.get('multiframe_batches',0)>0
+                and s.get('source_frames_while_reader',0)>0
+                and s.get('reader_source_advance',0)>0
+                and s.get('reader_compaction_advance',0)>0
+                and s.get('reader_snapshot_preserved') is True
+                and s.get('completed_tail_delayed') is True for s in samples))
 
 
 class Interaction:
     def __init__(self):
-        self.path=None;self.phase=0;self.checkpoint_phase=0
-        self.stopping=False;self.lock=threading.Lock()
-        self.metrics=dict(profile='mature-burst-reader-tail-urgent-v1',
+        self.path=None;self.phase=0;self.batching_phase=0;self.reader_phase=0
+        self.checkpoint_phase=0;self.tail_pending=0;self.stopping=False
+        self.lock=threading.Lock()
+        self.metrics=dict(profile='mature-burst-reader-tail-urgent-v2',
             source_pause_seconds=8,burst_evidence=[],held_reader_cycles=0,
             tail_delay_cycles=0,urgent_acks=0,urgent_errors=[])
 
@@ -70,27 +79,56 @@ class Interaction:
         return {k:counters.get(k,0) for k in
                 ('stream_accepted_messages','archived_records','compacted_records')}
 
+    def source_started(self,size):
+        with self.lock:
+            if self.phase and size>1:
+                sample=self.metrics['burst_evidence'][self.phase-1]
+                sample['multiframe_batches']=sample.get('multiframe_batches',0)+1
+                self.batching_phase=self.phase
+            return self.reader_phase
+
+    def source_completed(self,reader_phase,size):
+        with self.lock:
+            if reader_phase and reader_phase==self.reader_phase:
+                sample=self.metrics['burst_evidence'][reader_phase-1]
+                sample['source_frames_while_reader']=sample.get('source_frames_while_reader',0)+size
+
     def checkpoint(self,path,native):
         self.path=Path(path)
         with self.lock:
-            phase=self.phase;exercise=phase>self.checkpoint_phase
+            phase=self.batching_phase;exercise=phase>self.checkpoint_phase
             if exercise:self.checkpoint_phase=phase
         if exercise:
+            sample=self.metrics['burst_evidence'][phase-1]
             with closing(sqlite3.connect(path,isolation_level=None)) as reader:
                 reader.execute('BEGIN')
-                before=reader.execute("SELECT value FROM counters WHERE key='stream_accepted_messages'").fetchone()
+                before=dict(reader.execute('SELECT key,value FROM counters'))
+                with self.lock:self.reader_phase=phase
                 try:
-                    time.sleep(.35);native(path);time.sleep(.35)
-                    after=reader.execute("SELECT value FROM counters WHERE key='stream_accepted_messages'").fetchone()
+                    time.sleep(1.25)
+                    native(path)
+                    time.sleep(.1)
+                    after=dict(reader.execute('SELECT key,value FROM counters'))
                     if before!=after:raise AssertionError('combined_reader_snapshot_changed')
-                finally:reader.execute('ROLLBACK')
-            with self.lock:self.metrics['held_reader_cycles']+=1
+                    sample['reader_snapshot_preserved']=True
+                finally:
+                    with self.lock:self.reader_phase=0
+                    reader.execute('ROLLBACK')
+            current=self.inspect()
+            sample['reader_source_advance']=current['stream_accepted_messages']-before.get('stream_accepted_messages',0)
+            sample['reader_compaction_advance']=current['compacted_records']-before.get('compacted_records',0)
+            with self.lock:
+                self.metrics['held_reader_cycles']+=1;self.tail_pending=phase
         result=native(path)
-        if exercise and result[0]==0 and result[1]==result[2]:
-            # Delay the actual completed receipt while the owner remains active.
-            # Do not manufacture a successful checkpoint result.
+        with self.lock:tail=self.tail_pending
+        if tail and result[0]==0 and result[1]==result[2]:
+            # Delay only a genuinely complete PASSIVE receipt. This does not
+            # falsify SQLite's return value or add owner-side execution work.
             time.sleep(.75)
-            with self.lock:self.metrics['tail_delay_cycles']+=1
+            with self.lock:
+                self.metrics['tail_delay_cycles']+=1
+                self.metrics['burst_evidence'][tail-1]['completed_tail_delayed']=True
+                self.tail_pending=0
         return result
 
     async def acknowledgements(self):
@@ -118,6 +156,12 @@ async def run(output):
     from certification import run381_pressure as original
     from meme_machine.solana_evidence_plane import EvidenceWriter
     control=Interaction();native_checkpoint=EvidenceWriter.checkpoint
+    class ObservedState(original.MeasuredServiceState):
+        def source_batch(self,items):
+            reader_phase=control.source_started(len(items))
+            result=super().source_batch(items)
+            control.source_completed(reader_phase,len(items))
+            return result
     class BurstWire(original.Wire):
         def __init__(self):
             super().__init__();self.paused=set();self.pause_deadline=None;self.pause_started=None;self.pause_sample=None
@@ -127,24 +171,23 @@ async def run(output):
                 sample=await asyncio.to_thread(control.inspect)
                 sample['source_seconds']=self.sent*.27
                 control.metrics['burst_evidence'].append(sample)
-                with control.lock:control.phase+=1
                 self.pause_started=time.monotonic();self.pause_deadline=self.pause_started+8
                 self.pause_sample=sample
             if self.pause_deadline is not None:
-                # recv() is cancelled by the production half-second polling
-                # timeout. Keep the deadline across those cancellations, rather
-                # than silently turning an eight-second burst into half a second.
+                # Preserve the deadline when production wait_for(recv,.5)
+                # cancels a poll; do not accidentally remove the intended burst.
                 await asyncio.sleep(max(0,self.pause_deadline-time.monotonic()))
                 self.pause_sample['observed_pause_seconds']=time.monotonic()-self.pause_started
                 self.pause_deadline=None
-            # Original source timestamps and 600.21-second horizon do not move.
+                with control.lock:control.phase+=1
+            # Original timestamps and the 600.21-second horizon do not move.
             result=await super().recv(decode)
             if self.sent>=self.frames:control.stopping=True
             return result
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     acknowledgements=asyncio.create_task(control.acknowledgements())
     try:
-        with patch.object(original,'Wire',BurstWire),patch.object(
+        with patch.object(original,'Wire',BurstWire),patch.object(original,'MeasuredServiceState',ObservedState),patch.object(
                 EvidenceWriter,'checkpoint',side_effect=lambda path:control.checkpoint(path,native_checkpoint)):
             code=await original.run(2223,output,measured_contention=True)
     finally:
