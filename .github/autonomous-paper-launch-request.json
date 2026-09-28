@@ -1,9 +1,9 @@
 {
-  "operation": "authorize",
-  "runtime_sha": "b408dec85ef60d00705564db3aa3db2120dac03b",
-  "runtime_ref": "cert/autonomous-paper-final-b408dec",
-  "campaign_id": "autonomous-paper-b408dec-20260927",
-  "certification_run_id": 36372593875,
+  "operation": "verify",
+  "runtime_sha": "df7b376230a2cea0b9e6377662d7e5f2c3e66067",
+  "runtime_ref": "cert/autonomous-paper-final-df7b376",
+  "campaign_id": "autonomous-paper-df7b376-20260927",
+  "certification_run_id": 0,
   "reviewed_artifact_digest": "",
   "maximum_normal_windows": 2
 }
