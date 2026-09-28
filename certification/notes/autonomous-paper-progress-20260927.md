@@ -1533,3 +1533,57 @@ smoke after exact real dispatch verification; any FAIL invalidates the candidate
 and permits only repair of its actual failed gate. No pressure load/duration,
 resource/history bound, strategy/policy/evidence authority or completed D owner
 is changed or waived.
+
+### 518e857 certificate rejection: reset contention
+
+Candidate `518e8573d72150941a688b45c52b76e5fdac8e74` passed ordinary CI
+`36370421472` and real external dispatch `36370474058` → `36370504402`
+(47 hosted tests, no skips). Certificate `36370597830` failed the unchanged
+retention-clock guard at 512.13 s. Artifact `10948394305`, SHA256
+`ee0c8653460de8e7f3e0de902bdef48afc7eafa76450fd5b77f68762b0e8f494`.
+WAL recycling closed the capacity failure (HOT peak 1,365,501,720 bytes), but
+sustained cleanup/source progress fell behind: source lag 43.15 s, oldest
+retained evidence 240.04 s. Thus the TRUNCATE follow-up is not accepted as a
+complete repair. No joined gate or market run was launched after this failure.
+
+Next focused discriminator: compare existing TRUNCATE with RESTART after the
+same off-owner PASSIVE copy, using two sequential provider-free executions of
+the existing measured pressure fixture on one hosted runner. RESTART retains
+allocated WAL pages for reuse instead of forcing repeated file truncation and
+allocation. The hypothesis is that removing that allocation churn restores
+source/retention throughput while preserving the reset lock handshake. Capture
+per-mode checkpoint/BEGIN timing, hot bytes, source/retention age and process I/O.
+PASS requires measured improvement without lost data, growing WAL, or relaxed
+limits; FAIL rejects this explanation. This is a focused diagnostic, not a
+shortened certificate or new policy. The full unchanged certificate remains
+mandatory after a stable repair and a newly frozen exact SHA.
+
+Paired discriminator `36371388385`, artifact `10949547055` SHA256
+`462a72fef7736252902d7f9f809c5159a96f560f69dc9b39f4a4df0f177f1d77`,
+rejects allocation churn as the main explanation. Both 1,000-frame arms passed
+on that faster runner, with similar total checkpoint cost (18.64 vs 18.45 s).
+RESTART wrote slightly more physical bytes (10.94 vs 10.68 GB) and retained a
+larger HOT peak (1.888 vs 1.530 GB). The RESTART alternative is discarded and
+was never published as a runtime candidate or presented as a certificate.
+
+The revised composition uses the existing single priority writer for the final
+checkpoint boundary: one off-owner PASSIVE bulk copy, then one scheduled PASSIVE
+completion on the owning connection between source transactions. The background
+connection never requests a competing writer lock. Concurrently appended tail
+pages complete while the logical writer is between transactions, so the next
+write can recycle WAL storage. This does not restore checkpoint-per-retention-
+slice behavior; at most one completion follows each independent bulk copy.
+Reader pins still prevent completion without waiting. An explicit guard rejects
+completion inside an open source transaction. Cooperative scheduling yields retry
+on the next bounded cycle; there is no extra worker or queue.
+
+All 23 focused maintenance/retention/archive regressions pass, including exact
+108-record restart readback, bounded WAL allocation across 12 transient-reader
+cycles, reader snapshot preservation, transaction-boundary rejection, owner-thread
+production scheduling, and source progress during a deliberately blocked bulk
+copy. Existing source/retention/pressure/economic limits remain unchanged.
+Before the next hosted certificate: hypothesis is that moving only final tail
+completion to the already serialized writer removes lock competition while the
+large disk copy remains concurrent. PASS requires the full unchanged 600-second
+measured gate plus every canonical joined/offline gate. FAIL means inspect and
+repair only the preserved failed gate; no market authority is granted.

@@ -687,20 +687,26 @@ class EvidenceWriter:
 
     @staticmethod
     def checkpoint(path):
-        """Flush already durable WAL independently of the logical evidence owner.
+        """Copy the durable WAL bulk without holding the logical evidence owner.
 
-        PASSIVE copies the bulk while source commits continue. Then a zero-wait
-        TRUNCATE attempt catches the concurrent tail and resets the WAL only if
-        SQLite can acquire the writer/read-mark locks. Without this handshake,
-        every PASSIVE snapshot can be backfilled yet writes admitted during the
-        copy prevent WAL recycling indefinitely. Busy readers/writers retain
-        their durable WAL and the unchanged capacity guard remains authoritative.
+        PASSIVE never waits for another writer or reader. The owner completes
+        any concurrently appended tail at its next scheduled transaction boundary.
         """
         from contextlib import closing
         with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=rw',
                                      uri=True,isolation_level=None,timeout=0)) as db:
-            db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
-            return db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
+            return db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
+
+    def finish_checkpoint(self):
+        """Finish a background copy between logical writes, permitting WAL reuse.
+
+        No competing checkpoint connection may acquire the writer lock. The
+        normal priority owner schedules this once per completed bulk copy, not
+        once per retention slice. PASSIVE still refuses to wait for reader pins.
+        """
+        self._check()
+        if self.db.in_transaction:raise EvidenceUnavailable('checkpoint_inside_source_transaction')
+        return self.db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
 
     @contextmanager
     def _retention_transaction(self,*,next_scope=None):

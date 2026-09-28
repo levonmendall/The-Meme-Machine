@@ -40,10 +40,13 @@ class CheckpointRecyclingTests(unittest.TestCase):
      def connect(*args,**kwargs):
       kwargs.setdefault('factory',Connection);return native_connect(*args,**kwargs)
      with patch('sqlite3.connect',connect):
-      self.assertEqual(EvidenceWriter.checkpoint(path),(0,0,0))
+      EvidenceWriter.checkpoint(path)
+      result=state.writer.finish_checkpoint()
+      self.assertEqual(result[0],0);self.assertEqual(result[1],result[2])
      sizes.append(Path(str(path)+'-wal').stat().st_size)
-    self.assertEqual(sizes,[0]*12,'completed checkpoints left predecessor WAL bytes hot')
-    self.assertEqual(calls,['PRAGMA wal_checkpoint(PASSIVE)','PRAGMA wal_checkpoint(TRUNCATE)']*12)
+    self.assertLessEqual(max(sizes),sizes[0]+64*1024,
+                         'checkpoint reuse grew beyond the initialized WAL and one bounded tail')
+    self.assertEqual(calls,['PRAGMA wal_checkpoint(PASSIVE)']*12)
     self.assertEqual(state.writer.db.execute('PRAGMA synchronous').fetchone()[0],2)
     self.assertEqual(state.writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
    finally:reader.close();state.close()
@@ -64,18 +67,21 @@ class CheckpointRecyclingTests(unittest.TestCase):
     writer.ingest([replace(record(),identity='second',signature='second')])
     started=time.monotonic();result=EvidenceWriter.checkpoint(path)
     self.assertLess(time.monotonic()-started,1)
-    self.assertEqual(result[0],1,'checkpoint must refuse a pinned read mark')
+    self.assertNotEqual(result[1],result[2],'checkpoint must preserve a pinned read mark')
+    final=writer.finish_checkpoint();self.assertNotEqual(final[1],final[2])
     self.assertGreater(Path(str(path)+'-wal').stat().st_size,0)
     self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone()[0],1)
     self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],2)
     reader.execute('ROLLBACK')
-    self.assertEqual(EvidenceWriter.checkpoint(path),(0,0,0))
+    result=EvidenceWriter.checkpoint(path)
+    self.assertEqual(result[0],0);self.assertEqual(result[1],result[2])
     self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone()[0],2)
     writer.db.execute('BEGIN IMMEDIATE')
     try:
      started=time.monotonic();result=EvidenceWriter.checkpoint(path)
      self.assertLess(time.monotonic()-started,1)
-     self.assertEqual(result[0],1,'checkpoint must not wait for a source transaction')
+     with self.assertRaisesRegex(service.EvidenceUnavailable,'checkpoint_inside_source_transaction'):
+      writer.finish_checkpoint()
     finally:writer.db.execute('ROLLBACK')
    finally:reader.close();writer.close()
 
@@ -131,7 +137,10 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
    finally:db.close()
 
  async def test_repeated_health_yields_cannot_starve_archive_progress(self):
-  calls=[]
+  calls=[];finished=[]
+  native_finish=EvidenceWriter.finish_checkpoint
+  def finish(writer):
+   finished.append(threading.get_ident());return native_finish(writer)
   class SeededState(service.ServiceState):
    def __init__(self,path,config):
     super().__init__(path,config)
@@ -144,7 +153,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
    async def __aexit__(self,*a):pass
    async def send(self,raw):pass
    async def recv(self,decode=None):await asyncio.Future()
-  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch.object(service,'ServiceState',SeededState),patch('websockets.asyncio.client.connect',return_value=Wire()):
+  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch.object(service,'ServiceState',SeededState),patch('websockets.asyncio.client.connect',return_value=Wire()),patch.object(EvidenceWriter,'finish_checkpoint',finish):
    path=Path(td)/'db';stop=asyncio.Event()
    runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
    archived=0;deadline=time.monotonic()+3
@@ -161,6 +170,8 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
      await asyncio.sleep(.02)
     self.assertGreaterEqual(len(calls),2,'fixture did not exercise repeated health yields')
     self.assertEqual(archived,40,'health scheduling blocked the independent archive pipeline')
+    self.assertTrue(finished,'production scheduler omitted the completed-copy boundary')
+    self.assertEqual(len(set(finished)),1,'tail completion left the single writer owner')
    finally:stop.set();await runner
 
  async def test_hot_cleanup_progresses_while_next_archive_worker_is_pending(self):
@@ -219,7 +230,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertGreater(counters['owner.stage.archive_plan.calls'],0)
     self.assertGreaterEqual(counters['owner.stage.retention.queue_total_microseconds'],0)
     labels={k.split('.')[2] for k in counters if k.startswith('owner.stage.')}
-    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler'})
+    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_finish'})
    finally:db.close()
 
 if __name__=='__main__':unittest.main()

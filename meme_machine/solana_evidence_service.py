@@ -753,7 +753,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                            for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1,*,label=None):
-        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler'):
+        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_finish'):
             raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic();execution=[None,None]
         def timed(state):
@@ -1308,6 +1308,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 counts['checkpoint.total_microseconds']=counts.get('checkpoint.total_microseconds',0)+elapsed
                 counts['checkpoint.peak_microseconds']=max(counts.get('checkpoint.peak_microseconds',0),elapsed)
                 counts['checkpoint.busy']=counts.get('checkpoint.busy',0)+int(result[0]!=0)
+                # The independent PASSIVE snapshot can finish while a source
+                # transaction appends its tail. Finish once at the sole writer's
+                # normal scheduling boundary; no second connection takes the
+                # write lock or repeatedly truncates/reallocates the hot WAL.
+                try:
+                    final=await work(lambda state:state.writer.finish_checkpoint(),4,label='checkpoint_finish')
+                    counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(final[1]!=final[2])
+                except EvidenceUnavailable as exc:
+                    if str(exc)!='evidence_background_yield':raise
+                    counts['checkpoint.yielded']=counts.get('checkpoint.yielded',0)+1
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
