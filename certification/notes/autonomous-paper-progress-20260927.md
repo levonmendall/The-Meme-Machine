@@ -1718,3 +1718,44 @@ and Meteora
 These identities are frozen in the source/profitability manifests. The next
 authority is complete Stage-E non-market certification on this exact frozen
 lineage; no market or smoke run is authorized by this repair.
+
+
+## Stage-E attempt 14 retention failure and attempt 15 repair
+
+Stage-E attempt 14, workflow run `36434229892`, executed exact SHA
+`6351d23acb96fe6c1b44cb2a30414a3c305d8cc7` and again failed only the
+unchanged 240-second retention-clock guard. Preserved artifact
+`10974819172` (ZIP SHA256
+`3dc4fbf7230b37ae1eda483c2670499c5b2720b8982b802d269d50ed935f8494`)
+measured peak source/finalized lag 3.11 s, HOT peak 1,306,666,656 bytes,
+oldest hot age 239.283 s and oldest retained age 240.114 s. At failure,
+1,080 already-archived rows remained pending compaction, all in
+`program:meteora`. Source throughput, receive bounds, WAL capacity and archive
+publication were therefore no longer the primary failure.
+
+The attempt-15 repair keeps every existing acceptance/resource limit. Retention
+still commits at most 256 record deletions per durable slice, but it now deletes
+the already-selected IDs with two bounded set statements instead of issuing
+lineage+record DELETE statements once per row. Retention scheduling also
+distinguishes queued urgent control work from ordinary source pressure: a
+still-full dense scope may resume after a source-pressure yield, while urgent
+priority work rotates to the next scope so later scopes cannot starve. The
+existing cross-scope fairness regression and the new dense-scope/source-pressure
+regression both remain mandatory.
+
+Focused exact-candidate verification `36436630916` PASS on
+`03c569f776b24c6518231f19b3ea6aefc349704e` (26 focused maintenance tests,
+no failures), artifact `10975383808`. Prepared source identities are Pump
+`53401c4c4236a42d1be14d254eff8a322da95eae5785d5294690fd282b2b8ee9`
+and Meteora
+`f539480b993870440ca5a14117402dd481a735030306461d49c146fd9c12fc3e`.
+Shared file hashes measured by the same verifier include evidence control
+`0b8c110a56fb3b560e1679ada5b16e2ecc2852988df7aeacdcdd4a96e3238c8b`,
+evidence plane
+`7605d0617298dcbe0f10cd3ca1f48f93d6836ffdc1f73159ca585b55fd7b3866`
+and evidence service
+`f718466eaa7121846e41cbfaf2d3e9b393d9e0804e88f754d6c363af197f350b`.
+The Pump/Meteora source manifests and profitability protocol are frozen to these
+prepared identities. No strategy threshold, provider authority, 45-second
+source-clock guard, 240-second retention guard, 64-frame/96-MiB receive bounds,
+16-MiB commit bound, 2-GiB hot-store ceiling, or PAPER-only authority is changed.
