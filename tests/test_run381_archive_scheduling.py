@@ -84,12 +84,12 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
    def __init__(self,path,config):
     super().__init__(path,config)
     self.writer.ingest([replace(record(),identity='receipt-retry:'+str(i),market_time=10) for i in range(40)])
-   def archive_commit_and_plan(self,plan,receipt):
+   def archive_commit_slice(self,plan,receipt):
     attempts.append(receipt)
     if len(attempts)==1:
      if after_commit:self.archive_commit(plan,receipt,retain=False)
      raise service.EvidenceUnavailable('evidence_background_yield')
-    return super().archive_commit_and_plan(plan,receipt)
+    return super().archive_commit_slice(plan,receipt)
   class Wire:
    async def __aenter__(self):return self
    async def __aexit__(self,*args):pass
