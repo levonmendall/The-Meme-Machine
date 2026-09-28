@@ -1671,3 +1671,14 @@ service states retain the existing bounded failure behavior, and terminal
 certification marks any lane that ends with unusable evidence as failed. No
 strategy threshold, 60-second freshness bound, storage/resource bound, provider
 authority or economic policy is changed.
+
+
+Focused hosted repair verification `36387961254` PASS on candidate
+`ae3b47462e43dd1367981247f9169e953f55f466`. It proved that the unchanged
+60-second freshness gate still blocks stale evidence, transient finalized
+staleness can recover without latching a permanent process failure, fatal
+service failure retains the prior bounded failure behavior, and the repaired
+health/supervisor modules compile with existing service-health regressions.
+Prepared source identities are Pump `687d199e48d385772bb8e7fe45948416ceb9e885ab272dd485f85587a2a9434a` and Meteora
+`ca5fc98696e49b843026826e068d1e405e06fbb1d4c945da3c6bf16b4cac3025`. These identities are frozen below before ordinary CI,
+exact-SHA dispatch verification and complete Phase-E recertification.
