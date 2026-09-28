@@ -1,4 +1,4 @@
-name: Read-only df7b376 failed smoke evidence review
+name: Read-only refreshed-secret smoke failure review
 on:
   push:
     branches: [review/autonomous-paper-evidence-a60326b]
@@ -12,12 +12,12 @@ jobs:
     timeout-minutes: 12
     env:
       GH_TOKEN: ${{ github.token }}
-      EVIDENCE_RUN: '36381533967'
-      EVIDENCE_ARTIFACT: '10953267409'
-      EVIDENCE_NAME: autonomous-paper-autonomous-paper-df7b376-20260927-0-36381533967-native
-      EVIDENCE_DIGEST: sha256:64f9aa9888f6535bd46b4a39ba932ee83499807d0c8c30c5c9bc010f502a120d
+      EVIDENCE_RUN: '36384477317'
+      EVIDENCE_ARTIFACT: '10953634033'
+      EVIDENCE_NAME: autonomous-paper-autonomous-paper-df7b376-secret-refresh-20260927-0-36384477317-native
+      EVIDENCE_DIGEST: sha256:5386e1c84b493bbdc2eb375b4044ef556a441ec98f858e38099d9842307a7313
       EVIDENCE_SHA: df7b376230a2cea0b9e6377662d7e5f2c3e66067
-      EVIDENCE_SIZE: '1497744910'
+      EVIDENCE_SIZE: '893835541'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Verify immutable failed smoke and extract service-failure evidence
+      - name: Verify immutable artifact and extract exact failure evidence
         run: |
           python - <<'PYCODE'
           import os,json,hashlib,zipfile
@@ -64,19 +64,21 @@ jobs:
           suffixes=('evidence-process.log','process.log','service.log','status.json','health.json',
                     'telemetry.json','window-review.json','market-assurance.json','result.json',
                     'error.json','stream-state.json','stream_state.json','evidence-liveness.json',
-                    'evidence_liveness.json','terminal-reconciliation.json','diagnostics.json')
+                    'evidence_liveness.json','terminal-reconciliation.json','diagnostics.json',
+                    'pump.log','pump-process.log','stderr.log','stdout.log','assurance.json')
           selected=[];inventory=[];total=0
           with zipfile.ZipFile(archive_path) as z:
               for info in z.infolist():
                   inventory.append({'path':info.filename,'bytes':info.file_size})
                   low=info.filename.lower()
                   exact=any(info.filename==s or info.filename.endswith('/'+s) for s in suffixes)
-                  keyed=any(k in low for k in ('solana','evidence','stream','wal','checkpoint','gap','retention')) and low.endswith(('.json','.log','.txt'))
+                  keyed=(any(k in low for k in ('pump','solana','evidence','stream','wal','checkpoint','gap','retention','assurance'))
+                         and low.endswith(('.json','.log','.txt')))
                   if not (exact or keyed):continue
                   path=PurePosixPath(info.filename)
                   if path.is_absolute() or '..' in path.parts or '\\' in info.filename:raise ValueError('review_artifact_path')
                   if info.file_size>16*1024**2:continue
-                  if total+info.file_size>64*1024**2:continue
+                  if total+info.file_size>80*1024**2:continue
                   raw=z.read(info);total+=len(raw)
                   target=root/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
                   selected.append({'path':info.filename,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
@@ -89,7 +91,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: reviewed-smoke-10953267409
+          name: reviewed-smoke-10953634033
           path: reviewed-evidence/
           if-no-files-found: error
           retention-days: 90
