@@ -72,7 +72,7 @@ STREAM_COMMIT_BATCH_MAX_BYTES=16*1024*1024
 # The immutable archive file may still contain up to 1,000 records, but hot-DB
 # mutation is deliberately smaller so one archive receipt cannot monopolize the
 # sole SQLite owner while source frames queue behind it.
-ARCHIVE_COMMIT_SLICE_RECORDS=128
+ARCHIVE_COMMIT_SLICE_RECORDS=256
 STREAM_SUBSCRIPTION_SYNC_SECONDS=.25
 STREAM_WATCHDOG_SECONDS=.1
 STREAM_SOURCE_IDLE_SECONDS=20
