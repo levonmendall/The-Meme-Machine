@@ -39,18 +39,52 @@ def evidence_health(reader,scope,now):
 
 
 class HealthWatch:
-    """Bounded warmup and degraded windows; health observations are not evidence."""
+    """Fail closed for evidence use without turning recoverable lag into process death.
+
+    The 60-second finalized freshness rule remains authoritative in evidence_health:
+    while stale, RuntimeEvidence refuses reads/admission. A temporary finalized
+    backlog can recover without latching a permanent lane failure. Fatal service
+    states and non-freshness degradation retain the existing bounded failure
+    behavior. Terminal certification separately rejects a window that ends stale.
+    """
+    RECOVERABLE_REASONS=frozenset(('evidence_finalized_stale',))
     def __init__(self,now):
         self.started=now;self.unhealthy_since=now;self.usable_observations=0
-        self.failure=None;self.last=None
+        self.failure=None;self.last=None;self.degraded_since=None
+        self.max_recoverable_degraded_seconds=0.0;self.recoveries=0
+        self.recoverable_episodes=0;self.recoverable_reason=None
     def observe(self,health,now):
         self.last=health
         if health['usable']:
-            self.usable_observations+=1;self.unhealthy_since=None
-        else:
-            if self.unhealthy_since is None:self.unhealthy_since=now
-            bound=30 if self.usable_observations else STARTUP_SECONDS
-            if now-self.unhealthy_since>=bound:self.failure=health['reason']
+            self.usable_observations+=1
+            if self.degraded_since is not None:
+                self.max_recoverable_degraded_seconds=max(
+                    self.max_recoverable_degraded_seconds,now-self.degraded_since)
+                self.recoveries+=1
+            self.unhealthy_since=None;self.degraded_since=None;self.recoverable_reason=None
+            return self.failure
+        reason=health.get('reason')
+        if health.get('state')=='DEGRADED' and reason in self.RECOVERABLE_REASONS:
+            if self.degraded_since is None:
+                self.degraded_since=now;self.recoverable_episodes+=1
+            self.recoverable_reason=reason
+            self.max_recoverable_degraded_seconds=max(
+                self.max_recoverable_degraded_seconds,now-self.degraded_since)
+            # No evidence authority is granted here: health['usable'] remains false.
+            # Keep the process alive so the next observation can prove recovery.
+            return self.failure
+        if self.unhealthy_since is None:self.unhealthy_since=now
+        bound=30 if self.usable_observations else STARTUP_SECONDS
+        if now-self.unhealthy_since>=bound:self.failure=reason
         return self.failure
+    def terminal_failure(self):
+        if self.failure:return self.failure
+        if self.last is not None and not self.last.get('usable'):
+            return self.last.get('reason') or 'evidence_terminal_unusable'
+        return None
     def snapshot(self):
-        return dict(usable_observations=self.usable_observations,failure=self.failure,last=self.last)
+        return dict(usable_observations=self.usable_observations,failure=self.failure,last=self.last,
+            recoverable_episodes=self.recoverable_episodes,recoveries=self.recoveries,
+            recoverable_reason=self.recoverable_reason,
+            max_recoverable_degraded_seconds=self.max_recoverable_degraded_seconds,
+            terminal_failure=self.terminal_failure())

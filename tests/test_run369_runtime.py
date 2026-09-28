@@ -149,6 +149,58 @@ class Run369SourceTests(unittest.TestCase):
                 self.assertEqual(watch.observe(unhealthy,600),'evidence_cold_start')
             finally:plane.close();writer.close()
 
+    def test_finalized_staleness_blocks_evidence_but_recovers_without_latching_process_failure(self):
+        from meme_machine.solana_evidence_health import HealthWatch
+        with tempfile.TemporaryDirectory() as temp:
+            now=[100];writer=EvidenceWriter(Path(temp)/'db',clock=lambda:now[0])
+            fence=FinalizedFence(writer,endpoint_identity='a'*64)
+            plane=RuntimeEvidence(writer.path,owner='meteora',clock=lambda:now[0],command=fence.command)
+            try:
+                for slot in (98,99,100):
+                    fence.block(Subscription('service',METEORA_SCOPE,PROGRAM,'transactions',4),block(slot),100)
+                fence.health('phase','ACTIVE');fence.health('heartbeat',100)
+                self.assertTrue(plane.require_usable(METEORA_SCOPE)['usable'])
+                watch=HealthWatch(0)
+                self.assertIsNone(watch.observe(plane.health(METEORA_SCOPE),0))
+
+                # The chain/evidence frontier becomes older than the unchanged
+                # 60-second freshness limit while the service heartbeat remains live.
+                now[0]=161;fence.health('heartbeat',161)
+                stale=plane.health(METEORA_SCOPE)
+                self.assertEqual(stale['reason'],'evidence_finalized_stale')
+                self.assertFalse(stale['usable'])
+                with self.assertRaisesRegex(EvidenceUnavailable,'evidence_finalized_stale'):
+                    plane.frontier(METEORA_SCOPE)
+                self.assertIsNone(watch.observe(stale,31))
+                self.assertIsNone(watch.observe(stale,70))
+                self.assertIsNone(watch.failure)
+                self.assertEqual(watch.terminal_failure(),'evidence_finalized_stale')
+
+                # Fresh finalized evidence proves recovery; no stale evidence was
+                # admitted while degraded, and the lane need not be restarted.
+                now[0]=162
+                for slot in (161,162):
+                    fence.block(Subscription('service',METEORA_SCOPE,PROGRAM,'transactions',4),block(slot),162)
+                fence.health('heartbeat',162)
+                fresh=plane.health(METEORA_SCOPE)
+                self.assertTrue(fresh['usable'])
+                self.assertIsNone(watch.observe(fresh,71))
+                self.assertIsNone(watch.terminal_failure())
+                snap=watch.snapshot()
+                self.assertEqual(snap['recoverable_episodes'],1)
+                self.assertEqual(snap['recoveries'],1)
+                self.assertGreaterEqual(snap['max_recoverable_degraded_seconds'],39)
+            finally:plane.close();writer.close()
+
+    def test_nonrecoverable_health_failure_retains_existing_bound(self):
+        from meme_machine.solana_evidence_health import HealthWatch
+        watch=HealthWatch(0)
+        watch.observe(dict(state='USABLE',usable=True,reason='authoritative_current'),1)
+        bad=dict(state='FAILED',usable=False,reason='evidence_service_unavailable')
+        self.assertIsNone(watch.observe(bad,2))
+        self.assertEqual(watch.observe(bad,32),'evidence_service_unavailable')
+        self.assertEqual(watch.terminal_failure(),'evidence_service_unavailable')
+
     def test_missing_service_is_classified_meteora_admission(self):
         with tempfile.TemporaryDirectory() as temp:
             plane=RuntimeEvidence(Path(temp)/'missing',owner='meteora')

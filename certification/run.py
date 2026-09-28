@@ -813,8 +813,10 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None,*,campaign
                                 from certification.terminal_receipts import emit_pons
                                 emit_pons(native)
                         except ValueError:row['report_parse_error']=True
-                    if lane in evidence_watches and evidence_watches[lane].failure:
-                        row['infrastructure_failure']=evidence_watches[lane].failure
+                    if lane in evidence_watches:
+                        terminal_evidence_failure=evidence_watches[lane].terminal_failure()
+                        if terminal_evidence_failure:
+                            row['infrastructure_failure']=terminal_evidence_failure
                     if lane=='pump' and phase=='smoke':
                         from certification.solana_lifecycle import pump_flat_completion
                         if pump_flat_completion(row):

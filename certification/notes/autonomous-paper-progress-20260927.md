@@ -1640,3 +1640,34 @@ Measured prepared source identities are Pump
 manifests without changing strategy, policy or runtime semantics. Next gate is
 ordinary CI on the coherent candidate, then exact-SHA real dispatch verification
 and the complete canonical certificate before one new PAPER smoke.
+
+
+## Refreshed-secret Phase-F failure and finalized-frontier comparison
+
+Fresh campaign smoke `36384477317` used the updated GitHub
+`MM_SOLANA_READ_RPC_URL` secret and passed provider/network binding with new
+endpoint identity. WAL/storage/reconnect defects did not recur. Pump became
+fail-closed at ~112.5 seconds because `evidence_finalized_stale` exceeded the
+unchanged 60-second freshness rule; its final stale observation measured
+~85.69 seconds market lag with a ~0.24-second receipt age. Meteora stayed alive
+and later recovered to a usable ~23.71-second finalized lag, proving the stale
+episode was transient. Pons/Ramses remained responsive.
+
+Read-only comparison `36386863335` then measured the same refreshed authenticated
+Alchemy endpoint for 150 seconds using the production-shape full finalized
+`blockSubscribe` and authenticated HTTP `getSlot(finalized)` /
+`getBlockTime`. HTTP median/peak market age was 9.86/10.52 seconds; WebSocket
+median/peak was 9.11/9.78 seconds; slot-gap median/peak was 0/0; 577 finalized
+block frames were observed with no transport errors. Therefore provider-wide
+finality was healthy and the 60-second freshness limit remains valid.
+
+Measured implementation defect: `HealthWatch` permanently latched a transient
+`evidence_finalized_stale` episode after the post-startup 30-second degraded
+timer. Pump then exited even though the shared evidence stream later recovered.
+Repair: finalized staleness remains completely unusable for evidence reads,
+candidate admission and entries, but is recoverable for process liveness.
+The lane/supervisor keep observing until fresh evidence proves recovery. Fatal
+service states retain the existing bounded failure behavior, and terminal
+certification marks any lane that ends with unusable evidence as failed. No
+strategy threshold, 60-second freshness bound, storage/resource bound, provider
+authority or economic policy is changed.
