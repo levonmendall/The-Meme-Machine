@@ -33,3 +33,4 @@ jobs:
           path: /tmp/e22-source/
           retention-days: 90
           if-no-files-found: error
+# Source export only; this workflow does not certify or promote a runtime.
