@@ -1,9 +1,9 @@
 {
-  "operation": "verify",
+  "operation": "authorize",
   "runtime_sha": "df7b376230a2cea0b9e6377662d7e5f2c3e66067",
   "runtime_ref": "cert/autonomous-paper-final-df7b376",
   "campaign_id": "autonomous-paper-df7b376-20260927",
-  "certification_run_id": 0,
+  "certification_run_id": 36378710865,
   "reviewed_artifact_digest": "",
   "maximum_normal_windows": 2
 }
