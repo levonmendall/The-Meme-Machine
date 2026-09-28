@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 7d73e32015c60602a0f7d056109b8c3cb8c37ba6
+          ref: 51b5edd1ed80d46308cc7fb475d1d07ba833994b
           path: runtime
           fetch-depth: 0
           persist-credentials: false
@@ -30,7 +30,7 @@ jobs:
       - name: Assert exact runtime and unchanged canonical gate
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 7d73e32015c60602a0f7d056109b8c3cb8c37ba6
+          test "$(git rev-parse HEAD)" = 51b5edd1ed80d46308cc7fb475d1d07ba833994b
           mkdir -p "$GITHUB_WORKSPACE/evidence"
           git diff --exit-code 661d4e10daefac7e80d9252f14b2cf9f5c1acdad HEAD -- certification/run381_pressure.py certification/pressure_diagnostics.py tests/test_run380_production_pressure.py tests/test_run373_dispatch_throughput.py .github/workflows/non-market-certification.yml .github/workflows/directional-six-regime-nonmarket.yml
           git rev-parse HEAD > "$GITHUB_WORKSPACE/evidence/runtime-sha.txt"
@@ -45,7 +45,7 @@ jobs:
           python "$GITHUB_WORKSPACE/verification/certification/bounded_scope_progress_check.py" --source "$GITHUB_WORKSPACE/runtime" --output "$GITHUB_WORKSPACE/evidence/repaired-progress.json" > "$GITHUB_WORKSPACE/evidence/repaired-progress.log" 2>&1
       - name: Existing maintenance and preservation regressions
         run: |
-          python -m unittest -v tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_run375_commit_batching_amortizes_full_sync_without_relaxing_bounds tests.test_stagee19_maintenance_batch_fairness.StageE19MaintenanceBatchFairnessTests.test_maintenance_pressure_limits_source_batches_to_one_frame tests.test_run381_retention_progress tests.test_run381_maintenance_overlap tests.test_run381_archive_scheduling > "$GITHUB_WORKSPACE/evidence/maintenance-regressions.log" 2>&1
+          python -m unittest -v tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_run375_commit_batching_amortizes_full_sync_without_relaxing_bounds tests.test_run379_transport_backpressure.TransportBackpressureTests.test_real_protocol_queue_backpressure_drains_without_ping_disconnect tests.test_stagee19_maintenance_batch_fairness.StageE19MaintenanceBatchFairnessTests.test_maintenance_pressure_limits_source_batches_to_one_frame tests.test_run381_retention_progress tests.test_run381_maintenance_overlap tests.test_run381_archive_scheduling > "$GITHUB_WORKSPACE/evidence/maintenance-regressions.log" 2>&1
       - name: Ten-minute mature Solana retention and source-clock pressure
         timeout-minutes: 13
         run: |
@@ -55,11 +55,11 @@ jobs:
         if: always()
         run: |
           git diff --exit-code HEAD
-          test "$(git rev-parse HEAD)" = 7d73e32015c60602a0f7d056109b8c3cb8c37ba6
+          test "$(git rev-parse HEAD)" = 51b5edd1ed80d46308cc7fb475d1d07ba833994b
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: bounded-scope-pressure-7d73e320-${{ github.run_attempt }}
+          name: bounded-scope-pressure-51b5edd1-${{ github.run_attempt }}
           path: evidence/
           if-no-files-found: error
           retention-days: 90
