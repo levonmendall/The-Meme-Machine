@@ -1,4 +1,4 @@
-name: Coordinated Stage E source and native prerequisites
+name: E22 exact-source preservation
 on:
   push:
     branches: [review/stagee-coordinated-20260928]
@@ -7,89 +7,29 @@ permissions:
 concurrency:
   group: stagee-coordinated-review
   cancel-in-progress: false
-env:
-  EXPECTED_RUNTIME: 3b5c56b724c23f2ce3f8ef4a7e9fe63c6bf129e1
 jobs:
-  publish-reviewed-source:
+  source:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: 06410dfd171dd716ab146ae4fcb64ac45cb7eba4
-          fetch-depth: 0
-          persist-credentials: true
-      - name: Verify and atomically publish reviewed dependency closure
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import base64,hashlib,json,os,urllib.request
-          from pathlib import Path
-          parts=('56e190711eb7cc79a3a1ba69540625dbe18d9a56','8fe2d440447248bb23d26c599a9bdf90fd536b43','aef9a23c6aaedeadb69077a1b5b92d4ec1aff3b0','c4601da6615cfe7fdf3f5d2dce49fbce854aa12f','29972d7fb137cf4b82ed6c7a21ffbe896488a883','d5ec81c227c178b6aa036c83664800fc1b93be7e')
-          data=b''
-          for sha in parts:
-              request=urllib.request.Request('https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/git/blobs/'+sha,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
-              with urllib.request.urlopen(request,timeout=30) as response:row=json.load(response)
-              assert row['encoding']=='base64'
-              part=base64.b64decode(row['content'])
-              assert hashlib.sha1(b'blob '+str(len(part)).encode()+b'\0'+part).hexdigest()==sha
-              data+=part
-          assert len(data)==4986
-          assert hashlib.sha256(data).hexdigest()=='8c2c014fe6b86a1ccdd2204790464e974920fb0c2f715ee9751f9161f57e7b44'
-          Path('/tmp/reviewed-source.bundle').write_bytes(data)
-          PY
-          git bundle verify /tmp/reviewed-source.bundle
-          git fetch /tmp/reviewed-source.bundle HEAD
-          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_RUNTIME"
-          test "$(git show -s --format=%P "$EXPECTED_RUNTIME")" = 06410dfd171dd716ab146ae4fcb64ac45cb7eba4
-          test "$(git rev-parse "$EXPECTED_RUNTIME^{tree}")" = 96cefb7e12239760b56247320b70bb6fc156cb15
-          test "$(git ls-remote origin refs/heads/repair/stagee19-batch-maintenance-fairness-20260928 | cut -f1)" = 06410dfd171dd716ab146ae4fcb64ac45cb7eba4
-          git diff --exit-code 06410dfd171dd716ab146ae4fcb64ac45cb7eba4 "$EXPECTED_RUNTIME" -- meme_machine certification/run381_pressure.py certification/combined_pressure.py
-          git push origin "$EXPECTED_RUNTIME:refs/heads/repair/stagee19-batch-maintenance-fairness-20260928"
-  native-prerequisites:
-    needs: publish-reviewed-source
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: 3b5c56b724c23f2ce3f8ef4a7e9fe63c6bf129e1
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.14'
-      - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Collect all native tests and verify complete build before execution
+      - name: Export reviewed predecessor without execution or mutation
         run: |
           set -euo pipefail
-          mkdir -p evidence
-          test "$(git rev-parse HEAD)" = "$EXPECTED_RUNTIME"
-          python -m certification.run prepare --worktrees "$RUNNER_TEMP/native-lanes" > evidence/prepare.log 2>&1
-          python -m certification.build_consistency verify --worktrees "$RUNNER_TEMP/native-lanes" --expected-sha "$EXPECTED_RUNTIME" --output evidence/build-preflight.json
-      - name: Verify collection rejection and unchanged shared source fixture
-        run: python -m unittest -v certification.tests.test_build_consistency tests.test_run369_runtime tests.test_solana_evidence_service_runtime > evidence/collection-regressions.log 2>&1
-      - name: Execute all four assembled native component suites
-        run: python -m certification.non_market --worktrees "$RUNNER_TEMP/native-lanes" --output evidence/native > evidence/native.log 2>&1
-      - name: Recheck source identity and unchanged strategy integration
-        env:
-          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/native-lanes
-        run: |
-          python -m certification.directional_acceptance --worktrees "$RUNNER_TEMP/native-lanes" --output evidence/six-regime
-          python -m certification.build_consistency verify --worktrees "$RUNNER_TEMP/native-lanes" --expected-sha "$EXPECTED_RUNTIME" --output evidence/final-build-preflight.json
-      - name: Preserve exact checkout identity
-        if: always()
-        run: |
+          test "$(git rev-parse HEAD)" = 3b5c56b724c23f2ce3f8ef4a7e9fe63c6bf129e1
+          mkdir -p /tmp/e22-source
+          git bundle create /tmp/e22-source/runtime.bundle --all HEAD
+          git bundle verify /tmp/e22-source/runtime.bundle
+          git rev-parse HEAD > /tmp/e22-source/runtime-sha.txt
+          sha256sum /tmp/e22-source/runtime.bundle > /tmp/e22-source/bundle.sha256
           git diff --exit-code HEAD
-          test "$(git rev-parse HEAD)" = "$EXPECTED_RUNTIME"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
         with:
-          name: stagee-native-prerequisites-3b5c56b7-${{ github.run_attempt }}
-          path: evidence/
+          name: e22-source-3b5c56b7
+          path: /tmp/e22-source/
           retention-days: 90
           if-no-files-found: error
