@@ -1,0 +1,35 @@
+name: E23 maintenance semantics source preservation
+on:
+  push:
+    branches: [review/stagee23-maintenance-semantics-20260928]
+permissions:
+  contents: read
+concurrency:
+  group: stagee23-maintenance-semantics
+  cancel-in-progress: false
+jobs:
+  preserve-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: e0816bff7efedcb4009d1db1151c25776f54a88b
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export exact committed source without executing runtime
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = e0816bff7efedcb4009d1db1151c25776f54a88b
+          mkdir -p /tmp/e23-source
+          git bundle create /tmp/e23-source/runtime.bundle --all
+          git bundle verify /tmp/e23-source/runtime.bundle
+          git rev-parse HEAD > /tmp/e23-source/runtime-sha.txt
+          sha256sum /tmp/e23-source/runtime.bundle > /tmp/e23-source/bundle.sha256
+          git diff --exit-code HEAD
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: e23-source-e0816bff
+          path: /tmp/e23-source/
+          retention-days: 90
+          if-no-files-found: error
