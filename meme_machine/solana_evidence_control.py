@@ -88,8 +88,11 @@ class PriorityOwner:
                     if expires is not None and time.time()>expires:
                         raise EvidenceUnavailable('evidence_command_expired')
                     writer=getattr(self.state,'writer',None)
+                    def queued_priority():
+                        with self.cv:return self.queue[0][0] if self.queue else None
                     def queued_before(priority_limit):
-                        with self.cv:return bool(self.queue and self.queue[0][0]<priority_limit)
+                        queued=queued_priority()
+                        return queued is not None and queued<priority_limit
                     def interrupt_background():
                         nonlocal interrupted
                         if interrupted:return 0 # allow rollback to finish
@@ -102,11 +105,12 @@ class PriorityOwner:
                         return 0
                     def yield_retention_boundary():
                         # Retention has already committed its bounded slice here.
-                        # Let normal source commits (priority 2) and foreground
-                        # work run before the next slice. This preserves durable
-                        # cleanup progress without making a 1,000-row retention
-                        # call monopolize the sole SQLite owner.
-                        return 1 if queued_before(4) else 0
+                        # Urgent control work rotates scopes to preserve cross-scope
+                        # fairness; normal source/counter work may let a still-full
+                        # dense scope resume after that queued work runs.
+                        queued=queued_priority()
+                        if queued is None or queued>=4:return None
+                        return 'urgent' if queued<2 else 'source'
                     if priority==4 and writer:
                         writer._retention_yield_requested=yield_retention_boundary
                         writer.db.set_progress_handler(interrupt_background,1000)
