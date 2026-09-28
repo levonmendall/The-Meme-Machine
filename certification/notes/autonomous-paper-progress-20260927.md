@@ -1803,3 +1803,32 @@ and evidence service
 The manifests are frozen to these prepared identities. No strategy threshold,
 provider authority, source/retention acceptance bound, receive/commit capacity,
 2-GiB hot-store ceiling, durability mode or PAPER-only authority is changed.
+
+
+## Stage-E attempt 17 residual archive owner-turn failure and attempt 18 repair
+
+Stage-E attempt 17, workflow run `36439766330`, exact SHA
+`34abe8478f937112472e2b41b120651b7e9d5e44`, failed only the unchanged
+retention-clock guard. Preserved durability artifact `10979190104` measured
+source/finalized lag peak 1.766 s, HOT peak 1,286,284,152 bytes, oldest hot
+payload age 239.586 s and oldest retained age 240.148 s. The run reached 2,055
+of 2,223 pressure frames before failure and left 1,042 already-archived rows
+pending compaction. Archive application averaged ~249 records per owner turn,
+matching the 256-record internal slice; source/receive/capacity remained healthy.
+
+Attempt 18 changes only that repair-introduced archive hot-DB application slice
+from 256 to 512 records. Immutable archive files remain capped at 1,000 records;
+retention remains a 256-record durable slice with the existing classified yield
+fairness and bounded set cleanup. The 64-frame / 96-MiB receive bounds, 16-MiB
+source commit bound, 2-GiB hot-store ceiling, 180-second retention target,
+240-second certification backlog guard, FULL SQLite durability, provider
+authority, strategy thresholds, economic policies and PAPER-only authority are
+unchanged.
+
+Focused verification run `36441563691` passed all 26 maintenance regressions on
+runtime SHA `a4d371842d45f9f9df6d0ff876253c375ee9b002`. Prepared source identities
+are Pump `5843824fcb4f03a700b85e9c9af40a7436ffb3c0a0dba9c789a71c03e85052e3`
+and Meteora `432063bbd533916835bce49f3411eb99163a515a7f90ee4fedddaf2f340fe0f2`,
+now bound in the source/profitability manifests. The next authority is complete
+Stage-E non-market certification on the exact frozen successor SHA; no market or
+smoke run is authorized.
