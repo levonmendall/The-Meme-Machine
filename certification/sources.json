@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "f9732cba8bedfb25d63b89e99d3532f3d5f3234d3c4091c0dc0327d266544a56",
+      "source_diff_sha256": "e8018ffe9711afda67837c8ae7e4bf597dced73dddaddeaa454320b965ca986e",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -342,7 +342,7 @@
         "meme_machine/pumpswap_survivor_evidence.py": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946",
         "meme_machine/pumpswap_survivor_runtime.py": "b545e08eb7fa1a68fa9c2cc7b8645e1a8fc1cad0777f52151af126a206e43a4c",
         "meme_machine/solana_evidence_runtime.py": "07253419f6385f6da4d6426e2a5737c5cf0826252a2d8ad039ec658ce0c092bd",
-        "meme_machine/solana_evidence_service.py": "f37689b32d8139cbae2e90eb0e4f3834ec361bc7e218a55b84bfa7c570e285e4",
+        "meme_machine/solana_evidence_service.py": "0c2209a048f48881114841e74ffbe2c472a53b3a9b3d33c71be699abd6e164d5",
         "tests/pump_acceleration_natural_prospective.py": "e79f534862e3b48113bcfc5bb1779eacbfffa74196f02c09ada84fee681eec37",
         "tests/test_directional_capacity.py": "cf03c522706e8eda4c5f93bc53762bf5dfc6c47765a990a55a4258120f26e8e8",
         "tests/test_evidence_runtime_cutover.py": "ee7a5140ceca1f188cecd89948789163e1a902fd23977d88305e1354bf578351",
@@ -350,7 +350,13 @@
         "tests/test_pump_shared_survivor.py": "6107efc1f49040827fcf7c5ad20c7f8dcb636b1cc33ca30fea0d77128614a594",
         "tests/test_pumpswap_survivor.py": "eb28501e28311fd9f57712de38ed2648156aa5cd46ace6d3a8b3855a39015790",
         "tests/test_pumpswap_survivor_evidence.py": "d093ee1cbd26e66d8ef576ad5073d5e84ebfe1c93ee080d98a51efb2046c6a98",
-        "meme_machine/paper_accounting.py": "d1941165d5c6ec1dea00e5c9f6eefdc53dd6e7d914a3c29214ff6fd8b5d13324"
+        "meme_machine/paper_accounting.py": "d1941165d5c6ec1dea00e5c9f6eefdc53dd6e7d914a3c29214ff6fd8b5d13324",
+        "tests/test_coordinated_database.py": "de4e81340ccad66d78b0a992d6f8bc4ceca6fb4f8cb25cb98caea334bed020d5",
+        "meme_machine/solana_evidence_plane.py": "7599d9c564ad29b41f8f07229755162109f6a48ea1fcc21c243cc94e3d0b4a7d",
+        "tests/test_run381_retention_progress.py": "8d79482280fef53802067db7377e2079d437ea8ab641645eec618cc70d5facbe",
+        "tests/test_run381_maintenance_overlap.py": "6ab7b5f39269afc0fc0d92585f451ec5136ca45232341f8f6d88ebb52b159ada",
+        "meme_machine/solana_archive_snapshot.py": "85bdf910f66ff658c6133df11662be9a7c147acd7f737371427ed5b16137f0ac",
+        "meme_machine/solana_evidence_control.py": "5becaf52e68204cf6847db2fce79cd7200f5ce314767701af32a6af564291bb6"
       },
       "active_regimes": {
         "pump-acceleration-independent-v1": "a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d",
@@ -415,7 +421,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "21cafcf6094b00fc10769b9a2b9622eb80637a432f2e9551d5d37b9065e96807",
+      "source_diff_sha256": "10a1ac9983114e7570a032468c96812c91375085a4772012af1021c6e04a4751",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -735,7 +741,14 @@
         "SOLANA_DLMM_INDEPENDENT_V1.json": "f64304f125edfde0af5dff04b53332bd811bce47cf27fd72e611dafc09abd916",
         "meme_machine/dlmm_independent_accounting.py": "45220427e4b6ae8d748fe867c4d9f79098e579223a6f84e74234702e0b2d1e66",
         "tests/solana_dlmm_independent_v1.py": "66ae4152aa50efa004c324cc1127e361e38c5f0ce1f8be474c7ed7510c47e3a9",
-        "tests/test_dlmm_independent_accounting.py": "8d19e2fd67ab5bd6e4461796eff022769495d84235e2ff73bce250520ca68a2d"
+        "tests/test_dlmm_independent_accounting.py": "8d19e2fd67ab5bd6e4461796eff022769495d84235e2ff73bce250520ca68a2d",
+        "meme_machine/solana_evidence_service.py": "0c2209a048f48881114841e74ffbe2c472a53b3a9b3d33c71be699abd6e164d5",
+        "tests/test_coordinated_database.py": "de4e81340ccad66d78b0a992d6f8bc4ceca6fb4f8cb25cb98caea334bed020d5",
+        "meme_machine/solana_evidence_plane.py": "7599d9c564ad29b41f8f07229755162109f6a48ea1fcc21c243cc94e3d0b4a7d",
+        "tests/test_run381_retention_progress.py": "8d79482280fef53802067db7377e2079d437ea8ab641645eec618cc70d5facbe",
+        "tests/test_run381_maintenance_overlap.py": "6ab7b5f39269afc0fc0d92585f451ec5136ca45232341f8f6d88ebb52b159ada",
+        "meme_machine/solana_archive_snapshot.py": "85bdf910f66ff658c6133df11662be9a7c147acd7f737371427ed5b16137f0ac",
+        "meme_machine/solana_evidence_control.py": "5becaf52e68204cf6847db2fce79cd7200f5ce314767701af32a6af564291bb6"
       }
     },
     "pons": {
