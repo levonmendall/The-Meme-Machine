@@ -677,6 +677,13 @@ class EvidenceWriter:
                         # The 256-placeholder ceiling is below SQLite's variable
                         # limit and preserves the exact durable transaction bound.
                         marks=','.join('?' for _ in ids)
+                        # Archived rows no longer need hot bodies, but their
+                        # address references remain until record retirement.
+                        # Remove both trigger targets as bounded sets first so
+                        # the per-record BEFORE DELETE trigger performs only
+                        # empty indexed lookups instead of repeated fan-out work.
+                        self.db.execute('DELETE FROM address_refs WHERE record_id IN (SELECT rowid FROM records WHERE identity IN ('+marks+'))',ids)
+                        self.db.execute('DELETE FROM hot_refs WHERE identity IN ('+marks+')',ids)
                         self.db.execute('DELETE FROM lineage WHERE identity IN ('+marks+')',ids)
                         deleted=self.db.execute('DELETE FROM records WHERE identity IN ('+marks+')',ids).rowcount
                         if deleted!=len(ids):raise EvidenceConflict('retention_delete_identity_mismatch')
