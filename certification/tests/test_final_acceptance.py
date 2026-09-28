@@ -48,6 +48,10 @@ class FinalAcceptanceTests(unittest.TestCase):
         (root/'joined/result.json').write_text(json.dumps(dict(passed=True,identity={'integration_sha':'sha'},
             paper_only=True,market_collection=False,virtual_seconds=192*3600,gates={'complete':True})))
 
+        from certification.tests.test_combined_pressure import valid_report
+        (root/'combined-pressure').mkdir()
+        (root/'combined-pressure/result.json').write_text(json.dumps(valid_report('sha')))
+
     def test_missing_short_failed_or_wrong_sha_joined_proof_cannot_certify(self):
         for change in ('missing','short','failed','wrong_sha','market','failed_subgate'):
             with self.subTest(change=change),tempfile.TemporaryDirectory() as td:

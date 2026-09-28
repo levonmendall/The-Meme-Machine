@@ -764,7 +764,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                            for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1,*,label=None):
-        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_finish'):
+        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
             raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic();execution=[None,None]
         def timed(state):
@@ -1348,6 +1348,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             # Join the accepted thread before closing the owner on cancellation.
             while not stop.is_set():
                 started=time.monotonic()
+                ticket=await work(lambda state:owner.checkpoint_ticket_after_current(),2,label='checkpoint_prepare')
                 pending=asyncio.create_task(asyncio.to_thread(EvidenceWriter.checkpoint,path))
                 try:result=await asyncio.shield(pending)
                 except asyncio.CancelledError:
@@ -1367,10 +1368,19 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 # Older admitted source work completes first, but newer source
                 # work cannot overtake the reset. Priority >=2 also means the
                 # reset never interrupts and rolls back an archive SQL slice.
-                # Expensive page copying remains off the sole SQLite owner.
+                # A generation fence additionally refuses TRUNCATE after
+                # any intervening owner operation. busy_timeout=0 alone
+                # limits lock waiting, not the cost of copying a new tail.
+                # Deferred tails remain for the next independent PASSIVE.
                 if bulk_complete:
                     try:
-                        final=await work(lambda state:state.writer.finish_checkpoint(),2,label='checkpoint_finish')
+                        def finish_if_current(state):
+                            if not owner.checkpoint_current(ticket):return None
+                            return state.writer.finish_checkpoint()
+                        final=await work(finish_if_current,2,label='checkpoint_finish')
+                        if final is None:
+                            counts['checkpoint.tail_deferred']=counts.get('checkpoint.tail_deferred',0)+1
+                            final=(1,result[1],result[2])
                         counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(
                             final[0]!=0 or final[1]!=final[2])
                         counts['checkpoint.reclaimed']=counts.get('checkpoint.reclaimed',0)+int(

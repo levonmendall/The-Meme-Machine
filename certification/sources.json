@@ -405,7 +405,9 @@
         "tests/test_run381_subscription_progress.py",
         "tests/test_run381_archive_scheduling.py",
         "meme_machine/solana_evidence_health.py",
-        "tests/test_run369_runtime.py"
+        "tests/test_run369_runtime.py",
+        "meme_machine/solana_archive_snapshot.py",
+        "tests/test_coordinated_database.py"
       ]
     },
     "meteora": {
@@ -724,7 +726,9 @@
         "tests/test_run381_subscription_progress.py",
         "tests/test_run381_archive_scheduling.py",
         "meme_machine/solana_evidence_health.py",
-        "tests/test_run369_runtime.py"
+        "tests/test_run369_runtime.py",
+        "meme_machine/solana_archive_snapshot.py",
+        "tests/test_coordinated_database.py"
       ],
       "composed_file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",

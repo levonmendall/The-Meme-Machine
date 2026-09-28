@@ -33,6 +33,7 @@ class PriorityOwner:
         self.metrics={}
         self.cv=threading.Condition(); self.queue=[]; self.sequence=0
         self.closed=False; self.ready=concurrent.futures.Future()
+        self._checkpoint_epoch=0; self._checkpoint_busy=False
         self.thread=threading.Thread(target=self._run,args=(factory,),name='solana-evidence-owner',daemon=True)
         self.thread.start()
 
@@ -82,6 +83,7 @@ class PriorityOwner:
                     wait=int(max(0,queued)*1_000_000)
                     self.metrics[prefix+'.queue_peak_us']=max(self.metrics.get(prefix+'.queue_peak_us',0),wait)
                     self.metrics[prefix+'.queue_total_us']=self.metrics.get(prefix+'.queue_total_us',0)+wait
+                    self._checkpoint_busy=True
                 started=self.clock()
                 interrupted=False
                 try:
@@ -127,11 +129,34 @@ class PriorityOwner:
                 finally:
                     elapsed=int(max(0,self.clock()-started)*1_000_000)
                     with self.cv:
+                        self._checkpoint_epoch+=1; self._checkpoint_busy=False
                         if interrupted:self.metrics['background_yields']=self.metrics.get('background_yields',0)+1
                         self.metrics[prefix+'.execution_peak_us']=max(self.metrics.get(prefix+'.execution_peak_us',0),elapsed)
                         self.metrics[prefix+'.execution_total_us']=self.metrics.get(prefix+'.execution_total_us',0)+elapsed
                         self.metrics[prefix+'.completed']=self.metrics.get(prefix+'.completed',0)+1
         finally: self.state.close()
+
+    def checkpoint_ticket(self):
+        """Conservative owner-generation fence, never database authority."""
+        with self.cv:
+            if self.closed or self.queue or self._checkpoint_busy:return None
+            return self._checkpoint_epoch
+
+    def checkpoint_ticket_after_current(self):
+        """Issue a marker in FIFO after all older admitted owner work."""
+        if threading.get_ident()!=self.thread.ident:
+            raise EvidenceUnavailable('checkpoint_ticket_owner_thread')
+        with self.cv:
+            if self.closed or not self._checkpoint_busy:return None
+            return self._checkpoint_epoch+1
+
+    def checkpoint_current(self,ticket):
+        # Called inside the admitted owner callback. Any intervening
+        # operation, including a command outside serve.work(), invalidates
+        # the old PASSIVE completion. Reads conservatively invalidate too.
+        with self.cv:
+            return (type(ticket) is int and not self.closed
+                    and self._checkpoint_busy and ticket==self._checkpoint_epoch)
 
     def telemetry(self):
         with self.cv:return dict(self.metrics,queued=len(self.queue))

@@ -503,39 +503,9 @@ class EvidenceWriter:
         return self.prepare_archive(self.archive_snapshot(before_time,max_records=max_records),max_bytes=max_bytes)
 
     def archive_snapshot(self,before_time,*,max_records=1000,max_bytes=4*1024*1024):
-        """Copy bounded encoded rows/chunks; decoding/compression need no SQLite."""
-        self._check()
-        if not 1 <= max_records <= 1000:
-            raise EvidenceUnavailable('archive_batch_bound')
-        rows = self.db.execute('''WITH account_pins AS MATERIALIZED
-          (SELECT scope,floor FROM account_interest_floors)
-          SELECT r.identity,r.body,r.hash FROM records r
-          WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
-          AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
-             AND i.scope=r.scope AND r.slot>=i.lower_slot
-             AND (NOT EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)
-               OR EXISTS(SELECT 1 FROM service_interests s JOIN addresses a ON a.address=s.address
-                         WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=r.identity)))
-          AND NOT EXISTS(SELECT 1 FROM account_pins p
-             WHERE r.kind='account' AND p.scope=r.scope AND r.slot>=p.floor)
-          AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
-              AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
-          ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records))
-        snapshot=[];chunks={};size=0
-        try:
-            for k,b,h in rows:
-                shared=dict(self.db.execute('SELECT c.hash,c.body FROM hot_refs r JOIN hot_chunks c ON c.hash=r.hash WHERE r.identity=?',(k,)))
-                scope,slot=self.db.execute('SELECT scope,slot FROM records WHERE identity=?',(k,)).fetchone()
-                lineage=self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,)).fetchall()
-                coverage=self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(scope,slot,slot)).fetchall()
-                cost=len(b)+sum(len(v) for key,v in shared.items() if key not in chunks)+len(canonical((lineage,coverage)).encode())
-                if snapshot and size+cost>max_bytes:break
-                if size+cost>20*1024*1024:raise EvidenceUnavailable('archive_snapshot_bound')
-                snapshot.append(dict(identity=k,encoded=b,hash=h,lineage=lineage,coverage=coverage))
-                chunks.update(shared)
-                size+=cost
-        finally:rows.close()
-        return dict(rows=snapshot,chunks=chunks,encoded_bytes=size) if snapshot else None
+        """Copy the exact bounded archive input using set-based metadata reads."""
+        from .solana_archive_snapshot import snapshot
+        return snapshot(self,before_time,max_records=max_records,max_bytes=max_bytes)
 
     @staticmethod
     def prepare_archive(snapshot,*,max_bytes=4*1024*1024):
@@ -725,11 +695,11 @@ class EvidenceWriter:
     def finish_checkpoint(self):
         """Reclaim the completed WAL tail at the sole writer boundary.
 
-        The independent PASSIVE connection copies the expensive bulk while source
-        commits continue. This owner-side TRUNCATE performs only the final
-        lock/reset handshake between logical writes. A pinned reader must make it
-        return busy immediately; it may never stall the source owner. The next
-        bounded checkpoint cycle retries after that reader releases its snapshot.
+        The service calls this only behind its completed-PASSIVE generation
+        fence. Without that fence SQLite may copy a newly appended tail;
+        busy_timeout=0 limits lock waiting, not copying or fsync execution.
+        Standalone callers retain explicit checkpoint behavior. A pinned
+        reader returns busy rather than being waited out or invalidated.
         """
         self._check()
         if self.db.in_transaction:raise EvidenceUnavailable('checkpoint_inside_source_transaction')

@@ -299,7 +299,9 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
        row=db.execute("SELECT value FROM counters WHERE key='archived_records'").fetchone()
        archived=row[0] if row else 0
       finally:db.close()
-     if len(calls)>=2 and archived==40:break
+     # Archive publication can invalidate an in-flight checkpoint. The
+     # existing three-second deadline also covers the next safe reset.
+     if len(calls)>=2 and archived==40 and finished:break
      await asyncio.sleep(.02)
     self.assertGreaterEqual(len(calls),2,'fixture did not exercise repeated health yields')
     self.assertEqual(archived,40,'health scheduling blocked the independent archive pipeline')
@@ -363,7 +365,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertGreater(counters['owner.stage.archive_plan.calls'],0)
     self.assertGreaterEqual(counters['owner.stage.retention.queue_total_microseconds'],0)
     labels={k.split('.')[2] for k in counters if k.startswith('owner.stage.')}
-    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_finish'})
+    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'})
    finally:db.close()
 
 if __name__=='__main__':unittest.main()

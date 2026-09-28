@@ -90,6 +90,10 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         and 0<pressure.get('oldest_retained_age_peak',float('inf'))<=240
         and 0<pressure.get('hot_peak',float('inf'))<2*1024**3
         and pressure.get('integrity')==['ok'])
+    from certification.combined_pressure import verified as combined_verified
+    combined_path=root/'combined-pressure/result.json'
+    combined=load(combined_path) if combined_path.exists() else {}
+    combined_pass=combined_verified(combined,offline.get('integration_sha'))
     joined_path=root/'joined/result.json'
     joined=load(joined_path) if joined_path.exists() else {}
     joined_pass=(joined.get('passed') is True
@@ -107,6 +111,7 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         "production_adapter_connectivity":connectivity_pass,
         "resource_bounds":resource_pass,
         "mature_solana_pressure":pressure_pass,
+        "combined_mature_solana_pressure":combined_pass,
         "joined_eight_day_system":joined_pass,
         "exact_integration_identity":identity_pass,
     }
@@ -140,6 +145,7 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         ),
         integrated_acceptance=integrated,
         mature_solana_pressure=pressure,
+        combined_mature_solana_pressure=combined,
         joined_paper_system=joined,
         historical_resolution=dict(
             disposition=historical.get("disposition"),

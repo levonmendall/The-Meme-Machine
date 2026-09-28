@@ -21,6 +21,8 @@ ALLOWED_RUNTIME = frozenset({
     'meme_machine/solana_evidence_control.py',
     'meme_machine/solana_archive_snapshot.py',
     'tests/test_coordinated_database.py',
+    'tests/test_run381_retention_progress.py',
+    'tests/test_run381_maintenance_overlap.py',
 })
 FROZEN_PRESSURE = (
     'certification/run381_pressure.py',
