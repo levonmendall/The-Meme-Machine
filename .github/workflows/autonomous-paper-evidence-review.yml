@@ -13,9 +13,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       EVIDENCE_RUN: '36360379916'
-      EVIDENCE_ARTIFACT: '10945697598'
-      EVIDENCE_NAME: non-market-durability-a60326bd45205ce827423d636aacd3f12c94ea6c-1
-      EVIDENCE_DIGEST: sha256:bdbabf00375dc3fd44711711d3374daead62af716ca6a28001be84de0ed5e3fd
+      EVIDENCE_ARTIFACT: '10945573822'
+      EVIDENCE_NAME: non-market-certification-a60326bd45205ce827423d636aacd3f12c94ea6c-1
+      EVIDENCE_DIGEST: sha256:90021dda3b62a4911e04d84afec680cda9a28542c910a47e8c0425bf731affa3
       EVIDENCE_SHA: a60326bd45205ce827423d636aacd3f12c94ea6c
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
