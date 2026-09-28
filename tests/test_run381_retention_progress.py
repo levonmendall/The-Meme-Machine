@@ -99,6 +99,29 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertLess(compacted,1200,'normal source work waited for the entire retention pass')
    finally:owner.close()
 
+ def test_retention_compacts_one_slice_with_bounded_set_deletes(self):
+  with tempfile.TemporaryDirectory() as td:
+   writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+   rows=[replace(record(),identity='set-delete:%04d'%i,signature='set-delete:%04d'%i,
+                 slot=10+i,market_time=10) for i in range(300)]
+   try:
+    writer.ingest(rows,proof=proof(10,309))
+    while writer.archive(1000):pass
+    statements=[]
+    writer.db.set_trace_callback(statements.append)
+    try:writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
+    finally:writer.db.set_trace_callback(None)
+    lineage=[s for s in statements if s.startswith('DELETE FROM lineage WHERE identity IN (')]
+    records=[s for s in statements if s.startswith('DELETE FROM records WHERE identity IN (')]
+    self.assertEqual(len(lineage),1,'retention regressed to per-record lineage deletes')
+    self.assertEqual(len(records),1,'retention regressed to per-record record deletes')
+    self.assertNotIn('DELETE FROM lineage WHERE identity=',statements)
+    self.assertEqual(writer.db.execute(
+      "SELECT value FROM counters WHERE key='compacted_records'").fetchone()[0],256)
+    self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],44)
+    self.assertEqual(writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+   finally:writer.close()
+
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
   from meme_machine.solana_evidence_service import ServiceState
   from meme_machine.solana_provider_config import AlchemyEndpoint
