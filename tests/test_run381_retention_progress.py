@@ -69,6 +69,99 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertLess(counts['b'],900,'urgent yields always restarted cleanup at the first scope')
    finally:owner.close()
 
+ def test_normal_source_work_yields_retention_between_durable_slices(self):
+  with tempfile.TemporaryDirectory() as td:
+   def factory():
+    writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+    rows=[replace(record(),scope=scope,identity=scope+':source:%04d'%i,
+                  signature=scope+':source-s:%04d'%i)
+          for scope in ('a','b') for i in range(600)]
+    writer.ingest(rows)
+    while writer.archive(1000):pass
+    return SimpleNamespace(writer=writer,close=writer.close)
+   owner=PriorityOwner(factory);owner.ready.result(5);source=[]
+   def compact(state):
+    def on_statement(sql):
+     if not source and sql.startswith('DELETE FROM lineage'):
+      source.append(owner.submit(lambda s:s.writer.db.execute('SELECT 1').fetchone()[0],priority=2))
+    state.writer.db.set_trace_callback(on_statement)
+    try:state.writer.retain(1000,max_records=512,archive_first=False)
+    finally:state.writer.db.set_trace_callback(None)
+   try:
+    task=owner.submit(compact,priority=4)
+    with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
+     task.result(5)
+    self.assertEqual(source[0].result(5),1)
+    compacted=owner.submit(
+      lambda s:(s.writer.db.execute("SELECT value FROM counters WHERE key='compacted_records'").fetchone() or (0,))[0],
+      priority=0).result(5)
+    self.assertGreater(compacted,0,'retention yielded before committing a bounded slice')
+    self.assertLess(compacted,1200,'normal source work waited for the entire retention pass')
+   finally:owner.close()
+
+ def test_retention_compacts_one_slice_with_bounded_set_deletes(self):
+  with tempfile.TemporaryDirectory() as td:
+   writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+   rows=[replace(record(),identity='set-delete:%04d'%i,signature='set-delete:%04d'%i,
+                 slot=10+i,market_time=10) for i in range(300)]
+   try:
+    writer.ingest(rows,proof=proof(10,309))
+    while writer.archive(1000):pass
+    native=writer.db;calls=[]
+    class CountingDB:
+     def __getattr__(self,key):return getattr(native,key)
+     def execute(self,sql,*args,**kwargs):
+      if sql.startswith('DELETE FROM lineage WHERE identity IN ('):calls.append('lineage')
+      if sql.startswith('DELETE FROM records WHERE identity IN ('):calls.append('records')
+      if sql.startswith('DELETE FROM lineage WHERE identity=?'):calls.append('lineage-single')
+      if sql.startswith('DELETE FROM records WHERE identity=?'):calls.append('records-single')
+      return native.execute(sql,*args,**kwargs)
+    writer.db=CountingDB()
+    writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
+    self.assertEqual(calls.count('lineage'),1,'retention did not issue one bounded lineage set-delete')
+    self.assertEqual(calls.count('records'),1,'retention did not issue one bounded record set-delete')
+    self.assertNotIn('lineage-single',calls)
+    self.assertNotIn('records-single',calls)
+    self.assertEqual(writer.db.execute(
+      "SELECT value FROM counters WHERE key='compacted_records'").fetchone()[0],256)
+    self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],44)
+    self.assertEqual(writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+   finally:writer.close()
+
+ def test_dense_scope_resumes_after_source_yield_until_backlog_drains(self):
+  with tempfile.TemporaryDirectory() as td:
+   def factory():
+    writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+    rows=[replace(record(),scope='a',identity='a:dense:%04d'%i,
+                  signature='a:dense-s:%04d'%i) for i in range(700)]
+    rows += [replace(record(),scope='b',identity='b:sparse:%04d'%i,
+                    signature='b:sparse-s:%04d'%i) for i in range(100)]
+    writer.ingest(rows)
+    while writer.archive(1000):pass
+    return SimpleNamespace(writer=writer,close=writer.close)
+   owner=PriorityOwner(factory);owner.ready.result(5);source=[]
+   def compact(state):
+    def on_statement(sql):
+     if not source and sql.startswith('DELETE FROM lineage'):
+      source.append(owner.submit(lambda s:1,priority=2))
+    state.writer.db.set_trace_callback(on_statement)
+    try:state.writer.retain(1000,max_records=512,archive_first=False)
+    finally:state.writer.db.set_trace_callback(None)
+   try:
+    task=owner.submit(compact,priority=4)
+    with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
+     task.result(5)
+    self.assertEqual(source[0].result(5),1)
+    resume=owner.submit(
+      lambda s:getattr(s.writer,'_retention_next_scope',None),priority=0).result(5)
+    counts=owner.submit(
+      lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
+      priority=0).result(5)
+    self.assertEqual(resume,'a','dense scope did not resume after ordinary source pressure')
+    self.assertLess(counts['a'],700)
+    self.assertEqual(counts['b'],100,'sparse scope ran before dense backlog resumed')
+   finally:owner.close()
+
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
   from meme_machine.solana_evidence_service import ServiceState
   from meme_machine.solana_provider_config import AlchemyEndpoint

@@ -37,6 +37,36 @@ class CheckpointRecyclingTests(unittest.TestCase):
     self.assertEqual(state.writer.db.execute('PRAGMA synchronous').fetchone()[0],2)
    finally:state.close()
 
+ def test_archive_commit_is_sliced_without_changing_immutable_manifest(self):
+  from meme_machine.solana_provider_config import AlchemyEndpoint
+  with tempfile.TemporaryDirectory() as td:
+   path=Path(td)/'db'
+   state=service.ServiceState(path,AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+   try:
+    rows=[replace(record(),identity='archive-slice:%04d'%i,signature='archive-slice:%04d'%i,
+                  slot=100+i,market_time=10) for i in range(300)]
+    state.writer.ingest(rows)
+    snapshot=state.writer.archive_snapshot(1000,max_records=300,max_bytes=16*1024*1024)
+    plan,receipt=state.writer.prepare_and_write_archive(
+      state.writer.path,snapshot,max_bytes=16*1024*1024)
+    self.assertEqual(len(plan),300)
+    remaining=state.archive_commit_slice(plan,receipt)
+    self.assertEqual(len(remaining),172)
+    self.assertEqual(state.writer.db.execute(
+      'SELECT COUNT(*) FROM records WHERE body IS NULL').fetchone()[0],128)
+    self.assertEqual(state.writer.db.execute(
+      'SELECT records FROM archives WHERE name=?',(receipt['name'],)).fetchone()[0],300)
+    remaining=state.archive_commit_slice(remaining,receipt)
+    self.assertEqual(len(remaining),44)
+    remaining=state.archive_commit_slice(remaining,receipt)
+    self.assertEqual(remaining,[])
+    self.assertEqual(state.writer.db.execute(
+      'SELECT COUNT(*) FROM records WHERE body IS NULL').fetchone()[0],300)
+    self.assertEqual(state.writer.db.execute(
+      'SELECT records FROM archives WHERE name=?',(receipt['name'],)).fetchone()[0],300)
+    self.assertEqual(state.writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+   finally:state.close()
+
  def test_transient_reader_and_concurrent_tail_are_recycled_without_losing_commits(self):
   from meme_machine.solana_provider_config import AlchemyEndpoint
   native_connect=sqlite3.connect
@@ -165,6 +195,82 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(db.execute("SELECT MAX(slot) FROM stream_receipts WHERE scope='program:pumpswap'").fetchone()[0],1019)
     self.assertEqual(db.execute("SELECT slot FROM cursors WHERE scope='program:pumpswap'").fetchone()[0],1018)
     self.assertEqual(db.execute('PRAGMA synchronous').fetchone()[0],2)
+   finally:db.close()
+
+ async def test_incomplete_passive_checkpoint_skips_owner_truncate(self):
+  calls=[];finished=[]
+  def checkpoint(path):
+   calls.append(1);return (0,10,5)
+  def finish(writer):
+   finished.append(1);return (0,0,0)
+  class Wire:
+   async def __aenter__(self):return self
+   async def __aexit__(self,*a):pass
+   async def send(self,raw):pass
+   async def recv(self,decode=None):await asyncio.Future()
+  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch(
+      'websockets.asyncio.client.connect',return_value=Wire()),patch.object(
+      EvidenceWriter,'checkpoint',side_effect=checkpoint),patch.object(
+      EvidenceWriter,'finish_checkpoint',finish):
+   path=Path(td)/'db';stop=asyncio.Event()
+   runner=asyncio.create_task(service.serve(
+     path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+   try:
+    deadline=time.monotonic()+3
+    while time.monotonic()<deadline and not calls:
+     if runner.done():await runner
+     await asyncio.sleep(.02)
+    self.assertTrue(calls,'fixture never exercised the passive checkpoint')
+    await asyncio.sleep(.05)
+    self.assertEqual(finished,[],
+                     'incomplete PASSIVE copy still scheduled an owner TRUNCATE')
+   finally:
+    stop.set();await runner
+   db=sqlite3.connect(path)
+   try:
+    counters=json.loads(db.execute(
+      "SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
+    self.assertGreaterEqual(counters.get('checkpoint.bulk_incomplete',0),1)
+    self.assertEqual(counters.get('checkpoint.reclaimed',0),0)
+   finally:db.close()
+
+ async def test_completed_passive_checkpoint_joins_source_fifo_for_zero_wait_reset(self):
+  calls=[];finished=[]
+  def checkpoint(path):
+   calls.append(1);return (0,0,0)
+  def finish(writer):
+   finished.append(threading.get_ident());return (0,0,0)
+  class Wire:
+   async def __aenter__(self):return self
+   async def __aexit__(self,*a):pass
+   async def send(self,raw):pass
+   async def recv(self,decode=None):await asyncio.Future()
+  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch(
+      'websockets.asyncio.client.connect',return_value=Wire()),patch.object(
+      EvidenceWriter,'checkpoint',side_effect=checkpoint),patch.object(
+      EvidenceWriter,'finish_checkpoint',finish):
+   path=Path(td)/'db';stop=asyncio.Event()
+   runner=asyncio.create_task(service.serve(
+     path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+   try:
+    deadline=time.monotonic()+3
+    while time.monotonic()<deadline and not finished:
+     if runner.done():await runner
+     await asyncio.sleep(.02)
+    self.assertTrue(calls,'fixture never exercised the passive checkpoint')
+    self.assertTrue(finished,'completed PASSIVE copy omitted the reset handshake')
+   finally:
+    stop.set();await runner
+   db=sqlite3.connect(path)
+   try:
+    scheduler=json.loads(db.execute(
+      "SELECT value FROM service_health WHERE key='owner_scheduler'").fetchone()[0])
+    counters=json.loads(db.execute(
+      "SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
+    self.assertGreaterEqual(scheduler.get('priority2.completed',0),1,
+                            'checkpoint reset did not join the normal source FIFO')
+    self.assertGreaterEqual(counters.get('checkpoint.reclaimed',0),1)
+    self.assertGreaterEqual(counters.get('owner.stage.checkpoint_finish.calls',0),1)
    finally:db.close()
 
  async def test_repeated_health_yields_cannot_starve_archive_progress(self):

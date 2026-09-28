@@ -88,21 +88,32 @@ class PriorityOwner:
                     if expires is not None and time.time()>expires:
                         raise EvidenceUnavailable('evidence_command_expired')
                     writer=getattr(self.state,'writer',None)
-                    def yield_background():
+                    def queued_priority():
+                        with self.cv:return self.queue[0][0] if self.queue else None
+                    def queued_before(priority_limit):
+                        queued=queued_priority()
+                        return queued is not None and queued<priority_limit
+                    def interrupt_background():
                         nonlocal interrupted
                         if interrupted:return 0 # allow rollback to finish
-                        # Retention commits bounded slices. Interrupting their
-                        # DELETEs repeatedly rolled back all cleanup in Run 381.
-                        # Other background SQL, including repair transactions,
-                        # remains interruptible; urgent work runs between slices.
+                        # Long/background SQL may still be interrupted only by
+                        # urgent foreground/control work. Restarting archive
+                        # scans for every normal source frame can starve cleanup.
                         if getattr(writer,'_retention_atomic',False):return 0
-                        with self.cv:urgent=bool(self.queue and self.queue[0][0]<2)
-                        if urgent:
+                        if queued_before(2):
                             interrupted=True;return 1
                         return 0
+                    def yield_retention_boundary():
+                        # Retention has already committed its bounded slice here.
+                        # Urgent control work rotates scopes to preserve cross-scope
+                        # fairness; normal source/counter work may let a still-full
+                        # dense scope resume after that queued work runs.
+                        queued=queued_priority()
+                        if queued is None or queued>=4:return None
+                        return 'urgent' if queued<2 else 'source'
                     if priority==4 and writer:
-                        writer._retention_yield_requested=yield_background
-                        writer.db.set_progress_handler(yield_background,1000)
+                        writer._retention_yield_requested=yield_retention_boundary
+                        writer.db.set_progress_handler(interrupt_background,1000)
                     try:result=fn(self.state)
                     except sqlite3.OperationalError as exc:
                         if interrupted:raise EvidenceUnavailable('evidence_background_yield') from exc

@@ -598,8 +598,15 @@ class EvidenceWriter:
     def commit_archive(self,plan,receipt):
         if not receipt:return 0
         archived=0
+        # A service archive may be committed in bounded owner slices after the
+        # complete immutable file has already been published off-owner. Preserve
+        # the file's full record count in the manifest even when this call owns
+        # only one commit slice. Direct/legacy receipts still use len(plan).
+        manifest_records=(receipt.get('worker_metrics') or {}).get('records',len(plan))
+        if type(manifest_records) is not int or manifest_records < len(plan) or manifest_records < 0:
+            raise EvidenceUnavailable('archive_manifest_record_count')
         with self.transaction():
-            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],len(plan))).rowcount
+            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],manifest_records)).rowcount
             if added:self._count('archive_bytes',receipt['bytes'])
             for row in plan:
                 # An interest can arrive while compression/fsync is in flight.
@@ -649,7 +656,11 @@ class EvidenceWriter:
             next_scope=scopes[(index+1)%len(scopes)][0]
             for offset in range(0,max_records,256):
                 limit=min(max_records-offset,256)
-                with self._retention_transaction(next_scope=next_scope):
+                # A dense scope may need several slices for every sparse scope.
+                # Source-pressure yields can resume it; urgent control yields
+                # rotate to the next scope to preserve cross-scope fairness.
+                resume_scope=[scope]
+                with self._retention_transaction(next_scope=lambda r=resume_scope:r[0],urgent_next_scope=next_scope):
                     floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
                     floor=top+1 if floor is None else floor
                     recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
@@ -661,9 +672,15 @@ class EvidenceWriter:
                     old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
                     floor=max(int(old[0]) if old else 0,floor)
                     ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit))]
-                    for identity in ids:
-                        self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
-                        self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
+                    if ids:
+                        # Preserve the exact 256-record durable slice while
+                        # avoiding two SQLite statements per record. The fixed
+                        # placeholder list is bounded below SQLite's variable
+                        # limit and deletes exactly the already-selected IDs.
+                        marks=','.join('?' for _ in ids)
+                        self.db.execute('DELETE FROM lineage WHERE identity IN ('+marks+')',ids)
+                        deleted=self.db.execute('DELETE FROM records WHERE identity IN ('+marks+')',ids).rowcount
+                        if deleted!=len(ids):raise EvidenceConflict('retention_delete_identity_mismatch')
                     if old is None or floor!=int(old[0]):
                         self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
                     removed=[]
@@ -673,6 +690,8 @@ class EvidenceWriter:
                         if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
                             removed.append(self.db.execute('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE scope=? AND slot<? LIMIT ?)',(scope,floor,max_records)).rowcount)
                     if ids:self._count('compacted_records',len(ids))
+                    more_here=(len(ids)>=limit or any(n>=max_records for n in removed))
+                    resume_scope[0]=scope if more_here else next_scope
                 if len(ids)<limit and all(n<max_records for n in removed):break
         with self.transaction():
             # The archive directory is the immutable content-addressed inventory;
@@ -716,18 +735,20 @@ class EvidenceWriter:
             self.db.execute('PRAGMA busy_timeout='+str(int(prior)))
 
     @contextmanager
-    def _retention_transaction(self,*,next_scope=None):
+    def _retention_transaction(self,*,next_scope=None,urgent_next_scope=None):
         """Only the bounded retention mutation is protected from SQL preemption."""
         self._retention_atomic=True
         try:
             with self.transaction():yield
         finally:self._retention_atomic=False
-        # This is a scheduling hint, not evidence authority. Advance only after
-        # the durable slice commits, before an urgent-work yield. Restarting at
-        # the first scope on every yield starves later scopes under source load.
-        self._retention_next_scope=next_scope
+        # This is a scheduling hint, not evidence authority. Source-pressure
+        # yields may resume a still-full dense scope; urgent control work rotates
+        # so later scopes cannot starve.
+        resolved=next_scope() if callable(next_scope) else next_scope
         should_yield=getattr(self,'_retention_yield_requested',None)
-        if should_yield and should_yield():raise EvidenceUnavailable('evidence_background_yield')
+        yield_class=should_yield() if should_yield else None
+        self._retention_next_scope=(urgent_next_scope if yield_class=='urgent' and urgent_next_scope is not None else resolved)
+        if yield_class:raise EvidenceUnavailable('evidence_background_yield')
 
     def close(self):
         self._check()
