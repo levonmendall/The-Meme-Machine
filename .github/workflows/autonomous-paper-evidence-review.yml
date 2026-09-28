@@ -1,183 +1,56 @@
-name: Read-only autonomous PAPER evidence review
+name: Read-only autonomous PAPER WAL diagnostic
 on:
   push:
     branches: [review/autonomous-paper-evidence-a60326b]
     paths: [.github/workflows/autonomous-paper-evidence-review.yml]
 permissions:
   contents: read
-  actions: read
 jobs:
   evidence:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    env:
-      GH_TOKEN: ${{ github.token }}
-      EVIDENCE_RUN: '36365805134'
-      EVIDENCE_ARTIFACT: '10947344120'
-      EVIDENCE_NAME: autonomous-paper-autonomous-paper-4e52b4d-20260927-0-36365805134
-      EVIDENCE_DIGEST: sha256:f62f806a2ad877a046a3e3b0b1b9bb0ea839a875ed81756809a173b9264fbb27
-      EVIDENCE_SHA: 4e52b4dddd237de2eb673bfd44805953dd93ca61
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 4e52b4dddd237de2eb673bfd44805953dd93ca61
+          ref: 72cbb01b036384f106c916fbd8981c45bef7a192
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Verify immutable artifact and extract bounded review files
+      - name: Reproduce checkpoint WAL reuse on exact failed source without providers
         run: |
-          python - <<'PYCODE'
-          import os, json, hashlib
-          from pathlib import Path, PurePosixPath
-          from certification.prospective_program import GitHub
-          api = GitHub()
-          run_id = int(os.environ['EVIDENCE_RUN'])
-          run = api.request('GET', f'actions/runs/{run_id}')
-          if run['head_sha'] != os.environ['EVIDENCE_SHA']:
-              raise ValueError('review_source_identity')
-          # Read-only diagnosis of this exact preserved 2.6-GB failure artifact.
-          # Stream to disk; the certified runtime's transport bound stays unchanged.
-          from urllib.request import Request, build_opener, urlopen
-          from urllib.error import HTTPError
-          from certification.prospective_program import NoRedirect
-          import zipfile
-          items = [a for a in api.pages(f'actions/runs/{run_id}/artifacts', 'artifacts')
-                   if a['name'] == os.environ['EVIDENCE_NAME']]
-          if len(items) != 1 or items[0].get('expired'):
-              raise ValueError('review_artifact_missing')
-          item = items[0]
-          if item['id'] != 10947344120 or item['size_in_bytes'] != 2606362822:
-              raise ValueError('review_exact_failure_size')
-          request = Request(item['archive_download_url'], headers={'Authorization':'Bearer '+api.token})
-          try:
-              response = build_opener(NoRedirect).open(request, timeout=30)
-          except HTTPError as exc:
-              if exc.code not in (301,302,303,307,308): raise
-              response = urlopen(exc.headers['Location'], timeout=60)
-          target = Path(os.environ['RUNNER_TEMP'])/'failure-artifact.zip'
-          hasher = hashlib.sha256(); size = 0
-          with response, target.open('wb') as stream:
-              while block := response.read(1024*1024):
-                  size += len(block)
-                  if size > item['size_in_bytes']: raise ValueError('review_transport_size')
-                  hasher.update(block); stream.write(block)
-          if size != item['size_in_bytes'] or 'sha256:'+hasher.hexdigest() != item['digest']:
-              raise ValueError('review_transport_digest')
-          archive = zipfile.ZipFile(target)
-          if item['id'] != int(os.environ['EVIDENCE_ARTIFACT']) or item['digest'] != os.environ['EVIDENCE_DIGEST']:
-              raise ValueError('review_artifact_identity')
-          root = Path('reviewed-evidence'); root.mkdir()
-          suffixes = ('joined/result.json', 'joined-soak.json', 'run381-pressure/result.json',
-              'final-acceptance.json', 'offline/result.json', 'window-review.json',
-              'claim.json', 'market-assurance.json', 'manifest.json',
-              'certification-smoke/result.json', 'certification-hourly/result.json',
-              'smoke-continuation-state.json', 'position-after.json', 'autonomous-controller.json',
-              'process.log', 'evidence-process.log', 'status.json', 'activity.json',
-              'terminal-reconciliation.json', 'error.json')
-          selected = []
-          inventory = []
-          total = 0
-          with archive:
-              for info in archive.infolist():
-                  inventory.append(dict(path=info.filename, bytes=info.file_size))
-                  if not any(info.filename == s or info.filename.endswith('/'+s) for s in suffixes):
-                      continue
-                  path = PurePosixPath(info.filename)
-                  if path.is_absolute() or '..' in path.parts or '\\' in info.filename:
-                      raise ValueError('review_artifact_path')
-                  total += info.file_size
-                  if info.file_size > 20*1024**2 or total > 24*1024**2:
-                      raise ValueError('review_output_bound')
-                  raw = archive.read(info)
-                  if info.filename.endswith('.json'): json.loads(raw)
-                  target = root/path; target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(raw)
-                  selected.append(dict(path=info.filename, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest()))
-          result = dict(run_id=run_id, source_sha=run['head_sha'], artifact_id=item['id'],
-              artifact_digest=item['digest'], selected=selected, inventory=inventory,
-              read_only=True, provider_calls=0, market_authority=False)
-          (root/'review-index.json').write_text(json.dumps(result, sort_keys=True, indent=2)+'\n')
-          print(json.dumps({k:result[k] for k in result if k != 'inventory'}, sort_keys=True))
-          PYCODE
-      - name: Offline exact-smoke cleanup fan-out discriminator
-        run: |
-          python - <<'PYDIAG'
-          import os, json, zipfile, shutil, time, sqlite3, threading, gzip, hashlib
+          cat > "$RUNNER_TEMP/wal_probe.py" <<'PYCODE'
+          import asyncio,json,time
           from pathlib import Path
           from unittest.mock import patch
           from meme_machine.solana_evidence_plane import EvidenceWriter
-          from certification.pressure_diagnostics import SQLTimings
-          import certification.pressure_diagnostics as diagnostics
-          root=Path('reviewed-evidence'); source=Path(os.environ['RUNNER_TEMP'])/'smoke-source.sqlite'
-          with zipfile.ZipFile(Path(os.environ['RUNNER_TEMP'])/'failure-artifact.zip') as archive:
-              with archive.open('artifact/certification-smoke/solana-evidence-plane.sqlite') as src, source.open('wb') as dst:
-                  shutil.copyfileobj(src,dst,1024*1024)
-          original_class=diagnostics.statement_class
-          def classify(sql):
-              if sql.startswith('SELECT MIN(slot) FROM records'):return 'hot_floor'
-              if sql.startswith('SELECT MIN(lo) FROM coverage'):return 'coverage_floor'
-              if sql.startswith('SELECT floor FROM account_interest_floors'):return 'account_floor'
-              if sql.startswith('DELETE FROM hot_chunks'):return 'collect_chunks'
-              if sql.startswith('DELETE FROM address_keys'):return 'collect_addresses'
-              if sql.startswith('DELETE FROM archives'):return 'collect_archives'
-              if sql.startswith('DELETE FROM records'):return 'delete_records'
-              if sql.startswith('DELETE FROM lineage'):return 'delete_lineage'
-              if sql.startswith('SELECT identity FROM records'):return 'select_retired'
-              return original_class(sql)
-          # Reintroduce only already-archived rows below the current retained floor into a
-          # disposable diagnostic copy to reproduce actual cleanup fan-out. This is never
-          # a runtime restore and never grants coverage or rewinds any authority fence.
-          fixtures=[]
-          with sqlite3.connect(source) as db,zipfile.ZipFile(Path(os.environ['RUNNER_TEMP'])/'failure-artifact.zip') as archive:
-              floors=dict(db.execute("SELECT substr(key,17),CAST(value AS INTEGER) FROM meta WHERE key LIKE 'retention_floor:%'"))
-              for name in archive.namelist():
-                  if not name.startswith('artifact/certification-smoke/solana-evidence-plane.sqlite.archive/') or not name.endswith('.jsonl.gz'):continue
-                  raw=archive.read(name)
-                  if hashlib.sha256(raw).hexdigest()+'.jsonl.gz'!=Path(name).name:raise ValueError('fixture_archive_hash')
-                  for line in gzip.decompress(raw).splitlines():
-                      row=json.loads(line);b=row['body']
-                      if b['slot']<floors.get(b['scope'],0):fixtures.append((Path(name).name,row))
-                      if len(fixtures)>=6000:break
-                  if len(fixtures)>=6000:break
-          assert len(fixtures)==6000
-          rows=[]
-          for variant in ('original','hot_floor_index'):
-              path=source.with_name(variant+'.sqlite');shutil.copyfile(source,path)
-              timings=SQLTimings()
-              with timings.enabled(),patch.object(diagnostics,'statement_class',classify):
-                  db=sqlite3.connect(path,isolation_level=None)
-                  for sql in ('PRAGMA journal_mode=WAL','PRAGMA synchronous=FULL','PRAGMA foreign_keys=ON','PRAGMA cache_size=-16384','PRAGMA temp_store=MEMORY','PRAGMA wal_autocheckpoint=0'):
-                      db.execute(sql)
-                  with db:
-                      db.execute('BEGIN IMMEDIATE')
-                      for archive_name,row in fixtures:
-                          b=row['body']
-                          db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',(b['identity'],b['scope'],b['slot'],b['signature'],b['program'],b['market_time'],b['event_index'],b['transaction_index'],b['kind'],None,row['hash'],0,archive_name))
-                          db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',[(a,b['identity'],b['slot']) for a in b['addresses']])
-                          db.executemany('INSERT OR IGNORE INTO lineage VALUES(?,?,?,?)',[(b['identity'],l['source'],l['endpoint_identity'],l['observed_at']) for l in row['lineage']])
-                      db.execute('COMMIT')
-                  db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-                  if variant!='original':db.execute('CREATE INDEX records_hot_scope_slot ON records(scope,slot) WHERE body IS NOT NULL')
-                  writer=EvidenceWriter.__new__(EvidenceWriter);writer.db=db;writer.path=path;writer.clock=time.time;writer._owner=threading.get_ident()
-                  result=dict(variant=variant,rounds=[],plans=list(db.execute("EXPLAIN QUERY PLAN SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL",('program:pumpswap',))))
-                  for _ in range(3):
-                      writer.archive(1790559346-180,max_records=1000)
-                      start=time.monotonic();writer.retain(1790559346-180,archive_first=False)
-                      result['rounds'].append(time.monotonic()-start)
-                  result['timings']=timings.snapshot()
-                  result['retained']=[list(r) for r in db.execute('SELECT scope,COUNT(*),MIN(slot),MAX(slot) FROM records GROUP BY scope')]
-                  result['floors']=[list(r) for r in db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%' ORDER BY key")]
-                  db.close();rows.append(result)
-          assert rows[0]['retained']==rows[1]['retained'] and rows[0]['floors']==rows[1]['floors']
-          result=dict(hypothesis='Repeated retention floor queries scan archived pinned predecessor rows and occupy the serial evidence owner.',discriminator='Original vs partial hot scope/slot index on exact preserved database; identical retained rows and floors required.',pass_meaning='Dominant hot-floor SQL and material reduction establish a minimal index repair; no authority change.',fail_meaning='Reject hypothesis and use measured statement cost only.',source_sha=os.environ['EVIDENCE_SHA'],artifact_id=int(os.environ['EVIDENCE_ARTIFACT']),preserved_predecessor_records=6000,production_cache_kib=16384,archive_cycles_per_variant=3,rows=rows,provider_calls=0,market_authority=False)
-          (root/'retention-diagnostic.json').write_text(json.dumps(result,indent=2)+'\n')
-          print(json.dumps(result))
-          PYDIAG
+          from certification.run381_pressure import run
+          native=EvidenceWriter.checkpoint
+          calls=0
+          def checkpoint(path):
+              global calls
+              start=time.monotonic();result=native(path);calls+=1
+              print(json.dumps(dict(checkpoint=calls,result=result,seconds=time.monotonic()-start,
+                  db=Path(path).stat().st_size,wal=Path(str(path)+'-wal').stat().st_size)),flush=True)
+              return result
+          if __name__=='__main__':
+              with patch.object(EvidenceWriter,'checkpoint',checkpoint):
+                  asyncio.run(run(1000,'diagnostic',measured_contention=True,diagnostics=True))
+          PYCODE
+          mkdir diagnostic
+          PYTHONPATH=. python "$RUNNER_TEMP/wal_probe.py" > diagnostic/run.log 2>&1
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('diagnostic/result.json').read_text())
+          print(json.dumps({k:r[k] for k in ['passed','failure','hot_peak','lag_peak','storage_maintenance','diagnostics']},indent=2))
+          PYCODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
-          name: reviewed-evidence-${{ env.EVIDENCE_ARTIFACT }}
-          path: reviewed-evidence/
+          name: wal-diagnostic-72cbb01
+          path: diagnostic/
           if-no-files-found: error
           retention-days: 90
