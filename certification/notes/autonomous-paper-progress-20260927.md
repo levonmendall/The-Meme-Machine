@@ -1682,3 +1682,39 @@ health/supervisor modules compile with existing service-health regressions.
 Prepared source identities are Pump `687d199e48d385772bb8e7fe45948416ceb9e885ab272dd485f85587a2a9434a` and Meteora
 `ca5fc98696e49b843026826e068d1e405e06fbb1d4c945da3c6bf16b4cac3025`. These identities are frozen below before ordinary CI,
 exact-SHA dispatch verification and complete Phase-E recertification.
+
+
+## Attempt 13 Stage-E retention-clock repair
+
+Stage-E attempt 13, workflow run `36388557564`, failed only the unchanged
+ten-minute mature Solana retention-clock gate. Preserved artifact
+`10956235609` (ZIP SHA256
+`63378270d261519626af115a6e453693c6ecd0cb4af7b3954fdc6fadde9801fe`)
+measured peak finalized/source lag 35.63 s, HOT peak 1,140,735,496 bytes,
+oldest hot age 239.30 s and oldest retained age 240.113 s. The failure was
+`retention_clock_fell_behind`; 2,013 already-archived rows remained pending
+compaction. The unchanged 45-second source-clock guard, 240-second retained-age
+acceptance bound, 64-frame / 96-MiB receive bounds, 16-MiB commit bound and
+2-GiB hot-store ceiling were not relaxed.
+
+The repair preserves the same immutable archive size and durability semantics
+while bounding SQLite-owner contention: retention yields only after a durable
+slice when normal source work is queued; archive hot-DB application is admitted
+in 128-record slices while retaining the complete immutable archive manifest;
+and a completed off-owner PASSIVE checkpoint schedules only its zero-wait reset
+handshake in the same priority-2 FIFO class as normal source work. Incomplete
+PASSIVE copies do not request owner TRUNCATE. This prevents checkpoint reset from
+interrupting archive SQL and prevents one archive/retention admission from
+monopolizing the sole writer.
+
+Focused exact-candidate verification `36433591178` PASS on
+`07dc2664c0057f2adcec800e1ef45dc1d9545669`, including retention/source
+yield, bounded archive slicing and retry, incomplete/complete checkpoint
+behavior, physical WAL integrity and archive scheduling regressions. Prepared
+source identities are Pump
+`33ef1f0906eaddecba72deb0533c3bc507ffdd04c20325aac22c0e4363a2766a`
+and Meteora
+`0d2188e8317f7d161d26a1aab6ab17ac9b2b18970159615ffcb2a31ac5105f57`.
+These identities are frozen in the source/profitability manifests. The next
+authority is complete Stage-E non-market certification on this exact frozen
+lineage; no market or smoke run is authorized by this repair.
