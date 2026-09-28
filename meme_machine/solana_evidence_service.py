@@ -806,8 +806,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     # depend on decode timing. Keep the fast path, but collapse source commits to
     # one frame while either maintenance path reports active backlog.
     maintenance_pressure={'archive':False,'retention':False}
-    def maintenance_batch_limit():
-        return 1 if any(maintenance_pressure.values()) else STREAM_COMMIT_BATCH_MAX_MESSAGES
+    def maintenance_batch_limit(pending_frames):
+        # Cleanup fairness matters when source is keeping pace. If the bounded
+        # transport queue itself is materially backed up, preserve the existing
+        # batching fast path so reception can drain without manufacturing a
+        # capacity discontinuity. Once backlog falls below two maximum batches,
+        # maintenance regains one-frame source admissions until it catches up.
+        if (any(maintenance_pressure.values())
+                and pending_frames<2*STREAM_COMMIT_BATCH_MAX_MESSAGES):
+            return 1
+        return STREAM_COMMIT_BATCH_MAX_MESSAGES
     def count(key):counts[key]=counts.get(key,0)+1
     subscriptions_dirty=await work(lambda state:state.fence.subscriptions_dirty,0)
 
@@ -1064,8 +1072,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                 raise EvidenceUnavailable('unknown_source_subscription')
                                             if sub is not None and sub.evidence_class in ('blocks','account'):
                                                 batch=[];batch_bytes=0;cursor=next_sequence
-                                                batch_limit=maintenance_batch_limit()
+                                                batch_limit=maintenance_batch_limit(pending_frames)
                                                 maintenance_limited=batch_limit==1
+                                                if (not maintenance_limited
+                                                        and any(maintenance_pressure.values())):
+                                                    counts['stream.maintenance_backpressure_batching']=(
+                                                        counts.get('stream.maintenance_backpressure_batching',0)+1)
                                                 while (cursor in ready
                                                        and len(batch)<batch_limit):
                                                     candidate,c_seen,c_size,c_decoded_at=ready[cursor]
