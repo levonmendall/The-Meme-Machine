@@ -107,15 +107,21 @@ class RetentionProgressTests(unittest.TestCase):
    try:
     writer.ingest(rows,proof=proof(10,309))
     while writer.archive(1000):pass
-    statements=[]
-    writer.db.set_trace_callback(statements.append)
-    try:writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
-    finally:writer.db.set_trace_callback(None)
-    lineage=[s for s in statements if s.startswith('DELETE FROM lineage WHERE identity IN (')]
-    records=[s for s in statements if s.startswith('DELETE FROM records WHERE identity IN (')]
-    self.assertEqual(len(lineage),1,'retention regressed to per-record lineage deletes')
-    self.assertEqual(len(records),1,'retention regressed to per-record record deletes')
-    self.assertNotIn('DELETE FROM lineage WHERE identity=',statements)
+    native=writer.db;calls=[]
+    class CountingDB:
+     def __getattr__(self,key):return getattr(native,key)
+     def execute(self,sql,*args,**kwargs):
+      if sql.startswith('DELETE FROM lineage WHERE identity IN ('):calls.append('lineage')
+      if sql.startswith('DELETE FROM records WHERE identity IN ('):calls.append('records')
+      if sql.startswith('DELETE FROM lineage WHERE identity=?'):calls.append('lineage-single')
+      if sql.startswith('DELETE FROM records WHERE identity=?'):calls.append('records-single')
+      return native.execute(sql,*args,**kwargs)
+    writer.db=CountingDB()
+    writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
+    self.assertEqual(calls.count('lineage'),1,'retention did not issue one bounded lineage set-delete')
+    self.assertEqual(calls.count('records'),1,'retention did not issue one bounded record set-delete')
+    self.assertNotIn('lineage-single',calls)
+    self.assertNotIn('records-single',calls)
     self.assertEqual(writer.db.execute(
       "SELECT value FROM counters WHERE key='compacted_records'").fetchone()[0],256)
     self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],44)
