@@ -207,7 +207,7 @@ class RetentionProgressTests(unittest.TestCase):
     counts=owner.submit(
       lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
       priority=0).result(5)
-    self.assertLess(counts['b'],600,'bounded source-yield rotation did not advance the later scope')
+    self.assertLess(counts.get('b',0),600,'bounded source-yield rotation did not advance the later scope')
    finally:owner.close()
 
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
