@@ -102,13 +102,13 @@ jobs:
         run: >-
           python -m certification.autonomous_window run
           --claim autonomous-claim.json --worktrees "$RUNNER_TEMP/autonomous-lanes"
-          --output autonomous-evidence
+          --output "$RUNNER_TEMP/autonomous-evidence"
       - name: Preserve native success or failure evidence
         if: always() && inputs.operation == 'window'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}
-          path: autonomous-evidence/
+          path: ${{ runner.temp }}/autonomous-evidence/
           if-no-files-found: error
           retention-days: 90
       - name: Review preserved outcome and record one successor intent
@@ -117,7 +117,7 @@ jobs:
           WINDOW_JOB_RESULT: ${{ job.status }}
         run: >-
           python -m certification.autonomous_window finish
-          --claim autonomous-claim.json --output autonomous-evidence
+          --claim autonomous-claim.json --output "$RUNNER_TEMP/autonomous-evidence"
       - name: Preserve controller receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

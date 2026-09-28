@@ -17,6 +17,35 @@ from certification.journal import digest
 
 
 class AutonomousWorkflowAdapterTests(unittest.TestCase):
+    def test_hosted_output_paths_allow_real_unix_socket_in_every_window_mode(self):
+        import socket
+        workflow=(Path(__file__).parents[2]/'.github/workflows/autonomous-paper.yml').read_text()
+        self.assertEqual(workflow.count('--output "$RUNNER_TEMP/autonomous-evidence"'),2)
+        self.assertIn('path: ${{ runner.temp }}/autonomous-evidence/',workflow)
+        hosted=Path('/home/runner/work/_temp/autonomous-evidence')
+        for phase in ('smoke','hourly','position'):
+            path=hosted/('certification-'+phase)/'solana-evidence-plane.sqlite.sock'
+            self.assertLess(len(str(path).encode()),108)
+        try:probe=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
+        except PermissionError:
+            if os.environ.get('GITHUB_ACTIONS')=='true':raise
+            self.skipTest('Local executor disables sockets; hosted proof is mandatory')
+        old=('/home/runner/work/The-Meme-Machine/The-Meme-Machine/autonomous-evidence/'
+             'certification-smoke/solana-evidence-plane.sqlite.sock')
+        with probe,self.assertRaisesRegex(OSError,'AF_UNIX path too long'):probe.bind(old)
+        with tempfile.TemporaryDirectory(prefix='ipc-',dir=os.environ.get('RUNNER_TEMP','/tmp')) as td:
+            for phase in ('smoke','hourly','position'):
+                path=Path(td)/('certification-'+phase)/'solana-evidence-plane.sqlite.sock'
+                path.parent.mkdir()
+                with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as server:
+                    server.bind(str(path));server.listen(1)
+                    with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as client:
+                        client.connect(str(path));connection,_=server.accept()
+                        with connection:
+                            client.sendall(b'paper-only')
+                            self.assertEqual(connection.recv(32),b'paper-only')
+                path.unlink()
+
     def test_workflow_command_claims_exact_nonce_then_exports_the_owned_artifact_name(self):
         from certification import autonomous_control as c
         api=GitAPI();api.run(1)

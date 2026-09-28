@@ -1317,3 +1317,50 @@ missing, failed, stale or mismatched prerequisite evidence rejects certification
 PASS proceeds immediately to one PAPER smoke; FAIL repairs only the failed gate.
 This source change requires a new exact-SHA dispatch verification and complete
 certificate; the earlier certificate attempt grants no market authority.
+
+
+## Complete certificate passed; first smoke exposed hosted IPC path defect
+
+Candidate a60326bd45205ce827423d636aacd3f12c94ea6c passed ordinary CI
+36360282271, external launcher 36360321932 and real verify dispatch 36360337800.
+Complete canonical certificate 36360379916 PASS: both prerequisite jobs, all
+13 final gates, unchanged hosted PID/proc tests, four native suites
+(430 Pump / 436 Pons / 511 Meteora / 366 Ramses), full measured-contention
+pressure, all 192 joined hours, four joined crash cuts, 40 provider tests and both
+long-lifecycle proofs. Full artifact 10945573822 has ZIP SHA256
+90021dda3b62a4911e04d84afec680cda9a28542c910a47e8c0425bf731affa3.
+The 600.21-second pressure proof retained a 2.618-second peak lag, 183.312-second
+peak retained age, 1026924576-byte HOT peak, and verified 411840 archived records.
+Joined accounting verified throughout and after final successor restore; HOT
+capsule bytes plateaued at 2487172–2491268, pre-seal daily peaks at
+2884421/2888949. Hosted parent FDs stayed 6, each worker 4, threads 1, capsule
+WAL 0 and no remaining child processes. The controller stayed at 32 events,
+one window and one predecessor across 168 transitions.
+
+No competing market run was active. External authorization 36362655248 dispatched
+controller 36362678325, which automatically dispatched exactly one smoke:
+36362722009. Its chain binding and provider capability preflight passed. Before
+any lane started, the Solana evidence process failed with OSError. The controller
+correctly entered INFRASTRUCTURE_HALT, smoke_accepted=false, zero completed
+normal windows and no successor. Failed artifact 10946476258 (ZIP SHA256
+b52a2213165df710215b7450c9395428adfc6987adde1709c25f61af0d2ac574) is preserved.
+No smoke acceptance or profitability claim is made.
+
+Offline hosted reproduction 36362915234 confirmed the specific cause: the
+workspace-rooted UNIX socket path is 125 bytes and Linux rejects it with
+AF_UNIX path too long. Moving the output to RUNNER_TEMP gives socket paths of
+97/98/100 bytes for smoke/hourly/position, all proven with real bind/connect
+and zero provider calls. The local executor prohibits socket creation, so the
+new regression's real socket portion is mandatory on GitHub Actions; existing
+PID/process ownership tests remain unchanged.
+
+Repair changes only the autonomous workflow's run/upload/finish output location
+and adds the hosted-path regression. No runtime, strategy, policy, evidence,
+source composition, resource bound, allocation or accounting identity changes.
+The old frozen source and failed campaign remain immutable. A new frozen SHA,
+new exact-SHA real dispatch verification and complete certificate are mandatory
+before a fresh smoke. Hypothesis: the shorter owned run path permits the existing
+evidence service to bind in all three modes. Discriminator: hosted regression,
+full exact-SHA certificate, then native smoke startup and review. Any further
+failure is preserved and repaired only from its actual evidence; no unchanged
+market retry or optional component cycle is permitted.
