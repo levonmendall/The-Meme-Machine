@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ca5491c25a5f9428b8cf38ce9000b6984a9987a8
+          ref: 07dc2664c0057f2adcec800e1ef45dc1d9545669
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: attempt13-maintenance-verification-ca5491c
+          name: attempt13-maintenance-verification-07dc266
           path: attempt13-maintenance-identities.json
           if-no-files-found: warn
           retention-days: 90
