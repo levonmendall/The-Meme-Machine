@@ -9,7 +9,7 @@ concurrency:
   group: stagee-coordinated-review
   cancel-in-progress: false
 env:
-  AUTHORING_BASE: 9ce6074afecbbe1ce53910fbca05dd8a25d46834
+  AUTHORING_BASE: 46a110b19c61096110252138d79894d8cac268ab
   REVIEWED_BASE: 23f06ed84e5b5e2d4efd074618ab44ae7ed58011
   PLAN_SHA256: 268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3
 jobs:
