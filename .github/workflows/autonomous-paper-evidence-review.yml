@@ -1,4 +1,4 @@
-name: Read-only Solana finalized HTTP vs WebSocket comparison
+name: Verify transient Solana freshness recovery repair
 on:
   push:
     branches: [review/autonomous-paper-evidence-a60326b]
@@ -6,153 +6,50 @@ on:
 permissions:
   contents: read
 jobs:
-  compare:
+  verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
-    env:
-      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: df7b376230a2cea0b9e6377662d7e5f2c3e66067
+          ref: ae3b47462e43dd1367981247f9169e953f55f466
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Compare production-shape finalized WebSocket frontier with authenticated HTTP finalized tip
+      - name: Focused transient-freshness recovery regressions
         run: |
+          python -m unittest -v \
+            tests.test_run369_runtime.Run369SourceTests.test_health_states_and_stale_history_fail_closed \
+            tests.test_run369_runtime.Run369SourceTests.test_finalized_staleness_blocks_evidence_but_recovers_without_latching_process_failure \
+            tests.test_run369_runtime.Run369SourceTests.test_nonrecoverable_health_failure_retains_existing_bound \
+            tests.test_solana_health_atomicity \
+            tests.test_solana_evidence_service_runtime
+          python -m py_compile meme_machine/solana_evidence_health.py certification/run.py tests/test_run369_runtime.py
+      - name: Compute exact prepared Pump and Meteora source identities
+        run: |
+          rm -rf "$RUNNER_TEMP/hash-worktrees"
+          python -m certification.run prepare --worktrees "$RUNNER_TEMP/hash-worktrees"
           python - <<'PYCODE'
-          import asyncio,json,os,re,time,urllib.request,statistics,hashlib
+          import hashlib,json,subprocess,os
           from pathlib import Path
-          from meme_machine.solana_provider_config import AlchemyEndpoint,GENESIS
-
-          DURATION=150
-          POLL=5
-          cfg=AlchemyEndpoint.parse(os.environ['MM_SOLANA_READ_RPC_URL'])
-
-          def rpc(method,params):
-              body=json.dumps({'jsonrpc':'2.0','id':1,'method':method,'params':params}).encode()
-              req=urllib.request.Request(cfg.http_url,body,{'Content-Type':'application/json'})
-              with urllib.request.urlopen(req,timeout=8) as resp:
-                  raw=resp.read(4*1024*1024)
-              value=json.loads(raw)
-              if value.get('id')!=1 or 'error' in value or 'result' not in value:
-                  raise RuntimeError('http_rpc_unavailable:'+method)
-              cfg.public(value)
-              return value['result']
-
-          def http_tip():
-              slot=rpc('getSlot',[{'commitment':'finalized'}])
-              if type(slot) is not int: raise RuntimeError('http_finalized_slot_shape')
-              probe=slot
-              market=None
-              for _ in range(12):
-                  market=rpc('getBlockTime',[probe])
-                  if type(market) is int: break
-                  probe-=1
-              if type(market) is not int: raise RuntimeError('http_finalized_time_unavailable')
-              return {'slot':slot,'time_slot':probe,'market_time':market}
-
-          async def main():
-              if await asyncio.to_thread(rpc,'getGenesisHash',[])!=GENESIS:
-                  raise RuntimeError('solana_network_identity_mismatch')
-              from websockets.asyncio.client import connect
-              latest={'slot':None,'market_time':None,'seen':None,'frame_bytes':0}
-              counters={'frames':0,'block_frames':0,'raw_peak':0,'acks':0}
-              samples=[];stop=asyncio.Event();errors=[]
-
-              async def ws_reader():
-                  try:
-                      async with connect(cfg.stream_url,max_size=16*1024*1024,max_queue=32,
-                                         ping_interval=10,ping_timeout=None,open_timeout=10) as ws:
-                          request={'jsonrpc':'2.0','id':1,'method':'blockSubscribe','params':[
-                              'all',{'commitment':'finalized','encoding':'json',
-                                     'transactionDetails':'full','showRewards':False,
-                                     'maxSupportedTransactionVersion':1}]}
-                          await ws.send(json.dumps(request,separators=(',',':')))
-                          while not stop.is_set():
-                              try: raw=await asyncio.wait_for(ws.recv(decode=False),1)
-                              except TimeoutError: continue
-                              counters['frames']+=1
-                              if not isinstance(raw,(bytes,str)): continue
-                              if isinstance(raw,str): raw=raw.encode()
-                              counters['raw_peak']=max(counters['raw_peak'],len(raw))
-                              if b'"id":1' in raw and b'"result":' in raw and b'"method"' not in raw:
-                                  counters['acks']+=1;continue
-                              if b'"method":"blockNotification"' not in raw: continue
-                              slot=re.search(rb'"slot":(\d+)',raw)
-                              bt=re.search(rb'"blockTime":(\d+)',raw)
-                              if slot and bt:
-                                  latest.update(slot=int(slot.group(1)),market_time=int(bt.group(1)),
-                                                seen=time.time(),frame_bytes=len(raw))
-                                  counters['block_frames']+=1
-                  except Exception as exc:
-                      errors.append(type(exc).__name__)
-
-              async def sampler():
-                  started=time.monotonic()
-                  while time.monotonic()-started<DURATION:
-                      now=time.time()
-                      tip=await asyncio.to_thread(http_tip)
-                      row={'elapsed':time.monotonic()-started,'observed_at':now,
-                           'http_slot':tip['slot'],'http_time_slot':tip['time_slot'],
-                           'http_market_time':tip['market_time'],
-                           'http_market_age':max(0,now-tip['market_time']),
-                           'ws_slot':latest['slot'],'ws_market_time':latest['market_time'],
-                           'ws_seen':latest['seen'],'ws_frame_bytes':latest['frame_bytes']}
-                      if latest['market_time'] is not None:
-                          row['ws_market_age']=max(0,now-latest['market_time'])
-                          row['ws_delivery_age']=max(0,now-latest['seen'])
-                          row['slot_gap']=max(0,tip['slot']-latest['slot'])
-                          row['market_age_gap']=row['ws_market_age']-row['http_market_age']
-                      samples.append(row)
-                      print(json.dumps(row,sort_keys=True),flush=True)
-                      await asyncio.sleep(POLL)
-                  stop.set()
-
-              reader=asyncio.create_task(ws_reader())
-              await sampler()
-              try: await asyncio.wait_for(reader,5)
-              except TimeoutError:
-                  reader.cancel();await asyncio.gather(reader,return_exceptions=True)
-
-              paired=[s for s in samples if s.get('ws_market_age') is not None]
-              if not paired: raise RuntimeError('no_websocket_finalized_samples')
-              def stat(key,fn=max):
-                  vals=[float(s[key]) for s in paired if key in s]
-                  return fn(vals) if vals else None
-              result={
-                'source_sha':'df7b376230a2cea0b9e6377662d7e5f2c3e66067',
-                'endpoint_identity':cfg.identity[:20],
-                'duration_seconds':DURATION,
-                'http_samples':len(samples),'paired_samples':len(paired),
-                'ws_frames':counters['frames'],'ws_block_frames':counters['block_frames'],
-                'ws_raw_peak_bytes':counters['raw_peak'],'ws_subscription_acks':counters['acks'],
-                'errors':errors,
-                'http_market_age_median':stat('http_market_age',statistics.median),
-                'http_market_age_peak':stat('http_market_age'),
-                'ws_market_age_median':stat('ws_market_age',statistics.median),
-                'ws_market_age_peak':stat('ws_market_age'),
-                'market_age_gap_median':stat('market_age_gap',statistics.median),
-                'market_age_gap_peak':stat('market_age_gap'),
-                'slot_gap_median':stat('slot_gap',statistics.median),
-                'slot_gap_peak':stat('slot_gap'),
-                'ws_delivery_age_peak':stat('ws_delivery_age'),
-                'last':paired[-1],
-                'provider_calls':1+len(samples)*2,
-                'paper_only':True,'market_authority':False,'entry_authority':False
-              }
-              Path('solana-frontier-comparison.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
-              print('RESULT '+json.dumps(result,sort_keys=True),flush=True)
-              if errors: raise RuntimeError('websocket_comparison_transport_error')
-          asyncio.run(main())
+          root=Path(os.environ['RUNNER_TEMP'])/'hash-worktrees'
+          args=['git','diff','--binary','--full-index','--no-ext-diff','--no-textconv','--no-renames','HEAD']
+          result={}
+          for lane in ('pump','meteora'):
+              diff=subprocess.check_output(args,cwd=root/lane)
+              result[lane+'_source_diff_sha256']=hashlib.sha256(diff).hexdigest()
+          for name in ('meme_machine/solana_evidence_health.py','tests/test_run369_runtime.py','certification/run.py'):
+              result[name]=hashlib.sha256(Path(name).read_bytes()).hexdigest()
+          Path('freshness-recovery-identities.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(result,sort_keys=True))
           PYCODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: solana-frontier-comparison-df7b376
-          path: solana-frontier-comparison.json
-          if-no-files-found: error
+          name: freshness-recovery-verification-ae3b474
+          path: freshness-recovery-identities.json
+          if-no-files-found: warn
           retention-days: 90
