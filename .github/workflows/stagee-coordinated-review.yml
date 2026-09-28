@@ -31,9 +31,10 @@ jobs:
         run: |
           set -euo pipefail
           python -m certification.stagee_coordinated_apply > evidence/source-edit.json
+          python -m certification.stagee_coordinated_revision
           git diff --check
-          git add meme_machine/solana_evidence_plane.py meme_machine/solana_evidence_service.py meme_machine/solana_evidence_control.py certification/sources.json certification/final_acceptance.py certification/tests/test_final_acceptance.py .github/workflows/non-market-certification.yml
-          git commit -m 'Coordinate archive set reads, checkpoint fencing, and certification preflight'
+          git add meme_machine/solana_evidence_plane.py meme_machine/solana_evidence_service.py meme_machine/solana_evidence_control.py tests/test_run381_retention_progress.py certification/build_consistency.py certification/sources.json certification/final_acceptance.py certification/tests/test_final_acceptance.py .github/workflows/non-market-certification.yml
+          git commit -m 'Coordinate archive set reads, FIFO checkpoint fencing, and certification preflight'
           python -m certification.run prepare --worktrees "$RUNNER_TEMP/stagee-candidate-lanes" > evidence/candidate-prepare.log 2>&1
           python -m certification.build_consistency refresh --worktrees "$RUNNER_TEMP/stagee-candidate-lanes" --baseline-worktrees "$RUNNER_TEMP/stagee-baseline-lanes" --output evidence/build-refresh.json
           git add certification/sources.json certification/profitability_protocol.json
