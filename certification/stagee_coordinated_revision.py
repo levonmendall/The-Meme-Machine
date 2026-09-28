@@ -1,9 +1,8 @@
 """Complete the reviewed source transformation before candidate freeze.
 
-The first focused proof showed that an out-of-queue checkpoint marker could be
-starved by recurring maintenance. Acquire its generation in the owner FIFO, not
-by polling for a quiet queue. Update fault injection to hit the new real queries;
-all prior assertions and resource limits are preserved.
+Acquire the checkpoint generation in the owner FIFO. Fault injection targets the
+new real archive queries. Existing reclamation assertions and deadlines remain:
+tests wait for safe reset within their original deadline, not at archive commit.
 """
 from pathlib import Path
 from certification.stagee_coordinated_apply import replace_once
@@ -45,10 +44,23 @@ def apply():
     text=replace_once(text,"sql.startswith('SELECT scope,slot FROM records')",
         "sql.startswith(('SELECT scope,slot FROM records','SELECT r.identity,c.hash,length(c.body)'))")
     path.write_text(text)
+    path=ROOT/'tests/test_run381_maintenance_overlap.py';text=path.read_text()
+    text=replace_once(text,'     if len(calls)>=2 and archived==40:break\n',
+        '     # Archive publication can invalidate an in-flight checkpoint. The\n'
+        '     # existing three-second deadline also covers the next safe reset.\n'
+        '     if len(calls)>=2 and archived==40 and finished:break\n')
+    text=replace_once(text,"'health_scheduler','checkpoint_finish'})",
+        "'health_scheduler','checkpoint_prepare','checkpoint_finish'})")
+    path.write_text(text)
     path=ROOT/'certification/build_consistency.py';text=path.read_text()
     text=replace_once(text,"    'tests/test_coordinated_database.py',\n",
-        "    'tests/test_coordinated_database.py',\n    'tests/test_run381_retention_progress.py',\n")
+        "    'tests/test_coordinated_database.py',\n    'tests/test_run381_retention_progress.py',\n"
+        "    'tests/test_run381_maintenance_overlap.py',\n")
     path.write_text(text)
+    # The recipe edits the reviewed test contract above. Stage it alongside all
+    # other candidate sources in the same authoring commit, before preparation.
+    import subprocess
+    subprocess.run(['git','add','--','tests/test_run381_maintenance_overlap.py'],cwd=ROOT,check=True)
 
 
 if __name__=='__main__':apply()
