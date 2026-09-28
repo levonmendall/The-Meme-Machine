@@ -3,10 +3,37 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from certification.build_consistency import reviewed_delta,indexed_files
+from certification.build_consistency import reviewed_delta,indexed_files,refresh_composed_hashes
 
 
 class BuildConsistencyTests(unittest.TestCase):
+    def test_operational_overlay_pins_do_not_expand_strategy_hash_contract(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);rel='meme_machine/solana_checkpoint.py'
+            (root/rel).parent.mkdir();(root/rel).write_text('reviewed=True\n')
+            row=dict(composed_file_hashes={'strategy.py':'approved',rel:'old-generated'},
+                     integration_overlay_files=[rel])
+            old=dict(composed_file_hashes={'strategy.py':'approved'})
+            refresh_composed_hashes(row,old,root)
+            self.assertEqual(row['composed_file_hashes'],{'strategy.py':'approved'})
+            old['composed_file_hashes'][rel]='prior-explicit-pin'
+            refresh_composed_hashes(row,old,root)
+            self.assertEqual(row['composed_file_hashes'][rel],hashlib.sha256((root/rel).read_bytes()).hexdigest())
+
+    def test_fast_preflight_reuses_strict_downstream_strategy_contracts(self):
+        from copy import deepcopy
+        from certification.run import manifest
+        from certification.directional_acceptance import policy_contract_checks
+        spec=manifest()
+        self.assertTrue(all(policy_contract_checks(spec).values()))
+        for field in ('policy_hash','execution_sha'):
+            changed=deepcopy(spec);changed['lanes']['meteora'][field]='changed'
+            self.assertFalse(policy_contract_checks(changed)['meteora_threshold_revision_bounded'])
+        changed=deepcopy(spec)
+        changed['lanes']['meteora']['composed_file_hashes']['unexpected.py']='a'*64
+        self.assertFalse(policy_contract_checks(changed)['meteora_threshold_revision_bounded'])
+
     def test_only_reviewed_operational_delta_is_accepted(self):
         before={'strategy.py':('100644','a'),'storage.py':('100644','b')}
         after=dict(before,**{'storage.py':('100644','c')})

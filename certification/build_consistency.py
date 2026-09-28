@@ -79,6 +79,22 @@ def diff_identity(path):
     return hashlib.sha256(raw).hexdigest()
 
 
+def refresh_composed_hashes(row, original, native):
+    """Keep the existing strategy-hash key set; refresh only reviewed old pins.
+
+    Integration overlays already have two independent executable bindings:
+    exact committed root bytes and the complete staged native diff identity.
+    Adding their names to the strategy hash map changes its semantic contract.
+    """
+    composed = row.setdefault('composed_file_hashes', {})
+    old = original.get('composed_file_hashes', {})
+    for rel in ALLOWED_RUNTIME:
+        if rel not in old:
+            composed.pop(rel, None)
+        elif rel in row.get('integration_overlay_files', []):
+            composed[rel] = hashlib.sha256((Path(native)/rel).read_bytes()).hexdigest()
+
+
 def refresh(worktrees, baseline_worktrees):
     sources_path = ROOT/'certification/sources.json'
     protocol_path = ROOT/'certification/profitability_protocol.json'
@@ -122,9 +138,7 @@ def refresh(worktrees, baseline_worktrees):
             if (after/rel).read_bytes() != (ROOT/rel).read_bytes():
                 raise ValueError('build_overlay_not_current:' + lane + ':' + rel)
         row['source_diff_sha256'] = diff_identity(after)
-        for rel in ALLOWED_RUNTIME:
-            if rel in row.get('integration_overlay_files', []):
-                row.setdefault('composed_file_hashes', {})[rel] = hashlib.sha256((after/rel).read_bytes()).hexdigest()
+        refresh_composed_hashes(row, old, after)
         protocol['frozen_lanes'][lane] = dict(
             strategy_version=row['strategy_version'], source_sha=row['source_sha'],
             execution_sha=row.get('execution_sha', row['source_sha']),
@@ -159,6 +173,14 @@ def verify(worktrees, expected_sha):
         failures.append(str(exc) if isinstance(exc, ValueError) else type(exc).__name__)
     protocol = protocol_verify()
     failures.extend(protocol['failures'])
+    # Reuse the downstream policy contract before starting any pressure replay.
+    # Source hashes matching each other must not hide a semantic-policy mismatch.
+    from certification.directional_acceptance import policy_contract_checks
+    try:
+        contracts = policy_contract_checks(json.loads((ROOT/'certification/sources.json').read_text()))
+        failures.extend('build_strategy_contract_failed:'+name for name,ok in contracts.items() if not ok)
+    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+        contracts = {}; failures.append('build_strategy_contract_unavailable:'+type(exc).__name__)
     for rel in FROZEN_PRESSURE:
         if (ROOT/rel).read_bytes() != git('show', REVIEWED_BASE + ':' + rel):
             failures.append('build_pressure_input_changed:' + rel)
@@ -180,7 +202,7 @@ def verify(worktrees, expected_sha):
         except (ValueError, OSError, subprocess.SubprocessError):
             failures.append('build_native_import_failure:' + lane)
     return dict(passed=not failures, failures=failures, integration_sha=actual,
-                source_identities=identities, protocol=protocol,
+                source_identities=identities, protocol=protocol, strategy_contracts=contracts,
                 pressure_inputs_unchanged=not any(x.startswith('build_pressure_input') for x in failures),
                 paper_only=True, market_authority=False)
 
