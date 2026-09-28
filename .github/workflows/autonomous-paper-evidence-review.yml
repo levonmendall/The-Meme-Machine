@@ -12,15 +12,15 @@ jobs:
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
-      EVIDENCE_RUN: '36360379916'
-      EVIDENCE_ARTIFACT: '10945573822'
-      EVIDENCE_NAME: non-market-certification-a60326bd45205ce827423d636aacd3f12c94ea6c-1
-      EVIDENCE_DIGEST: sha256:90021dda3b62a4911e04d84afec680cda9a28542c910a47e8c0425bf731affa3
-      EVIDENCE_SHA: a60326bd45205ce827423d636aacd3f12c94ea6c
+      EVIDENCE_RUN: '36363200879'
+      EVIDENCE_ARTIFACT: '10947506577'
+      EVIDENCE_NAME: non-market-certification-4e52b4dddd237de2eb673bfd44805953dd93ca61-1
+      EVIDENCE_DIGEST: sha256:d314b69bd6a3aac623e4b180851bd6e75fc426db2958111f8813540f19369518
+      EVIDENCE_SHA: 4e52b4dddd237de2eb673bfd44805953dd93ca61
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: a60326bd45205ce827423d636aacd3f12c94ea6c
+          ref: 4e52b4dddd237de2eb673bfd44805953dd93ca61
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
