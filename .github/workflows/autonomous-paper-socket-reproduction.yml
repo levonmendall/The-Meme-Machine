@@ -1,0 +1,38 @@
+name: Offline autonomous PAPER socket-path reproduction
+on:
+  push:
+    branches: [diagnostic/autonomous-paper-socket-a60326b]
+permissions:
+  contents: read
+jobs:
+  socket-path:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Reproduce long hosted path and prove short run location
+        run: |
+          python3 - <<'PYCODE'
+          import os,socket,tempfile,json
+          from pathlib import Path
+          old='/home/runner/work/The-Meme-Machine/The-Meme-Machine/autonomous-evidence/certification-smoke/solana-evidence-plane.sqlite.sock'
+          with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:
+              try:s.bind(old)
+              except OSError as exc:
+                  assert 'AF_UNIX path too long' in str(exc), type(exc).__name__
+                  print(json.dumps(dict(old_bytes=len(old.encode()),old_rejected=str(exc))))
+              else:raise AssertionError('old_path_should_fail')
+          root=Path(os.environ['RUNNER_TEMP'])/'autonomous-evidence'
+          for phase in ('smoke','hourly','position'):
+              path=root/('certification-'+phase)/'solana-evidence-plane.sqlite.sock'
+              path.parent.mkdir(parents=True)
+              with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as server:
+                  server.bind(str(path));server.listen(1)
+                  with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as client:
+                      client.connect(str(path))
+                      connection,_=server.accept()
+                      with connection:
+                          client.sendall(b'paper-only')
+                          assert connection.recv(32)==b'paper-only'
+              path.unlink()
+              print(json.dumps(dict(phase=phase,bytes=len(str(path).encode()),bind_connect_passed=True,provider_calls=0)))
+          PYCODE
