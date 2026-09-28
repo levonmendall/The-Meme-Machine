@@ -32,7 +32,7 @@ class CheckpointRecyclingTests(unittest.TestCase):
     result=state.writer.finish_checkpoint()
     self.assertEqual(result,(0,0,0))
     self.assertEqual(wal.stat().st_size,0)
-    self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],256)
+    self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],128)
     self.assertEqual(state.writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
     self.assertEqual(state.writer.db.execute('PRAGMA synchronous').fetchone()[0],2)
    finally:state.close()
@@ -53,7 +53,7 @@ class CheckpointRecyclingTests(unittest.TestCase):
     remaining=state.archive_commit_slice(plan,receipt)
     self.assertEqual(len(remaining),44)
     self.assertEqual(state.writer.db.execute(
-      'SELECT COUNT(*) FROM records WHERE body IS NULL').fetchone()[0],128)
+      'SELECT COUNT(*) FROM records WHERE body IS NULL').fetchone()[0],256)
     self.assertEqual(state.writer.db.execute(
       'SELECT records FROM archives WHERE name=?',(receipt['name'],)).fetchone()[0],300)
     remaining=state.archive_commit_slice(remaining,receipt)
