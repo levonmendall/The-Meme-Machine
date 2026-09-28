@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 REVIEWED_BASE = '23f06ed84e5b5e2d4efd074618ab44ae7ed58011'
@@ -23,6 +24,8 @@ ALLOWED_RUNTIME = frozenset({
     'meme_machine/solana_checkpoint.py',
     'tests/test_checkpoint_handoff.py',
     'tests/test_archive_pipeline.py',
+    'tests/evidence_stream_harness.py',
+    'tests/test_run369_runtime.py',
     'tests/test_coordinated_database.py',
     'tests/test_run381_retention_progress.py',
     'tests/test_run381_maintenance_overlap.py',
@@ -160,6 +163,33 @@ def refresh(worktrees, baseline_worktrees):
                 publication_requires_single_git_commit=True)
 
 
+def native_test_collection(native, lane):
+    """Collect the exact component suites before any long pressure execution.
+
+    Use the same import precedence and external-network guard as their runner.
+    Import errors and empty suites fail closed; no test body is executed here.
+    """
+    env={k:v for k,v in os.environ.items()
+         if k!='PYTHONPATH' and not k.startswith(('MM_','GH_','GITHUB_'))
+         and not any(part in k.upper() for part in ('TOKEN','SECRET','PRIVATE_KEY'))}
+    with tempfile.TemporaryDirectory(prefix='native-collection-') as td:
+        output=Path(td)/'result.json'
+        command=[sys.executable,str(ROOT/'certification/offline_tests.py'),
+                 '--lane',lane,'--collect-only','--output',str(output)]
+        try:
+            result=subprocess.run(command,cwd=native,env=env,
+                stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=60)
+            row=json.loads(output.read_text())
+            if (result.returncode!=0 or row.get('passed') is not True
+                    or row.get('tests_executed')!=0 or row.get('collected_tests',0)<1
+                    or row.get('import_errors') or row.get('external_socket_attempts')):
+                row['passed']=False
+            return row
+        except (OSError,ValueError,subprocess.SubprocessError) as exc:
+            return dict(passed=False,lane=lane,scope='native_test_collection',
+                        error=type(exc).__name__,tests_executed=0)
+
+
 def verify(worktrees, expected_sha):
     from certification.run import source_integrity, integration_integrity
     from certification.protocol_freeze import verify as protocol_verify
@@ -202,7 +232,12 @@ def verify(worktrees, expected_sha):
                     failures.append('build_import_shadow:' + lane + ':' + name)
         except (ValueError, OSError, subprocess.SubprocessError):
             failures.append('build_native_import_failure:' + lane)
+    collections={lane:native_test_collection((Path(worktrees)/lane).resolve(),lane)
+                 for lane in ('pump','meteora','pons','ramses')}
+    failures.extend('build_native_test_collection_failed:'+lane
+                    for lane,row in collections.items() if not row['passed'])
     return dict(passed=not failures, failures=failures, integration_sha=actual,
+                native_test_collection=collections,
                 source_identities=identities, protocol=protocol, strategy_contracts=contracts,
                 pressure_inputs_unchanged=not any(x.startswith('build_pressure_input') for x in failures),
                 paper_only=True, market_authority=False)

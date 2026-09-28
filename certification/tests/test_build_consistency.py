@@ -34,6 +34,38 @@ class BuildConsistencyTests(unittest.TestCase):
         changed['lanes']['meteora']['composed_file_hashes']['unexpected.py']='a'*64
         self.assertFalse(policy_contract_checks(changed)['meteora_threshold_revision_bounded'])
 
+    def test_native_collection_rejects_missing_helper_without_running_test_body(self):
+        from certification.build_consistency import native_test_collection
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);tests=root/'tests';tests.mkdir()
+            (tests/'__init__.py').write_text('')
+            (tests/'test_dependency.py').write_text(
+                'import unittest\nfrom tests.required_fixture import VALUE\n'
+                'class Case(unittest.TestCase):\n'
+                ' def test_not_executed(self):\n'
+                '  raise AssertionError("collection must not execute tests")\n')
+            failed=native_test_collection(root,'pump')
+            self.assertFalse(failed['passed'])
+            self.assertIn('required_fixture',' '.join(failed['import_errors']))
+            (tests/'required_fixture.py').write_text('VALUE=1\n')
+            good=native_test_collection(root,'pump')
+            self.assertTrue(good['passed'],good)
+            self.assertEqual(good['collected_tests'],1)
+            self.assertEqual(good['tests_executed'],0)
+
+    def test_empty_native_collection_and_external_import_are_rejected(self):
+        from certification.build_consistency import native_test_collection
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);tests=root/'tests';tests.mkdir()
+            (tests/'__init__.py').write_text('')
+            self.assertFalse(native_test_collection(root,'pump')['passed'])
+            (tests/'test_external.py').write_text(
+                'import socket\n'
+                'socket.socket().connect(("192.0.2.1",443))\n')
+            row=native_test_collection(root,'pump')
+            self.assertFalse(row['passed'])
+            self.assertTrue(row['external_socket_attempts'])
+
     def test_only_reviewed_operational_delta_is_accepted(self):
         before={'strategy.py':('100644','a'),'storage.py':('100644','b')}
         after=dict(before,**{'storage.py':('100644','c')})

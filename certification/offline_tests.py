@@ -33,13 +33,27 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--lane',required=True)
     parser.add_argument('--output',required=True)
-    parser.add_argument('--barrier',required=True)
+    parser.add_argument('--barrier')
+    parser.add_argument('--collect-only',action='store_true')
     args=parser.parse_args()
     # Match production worker import precedence.
     sys.path.insert(0,os.getcwd())
     # Same root fallback as certification.worker, without shadowing lane modules.
     sys.path.append(str(Path(__file__).resolve().parents[1]))
     forbidden=install_network_guard()
+    if args.collect_only:
+        directory='robinhood_tests' if args.lane in ('pons','ramses') else 'tests'
+        loader=unittest.TestLoader()
+        suite=loader.discover(directory)
+        errors=list(loader.errors)
+        output=dict(lane=args.lane,scope='native_test_collection',
+            collected_tests=suite.countTestCases(),import_errors=errors,
+            passed=not errors and not forbidden and suite.countTestCases()>0,
+            external_socket_attempts=forbidden,tests_executed=0,
+            natural_market_proof=False,connected_end_to_end_claim=False)
+        Path(args.output).write_text(json.dumps(output,indent=2,sort_keys=True)+'\n')
+        return 0 if output['passed'] else 1
+    if not args.barrier:parser.error('--barrier is required unless --collect-only')
     barrier=Path(args.barrier)
     (barrier/args.lane).touch()
     deadline=time.monotonic()+20
