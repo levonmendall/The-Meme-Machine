@@ -5,9 +5,79 @@ from pathlib import Path
 from unittest.mock import patch
 from meme_machine.solana_evidence_plane import EvidenceWriter
 import meme_machine.solana_evidence_service as service
-from tests.test_run381_retention_progress import record
+from tests.test_run381_retention_progress import record,proof
 from tests.test_run373_dispatch_throughput import block_frame,database_ready
 from tests.evidence_ipc_harness import ipc_transport
+
+class CheckpointRecyclingTests(unittest.TestCase):
+ def test_transient_reader_and_concurrent_tail_are_recycled_without_losing_commits(self):
+  from meme_machine.solana_provider_config import AlchemyEndpoint
+  native_connect=sqlite3.connect
+  with tempfile.TemporaryDirectory() as td:
+   path=Path(td)/'db'
+   state=service.ServiceState(path,AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+   reader=native_connect(path,isolation_level=None)
+   expected={};sizes=[];calls=[]
+   try:
+    for cycle in range(12):
+     # A short reader protects a prior snapshot while production source rows
+     # commit. It ends just after the bulk copy, like an overlapping consumer.
+     reader.execute('BEGIN');reader.execute('SELECT COUNT(*) FROM records').fetchone()
+     rows=[replace(record(),identity='recycle:%d:%d'%(cycle,i),signature='s:%d:%d'%(cycle,i),
+                   payload={'body':str(cycle)+':'+str(i)+'x'*1024}) for i in range(8)]
+     state.writer.ingest(rows,proof=proof(10,10));expected.update({r.identity:r.body() for r in rows})
+     class Connection(sqlite3.Connection):
+      def execute(self,sql,*args,**kwargs):
+       cursor=super().execute(sql,*args,**kwargs)
+       calls.append(sql)
+       if sql=='PRAGMA wal_checkpoint(PASSIVE)':
+        # Append after this checkpoint's snapshot, before releasing the read
+        # mark. A lone PASSIVE pass cannot make this last committed tail reusable.
+        tail=replace(record(),identity='tail:'+str(cycle),signature='t:'+str(cycle))
+        state.writer.ingest([tail]);expected[tail.identity]=tail.body()
+        reader.execute('ROLLBACK')
+       return cursor
+     def connect(*args,**kwargs):
+      kwargs.setdefault('factory',Connection);return native_connect(*args,**kwargs)
+     with patch('sqlite3.connect',connect):
+      self.assertEqual(EvidenceWriter.checkpoint(path),(0,0,0))
+     sizes.append(Path(str(path)+'-wal').stat().st_size)
+    self.assertEqual(sizes,[0]*12,'completed checkpoints left predecessor WAL bytes hot')
+    self.assertEqual(calls,['PRAGMA wal_checkpoint(PASSIVE)','PRAGMA wal_checkpoint(TRUNCATE)']*12)
+    self.assertEqual(state.writer.db.execute('PRAGMA synchronous').fetchone()[0],2)
+    self.assertEqual(state.writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+   finally:reader.close();state.close()
+   from meme_machine.solana_evidence_plane import EvidenceReader
+   reader=EvidenceReader(path)
+   try:
+    restored=reader.window('pump',10,10,as_of=1000)
+    self.assertEqual({r['identity']:r for r in restored},expected)
+   finally:reader.close()
+
+ def test_pinned_reader_keeps_its_snapshot_and_checkpoint_returns_without_waiting(self):
+  with tempfile.TemporaryDirectory() as td:
+   path=Path(td)/'db';writer=EvidenceWriter(path);reader=sqlite3.connect(path,isolation_level=None)
+   try:
+    writer.db.execute('PRAGMA wal_autocheckpoint=0')
+    writer.ingest([record()]);reader.execute('BEGIN')
+    self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone()[0],1)
+    writer.ingest([replace(record(),identity='second',signature='second')])
+    started=time.monotonic();result=EvidenceWriter.checkpoint(path)
+    self.assertLess(time.monotonic()-started,1)
+    self.assertEqual(result[0],1,'checkpoint must refuse a pinned read mark')
+    self.assertGreater(Path(str(path)+'-wal').stat().st_size,0)
+    self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone()[0],1)
+    self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],2)
+    reader.execute('ROLLBACK')
+    self.assertEqual(EvidenceWriter.checkpoint(path),(0,0,0))
+    self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone()[0],2)
+    writer.db.execute('BEGIN IMMEDIATE')
+    try:
+     started=time.monotonic();result=EvidenceWriter.checkpoint(path)
+     self.assertLess(time.monotonic()-started,1)
+     self.assertEqual(result[0],1,'checkpoint must not wait for a source transaction')
+    finally:writer.db.execute('ROLLBACK')
+   finally:reader.close();writer.close()
 
 class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
  async def test_slow_passive_checkpoint_cannot_block_source_and_is_joined_on_shutdown(self):

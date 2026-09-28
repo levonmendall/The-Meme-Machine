@@ -1473,3 +1473,63 @@ PAPER smoke and native review. PASS proceeds immediately to automatic normal
 succession on the same SHA; FAIL preserves evidence and repairs only its actual
 failed gate. No policy, allocation, strategy threshold, exit, target market,
 provider authority, source/execution base identity or resource limit changed.
+
+### 72cbb01 certificate rejection: concurrent checkpoint WAL recycling
+
+Ordinary CI `36369001506` and real external dispatch verification
+`36369060612` → `36369086837` passed (47 hosted tests, no skips). Full
+certificate `36369165048` failed pressure at 228.74 s with
+`evidence_hot_capacity_pressure`; joined/offline gates did not run. Exact
+failure artifact `10948911739`, SHA256
+`c8af5513884571f123ce287216a2c6ae62f3be3bd8706d4679c147816baa795c`.
+Source lag peaked at 2.247 s, oldest hot/retained evidence 181.96/183.03 s,
+35,904 archived and compacted rows, zero archive-index backlog, integrity OK.
+The unchanged combined 2 GiB guard correctly rejected DB/WAL accumulation.
+This is a measured regression in the new concurrent checkpoint composition,
+not a reopened D owner or a reason to change a storage/freshness limit.
+
+Before a focused hosted diagnostic: hypothesis is that off-owner PASSIVE
+checkpointing copies pages while concurrent writes prevent timely WAL rewind,
+or leaves a high physical WAL allocation after rewind. Discriminator records
+checkpoint log/backfill page counts beside separate DB/WAL sizes on the exact
+failed source under the existing measured load. A stable page count with large
+physical WAL identifies retained allocation; increasing unbackfilled pages or
+log offsets identifies checkpoint/recycle starvation. PASS means the cause is
+measured sufficiently to select one minimal repair; FAIL means the hypothesis
+is rejected. This provider-free diagnostic is not a shortened certificate.
+
+Hosted discriminator `36369833783` reproduced the guard at 218.86 s. Artifact
+`10948073458`, SHA256
+`a1ac6a4303888015999f14e284a7d646da7a3ec51ef66726ce1b93b22433084e`,
+records 190 PASSIVE checkpoints: every reported snapshot was fully backfilled,
+but after retention began, concurrent appended frames prevented rewind. Last
+DB size 945,274,880 bytes; WAL 1,097,357,912 bytes, growing each pass. This
+rejects an archive backlog or an unbackfilled snapshot as the cause. It confirms
+that completing a concurrent PASSIVE snapshot does not ensure WAL recycling.
+
+Minimal repair keeps the existing single off-owner PASSIVE copy, then attempts
+TRUNCATE on that same connection with timeout zero. SQLite must acquire the
+writer and reader-mark locks; a busy source transaction or reader refuses the
+reset immediately, keeping the committed WAL intact. Bulk page copying remains
+off-owner; only a successful SQLite lock handshake allows tail copy/reset.
+FULL commits, retention/pins, 2 GiB combined guard, one outstanding worker,
+shutdown joining, source limits and all frozen policies remain unchanged.
+
+All 23 focused maintenance/retention/archive regressions pass. The new
+12-cycle transient-reader/concurrent-tail regression fails under the previous
+single-pass method and passes with exact 108 committed native records after
+reopen, zero retained WAL allocation after each successful reset, FULL sync and
+integrity OK. Another regression proves pinned readers preserve their snapshot
+and busy source transactions refuse reset without waiting. The previous delayed
+PASSIVE-copy test still proves all 20 source frames commit while that copy is
+blocked, with no queued checkpoint work and joined shutdown.
+
+Freeze after this coherent implementation/overlay/test update. The next full
+certificate hypothesis is that the reset handshake closes the measured WAL
+regression while retaining independent source progress. The discriminator is
+the unchanged 600-second measured-contention gate, followed by every canonical
+joined/offline gate on the same SHA. PASS authorizes one fresh reviewed PAPER
+smoke after exact real dispatch verification; any FAIL invalidates the candidate
+and permits only repair of its actual failed gate. No pressure load/duration,
+resource/history bound, strategy/policy/evidence authority or completed D owner
+is changed or waived.

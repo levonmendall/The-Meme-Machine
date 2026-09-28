@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "7df130be766366959aecb26a84888871cef716fc96511c9a4b4d79c5ac514b9a",
+      "source_diff_sha256": "1f6010331962cdd2fb6b3c7149ecc6d0a31d04c48990c2bc45c3282c67ef33a9",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -411,7 +411,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "a466ce9d2578fad65b532d191dbd61baabd6dc29c285d3de3ff9ee69dc196dd8",
+      "source_diff_sha256": "a9d096cc747ca1325090f9175c10a1bc882f97a3ba2bb81de438bdc5ca212a0a",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"

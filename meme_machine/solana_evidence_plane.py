@@ -689,14 +689,18 @@ class EvidenceWriter:
     def checkpoint(path):
         """Flush already durable WAL independently of the logical evidence owner.
 
-        PASSIVE never waits for another writer or reader. FULL source commits,
-        retained rows and the existing combined DB/WAL capacity guard are intact.
-        A separate connection permits source commits while old pages are copied.
+        PASSIVE copies the bulk while source commits continue. Then a zero-wait
+        TRUNCATE attempt catches the concurrent tail and resets the WAL only if
+        SQLite can acquire the writer/read-mark locks. Without this handshake,
+        every PASSIVE snapshot can be backfilled yet writes admitted during the
+        copy prevent WAL recycling indefinitely. Busy readers/writers retain
+        their durable WAL and the unchanged capacity guard remains authoritative.
         """
         from contextlib import closing
         with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=rw',
                                      uri=True,isolation_level=None,timeout=0)) as db:
-            return db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
+            db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
+            return db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
 
     @contextmanager
     def _retention_transaction(self,*,next_scope=None):
