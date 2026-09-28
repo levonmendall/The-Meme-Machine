@@ -722,6 +722,21 @@ class ServiceState:
         self.archive_commit(batch,receipt,retain=False)
         return plan[len(batch):]
 
+    def archive_commit_slice_and_plan(self,plan,receipt):
+        """Finish one existing bounded mutation and prepare its successor input.
+
+        Source and cleanup still interleave between 512-record commit slices.
+        Only the last slice also selects the next immutable snapshot: placing
+        that dependent read behind a fresh source admission idles the archive
+        worker under sustained multi-frame source batches. No larger write
+        transaction or additional in-flight archive is introduced.
+
+        If the following read yields, the caller retains the published receipt
+        and retries idempotently; committed rows cannot be selected a second time.
+        """
+        remaining=self.archive_commit_slice(plan,receipt)
+        return remaining,None if remaining else self.archive_plan()
+
     def archive_commit_and_plan(self,plan,receipt):
         self.archive_commit(plan,receipt,retain=False)
         return self.archive_plan()
@@ -1297,7 +1312,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     if pending_archive is not None:
                         maintenance_pressure['archive']=True
                         plan,receipt=pending_archive
-                        remaining=await work(lambda state:state.archive_commit_slice(plan,receipt),4,label='archive_commit_plan')
+                        remaining,snapshot=await work(
+                            lambda state:state.archive_commit_slice_and_plan(plan,receipt),
+                            4,label='archive_commit_plan')
                         # The immutable file is already durable. Mutate at most
                         # one bounded hot-DB slice per owner admission so source
                         # commits that arrived during the slice run before the
@@ -1306,7 +1323,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             pending_archive=(remaining,receipt)
                         else:
                             pending_archive=None
-                            snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
+                            # The final bounded commit already selected this
+                            # successor. Do not insert a redundant owner queue
+                            # round trip before restarting the archive worker.
+                            counts['archive.completed_slice_prefetches']=(
+                                counts.get('archive.completed_slice_prefetches',0)+int(bool(snapshot)))
                             # Preparation of the next archive overlaps bounded hot
                             # cleanup. Source/consumer work retains owner priority.
                             maintenance_pressure['archive']=bool(snapshot)

@@ -22,6 +22,7 @@ ALLOWED_RUNTIME = frozenset({
     'meme_machine/solana_archive_snapshot.py',
     'meme_machine/solana_checkpoint.py',
     'tests/test_checkpoint_handoff.py',
+    'tests/test_archive_pipeline.py',
     'tests/test_coordinated_database.py',
     'tests/test_run381_retention_progress.py',
     'tests/test_run381_maintenance_overlap.py',
