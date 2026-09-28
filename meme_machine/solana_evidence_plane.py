@@ -753,7 +753,25 @@ class EvidenceWriter:
         resolved=next_scope() if callable(next_scope) else next_scope
         should_yield=getattr(self,'_retention_yield_requested',None)
         yield_class=should_yield() if should_yield else None
-        self._retention_next_scope=(urgent_next_scope if yield_class=='urgent' and urgent_next_scope is not None else resolved)
+        if yield_class=='urgent':
+            self._retention_next_scope=urgent_next_scope if urgent_next_scope is not None else resolved
+            self._retention_source_resume_scope=None;self._retention_source_resume_count=0
+        elif yield_class=='source' and urgent_next_scope is not None and resolved!=urgent_next_scope:
+            # A dense scope gets one source-pressure resume (two bounded slices
+            # total) before rotating. This preserves dense cleanup throughput
+            # without allowing the first always-busy scope to starve later scopes.
+            prior_scope=getattr(self,'_retention_source_resume_scope',None)
+            prior_count=getattr(self,'_retention_source_resume_count',0) if prior_scope==resolved else 0
+            if prior_count<1:
+                self._retention_next_scope=resolved
+                self._retention_source_resume_scope=resolved
+                self._retention_source_resume_count=prior_count+1
+            else:
+                self._retention_next_scope=urgent_next_scope
+                self._retention_source_resume_scope=None;self._retention_source_resume_count=0
+        else:
+            self._retention_next_scope=resolved
+            self._retention_source_resume_scope=None;self._retention_source_resume_count=0
         if yield_class:raise EvidenceUnavailable('evidence_background_yield')
 
     def close(self):
