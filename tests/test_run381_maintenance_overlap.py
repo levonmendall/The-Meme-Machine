@@ -270,13 +270,22 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
    finally:db.close()
 
  async def test_repeated_health_yields_cannot_starve_archive_progress(self):
-  calls=[];finished=[]
+  calls=[];finished=[];owner_threads=[]
+  from meme_machine.solana_checkpoint import checkpoint_and_reclaim as native_boundary
   native_finish=EvidenceWriter.finish_checkpoint
   def finish(writer):
-   finished.append(threading.get_ident());return native_finish(writer)
+   result=native_finish(writer)
+   if result==(0,0,0):finished.append(('owner',threading.get_ident()))
+   return result
+  def boundary(path):
+   result=native_boundary(path)
+   if result==(0,0,0):
+    self.assertEqual(Path(str(path)+'-wal').stat().st_size,0)
+    finished.append(('handoff',threading.get_ident()))
+   return result
   class SeededState(service.ServiceState):
    def __init__(self,path,config):
-    super().__init__(path,config)
+    super().__init__(path,config);owner_threads.append(threading.get_ident())
     self.writer.ingest([replace(record(),identity='health-overlap:'+str(i),market_time=10) for i in range(40)])
    def maintenance_health(self,http):
     calls.append(1)
@@ -286,7 +295,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
    async def __aexit__(self,*a):pass
    async def send(self,raw):pass
    async def recv(self,decode=None):await asyncio.Future()
-  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch.object(service,'ServiceState',SeededState),patch('websockets.asyncio.client.connect',return_value=Wire()),patch.object(EvidenceWriter,'finish_checkpoint',finish):
+  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch.object(service,'ServiceState',SeededState),patch('websockets.asyncio.client.connect',return_value=Wire()),patch.object(EvidenceWriter,'finish_checkpoint',finish),patch('meme_machine.solana_checkpoint.checkpoint_and_reclaim',side_effect=boundary):
    path=Path(td)/'db';stop=asyncio.Event()
    runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
    archived=0;deadline=time.monotonic()+3
@@ -299,12 +308,15 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
        row=db.execute("SELECT value FROM counters WHERE key='archived_records'").fetchone()
        archived=row[0] if row else 0
       finally:db.close()
-     if len(calls)>=2 and archived==40:break
+     # Archive publication can invalidate an in-flight checkpoint. The
+     # existing three-second deadline also covers the next safe reset.
+     if len(calls)>=2 and archived==40 and finished:break
      await asyncio.sleep(.02)
     self.assertGreaterEqual(len(calls),2,'fixture did not exercise repeated health yields')
     self.assertEqual(archived,40,'health scheduling blocked the independent archive pipeline')
     self.assertTrue(finished,'production scheduler omitted the completed-copy boundary')
-    self.assertEqual(len(set(finished)),1,'tail completion left the single writer owner')
+    self.assertTrue(all((thread==owner_threads[0])==(kind=='owner') for kind,thread in finished),
+                    'checkpoint used the wrong execution owner')
    finally:stop.set();await runner
 
  async def test_hot_cleanup_progresses_while_next_archive_worker_is_pending(self):
@@ -363,7 +375,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertGreater(counters['owner.stage.archive_plan.calls'],0)
     self.assertGreaterEqual(counters['owner.stage.retention.queue_total_microseconds'],0)
     labels={k.split('.')[2] for k in counters if k.startswith('owner.stage.')}
-    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_finish'})
+    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'})
    finally:db.close()
 
 if __name__=='__main__':unittest.main()

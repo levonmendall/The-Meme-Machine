@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "972535280dd6c7abab54fc5a432a1e60e800d9bcc8d23ffe6cf32bb5b33203cb",
+      "source_diff_sha256": "341fe82fdb04a3d2f22d9758a5a88815bdf171f6b401ce062d8901a907bbd67c",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -342,7 +342,7 @@
         "meme_machine/pumpswap_survivor_evidence.py": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946",
         "meme_machine/pumpswap_survivor_runtime.py": "b545e08eb7fa1a68fa9c2cc7b8645e1a8fc1cad0777f52151af126a206e43a4c",
         "meme_machine/solana_evidence_runtime.py": "07253419f6385f6da4d6426e2a5737c5cf0826252a2d8ad039ec658ce0c092bd",
-        "meme_machine/solana_evidence_service.py": "76c5204a4ba14ad2d95e84e28b7fafd3b82531ead48b12509d6c334c8298b573",
+        "meme_machine/solana_evidence_service.py": "ddbc03984637b3587ded1777e89cfa0f42f432ae0cce7e201b22368c46fb93dc",
         "tests/pump_acceleration_natural_prospective.py": "e79f534862e3b48113bcfc5bb1779eacbfffa74196f02c09ada84fee681eec37",
         "tests/test_directional_capacity.py": "cf03c522706e8eda4c5f93bc53762bf5dfc6c47765a990a55a4258120f26e8e8",
         "tests/test_evidence_runtime_cutover.py": "ee7a5140ceca1f188cecd89948789163e1a902fd23977d88305e1354bf578351",
@@ -405,7 +405,13 @@
         "tests/test_run381_subscription_progress.py",
         "tests/test_run381_archive_scheduling.py",
         "meme_machine/solana_evidence_health.py",
-        "tests/test_run369_runtime.py"
+        "tests/test_run369_runtime.py",
+        "meme_machine/solana_archive_snapshot.py",
+        "tests/test_coordinated_database.py",
+        "meme_machine/solana_checkpoint.py",
+        "tests/test_checkpoint_handoff.py",
+        "tests/test_archive_pipeline.py",
+        "tests/evidence_stream_harness.py"
       ]
     },
     "meteora": {
@@ -413,7 +419,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "9cdbf659269cf480912558b0d927964bf7cc2fb0364ffd9cc5ea388bad269745",
+      "source_diff_sha256": "282c0399d38d3dbb14d0c9b674173883bd5aa8ade4d0ff637c2b1787319b60d9",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -724,7 +730,13 @@
         "tests/test_run381_subscription_progress.py",
         "tests/test_run381_archive_scheduling.py",
         "meme_machine/solana_evidence_health.py",
-        "tests/test_run369_runtime.py"
+        "tests/test_run369_runtime.py",
+        "meme_machine/solana_archive_snapshot.py",
+        "tests/test_coordinated_database.py",
+        "meme_machine/solana_checkpoint.py",
+        "tests/test_checkpoint_handoff.py",
+        "tests/test_archive_pipeline.py",
+        "tests/evidence_stream_harness.py"
       ],
       "composed_file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",

@@ -18,7 +18,7 @@ jobs:
   durability-prerequisites:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[non-market-cert]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -29,12 +29,22 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/non-market-lanes"
+      - name: Verify complete build identity before expensive gates
+        run: >-
+          python -m certification.build_consistency verify
+          --worktrees "$RUNNER_TEMP/non-market-lanes"
+          --expected-sha "$GITHUB_SHA"
+          --output non-market-evidence/build-preflight.json
       - run: mkdir -p non-market-evidence
       - name: Ten-minute mature Solana retention and source-clock pressure
         timeout-minutes: 13
         run: |
           mkdir -p non-market-evidence/run381-pressure
           python -m certification.run381_pressure --measured-contention --output non-market-evidence/run381-pressure > non-market-evidence/run381-pressure/run.log 2>&1
+      - name: Combined mature source backlog reader checkpoint and control pressure
+        timeout-minutes: 15
+        run: |
+          python -m certification.combined_pressure --output non-market-evidence/combined-pressure > non-market-evidence/combined-pressure.log 2>&1
       - name: Joined eight-day PAPER campaign and recovery/provider gates
         env:
           PYTHONPATH: ${{ github.workspace }}
@@ -72,6 +82,12 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/non-market-lanes"
+      - name: Verify complete build identity before expensive gates
+        run: >-
+          python -m certification.build_consistency verify
+          --worktrees "$RUNNER_TEMP/non-market-lanes"
+          --expected-sha "$GITHUB_SHA"
+          --output non-market-evidence/build-preflight.json
       - name: Restore same-run exact-SHA durability evidence
         env:
           GH_TOKEN: ${{ github.token }}

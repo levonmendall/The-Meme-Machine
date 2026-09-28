@@ -26,30 +26,30 @@
     "pump": {
       "strategy_version": "pump-shared-sleeve-six-regime-v1",
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "policy_hash": "0f909d1e7eb90cdbb504b4e52fec693ccaf810f87f80259be760c81361a3babc",
-      "source_diff_sha256": "972535280dd6c7abab54fc5a432a1e60e800d9bcc8d23ffe6cf32bb5b33203cb",
-      "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f"
+      "source_diff_sha256": "341fe82fdb04a3d2f22d9758a5a88815bdf171f6b401ce062d8901a907bbd67c"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "9cdbf659269cf480912558b0d927964bf7cc2fb0364ffd9cc5ea388bad269745"
+      "source_diff_sha256": "282c0399d38d3dbb14d0c9b674173883bd5aa8ade4d0ff637c2b1787319b60d9"
     },
     "pons": {
       "strategy_version": "pons-shared-sleeve-six-regime-v1",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "b9f3aff04336d22fac8a8a8f38c821a8fb776b8ccd891774a8d46012d9124db2",
-      "source_diff_sha256": "bddf5e0b288e1e51141d5be0849c468788acb7cc20a6eb4ecefe1aecda9d96da",
-      "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23"
+      "source_diff_sha256": "bddf5e0b288e1e51141d5be0849c468788acb7cc20a6eb4ecefe1aecda9d96da"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v4",
       "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
-      "source_diff_sha256": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9",
-      "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3"
+      "source_diff_sha256": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9"
     }
   },
   "evidence_quality": {

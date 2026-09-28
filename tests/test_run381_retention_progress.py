@@ -291,7 +291,7 @@ class RetentionProgressTests(unittest.TestCase):
     def __init__(self,db):self.db=db;self.interrupt=True
     def __getattr__(self,key):return getattr(self.db,key)
     def execute(self,sql,*args):
-     if self.interrupt and sql.startswith('SELECT scope,slot FROM records'):
+     if self.interrupt and sql.startswith(('SELECT scope,slot FROM records','SELECT r.identity,c.hash,length(c.body)')):
       raise sqlite3.OperationalError('interrupted')
      return self.db.execute(sql,*args)
    db=InterruptedDB(writer.db);writer.db=db;held=[]

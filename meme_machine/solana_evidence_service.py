@@ -722,6 +722,21 @@ class ServiceState:
         self.archive_commit(batch,receipt,retain=False)
         return plan[len(batch):]
 
+    def archive_commit_slice_and_plan(self,plan,receipt):
+        """Finish one existing bounded mutation and prepare its successor input.
+
+        Source and cleanup still interleave between 512-record commit slices.
+        Only the last slice also selects the next immutable snapshot: placing
+        that dependent read behind a fresh source admission idles the archive
+        worker under sustained multi-frame source batches. No larger write
+        transaction or additional in-flight archive is introduced.
+
+        If the following read yields, the caller retains the published receipt
+        and retries idempotently; committed rows cannot be selected a second time.
+        """
+        remaining=self.archive_commit_slice(plan,receipt)
+        return remaining,None if remaining else self.archive_plan()
+
     def archive_commit_and_plan(self,plan,receipt):
         self.archive_commit(plan,receipt,retain=False)
         return self.archive_plan()
@@ -764,7 +779,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                            for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1,*,label=None):
-        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_finish'):
+        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
             raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic();execution=[None,None]
         def timed(state):
@@ -806,8 +821,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     # depend on decode timing. Keep the fast path, but collapse source commits to
     # one frame while either maintenance path reports active backlog.
     maintenance_pressure={'archive':False,'retention':False}
-    def maintenance_batch_limit():
-        return 1 if any(maintenance_pressure.values()) else STREAM_COMMIT_BATCH_MAX_MESSAGES
+    def maintenance_batch_limit(pending_frames):
+        # Cleanup fairness matters when source is keeping pace. If the bounded
+        # transport queue itself is materially backed up, preserve the existing
+        # batching fast path so reception can drain without manufacturing a
+        # capacity discontinuity. Once backlog falls below two maximum batches,
+        # maintenance regains one-frame source admissions until it catches up.
+        if (any(maintenance_pressure.values())
+                and pending_frames<2*STREAM_COMMIT_BATCH_MAX_MESSAGES):
+            return 1
+        return STREAM_COMMIT_BATCH_MAX_MESSAGES
     def count(key):counts[key]=counts.get(key,0)+1
     subscriptions_dirty=await work(lambda state:state.fence.subscriptions_dirty,0)
 
@@ -1064,8 +1087,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                 raise EvidenceUnavailable('unknown_source_subscription')
                                             if sub is not None and sub.evidence_class in ('blocks','account'):
                                                 batch=[];batch_bytes=0;cursor=next_sequence
-                                                batch_limit=maintenance_batch_limit()
+                                                batch_limit=maintenance_batch_limit(pending_frames)
                                                 maintenance_limited=batch_limit==1
+                                                if (not maintenance_limited
+                                                        and any(maintenance_pressure.values())):
+                                                    counts['stream.maintenance_backpressure_batching']=(
+                                                        counts.get('stream.maintenance_backpressure_batching',0)+1)
                                                 while (cursor in ready
                                                        and len(batch)<batch_limit):
                                                     candidate,c_seen,c_size,c_decoded_at=ready[cursor]
@@ -1285,7 +1312,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     if pending_archive is not None:
                         maintenance_pressure['archive']=True
                         plan,receipt=pending_archive
-                        remaining=await work(lambda state:state.archive_commit_slice(plan,receipt),4,label='archive_commit_plan')
+                        remaining,snapshot=await work(
+                            lambda state:state.archive_commit_slice_and_plan(plan,receipt),
+                            4,label='archive_commit_plan')
                         # The immutable file is already durable. Mutate at most
                         # one bounded hot-DB slice per owner admission so source
                         # commits that arrived during the slice run before the
@@ -1294,7 +1323,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             pending_archive=(remaining,receipt)
                         else:
                             pending_archive=None
-                            snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
+                            # The final bounded commit already selected this
+                            # successor. Do not insert a redundant owner queue
+                            # round trip before restarting the archive worker.
+                            counts['archive.completed_slice_prefetches']=(
+                                counts.get('archive.completed_slice_prefetches',0)+int(bool(snapshot)))
                             # Preparation of the next archive overlaps bounded hot
                             # cleanup. Source/consumer work retains owner priority.
                             maintenance_pressure['archive']=bool(snapshot)
@@ -1336,6 +1369,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             # Join the accepted thread before closing the owner on cancellation.
             while not stop.is_set():
                 started=time.monotonic()
+                ticket=await work(lambda state:owner.checkpoint_ticket_after_current(),2,label='checkpoint_prepare')
                 pending=asyncio.create_task(asyncio.to_thread(EvidenceWriter.checkpoint,path))
                 try:result=await asyncio.shield(pending)
                 except asyncio.CancelledError:
@@ -1355,10 +1389,33 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 # Older admitted source work completes first, but newer source
                 # work cannot overtake the reset. Priority >=2 also means the
                 # reset never interrupts and rolls back an archive SQL slice.
-                # Expensive page copying remains off the sole SQLite owner.
+                # A generation fence additionally refuses TRUNCATE after
+                # any intervening owner operation. busy_timeout=0 alone
+                # limits lock waiting, not the cost of copying a new tail.
+                # A deferred completion gets a serialized off-owner retry below;
+                # it cannot depend on an idle writer queue to make progress.
                 if bulk_complete:
                     try:
-                        final=await work(lambda state:state.writer.finish_checkpoint(),2,label='checkpoint_finish')
+                        def finish_if_current(state):
+                            if not owner.checkpoint_current(ticket):return None
+                            return state.writer.finish_checkpoint()
+                        final=await work(finish_if_current,2,label='checkpoint_finish')
+                        if final is None:
+                            counts['checkpoint.tail_deferred']=counts.get('checkpoint.tail_deferred',0)+1
+                            # A generation fence is safe but can starve physical
+                            # reclamation under continuous source/retention work.
+                            # Give the independent checkpoint worker one FIFO
+                            # mutation boundary, not another chance at idle time.
+                            # It never waits for pinned readers; incomplete copy
+                            # releases the boundary and preserves their snapshots.
+                            from .solana_checkpoint import reclaim_at_boundary
+                            boundary_started=time.monotonic()
+                            final=await reclaim_at_boundary(owner,path)
+                            boundary_us=int((time.monotonic()-boundary_started)*1_000_000)
+                            counts['checkpoint.boundary_calls']=counts.get('checkpoint.boundary_calls',0)+1
+                            counts['checkpoint.boundary_total_microseconds']=counts.get('checkpoint.boundary_total_microseconds',0)+boundary_us
+                            counts['checkpoint.boundary_peak_microseconds']=max(counts.get('checkpoint.boundary_peak_microseconds',0),boundary_us)
+                            counts['checkpoint.boundary_reclaimed']=counts.get('checkpoint.boundary_reclaimed',0)+int(final==(0,0,0))
                         counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(
                             final[0]!=0 or final[1]!=final[2])
                         counts['checkpoint.reclaimed']=counts.get('checkpoint.reclaimed',0)+int(

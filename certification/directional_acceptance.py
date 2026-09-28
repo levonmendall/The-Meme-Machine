@@ -126,19 +126,20 @@ raise SystemExit(0 if r.wasSuccessful() and not forbidden else 1)
  (out/(lane+'.log')).write_text(p.stdout+p.stderr)
  return p.returncode==0
 
-def run(worktrees,output):
- roots=Path(worktrees).resolve();out=Path(output).resolve();out.mkdir(parents=True,exist_ok=True)
- spec=manifest()
+def policy_contract_checks(spec):
  original=json.loads(subprocess.check_output(['git','show',
    'af60b355995dfa960555288fa73808bb7aba5d25:certification/sources.json'],cwd=ROOT))
  prior=json.loads(subprocess.check_output(['git','show',
    '48e46b27086a8058fcbd7752a42420c1f9186af7:certification/sources.json'],cwd=ROOT))
- checks=dict(
+ return dict(
   exactly_four_lanes=set(spec['lanes'])=={'pump','pons','meteora','ramses'},
   meteora_threshold_revision_bounded=meteora_threshold_revision_is_bounded(
       spec['lanes']['meteora'],prior['lanes']['meteora']),
   ramses_unchanged=strategy_contract(spec['lanes']['ramses'])==strategy_contract(original['lanes']['ramses']),
  )
+def run(worktrees,output):
+ roots=Path(worktrees).resolve();out=Path(output).resolve();out.mkdir(parents=True,exist_ok=True)
+ spec=manifest();checks=policy_contract_checks(spec)
  checks['preserved_ramses_runtime_repair']=all(
   (ROOT/p).read_bytes()==subprocess.check_output(
    ['git','show','2d93e6b5fdb751a3a3e9b057cca759bb0549839f:'+p],cwd=ROOT)

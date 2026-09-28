@@ -14,7 +14,7 @@ from meme_machine.solana_evidence_plane import EvidenceWriter, EvidenceReader, E
 from meme_machine.solana_evidence_service import FinalizedFence, serve
 from meme_machine.solana_evidence_runtime import RuntimeEvidence, METEORA_SCOPE
 from meme_machine.solana_evidence_transport import Subscription
-from tests.test_solana_evidence_service_runtime import FakeSocket
+from tests.evidence_stream_harness import FakeSocket
 from tests.evidence_ipc_harness import ipc_transport
 
 PROGRAM = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo'
