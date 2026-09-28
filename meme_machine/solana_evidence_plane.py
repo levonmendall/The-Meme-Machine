@@ -630,7 +630,7 @@ class EvidenceWriter:
         plan=self.archive_plan(before_time,max_records=max_records)
         return self.commit_archive(plan,self.write_archive(self.path,plan))
 
-    def retain(self, before_time, *, max_records=1000, archive_first=True):
+    def retain(self, before_time, *, max_records=1000, archive_first=True, checkpoint=True):
         """One bounded maintenance slice, preserving every unresolved lifecycle/gap.
 
         Old immutable payloads and provenance are durable before index removal.
@@ -681,9 +681,22 @@ class EvidenceWriter:
             collect_storage(self.db,max_records)
         # PASSIVE cannot wait for readers. Pinned WAL bytes remain in telemetry and
         # the existing hard capacity guard stops ingestion if they exhaust space.
-        self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
+        if checkpoint:self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
         self.db.execute('PRAGMA incremental_vacuum(256)')
         return archived
+
+    @staticmethod
+    def checkpoint(path):
+        """Flush already durable WAL independently of the logical evidence owner.
+
+        PASSIVE never waits for another writer or reader. FULL source commits,
+        retained rows and the existing combined DB/WAL capacity guard are intact.
+        A separate connection permits source commits while old pages are copied.
+        """
+        from contextlib import closing
+        with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=rw',
+                                     uri=True,isolation_level=None,timeout=0)) as db:
+            return db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
 
     @contextmanager
     def _retention_transaction(self,*,next_scope=None):

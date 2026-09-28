@@ -1364,3 +1364,74 @@ evidence service to bind in all three modes. Discriminator: hosted regression,
 full exact-SHA certificate, then native smoke startup and review. Any further
 failure is preserved and repaired only from its actual evidence; no unchanged
 market retry or optional component cycle is permitted.
+
+
+## Second exact-SHA certificate passed; native smoke exposed Solana lag
+
+Candidate 4e52b4dddd237de2eb673bfd44805953dd93ca61 passed ordinary CI
+36363066893, external verify launcher 36363094554 and real verify dispatch
+36363117049 (37 tests, including mandatory hosted UNIX sockets). Complete
+certificate 36363200879 PASS: all 13 final gates, 481 supervisor tests, native
+suites 430/436/511/366, unchanged hosted PID/proc tests, 600.21-second pressure,
+192 joined hours, four crash cuts, 40 provider tests and two long lifecycle paths.
+Full artifact 10947506577 SHA256
+ d314b69bd6a3aac623e4b180851bd6e75fc426db2958111f8813540f19369518.
+Pressure lag peak 3.276 seconds; HOT peak 1048304232 bytes; 409960 archived
+records verified. Joined HOT 2487172–2491268 bytes; final successor accounting
+exact, no positions, unchanged FD/thread/child/WAL bounds.
+
+Fresh campaign autonomous-paper-4e52b4d-20260927 used launcher 36365746733,
+authorization 36365772486 and exactly one automatic smoke 36365805134. All four
+lanes started, confirming the IPC repair. Pump later exhausted the existing
+30-second degraded-evidence window with evidence_finalized_stale and exited 1.
+Meteora evidence also degraded. Final Solana lag was 113.759 seconds; retention
+occupied 340.649 seconds over 721 calls (1.647-second peak). One websocket
+disconnect was observed; two of three gaps repaired; one remained unresolved.
+No receive-capacity disconnect or storage-capacity stop occurred. Robinhood
+provider governance remained active; neither Robinhood lane failed. Books were
+verified with zero positions/reservations and zero economic events. Six regimes
+were active, but this is NOT accepted market smoke.
+
+The controller is INFRASTRUCTURE_HALT, smoke_accepted=false, zero completed
+normal windows, no successor. Artifact 10947344120 is preserved (2606362822
+bytes; SHA256 f62f806a2ad877a046a3e3b0b1b9bb0ea839a875ed81756809a173b9264fbb27).
+Read-only extraction 36366851093 verified its exact digest. The apparent
+campaign_state_unreconciled:pump accounting discrepancy was rejected as a defect:
+seal intentionally rejects nonzero exit/unexpected exit as well as bad books;
+Pump's reconciled zero-exposure books do not authorize a successor after failure.
+
+Offline diagnostic 36367382122 tested a partial HOT scope/slot index against the
+preserved DB. Corrected production-cache diagnostic 36367507082 retained the
+unchanged 16-MiB owner cache and exercised archive/retention. The index reduced
+floor SQL (43.905ms to 0.336ms across 66 calls), but total warmed retention only
+fell from about 70ms to 55ms; this does not explain the observed full 473ms/call.
+No index/source repair is accepted from this result alone. Next discriminator
+reintroduces only hash-verified archived predecessors below unchanged floors in
+disposable offline copies, to measure actual cleanup fan-out. These diagnostic
+copies are never runtime restores and grant no coverage or entry authority.
+
+The observed 2.6-GB immutable artifact also exceeds the existing in-memory
+512-MiB download bound. This is a measured handoff transport incompatibility to
+repair using existing preserved-capsule/artifact machinery without increasing
+HOT/resource/history limits. No successful successor is claimed.
+
+Cleanup discriminator 36367767901 reproduced 0.574–1.535-second retention calls
+using 6,000 exact hash-verified archived predecessor records in disposable copies.
+WAL checkpoint calls dominated the elapsed cleanup cost; direct floor indexing
+still left 0.513–0.727-second calls, so that index is not introduced. Repair
+extends existing PASSIVE WAL maintenance to one independently awaited worker
+connection. It changes no evidence rows, retention age, pin, FULL-synchronous
+commit, governor or capacity bound. Exactly one flush can be outstanding; shutdown
+joins it before the evidence owner closes. The native writer continues committing
+ordered source frames during the disk copy. Standalone EvidenceWriter callers
+retain their existing inline checkpoint behavior.
+
+The deterministic delayed-checkpoint regression fails with the old owner-bound
+flush (zero of 20 source frames committed) and passes with the repair (all 20
+receipts, exact parent-confirmed cursor, intact SQLite integrity, joined shutdown).
+All 23 focused retention/maintenance/archival regressions pass. Prepared Pump and
+Meteora compositions are updated only for these three implementation/test files;
+all strategy/policy/source-execution identities and resource limits are unchanged.
+The immutable-artifact handoff size defect remains to be repaired before another
+final freeze, complete certificate or market smoke. No market retry is authorized
+by a focused regression alone.

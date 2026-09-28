@@ -1,5 +1,5 @@
 """Hot cleanup must progress independently of a pending archive worker."""
-import asyncio,concurrent.futures,json,sqlite3,tempfile,time,unittest
+import asyncio,concurrent.futures,json,sqlite3,tempfile,threading,time,unittest
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
@@ -10,6 +10,56 @@ from tests.test_run373_dispatch_throughput import block_frame,database_ready
 from tests.evidence_ipc_harness import ipc_transport
 
 class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
+ async def test_slow_passive_checkpoint_cannot_block_source_and_is_joined_on_shutdown(self):
+  from tests.test_run373_dispatch_throughput import SustainedSocket
+  entered=threading.Event();release=threading.Event();calls=[]
+  native_connect=sqlite3.connect
+  class Connection(sqlite3.Connection):
+   def execute(self,sql,*args,**kwargs):
+    if sql=='PRAGMA wal_checkpoint(PASSIVE)':
+     calls.append(threading.get_ident());entered.set()
+     if not release.wait(8):raise TimeoutError('checkpoint regression fixture deadline')
+    return super().execute(sql,*args,**kwargs)
+  def connect(*args,**kwargs):
+   kwargs.setdefault('factory',Connection)
+   return native_connect(*args,**kwargs)
+  class Wire(SustainedSocket):
+   async def recv(self,decode=None):
+    raw=await super().recv(decode)
+    old='1790438999';now=str(int(time.time()))
+    return raw.replace(old.encode(),now.encode()) if isinstance(raw,bytes) else raw.replace(old,now)
+  wire=Wire(frames=20,interval=.02,padding_bytes=0,relevant_transactions=1)
+  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('sqlite3.connect',connect),patch('websockets.asyncio.client.connect',return_value=wire):
+   path=Path(td)/'db';stop=asyncio.Event()
+   runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+   try:
+    deadline=time.monotonic()+5;accepted=0
+    while time.monotonic()<deadline:
+     if runner.done():await runner
+     if entered.is_set():
+      db=native_connect(path)
+      try:
+       row=db.execute("SELECT value FROM counters WHERE key='stream_accepted_messages'").fetchone()
+       accepted=row[0] if row else 0
+      finally:db.close()
+     if accepted==20:break
+     await asyncio.sleep(.01)
+    self.assertTrue(entered.is_set())
+    self.assertEqual(accepted,20,'passive disk flush blocked the serial source owner')
+    self.assertEqual(len(calls),1,'checkpoint work accumulated behind an unfinished flush')
+    stop.set();await asyncio.sleep(.05)
+    self.assertFalse(runner.done(),'shutdown abandoned the accepted checkpoint worker')
+   finally:
+    release.set();stop.set();await asyncio.wait_for(runner,5)
+   db=native_connect(path)
+   try:
+    self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+    self.assertEqual(db.execute("SELECT COUNT(*) FROM stream_receipts WHERE scope='program:pumpswap'").fetchone()[0],20)
+    self.assertEqual(db.execute("SELECT MAX(slot) FROM stream_receipts WHERE scope='program:pumpswap'").fetchone()[0],1019)
+    self.assertEqual(db.execute("SELECT slot FROM cursors WHERE scope='program:pumpswap'").fetchone()[0],1018)
+    self.assertEqual(db.execute('PRAGMA synchronous').fetchone()[0],2)
+   finally:db.close()
+
  async def test_repeated_health_yields_cannot_starve_archive_progress(self):
   calls=[]
   class SeededState(service.ServiceState):

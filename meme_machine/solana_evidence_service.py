@@ -520,7 +520,7 @@ class ServiceState:
         # hot tail plus explicit lifecycle pins, not two hours of every transaction.
         self.writer=EvidenceWriter(path,max_hot_bytes=2*1024*1024*1024)
         # FULL WAL commits remain durable. The independently scheduled bounded
-        # retention worker owns PASSIVE checkpoints; SQLite's default automatic
+        # checkpoint worker owns PASSIVE checkpoints; SQLite's default automatic
         # checkpoint otherwise copies/syncs the database inside source commits
         # (and again in subsequent metadata commits while a reader pins the WAL).
         # Keep this service-only: standalone writers need their default policy.
@@ -717,7 +717,7 @@ class ServiceState:
 
     def retention(self):
         before=self.writer.db.total_changes
-        self._storage_stage('retention',lambda:self.writer.retain(time.time()-180,max_records=1000,archive_first=False))
+        self._storage_stage('retention',lambda:self.writer.retain(time.time()-180,max_records=1000,archive_first=False,checkpoint=False))
         return self.writer.db.total_changes>before
 
     def close(self):
@@ -1292,7 +1292,26 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
-        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(health()),asyncio.create_task(stop.wait())]
+        async def checkpoint():
+            # One outstanding disk flush, with no pending-work queue. Retention
+            # and source commits must not wait behind a slow PASSIVE page copy.
+            # Join the accepted thread before closing the owner on cancellation.
+            while not stop.is_set():
+                started=time.monotonic()
+                pending=asyncio.create_task(asyncio.to_thread(EvidenceWriter.checkpoint,path))
+                try:result=await asyncio.shield(pending)
+                except asyncio.CancelledError:
+                    await pending
+                    raise
+                elapsed=int((time.monotonic()-started)*1_000_000)
+                counts['checkpoint.calls']=counts.get('checkpoint.calls',0)+1
+                counts['checkpoint.total_microseconds']=counts.get('checkpoint.total_microseconds',0)+elapsed
+                counts['checkpoint.peak_microseconds']=max(counts.get('checkpoint.peak_microseconds',0),elapsed)
+                counts['checkpoint.busy']=counts.get('checkpoint.busy',0)+int(result[0]!=0)
+                try:await asyncio.wait_for(stop.wait(),1)
+                except TimeoutError:pass
+
+        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception
