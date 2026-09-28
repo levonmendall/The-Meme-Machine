@@ -20,6 +20,8 @@ ALLOWED_RUNTIME = frozenset({
     'meme_machine/solana_evidence_service.py',
     'meme_machine/solana_evidence_control.py',
     'meme_machine/solana_archive_snapshot.py',
+    'meme_machine/solana_checkpoint.py',
+    'tests/test_checkpoint_handoff.py',
     'tests/test_coordinated_database.py',
     'tests/test_run381_retention_progress.py',
     'tests/test_run381_maintenance_overlap.py',
@@ -167,7 +169,7 @@ def verify(worktrees, expected_sha):
                  'names=("meme_machine.solana_evidence_plane",'
                  '"meme_machine.solana_evidence_service",'
                  '"meme_machine.solana_evidence_control",'
-                 '"meme_machine.solana_archive_snapshot"); '
+                 '"meme_machine.solana_archive_snapshot","meme_machine.solana_checkpoint"); '
                  'print(json.dumps({n:importlib.import_module(n).__file__ for n in names}))')
         try:
             locations = json.loads(subprocess.check_output(

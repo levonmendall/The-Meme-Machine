@@ -35,6 +35,7 @@ def verified(row,expected_sha):
         and ipc.get('stream.maintenance_backpressure_batching',0)>0
         and ipc.get('stream.maintenance_limited_commit_batches',0)>0
         and ipc.get('checkpoint.tail_deferred',0)>0
+        and ipc.get('checkpoint.boundary_reclaimed',0)>0
         and row.get('candidate_checks',0)>1
         and row.get('archive_records_verified',0)>0 and c.get('compacted_records',0)>0
         and not any(v for k,v in c.items() if k.startswith('disconnect:') or k=='capacity_stops')
@@ -111,10 +112,13 @@ class Interaction:
                     after=dict(reader.execute('SELECT key,value FROM counters'))
                     if before!=after:raise AssertionError('combined_reader_snapshot_changed')
                     sample['reader_snapshot_preserved']=True
+                    # Observe advancing commits BEFORE releasing this snapshot.
+                    # A post-ROLLBACK sample could count progress outside the
+                    # simultaneous-load interval and falsely certify overlap.
+                    current=self.inspect()
                 finally:
                     with self.lock:self.reader_phase=0
                     reader.execute('ROLLBACK')
-            current=self.inspect()
             sample['reader_source_advance']=current['stream_accepted_messages']-before.get('stream_accepted_messages',0)
             sample['reader_compaction_advance']=current['compacted_records']-before.get('compacted_records',0)
             with self.lock:

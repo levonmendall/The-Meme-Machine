@@ -34,6 +34,7 @@ class PriorityOwner:
         self.cv=threading.Condition(); self.queue=[]; self.sequence=0
         self.closed=False; self.ready=concurrent.futures.Future()
         self._checkpoint_epoch=0; self._checkpoint_busy=False
+        self._checkpoint_handoff=None
         self.thread=threading.Thread(target=self._run,args=(factory,),name='solana-evidence-owner',daemon=True)
         self.thread.start()
 
@@ -59,7 +60,7 @@ class PriorityOwner:
         try:
             while True:
                 with self.cv:
-                    self.cv.wait_for(lambda:self.queue or self.closed)
+                    self.cv.wait_for(lambda:(self.queue or self.closed) and self._checkpoint_handoff is None)
                     if not self.queue and self.closed: break
                     # Exit/reservation and foreground work retain strict priority.
                     # Source commits and bounded background slices share FIFO
@@ -157,6 +158,34 @@ class PriorityOwner:
         with self.cv:
             return (type(ticket) is int and not self.closed
                     and self._checkpoint_busy and ticket==self._checkpoint_epoch)
+
+    def checkpoint_handoff_after_current(self):
+        """Lease the next mutation boundary to the one checkpoint worker.
+
+        The lease is an owner-queue operation, so already admitted urgent work
+        retains priority and older nonurgent work retains FIFO order. Reception
+        and decoding continue; subsequent database operations stay bounded in the
+        existing queue. Only an explicit matching release resumes mutation.
+        """
+        if threading.get_ident()!=self.thread.ident:
+            raise EvidenceUnavailable('checkpoint_handoff_owner_thread')
+        with self.cv:
+            if self.closed or not self._checkpoint_busy or self._checkpoint_handoff is not None:
+                raise EvidenceUnavailable('checkpoint_handoff_unavailable')
+            token=object();self._checkpoint_handoff=token
+            self._checkpoint_handoff_started=self.clock()
+            self.metrics['checkpoint_handoffs']=self.metrics.get('checkpoint_handoffs',0)+1
+            return token
+
+    def release_checkpoint_handoff(self,token):
+        """Release only after off-owner I/O has completed, including on failure."""
+        with self.cv:
+            if token is None or token is not self._checkpoint_handoff:
+                raise EvidenceUnavailable('checkpoint_handoff_token')
+            elapsed=int(max(0,self.clock()-self._checkpoint_handoff_started)*1_000_000)
+            self.metrics['checkpoint_handoff_total_us']=self.metrics.get('checkpoint_handoff_total_us',0)+elapsed
+            self.metrics['checkpoint_handoff_peak_us']=max(self.metrics.get('checkpoint_handoff_peak_us',0),elapsed)
+            self._checkpoint_handoff=None;self.cv.notify_all()
 
     def telemetry(self):
         with self.cv:return dict(self.metrics,queued=len(self.queue))

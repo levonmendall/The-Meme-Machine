@@ -20,7 +20,7 @@ def valid_report(sha='sha'):
              'stream.outstanding_frames_peak':20,'stream.dispatch_bytes_peak':80*1024*1024,
              'stream.commit_batch_messages_peak':4,'stream.commit_batch_bytes_peak':16*1024*1024,
              'stream.maintenance_backpressure_batching':5,'stream.maintenance_limited_commit_batches':100,
-             'checkpoint.tail_deferred':2},
+             'checkpoint.tail_deferred':2,'checkpoint.boundary_reclaimed':2},
         lag_peak=8,hot_peak=1000000000,integrity=['ok'],oldest_hot_age_peak=188,oldest_retained_age_peak=189,
         measured_contention=dict(profile='run381-fullcert-36293751021',owner_seconds_per_frame=.165,
             archive_seconds_per_thousand=.36,additional_commit_latency_seconds=.006,delayed_commits=100),
@@ -32,7 +32,7 @@ class CombinedPressureTests(unittest.TestCase):
     def test_unexercised_interactions_cannot_pass(self):
         self.assertTrue(verified(valid_report(),'sha'))
         for field in ('stream.maintenance_backpressure_batching','stream.maintenance_limited_commit_batches',
-                      'checkpoint.tail_deferred','stream.outstanding_frames_peak'):
+                      'checkpoint.tail_deferred','checkpoint.boundary_reclaimed','stream.outstanding_frames_peak'):
             row=valid_report();row['ipc'][field]=0
             self.assertFalse(verified(row,'sha'),field)
         for field in ('held_reader_cycles','tail_delay_cycles','urgent_acks'):

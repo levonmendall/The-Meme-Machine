@@ -1371,7 +1371,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 # A generation fence additionally refuses TRUNCATE after
                 # any intervening owner operation. busy_timeout=0 alone
                 # limits lock waiting, not the cost of copying a new tail.
-                # Deferred tails remain for the next independent PASSIVE.
+                # A deferred completion gets a serialized off-owner retry below;
+                # it cannot depend on an idle writer queue to make progress.
                 if bulk_complete:
                     try:
                         def finish_if_current(state):
@@ -1380,7 +1381,20 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         final=await work(finish_if_current,2,label='checkpoint_finish')
                         if final is None:
                             counts['checkpoint.tail_deferred']=counts.get('checkpoint.tail_deferred',0)+1
-                            final=(1,result[1],result[2])
+                            # A generation fence is safe but can starve physical
+                            # reclamation under continuous source/retention work.
+                            # Give the independent checkpoint worker one FIFO
+                            # mutation boundary, not another chance at idle time.
+                            # It never waits for pinned readers; incomplete copy
+                            # releases the boundary and preserves their snapshots.
+                            from .solana_checkpoint import reclaim_at_boundary
+                            boundary_started=time.monotonic()
+                            final=await reclaim_at_boundary(owner,path)
+                            boundary_us=int((time.monotonic()-boundary_started)*1_000_000)
+                            counts['checkpoint.boundary_calls']=counts.get('checkpoint.boundary_calls',0)+1
+                            counts['checkpoint.boundary_total_microseconds']=counts.get('checkpoint.boundary_total_microseconds',0)+boundary_us
+                            counts['checkpoint.boundary_peak_microseconds']=max(counts.get('checkpoint.boundary_peak_microseconds',0),boundary_us)
+                            counts['checkpoint.boundary_reclaimed']=counts.get('checkpoint.boundary_reclaimed',0)+int(final==(0,0,0))
                         counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(
                             final[0]!=0 or final[1]!=final[2])
                         counts['checkpoint.reclaimed']=counts.get('checkpoint.reclaimed',0)+int(
