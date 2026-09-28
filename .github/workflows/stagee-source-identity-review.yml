@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: f7e73d3887214952f8d5dd9b670c71ab7cc25f33
+          ref: 23f06ed84e5b5e2d4efd074618ab44ae7ed58011
           path: runtime
           fetch-depth: 0
           persist-credentials: false
