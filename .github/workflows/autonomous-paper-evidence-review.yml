@@ -101,6 +101,54 @@ jobs:
           (root/'review-index.json').write_text(json.dumps(result, sort_keys=True, indent=2)+'\n')
           print(json.dumps({k:result[k] for k in result if k != 'inventory'}, sort_keys=True))
           PYCODE
+      - name: Offline exact-smoke retention discriminator
+        run: |
+          python - <<'PYDIAG'
+          import os, json, zipfile, shutil, time, sqlite3, threading
+          from pathlib import Path
+          from unittest.mock import patch
+          from meme_machine.solana_evidence_plane import EvidenceWriter
+          from certification.pressure_diagnostics import SQLTimings
+          import certification.pressure_diagnostics as diagnostics
+          root=Path('reviewed-evidence'); source=Path(os.environ['RUNNER_TEMP'])/'smoke-source.sqlite'
+          with zipfile.ZipFile(Path(os.environ['RUNNER_TEMP'])/'failure-artifact.zip') as archive:
+              with archive.open('artifact/certification-smoke/solana-evidence-plane.sqlite') as src, source.open('wb') as dst:
+                  shutil.copyfileobj(src,dst,1024*1024)
+          original_class=diagnostics.statement_class
+          def classify(sql):
+              if sql.startswith('SELECT MIN(slot) FROM records'):return 'hot_floor'
+              if sql.startswith('SELECT MIN(lo) FROM coverage'):return 'coverage_floor'
+              if sql.startswith('SELECT floor FROM account_interest_floors'):return 'account_floor'
+              if sql.startswith('DELETE FROM hot_chunks'):return 'collect_chunks'
+              if sql.startswith('DELETE FROM address_keys'):return 'collect_addresses'
+              if sql.startswith('DELETE FROM archives'):return 'collect_archives'
+              if sql.startswith('DELETE FROM records'):return 'delete_records'
+              if sql.startswith('DELETE FROM lineage'):return 'delete_lineage'
+              if sql.startswith('SELECT identity FROM records'):return 'select_retired'
+              return original_class(sql)
+          rows=[]
+          for variant in ('original','hot_floor_index'):
+              path=source.with_name(variant+'.sqlite');shutil.copyfile(source,path)
+              timings=SQLTimings()
+              with timings.enabled(),patch.object(diagnostics,'statement_class',classify):
+                  db=sqlite3.connect(path,isolation_level=None)
+                  for sql in ('PRAGMA journal_mode=WAL','PRAGMA synchronous=FULL','PRAGMA foreign_keys=ON','PRAGMA cache_size=-65536','PRAGMA wal_autocheckpoint=0'):
+                      db.execute(sql)
+                  if variant!='original':db.execute('CREATE INDEX records_hot_scope_slot ON records(scope,slot) WHERE body IS NOT NULL')
+                  writer=EvidenceWriter.__new__(EvidenceWriter);writer.db=db;writer.path=path;writer.clock=time.time;writer._owner=threading.get_ident()
+                  result=dict(variant=variant,rounds=[],plans=list(db.execute("EXPLAIN QUERY PLAN SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL",('program:pumpswap',))))
+                  for _ in range(3):
+                      start=time.monotonic();writer.retain(1790559346-180,archive_first=False)
+                      result['rounds'].append(time.monotonic()-start)
+                  result['timings']=timings.snapshot()
+                  result['retained']=[list(r) for r in db.execute('SELECT scope,COUNT(*),MIN(slot),MAX(slot) FROM records GROUP BY scope')]
+                  result['floors']=[list(r) for r in db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%' ORDER BY key")]
+                  db.close();rows.append(result)
+          assert rows[0]['retained']==rows[1]['retained'] and rows[0]['floors']==rows[1]['floors']
+          result=dict(hypothesis='Repeated retention floor queries scan archived pinned predecessor rows and occupy the serial evidence owner.',discriminator='Original vs partial hot scope/slot index on exact preserved database; identical retained rows and floors required.',pass_meaning='Dominant hot-floor SQL and material reduction establish a minimal index repair; no authority change.',fail_meaning='Reject hypothesis and use measured statement cost only.',source_sha=os.environ['EVIDENCE_SHA'],artifact_id=int(os.environ['EVIDENCE_ARTIFACT']),rows=rows,provider_calls=0,market_authority=False)
+          (root/'retention-diagnostic.json').write_text(json.dumps(result,indent=2)+'\n')
+          print(json.dumps(result))
+          PYDIAG
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: reviewed-evidence-${{ env.EVIDENCE_ARTIFACT }}
