@@ -598,8 +598,15 @@ class EvidenceWriter:
     def commit_archive(self,plan,receipt):
         if not receipt:return 0
         archived=0
+        # A service archive may be committed in bounded owner slices after the
+        # complete immutable file has already been published off-owner. Preserve
+        # the file's full record count in the manifest even when this call owns
+        # only one commit slice. Direct/legacy receipts still use len(plan).
+        manifest_records=(receipt.get('worker_metrics') or {}).get('records',len(plan))
+        if type(manifest_records) is not int or manifest_records < len(plan) or manifest_records < 0:
+            raise EvidenceUnavailable('archive_manifest_record_count')
         with self.transaction():
-            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],len(plan))).rowcount
+            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],manifest_records)).rowcount
             if added:self._count('archive_bytes',receipt['bytes'])
             for row in plan:
                 # An interest can arrive while compression/fsync is in flight.
