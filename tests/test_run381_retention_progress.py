@@ -122,6 +122,40 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertEqual(writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
    finally:writer.close()
 
+ def test_dense_scope_resumes_after_source_yield_until_backlog_drains(self):
+  with tempfile.TemporaryDirectory() as td:
+   def factory():
+    writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+    rows=[replace(record(),scope='a',identity='a:dense:%04d'%i,
+                  signature='a:dense-s:%04d'%i) for i in range(700)]
+    rows += [replace(record(),scope='b',identity='b:sparse:%04d'%i,
+                    signature='b:sparse-s:%04d'%i) for i in range(100)]
+    writer.ingest(rows)
+    while writer.archive(1000):pass
+    return SimpleNamespace(writer=writer,close=writer.close)
+   owner=PriorityOwner(factory);owner.ready.result(5);source=[]
+   def compact(state):
+    def on_statement(sql):
+     if not source and sql.startswith('DELETE FROM lineage'):
+      source.append(owner.submit(lambda s:1,priority=2))
+    state.writer.db.set_trace_callback(on_statement)
+    try:state.writer.retain(1000,max_records=512,archive_first=False)
+    finally:state.writer.db.set_trace_callback(None)
+   try:
+    task=owner.submit(compact,priority=4)
+    with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
+     task.result(5)
+    self.assertEqual(source[0].result(5),1)
+    resume=owner.submit(
+      lambda s:getattr(s.writer,'_retention_next_scope',None),priority=0).result(5)
+    counts=owner.submit(
+      lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
+      priority=0).result(5)
+    self.assertEqual(resume,'a','dense scope did not resume after ordinary source pressure')
+    self.assertLess(counts['a'],700)
+    self.assertEqual(counts['b'],100,'sparse scope ran before dense backlog resumed')
+   finally:owner.close()
+
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
   from meme_machine.solana_evidence_service import ServiceState
   from meme_machine.solana_provider_config import AlchemyEndpoint
