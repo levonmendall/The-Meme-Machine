@@ -800,6 +800,14 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         return value
     stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
     clients=set();counts={}
+    # Source batching amortizes FULL-synchronous fsyncs while the store is clean.
+    # Once archive/retention has real backlog, however, a multi-frame batch would
+    # consume several frames inside one owner admission and make cleanup fairness
+    # depend on decode timing. Keep the fast path, but collapse source commits to
+    # one frame while either maintenance path reports active backlog.
+    maintenance_pressure={'archive':False,'retention':False}
+    def maintenance_batch_limit():
+        return 1 if any(maintenance_pressure.values()) else STREAM_COMMIT_BATCH_MAX_MESSAGES
     def count(key):counts[key]=counts.get(key,0)+1
     subscriptions_dirty=await work(lambda state:state.fence.subscriptions_dirty,0)
 
@@ -1056,8 +1064,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                 raise EvidenceUnavailable('unknown_source_subscription')
                                             if sub is not None and sub.evidence_class in ('blocks','account'):
                                                 batch=[];batch_bytes=0;cursor=next_sequence
+                                                batch_limit=maintenance_batch_limit()
+                                                maintenance_limited=batch_limit==1
                                                 while (cursor in ready
-                                                       and len(batch)<STREAM_COMMIT_BATCH_MAX_MESSAGES):
+                                                       and len(batch)<batch_limit):
                                                     candidate,c_seen,c_size,c_decoded_at=ready[cursor]
                                                     if 'id' in candidate:
                                                         break
@@ -1091,6 +1101,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                     counts.get('stream.commit_batch_bytes_peak',0),batch_bytes)
                                                 counts['stream.commit_batch_saved_transactions']=(
                                                     counts.get('stream.commit_batch_saved_transactions',0)+max(0,len(batch)-1))
+                                                if maintenance_limited:
+                                                    counts['stream.maintenance_limited_commit_batches']=(
+                                                        counts.get('stream.maintenance_limited_commit_batches',0)+1)
+                                                    counts['stream.maintenance_limited_commit_messages']=(
+                                                        counts.get('stream.maintenance_limited_commit_messages',0)+len(batch))
                                                 counts['stream.commit_peak_microseconds']=max(
                                                     counts.get('stream.commit_peak_microseconds',0),commit_us)
                                                 counts['stream.commit_total_microseconds']=(
@@ -1258,14 +1273,17 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:
                     if archive_future is None and pending_archive is None:
                         snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
+                        maintenance_pressure['archive']=bool(snapshot)
                         if snapshot:
                             archive_started=time.monotonic();archive_future=prepare(snapshot)
                     if archive_future is not None:
+                        maintenance_pressure['archive']=True
                         pending_archive=await archive_future;archive_future=None
                         archive_elapsed=int((time.monotonic()-archive_started)*1_000_000)
                         counts['archive.worker_wait_total_microseconds']=counts.get('archive.worker_wait_total_microseconds',0)+archive_elapsed
                         counts['archive.worker_wait_peak_microseconds']=max(counts.get('archive.worker_wait_peak_microseconds',0),archive_elapsed)
                     if pending_archive is not None:
+                        maintenance_pressure['archive']=True
                         plan,receipt=pending_archive
                         remaining=await work(lambda state:state.archive_commit_slice(plan,receipt),4,label='archive_commit_plan')
                         # The immutable file is already durable. Mutate at most
@@ -1279,16 +1297,19 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
                             # Preparation of the next archive overlaps bounded hot
                             # cleanup. Source/consumer work retains owner priority.
+                            maintenance_pressure['archive']=bool(snapshot)
                             if snapshot:
                                 archive_started=time.monotonic();archive_future=prepare(snapshot)
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     yielded=True
+                    maintenance_pressure['archive']=True
                 if archive_future is not None or pending_archive is not None or yielded:
                     # One bounded snapshot is in flight; completion itself paces
                     # backlog work. An artificial delay loses archive capacity.
                     await asyncio.sleep(0)
                     continue
+                maintenance_pressure['archive']=False
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
@@ -1301,9 +1322,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     progress=True
+                maintenance_pressure['retention']=bool(progress)
                 if progress:
                     await asyncio.sleep(0)
                     continue
+                maintenance_pressure['retention']=False
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
