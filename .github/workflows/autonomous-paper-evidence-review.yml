@@ -101,10 +101,10 @@ jobs:
           (root/'review-index.json').write_text(json.dumps(result, sort_keys=True, indent=2)+'\n')
           print(json.dumps({k:result[k] for k in result if k != 'inventory'}, sort_keys=True))
           PYCODE
-      - name: Offline exact-smoke retention discriminator
+      - name: Offline exact-smoke cleanup fan-out discriminator
         run: |
           python - <<'PYDIAG'
-          import os, json, zipfile, shutil, time, sqlite3, threading
+          import os, json, zipfile, shutil, time, sqlite3, threading, gzip, hashlib
           from pathlib import Path
           from unittest.mock import patch
           from meme_machine.solana_evidence_plane import EvidenceWriter
@@ -126,6 +126,22 @@ jobs:
               if sql.startswith('DELETE FROM lineage'):return 'delete_lineage'
               if sql.startswith('SELECT identity FROM records'):return 'select_retired'
               return original_class(sql)
+          # Reintroduce only already-archived rows below the current retained floor into a
+          # disposable diagnostic copy to reproduce actual cleanup fan-out. This is never
+          # a runtime restore and never grants coverage or rewinds any authority fence.
+          fixtures=[]
+          with sqlite3.connect(source) as db,zipfile.ZipFile(Path(os.environ['RUNNER_TEMP'])/'failure-artifact.zip') as archive:
+              floors=dict(db.execute("SELECT substr(key,17),CAST(value AS INTEGER) FROM meta WHERE key LIKE 'retention_floor:%'"))
+              for name in archive.namelist():
+                  if not name.startswith('artifact/certification-smoke/solana-evidence-plane.sqlite.archive/') or not name.endswith('.jsonl.gz'):continue
+                  raw=archive.read(name)
+                  if hashlib.sha256(raw).hexdigest()+'.jsonl.gz'!=Path(name).name:raise ValueError('fixture_archive_hash')
+                  for line in gzip.decompress(raw).splitlines():
+                      row=json.loads(line);b=row['body']
+                      if b['slot']<floors.get(b['scope'],0):fixtures.append((Path(name).name,row))
+                      if len(fixtures)>=6000:break
+                  if len(fixtures)>=6000:break
+          assert len(fixtures)==6000
           rows=[]
           for variant in ('original','hot_floor_index'):
               path=source.with_name(variant+'.sqlite');shutil.copyfile(source,path)
@@ -134,6 +150,15 @@ jobs:
                   db=sqlite3.connect(path,isolation_level=None)
                   for sql in ('PRAGMA journal_mode=WAL','PRAGMA synchronous=FULL','PRAGMA foreign_keys=ON','PRAGMA cache_size=-16384','PRAGMA temp_store=MEMORY','PRAGMA wal_autocheckpoint=0'):
                       db.execute(sql)
+                  with db:
+                      db.execute('BEGIN IMMEDIATE')
+                      for archive_name,row in fixtures:
+                          b=row['body']
+                          db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',(b['identity'],b['scope'],b['slot'],b['signature'],b['program'],b['market_time'],b['event_index'],b['transaction_index'],b['kind'],None,row['hash'],0,archive_name))
+                          db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',[(a,b['identity'],b['slot']) for a in b['addresses']])
+                          db.executemany('INSERT OR IGNORE INTO lineage VALUES(?,?,?,?)',[(b['identity'],l['source'],l['endpoint_identity'],l['observed_at']) for l in row['lineage']])
+                      db.execute('COMMIT')
+                  db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
                   if variant!='original':db.execute('CREATE INDEX records_hot_scope_slot ON records(scope,slot) WHERE body IS NOT NULL')
                   writer=EvidenceWriter.__new__(EvidenceWriter);writer.db=db;writer.path=path;writer.clock=time.time;writer._owner=threading.get_ident()
                   result=dict(variant=variant,rounds=[],plans=list(db.execute("EXPLAIN QUERY PLAN SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL",('program:pumpswap',))))
@@ -146,7 +171,7 @@ jobs:
                   result['floors']=[list(r) for r in db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%' ORDER BY key")]
                   db.close();rows.append(result)
           assert rows[0]['retained']==rows[1]['retained'] and rows[0]['floors']==rows[1]['floors']
-          result=dict(hypothesis='Repeated retention floor queries scan archived pinned predecessor rows and occupy the serial evidence owner.',discriminator='Original vs partial hot scope/slot index on exact preserved database; identical retained rows and floors required.',pass_meaning='Dominant hot-floor SQL and material reduction establish a minimal index repair; no authority change.',fail_meaning='Reject hypothesis and use measured statement cost only.',source_sha=os.environ['EVIDENCE_SHA'],artifact_id=int(os.environ['EVIDENCE_ARTIFACT']),production_cache_kib=16384,archive_cycles_per_variant=3,rows=rows,provider_calls=0,market_authority=False)
+          result=dict(hypothesis='Repeated retention floor queries scan archived pinned predecessor rows and occupy the serial evidence owner.',discriminator='Original vs partial hot scope/slot index on exact preserved database; identical retained rows and floors required.',pass_meaning='Dominant hot-floor SQL and material reduction establish a minimal index repair; no authority change.',fail_meaning='Reject hypothesis and use measured statement cost only.',source_sha=os.environ['EVIDENCE_SHA'],artifact_id=int(os.environ['EVIDENCE_ARTIFACT']),preserved_predecessor_records=6000,production_cache_kib=16384,archive_cycles_per_variant=3,rows=rows,provider_calls=0,market_authority=False)
           (root/'retention-diagnostic.json').write_text(json.dumps(result,indent=2)+'\n')
           print(json.dumps(result))
           PYDIAG
