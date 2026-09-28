@@ -176,6 +176,9 @@ CREATE TABLE IF NOT EXISTS records(
  transaction_index INTEGER,kind TEXT NOT NULL,body TEXT,hash TEXT NOT NULL,
  first_seen REAL NOT NULL,archive TEXT);
 CREATE INDEX IF NOT EXISTS records_scope_slot ON records(scope,slot,event_index);
+-- Seek the first hot slot without traversing an archived retention backlog.
+-- This is an access path only: cutoff, archive proofs, pins and slices are unchanged.
+CREATE INDEX IF NOT EXISTS records_hot_scope_slot ON records(scope,slot) WHERE body IS NOT NULL;
 CREATE INDEX IF NOT EXISTS records_scope_time ON records(scope,market_time,slot,event_index);
 CREATE INDEX IF NOT EXISTS records_signature ON records(signature);
 CREATE INDEX IF NOT EXISTS records_archive_time ON records(COALESCE(market_time,first_seen),identity) WHERE body IS NOT NULL;
