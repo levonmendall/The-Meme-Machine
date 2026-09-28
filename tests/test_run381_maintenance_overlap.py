@@ -51,13 +51,11 @@ class CheckpointRecyclingTests(unittest.TestCase):
       state.writer.path,snapshot,max_bytes=16*1024*1024)
     self.assertEqual(len(plan),300)
     remaining=state.archive_commit_slice(plan,receipt)
-    self.assertEqual(len(remaining),172)
+    self.assertEqual(len(remaining),44)
     self.assertEqual(state.writer.db.execute(
-      'SELECT COUNT(*) FROM records WHERE body IS NULL').fetchone()[0],128)
+      'SELECT COUNT(*) FROM records WHERE body IS NULL').fetchone()[0],256)
     self.assertEqual(state.writer.db.execute(
       'SELECT records FROM archives WHERE name=?',(receipt['name'],)).fetchone()[0],300)
-    remaining=state.archive_commit_slice(remaining,receipt)
-    self.assertEqual(len(remaining),44)
     remaining=state.archive_commit_slice(remaining,receipt)
     self.assertEqual(remaining,[])
     self.assertEqual(state.writer.db.execute(
