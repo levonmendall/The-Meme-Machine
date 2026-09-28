@@ -1,0 +1,30 @@
+name: E23 overlap witness repair
+on:
+  push:
+    branches: [repair/e23-overlap-witness-20260928]
+permissions:
+  contents: read
+jobs:
+  preserve-exact-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preserve exact checkout and all declared historical source objects
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/e23-witness-source
+          git bundle create /tmp/e23-witness-source/runtime.bundle --all
+          git bundle verify /tmp/e23-witness-source/runtime.bundle
+          git rev-parse HEAD > /tmp/e23-witness-source/sha.txt
+          sha256sum /tmp/e23-witness-source/runtime.bundle > /tmp/e23-witness-source/bundle.sha256
+          git diff --exit-code HEAD
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: e23-witness-exact-source
+          path: /tmp/e23-witness-source/
+          retention-days: 90
+          if-no-files-found: error
