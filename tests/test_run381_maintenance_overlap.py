@@ -10,6 +10,33 @@ from tests.test_run373_dispatch_throughput import block_frame,database_ready
 from tests.evidence_ipc_harness import ipc_transport
 
 class CheckpointRecyclingTests(unittest.TestCase):
+ def test_completed_bulk_copy_reclaims_physical_wal_at_owner_boundary(self):
+  import random
+  from meme_machine.solana_provider_config import AlchemyEndpoint
+  with tempfile.TemporaryDirectory() as td:
+   path=Path(td)/'db'
+   state=service.ServiceState(path,AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+   try:
+    state.writer.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+    rows=[replace(record(),identity='physical-wal:'+str(i),signature='physical-wal:'+str(i),
+                  payload={'body':random.Random(i).randbytes(16*1024).hex()})
+          for i in range(128)]
+    state.writer.ingest(rows,proof=proof(10,10))
+    wal=Path(str(path)+'-wal')
+    self.assertGreater(wal.stat().st_size,2*1024*1024,
+                       'fixture did not create meaningful physical WAL allocation')
+    passive=EvidenceWriter.checkpoint(path)
+    self.assertEqual(passive[0],0);self.assertEqual(passive[1],passive[2])
+    self.assertGreater(wal.stat().st_size,2*1024*1024,
+                       'PASSIVE unexpectedly hid the production physical-allocation defect')
+    result=state.writer.finish_checkpoint()
+    self.assertEqual(result,(0,0,0))
+    self.assertEqual(wal.stat().st_size,0)
+    self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],128)
+    self.assertEqual(state.writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+    self.assertEqual(state.writer.db.execute('PRAGMA synchronous').fetchone()[0],2)
+   finally:state.close()
+
  def test_transient_reader_and_concurrent_tail_are_recycled_without_losing_commits(self):
   from meme_machine.solana_provider_config import AlchemyEndpoint
   native_connect=sqlite3.connect
@@ -44,8 +71,8 @@ class CheckpointRecyclingTests(unittest.TestCase):
       result=state.writer.finish_checkpoint()
       self.assertEqual(result[0],0);self.assertEqual(result[1],result[2])
      sizes.append(Path(str(path)+'-wal').stat().st_size)
-    self.assertLessEqual(max(sizes),sizes[0]+64*1024,
-                         'checkpoint reuse grew beyond the initialized WAL and one bounded tail')
+    self.assertEqual(sizes,[0]*12,
+                     'owner-boundary completion left physical WAL allocation hot')
     self.assertEqual(calls,['PRAGMA wal_checkpoint(PASSIVE)']*12)
     self.assertEqual(state.writer.db.execute('PRAGMA synchronous').fetchone()[0],2)
     self.assertEqual(state.writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
@@ -68,13 +95,17 @@ class CheckpointRecyclingTests(unittest.TestCase):
     started=time.monotonic();result=EvidenceWriter.checkpoint(path)
     self.assertLess(time.monotonic()-started,1)
     self.assertNotEqual(result[1],result[2],'checkpoint must preserve a pinned read mark')
-    final=writer.finish_checkpoint();self.assertNotEqual(final[1],final[2])
+    started=time.monotonic();final=writer.finish_checkpoint()
+    self.assertLess(time.monotonic()-started,.5,'owner-boundary reclaim waited on a pinned reader')
+    self.assertTrue(final[0]!=0 or final[1]!=final[2])
     self.assertGreater(Path(str(path)+'-wal').stat().st_size,0)
     self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone()[0],1)
     self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],2)
     reader.execute('ROLLBACK')
     result=EvidenceWriter.checkpoint(path)
     self.assertEqual(result[0],0);self.assertEqual(result[1],result[2])
+    final=writer.finish_checkpoint();self.assertEqual(final,(0,0,0))
+    self.assertEqual(Path(str(path)+'-wal').stat().st_size,0)
     self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone()[0],2)
     writer.db.execute('BEGIN IMMEDIATE')
     try:

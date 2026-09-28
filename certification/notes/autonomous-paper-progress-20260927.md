@@ -1587,3 +1587,43 @@ completion to the already serialized writer removes lock competition while the
 large disk copy remains concurrent. PASS requires the full unchanged 600-second
 measured gate plus every canonical joined/offline gate. FAIL means inspect and
 repair only the preserved failed gate; no market authority is granted.
+
+
+## b408dec Phase-F smoke rejection — physical WAL allocation under real Solana flow
+
+Exact certified SHA `b408dec85ef60d00705564db3aa3db2120dac03b` passed complete
+certificate `36372593875`, then one authorized PAPER smoke `36375944083`
+ran all four lanes. The smoke is rejected and immutable evidence is preserved as
+artifact `10951451596`, ZIP SHA256
+`53e3705e4d276ab33caa8c8566b135d27b7308d063cacf5f50e0384081288896`.
+Read-only extraction `36377336004` verified that exact artifact; no provider or
+market authority was used for diagnosis.
+
+The measured Solana evidence failure is storage/WAL capacity, not a strategy,
+threshold, accounting or provider-429 defect. At terminal failure the shared
+evidence plane held DB 769081344 bytes plus WAL 1378650912 bytes =
+2147732256 hot bytes, crossing the unchanged 2147483648-byte guard by 248608
+bytes. The same snapshot showed 11592077441 source bytes across 6554 accepted
+messages, 194724 archived records, 151688 compacted records, 1207 retention
+calls, 132.70-second finalized-frontier lag and three unresolved gaps. Pump and
+Meteora correctly failed closed with evidence_service_unavailable; Pons and
+Ramses remained reconciled. No successor was authorized.
+
+Causal mechanism: the b408dec writer-boundary completion uses PASSIVE after the
+off-owner PASSIVE bulk copy. That can complete durable page copying but does not
+reclaim the physical WAL file counted by the hard hot-store guard. The former
+off-owner TRUNCATE repair is still rejected because it competed for the writer
+lock and caused source/retention lag. The new discriminator keeps the expensive
+PASSIVE copy off-owner, then performs a zero-wait TRUNCATE only on the existing
+serialized writer connection between source transactions. A pinned reader
+returns busy immediately and the next bounded cycle retries. FULL synchronous
+commits, 2-GiB hot guard, 180-second retention, pins/gaps, provider authority,
+strategies, allocations and all economic policies remain unchanged.
+
+Focused acceptance: current PASSIVE-only code fails a physical-WAL reclaim
+regression; the repaired owner-boundary path must shrink the completed WAL to
+zero, preserve pinned-reader snapshots without waiting, retain exact records and
+integrity, and keep the prior blocked-bulk-copy/source-progress regressions green.
+After focused/ordinary validation, recompute exact Pump/Meteora overlay diff
+identities, freeze a new SHA, repeat real dispatch verification and the complete
+canonical certificate before exactly one fresh PAPER smoke.

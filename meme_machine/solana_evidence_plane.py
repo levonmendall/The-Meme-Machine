@@ -698,15 +698,22 @@ class EvidenceWriter:
             return db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
 
     def finish_checkpoint(self):
-        """Finish a background copy between logical writes, permitting WAL reuse.
+        """Reclaim the completed WAL tail at the sole writer boundary.
 
-        No competing checkpoint connection may acquire the writer lock. The
-        normal priority owner schedules this once per completed bulk copy, not
-        once per retention slice. PASSIVE still refuses to wait for reader pins.
+        The independent PASSIVE connection copies the expensive bulk while source
+        commits continue. This owner-side TRUNCATE performs only the final
+        lock/reset handshake between logical writes. A pinned reader must make it
+        return busy immediately; it may never stall the source owner. The next
+        bounded checkpoint cycle retries after that reader releases its snapshot.
         """
         self._check()
         if self.db.in_transaction:raise EvidenceUnavailable('checkpoint_inside_source_transaction')
-        return self.db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
+        prior=self.db.execute('PRAGMA busy_timeout').fetchone()[0]
+        try:
+            self.db.execute('PRAGMA busy_timeout=0')
+            return self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
+        finally:
+            self.db.execute('PRAGMA busy_timeout='+str(int(prior)))
 
     @contextmanager
     def _retention_transaction(self,*,next_scope=None):

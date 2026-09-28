@@ -1314,7 +1314,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 # write lock or repeatedly truncates/reallocates the hot WAL.
                 try:
                     final=await work(lambda state:state.writer.finish_checkpoint(),4,label='checkpoint_finish')
-                    counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(final[1]!=final[2])
+                    counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(
+                        final[0]!=0 or final[1]!=final[2])
+                    counts['checkpoint.reclaimed']=counts.get('checkpoint.reclaimed',0)+int(
+                        final==(0,0,0))
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     counts['checkpoint.yielded']=counts.get('checkpoint.yielded',0)+1
