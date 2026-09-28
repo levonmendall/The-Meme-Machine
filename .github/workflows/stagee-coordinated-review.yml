@@ -9,7 +9,7 @@ concurrency:
   group: stagee-coordinated-review
   cancel-in-progress: false
 env:
-  AUTHORING_BASE: 46a110b19c61096110252138d79894d8cac268ab
+  AUTHORING_BASE: 4e08bd2a3d00a61f1313650bb48fb1955905a3d6
   REVIEWED_BASE: 23f06ed84e5b5e2d4efd074618ab44ae7ed58011
   PLAN_SHA256: 268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3
 jobs:
@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 46a110b19c61096110252138d79894d8cac268ab
+          ref: 4e08bd2a3d00a61f1313650bb48fb1955905a3d6
           fetch-depth: 0
           persist-credentials: true
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
