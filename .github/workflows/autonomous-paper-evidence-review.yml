@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 07dc2664c0057f2adcec800e1ef45dc1d9545669
+          ref: 2160188b346eaa7e65b72f9eedae9a4af4b00c8d
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: attempt13-maintenance-verification-07dc266
+          name: attempt13-retention-density-verification-2160188
           path: attempt13-maintenance-identities.json
           if-no-files-found: warn
           retention-days: 90
