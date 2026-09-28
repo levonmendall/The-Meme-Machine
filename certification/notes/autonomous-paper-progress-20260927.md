@@ -1868,3 +1868,35 @@ strategy threshold, provider authority, 180/240-second retention rule, 64-frame 
 96-MiB receive bound, 16-MiB source-commit bound, 2-GiB hot-store ceiling,
 FULL durability mode, signing/submission authority or live-money authority is
 changed. The next authority is full Stage-E non-market certification only.
+
+## Stage-E attempt 19 rowid-retention throughput repair
+
+Stage-E attempt 19, workflow run `36445408770`, exact SHA
+`3e72e56817b4ea20d9f26ea4459ef81a29cbe2b5`, failed only the unchanged
+retention-clock gate. Preserved durability artifact `10980217858` has ZIP
+SHA256 `480f90ac87517053e71b6e425d0f94a84c4d1bb22a0bdf0e3070371fa7c0a24e`.
+The fairness experiment is rejected: oldest hot age remained healthy at
+220.626 s, but oldest retained age reached 240.163 s after only 286.6 s, with
+10,096 archived rows pending compaction, including 9,096 Meteora rows. Source
+lag remained low at 3.286 s and HOT peak remained 1,235,838,072 bytes. Thus
+bounded cross-scope rotation reduced dense-scope cleanup throughput too far.
+
+The successor restores the attempt-18 scheduling behavior and retains the
+512-record archive application slice plus the exact 256-record durable retention
+transaction. Within each retention slice, the monotone retention_floor is read
+before the hot-floor search and supplies a lower slot bound, so already-archived
+rows below that floor are not rescanned merely to find the first still-hot row.
+The selected record rowids are then reused directly for address-ref cleanup and
+final record deletion, eliminating repeated identity-to-rowid lookups for the
+same bounded slice. No batch/resource/acceptance limit changes.
+
+Focused verification passed 26 maintenance regressions on exact candidate
+`8505e5b5fb8d188a3a3fc871e0b6766853c746b7`. Prepared source identities are
+Pump `82751beab82a9ee5583144ea03450cae073523823238d82c9c9c550da32ef216`
+and Meteora `93cc0cd485b26996d55b2b5759082eb33fc239b03c67e4422802ac2a1e9d05ee`;
+those identities are bound in the source and profitability manifests. The
+180/240-second retention rules, 64-frame / 96-MiB receive bounds, 16-MiB source
+commit bound, 2-GiB hot-store ceiling, FULL SQLite durability, provider
+authority, strategies, allocations, signing/submission prohibition and
+PAPER-only authority remain unchanged. The next authority is full Stage-E
+non-market certification only.
