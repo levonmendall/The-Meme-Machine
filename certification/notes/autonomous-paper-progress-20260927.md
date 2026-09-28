@@ -1627,3 +1627,16 @@ integrity, and keep the prior blocked-bulk-copy/source-progress regressions gree
 After focused/ordinary validation, recompute exact Pump/Meteora overlay diff
 identities, freeze a new SHA, repeat real dispatch verification and the complete
 canonical certificate before exactly one fresh PAPER smoke.
+
+
+Focused hosted verification `36378189918` PASS on implementation candidate
+`f03b36ec2cfa95f4a7292a0cb382e89d06028115`. It proved physical WAL
+allocation is reclaimed at the owner boundary after a completed off-owner PASSIVE
+copy, pinned readers return without waiting, source progress remains independent
+of a blocked bulk copy, and existing checkpoint-owner tests remain green.
+Measured prepared source identities are Pump
+`e565ef2d204dfe17ca6b90477bcb1fc9d61660bf73a3a2e3485b967c0e73167b` and Meteora `fffda5e14b440aab2f66a7e009c91977a6a286549b80aefb8118b1cd02e4d920`; Solana evidence-service SHA256 is
+`37210227ef64707305c52c21bd2e9fc51aad06a3291e3397cab684a1b6e75990`. These identities are now frozen into the source/profitability
+manifests without changing strategy, policy or runtime semantics. Next gate is
+ordinary CI on the coherent candidate, then exact-SHA real dispatch verification
+and the complete canonical certificate before one new PAPER smoke.
