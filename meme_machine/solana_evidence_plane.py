@@ -611,85 +611,106 @@ class EvidenceWriter:
         return self.commit_archive(plan,self.write_archive(self.path,plan))
 
     def retain(self, before_time, *, max_records=1000, archive_first=True, checkpoint=True):
-        """One bounded maintenance slice, preserving every unresolved lifecycle/gap.
+        """Retire bounded slices; report only committed work and observed backlog.
 
-        Old immutable payloads and provenance are durable before index removal.
-        A monotone floor rejects reintroduction of pruned history; offline replay
-        uses a separate store. No consumer can grant coverage below that floor.
+        The legacy return value remains the number archived by this call.
+        ``last_retention_progress`` is reset on every call and remains available
+        after a cooperative yield. A rolled-back slice never contributes to it.
         """
+        from .solana_retention_outcome import RetentionProgress
+        self._check()
+        progress=self.last_retention_progress=RetentionProgress()
         if not 1 <= max_records <= 1000:raise EvidenceUnavailable('retention_batch_bound')
         archived=self.archive(before_time,max_records=max_records) if archive_first else 0
-        # Under ordinary source pressure, cleanup may consume two additional
-        # bounded transactions before returning the owner to FIFO source work.
-        # Each mutation remains capped at 256 records; urgent work still yields
-        # immediately after the current slice. This grants at most three
-        # cleanup slices in one owner admission without enlarging any transaction
-        # a SQLite transaction or permitting unbounded maintenance service.
-        source_yield_budget=[2]
-        # At most 256 records and max_records rows from each continuity index per
-        # transaction. A later cooperative yield cannot undo earlier scopes.
+        source_yield_budget=[2]  # existing three separate 256-record transactions
         scopes=self.db.execute('SELECT scope,slot FROM cursors ORDER BY scope').fetchall()
         resume=getattr(self,'_retention_next_scope',None)
         start=next((i for i,row in enumerate(scopes) if row[0]==resume),0)
         scopes=scopes[start:]+scopes[:start]
+        continuity_tables=[name for name in ('stream_receipts','stream_deliveries','stream_order')
+            if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(name,)).fetchone()]
         for index,(scope,top) in enumerate(scopes):
             next_scope=scopes[(index+1)%len(scopes)][0]
             for offset in range(0,max_records,256):
                 limit=min(max_records-offset,256)
-                # A dense scope may need several slices for every sparse scope.
-                # If this slice fills, resume this scope after queued source work
-                # instead of unconditionally rotating away from its backlog.
-                resume_scope=[scope]
+                # Read-only preparation is preemptible by urgent work. The sole
+                # writer cannot interleave a pin/ingest operation before this
+                # callback's bounded mutation, and checkpoint workers own no rows.
+                floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
+                floor=top+1 if floor is None else floor
+                recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
+                if recent is not None:floor=min(floor,recent)
+                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
+                if pins:floor=min(floor,min(pins))
+                account_floor=self._account_floor(scope)
+                if account_floor is not None:floor=min(floor,account_floor)
+                old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
+                floor=max(int(old[0]) if old else 0,floor)
+                candidates=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit+1))]
+                ids=candidates[:limit]
+                # One extra key is a bounded lookahead, not a larger deletion.
+                queries=[('coverage','id','scope=? AND hi<?',(scope,floor)),
+                         ('gaps','id','scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))]
+                queries += [(name,'rowid','scope=? AND slot<?',(scope,floor)) for name in continuity_tables]
+                plans=[]
+                for table,key,where,args in queries:
+                    keys=[r[0] for r in self.db.execute(
+                        'SELECT '+key+' FROM '+table+' WHERE '+where+' LIMIT ?',(*args,max_records+1))]
+                    plans.append((table,key,where,args,keys))
+                more_here=len(candidates)>limit or any(len(keys)>max_records for *_,keys in plans)
+                floor_changed=old is None or floor!=int(old[0])
+                if not ids and not floor_changed and not any(keys for *_,keys in plans):
+                    # No BEGIN/COMMIT and no fabricated "progress" for empty work.
+                    progress.scope(scope,False)
+                    self._retention_next_scope=next_scope
+                    should_yield=getattr(self,'_retention_yield_requested',None)
+                    if should_yield and should_yield()=='urgent':
+                        progress.interrupted=True;progress.yield_reason='urgent'
+                        raise EvidenceUnavailable('evidence_background_yield')
+                    break
+                resume_scope=[scope if more_here else next_scope]
+                removed=[0]
+                def committed():
+                    progress.commit(scope,len(ids),removed[0],int(floor_changed),more_here)
                 with self._retention_transaction(
                         next_scope=lambda r=resume_scope:r[0],urgent_next_scope=next_scope,
-                        source_yield_budget=source_yield_budget):
-                    floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
-                    floor=top+1 if floor is None else floor
-                    recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
-                    if recent is not None:floor=min(floor,recent)
-                    pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
-                    if pins:floor=min(floor,min(pins))
-                    account_floor=self._account_floor(scope)
-                    if account_floor is not None:floor=min(floor,account_floor)
-                    old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
-                    floor=max(int(old[0]) if old else 0,floor)
-                    ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit))]
+                        source_yield_budget=source_yield_budget,after_commit=committed):
                     if ids:
-                        # Delete the already-selected bounded slice as a set.
-                        # The 256-placeholder ceiling is below SQLite's variable
-                        # limit and preserves the exact durable transaction bound.
                         marks=','.join('?' for _ in ids)
-                        # Archived rows no longer need hot bodies, but their
-                        # address references remain until record retirement.
-                        # Remove both trigger targets as bounded sets first so
-                        # the per-record BEFORE DELETE trigger performs only
-                        # empty indexed lookups instead of repeated fan-out work.
                         self.db.execute('DELETE FROM address_refs WHERE record_id IN (SELECT rowid FROM records WHERE identity IN ('+marks+'))',ids)
                         self.db.execute('DELETE FROM hot_refs WHERE identity IN ('+marks+')',ids)
                         self.db.execute('DELETE FROM lineage WHERE identity IN ('+marks+')',ids)
                         deleted=self.db.execute('DELETE FROM records WHERE identity IN ('+marks+')',ids).rowcount
                         if deleted!=len(ids):raise EvidenceConflict('retention_delete_identity_mismatch')
-                    if old is None or floor!=int(old[0]):
+                    if floor_changed:
                         self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
-                    removed=[]
-                    removed.append(self.db.execute('DELETE FROM coverage WHERE id IN (SELECT id FROM coverage WHERE scope=? AND hi<? LIMIT ?)',(scope,floor,max_records)).rowcount)
-                    removed.append(self.db.execute('DELETE FROM gaps WHERE id IN (SELECT id FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL LIMIT ?)',(scope,floor,max_records)).rowcount)
-                    for table in ('stream_receipts','stream_deliveries','stream_order'):
-                        if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
-                            removed.append(self.db.execute('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE scope=? AND slot<? LIMIT ?)',(scope,floor,max_records)).rowcount)
+                    for table,key,where,args,keys in plans:
+                        if keys:
+                            removed[0]+=self.db.execute(
+                                'DELETE FROM '+table+' WHERE '+key+' IN (SELECT '+key+
+                                ' FROM '+table+' WHERE '+where+' LIMIT ?)',(*args,max_records)).rowcount
                     if ids:self._count('compacted_records',len(ids))
-                    more_here=(len(ids)>=limit or any(n>=max_records for n in removed))
-                    resume_scope[0]=scope if more_here else next_scope
-                if len(ids)<limit and all(n<max_records for n in removed):break
-        with self.transaction():
-            # The archive directory is the immutable content-addressed inventory;
-            # old completed hot manifests need not grow without bound.
-            self.db.execute('DELETE FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL)')
-            collect_storage(self.db,max_records)
-        # PASSIVE cannot wait for readers. Pinned WAL bytes remain in telemetry and
-        # the existing hard capacity guard stops ingestion if they exhaust space.
+                if not more_here:break
+        # Skip no-op housekeeping transactions too. Keep immutable archive files;
+        # only unreferenced operational manifests/chunks/dictionary keys retire.
+        garbage=[]
+        for table,key,sql in (
+            ('archives','name','SELECT name FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL) LIMIT ?'),
+            ('hot_chunks','hash','SELECT hash FROM hot_chunks c WHERE NOT EXISTS(SELECT 1 FROM hot_refs r WHERE r.hash=c.hash) LIMIT ?'),
+            ('address_keys','id','SELECT id FROM address_keys k WHERE NOT EXISTS(SELECT 1 FROM address_refs r WHERE r.address_id=k.id) LIMIT ?')):
+            keys=[r[0] for r in self.db.execute(sql,(max_records+1,))]
+            if len(keys)>max_records:progress.remaining.add('gc:'+table)
+            if keys:garbage.append((table,key,keys[:max_records]))
+        if garbage:
+            removed=0
+            with self.transaction():
+                for table,key,keys in garbage:
+                    marks=','.join('?' for _ in keys)
+                    removed+=self.db.execute('DELETE FROM '+table+' WHERE '+key+' IN ('+marks+')',keys).rowcount
+            progress.housekeeping_rows+=removed
         if checkpoint:self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
         self.db.execute('PRAGMA incremental_vacuum(256)')
+        progress.complete=True
         return archived
 
     @staticmethod
@@ -723,12 +744,13 @@ class EvidenceWriter:
             self.db.execute('PRAGMA busy_timeout='+str(int(prior)))
 
     @contextmanager
-    def _retention_transaction(self,*,next_scope=None,urgent_next_scope=None,source_yield_budget=None):
+    def _retention_transaction(self,*,next_scope=None,urgent_next_scope=None,source_yield_budget=None,after_commit=None):
         """Only the bounded retention mutation is protected from SQL preemption."""
         self._retention_atomic=True
         try:
             with self.transaction():yield
         finally:self._retention_atomic=False
+        if after_commit is not None:after_commit()
         # This is a scheduling hint, not evidence authority. Advance only after
         # the durable slice commits, before an urgent-work yield. Restarting at
         # the first scope on every yield starves later scopes under source load.
@@ -759,7 +781,11 @@ class EvidenceWriter:
         else:
             self._retention_next_scope=resolved
             self._retention_source_resume_scope=None;self._retention_source_resume_count=0
-        if yield_class:raise EvidenceUnavailable('evidence_background_yield')
+        if yield_class:
+            report=getattr(self,'last_retention_progress',None)
+            if report is not None:
+                report.interrupted=True;report.yield_reason=yield_class
+            raise EvidenceUnavailable('evidence_background_yield')
 
     def close(self):
         self._check()

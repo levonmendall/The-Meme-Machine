@@ -17,6 +17,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 REVIEWED_BASE = '23f06ed84e5b5e2d4efd074618ab44ae7ed58011'
 ALLOWED_RUNTIME = frozenset({
+    'meme_machine/solana_retention_outcome.py',
+    'tests/test_retention_outcomes.py',
     'meme_machine/solana_evidence_plane.py',
     'meme_machine/solana_evidence_service.py',
     'meme_machine/solana_evidence_control.py',
@@ -222,7 +224,7 @@ def verify(worktrees, expected_sha):
                  'names=("meme_machine.solana_evidence_plane",'
                  '"meme_machine.solana_evidence_service",'
                  '"meme_machine.solana_evidence_control",'
-                 '"meme_machine.solana_archive_snapshot","meme_machine.solana_checkpoint"); '
+                 '"meme_machine.solana_archive_snapshot","meme_machine.solana_checkpoint","meme_machine.solana_retention_outcome"); '
                  'print(json.dumps({n:importlib.import_module(n).__file__ for n in names}))')
         try:
             locations = json.loads(subprocess.check_output(

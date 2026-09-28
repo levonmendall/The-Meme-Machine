@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from meme_machine.solana_evidence_plane import EvidenceReader,EvidenceWriter
 import meme_machine.solana_evidence_service as service
+from meme_machine.solana_retention_outcome import RetentionOutcome
 from tests.test_run373_dispatch_throughput import SustainedSocket,database_ready,local_server
 
 
@@ -39,7 +40,7 @@ class StageE19MaintenanceBatchFairnessTests(unittest.IsolatedAsyncioTestCase):
         ),patch.object(
             service.ServiceState,'archive_plan',return_value=None
         ),patch.object(
-            service.ServiceState,'retention',return_value=True
+            service.ServiceState,'retention',return_value=RetentionOutcome(pending=True)
         ),patch(
             'websockets.asyncio.client.connect',return_value=socket
         ),patch(

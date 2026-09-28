@@ -411,7 +411,9 @@
         "meme_machine/solana_checkpoint.py",
         "tests/test_checkpoint_handoff.py",
         "tests/test_archive_pipeline.py",
-        "tests/evidence_stream_harness.py"
+        "tests/evidence_stream_harness.py",
+        "meme_machine/solana_retention_outcome.py",
+        "tests/test_retention_outcomes.py"
       ]
     },
     "meteora": {
@@ -736,7 +738,9 @@
         "meme_machine/solana_checkpoint.py",
         "tests/test_checkpoint_handoff.py",
         "tests/test_archive_pipeline.py",
-        "tests/evidence_stream_harness.py"
+        "tests/evidence_stream_harness.py",
+        "meme_machine/solana_retention_outcome.py",
+        "tests/test_retention_outcomes.py"
       ],
       "composed_file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",

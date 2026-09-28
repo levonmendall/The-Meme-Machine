@@ -91,6 +91,7 @@ class PriorityOwner:
                     if expires is not None and time.time()>expires:
                         raise EvidenceUnavailable('evidence_command_expired')
                     writer=getattr(self.state,'writer',None)
+                    if writer is not None:writer._background_sql_interrupted=False
                     def queued_priority():
                         with self.cv:return self.queue[0][0] if self.queue else None
                     def queued_before(priority_limit):
@@ -104,7 +105,9 @@ class PriorityOwner:
                         # scans for every normal source frame can starve cleanup.
                         if getattr(writer,'_retention_atomic',False):return 0
                         if queued_before(2):
-                            interrupted=True;return 1
+                            interrupted=True
+                            writer._background_sql_interrupted=True
+                            return 1
                         return 0
                     def yield_retention_boundary():
                         # Retention has already committed its bounded slice here.

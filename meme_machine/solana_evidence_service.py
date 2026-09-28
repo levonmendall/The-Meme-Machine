@@ -742,9 +742,32 @@ class ServiceState:
         return self.archive_plan()
 
     def retention(self):
-        before=self.writer.db.total_changes
-        self._storage_stage('retention',lambda:self.writer.retain(time.time()-180,max_records=1000,archive_first=False,checkpoint=False))
-        return self.writer.db.total_changes>before
+        import sqlite3
+        from .solana_retention_outcome import RetentionProgress
+        if self.writer.db.in_transaction:
+            raise EvidenceUnavailable('retention_inside_source_transaction')
+        self.writer.last_retention_progress=RetentionProgress()
+        try:
+            self._storage_stage('retention',lambda:self.writer.retain(
+                time.time()-180,max_records=1000,archive_first=False,checkpoint=False))
+        except EvidenceUnavailable as exc:
+            if str(exc)!='evidence_background_yield':raise
+            self.writer.last_retention_progress.interrupted=True
+        except sqlite3.OperationalError:
+            if not getattr(self.writer,'_background_sql_interrupted',False):raise
+            report=self.writer.last_retention_progress
+            report.interrupted=True;report.yield_reason='urgent_sql'
+        outcome=self.writer.last_retention_progress.snapshot()
+        for name in ('retired_records','continuity_rows','housekeeping_rows',
+                     'floor_updates','committed_slices','examined_scopes'):
+            key='retention_outcome.'+name
+            self.storage_metrics[key]=self.storage_metrics.get(key,0)+getattr(outcome,name)
+        state='pending' if outcome.pending is True else 'idle' if outcome.pending is False else 'unknown'
+        key='retention_outcome.'+state
+        self.storage_metrics[key]=self.storage_metrics.get(key,0)+1
+        self.storage_metrics['retention_outcome.interrupted']=(
+            self.storage_metrics.get('retention_outcome.interrupted',0)+int(outcome.interrupted))
+        return outcome
 
     def close(self):
         try:
@@ -1336,7 +1359,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     yielded=True
-                    maintenance_pressure['archive']=True
+                    # An interrupted eligibility scan is unknown, not backlog.
+                    # A real worker/receipt remains pending until consumed.
+                    maintenance_pressure['archive']=(archive_future is not None or pending_archive is not None)
                 if archive_future is not None or pending_archive is not None or yielded:
                     # One bounded snapshot is in flight; completion itself paces
                     # backlog work. An artificial delay loses archive capacity.
@@ -1351,15 +1376,14 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             # archive worker prepares/publishes immutable evidence. Coupling one
             # cleanup call to each archive left Meteora's dense indexes behind.
             while not stop.is_set():
-                try:progress=await work(lambda state:state.retention(),4,label='retention')
-                except EvidenceUnavailable as exc:
-                    if str(exc)!='evidence_background_yield':raise
-                    progress=True
-                maintenance_pressure['retention']=bool(progress)
-                if progress:
+                outcome=await work(lambda state:state.retention(),4,label='retention')
+                # Only positively observed eligible work is a backlog signal.
+                # A partial/interrupt outcome requests re-examination without
+                # pretending to be either durable progress or proven idleness.
+                maintenance_pressure['retention']=outcome.pressure
+                if outcome.retry:
                     await asyncio.sleep(0)
                     continue
-                maintenance_pressure['retention']=False
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
