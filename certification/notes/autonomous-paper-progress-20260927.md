@@ -1435,3 +1435,41 @@ all strategy/policy/source-execution identities and resource limits are unchange
 The immutable-artifact handoff size defect remains to be repaired before another
 final freeze, complete certificate or market smoke. No market retry is authorized
 by a focused regression alone.
+
+Checkpoint repair 2188560e85ef216399542fc1470b554c380e8127 passed ordinary CI
+36368275373. The next coherent candidate closes the measured artifact transport
+incompatibility by extending the existing sealed capsule and immutable artifacts,
+not introducing another ledger/checkpoint authority. The full native output is
+preserved separately under the same exact run, and its immutable ID/digest is
+bound in a small transfer index. Only the verified capsule, review, smoke state
+and required assurance/position snapshot cross the successor boundary. Cold raw
+history stays preserved in the native artifact rather than being made HOT again.
+
+Capsule bytes are split into at most 32 pieces of 256 MiB. Each piece uses the
+unchanged digest-verified 512-MiB GitHub download API. The existing aggregate
+8-GiB and 50,000-file extraction limits remain unchanged. A seekable reader caches
+only one piece on disk; it never assembles another multi-gigabyte ZIP or retains
+all pieces in memory. Every piece, complete capsule file, review, native-artifact
+reference and claim identity is checked before provider access. Missing upload,
+wrong order/run/digest/size, corrupted bytes, absent native predecessor or partial
+publication cannot produce a successor index or authority. The existing controller
+state transitions and dispatch protocol are unchanged.
+
+The unchanged six-regime native snapshot/relocated normal and position-only
+restore proof now crosses this multipart path and passes, with exact accounting,
+partial/high-water/controller state and no duplicate entry or recreated capital.
+Ten focused transport regressions plus existing controller/launcher/adapter tests
+pass (29 tests; local UNIX socket prohibition remains the sole local skip, with
+real hosted socket verification mandatory). The real final-SHA verification suite
+now includes the transfer corruption matrix. The full final certificate will
+independently rerun all machinery, joined and unchanged pressure gates.
+
+Frozen-candidate hosted hypothesis: off-owner PASSIVE flushing prevents the
+measured serial evidence stall, while bounded capsule transport permits exact
+successor restoration despite intentionally larger immutable native artifacts.
+Discriminator: real no-market dispatch verification, complete exact-SHA machinery
+certificate including unchanged pressure and joined proof, then one fresh current
+PAPER smoke and native review. PASS proceeds immediately to automatic normal
+succession on the same SHA; FAIL preserves evidence and repairs only its actual
+failed gate. No policy, allocation, strategy threshold, exit, target market,
+provider authority, source/execution base identity or resource limit changed.

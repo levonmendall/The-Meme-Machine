@@ -80,7 +80,7 @@ jobs:
         run: |
           mkdir -p autonomous-control-proof
           set -o pipefail
-          python -m unittest -v certification.tests.test_autonomous_control certification.tests.test_autonomous_launch certification.tests.test_autonomous_window certification.tests.test_autonomous_native_handoff certification.tests.test_campaign_state certification.tests.test_position_continuation 2>&1 | tee autonomous-control-proof/tests.log
+          python -m unittest -v certification.tests.test_autonomous_control certification.tests.test_autonomous_launch certification.tests.test_autonomous_window certification.tests.test_autonomous_transfer certification.tests.test_autonomous_native_handoff certification.tests.test_campaign_state certification.tests.test_position_continuation 2>&1 | tee autonomous-control-proof/tests.log
       - name: Preserve non-market control-plane proof
         if: always() && inputs.operation == 'verify'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -107,8 +107,283 @@ jobs:
         if: always() && inputs.operation == 'window'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-native
           path: ${{ runner.temp }}/autonomous-evidence/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Pack verified successor capsule within unchanged transfer bounds
+        if: success() && inputs.operation == 'window'
+        id: pack
+        run: >-
+          python -m certification.autonomous_window pack
+          --claim autonomous-claim.json --output "$RUNNER_TEMP/autonomous-evidence"
+      - name: Preserve bounded capsule part 00
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-00
+          path: ${{ runner.temp }}/autonomous-transfer/parts/00/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 01
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-01
+          path: ${{ runner.temp }}/autonomous-transfer/parts/01/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 02
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-02
+          path: ${{ runner.temp }}/autonomous-transfer/parts/02/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 03
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-03
+          path: ${{ runner.temp }}/autonomous-transfer/parts/03/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 04
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-04
+          path: ${{ runner.temp }}/autonomous-transfer/parts/04/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 05
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 5
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-05
+          path: ${{ runner.temp }}/autonomous-transfer/parts/05/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 06
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 6
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-06
+          path: ${{ runner.temp }}/autonomous-transfer/parts/06/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 07
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 7
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-07
+          path: ${{ runner.temp }}/autonomous-transfer/parts/07/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 08
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 8
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-08
+          path: ${{ runner.temp }}/autonomous-transfer/parts/08/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 09
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 9
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-09
+          path: ${{ runner.temp }}/autonomous-transfer/parts/09/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 10
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 10
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-10
+          path: ${{ runner.temp }}/autonomous-transfer/parts/10/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 11
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 11
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-11
+          path: ${{ runner.temp }}/autonomous-transfer/parts/11/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 12
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 12
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-12
+          path: ${{ runner.temp }}/autonomous-transfer/parts/12/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 13
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 13
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-13
+          path: ${{ runner.temp }}/autonomous-transfer/parts/13/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 14
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 14
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-14
+          path: ${{ runner.temp }}/autonomous-transfer/parts/14/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 15
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 15
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-15
+          path: ${{ runner.temp }}/autonomous-transfer/parts/15/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 16
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 16
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-16
+          path: ${{ runner.temp }}/autonomous-transfer/parts/16/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 17
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 17
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-17
+          path: ${{ runner.temp }}/autonomous-transfer/parts/17/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 18
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 18
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-18
+          path: ${{ runner.temp }}/autonomous-transfer/parts/18/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 19
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 19
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-19
+          path: ${{ runner.temp }}/autonomous-transfer/parts/19/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 20
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 20
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-20
+          path: ${{ runner.temp }}/autonomous-transfer/parts/20/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 21
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 21
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-21
+          path: ${{ runner.temp }}/autonomous-transfer/parts/21/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 22
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 22
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-22
+          path: ${{ runner.temp }}/autonomous-transfer/parts/22/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 23
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 23
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-23
+          path: ${{ runner.temp }}/autonomous-transfer/parts/23/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 24
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 24
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-24
+          path: ${{ runner.temp }}/autonomous-transfer/parts/24/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 25
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 25
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-25
+          path: ${{ runner.temp }}/autonomous-transfer/parts/25/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 26
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 26
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-26
+          path: ${{ runner.temp }}/autonomous-transfer/parts/26/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 27
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 27
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-27
+          path: ${{ runner.temp }}/autonomous-transfer/parts/27/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 28
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 28
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-28
+          path: ${{ runner.temp }}/autonomous-transfer/parts/28/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 29
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 29
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-29
+          path: ${{ runner.temp }}/autonomous-transfer/parts/29/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 30
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 30
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-30
+          path: ${{ runner.temp }}/autonomous-transfer/parts/30/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve bounded capsule part 31
+        if: success() && inputs.operation == 'window' && fromJSON(steps.pack.outputs.parts) > 31
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}-part-31
+          path: ${{ runner.temp }}/autonomous-transfer/parts/31/payload
+          if-no-files-found: error
+          retention-days: 90
+      - name: Bind preserved capsule parts and immutable native predecessor
+        if: success() && inputs.operation == 'window'
+        run: >-
+          python -m certification.autonomous_window seal-transfer
+          --claim autonomous-claim.json --output "$RUNNER_TEMP/autonomous-evidence"
+      - name: Preserve exact capsule transfer index
+        if: success() && inputs.operation == 'window'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.AUTONOMOUS_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/autonomous-transfer/index/
           if-no-files-found: error
           retention-days: 90
       - name: Review preserved outcome and record one successor intent

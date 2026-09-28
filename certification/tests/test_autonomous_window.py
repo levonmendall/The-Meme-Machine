@@ -20,7 +20,7 @@ class AutonomousWorkflowAdapterTests(unittest.TestCase):
     def test_hosted_output_paths_allow_real_unix_socket_in_every_window_mode(self):
         import socket
         workflow=(Path(__file__).parents[2]/'.github/workflows/autonomous-paper.yml').read_text()
-        self.assertEqual(workflow.count('--output "$RUNNER_TEMP/autonomous-evidence"'),2)
+        self.assertEqual(workflow.count('--output "$RUNNER_TEMP/autonomous-evidence"'),4)
         self.assertIn('path: ${{ runner.temp }}/autonomous-evidence/',workflow)
         hosted=Path('/home/runner/work/_temp/autonomous-evidence')
         for phase in ('smoke','hourly','position'):

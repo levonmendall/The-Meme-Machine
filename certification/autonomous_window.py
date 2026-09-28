@@ -38,12 +38,21 @@ def exact_checkout():
 
 def extract_artifact(api, reference, destination):
     archive,item=api.artifact(reference['workflow_run_id'],reference['name'])
-    if item['id']!=reference['id'] or item['digest']!=reference['digest']:
-        raise ValueError('autonomous_download_artifact_identity')
+    with archive:
+        if item['id']!=reference['id'] or item['digest']!=reference['digest']:
+            raise ValueError('autonomous_download_artifact_identity')
+        if archive.namelist()==['transfer.json']:
+            if archive.getinfo('transfer.json').file_size>20*1024**2:
+                raise ValueError('autonomous_transfer_manifest_size')
+            from certification.autonomous_transfer import extract
+            return extract(api,json.loads(archive.read('transfer.json')),reference,destination,extract_checked)
+        return extract_checked(archive,destination)
+
+
+def extract_checked(archive,destination):
     destination=Path(destination);destination.mkdir(parents=True,exist_ok=False)
     names=set();size=0
-    # Bound decompression separately from the existing 512-MiB ZIP transport bound.
-    # These are artifact safeguards, not relaxed runtime hot-storage limits.
+    # The aggregate extraction bound is unchanged for the capsule transport.
     with archive:
         for member in archive.infolist():
             path=PurePosixPath(member.filename);size+=member.file_size
@@ -172,6 +181,13 @@ def run_window(api, claim, worktrees, output):
     previous=None
     if claim['previous']:
         previous=extract_artifact(api,claim['previous']['artifact'],output.parent/'predecessor')
+        transfer=read(previous/'transfer-proof.json')
+        if (transfer['identity']!=expected or transfer['campaign_id']!=claim['campaign_id']
+                or transfer['workflow_run_id']!=claim['previous']['workflow_run_id']
+                or transfer['index']!=claim['previous']['index']
+                or transfer['state_hash']!=claim['previous']['state_hash']
+                or transfer['review_hash']!=claim['previous']['review_hash']):
+            raise ValueError('autonomous_predecessor_transfer_identity')
         capsule=campaign_state.verify(previous/'capsule',expected_identity=expected,
             expected_state_hash=claim['previous']['state_hash'],campaign_id=claim['campaign_id'],
             prior_index=claim['previous']['index'],authorization_hash=claim['authorization_hash'])
@@ -210,7 +226,7 @@ def run_window(api, claim, worktrees, output):
 
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('operation',choices=('control','run','finish'))
+    p=argparse.ArgumentParser();p.add_argument('operation',choices=('control','run','pack','seal-transfer','finish'))
     p.add_argument('--claim');p.add_argument('--worktrees');p.add_argument('--output',required=True)
     a=p.parse_args();api=GitHub();expected=exact_checkout();campaign=os.environ['AUTONOMOUS_CAMPAIGN']
     run_id=int(os.environ['GITHUB_RUN_ID']);attempt=os.environ['GITHUB_RUN_ATTEMPT']
@@ -240,6 +256,19 @@ def main():
         else:raise ValueError('autonomous_operation')
         _atomic(Path(a.output),value)
     elif a.operation=='run':run_window(api,read(a.claim),a.worktrees,a.output)
+    elif a.operation in ('pack','seal-transfer'):
+        from certification import autonomous_transfer as transfer
+        claim=read(a.claim);state=claimed(api,claim);name=control.artifact_name(state,run_id)
+        destination=Path(a.output).parent/'autonomous-transfer'
+        if a.operation=='pack':
+            native=control._artifact_metadata(api,run_id,name+'-native')
+            packed=transfer.pack(a.output,destination,claim,native)
+            with Path(os.environ['GITHUB_OUTPUT']).open('a') as stream:
+                stream.write('parts='+str(len(packed['parts']))+'\n')
+        else:
+            sealed=transfer.seal(api,destination,name)
+            if sealed['identity']!=expected or sealed['workflow_run_id']!=run_id:
+                raise ValueError('autonomous_transfer_current_identity')
     else:
         claim=read(a.claim);claimed(api,claim);output=Path(a.output)
         if os.environ['WINDOW_JOB_RESULT']!='success':

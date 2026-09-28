@@ -173,23 +173,28 @@ class AutonomousNativeHandoff(unittest.TestCase):
             self.assertTrue(verify_snapshot(artifact)['snapshot_complete'])
             capsule=state.seal(output/'capsule',worktrees=work,run=run,window=window,
                                terminal=terminal,expected_identity=identity)
-            reference=dict(workflow_run_id=1,id=7,name='native-fixture',digest='sha256:'+'b'*64)
-            zipped=io.BytesIO()
-            with zipfile.ZipFile(zipped,'w',zipfile.ZIP_DEFLATED) as archive:
-                for path in output.rglob('*'):
-                    if path.is_file():archive.write(path,str(path.relative_to(output)))
-            payload=zipped.getvalue()
-            class API:
-                def artifact(self,run_id,name):
-                    assert run_id==1 and name=='native-fixture'
-                    return zipfile.ZipFile(io.BytesIO(payload)),reference
-            downloaded=extract_artifact(API(),reference,root/'downloaded')
-            self.assertTrue(verify_snapshot(downloaded/'artifact')['snapshot_complete'])
+            from unittest.mock import patch
+            from certification import autonomous_transfer
+            from certification.tests.test_autonomous_transfer import ArtifactAPI,preserve
+            review=dict(passed=True,identity=identity,state_hash=capsule['state_hash'])
+            (output/'window-review.json').write_text(json.dumps(review))
+            (output/'smoke-continuation-state.json').write_text('{}')
+            (artifact/'assurance').mkdir()
+            (artifact/'assurance/market-assurance.json').write_text('{}')
+            prior_claim=dict(identity=identity,campaign_id=window['campaign_id'],
+                authorization_hash=window['authorization_hash'],window=dict(window,mode='hourly'))
+            api=ArtifactAPI()
+            with patch.object(autonomous_transfer,'PART_BYTES',256*1024):
+                reference,transport=preserve(api,output,root/'transport',prior_claim)
+                self.assertGreater(len(transport['parts']),1)
+                downloaded=extract_artifact(api,reference,root/'downloaded')
+            self.assertNotIn(transport['native_artifact']['name'],api.downloads)
+            self.assertEqual(json.loads((downloaded/'transfer-proof.json').read_text())['state_hash'],capsule['state_hash'])
             # No absolute path back to the old worker can supply missing state.
             shutil.rmtree(work);shutil.rmtree(output)
 
             prior=dict(window,state_hash=capsule['state_hash'],positions={lane:live_ids(row) for lane,row in positions.items()},
-                       discovery_window=window,artifact={'digest':'sha256:'+'b'*64})
+                       discovery_window=window,artifact=reference)
             claim=dict(schema='autonomous-paper-window-claim-v1',identity=identity,campaign_id=window['campaign_id'],
                 authorization_hash=window['authorization_hash'],certificate=dict(identity,passed=True),previous=prior,
                 window=dict(index=1,mode='hourly',seconds=3600,workflow_run_id=2,native_run_id='gate',
