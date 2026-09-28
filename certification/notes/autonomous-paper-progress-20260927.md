@@ -1832,3 +1832,39 @@ and Meteora `432063bbd533916835bce49f3411eb99163a515a7f90ee4fedddaf2f340fe0f2`,
 now bound in the source/profitability manifests. The next authority is complete
 Stage-E non-market certification on the exact frozen successor SHA; no market or
 smoke run is authorized.
+
+
+## Stage-E attempt 18 retained-scope fairness repair
+
+Stage-E attempt 18, workflow run `36442332418`, exact SHA
+`661d4e10daefac7e80d9252f14b2cf9f5c1acdad`, failed only the unchanged
+retention-clock gate. Preserved durability artifact `10979568189` has ZIP
+SHA256 `6304d38ef93c13436fecbd3fa9f3ea73a3fce1d71f6cbf5533061d3588c0712f`.
+The 512-record archive-owner slice improved oldest hot age to 236.001 s and
+kept source/finalized lag to 2.729 s, but oldest retained age reached
+240.000547 s. The residual archived-pending backlog was 2,521 records and was
+uneven by scope: Meteora 688, Pump 303, PumpSwap 1,530. HOT peak was
+1,323,390,112 bytes, below the unchanged 2-GiB ceiling; integrity remained OK,
+with no provider calls or reconnects.
+
+The next repair keeps every existing resource/acceptance limit and the existing
+256-record durable retention transaction. Under continuous ordinary source
+pressure, a full dense scope may resume exactly once, then retention rotates to
+the next scope. Urgent control work still rotates immediately. This bounds
+same-scope preference while preserving one extra dense cleanup slice, preventing
+PumpSwap or another later scope from accumulating the oldest retained row under
+continuous source arrivals.
+
+Focused verification passed 27 maintenance regressions on exact candidate
+`ac63058af11121fc48932ded306dc19f696c44c7`, including dense source-pressure
+resume, bounded source-pressure rotation, urgent cross-scope fairness, archive
+receipt/idempotency, physical WAL behavior, and bounded set compaction.
+Prepared source identities are Pump
+`972535280dd6c7abab54fc5a432a1e60e800d9bcc8d23ffe6cf32bb5b33203cb`
+and Meteora
+`9cdbf659269cf480912558b0d927964bf7cc2fb0364ffd9cc5ea388bad269745`;
+those identities are bound in both source and profitability manifests. No
+strategy threshold, provider authority, 180/240-second retention rule, 64-frame /
+96-MiB receive bound, 16-MiB source-commit bound, 2-GiB hot-store ceiling,
+FULL durability mode, signing/submission authority or live-money authority is
+changed. The next authority is full Stage-E non-market certification only.
