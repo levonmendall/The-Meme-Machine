@@ -112,6 +112,12 @@ class RetentionProgressTests(unittest.TestCase):
     try:writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
     finally:writer.db.set_trace_callback(None)
     self.assertTrue(any(
+      s.startswith('DELETE FROM address_refs WHERE record_id IN (SELECT rowid FROM records WHERE identity IN (') for s in statements),
+      'retention did not pre-clean address refs as one bounded set')
+    self.assertTrue(any(
+      s.startswith('DELETE FROM hot_refs WHERE identity IN (') for s in statements),
+      'retention did not pre-clean hot refs as one bounded set')
+    self.assertTrue(any(
       s.startswith('DELETE FROM lineage WHERE identity IN (') for s in statements),
       'retention did not use bounded set deletion for lineage')
     self.assertTrue(any(
