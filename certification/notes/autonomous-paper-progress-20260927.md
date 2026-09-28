@@ -1765,3 +1765,41 @@ source-clock guard, 240-second retained-age acceptance bound, 64-frame /
 synchronous durability, provider authority, strategy thresholds and economic
 policies remain unchanged. The next authority is complete Stage-E non-market
 certification only; no market or smoke run is authorized.
+
+
+## Stage-E attempt 16 residual compaction failure and attempt 17 repair
+
+Stage-E attempt 16, workflow run `36437627567`, exact SHA
+`d9ebff73e34da08bb0f9fa88ce2a54cbe6fd4241`, failed only the unchanged
+retention-clock guard. Preserved durability artifact `10975934321` has ZIP
+SHA256 `347897498213052224fb18413dff39f0eaeec71102ffa214c316896ccdbc1ab7`.
+The pressure result measured source/finalized lag peak 1.756 s, HOT peak
+1,290,432,936 bytes, oldest hot age 239.296 s and oldest retained age
+240.001974 s. At failure only 329 already-archived rows remained pending
+compaction (176 Meteora, 153 Pump, 0 PumpSwap). Thus source, receive, capacity,
+archive publication and checkpoint correctness were no longer the failed gate;
+the remaining defect was residual maintenance owner-turn/retention-index cost.
+
+Attempt 17 preserves the same 256-record durable retention slice and every
+existing acceptance/resource bound. It raises only the repair-introduced archive
+hot-DB application slice from 128 to 256 records, reducing owner admissions and
+FULL-commit overhead while remaining bounded. Before each bounded record
+retirement set, retention now removes the selected rows' address_refs and
+hot_refs as bounded sets; the existing per-record storage trigger then performs
+only empty indexed cleanup rather than repeating reference fan-out work.
+
+Focused exact-candidate verification `36439345628` PASS on
+`436f57f1a56e05b13a0fa9eac5ab2242de8aa3a2` (26 maintenance regressions),
+artifact `10977122335`. Prepared source identities are Pump
+`b2d727739fd1fd98e3d6143291e1b0fd9a6985fd3779dd2849ffad9ea4d16044`
+and Meteora
+`9ffc0f8b192e09088c7ec92c09dd07e71b329616ca0c9d8da5c22ec6381fd06d`.
+Measured shared hashes include evidence control
+`0b8c110a56fb3b560e1679ada5b16e2ecc2852988df7aeacdcdd4a96e3238c8b`,
+evidence plane
+`efb183dc1ff15a214b789bf4362331df41e13eb859bbd290858cd5ccdb6259dd`,
+and evidence service
+`76c5204a4ba14ad2d95e84e28b7fafd3b82531ead48b12509d6c334c8298b573`.
+The manifests are frozen to these prepared identities. No strategy threshold,
+provider authority, source/retention acceptance bound, receive/commit capacity,
+2-GiB hot-store ceiling, durability mode or PAPER-only authority is changed.
