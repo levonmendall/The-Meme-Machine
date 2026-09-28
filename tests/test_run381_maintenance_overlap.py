@@ -234,7 +234,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(counters.get('checkpoint.reclaimed',0),0)
    finally:db.close()
 
- async def test_completed_passive_checkpoint_prioritizes_only_zero_wait_reset(self):
+ async def test_completed_passive_checkpoint_joins_source_fifo_for_zero_wait_reset(self):
   calls=[];finished=[]
   def checkpoint(path):
    calls.append(1);return (0,0,0)
@@ -267,8 +267,8 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
       "SELECT value FROM service_health WHERE key='owner_scheduler'").fetchone()[0])
     counters=json.loads(db.execute(
       "SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
-    self.assertGreaterEqual(scheduler.get('priority1.completed',0),1,
-                            'checkpoint reset remained behind normal source work')
+    self.assertGreaterEqual(scheduler.get('priority2.completed',0),1,
+                            'checkpoint reset did not join the normal source FIFO')
     self.assertGreaterEqual(counters.get('checkpoint.reclaimed',0),1)
     self.assertGreaterEqual(counters.get('owner.stage.checkpoint_finish.calls',0),1)
    finally:db.close()
