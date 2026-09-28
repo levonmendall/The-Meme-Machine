@@ -46,6 +46,13 @@ jobs:
       - name: Prepare canonical qualification worktrees
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/qualification-worktrees"
+      - name: Report qualification source identities
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: |
+          for lane in pump meteora pons ramses; do
+            hash=$(git -C "$RUNNER_TEMP/qualification-worktrees/$lane" diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD | sha256sum | awk '{print $1}')
+            echo "PREPARED_SOURCE_DIFF_SHA256_${lane^^}=$hash"
+          done
       - name: Validate qualification Pump overlay
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
         run: |
