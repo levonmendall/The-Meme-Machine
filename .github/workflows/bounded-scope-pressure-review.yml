@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: d3fd7303d214e6fa74a4b1aad46fc648c870bced
+          ref: 58c7f55e557214b012bf33b5a1bdbef09491f54b
           path: runtime
           fetch-depth: 0
           persist-credentials: false
@@ -30,7 +30,7 @@ jobs:
       - name: Assert exact runtime and unchanged canonical gate
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = d3fd7303d214e6fa74a4b1aad46fc648c870bced
+          test "$(git rev-parse HEAD)" = 58c7f55e557214b012bf33b5a1bdbef09491f54b
           mkdir -p "$GITHUB_WORKSPACE/evidence"
           git diff --exit-code 661d4e10daefac7e80d9252f14b2cf9f5c1acdad HEAD -- certification/run381_pressure.py certification/pressure_diagnostics.py tests/test_run380_production_pressure.py tests/test_run373_dispatch_throughput.py .github/workflows/non-market-certification.yml .github/workflows/directional-six-regime-nonmarket.yml
           git rev-parse HEAD > "$GITHUB_WORKSPACE/evidence/runtime-sha.txt"
@@ -55,11 +55,11 @@ jobs:
         if: always()
         run: |
           git diff --exit-code HEAD
-          test "$(git rev-parse HEAD)" = d3fd7303d214e6fa74a4b1aad46fc648c870bced
+          test "$(git rev-parse HEAD)" = 58c7f55e557214b012bf33b5a1bdbef09491f54b
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: bounded-scope-pressure-d3fd7303-${{ github.run_attempt }}
+          name: bounded-scope-pressure-58c7f55e-${{ github.run_attempt }}
           path: evidence/
           if-no-files-found: error
           retention-days: 90
