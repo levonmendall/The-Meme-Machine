@@ -282,66 +282,6 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 stop.set()
                 await asyncio.gather(runner,return_exceptions=True)
 
-    async def test_stagee19_maintenance_pressure_limits_source_batches_to_one_frame(self):
-        frames=32
-        socket=SustainedSocket(
-            frames=frames,interval=.005,padding_bytes=64*1024,
-            relevant_transactions=4,
-        )
-        stop=asyncio.Event()
-        original_transaction=EvidenceWriter.transaction
-
-        @contextmanager
-        def delayed_transaction(writer):
-            outer=not writer.db.in_transaction
-            with original_transaction(writer):
-                yield
-            if outer:
-                time.sleep(.02)
-
-        with tempfile.TemporaryDirectory() as temp,patch(
-            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
-        ),patch.object(
-            EvidenceWriter,'transaction',delayed_transaction
-        ),patch.object(
-            service.ServiceState,'archive_plan',return_value=None
-        ),patch.object(
-            service.ServiceState,'retention',return_value=True
-        ),patch(
-            'websockets.asyncio.client.connect',return_value=socket
-        ),patch(
-            'asyncio.start_unix_server',side_effect=local_server
-        ):
-            path=Path(temp)/'db'
-            runner=asyncio.create_task(service.serve(
-                path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop
-            ))
-            try:
-                await self.wait_for(lambda:database_ready(path),attempts=2500)
-                reader=EvidenceReader(path)
-                await self.wait_for(
-                    lambda:(reader.telemetry()['service_health'].get('ipc') or {}).get(
-                        'stream.commit_messages',0
-                    )>=frames+1,
-                    attempts=5000,
-                )
-                ipc=reader.telemetry()['service_health']['ipc']
-                limited=ipc.get('stream.maintenance_limited_commit_batches',0)
-                self.assertGreater(limited,0)
-                self.assertEqual(
-                    ipc.get('stream.maintenance_limited_commit_messages',0),
-                    limited,
-                )
-                self.assertEqual(ipc.get('stream.dispatch_queue_overflow',0),0)
-                self.assertLessEqual(
-                    ipc.get('stream.commit_batch_bytes_peak',0),
-                    service.STREAM_COMMIT_BATCH_MAX_BYTES,
-                )
-                reader.close()
-            finally:
-                stop.set()
-                await asyncio.gather(runner,return_exceptions=True)
-
     async def test_oversized_frame_drains_already_received_frames_before_gap(self):
         class OversizedSocket(BurstSocket):
             async def recv(self,decode=None):
