@@ -656,11 +656,7 @@ class EvidenceWriter:
             next_scope=scopes[(index+1)%len(scopes)][0]
             for offset in range(0,max_records,256):
                 limit=min(max_records-offset,256)
-                # A dense scope may need several slices for every sparse scope.
-                # If this slice fills, resume this scope after queued source work
-                # instead of unconditionally rotating away from its backlog.
-                resume_scope=[scope]
-                with self._retention_transaction(next_scope=lambda r=resume_scope:r[0]):
+                with self._retention_transaction(next_scope=next_scope):
                     floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
                     floor=top+1 if floor is None else floor
                     recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
@@ -690,8 +686,6 @@ class EvidenceWriter:
                         if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
                             removed.append(self.db.execute('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE scope=? AND slot<? LIMIT ?)',(scope,floor,max_records)).rowcount)
                     if ids:self._count('compacted_records',len(ids))
-                    more_here=(len(ids)>=limit or any(n>=max_records for n in removed))
-                    resume_scope[0]=scope if more_here else next_scope
                 if len(ids)<limit and all(n<max_records for n in removed):break
         with self.transaction():
             # The archive directory is the immutable content-addressed inventory;
@@ -744,7 +738,7 @@ class EvidenceWriter:
         # This is a scheduling hint, not evidence authority. Advance only after
         # the durable slice commits, before an urgent-work yield. Restarting at
         # the first scope on every yield starves later scopes under source load.
-        self._retention_next_scope=next_scope() if callable(next_scope) else next_scope
+        self._retention_next_scope=next_scope
         should_yield=getattr(self,'_retention_yield_requested',None)
         if should_yield and should_yield():raise EvidenceUnavailable('evidence_background_yield')
 
