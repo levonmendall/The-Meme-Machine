@@ -668,9 +668,15 @@ class EvidenceWriter:
                     old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
                     floor=max(int(old[0]) if old else 0,floor)
                     ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit))]
-                    for identity in ids:
-                        self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
-                        self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
+                    if ids:
+                        # Preserve the exact 256-record durable slice while
+                        # avoiding two SQLite statements per record. The fixed
+                        # placeholder list is bounded below SQLite's variable
+                        # limit and deletes exactly the already-selected IDs.
+                        marks=','.join('?' for _ in ids)
+                        self.db.execute('DELETE FROM lineage WHERE identity IN ('+marks+')',ids)
+                        deleted=self.db.execute('DELETE FROM records WHERE identity IN ('+marks+')',ids).rowcount
+                        if deleted!=len(ids):raise EvidenceConflict('retention_delete_identity_mismatch')
                     if old is None or floor!=int(old[0]):
                         self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
                     removed=[]
