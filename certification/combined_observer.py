@@ -51,7 +51,7 @@ def observe_window(reader,path,before,sample):
     cleanup=current.get('compacted_records',0)-before.get('compacted_records',0)
     if source<0 or cleanup<0:
         raise AssertionError('overlap_counters_regressed')
-    sample['legacy_start_phase_frames']=sample.get('source_frames_while_reader',0)
+    sample.setdefault('legacy_start_phase_frames',sample.get('source_frames_while_reader',0))
     sample.update(source_frames_while_reader=source,reader_source_advance=source,
         reader_compaction_advance=cleanup,reader_snapshot_preserved=True,
         eligible_at_reader_end=available,observation_revision=REVISION)
@@ -65,6 +65,14 @@ class Interaction(legacy.Interaction):
     def __init__(self):
         super().__init__()
         self.metrics['observation_revision']=REVISION
+
+    def source_completed(self,reader_phase,size):
+        # Legacy start-phase markers remain diagnostic only. They must never
+        # mutate the authoritative, already sampled durable-window count.
+        with self.lock:
+            if reader_phase and reader_phase==self.reader_phase:
+                sample=self.metrics['burst_evidence'][reader_phase-1]
+                sample['legacy_start_phase_frames']=sample.get('legacy_start_phase_frames',0)+size
 
     def checkpoint(self,path,native):
         self.path=Path(path)

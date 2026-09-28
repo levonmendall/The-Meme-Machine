@@ -5,7 +5,7 @@ import sqlite3
 import tempfile
 import unittest
 from meme_machine.solana_evidence_plane import EvidenceWriter
-from certification.combined_observer import observe_window,verified,REVISION
+from certification.combined_observer import observe_window,verified,REVISION,Interaction
 from certification.tests.test_combined_pressure import valid_report
 
 
@@ -62,6 +62,7 @@ class OverlapObservationTests(unittest.TestCase):
                 finally:
                     writer.close()
         row=valid_report()
+        row['combined_load'].pop('observation_revision',None)
         self.assertFalse(verified(row,'sha'))
         row['combined_load']['observation_revision']=REVISION
         for sample in row['combined_load']['burst_evidence']:
@@ -70,6 +71,17 @@ class OverlapObservationTests(unittest.TestCase):
         self.assertTrue(verified(row,'sha'))
         row['combined_load']['burst_evidence'][0]['reader_compaction_advance']=0
         self.assertFalse(verified(row,'sha'))
+
+    def test_late_start_phase_callback_cannot_double_count_durable_sample(self):
+        control=Interaction();control.reader_phase=1
+        sample=dict(source_frames_while_reader=4,reader_source_advance=4)
+        control.metrics['burst_evidence']=[sample]
+        control.source_completed(1,4)
+        self.assertEqual(sample['source_frames_while_reader'],4)
+        self.assertEqual(sample['legacy_start_phase_frames'],4)
+        control.reader_phase=0
+        control.source_completed(1,4)
+        self.assertEqual(sample['legacy_start_phase_frames'],4)
 
     def test_original_workload_is_still_frozen(self):
         from certification.cleanup_recovery import frozen_inputs

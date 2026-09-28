@@ -90,7 +90,7 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         and 0<pressure.get('oldest_retained_age_peak',float('inf'))<=240
         and 0<pressure.get('hot_peak',float('inf'))<2*1024**3
         and pressure.get('integrity')==['ok'])
-    from certification.combined_pressure import verified as combined_verified
+    from certification.combined_observer import verified as combined_verified
     combined_path=root/'combined-pressure/result.json'
     combined=load(combined_path) if combined_path.exists() else {}
     combined_pass=combined_verified(combined,offline.get('integration_sha'))

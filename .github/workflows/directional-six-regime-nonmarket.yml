@@ -3,6 +3,11 @@ on:
   push:
     branches: [strategy/pump-pons-six-regime-upgrade-20260926, cert/autonomous-paper-machinery-20260927]
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact reviewed commit; rejected if the branch moved
+        required: false
+        type: string
 permissions:
   contents: read
   actions: read
@@ -12,3 +17,4 @@ jobs:
     uses: ./.github/workflows/non-market-certification.yml
     with:
       preserved_only: true
+      expected_sha: ${{ inputs.expected_sha || '' }}

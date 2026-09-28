@@ -32,7 +32,7 @@
     "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
     "certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
     "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3",
-    "certification/combined_observer.py": "06c9bf416938d06ede1ef651f75dc83c0801075650e8c3ce5b1e41aef939d260"
+    "certification/combined_observer.py": "ac7bc4213d0dd0a163ac76b0a8b44ae5519f403cba8430d01da1016a347a5b79"
   },
   "observation_revision": "durable-window-v3"
 }
