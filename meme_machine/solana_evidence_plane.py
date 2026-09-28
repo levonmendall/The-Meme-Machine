@@ -619,6 +619,13 @@ class EvidenceWriter:
         """
         if not 1 <= max_records <= 1000:raise EvidenceUnavailable('retention_batch_bound')
         archived=self.archive(before_time,max_records=max_records) if archive_first else 0
+        # Under ordinary source pressure, cleanup may consume one additional
+        # bounded transaction before returning the owner to FIFO source work.
+        # Each mutation remains capped at 256 records; urgent work still yields
+        # immediately after the current slice. This compresses the existing two-
+        # slice dense-scope allowance into one owner admission without enlarging
+        # a SQLite transaction or permitting unbounded maintenance service.
+        source_yield_budget=[1]
         # At most 256 records and max_records rows from each continuity index per
         # transaction. A later cooperative yield cannot undo earlier scopes.
         scopes=self.db.execute('SELECT scope,slot FROM cursors ORDER BY scope').fetchall()
@@ -633,7 +640,9 @@ class EvidenceWriter:
                 # If this slice fills, resume this scope after queued source work
                 # instead of unconditionally rotating away from its backlog.
                 resume_scope=[scope]
-                with self._retention_transaction(next_scope=lambda r=resume_scope:r[0],urgent_next_scope=next_scope):
+                with self._retention_transaction(
+                        next_scope=lambda r=resume_scope:r[0],urgent_next_scope=next_scope,
+                        source_yield_budget=source_yield_budget):
                     floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
                     floor=top+1 if floor is None else floor
                     recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
@@ -714,7 +723,7 @@ class EvidenceWriter:
             self.db.execute('PRAGMA busy_timeout='+str(int(prior)))
 
     @contextmanager
-    def _retention_transaction(self,*,next_scope=None,urgent_next_scope=None):
+    def _retention_transaction(self,*,next_scope=None,urgent_next_scope=None,source_yield_budget=None):
         """Only the bounded retention mutation is protected from SQL preemption."""
         self._retention_atomic=True
         try:
@@ -729,19 +738,23 @@ class EvidenceWriter:
         if yield_class=='urgent':
             self._retention_next_scope=urgent_next_scope if urgent_next_scope is not None else resolved
             self._retention_source_resume_scope=None;self._retention_source_resume_count=0
+        elif (yield_class=='source' and source_yield_budget is not None
+              and source_yield_budget[0]>0):
+            # The fixed E22 cohort showed that one 256-record cleanup slice per
+            # owner admission can accumulate retirement debt even after the hot-
+            # floor lookup is O(1). Spend exactly one additional bounded slice.
+            # The queued source request remains visible at the next transaction
+            # boundary, where we yield (or yield sooner if urgent work arrived).
+            source_yield_budget[0]-=1
+            self._retention_next_scope=resolved
+            self._retention_source_resume_scope=None;self._retention_source_resume_count=0
+            return
         elif yield_class=='source' and urgent_next_scope is not None and resolved!=urgent_next_scope:
-            # A dense scope gets one source-pressure resume (two bounded slices
-            # total) before rotating. This preserves dense cleanup throughput
-            # without allowing the first always-busy scope to starve later scopes.
-            prior_scope=getattr(self,'_retention_source_resume_scope',None)
-            prior_count=getattr(self,'_retention_source_resume_count',0) if prior_scope==resolved else 0
-            if prior_count<1:
-                self._retention_next_scope=resolved
-                self._retention_source_resume_scope=resolved
-                self._retention_source_resume_count=prior_count+1
-            else:
-                self._retention_next_scope=urgent_next_scope
-                self._retention_source_resume_scope=None;self._retention_source_resume_count=0
+            # Two bounded slices have now had one owner admission. Rotate before
+            # the next cleanup admission so a dense first scope cannot starve
+            # later scopes while normal source work is continuously queued.
+            self._retention_next_scope=urgent_next_scope
+            self._retention_source_resume_scope=None;self._retention_source_resume_count=0
         else:
             self._retention_next_scope=resolved
             self._retention_source_resume_scope=None;self._retention_source_resume_count=0

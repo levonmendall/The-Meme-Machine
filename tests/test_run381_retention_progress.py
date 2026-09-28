@@ -95,8 +95,8 @@ class RetentionProgressTests(unittest.TestCase):
     compacted=owner.submit(
       lambda s:(s.writer.db.execute("SELECT value FROM counters WHERE key='compacted_records'").fetchone() or (0,))[0],
       priority=0).result(5)
-    self.assertGreater(compacted,0,'retention yielded before committing a bounded slice')
-    self.assertLess(compacted,1200,'normal source work waited for the entire retention pass')
+    self.assertEqual(compacted,512,
+                     'normal source pressure did not receive exactly one extra bounded cleanup slice')
    finally:owner.close()
 
  def test_retention_compacts_one_slice_with_bounded_set_deletes(self):
@@ -135,7 +135,7 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertEqual(writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
    finally:writer.close()
 
- def test_dense_scope_resumes_after_source_yield_until_backlog_drains(self):
+ def test_source_pressure_grants_one_extra_dense_slice_then_rotates(self):
   with tempfile.TemporaryDirectory() as td:
    def factory():
     writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
@@ -164,9 +164,9 @@ class RetentionProgressTests(unittest.TestCase):
     counts=owner.submit(
       lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
       priority=0).result(5)
-    self.assertEqual(resume,'a','dense scope rotated away before draining its backlog')
-    self.assertLess(counts['a'],700)
-    self.assertEqual(counts['b'],100,'sparse scope ran before dense backlog resumed')
+    self.assertEqual(resume,'b','two bounded cleanup slices did not rotate to the later scope')
+    self.assertEqual(counts['a'],188,'source service grant exceeded or missed the two-slice bound')
+    self.assertEqual(counts['b'],100,'later scope ran before queued source work')
    finally:owner.close()
 
  def test_recurring_source_pressure_rotates_after_one_dense_resume(self):
@@ -198,10 +198,10 @@ class RetentionProgressTests(unittest.TestCase):
      self.assertEqual(source[0].result(5),1)
      resumes.append(owner.submit(
        lambda s:getattr(s.writer,'_retention_next_scope',None),priority=0).result(5))
-    self.assertEqual(resumes,['a','b'],
-                     'continuous source pressure allowed an unbounded dense-scope resume')
-    # The second source yield rotates before b executes; a third retention
-    # admission must therefore start on b and make durable progress there.
+    self.assertEqual(resumes,['b','a'],
+                     'bounded two-slice grants did not preserve cross-scope rotation')
+    # The second admission rotates back to a after two bounded b slices; a
+    # third cleanup admission therefore advances a again without starving b.
     task=owner.submit(lambda s:s.writer.retain(1000,max_records=256,archive_first=False),priority=4)
     task.result(5)
     counts=owner.submit(
