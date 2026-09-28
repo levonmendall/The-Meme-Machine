@@ -1765,3 +1765,37 @@ source-clock guard, 240-second retained-age acceptance bound, 64-frame /
 synchronous durability, provider authority, strategy thresholds and economic
 policies remain unchanged. The next authority is complete Stage-E non-market
 certification only; no market or smoke run is authorized.
+
+
+## Stage-E attempt 16 archive-throughput repair
+
+Stage-E attempt 16, workflow run `36437627567`, failed only the unchanged
+mature Solana retention-clock guard on exact SHA
+`d9ebff73e34da08bb0f9fa88ce2a54cbe6fd4241`. Preserved durability artifact
+`10975934321` measured peak finalized/source lag 1.76 s, HOT peak
+1,290,432,936 bytes, oldest hot payload age 239.296 s and oldest retained age
+240.002 s. The failure remained `retention_clock_fell_behind`; only 329
+already-archived rows remained pending compaction. This rejects further source
+or retention-threshold relaxation: archive application itself was using almost
+the complete 60-second backlog allowance.
+
+The isolated repair changes only the internal hot-DB application slice for an
+already durable immutable archive from 128 to 256 records. The archive file
+remains capped at 1,000 records; the 256-record mutation is still bounded and
+runs under the existing single-owner FIFO. No 64-frame / 96-MiB receive bound,
+16-MiB source commit bound, 2-GiB hot-store ceiling, 180-second retention target,
+240-second certification backlog guard, FULL SQLite durability, provider rule,
+strategy threshold or economic policy changes.
+
+Focused verification run `36439350516` passed 26 archive/retention/checkpoint
+regressions on runtime SHA `86577f34773a1106fc9fc2cde3fa22dbf7a37f31`,
+including classified source/urgent retention yields, cross-scope fairness,
+bounded set compaction, archive receipt retry/idempotency, physical WAL reclaim,
+and the 256-record archive slice. Ordinary PAPER CI run `36439240211` also
+passed on that exact runtime SHA. Prepared source identities are Pump
+`ec1ec2690b5adbda3252495bb50e9f613295c86739197d0a3a6fb2885c99556c`
+and Meteora
+`9344cd94068fd976883dd671b8b7002b36a479b5cd0d6b42ec42ebb0bd963a11`;
+those hashes are bound in the source/profitability manifests. The next authority
+is full Stage-E non-market certification on the exact frozen successor SHA. No
+market or smoke run is authorized by this repair.
