@@ -169,6 +169,47 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertEqual(counts['b'],100,'sparse scope ran before dense backlog resumed')
    finally:owner.close()
 
+ def test_recurring_source_pressure_rotates_after_one_dense_resume(self):
+  with tempfile.TemporaryDirectory() as td:
+   def factory():
+    writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+    rows=[replace(record(),scope='a',identity='a:burst:%04d'%i,
+                  signature='a:burst-s:%04d'%i) for i in range(900)]
+    rows += [replace(record(),scope='b',identity='b:burst:%04d'%i,
+                    signature='b:burst-s:%04d'%i) for i in range(600)]
+    writer.ingest(rows)
+    while writer.archive(1000):pass
+    return SimpleNamespace(writer=writer,close=writer.close)
+   owner=PriorityOwner(factory);owner.ready.result(5)
+   try:
+    resumes=[]
+    for _ in range(2):
+     source=[]
+     def compact(state):
+      def on_statement(sql):
+       if not source and sql.startswith('DELETE FROM lineage'):
+        source.append(owner.submit(lambda s:1,priority=2))
+      state.writer.db.set_trace_callback(on_statement)
+      try:state.writer.retain(1000,max_records=512,archive_first=False)
+      finally:state.writer.db.set_trace_callback(None)
+     task=owner.submit(compact,priority=4)
+     with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
+      task.result(5)
+     self.assertEqual(source[0].result(5),1)
+     resumes.append(owner.submit(
+       lambda s:getattr(s.writer,'_retention_next_scope',None),priority=0).result(5))
+    self.assertEqual(resumes,['a','b'],
+                     'continuous source pressure allowed an unbounded dense-scope resume')
+    # The second source yield rotates before b executes; a third retention
+    # admission must therefore start on b and make durable progress there.
+    task=owner.submit(lambda s:s.writer.retain(1000,max_records=256,archive_first=False),priority=4)
+    task.result(5)
+    counts=owner.submit(
+      lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
+      priority=0).result(5)
+    self.assertLess(counts['b'],600,'bounded source-yield rotation did not advance the later scope')
+   finally:owner.close()
+
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
   from meme_machine.solana_evidence_service import ServiceState
   from meme_machine.solana_provider_config import AlchemyEndpoint
