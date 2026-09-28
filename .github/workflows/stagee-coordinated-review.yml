@@ -1,4 +1,4 @@
-name: E22 exact-source preservation
+name: E22 fixed-plan retention capacity verification
 on:
   push:
     branches: [review/stagee-coordinated-20260928]
@@ -7,30 +7,174 @@ permissions:
 concurrency:
   group: stagee-coordinated-review
   cancel-in-progress: false
+env:
+  EXPECTED_RUNTIME: f00842850122edd9fcac30424541dd266a64595b
+  PLAN_SHA256: 268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3
 jobs:
-  source:
+  publish-reviewed-source:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 3b5c56b724c23f2ce3f8ef4a7e9fe63c6bf129e1
           fetch-depth: 0
-          persist-credentials: false
-      - name: Export reviewed predecessor without execution or mutation
+          persist-credentials: true
+      - name: Verify exact reviewed source bytes and publish atomic candidate
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 3b5c56b724c23f2ce3f8ef4a7e9fe63c6bf129e1
-          mkdir -p /tmp/e22-source
-          git bundle create /tmp/e22-source/runtime.bundle --all HEAD
-          git bundle verify /tmp/e22-source/runtime.bundle
-          git rev-parse HEAD > /tmp/e22-source/runtime-sha.txt
-          sha256sum /tmp/e22-source/runtime.bundle > /tmp/e22-source/bundle.sha256
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          python - <<'PY'
+          import base64,hashlib
+          from pathlib import Path
+          expected=('0555d2fe4eed5e4620f830aaa258224d1d584274','41545e4794b8f5096e5885dce510dd3f9cf9d88c','9333f65b7e00ce653a5b8d058d5fd74d806b3741','47d205b8cca4e5f162a1f140e65ab7b3bfe1b743','0f733f0ca211cead1e787146ae1d398c6047c393','5fe087846baa117aa190ffa3fe6f12a729016ef7')
+          data=b''
+          for n,sha in enumerate(expected):
+              part=Path('.github/repair-source/e22-'+str(n)+'.part').read_bytes()
+              if n==4:
+                  assert hashlib.sha1(b'blob '+str(len(part)).encode()+b'\0'+part).hexdigest()=='913cff47f5d0455341669b1e6153a838ed040f46'
+                  encoded=base64.b64encode(part).decode()
+                  assert encoded.count('MyAalMbv95JZrkIQr')==1
+                  encoded=encoded.replace('MyAalMbv95JZrkIQr','MyAalMbv95JrkIQr')
+                  part=base64.b64decode(encoded+'='*((-len(encoded))%4))
+              assert hashlib.sha1(b'blob '+str(len(part)).encode()+b'\0'+part).hexdigest()==sha
+              data+=part
+          assert len(data)==11345
+          assert hashlib.sha256(data).hexdigest()=='a49b0259af0067c5c83e7125979a557c1d66458b7c0c59207b66e58d73cea208'
+          Path('/tmp/e22-reviewed.bundle').write_bytes(data)
+          PY
+          git bundle verify /tmp/e22-reviewed.bundle
+          git fetch /tmp/e22-reviewed.bundle HEAD
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_RUNTIME"
+          test "$(git show -s --format=%P "$EXPECTED_RUNTIME")" = 3b5c56b724c23f2ce3f8ef4a7e9fe63c6bf129e1
+          test "$(git rev-parse "$EXPECTED_RUNTIME^{tree}")" = e1e9edbe2aeb07ea8096f469b49a33fbf34483b9
+          test "$(git ls-remote origin refs/heads/repair/stagee19-batch-maintenance-fairness-20260928 | cut -f1)" = 3b5c56b724c23f2ce3f8ef4a7e9fe63c6bf129e1
+          git diff --stat 3b5c56b724c23f2ce3f8ef4a7e9fe63c6bf129e1 "$EXPECTED_RUNTIME"
+          git push origin "$EXPECTED_RUNTIME:refs/heads/repair/stagee19-batch-maintenance-fairness-20260928"
+  preflight:
+    needs: publish-reviewed-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f00842850122edd9fcac30424541dd266a64595b
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Verify complete assembled build and frozen experimental plan
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RUNTIME"
+          python -c 'import os; from certification.cleanup_recovery import frozen_inputs,plan_hash; assert frozen_inputs(); assert plan_hash()==os.environ["PLAN_SHA256"]'
+          python -m certification.run prepare --worktrees "$RUNNER_TEMP/e22-lanes" > evidence/prepare.log 2>&1
+          python -m certification.build_consistency verify --worktrees "$RUNNER_TEMP/e22-lanes" --expected-sha "$EXPECTED_RUNTIME" --output evidence/build-preflight.json
+      - name: Index regression preservation fairness and recovery-verifier tests
+        env:
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/e22-lanes
+        run: |
+          python -m unittest -v tests.test_stagee21_retention_access_path tests.test_run381_retention_progress tests.test_run381_maintenance_overlap tests.test_run381_archive_scheduling tests.test_run381_archive_canonical tests.test_solana_evidence_retention tests.test_checkpoint_handoff tests.test_archive_pipeline tests.test_run379_transport_backpressure tests.test_stagee19_maintenance_batch_fairness certification.tests.test_build_consistency certification.tests.test_cleanup_recovery certification.tests.test_autonomous_policy_preservation certification.tests.test_combined_pressure certification.tests.test_final_acceptance > evidence/focused.log 2>&1
+      - name: Immutable source check
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RUNTIME"
           git diff --exit-code HEAD
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
-          name: e22-source-3b5c56b7
-          path: /tmp/e22-source/
+          name: e22-preflight-f0084285
+          path: evidence/
           retention-days: 90
           if-no-files-found: error
-# Source export only; this workflow does not certify or promote a runtime.
+  fixed-trial:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        trial: [combined-1, combined-2, combined-3, recovery-1]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f00842850122edd9fcac30424541dd266a64595b
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Fresh-runner exact identity and plan verification
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RUNTIME"
+          python -c 'import os; from certification.cleanup_recovery import frozen_inputs,plan_hash; assert frozen_inputs(); assert plan_hash()==os.environ["PLAN_SHA256"]'
+          python -m certification.run prepare --worktrees "$RUNNER_TEMP/e22-lanes" > evidence/prepare.log 2>&1
+          python -m certification.build_consistency verify --worktrees "$RUNNER_TEMP/e22-lanes" --expected-sha "$EXPECTED_RUNTIME" --output evidence/build-preflight.json
+      - name: Execute exactly one preregistered trial without retries
+        env:
+          TRIAL: ${{ matrix.trial }}
+        run: |
+          set -euo pipefail
+          python -u -m certification.cleanup_recovery --trial "$TRIAL" --output "evidence/$TRIAL" > "evidence/$TRIAL.log" 2>&1
+      - name: Preserve source identity and report final trial output
+        if: always()
+        env:
+          TRIAL: ${{ matrix.trial }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RUNTIME"
+          git diff --exit-code HEAD
+          if [ -f "evidence/$TRIAL/trial.json" ]; then cat "evidence/$TRIAL/trial.json"; fi
+          if [ -f "evidence/$TRIAL.log" ]; then tail -n 3 "evidence/$TRIAL.log"; fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e22-${{ matrix.trial }}-f0084285
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
+  native-preservation:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f00842850122edd9fcac30424541dd266a64595b
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Prepare and execute the four native suites
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RUNTIME"
+          python -m certification.run prepare --worktrees "$RUNNER_TEMP/e22-lanes" > evidence/prepare.log 2>&1
+          python -m certification.build_consistency verify --worktrees "$RUNNER_TEMP/e22-lanes" --expected-sha "$EXPECTED_RUNTIME" --output evidence/build-preflight.json
+          python -m certification.non_market --worktrees "$RUNNER_TEMP/e22-lanes" --output evidence/native > evidence/native.log 2>&1
+          python -m certification.directional_acceptance --worktrees "$RUNNER_TEMP/e22-lanes" --output evidence/six-regime
+      - name: Final source immutability
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RUNTIME"
+          git diff --exit-code HEAD
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e22-native-f0084285
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
+# No canonical promotion, market execution, signing, or deployment is authorized here.
+# All four fixed trials remain visible even when another trial fails.
