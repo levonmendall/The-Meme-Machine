@@ -69,6 +69,36 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertLess(counts['b'],900,'urgent yields always restarted cleanup at the first scope')
    finally:owner.close()
 
+ def test_normal_source_work_yields_retention_between_durable_slices(self):
+  with tempfile.TemporaryDirectory() as td:
+   def factory():
+    writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+    rows=[replace(record(),scope=scope,identity=scope+':source:%04d'%i,
+                  signature=scope+':source-s:%04d'%i)
+          for scope in ('a','b') for i in range(600)]
+    writer.ingest(rows)
+    while writer.archive(1000):pass
+    return SimpleNamespace(writer=writer,close=writer.close)
+   owner=PriorityOwner(factory);owner.ready.result(5);source=[]
+   def compact(state):
+    def on_statement(sql):
+     if not source and sql.startswith('DELETE FROM lineage'):
+      source.append(owner.submit(lambda s:s.writer.db.execute('SELECT 1').fetchone()[0],priority=2))
+    state.writer.db.set_trace_callback(on_statement)
+    try:state.writer.retain(1000,max_records=512,archive_first=False)
+    finally:state.writer.db.set_trace_callback(None)
+   try:
+    task=owner.submit(compact,priority=4)
+    with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
+     task.result(5)
+    self.assertEqual(source[0].result(5),1)
+    compacted=owner.submit(
+      lambda s:(s.writer.db.execute("SELECT value FROM counters WHERE key='compacted_records'").fetchone() or (0,))[0],
+      priority=0).result(5)
+    self.assertGreater(compacted,0,'retention yielded before committing a bounded slice')
+    self.assertLess(compacted,1200,'normal source work waited for the entire retention pass')
+   finally:owner.close()
+
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
   from meme_machine.solana_evidence_service import ServiceState
   from meme_machine.solana_provider_config import AlchemyEndpoint
