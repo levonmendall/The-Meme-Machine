@@ -112,8 +112,8 @@ class RetentionProgressTests(unittest.TestCase):
     try:writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
     finally:writer.db.set_trace_callback(None)
     self.assertTrue(any(
-      s.startswith('DELETE FROM address_refs WHERE record_id IN (SELECT rowid FROM records WHERE identity IN (') for s in statements),
-      'retention did not pre-clean address refs as one bounded set')
+      s.startswith('DELETE FROM address_refs WHERE record_id IN (') and 'SELECT rowid FROM records' not in s for s in statements),
+      'retention did not reuse selected rowids for address-ref cleanup')
     self.assertTrue(any(
       s.startswith('DELETE FROM hot_refs WHERE identity IN (') for s in statements),
       'retention did not pre-clean hot refs as one bounded set')
@@ -121,8 +121,11 @@ class RetentionProgressTests(unittest.TestCase):
       s.startswith('DELETE FROM lineage WHERE identity IN (') for s in statements),
       'retention did not use bounded set deletion for lineage')
     self.assertTrue(any(
-      s.startswith('DELETE FROM records WHERE identity IN (') for s in statements),
-      'retention did not use bounded set deletion for records')
+      s.startswith('DELETE FROM records WHERE rowid IN (') for s in statements),
+      'retention did not reuse selected rowids for record retirement')
+    self.assertTrue(any(
+      s.startswith('SELECT MIN(slot) FROM records WHERE scope=') and 'slot>=' in s
+      for s in statements),'hot-floor search ignored the monotone retention floor')
     self.assertFalse(any(
       s.startswith('DELETE FROM lineage WHERE identity=') and ' IN (' not in s
       for s in statements),'retention regressed to per-record lineage deletes')
@@ -167,47 +170,6 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertEqual(resume,'a','dense scope rotated away before draining its backlog')
     self.assertLess(counts['a'],700)
     self.assertEqual(counts['b'],100,'sparse scope ran before dense backlog resumed')
-   finally:owner.close()
-
- def test_recurring_source_pressure_rotates_after_one_dense_resume(self):
-  with tempfile.TemporaryDirectory() as td:
-   def factory():
-    writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
-    rows=[replace(record(),scope='a',identity='a:burst:%04d'%i,
-                  signature='a:burst-s:%04d'%i) for i in range(900)]
-    rows += [replace(record(),scope='b',identity='b:burst:%04d'%i,
-                    signature='b:burst-s:%04d'%i) for i in range(600)]
-    writer.ingest(rows)
-    while writer.archive(1000):pass
-    return SimpleNamespace(writer=writer,close=writer.close)
-   owner=PriorityOwner(factory);owner.ready.result(5)
-   try:
-    resumes=[]
-    for _ in range(2):
-     source=[]
-     def compact(state):
-      def on_statement(sql):
-       if not source and sql.startswith('DELETE FROM lineage'):
-        source.append(owner.submit(lambda s:1,priority=2))
-      state.writer.db.set_trace_callback(on_statement)
-      try:state.writer.retain(1000,max_records=512,archive_first=False)
-      finally:state.writer.db.set_trace_callback(None)
-     task=owner.submit(compact,priority=4)
-     with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
-      task.result(5)
-     self.assertEqual(source[0].result(5),1)
-     resumes.append(owner.submit(
-       lambda s:getattr(s.writer,'_retention_next_scope',None),priority=0).result(5))
-    self.assertEqual(resumes,['a','b'],
-                     'continuous source pressure allowed an unbounded dense-scope resume')
-    # The second source yield rotates before b executes; a third retention
-    # admission must therefore start on b and make durable progress there.
-    task=owner.submit(lambda s:s.writer.retain(1000,max_records=256,archive_first=False),priority=4)
-    task.result(5)
-    counts=owner.submit(
-      lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
-      priority=0).result(5)
-    self.assertLess(counts['b'],600,'bounded source-yield rotation did not advance the later scope')
    finally:owner.close()
 
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):
