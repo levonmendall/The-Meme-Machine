@@ -69,6 +69,10 @@ STREAM_DECODE_WORKERS=2
 # frame while amortizing fsync cost across consecutive smaller finalized blocks.
 STREAM_COMMIT_BATCH_MAX_MESSAGES=8
 STREAM_COMMIT_BATCH_MAX_BYTES=16*1024*1024
+# The immutable archive file may still contain up to 1,000 records, but hot-DB
+# mutation is deliberately smaller so one archive receipt cannot monopolize the
+# sole SQLite owner while source frames queue behind it.
+ARCHIVE_COMMIT_SLICE_RECORDS=128
 STREAM_SUBSCRIPTION_SYNC_SECONDS=.25
 STREAM_WATCHDOG_SECONDS=.1
 STREAM_SOURCE_IDLE_SECONDS=20
@@ -711,6 +715,13 @@ class ServiceState:
         self._storage_stage('archive_commit',lambda:self.writer.commit_archive(plan,receipt))
         if retain:self.retention()
 
+    def archive_commit_slice(self,plan,receipt):
+        """Commit one bounded part of an already durable immutable archive."""
+        if not plan:return []
+        batch=plan[:ARCHIVE_COMMIT_SLICE_RECORDS]
+        self.archive_commit(batch,receipt,retain=False)
+        return plan[len(batch):]
+
     def archive_commit_and_plan(self,plan,receipt):
         self.archive_commit(plan,receipt,retain=False)
         return self.archive_plan()
@@ -1256,16 +1267,20 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         counts['archive.worker_wait_peak_microseconds']=max(counts.get('archive.worker_wait_peak_microseconds',0),archive_elapsed)
                     if pending_archive is not None:
                         plan,receipt=pending_archive
-                        snapshot=await work(lambda state:state.archive_commit_and_plan(plan,receipt),4,label='archive_commit_plan')
-                        # A cooperative SQL yield must retry this already durable
-                        # archive, not decode/compress/publish the same hot rows
-                        # again. Commit is idempotent even if the following plan
-                        # query yielded after the commit completed.
-                        pending_archive=None
-                        # Preparation of the next archive overlaps bounded hot
-                        # cleanup. Source/consumer work retains owner priority.
-                        if snapshot:
-                            archive_started=time.monotonic();archive_future=prepare(snapshot)
+                        remaining=await work(lambda state:state.archive_commit_slice(plan,receipt),4,label='archive_commit_plan')
+                        # The immutable file is already durable. Mutate at most
+                        # one bounded hot-DB slice per owner admission so source
+                        # commits that arrived during the slice run before the
+                        # next slice under the existing nonurgent FIFO contract.
+                        if remaining:
+                            pending_archive=(remaining,receipt)
+                        else:
+                            pending_archive=None
+                            snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
+                            # Preparation of the next archive overlaps bounded hot
+                            # cleanup. Source/consumer work retains owner priority.
+                            if snapshot:
+                                archive_started=time.monotonic();archive_future=prepare(snapshot)
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     yielded=True
@@ -1308,19 +1323,24 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 counts['checkpoint.total_microseconds']=counts.get('checkpoint.total_microseconds',0)+elapsed
                 counts['checkpoint.peak_microseconds']=max(counts.get('checkpoint.peak_microseconds',0),elapsed)
                 counts['checkpoint.busy']=counts.get('checkpoint.busy',0)+int(result[0]!=0)
-                # The independent PASSIVE snapshot can finish while a source
-                # transaction appends its tail. Finish once at the sole writer's
-                # normal scheduling boundary; no second connection takes the
-                # write lock or repeatedly truncates/reallocates the hot WAL.
-                try:
-                    final=await work(lambda state:state.writer.finish_checkpoint(),4,label='checkpoint_finish')
-                    counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(
-                        final[0]!=0 or final[1]!=final[2])
-                    counts['checkpoint.reclaimed']=counts.get('checkpoint.reclaimed',0)+int(
-                        final==(0,0,0))
-                except EvidenceUnavailable as exc:
-                    if str(exc)!='evidence_background_yield':raise
-                    counts['checkpoint.yielded']=counts.get('checkpoint.yielded',0)+1
+                bulk_complete=(result[0]==0 and result[1]==result[2])
+                counts['checkpoint.bulk_incomplete']=counts.get('checkpoint.bulk_incomplete',0)+int(not bulk_complete)
+                # Do not ask the owner to TRUNCATE a checkpoint that a pinned
+                # reader prevented the off-owner PASSIVE copy from completing.
+                # When the bulk copy is complete, prioritize only the zero-wait
+                # reset handshake ahead of normal source work. That prevents a
+                # new multi-frame WAL tail from accumulating before TRUNCATE and
+                # keeps expensive page copying off the sole SQLite owner.
+                if bulk_complete:
+                    try:
+                        final=await work(lambda state:state.writer.finish_checkpoint(),1,label='checkpoint_finish')
+                        counts['checkpoint.incomplete']=counts.get('checkpoint.incomplete',0)+int(
+                            final[0]!=0 or final[1]!=final[2])
+                        counts['checkpoint.reclaimed']=counts.get('checkpoint.reclaimed',0)+int(
+                            final==(0,0,0))
+                    except EvidenceUnavailable as exc:
+                        if str(exc)!='evidence_background_yield':raise
+                        counts['checkpoint.yielded']=counts.get('checkpoint.yielded',0)+1
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
