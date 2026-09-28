@@ -1,7 +1,7 @@
 name: Verify attempt 13 maintenance contention repair
 on:
   push:
-    branches: [review/stagee16-archive-throughput-20260928]
+    branches: [review/stagee17-archive-throughput-20260928]
     paths: [.github/workflows/autonomous-paper-evidence-review.yml]
 permissions:
   contents: read
@@ -12,14 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 86577f34773a1106fc9fc2cde3fa22dbf7a37f31
+          ref: a4d371842d45f9f9df6d0ff876253c375ee9b002
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Focused Stage-E #16 archive-throughput regressions
+      - name: Focused Stage-E #17 archive-throughput regressions
         run: |
           python -m unittest -v             tests.test_run381_retention_progress             tests.test_run381_maintenance_overlap             tests.test_run381_archive_scheduling
           python -m py_compile             meme_machine/solana_evidence_control.py             meme_machine/solana_evidence_plane.py             meme_machine/solana_evidence_service.py
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: stagee16-archive-throughput-verification-86577f3
+          name: stagee17-archive-throughput-verification-a4d3718
           path: attempt13-maintenance-identities.json
           if-no-files-found: warn
           retention-days: 90
