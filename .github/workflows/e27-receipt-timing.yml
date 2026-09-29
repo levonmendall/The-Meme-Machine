@@ -1,0 +1,86 @@
+name: E27 diagnostic receipt timing - not qualification
+on:
+  push:
+    branches: [diagnostic/e27-receipt-timing-20260929]
+    paths: ['.github/stagee27/receipt-timing-request.json']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: e27-diagnostic-receipt-timing-9356068
+  cancel-in-progress: false
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: control
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: runtime
+          ref: 9356068cc92f9cadbd35adead3c33b532cbd4268
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Bind read-only diagnostic to preserved runtime and reject competing authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/e27-receipt-timing"
+          python - <<'PY'
+          import hashlib,json,os,subprocess,urllib.request
+          from pathlib import Path
+          root=Path(os.environ['GITHUB_WORKSPACE']);control=root/'control'
+          req=json.loads((control/'.github/stagee27/receipt-timing-request.json').read_text())
+          git=lambda where,*args:subprocess.check_output(['git','-C',str(where),*args],text=True).strip()
+          assert os.environ['GITHUB_RUN_ATTEMPT']=='1'
+          assert git(control,'rev-parse','HEAD')==os.environ['GITHUB_SHA']
+          assert git(control,'rev-parse','HEAD^')==req['control_parent']
+          assert git(root/'runtime','rev-parse','HEAD')==req['runtime_sha']=='9356068cc92f9cadbd35adead3c33b532cbd4268'
+          assert git(root/'runtime','rev-parse','HEAD^{tree}')==req['runtime_tree']=='b7fea73f83b29e569b9c8ffde47ae11ecb04cf1d'
+          assert not git(root/'runtime','status','--porcelain')
+          expected={'.github/stagee27/trace_e27.py','.github/stagee27/receipt-timing-request.json','.github/workflows/e27-receipt-timing.yml','docs/audits/e27-preserved-evidence-20260929.md'}
+          assert set(git(control,'diff','--name-only','HEAD^','HEAD').splitlines())==expected
+          assert hashlib.sha256((control/'.github/stagee27/trace_e27.py').read_bytes()).hexdigest()==req['trace_sha256']
+          assert req['frames']==4445 and req['retries']==0
+          assert all(req[k] is False for k in ['qualification_authority','canonical_authority','market_authority','phase_f_authority'])
+          def get(path):
+              request=urllib.request.Request('https://api.github.com/repos/levonmendall/The-Meme-Machine/'+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(request,timeout=30) as response:return json.load(response)
+          assert get('git/ref/heads/repair/stagee27-archive-ready-allocation-20260928')['object']['sha']==req['runtime_sha']
+          assert get('git/ref/heads/cert/autonomous-paper-machinery-20260927')['object']['sha']==req['canonical_sha']
+          cohort=get('actions/runs/36525293113')
+          assert cohort['head_sha']==req['runtime_sha'] and cohort['conclusion']=='failure' and cohort['run_attempt']==1
+          for status in ['in_progress','queued']:
+              rows=get('actions/runs?status='+status+'&per_page=100')
+              assert rows['total_count']<=100
+              assert all(r['id']==int(os.environ['GITHUB_RUN_ID']) or r['path']=='.github/workflows/ci.yml' for r in rows['workflow_runs']),rows
+          (Path(os.environ['RUNNER_TEMP'])/'e27-receipt-timing'/'control-binding.json').write_text(json.dumps(dict(request=req,control_sha=os.environ['GITHUB_SHA'],cohort_id=cohort['id']),indent=2)+'\n')
+          PY
+      - run: python -m pip install --disable-pip-version-check -r runtime/requirements.txt
+      - name: Diagnostic-observer safety tests before runtime execution
+        working-directory: runtime
+        run: |
+          set -euo pipefail
+          python "$GITHUB_WORKSPACE/control/.github/stagee27/trace_e27.py" --self-test 2>&1 | tee "$RUNNER_TEMP/e27-receipt-timing/observer-tests.log"
+      - name: Collect one unchanged provider-free workload trace - never retry or promote
+        working-directory: runtime
+        run: |
+          set -euo pipefail
+          python "$GITHUB_WORKSPACE/control/.github/stagee27/trace_e27.py" --output "$RUNNER_TEMP/e27-receipt-timing/trace" 2>&1 | tee "$RUNNER_TEMP/e27-receipt-timing/execution.log"
+      - name: Preserve raw timing and failure evidence - not a Phase E certificate
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: e27-receipt-timing-9356068-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/e27-receipt-timing/
+          if-no-files-found: error
+          retention-days: 90

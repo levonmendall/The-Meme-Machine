@@ -1,0 +1,14 @@
+{
+  "generation": "e27-diagnostic-receipt-timing-20260929-v1",
+  "control_parent": "4e80eba69eb65175f4a9fb1fbc6db382ffbc0fc0",
+  "runtime_sha": "9356068cc92f9cadbd35adead3c33b532cbd4268",
+  "runtime_tree": "b7fea73f83b29e569b9c8ffde47ae11ecb04cf1d",
+  "canonical_sha": "a775849c940d48bc8f809e99c075e421744bc53f",
+  "trace_sha256": "447aa0c42257c7b0d7143cad69ad214476e828012148b24bdb1e41be7a2dffbb",
+  "frames": 4445,
+  "retries": 0,
+  "qualification_authority": false,
+  "canonical_authority": false,
+  "market_authority": false,
+  "phase_f_authority": false
+}
