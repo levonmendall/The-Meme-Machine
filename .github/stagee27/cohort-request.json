@@ -1,0 +1,16 @@
+{
+  "generation": "e27-complete-publication-v1",
+  "expected_parent": "fdeee2721d2bb63e0ff3234328b06936257493b1",
+  "plan_sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e",
+  "reviewed_files": [
+    "certification/build_consistency.py",
+    "certification/sources.json",
+    "certification/profitability_protocol.json",
+    ".github/workflows/stagee-fixed-cohort.yml",
+    "certification/tests/test_stagee27_cohort_wiring.py",
+    ".github/stagee27/cohort-request.json"
+  ],
+  "focused_evidence_run": 36523414921,
+  "paper_only": true,
+  "market_authority": false
+}
