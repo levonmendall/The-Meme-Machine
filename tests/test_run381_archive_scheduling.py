@@ -119,4 +119,40 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(metrics['archive_worker.records.total'],40,'worker telemetry double-counted a retained receipt retry')
 
 
+    async def test_ready_archive_receipt_finishes_slices_before_fresh_retention_grant(self):
+      order=[]
+      class SeededState(service.ServiceState):
+       def __init__(self,path,config):
+        super().__init__(path,config)
+        self.writer.ingest([replace(record(),identity='archive-ready:'+str(i),slot=100+i,
+            market_time=10) for i in range(700)])
+       def archive_commit_slice_and_plan(self,plan,receipt):
+        order.append('archive')
+        return super().archive_commit_slice_and_plan(plan,receipt)
+       def retention(self):
+        order.append('retention')
+        return super().retention()
+      class Wire:
+       async def __aenter__(self):return self
+       async def __aexit__(self,*args):pass
+       async def send(self,raw):pass
+       async def recv(self,decode=None):await asyncio.Future()
+      with tempfile.TemporaryDirectory() as td,ipc_transport(),patch.object(
+          service,'ServiceState',SeededState),patch(
+          'websockets.asyncio.client.connect',return_value=Wire()):
+       path=Path(td)/'db';stop=asyncio.Event()
+       runner=asyncio.create_task(service.serve(
+           path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+       try:
+        deadline=time.monotonic()+6
+        while order.count('archive')<2 and time.monotonic()<deadline:
+         if runner.done():await runner
+         await asyncio.sleep(.01)
+        self.assertGreaterEqual(order.count('archive'),2,'fixture did not require two archive commit slices')
+        first=order.index('archive');second=order.index('archive',first+1)
+        self.assertNotIn('retention',order[first+1:second],
+            'fresh retention grant delayed a prepared archive receipt')
+       finally:stop.set();await runner
+
+
 if __name__=='__main__':unittest.main()
