@@ -375,7 +375,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertGreater(counters['owner.stage.archive_plan.calls'],0)
     self.assertGreaterEqual(counters['owner.stage.retention.queue_total_microseconds'],0)
     labels={k.split('.')[2] for k in counters if k.startswith('owner.stage.')}
-    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'})
+    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','source_commit'})
    finally:db.close()
 
 if __name__=='__main__':unittest.main()
