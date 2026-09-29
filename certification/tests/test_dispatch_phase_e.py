@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 from certification.dispatch_phase_e import dispatch,run_identity,prerequisites,BRANCH,WORKFLOW
 
-SHA='a'*40;RUNTIME='b'*40;PLAN='c'*64
+SHA='a'*40;RUNTIME=SHA;OTHER='b'*40;PLAN='c'*64
 
 def accepted():
     return dict(passed=True,failures=[],integration_sha=RUNTIME,plan_sha256=PLAN,
@@ -25,14 +25,14 @@ class DispatchTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'fixed_cohort'):prerequisites(row,build(),RUNTIME,PLAN)
         row=accepted();row['trials'][3]=row['trials'][0]
         with self.assertRaises(ValueError):prerequisites(row,build(),RUNTIME,PLAN)
-        row=build();row['integration_sha']=SHA
+        row=build();row['integration_sha']=OTHER
         with self.assertRaisesRegex(ValueError,'complete_build'):prerequisites(accepted(),row,RUNTIME,PLAN)
 
     def test_wrong_sha_branch_event_attempt_and_reusable_sha_fail(self):
-        for field,value in (('head_sha',RUNTIME),('head_branch','main'),('event','push'),('run_attempt',2)):
+        for field,value in (('head_sha',OTHER),('head_branch','main'),('event','push'),('run_attempt',2)):
             row=run();row[field]=value
             with self.assertRaises(ValueError):run_identity(row,SHA)
-        row=run();row['referenced_workflows']=[dict(sha=RUNTIME)]
+        row=run();row['referenced_workflows']=[dict(sha=OTHER)]
         with self.assertRaisesRegex(ValueError,'reusable'):run_identity(row,SHA)
 
     def test_ambiguous_post_reconciles_get_only_without_duplicate(self):
@@ -66,7 +66,7 @@ class DispatchTests(unittest.TestCase):
 
     def test_moved_branch_does_not_dispatch(self):
         def api(repo,method,path,data=None):
-            self.assertEqual(method,'GET');return dict(object=dict(sha=RUNTIME))
+            self.assertEqual(method,'GET');return dict(object=dict(sha=OTHER))
         with tempfile.TemporaryDirectory() as td,self.assertRaisesRegex(ValueError,'branch_moved'):
             dispatch('owner/repo',SHA,RUNTIME,PLAN,accepted(),build(),Path(td)/'receipt.json',api=api)
 

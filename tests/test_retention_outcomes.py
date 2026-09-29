@@ -84,7 +84,7 @@ class RetentionOutcomeTests(unittest.TestCase):
             finished=state.retention()
             self.assertEqual(finished.retired_records,512)
 
-    def test_three_separate_slices_report_committed_work_before_source_yield(self):
+    def test_two_separate_slices_report_committed_work_before_source_yield(self):
         with self.state() as state:
             seed(state,2000)
             commits=[];writer=state.writer
@@ -96,9 +96,9 @@ class RetentionOutcomeTests(unittest.TestCase):
             writer.db.set_trace_callback(trace)
             try:outcome=state.retention()
             finally:writer.db.set_trace_callback(None)
-            self.assertEqual(commits,[256,512,768])
-            self.assertEqual(outcome.retired_records,768)
-            self.assertEqual(outcome.committed_slices,3)
+            self.assertEqual(commits,[256,512])
+            self.assertEqual(outcome.retired_records,512)
+            self.assertEqual(outcome.committed_slices,2)
             self.assertIs(outcome.pending,True)
             self.assertTrue(outcome.pressure)
             self.assertEqual(outcome.yield_reason,'source')

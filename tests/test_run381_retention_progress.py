@@ -95,8 +95,8 @@ class RetentionProgressTests(unittest.TestCase):
     compacted=owner.submit(
       lambda s:(s.writer.db.execute("SELECT value FROM counters WHERE key='compacted_records'").fetchone() or (0,))[0],
       priority=0).result(5)
-    self.assertEqual(compacted,768,
-                     'normal source pressure did not receive exactly two extra bounded cleanup slices')
+    self.assertEqual(compacted,512,
+                     'normal source pressure did not receive exactly one extra bounded cleanup slice')
    finally:owner.close()
 
  def test_retention_compacts_one_slice_with_bounded_set_deletes(self):
@@ -135,7 +135,7 @@ class RetentionProgressTests(unittest.TestCase):
     self.assertEqual(writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
    finally:writer.close()
 
- def test_source_pressure_grants_exactly_three_bounded_slices_then_yields(self):
+ def test_source_pressure_grants_exactly_two_bounded_slices_then_yields(self):
   with tempfile.TemporaryDirectory() as td:
    def factory():
     writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
@@ -164,12 +164,12 @@ class RetentionProgressTests(unittest.TestCase):
     counts=owner.submit(
       lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
       priority=0).result(5)
-    self.assertEqual(resume,'b','three-slice grant did not rotate to the later scope')
-    self.assertEqual(counts['a'],132,'source service grant exceeded or missed three bounded slices')
+    self.assertEqual(resume,'b','two-slice grant did not rotate to the later scope')
+    self.assertEqual(counts['a'],388,'source service grant exceeded or missed two bounded slices')
     self.assertEqual(counts['b'],100,'later scope ran before queued source work')
    finally:owner.close()
 
- def test_recurring_source_pressure_rotates_three_slice_grants_across_dense_scopes(self):
+ def test_recurring_source_pressure_rotates_two_slice_grants_across_dense_scopes(self):
   with tempfile.TemporaryDirectory() as td:
    def factory():
     writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
@@ -199,11 +199,11 @@ class RetentionProgressTests(unittest.TestCase):
      resumes.append(owner.submit(
        lambda s:getattr(s.writer,'_retention_next_scope',None),priority=0).result(5))
     self.assertEqual(resumes,['b','a'],
-                     'three-slice grants did not preserve cross-scope rotation')
+                     'two-slice grants did not preserve cross-scope rotation')
     counts=owner.submit(
       lambda s:dict(s.writer.db.execute('SELECT scope,COUNT(*) FROM records GROUP BY scope')),
       priority=0).result(5)
-    self.assertEqual(counts,{'a':132,'b':132})
+    self.assertEqual(counts,{'a':388,'b':388})
    finally:owner.close()
 
  def test_next_snapshot_excludes_durable_predecessor_before_cleanup(self):

@@ -51,6 +51,12 @@ def digest(value):
     return hashlib.sha256(canonical(value).encode()).hexdigest()
 
 
+# Audited service grant: independently durable commits, with urgent checks at
+# every boundary. A larger grant requires new capacity/allocation evidence.
+RETENTION_COMMIT_RECORDS = 256
+RETENTION_SOURCE_SLICES = 2
+
+
 class EvidenceUnavailable(ValueError):
     pass
 
@@ -404,6 +410,11 @@ class EvidenceWriter:
                         (record.scope, record.slot, self.clock()))
                     if inserted:
                         self._count('ingested_' + record.kind)
+                        # Volatile diagnostics staged by ServiceState.source_batch.
+                        # Its frame savepoint restores this tally on rollback and
+                        # publishes it only after the outer COMMIT succeeds.
+                        tally=getattr(self,'_source_stage_progress',None)
+                        if tally is not None:tally[record.scope]=tally.get(record.scope,0)+1
                 if repair_receipt:
                     gap_id, cursor, max_pages = repair_receipt
                     self._repair_progress(gap_id, cursor, max_pages)
@@ -569,8 +580,9 @@ class EvidenceWriter:
         return dict(name=target.name,hash=checksum,bytes=len(compressed))
 
     def commit_archive(self,plan,receipt):
+        self.last_archive_scope_progress={}
         if not receipt:return 0
-        archived=0
+        archived=0;by_scope={}
         # A service archive may be committed in bounded owner slices after the
         # complete immutable file has already been published off-owner. Preserve
         # the file's full record count in the manifest even when this call owns
@@ -594,9 +606,12 @@ class EvidenceWriter:
                 floor=self._account_floor(scope)
                 pinned=pinned or (floor is not None and slot>=floor)
                 if not pinned:
-                    archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
+                    changed=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
+                    archived+=changed
+                    by_scope[scope]=by_scope.get(scope,0)+changed
                     self.db.execute('DELETE FROM hot_refs WHERE identity=?',(row['identity'],))
             self._count('archived_records',archived)
+        self.last_archive_scope_progress=by_scope
         return archived
 
     def _account_floor(self,scope):
@@ -622,7 +637,7 @@ class EvidenceWriter:
         progress=self.last_retention_progress=RetentionProgress()
         if not 1 <= max_records <= 1000:raise EvidenceUnavailable('retention_batch_bound')
         archived=self.archive(before_time,max_records=max_records) if archive_first else 0
-        source_yield_budget=[2]  # existing three separate 256-record transactions
+        source_yield_budget=[RETENTION_SOURCE_SLICES-1]
         scopes=self.db.execute('SELECT scope,slot FROM cursors ORDER BY scope').fetchall()
         resume=getattr(self,'_retention_next_scope',None)
         start=next((i for i,row in enumerate(scopes) if row[0]==resume),0)
@@ -631,8 +646,8 @@ class EvidenceWriter:
             if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(name,)).fetchone()]
         for index,(scope,top) in enumerate(scopes):
             next_scope=scopes[(index+1)%len(scopes)][0]
-            for offset in range(0,max_records,256):
-                limit=min(max_records-offset,256)
+            for offset in range(0,max_records,RETENTION_COMMIT_RECORDS):
+                limit=min(max_records-offset,RETENTION_COMMIT_RECORDS)
                 # Read-only preparation is preemptible by urgent work. The sole
                 # writer cannot interleave a pin/ingest operation before this
                 # callback's bounded mutation, and checkpoint workers own no rows.
@@ -762,10 +777,10 @@ class EvidenceWriter:
             self._retention_source_resume_scope=None;self._retention_source_resume_count=0
         elif (yield_class=='source' and source_yield_budget is not None
               and source_yield_budget[0]>0):
-            # The fixed E22 cohorts showed that one or two 256-record cleanup
-            # slices per owner admission can still accumulate retirement debt
-            # after the hot-floor lookup is O(1). Spend at most two additional
-            # bounded slices; each remains a separate SQLite transaction.
+            # Retain the audited two-slice allocation. The rejected E22 runs
+            # did not isolate allocation as the cause of hot/archive failure;
+            # false maintenance pressure must not justify a third slice.
+            # Each slice remains a separate SQLite transaction.
             # The queued source request remains visible at the next transaction
             # boundary, where we yield (or yield sooner if urgent work arrived).
             source_yield_budget[0]-=1
@@ -773,7 +788,7 @@ class EvidenceWriter:
             self._retention_source_resume_scope=None;self._retention_source_resume_count=0
             return
         elif yield_class=='source' and urgent_next_scope is not None and resolved!=urgent_next_scope:
-            # Three bounded slices have now had one owner admission. Rotate before
+            # The bounded service grant has used one owner admission. Rotate before
             # the next cleanup admission so a dense first scope cannot starve
             # later scopes while normal source work is continuously queued.
             self._retention_next_scope=urgent_next_scope

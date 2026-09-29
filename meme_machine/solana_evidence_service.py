@@ -549,6 +549,13 @@ class ServiceState:
         self.storage_metrics=json.loads(prior[0]) if prior else {}
         self.last_measured_archive_receipt=None
 
+    def _scope_metric(self,stage,scope,name,value):
+        # Fixed metric cardinality: account addresses never become metric keys.
+        label={'program:meteora':'meteora','program:pump':'pump',
+               'program:pumpswap':'pumpswap'}.get(scope,'other')
+        key='lifecycle.'+stage+'.'+label+'.'+name
+        self.storage_metrics[key]=self.storage_metrics.get(key,0)+value
+
     def _storage_stage(self,name,fn):
         """Fixed stage names, numeric costs only; retained across service restarts."""
         if name not in ('archive_plan','archive_commit','retention','repair_apply'):
@@ -603,16 +610,31 @@ class ServiceState:
                        for sub,_,_,size in items)
                 or sum(size for _,_,_,size in items)>STREAM_COMMIT_BATCH_MAX_BYTES):
             raise EvidenceUnavailable('stream_commit_batch_bound')
+        if self.writer.db.in_transaction:
+            raise EvidenceUnavailable('source_batch_inside_transaction')
         failure=None;committed=0
-        with self.writer.transaction():
-            for item in items:
-                try:
-                    with self.writer.source_frame():
-                        self._source_locked(*item)
-                except Exception as exc:
-                    failure=exc
-                    break
-                committed+=1
+        prior=getattr(self.writer,'_source_stage_progress',None)
+        self.writer._source_stage_progress={}
+        try:
+            with self.writer.transaction():
+                for item in items:
+                    before=dict(self.writer._source_stage_progress)
+                    try:
+                        with self.writer.source_frame():
+                            self._source_locked(*item)
+                    except Exception as exc:
+                        self.writer._source_stage_progress=before
+                        failure=exc
+                        break
+                    committed+=1
+            # Only the successful COMMIT publishes diagnostic useful-work facts.
+            # A failing later frame can still have a committed valid prefix.
+            for scope,count in self.writer._source_stage_progress.items():
+                self._scope_metric('source',scope,'records',count)
+            key='lifecycle.source.committed_frames'
+            self.storage_metrics[key]=self.storage_metrics.get(key,0)+committed
+        finally:
+            self.writer._source_stage_progress=prior
         if failure is not None:
             raise failure
         return committed
@@ -698,6 +720,8 @@ class ServiceState:
         return snapshot
 
     def archive_commit(self,plan,receipt,*,retain=True):
+        if self.writer.db.in_transaction:
+            raise EvidenceUnavailable('archive_inside_source_transaction')
         metrics={}
         for name in ('prepare_microseconds','publish_microseconds','records'):
             value=(receipt or {}).get('worker_metrics',{}).get(name,0)
@@ -713,6 +737,8 @@ class ServiceState:
                 self.storage_metrics[key+'.total']=self.storage_metrics.get(key+'.total',0)+value
                 self.storage_metrics[key+'.peak']=max(self.storage_metrics.get(key+'.peak',0),value)
         self._storage_stage('archive_commit',lambda:self.writer.commit_archive(plan,receipt))
+        for scope,count in self.writer.last_archive_scope_progress.items():
+            self._scope_metric('archive',scope,'records',count)
         if retain:self.retention()
 
     def archive_commit_slice(self,plan,receipt):
@@ -758,6 +784,9 @@ class ServiceState:
             report=self.writer.last_retention_progress
             report.interrupted=True;report.yield_reason='urgent_sql'
         outcome=self.writer.last_retention_progress.snapshot()
+        for scope in outcome.scopes:
+            for name in ('retired_records','continuity_rows','floor_updates','committed_slices'):
+                self._scope_metric('retention',scope.scope,name,getattr(scope,name))
         for name in ('retired_records','continuity_rows','housekeeping_rows',
                      'floor_updates','committed_slices','examined_scopes'):
             key='retention_outcome.'+name
@@ -802,7 +831,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                            for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1,*,label=None):
-        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
+        if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
             raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic();execution=[None,None]
         def timed(state):
@@ -1141,7 +1170,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                     counts.get('stream.ordered_commit_wait_peak_microseconds',0),wait_us)
                                                 source_items=tuple((row[0],row[1],row[2],row[3]) for row in batch)
                                                 await work(lambda state,items=source_items:state.source_batch(items),
-                                                           0 if all(row[0].evidence_class=='account' for row in batch) else 2)
+                                                           0 if all(row[0].evidence_class=='account' for row in batch) else 2,
+                                                           label='source_commit')
                                                 commit_us=int((time.monotonic()-commit_started)*1_000_000)
                                                 counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+len(batch)
                                                 counts['stream.commit_batches']=counts.get('stream.commit_batches',0)+1

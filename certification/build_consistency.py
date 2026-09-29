@@ -19,6 +19,7 @@ REVIEWED_BASE = '23f06ed84e5b5e2d4efd074618ab44ae7ed58011'
 ALLOWED_RUNTIME = frozenset({
     'meme_machine/solana_retention_outcome.py',
     'tests/test_retention_outcomes.py',
+    'tests/test_lifecycle_metrics.py',
     'meme_machine/solana_evidence_plane.py',
     'meme_machine/solana_evidence_service.py',
     'meme_machine/solana_evidence_control.py',

@@ -70,21 +70,37 @@ def store(path,row,exclusive=False):
         json.dump(row,stream,indent=2);stream.write('\n');stream.flush();os.fsync(stream.fileno())
 
 
+
+def run_inventory(repo,query,api,*,max_pages=100):
+    """Never infer no competing/previous dispatch from a truncated first page."""
+    rows=[];seen=set()
+    for page in range(1,max_pages+1):
+        payload=api(repo,'GET',query+'&page='+str(page))
+        batch=payload.get('workflow_runs')
+        if not isinstance(batch,list):raise ValueError('canonical_run_inventory_invalid')
+        for row in batch:
+            identity=row.get('id')
+            if type(identity) is not int or identity in seen:
+                raise ValueError('canonical_run_inventory_changed')
+            seen.add(identity);rows.append(row)
+        if len(batch)<100:return rows
+    raise ValueError('canonical_run_inventory_incomplete')
+
 def dispatch(repo,sha,runtime,plan_sha,cohort,build,output,*,api=request,sleep=time.sleep,polls=12):
     require_sha(sha);prerequisites(cohort,build,runtime,plan_sha)
+    # A same-tree merge after verification is still an untested commit identity.
+    # Incorporate canonical ancestry BEFORE the cohort, never after it.
+    if sha != runtime:
+        raise ValueError('exact_verified_sha_required')
     if not re.fullmatch('[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',repo):
         raise ValueError('invalid_repository')
     output=Path(output);intent=output.with_suffix('.intent.json')
-    # Verify the exact canonical branch and both identical trees before authority.
+    # Verify the exact canonical branch before acquiring a dispatch intent.
     ref=api(repo,'GET','git/ref/heads/'+BRANCH)
     if ref.get('object',{}).get('sha')!=sha:
         raise ValueError('canonical_branch_moved')
-    commit=api(repo,'GET','git/commits/'+sha)
-    parent=api(repo,'GET','git/commits/'+runtime)
-    if commit.get('tree',{}).get('sha')!=parent.get('tree',{}).get('sha'):
-        raise ValueError('canonical_tree_not_reviewed')
     query='actions/workflows/'+WORKFLOW+'/runs?'+urllib.parse.urlencode({'branch':BRANCH,'per_page':100})
-    before=api(repo,'GET',query).get('workflow_runs',[])
+    before=run_inventory(repo,query,api)
     if any(r.get('status') in ACTIVE for r in before):
         raise ValueError('competing_canonical_run')
     existing=[r for r in before if r.get('head_sha')==sha and r.get('event')=='workflow_dispatch']
@@ -93,6 +109,10 @@ def dispatch(repo,sha,runtime,plan_sha,cohort,build,output,*,api=request,sleep=t
     row=dict(canonical_sha=sha,runtime_sha=runtime,plan_sha256=plan_sha,
              previous_run_ids=[r['id'] for r in before],paper_only=True,
              market_authority=False,created_at=dt.datetime.now(dt.timezone.utc).isoformat(),post_attempts=1)
+    # Inventory reads may take time. Close the avoidable ref-drift window;
+    # expected_sha in the dispatched workflow is the final execution fence.
+    if api(repo,'GET','git/ref/heads/'+BRANCH).get('object',{}).get('sha') != sha:
+        raise ValueError('canonical_branch_moved')
     store(intent,row,exclusive=True)
     post_error=None;receipt={}
     try:
@@ -106,8 +126,10 @@ def dispatch(repo,sha,runtime,plan_sha,cohort,build,output,*,api=request,sleep=t
         if receipt.get('workflow_run_id'):
             candidates=[api(repo,'GET','actions/runs/'+str(receipt['workflow_run_id']))]
         else:
-            candidates=[r for r in api(repo,'GET',query).get('workflow_runs',[])
-                        if r.get('id') not in row['previous_run_ids'] and r.get('head_sha')==sha]
+            # Do not filter away a newly dispatched wrong-SHA run. Its identity
+            # must be reported as a failure, not hidden until a timeout.
+            candidates=[r for r in run_inventory(repo,query,api)
+                        if r.get('id') not in row['previous_run_ids']]
         if len(candidates)>1:raise ValueError('duplicate_canonical_runs')
         if candidates:
             run=run_identity(candidates[0],sha)
