@@ -1,3 +1,4 @@
-candidate=91a77a59f2f8c12f74bd6581e33f59e9446cab21
-tree=83280acd7c2fd4ce5d20d387668595d8fee8e798
-mode=authoritative-final-profile
+candidate=acfa2d8063240ead4dc6d5663f17fa3ae0d75d9b
+tree=7156eca779727de652336e728e797d0429b0d395
+mode=authoritative-corrected-profile
+measurement=archive-eligible-hot-v2
