@@ -1,0 +1,71 @@
+name: E25 native verified-tree republish
+on:
+  push:
+    branches:
+      - recovery/e25-native-republish-20260928
+
+permissions:
+  contents: write
+
+concurrency:
+  group: e25-native-verified-tree-republish
+  cancel-in-progress: false
+
+jobs:
+  republish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Reconstruct exact verified tree and publish noncanonical candidate
+        env:
+          BASE_SHA: 0a4a8bdad1670b1f70c03ed6c861d03c303e9e84
+          EXPECTED_TREE: 83280acd7c2fd4ce5d20d387668595d8fee8e798
+          CANDIDATE_REF: refs/heads/repair/stagee25-promotion-wiring-20260928
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/e25-republish"
+          cp .github/e25-native-republish/repairs-from-remote-base.patch "$RUNNER_TEMP/e25-republish/repair.patch"
+          test "$(git hash-object "$RUNNER_TEMP/e25-republish/repair.patch")" = ef31fe3fec7752fecfa05b2a276d418ea49e9a0c
+          if git ls-remote --exit-code --heads origin "$CANDIDATE_REF" >/dev/null 2>&1; then
+            echo "candidate ref already exists; refusing overwrite" >&2
+            exit 1
+          fi
+          git checkout --detach "$BASE_SHA"
+          test -z "$(git status --porcelain)"
+          git apply --index --check "$RUNNER_TEMP/e25-republish/repair.patch"
+          git apply --index "$RUNNER_TEMP/e25-republish/repair.patch"
+          TREE="$(git write-tree)"
+          test "$TREE" = "$EXPECTED_TREE"
+          git config user.name "OpenAI"
+          git config user.email "noreply@openai.com"
+          git commit -m "Recreate verified E25 candidate tree for GitHub execution"
+          NEW_SHA="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          git push origin "$NEW_SHA:$CANDIDATE_REF"
+          REMOTE_SHA="$(git ls-remote origin "$CANDIDATE_REF" | awk '{print $1}')"
+          test "$REMOTE_SHA" = "$NEW_SHA"
+          python - <<'PY'
+          import json, os, subprocess
+          out=os.path.join(os.environ["RUNNER_TEMP"],"e25-republish","result.json")
+          row={
+            "candidate_sha":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
+            "candidate_tree":subprocess.check_output(["git","rev-parse","HEAD^{tree}"],text=True).strip(),
+            "base_sha":os.environ["BASE_SHA"],
+            "candidate_ref":os.environ["CANDIDATE_REF"],
+            "canonical_authority":False,
+            "market_authority":False
+          }
+          open(out,"w").write(json.dumps(row,indent=2)+"\n")
+          print(json.dumps(row,sort_keys=True))
+          PY
+      - name: Preserve publication receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: e25-native-republish-${{ github.run_id }}
+          path: ${{ runner.temp }}/e25-republish/
+          retention-days: 90
+          if-no-files-found: warn
