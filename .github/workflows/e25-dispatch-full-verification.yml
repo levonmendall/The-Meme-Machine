@@ -1,0 +1,65 @@
+name: E25 dispatch full machinery verification
+on:
+  push:
+    branches: [recovery/stagee25-github-native-publication-20260928]
+    paths:
+      - '.github/stagee25/full-verify-trigger.txt'
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: e25-dispatch-full-verification
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Dispatch exact-SHA full non-market verification once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import datetime,json,os,time,urllib.parse,urllib.request
+          repo=os.environ['REPO']; token=os.environ['GH_TOKEN']
+          candidate='cbc09686d09f117276d20a332ab5c51b215bfaaa'; branch='repair/stagee25-promotion-wiring-20260928'
+          workflow='non-market-certification.yml'
+          started=datetime.datetime.now(datetime.timezone.utc)
+          def request(method,path,body=None):
+              data=None if body is None else json.dumps(body).encode()
+              req=urllib.request.Request(
+                  'https://api.github.com/repos/'+repo+'/'+path,data=data,method=method,
+                  headers={'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json',
+                           'X-GitHub-Api-Version':'2022-11-28','User-Agent':'e25-stagee'})
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  raw=response.read()
+                  return response.status, json.loads(raw) if raw else {}
+          status,_=request('POST','actions/workflows/'+workflow+'/dispatches',
+              {'ref':branch,'inputs':{'expected_sha':candidate,'preserved_only':'true'}})
+          if status not in (200,201,202,204): raise RuntimeError('dispatch_status:'+str(status))
+          found=[]
+          for _ in range(30):
+              time.sleep(5)
+              q=urllib.parse.urlencode({'event':'workflow_dispatch','branch':branch,'per_page':100})
+              _,row=request('GET','actions/workflows/'+workflow+'/runs?'+q)
+              found=[r for r in row.get('workflow_runs',[])
+                     if r.get('head_sha')==candidate and r.get('event')=='workflow_dispatch'
+                     and r.get('run_attempt')==1
+                     and datetime.datetime.fromisoformat(r['created_at'].replace('Z','+00:00'))>=started-datetime.timedelta(seconds=5)]
+              if len(found)==1: break
+              if len(found)>1: raise RuntimeError('duplicate_full_verification_runs')
+          if len(found)!=1: raise RuntimeError('full_verification_dispatch_not_confirmed')
+          receipt={'schema':'e25-full-verification-dispatch-v1','candidate_sha':candidate,
+                   'run_id':found[0]['id'],'run_url':found[0].get('html_url'),
+                   'canonical_authority':False,'market_authority':False}
+          open(os.environ['RUNNER_TEMP']+'/full-verification-dispatch.json','w').write(json.dumps(receipt,indent=2)+'\n')
+          print(json.dumps(receipt,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e25-full-verification-dispatch-${{ github.run_id }}
+          path: ${{ runner.temp }}/full-verification-dispatch.json
+          if-no-files-found: error
+          retention-days: 90
