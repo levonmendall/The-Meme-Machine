@@ -1376,6 +1376,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             maintenance_pressure['archive']=bool(snapshot)
                             if snapshot:
                                 archive_started=time.monotonic();archive_future=prepare(snapshot)
+                        # One completed <=512-row archive turn earns exactly one
+                        # existing bounded retirement grant before the next slice.
+                        # Ordinary cleanup keeps BOTH readiness guards below; only
+                        # this progress-linked handoff may run while READY. Submit
+                        # separately so source/urgent FIFO and SQL bounds survive.
+                        # Final-slice prefetch above overlaps this cleanup grant.
+                        counts['retention.after_archive_slice_grants']=(
+                            counts.get('retention.after_archive_slice_grants',0)+1)
+                        outcome=await work(lambda state:state.retention(),4,label='retention')
+                        maintenance_pressure['retention']=outcome.pressure
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
                     yielded=True

@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "277b954e12311dbedb33f107883ca2ba811baaa86da500126a427c9ae05ce7bf",
+      "source_diff_sha256": "c3e606a4d88c0b100df0ecea90a6149cff1eb4ae3ea7794e756744a7bc33e7b1",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -342,7 +342,7 @@
         "meme_machine/pumpswap_survivor_evidence.py": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946",
         "meme_machine/pumpswap_survivor_runtime.py": "b545e08eb7fa1a68fa9c2cc7b8645e1a8fc1cad0777f52151af126a206e43a4c",
         "meme_machine/solana_evidence_runtime.py": "07253419f6385f6da4d6426e2a5737c5cf0826252a2d8ad039ec658ce0c092bd",
-        "meme_machine/solana_evidence_service.py": "a40773c37e19cc9f90b7c40cbb6784836c9492873a930ddf30d99434a2857b60",
+        "meme_machine/solana_evidence_service.py": "d5cba5b23909da01b74bfc765d0d63691700dc587da0fee184332b1ee96a5521",
         "tests/pump_acceleration_natural_prospective.py": "e79f534862e3b48113bcfc5bb1779eacbfffa74196f02c09ada84fee681eec37",
         "tests/test_directional_capacity.py": "cf03c522706e8eda4c5f93bc53762bf5dfc6c47765a990a55a4258120f26e8e8",
         "tests/test_evidence_runtime_cutover.py": "ee7a5140ceca1f188cecd89948789163e1a902fd23977d88305e1354bf578351",
@@ -422,7 +422,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "835b98ff47be2554c105cf6c7e9a8d0d5857273305a436324fd24eea91aa2ea7",
+      "source_diff_sha256": "f0f1e756e81344ae1a84c715f892935b4193d087d859c5f084f5794faca4c8d6",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"

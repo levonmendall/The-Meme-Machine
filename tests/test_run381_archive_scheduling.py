@@ -150,8 +150,11 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
       await asyncio.sleep(.01)
      self.assertGreaterEqual(order.count('archive'),2,'fixture did not require two archive commit slices')
      first=order.index('archive');second=order.index('archive',first+1)
-     self.assertNotIn('retention',order[first+1:second],
-         'fresh retention grant delayed a prepared archive receipt')
+     # The unchanged ordinary guards still prohibit fresh cleanup here.
+     # The new two-way contract earns ONE bounded grant after the first slice;
+     # it must not admit repeated ordinary cleanup before the next slice.
+     self.assertEqual(order[first+1:second],['retention'],
+         'prepared archive did not retain bounded service between earned grants')
     finally:stop.set();await runner
 
 
@@ -298,6 +301,184 @@ class RetentionExecutionGuardTests(unittest.IsolatedAsyncioTestCase):
         await retention()
         self.assertEqual(sequence,['deferred','retired']);self.assertEqual(attempts,2)
 
+
+
+
+# Bound maintenance admission in both directions without relying on lucky timing.
+def production_maintenance(stop, work, counts, pressure, pool, path):
+    module = ast.parse(Path(service.__file__).read_text())
+    functions = [node for node in ast.walk(module)
+                 if isinstance(node, ast.AsyncFunctionDef) and node.name == 'maintenance']
+    if len(functions) != 1:
+        raise AssertionError('production maintenance coroutine identity changed')
+    factory = ast.parse('''
+def factory(stop, work, counts, maintenance_pressure, decoder_pool, path):
+    archive_commit_ready = False
+    return maintenance
+''')
+    factory.body[0].body.insert(1, functions[0])
+    namespace = {'asyncio': asyncio, 'time': time, 'EvidenceWriter': EvidenceWriter,
+                 'EvidenceUnavailable': service.EvidenceUnavailable}
+    exec(compile(ast.fix_missing_locations(factory), str(Path(service.__file__)), 'exec'), namespace)
+    return namespace['factory'](stop, work, counts, pressure, pool, path)
+
+
+class BoundedArchiveRetirementTests(unittest.IsolatedAsyncioTestCase):
+    async def model(self, *, native_error=False, outcome=None):
+        """Always READY worker; fixed 12 archive admissions, no timing retries."""
+        stop=asyncio.Event(); counts={}; pressure={}; order=[]; slices=[]
+        outcome=RetentionOutcome(retired_records=256,pending=True) if outcome is None else outcome
+        class Pool:
+            def submit(self, fn, path, snapshot, **kwargs):
+                order.append('prepare')
+                future=concurrent.futures.Future()
+                future.set_result((list(range(1000)), {'hash':'one'}))
+                return future
+        class State:
+            def archive_plan(self):return {'rows':[1]}
+            def archive_commit_slice_and_plan(self, plan, receipt):
+                order.append('archive'); slices.append(min(len(plan),512))
+                if native_error:raise ValueError('storage_failure')
+                remaining=plan[512:]
+                if len(slices)==12:stop.set()
+                return remaining, None if remaining else {'rows':[1]}
+            def retention(self):order.append('retention');return outcome
+        state=State()
+        async def work(fn,priority,*,label):
+            self.assertEqual(priority,4)
+            order.append('source')  # independent mandatory work between grants
+            return fn(state)
+        maintenance=production_maintenance(stop,work,counts,pressure,Pool(),'unused')
+        if native_error:
+            with self.assertRaisesRegex(ValueError,'storage_failure'):await maintenance()
+        else:
+            await maintenance()
+        return order,slices,counts,pressure
+
+    async def test_sustained_ready_work_has_one_retirement_turn_per_archive_slice(self):
+        order,slices,counts,pressure=await self.model()
+        turns=[x for x in order if x in ('archive','retention')]
+        self.assertEqual(turns,['archive','retention']*12,
+                         'READY archive service has no bounded retirement handoff')
+        self.assertEqual(slices,[512,488]*6)
+        self.assertEqual(counts.get('retention.after_archive_slice_grants'),12)
+        self.assertIs(pressure['retention'],True)
+
+    async def test_completed_receipt_prefetch_precedes_earned_retirement(self):
+        order,_,_,_=await self.model()
+        archives=[i for i,x in enumerate(order) if x=='archive']
+        for i in archives[1::2]:
+            following=order[i+1:]
+            self.assertIn('retention',following,'no retirement handoff after completed receipt')
+            self.assertLess(following.index('prepare'),following.index('retention'),
+                            'retirement delayed starting the next archive worker')
+
+    async def test_failed_archive_does_not_mint_retirement_turn(self):
+        order,_,counts,_=await self.model(native_error=True)
+        self.assertNotIn('retention',order)
+        self.assertNotIn('retention.after_archive_slice_grants',counts)
+
+    async def test_earned_retirement_keeps_unknown_outcome_distinct_from_idle(self):
+        order,_,counts,pressure=await self.model(outcome=RetentionOutcome(
+            pending=None,interrupted=True,yield_reason='urgent_sql'))
+        self.assertEqual(order.count('retention'),12)
+        self.assertEqual(counts.get('retention.after_archive_slice_grants'),12)
+        self.assertIs(pressure['retention'],False)  # unknown is not proven backlog
+        self.assertNotIn('retention_outcome.idle',counts)
+
+    async def test_continuous_ready_guard_has_no_unearned_ordinary_retirement(self):
+        stop=asyncio.Event();counts={};pressure={'retention':True};calls=[];checks=0
+        async def work(*args,**kwargs):calls.append(1);raise AssertionError('unearned grant')
+        async def sleep(delay):
+            nonlocal checks
+            self.assertEqual(delay,.001);checks+=1
+            if checks==1024:stop.set()
+        retention,ready=production_retention(stop,work,counts,pressure);ready(True)
+        with patch.object(asyncio,'sleep',sleep):await retention()
+        self.assertEqual(calls,[])
+        self.assertEqual(counts['retention.archive_commit_ready_deferrals'],1024)
+        self.assertIs(pressure['retention'],True)
+
+    async def test_eligible_reader_and_all_scopes_progress_under_source_pressure(self):
+        """Native SQLite/owner/retention; six bounded maintenance turns.
+
+        The test proves a service-count bound, not a timing adjustment to the
+        frozen 1.35s pressure observer. Real cohort timing remains mandatory.
+        """
+        from meme_machine.solana_provider_config import AlchemyEndpoint
+        scopes=('program:meteora','program:pump','program:pumpswap')
+        stop=asyncio.Event();counts={};pressure={};archive_sizes=[];sources=[];retired=[]
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'db'
+            class State(service.ServiceState):
+                def __init__(self):
+                    super().__init__(path,AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+                    old=[replace(record(),scope=s,identity=s+':old:%04d'%i,
+                                 signature=s+':old:%04d'%i,slot=10+i,market_time=10)
+                         for s in scopes for i in range(900)]
+                    for i in range(0,len(old),1000):self.writer.ingest(old[i:i+1000])
+                    while self.writer.archive(1000):pass
+                    self.writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
+                    hot=[replace(record(),scope=s,identity=s+':hot:%04d'%i,
+                                 signature=s+':hot:%04d'%i,slot=1000+i,market_time=20)
+                         for s in scopes for i in range(1500)]
+                    for i in range(0,len(hot),1000):self.writer.ingest(hot[i:i+1000])
+                def archive_commit_slice_and_plan(self,plan,receipt):
+                    archive_sizes.append(min(len(plan),512))
+                    result=super().archive_commit_slice_and_plan(plan,receipt)
+                    if len(archive_sizes)==6:stop.set()
+                    return result
+                def retention(self):
+                    queued=[]
+                    def source_work(state):
+                        with state.writer.transaction():state.writer._count('stream_accepted_messages')
+                    def on_statement(sql):
+                        if not queued and sql.startswith('DELETE FROM lineage'):
+                            queued.append(owner.submit(source_work,priority=2));sources.extend(queued)
+                    self.writer.db.set_trace_callback(on_statement)
+                    try:outcome=super().retention()
+                    finally:self.writer.db.set_trace_callback(None)
+                    retired.append(outcome)
+                    return outcome
+            owner=PriorityOwner(State);await asyncio.wrap_future(owner.ready)
+            class Pool:
+                # Publication still uses the real immutable snapshot and receipt.
+                def submit(self,fn,*args,**kwargs):
+                    future=concurrent.futures.Future()
+                    try:future.set_result(fn(*args,**kwargs))
+                    except BaseException as exc:future.set_exception(exc)
+                    return future
+            async def work(fn,priority,*,label):
+                return await asyncio.wrap_future(owner.submit(fn,priority=priority))
+            reader=sqlite3.connect(path,isolation_level=None)
+            try:
+                reader.execute('BEGIN')
+                before=dict(reader.execute('SELECT key,value FROM counters'))
+                eligible=any(reader.execute(
+                    'SELECT 1 FROM records WHERE scope=? AND body IS NULL AND slot<'
+                    '(SELECT CAST(value AS INTEGER) FROM meta WHERE key=?) LIMIT 1',
+                    (scope,'retention_floor:'+scope)).fetchone() for scope in scopes)
+                self.assertTrue(eligible)
+                maintenance=production_maintenance(stop,work,counts,pressure,Pool(),path)
+                await maintenance()
+                for f in sources:await asyncio.wrap_future(f)
+                self.assertEqual(dict(reader.execute('SELECT key,value FROM counters')),before,
+                                 'held reader snapshot changed')
+                current=sqlite3.connect(path,isolation_level=None)
+                try:after=dict(current.execute('SELECT key,value FROM counters'))
+                finally:current.close()
+                self.assertGreater(after.get('stream_accepted_messages',0)-before.get('stream_accepted_messages',0),0)
+                self.assertGreater(after.get('compacted_records',0)-before.get('compacted_records',0),0)
+                self.assertEqual(len(retired),6)
+                self.assertTrue(all(o.retired_records>0 and o.committed_slices<=3 for o in retired))
+                reader.execute('ROLLBACK')
+                durable=dict(reader.execute('SELECT key,value FROM counters'))
+                for scope in scopes:self.assertGreater(durable.get('lifecycle.retired.'+scope,0),0,scope)
+                self.assertTrue(all(0<n<=512 for n in archive_sizes))
+                self.assertEqual(reader.execute('PRAGMA integrity_check').fetchone(),('ok',))
+            finally:
+                if reader.in_transaction:reader.execute('ROLLBACK')
+                reader.close();owner.close()
 
 
 if __name__=='__main__':unittest.main()

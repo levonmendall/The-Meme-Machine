@@ -1,6 +1,6 @@
 {
-  "generation": "e27-retention-execution-admission-v1",
-  "expected_parent": "9356068cc92f9cadbd35adead3c33b532cbd4268",
+  "generation": "bounded-archive-retirement-handoff-v1",
+  "expected_parent": "872360077cd36c415aff97a4c8d0e57a947c0875",
   "plan_sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e",
   "reviewed_files": [
     "meme_machine/solana_evidence_service.py",
@@ -12,9 +12,11 @@
   "diagnostic_evidence_run": 36586266000,
   "diagnostic_artifact_id": 11043655450,
   "diagnostic_artifact_sha256": "81097a3850ac8a22a13abbf8e1e7193108f18ca7f8b490f4dd926e6281aa2fe8",
-  "failed_historical_cohort": 36525293113,
-  "local_focused_test_count": 111,
+  "failed_historical_cohort": 36594210589,
+  "local_focused_test_count": 117,
   "local_tests_are_authoritative": false,
   "paper_only": true,
-  "market_authority": false
+  "market_authority": false,
+  "parent_failed_cohort": 36525293113,
+  "pre_repair_report_sha256": "6852648d94c674432511cecba60a542a9e07f39f9119e00b120f9700cc96e208"
 }
