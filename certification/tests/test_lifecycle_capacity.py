@@ -42,7 +42,7 @@ class LifecycleCapacityTests(unittest.TestCase):
                         signature='fresh-window',slot=11,market_time=now-100,observed_at=now),
                 ])
                 writer._count('stream_accepted_messages',1)
-                observer=object.__new__(LifecycleObserver);observer.path=path
+                observer=object.__new__(LifecycleObserver);observer.path=path;observer.cohorts={}
                 row=observer._capture()
                 self.assertEqual(row['scopes']['program:meteora']['hot'],2)
                 self.assertEqual(
