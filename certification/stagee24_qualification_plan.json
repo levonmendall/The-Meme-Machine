@@ -38,7 +38,7 @@
   "observer_wall_fraction_limit": 0.01,
   "observation_sources": {
     "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
-    "certification/lifecycle_capacity.py": "5707e8c1056780ef728e2731d00dbc8e3bb00d4ccf04a7fa59d1783d8fc4028f",
+    "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
     "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f",
     "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf"
   }
