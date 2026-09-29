@@ -853,6 +853,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     # depend on decode timing. Keep the fast path, but collapse source commits to
     # one frame while either maintenance path reports active backlog.
     maintenance_pressure={'archive':False,'retention':False}
+    # A prepared archive receipt is already durable outside SQLite. While its
+    # bounded 512-row commit slices remain, do not let the independent retention
+    # loop enqueue fresh background work between those slices. Source/foreground
+    # work still enters the owner FIFO normally, and retention resumes while the
+    # next archive receipt is being prepared by the worker.
+    archive_commit_ready=False
     def maintenance_batch_limit(pending_frames):
         # Cleanup fairness matters when source is keeping pace. If the bounded
         # transport queue itself is materially backed up, preserve the existing
@@ -1323,6 +1329,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 except TimeoutError:pass
 
         async def maintenance():
+            nonlocal archive_commit_ready
             archive_future=None;archive_started=0;pending_archive=None
             def prepare(snapshot):
                 # Exactly one bounded encoded snapshot can be in flight. The
@@ -1339,11 +1346,13 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     if archive_future is not None:
                         maintenance_pressure['archive']=True
                         pending_archive=await archive_future;archive_future=None
+                        archive_commit_ready=pending_archive is not None
                         archive_elapsed=int((time.monotonic()-archive_started)*1_000_000)
                         counts['archive.worker_wait_total_microseconds']=counts.get('archive.worker_wait_total_microseconds',0)+archive_elapsed
                         counts['archive.worker_wait_peak_microseconds']=max(counts.get('archive.worker_wait_peak_microseconds',0),archive_elapsed)
                     if pending_archive is not None:
                         maintenance_pressure['archive']=True
+                        archive_commit_ready=True
                         plan,receipt=pending_archive
                         remaining,snapshot=await work(
                             lambda state:state.archive_commit_slice_and_plan(plan,receipt),
@@ -1356,6 +1365,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             pending_archive=(remaining,receipt)
                         else:
                             pending_archive=None
+                            archive_commit_ready=False
                             # The final bounded commit already selected this
                             # successor. Do not insert a redundant owner queue
                             # round trip before restarting the archive worker.
@@ -1371,6 +1381,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     yielded=True
                     # An interrupted eligibility scan is unknown, not backlog.
                     # A real worker/receipt remains pending until consumed.
+                    archive_commit_ready=pending_archive is not None
                     maintenance_pressure['archive']=(archive_future is not None or pending_archive is not None)
                 if archive_future is not None or pending_archive is not None or yielded:
                     # One bounded snapshot is in flight; completion itself paces
@@ -1378,6 +1389,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     await asyncio.sleep(0)
                     continue
                 maintenance_pressure['archive']=False
+                archive_commit_ready=False
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
@@ -1385,7 +1397,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             # Independent bounded cleanup fills owner capacity while the one
             # archive worker prepares/publishes immutable evidence. Coupling one
             # cleanup call to each archive left Meteora's dense indexes behind.
+            # Once that worker has produced a receipt, however, finish its bounded
+            # commit slices before admitting another retention grant. This shifts
+            # only background allocation toward the measured hot->archive bottleneck;
+            # source/urgent FIFO priority and every transaction bound are unchanged.
             while not stop.is_set():
+                if archive_commit_ready:
+                    counts['retention.archive_commit_ready_deferrals']=(
+                        counts.get('retention.archive_commit_ready_deferrals',0)+1)
+                    await asyncio.sleep(.001)
+                    continue
                 outcome=await work(lambda state:state.retention(),4,label='retention')
                 # Only positively observed eligible work is a backlog signal.
                 # A partial/interrupt outcome requests re-examination without
