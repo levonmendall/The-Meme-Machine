@@ -190,6 +190,8 @@ def dispatch(repo,sha,runtime,plan_sha,cohort,build,output,*,api=request,sleep=t
                     {'ref':BRANCH,'inputs':{'expected_sha':sha}})
     except (OSError,urllib.error.URLError,ValueError) as exc:
         post_error=type(exc).__name__
+    # The legacy GitHub adapter returns None for a successful empty HTTP 204.
+    if receipt is None:receipt={}
     row['dispatch_response_run_id']=receipt.get('workflow_run_id')
     row['post_error_type']=post_error;store(output,row)
     return _reconcile(repo,row,output,api,sleep,polls)

@@ -97,6 +97,44 @@ class PromotionTests(unittest.TestCase):
     def execute(self, api, folder, proof=None):
         return promotion.promote(api, SHA, OLD, ACTOR, proof or evidence(), Path(folder), push=api.push)
 
+    def test_empty_http204_response_reconciles_without_second_dispatch(self):
+        class EmptyResponseAPI(FakeAPI):
+            def request(self, method, path, data=None):
+                result = super().request(method, path, data)
+                if method == 'POST' and path.endswith('/dispatches'):
+                    return None
+                return result
+        api = EmptyResponseAPI()
+        with tempfile.TemporaryDirectory() as folder:
+            result = self.execute(api, folder)
+            self.assertEqual(result['run_id'], 99)
+            self.assertIsNone(result['dispatch_response_run_id'])
+            self.assertIsNone(result['post_error_type'])
+            self.assertFalse(result['canonical_authority'])
+            self.assertTrue((Path(folder) / 'dispatch.intent.json').exists())
+        posts = [call for call in api.writes() if call[1].endswith('/dispatches')]
+        self.assertEqual(len(posts), 1)
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, 'canonical_run_exists'):
+                self.execute(api, folder)
+        self.assertEqual(len([c for c in api.writes() if c[1].endswith('/dispatches')]), 1)
+
+    def test_empty_http204_response_still_rejects_wrong_candidate(self):
+        class WrongResponseAPI(FakeAPI):
+            def request(self, method, path, data=None):
+                result = super().request(method, path, data)
+                if method == 'POST' and path.endswith('/dispatches'):
+                    self.run['head_sha'] = WRONG
+                    return None
+                return result
+        api = WrongResponseAPI()
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, 'canonical_run_identity_mismatch'):
+                self.execute(api, folder)
+            self.assertTrue((Path(folder) / 'dispatch.intent.json').exists())
+            self.assertTrue((Path(folder) / 'dispatch.json').exists())
+        self.assertEqual(len([c for c in api.writes() if c[1].endswith('/dispatches')]), 1)
+
     def test_remote_intent_precedes_exact_push_and_single_dispatch(self):
         api = FakeAPI()
         with tempfile.TemporaryDirectory() as folder:

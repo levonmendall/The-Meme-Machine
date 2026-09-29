@@ -31,6 +31,7 @@ ALLOWED_RUNTIME = frozenset({
     'tests/test_run369_runtime.py',
     'tests/test_coordinated_database.py',
     'tests/test_run381_retention_progress.py',
+    'tests/test_run381_archive_scheduling.py',
     'tests/test_run381_maintenance_overlap.py',
 })
 FROZEN_PRESSURE = (
