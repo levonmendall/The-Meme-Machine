@@ -1,7 +1,13 @@
 """A smaller retirement queue cannot hide hot/archive or another scope's debt."""
 from copy import deepcopy
+from dataclasses import replace
+from pathlib import Path
+import tempfile
+import time
 import unittest
-from certification.lifecycle_capacity import assessment,REVISION,SCOPES
+from certification.lifecycle_capacity import assessment,REVISION,SCOPES,LifecycleObserver
+from meme_machine.solana_evidence_plane import EvidenceWriter
+from tests.test_run381_retention_progress import record
 from certification.tests.test_cleanup_recovery import samples as original_samples
 
 
@@ -24,6 +30,25 @@ def samples():
 
 
 class LifecycleCapacityTests(unittest.TestCase):
+    def test_archive_debt_excludes_fresh_mandatory_hot_window(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'db';writer=EvidenceWriter(path)
+            now=int(time.time())
+            try:
+                writer.ingest([
+                    replace(record(),scope='program:meteora',identity='eligible-old',
+                        signature='eligible-old',slot=10,market_time=now-200,observed_at=now),
+                    replace(record(),scope='program:meteora',identity='fresh-window',
+                        signature='fresh-window',slot=11,market_time=now-100,observed_at=now),
+                ])
+                writer._count('stream_accepted_messages',1)
+                observer=object.__new__(LifecycleObserver);observer.path=path
+                row=observer._capture()
+                self.assertEqual(row['scopes']['program:meteora']['hot'],2)
+                self.assertEqual(
+                    row['lifecycle_observation']['archive_eligible_hot']['program:meteora'],1)
+            finally:writer.close()
+
     def test_all_stages_scopes_and_original_fixed_cohort_must_recover(self):
         result=assessment(samples())
         self.assertTrue(result['passed'],result['failures'])
