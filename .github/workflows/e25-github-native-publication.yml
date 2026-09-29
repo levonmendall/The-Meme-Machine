@@ -1,0 +1,107 @@
+name: E25 GitHub-native candidate recreation
+on:
+  push:
+    branches: [recovery/stagee25-github-native-publication-20260928]
+    paths:
+      - '.github/stagee25/trigger.txt'
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: e25-github-native-publication
+  cancel-in-progress: false
+jobs:
+  recreate-verified-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Recreate exact verified source tree
+        id: recreate
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=0a4a8bdad1670b1f70c03ed6c861d03c303e9e84
+          EXPECTED_TREE=83280acd7c2fd4ce5d20d387668595d8fee8e798
+          EXPECTED_PATCH_SHA256=8d507868c4aa2f164875a612a55594e5974f18b1e21c07f043c6a205a3d738e2
+          PATCH=.github/stagee25/repairs-from-remote-base.patch
+          test "$(sha256sum "$PATCH" | awk '{print $1}')" = "$EXPECTED_PATCH_SHA256"
+          cp "$PATCH" "$RUNNER_TEMP/e25.patch"
+          git cat-file -e "$BASE^{commit}"
+          git checkout --detach "$BASE"
+          git apply --index "$RUNNER_TEMP/e25.patch"
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+          git config user.name OpenAI
+          git config user.email noreply@openai.com
+          git commit -m "Recreate verified E25 tree for GitHub-native certification"
+          CANDIDATE="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          echo "candidate=$CANDIDATE" >> "$GITHUB_OUTPUT"
+          echo "CANDIDATE_SHA=$CANDIDATE" >> "$GITHUB_ENV"
+          git diff --exit-code HEAD
+      - name: Install deterministic-test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Prepare canonical lane worktrees
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/qualification-worktrees"
+      - name: Verify complete assembled source
+        run: |
+          python -m certification.build_consistency verify             --worktrees "$RUNNER_TEMP/qualification-worktrees"             --expected-sha "$CANDIDATE_SHA"             --output "$RUNNER_TEMP/build-preflight.json"
+      - name: Run exact deterministic suite
+        env:
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/qualification-worktrees
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -v 2>&1 | tee "$RUNNER_TEMP/full-deterministic-tests.log"
+          grep -Eq '^Ran 1007 tests in ' "$RUNNER_TEMP/full-deterministic-tests.log"
+          grep -Eq '^OK$' "$RUNNER_TEMP/full-deterministic-tests.log"
+          ! grep -Eq 'skipped=[1-9]' "$RUNNER_TEMP/full-deterministic-tests.log"
+      - name: Run generic resource gate
+        run: python -m tests.resource_check
+      - name: Preserve publication receipt
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib
+          temp=pathlib.Path(os.environ['RUNNER_TEMP'])
+          log=temp/'full-deterministic-tests.log'
+          row={
+            'schema':'e25-github-native-publication-v1',
+            'candidate_sha':os.environ['CANDIDATE_SHA'],
+            'candidate_tree':'83280acd7c2fd4ce5d20d387668595d8fee8e798',
+            'source_candidate':'af4da58bcde0e194229d17b192242004d1449e8d',
+            'source_candidate_tree':'83280acd7c2fd4ce5d20d387668595d8fee8e798',
+            'remote_base':'0a4a8bdad1670b1f70c03ed6c861d03c303e9e84',
+            'patch_sha256':'8d507868c4aa2f164875a612a55594e5974f18b1e21c07f043c6a205a3d738e2',
+            'deterministic_test_log_sha256':hashlib.sha256(log.read_bytes()).hexdigest(),
+            'deterministic_tests':1007,
+            'canonical_authority':False,
+            'market_authority':False,
+          }
+          (temp/'publication-receipt.json').write_text(json.dumps(row,indent=2)+'\n')
+          PY
+      - name: Publish replacement candidate branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          REF=refs/heads/repair/stagee25-promotion-wiring-20260928
+          if git ls-remote --exit-code --heads origin "$REF" >/dev/null 2>&1; then
+            echo "candidate ref already exists; refusing overwrite" >&2
+            exit 1
+          fi
+          git push origin HEAD:"$REF"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e25-github-native-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/publication-receipt.json
+            ${{ runner.temp }}/build-preflight.json
+            ${{ runner.temp }}/full-deterministic-tests.log
+          if-no-files-found: warn
+          retention-days: 90
