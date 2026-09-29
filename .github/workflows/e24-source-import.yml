@@ -1,0 +1,57 @@
+name: E24 exact repair source publication
+on:
+  push:
+    branches: [recovery/e24-source-import-20260928]
+permissions:
+  contents: write
+concurrency:
+  group: e24-source-import
+  cancel-in-progress: false
+jobs:
+  publish-review-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Verify and recover exact source objects
+        env:
+          CANDIDATE_SHA: f468b729d94304692b978ce9f9a76264bbcb4b41
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/e24-publication"
+          cat .github/e24-source/part-00.bin .github/e24-source/part-01.bin .github/e24-source/part-02.bin .github/e24-source/part-03.bin .github/e24-source/part-04.bin > "$RUNNER_TEMP/e24-publication/candidate.bundle"
+          echo "35c238345e7657a5d226ef83887b4a1af657665746b47acdf5673202af5890ef  $RUNNER_TEMP/e24-publication/candidate.bundle" | sha256sum --check
+          test "$(wc -c < "$RUNNER_TEMP/e24-publication/candidate.bundle")" = 19990
+          git bundle verify "$RUNNER_TEMP/e24-publication/candidate.bundle"
+          git fetch "$RUNNER_TEMP/e24-publication/candidate.bundle" HEAD
+          test "$(git rev-parse FETCH_HEAD)" = "$CANDIDATE_SHA"
+          git merge-base --is-ancestor e26df014846d3289f6fc061888d7f0fe7111b47f "$CANDIDATE_SHA"
+          git merge-base --is-ancestor a775849c940d48bc8f809e99c075e421744bc53f "$CANDIDATE_SHA"
+          git show -s --format=fuller "$CANDIDATE_SHA" > "$RUNNER_TEMP/e24-publication/commit.txt"
+          git diff --stat e26df014846d3289f6fc061888d7f0fe7111b47f "$CANDIDATE_SHA" > "$RUNNER_TEMP/e24-publication/changes.txt"
+      - name: Publish review branch only; no canonical promotion or dispatch
+        env:
+          CANDIDATE_SHA: f468b729d94304692b978ce9f9a76264bbcb4b41
+        run: |
+          set -euo pipefail
+          branch=repair/e24-maintenance-lifecycle-20260928
+          existing=$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)
+          test -z "$existing" || test "$existing" = "$CANDIDATE_SHA"
+          git push origin "$CANDIDATE_SHA:refs/heads/$branch"
+          test "$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)" = "$CANDIDATE_SHA"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          row=dict(candidate_sha=os.environ['CANDIDATE_SHA'],review_branch='repair/e24-maintenance-lifecycle-20260928',canonical_authority=False,phase_e_dispatched=False,paper_only=True,market_authority=False,bundle_sha256='35c238345e7657a5d226ef83887b4a1af657665746b47acdf5673202af5890ef')
+          (Path(os.environ['RUNNER_TEMP'])/'e24-publication'/'publication.json').write_text(json.dumps(row,indent=2)+'\n')
+          print(json.dumps(row))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e24-exact-source-publication
+          path: ${{ runner.temp }}/e24-publication/
+          retention-days: 90
+          if-no-files-found: error
