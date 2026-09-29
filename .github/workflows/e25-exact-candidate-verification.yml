@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 91a77a59f2f8c12f74bd6581e33f59e9446cab21
+          ref: 5440f76aaf7be07149f8df2fba229f2407c9e515
           fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
@@ -25,16 +25,19 @@ jobs:
       - name: Verify exact candidate identity
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 91a77a59f2f8c12f74bd6581e33f59e9446cab21
+          test "$(git rev-parse HEAD)" = 5440f76aaf7be07149f8df2fba229f2407c9e515
           test "$(git rev-parse HEAD^{tree})" = 83280acd7c2fd4ce5d20d387668595d8fee8e798
           git diff --exit-code HEAD
       - name: Install deterministic-test dependencies
         run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Focused eligible-hot lifecycle regressions
+        run: |
+          python -m unittest -v             certification.tests.test_lifecycle_capacity             certification.tests.test_stagee24_environment             certification.tests.test_cleanup_recovery
       - name: Prepare canonical lane worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/qualification-worktrees"
       - name: Verify complete assembled source
         run: |
-          python -m certification.build_consistency verify             --worktrees "$RUNNER_TEMP/qualification-worktrees"             --expected-sha 91a77a59f2f8c12f74bd6581e33f59e9446cab21             --output "$RUNNER_TEMP/build-preflight.json"
+          python -m certification.build_consistency verify             --worktrees "$RUNNER_TEMP/qualification-worktrees"             --expected-sha 5440f76aaf7be07149f8df2fba229f2407c9e515             --output "$RUNNER_TEMP/build-preflight.json"
       - name: Run exact deterministic suite with all lanes
         env:
           MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/qualification-worktrees
@@ -55,7 +58,7 @@ jobs:
           log=temp/'full-deterministic-tests.log'
           row={
             'schema':'e25-exact-candidate-verification-v1',
-            'candidate_sha':'91a77a59f2f8c12f74bd6581e33f59e9446cab21',
+            'candidate_sha':'5440f76aaf7be07149f8df2fba229f2407c9e515',
             'candidate_tree':'83280acd7c2fd4ce5d20d387668595d8fee8e798',
             'source_candidate':'af4da58bcde0e194229d17b192242004d1449e8d',
             'deterministic_tests':1007,
