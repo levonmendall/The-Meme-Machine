@@ -811,7 +811,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                            for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1,*,label=None):
-        if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
+        if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision'):
             raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic();execution=[None,None]
         def timed(state):
@@ -858,7 +858,6 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     # loop enqueue fresh background work between those slices. Source/foreground
     # work still enters the owner FIFO normally, and retention resumes while the
     # next archive receipt is being prepared by the worker.
-    archive_commit_ready=False
     def maintenance_batch_limit(pending_frames):
         # Cleanup fairness matters when source is keeping pace. If the bounded
         # transport queue itself is materially backed up, preserve the existing
@@ -1329,115 +1328,42 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 except TimeoutError:pass
 
         async def maintenance():
-            nonlocal archive_commit_ready
-            archive_future=None;archive_started=0;pending_archive=None
-            def prepare(snapshot):
-                # Exactly one bounded encoded snapshot can be in flight. The
-                # preceding archive is durable/committed before selecting this.
-                return asyncio.wrap_future(decoder_pool.submit(EvidenceWriter.prepare_and_write_archive,path,snapshot,max_bytes=16*1024*1024))
+            # The single admission loop. Native owner-entry arbitration resolves
+            # READY receipts against fresh debt; no independent retention request
+            # can be waiting with an obsolete pre-queue ordering decision.
+            from .solana_maintenance_runtime import ArchiveFlight,MaintenanceRuntime
+            runtime=await work(lambda state:MaintenanceRuntime(state),4,label='maintenance_decision')
+            flight=ArchiveFlight()
             while not stop.is_set():
-                yielded=False
+                submitted=time.monotonic()
                 try:
-                    if archive_future is None and pending_archive is None:
-                        snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
-                        maintenance_pressure['archive']=bool(snapshot)
-                        if snapshot:
-                            archive_started=time.monotonic();archive_future=prepare(snapshot)
-                    if archive_future is not None:
-                        maintenance_pressure['archive']=True
-                        pending_archive=await archive_future;archive_future=None
-                        archive_commit_ready=pending_archive is not None
-                        archive_elapsed=int((time.monotonic()-archive_started)*1_000_000)
-                        counts['archive.worker_wait_total_microseconds']=counts.get('archive.worker_wait_total_microseconds',0)+archive_elapsed
-                        counts['archive.worker_wait_peak_microseconds']=max(counts.get('archive.worker_wait_peak_microseconds',0),archive_elapsed)
-                    if pending_archive is not None:
-                        maintenance_pressure['archive']=True
-                        archive_commit_ready=True
-                        plan,receipt=pending_archive
-                        remaining,snapshot=await work(
-                            lambda state:state.archive_commit_slice_and_plan(plan,receipt),
-                            4,label='archive_commit_plan')
-                        # The immutable file is already durable. Mutate at most
-                        # one bounded hot-DB slice per owner admission so source
-                        # commits that arrived during the slice run before the
-                        # next slice under the existing nonurgent FIFO contract.
-                        if remaining:
-                            pending_archive=(remaining,receipt)
-                        else:
-                            pending_archive=None
-                            archive_commit_ready=False
-                            # The final bounded commit already selected this
-                            # successor. Do not insert a redundant owner queue
-                            # round trip before restarting the archive worker.
-                            counts['archive.completed_slice_prefetches']=(
-                                counts.get('archive.completed_slice_prefetches',0)+int(bool(snapshot)))
-                            # Preparation of the next archive overlaps bounded hot
-                            # cleanup. Source/consumer work retains owner priority.
-                            maintenance_pressure['archive']=bool(snapshot)
-                            if snapshot:
-                                archive_started=time.monotonic();archive_future=prepare(snapshot)
-                        # One completed <=512-row archive turn earns exactly one
-                        # existing bounded retirement grant before the next slice.
-                        # Ordinary cleanup keeps BOTH readiness guards below; only
-                        # this progress-linked handoff may run while READY. Submit
-                        # separately so source/urgent FIFO and SQL bounds survive.
-                        # Final-slice prefetch above overlaps this cleanup grant.
-                        counts['retention.after_archive_slice_grants']=(
-                            counts.get('retention.after_archive_slice_grants',0)+1)
-                        outcome=await work(lambda state:state.retention(),4,label='retention')
-                        maintenance_pressure['retention']=outcome.pressure
+                    result=await work(lambda state:runtime.turn(flight,submitted),4,label='maintenance_decision')
+                    maintenance_pressure['archive']=result['archive_pressure']
+                    maintenance_pressure['retention']=result['retirement_pressure']
+                    if flight.prepared is not None:
+                        snapshot=flight.prepared
+                        future=decoder_pool.submit(EvidenceWriter.prepare_and_write_archive,path,snapshot,max_bytes=16*1024*1024)
+                        # The sole coroutine attaches at the quiescent boundary
+                        # after its owner decision returned. No SQL, second
+                        # admission decision, or extra owner round trip occurs.
+                        flight.attach(future,time.monotonic(),runtime.generation)
+                    if result['side'] is not None:
+                        await asyncio.sleep(0)
+                        continue
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
-                    yielded=True
-                    # An interrupted eligibility scan is unknown, not backlog.
-                    # A real worker/receipt remains pending until consumed.
-                    archive_commit_ready=pending_archive is not None
-                    maintenance_pressure['archive']=(archive_future is not None or pending_archive is not None)
-                if archive_future is not None or pending_archive is not None or yielded:
-                    # One bounded snapshot is in flight; completion itself paces
-                    # backlog work. An artificial delay loses archive capacity.
                     await asyncio.sleep(0)
                     continue
-                maintenance_pressure['archive']=False
-                archive_commit_ready=False
-                try:await asyncio.wait_for(stop.wait(),1)
-                except TimeoutError:pass
-
-        async def retention():
-            # Independent bounded cleanup fills owner capacity while the one
-            # archive worker prepares/publishes immutable evidence. Coupling one
-            # cleanup call to each archive left Meteora's dense indexes behind.
-            # Once that worker has produced a receipt, however, finish its bounded
-            # commit slices before admitting another retention grant. This shifts
-            # only background allocation toward the measured hot->archive bottleneck;
-            # source/urgent FIFO priority and every transaction bound are unchanged.
-            while not stop.is_set():
-                if archive_commit_ready:
-                    counts['retention.archive_commit_ready_deferrals']=(
-                        counts.get('retention.archive_commit_ready_deferrals',0)+1)
-                    await asyncio.sleep(.001)
-                    continue
-                # Readiness can change while this already-admitted callback
-                # waits behind source work. Recheck on the owner before opening
-                # a retention grant; never interrupt a grant already executing.
-                outcome=await work(
-                    lambda state:None if archive_commit_ready else state.retention(),
-                    4,label='retention')
-                if outcome is None:
-                    # A deferred examination proves neither idleness nor debt.
-                    counts['retention.archive_ready_at_execution_deferrals']=(
-                        counts.get('retention.archive_ready_at_execution_deferrals',0)+1)
-                    await asyncio.sleep(.001)
-                    continue
-                # Only positively observed eligible work is a backlog signal.
-                # A partial/interrupt outcome requests re-examination without
-                # pretending to be either durable progress or proven idleness.
-                maintenance_pressure['retention']=outcome.pressure
-                if outcome.retry:
-                    await asyncio.sleep(0)
-                    continue
-                try:await asyncio.wait_for(stop.wait(),1)
-                except TimeoutError:pass
+                if flight.future is not None:
+                    # Do not block retirement behind archive preparation. When
+                    # there is no current retirement work, wake on the one future
+                    # or the existing bounded 1-second idle observation cadence.
+                    waiter=asyncio.wrap_future(flight.future)
+                    try:await asyncio.wait_for(asyncio.shield(waiter),1)
+                    except TimeoutError:pass
+                else:
+                    try:await asyncio.wait_for(stop.wait(),1)
+                    except TimeoutError:pass
 
         async def checkpoint():
             # One outstanding disk flush, with no pending-work queue. Retention
@@ -1502,7 +1428,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
-        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(retention()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
+        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception
@@ -1513,7 +1439,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 await work(lambda state:setattr(state,'failed',True),0)
                 await work(lambda state:state.fence.health('shutdown_boundary','admitted_frame_drain_timeout'),0)
                 raise EvidenceUnavailable('admitted_frame_drain_timeout') from None
-        for task in done:task.result()
+        # Source draining can finish another worker after FIRST_COMPLETED.
+        # Inspect all completed workers, not just the original winning set;
+        # an owner/arbiter failure racing with stop must not become success.
+        for task in tasks:
+            if task.done() and not task.cancelled():task.result()
     except BaseException:
         await work(lambda state:setattr(state,'failed',True),0)
         raise

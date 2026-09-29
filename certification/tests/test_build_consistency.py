@@ -66,6 +66,22 @@ class BuildConsistencyTests(unittest.TestCase):
             self.assertFalse(row['passed'])
             self.assertTrue(row['external_socket_attempts'])
 
+    def test_complete_production_arbiter_is_bound_in_both_solana_lanes(self):
+        from certification.build_consistency import ALLOWED_RUNTIME
+        from certification.run import manifest
+        required = {
+            'meme_machine/solana_maintenance_state.py',
+            'meme_machine/solana_maintenance_arbiter.py',
+            'meme_machine/solana_maintenance_runtime.py',
+            'tests/maintenance_production_harness.py',
+            'tests/test_production_maintenance_arbiter.py',
+        }
+        self.assertTrue(required <= ALLOWED_RUNTIME)
+        for lane in ('pump', 'meteora'):
+            self.assertTrue(required <= set(manifest()['lanes'][lane]['integration_overlay_files']))
+        self.assertNotIn('meme_machine/pump_acceleration_strategy.py', ALLOWED_RUNTIME)
+        self.assertNotIn('certification/run381_pressure.py', ALLOWED_RUNTIME)
+
     def test_only_reviewed_operational_delta_is_accepted(self):
         before={'strategy.py':('100644','a'),'storage.py':('100644','b')}
         after=dict(before,**{'storage.py':('100644','c')})

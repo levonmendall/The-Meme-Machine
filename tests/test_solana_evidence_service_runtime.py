@@ -15,6 +15,9 @@ class FakeIPC:
 async def local_server(*args,path,**kwargs):
     Path(path).touch();return FakeIPC()
 
+# Captured PumpSwap event time is 1790346151. These ingestion/restart
+# fixtures observe it one second later, rather than manufacturing an already
+# expired 849-second residence interval unrelated to reader concurrency.
 class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def wait_for(self,predicate):
         for _ in range(200):
@@ -28,7 +31,7 @@ class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
         def slow_source(state,*args,**kwargs):
             time.sleep(.03)
             return original(state,*args,**kwargs)
-        with tempfile.TemporaryDirectory() as temp,patch('meme_machine.solana_evidence_service.time.time',return_value=1790347000):
+        with tempfile.TemporaryDirectory() as temp,patch('meme_machine.solana_evidence_service.time.time',return_value=1790346152):
             path=Path(temp)/'db';socket=FakeSocket();stop=asyncio.Event()
             with patch.object(ServiceState,'source',slow_source),patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
                 task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
@@ -55,7 +58,7 @@ class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_real_service_ingests_while_both_readers_are_paused_and_recovers(self):
         fixture=json.loads((Path(__file__).parent/'fixtures/solana_evidence_plane/run-368-raw-pump.json').read_text())
         logs=fixture['records'][0]['response']['result']['meta']['logMessages']
-        with tempfile.TemporaryDirectory() as temp,patch('meme_machine.solana_evidence_service.time.time',return_value=1790347000):
+        with tempfile.TemporaryDirectory() as temp,patch('meme_machine.solana_evidence_service.time.time',return_value=1790346152):
             path=Path(temp)/'db';socket=FakeSocket();stop=asyncio.Event()
             with patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
                 task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))

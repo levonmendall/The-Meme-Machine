@@ -1,4 +1,5 @@
 """Measured archive contention: no overtaking or duplicate worker publication."""
+from contextlib import closing
 import asyncio,concurrent.futures,json,sqlite3,tempfile,threading,time,unittest
 from dataclasses import replace
 from pathlib import Path
@@ -83,7 +84,7 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
   class SeededState(service.ServiceState):
    def __init__(self,path,config):
     super().__init__(path,config)
-    self.writer.ingest([replace(record(),identity='receipt-retry:'+str(i),market_time=10) for i in range(40)])
+    self.writer.ingest([replace(record(),identity='receipt-retry:'+str(i),market_time=int(time.time())-185,observed_at=time.time()) for i in range(40)])
    def archive_commit_slice(self,plan,receipt):
     attempts.append(receipt)
     if len(attempts)==1:
@@ -103,7 +104,7 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
     while time.monotonic()<deadline:
      if runner.done():await runner
      if database_ready(path):
-      with sqlite3.connect(path) as db:
+      with closing(sqlite3.connect(path)) as db:
        row=db.execute("SELECT value FROM counters WHERE key='archived_records'").fetchone()
        archived=row[0] if row else 0
      if len(attempts)>=2 and archived==40:break
@@ -113,7 +114,7 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
     self.assertIs(attempts[0],attempts[1])
     self.assertEqual(archived,40)
    finally:stop.set();await runner
-   with sqlite3.connect(path) as db:
+   with closing(sqlite3.connect(path)) as db:
     self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))
     metrics=json.loads(db.execute("SELECT value FROM service_health WHERE key='storage_maintenance'").fetchone()[0])
     self.assertEqual(metrics['archive_worker.records.total'],40,'worker telemetry double-counted a retained receipt retry')
@@ -125,7 +126,7 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
     def __init__(self,path,config):
      super().__init__(path,config)
      self.writer.ingest([replace(record(),identity='archive-ready:'+str(i),slot=100+i,
-         market_time=10) for i in range(700)])
+         market_time=int(time.time())-185,observed_at=time.time()) for i in range(700)])
     def archive_commit_slice_and_plan(self,plan,receipt):
      order.append('archive')
      return super().archive_commit_slice_and_plan(plan,receipt)
@@ -150,335 +151,308 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
       await asyncio.sleep(.01)
      self.assertGreaterEqual(order.count('archive'),2,'fixture did not require two archive commit slices')
      first=order.index('archive');second=order.index('archive',first+1)
-     # The unchanged ordinary guards still prohibit fresh cleanup here.
-     # The new two-way contract earns ONE bounded grant after the first slice;
-     # it must not admit repeated ordinary cleanup before the next slice.
-     self.assertEqual(order[first+1:second],['retention'],
-         'prepared archive did not retain bounded service between earned grants')
+     # Keep the historical discovery identity, but verify its safety
+     # obligation through the sole production authority, not the superseded
+     # one-for-one policy. Both bounded archive slices must complete while
+     # retention receives only validated arbiter admissions.
+     self.assertTrue(all(side=='retention' for side in order[first+1:second]))
+     with closing(sqlite3.connect(path)) as db:
+      self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+     self.assertLess(time.monotonic(),deadline,'READY archive service drought')
     finally:stop.set();await runner
 
 
-# Diagnostic 36586266000: cover readiness changing after retention submission.
+# The old AST harness extracted an independent retention coroutine and asserted
+# fixed 1:1 alternation. Those mechanisms are deliberately removed. Preserve the
+# race, atomicity, native-outcome, FIFO, receipt and liveness obligations against
+# the actual production authority instead; no pressure fixture or gate changes.
 import ast
+from contextlib import contextmanager
+from meme_machine.solana_maintenance_runtime import MaintenanceRuntime,ArchiveFlight
 from meme_machine.solana_retention_outcome import RetentionOutcome
+from meme_machine.solana_provider_config import AlchemyEndpoint
+from tests.maintenance_production_harness import (
+    Clock,SCOPES,seed_book,rows,ingest,run_case,NativeCompletionPool)
 
 
-def production_retention(stop, work, counts, pressure):
-    module = ast.parse(Path(service.__file__).read_text())
-    functions = [node for node in ast.walk(module)
-                 if isinstance(node, ast.AsyncFunctionDef) and node.name == 'retention']
-    if len(functions) != 1:
-        raise AssertionError('production retention coroutine identity changed')
-    factory = ast.parse('''
-def factory(stop, work, counts, maintenance_pressure):
-    archive_commit_ready = False
-    def set_ready(value):
-        nonlocal archive_commit_ready
-        archive_commit_ready = value
-    return retention, set_ready
-''')
-    factory.body[0].body.insert(1, functions[0])
-    namespace = {'asyncio': asyncio}
-    exec(compile(ast.fix_missing_locations(factory), str(Path(service.__file__)), 'exec'), namespace)
-    return namespace['factory'](stop, work, counts, pressure)
+def healthy(test,box):
+    test.assertFalse(box['errors'],json.dumps(dict(errors=[str(e) for e in box['errors']],
+        clock=box['clock'].monotonic(),origin={str(k):v for k,v in box['runtime'].arbiter.origin.items()},
+        recent=list(box['runtime'].ring)[-3:]),sort_keys=True))
+    test.assertEqual(box['integrity'],'ok')
+    test.assertIsNone(box['runtime'].failure)
+    test.assertLessEqual(box['pool'].max_inflight,1)
+    test.assertTrue(all(n<=512 for side,_,n in box['operations'] if side=='archive'))
+    test.assertTrue(all(v<box['runtime'].leases.drought for v in box['runtime'].arbiter.max_scope_gap.values()))
+
+
+@contextmanager
+def native_owner(seed):
+    """Actual queue and SQLite, with a controlled clock, no standalone scheduler."""
+    clock=Clock()
+    with tempfile.TemporaryDirectory() as td,patch.object(service,'time',clock):
+        path=Path(td)/'db'
+        class State(service.ServiceState):
+            def __init__(self):
+                super().__init__(path,AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+                self.writer.clock=clock.time
+                try:
+                    seed(self,clock)
+                    self.runtime=MaintenanceRuntime(self,monotonic=clock.monotonic,wall=clock.time)
+                    self.flight=ArchiveFlight()
+                except BaseException:self.close();raise
+        owner=PriorityOwner(State,clock=clock.monotonic)
+        try:
+            owner.ready.result(3)
+            yield owner,clock,path
+        finally:owner.close()
 
 
 class RetentionExecutionGuardTests(unittest.IsolatedAsyncioTestCase):
     async def test_already_queued_retention_defers_after_receipt_readiness(self):
-        """The original E27 executes retirement here; the repair must not."""
-        entered, release = threading.Event(), threading.Event()
-        queued = asyncio.Event()
-        stop = asyncio.Event()
-        loop = asyncio.get_running_loop()
-        order, counts, calls = [], {}, []
-        pressure = {'retention': True}
-        def retire():
-            order.append('retention')
-            loop.call_soon_threadsafe(stop.set)
-            return RetentionOutcome(retired_records=256, pending=True)
-        owner = PriorityOwner(lambda: SimpleNamespace(retention=retire, close=lambda: None))
-        owner.ready.result(timeout=2)
-        blocker = owner.submit(lambda state: (entered.set(), release.wait(3)), priority=2)
-        self.assertTrue(entered.wait(2))
-        async def work(fn, priority, *, label):
-            calls.append((priority, label))
-            future = owner.submit(fn, priority=priority)
-            queued.set()
-            return await asyncio.wrap_future(future)
-        retention, ready = production_retention(stop, work, counts, pressure)
-        task = asyncio.create_task(retention())
-        try:
-            await asyncio.wait_for(queued.wait(), 2)
-            # Exact observed order: retirement queued while worker not ready;
-            # then receipt ready, archive queued, then owner admits retirement.
-            ready(True)
-            jobs = [owner.submit(lambda state: order.append('source-before'), priority=2),
-                    owner.submit(lambda state: (order.append('archive'), ready(False)), priority=4),
-                    owner.submit(lambda state: order.append('source-after'), priority=2),
-                    owner.submit(lambda state: order.append('foreground'), priority=1),
-                    owner.submit(lambda state: order.append('urgent'), priority=0)]
-            release.set()
-            await asyncio.wait_for(asyncio.gather(*(asyncio.wrap_future(f) for f in [blocker, *jobs])), 3)
-            await asyncio.wait_for(task, 3)
-            self.assertEqual(order, ['urgent', 'foreground', 'source-before', 'archive',
-                                     'source-after', 'retention'])
-            self.assertEqual(calls, [(4, 'retention'), (4, 'retention')])
-            self.assertEqual(counts.get('retention.archive_ready_at_execution_deferrals'), 1)
-            self.assertTrue(pressure['retention'])
-        finally:
-            release.set(); stop.set()
-            if not task.done(): task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-            owner.close()
+        """Ordering is decided at owner entry, not at a stale pre-queue check."""
+        seed=lambda s,c:seed_book(s,c,hot=(12000,0,0),retired=(1,0,0),same_slot=True)
+        with native_owner(seed) as (owner,clock,path):
+            first=owner.submit(lambda s:s.runtime.turn(s.flight,clock.monotonic()),priority=4).result(3)
+            self.assertEqual(first['side'],'archive')
+            snapshot=first['snapshot'];self.assertTrue(snapshot)
+            receipt_result=EvidenceWriter.prepare_and_write_archive(path,snapshot,max_bytes=16*1024*1024)
+            future=concurrent.futures.Future()
+            owner.submit(lambda s:s.flight.attach(future,clock.monotonic(),s.runtime.generation),priority=4).result(3)
+            entered,release=threading.Event(),threading.Event();order=[]
+            blocker=owner.submit(lambda s:(entered.set(),release.wait(3)),priority=2)
+            self.assertTrue(entered.wait(2))
+            def decision(state):
+                value=state.runtime.turn(state.flight,clock.monotonic())
+                order.append(value['side']);return value
+            queued=owner.submit(decision,priority=4)
+            jobs=[owner.submit(lambda s:order.append('source'),priority=2),
+                  owner.submit(lambda s:order.append('foreground'),priority=1),
+                  owner.submit(lambda s:order.append('urgent'),priority=0)]
+            try:
+                self.assertFalse(future.done())
+                future.set_result(receipt_result)  # became READY after queueing
+                release.set()
+                for f in [blocker,queued,*jobs]:await asyncio.wrap_future(f)
+                self.assertEqual(order,['urgent','foreground','archive','source'])
+                self.assertEqual(queued.result()['side'],'archive')
+                counters=owner.submit(lambda s:dict(s.writer.db.execute('SELECT key,value FROM counters')),priority=4).result(3)
+                self.assertEqual(counters.get('compacted_records',0),0)
+                self.assertGreater(counters.get('archived_records',0),1)
+            finally:release.set()
 
     async def test_deferred_callback_does_not_report_idle_or_progress(self):
-        for prior in (False, True):
-            with self.subTest(prior=prior):
-                stop=asyncio.Event(); counts={}; pressure={'retention':prior}; calls=[]
-                def retire():
-                    calls.append('forbidden');return RetentionOutcome(pending=False)
-                async def work(fn, priority, *, label):
-                    ready(True); value=fn(SimpleNamespace(retention=retire));stop.set();return value
-                retention,ready=production_retention(stop,work,counts,pressure)
-                await retention()
-                self.assertEqual(calls,[])
-                self.assertIs(pressure['retention'],prior)
-                self.assertEqual(counts.get('retention.archive_ready_at_execution_deferrals'),1)
+        checked=[]
+        def before(r,f,b):
+            b['prior_retired']={tuple(row[:2]):row[3:] for row in r.writer.db.execute(
+                "SELECT scope,side,at,units,record_at,records FROM maintenance_progress WHERE side='retirement'")}
+        def after(r,f,result,b):
+            if result['side']=='archive':
+                after={tuple(row[:2]):row[3:] for row in r.writer.db.execute(
+                    "SELECT scope,side,at,units,record_at,records FROM maintenance_progress WHERE side='retirement'")}
+                self.assertEqual(after,b['prior_retired'])
+                self.assertNotIn('retention_outcome',result)
+                checked.append(result)
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(3000,0,0),retired=(100,0,0)),
+                           before=before,after=after,turns=14)
+        healthy(self,box);self.assertTrue(checked)
 
     async def test_no_ready_receipt_preserves_native_outcome(self):
         for pending in (False,True,None):
             with self.subTest(pending=pending):
-                stop=asyncio.Event();counts={};pressure={};calls=[]
-                outcome=RetentionOutcome(retired_records=256,pending=pending,interrupted=pending is None)
-                def retire():calls.append(1);stop.set();return outcome
-                async def work(fn,priority,*,label):
-                    self.assertEqual((priority,label),(4,'retention'))
-                    return fn(SimpleNamespace(retention=retire))
-                retention,_=production_retention(stop,work,counts,pressure)
-                await retention()
-                self.assertEqual(calls,[1]);self.assertIs(pressure['retention'],pending is True)
-                self.assertEqual(counts,{})
+                outcomes=[];returned=[]
+                def retention(state,native,b):
+                    value=replace(native(),pending=pending,interrupted=pending is None)
+                    outcomes.append(value);return value
+                def after(r,f,result,b):
+                    if result['side']=='retirement':returned.append(result['retention_outcome'])
+                box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(0,0,0),retired=(300,0,0)),
+                                   retention_hook=retention,after=after,turns=4)
+                healthy(self,box);self.assertTrue(outcomes)
+                self.assertEqual(len(returned),len(outcomes))
+                self.assertTrue(all(a is b for a,b in zip(returned,outcomes)))
+                self.assertTrue(all(o.pending is pending for o in returned))
 
     async def test_existing_ready_guard_does_not_enqueue_new_work(self):
-        stop=asyncio.Event();counts={};pressure={'retention':True};calls=[]
-        async def work(*args,**kwargs):calls.append(1);raise AssertionError('must not queue')
-        async def sleep(delay):self.assertEqual(delay,.001);stop.set()
-        retention,ready=production_retention(stop,work,counts,pressure);ready(True)
-        with patch.object(asyncio,'sleep',sleep):await retention()
-        self.assertEqual(calls,[]);self.assertTrue(pressure['retention'])
-        self.assertEqual(counts,{'retention.archive_commit_ready_deferrals':1})
+        """No independent retention admission remains beside the single loop."""
+        tree=ast.parse(Path(service.__file__).read_text())
+        loops=[n.name for n in ast.walk(tree) if isinstance(n,ast.AsyncFunctionDef)]
+        self.assertEqual(loops.count('maintenance'),1)
+        self.assertEqual(loops.count('retention'),0)
+        admitted=[]
+        def retention(state,native,b):
+            decision=b['runtime'].arbiter.pending
+            self.assertIsNotNone(decision)
+            self.assertEqual(decision.side,'retirement')
+            admitted.append(decision.sequence);return native()
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(5000,0,0),retired=(200,0,0),same_slot=True),
+                           retention_hook=retention,turns=20)
+        healthy(self,box);self.assertTrue(admitted)
+        self.assertEqual(len(admitted),len(set(admitted)))
 
     async def test_current_retention_grant_not_interrupted_by_new_readiness(self):
-        stop=asyncio.Event();counts={};pressure={};calls=[]
-        def retire():
-            calls.append('entered');ready(True);calls.append('committed');stop.set()
-            return RetentionOutcome(retired_records=256,pending=True)
-        async def work(fn,priority,*,label):return fn(SimpleNamespace(retention=retire))
-        retention,ready=production_retention(stop,work,counts,pressure)
-        await retention()
-        self.assertEqual(calls,['entered','committed']);self.assertEqual(counts,{})
+        ready=[];finished=[];future=concurrent.futures.Future()
+        def before(r,f,b):
+            if not b.get('attached'):
+                snapshot=r.state.archive_plan();self.assertTrue(snapshot)
+                b['receipt_result']=EvidenceWriter.prepare_and_write_archive(b['path'],snapshot,max_bytes=16*1024*1024)
+                f.prepared=snapshot;f.attach(future,b['clock'].monotonic(),r.generation)
+                b['attached']=True
+        def retention(state,native,b):
+            def traced(sql):
+                if not future.done() and sql.startswith('DELETE FROM records'):
+                    self.assertTrue(state.writer.db.in_transaction)
+                    future.set_result(b['receipt_result']);ready.append('during-native-transaction')
+            state.writer.db.set_trace_callback(traced)
+            try:
+                result=native()
+                if ready:finished.append(result)
+                return result
+            finally:state.writer.db.set_trace_callback(None)
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0),retired=(1500,0,0)),
+                           before=before,retention_hook=retention,turns=12)
+        healthy(self,box);self.assertEqual(ready,['during-native-transaction'])
+        self.assertTrue(any(o.retired_records>0 for o in finished))
+        self.assertGreater(box['counters'].get('archived_records',0),1500)
 
     async def test_storage_error_is_not_silently_converted_to_deferral(self):
-        stop=asyncio.Event();counts={};pressure={}
-        def retire():raise ValueError('storage_failure')
-        async def work(fn,priority,*,label):return fn(SimpleNamespace(retention=retire))
-        retention,_=production_retention(stop,work,counts,pressure)
-        with self.assertRaisesRegex(ValueError,'storage_failure'):await retention()
-        self.assertEqual(counts,{})
+        calls=[]
+        def retention(state,native,b):calls.append(1);raise ValueError('storage_failure')
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(0,0,0),retired=(300,0,0)),
+                           retention_hook=retention,turns=3)
+        self.assertTrue(any('storage_failure' in str(e) for e in box['errors']))
+        self.assertEqual(calls,[1])
+        self.assertTrue(box['runtime'].failure)
+        self.assertEqual(box['counters'].get('compacted_records',0),0)
 
     async def test_retention_reenters_when_worker_preparation_releases_ready(self):
-        stop=asyncio.Event();counts={};pressure={};sequence=[];attempts=0
-        def retire():sequence.append('retired');stop.set();return RetentionOutcome(pending=True)
-        async def work(fn,priority,*,label):
-            nonlocal attempts
-            attempts+=1
-            if attempts==1:
-                ready(True);value=fn(SimpleNamespace(retention=retire))
-                sequence.append('deferred' if value is None else 'unexpected-service')
-                ready(False);return value
-            return fn(SimpleNamespace(retention=retire))
-        retention,ready=production_retention(stop,work,counts,pressure)
-        await retention()
-        self.assertEqual(sequence,['deferred','retired']);self.assertEqual(attempts,2)
-
-
-
-
-# Bound maintenance admission in both directions without relying on lucky timing.
-def production_maintenance(stop, work, counts, pressure, pool, path):
-    module = ast.parse(Path(service.__file__).read_text())
-    functions = [node for node in ast.walk(module)
-                 if isinstance(node, ast.AsyncFunctionDef) and node.name == 'maintenance']
-    if len(functions) != 1:
-        raise AssertionError('production maintenance coroutine identity changed')
-    factory = ast.parse('''
-def factory(stop, work, counts, maintenance_pressure, decoder_pool, path):
-    archive_commit_ready = False
-    return maintenance
-''')
-    factory.body[0].body.insert(1, functions[0])
-    namespace = {'asyncio': asyncio, 'time': time, 'EvidenceWriter': EvidenceWriter,
-                 'EvidenceUnavailable': service.EvidenceUnavailable}
-    exec(compile(ast.fix_missing_locations(factory), str(Path(service.__file__)), 'exec'), namespace)
-    return namespace['factory'](stop, work, counts, pressure, pool, path)
+        class HoldSuccessor(NativeCompletionPool):
+            def __init__(self,*a,**k):super().__init__(*a,**k);self.pending=[]
+            def submit(self,fn,*a,**k):
+                if fn is EvidenceWriter.prepare_and_write_archive and self.submissions:
+                    self.submissions.append(a[1]);future=concurrent.futures.Future();self.pending.append(future);return future
+                return super().submit(fn,*a,**k)
+            def shutdown(self,*a,**k):
+                for f in self.pending:f.cancel()
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(2400,0,0)),pool_class=HoldSuccessor,turns=9)
+        healthy(self,box)
+        self.assertEqual(len(box['pool'].pending),1)
+        self.assertTrue(any(e['selected']=='retirement' and not e['ready']['archive']
+            and any(e.get('durable_records',{}).values()) for e in box['runtime'].ring))
 
 
 class BoundedArchiveRetirementTests(unittest.IsolatedAsyncioTestCase):
-    async def model(self, *, native_error=False, outcome=None):
-        """Always READY worker; fixed 12 archive admissions, no timing retries."""
-        stop=asyncio.Event(); counts={}; pressure={}; order=[]; slices=[]
-        outcome=RetentionOutcome(retired_records=256,pending=True) if outcome is None else outcome
-        class Pool:
-            def submit(self, fn, path, snapshot, **kwargs):
-                order.append('prepare')
-                future=concurrent.futures.Future()
-                future.set_result((list(range(1000)), {'hash':'one'}))
-                return future
-        class State:
-            def archive_plan(self):return {'rows':[1]}
-            def archive_commit_slice_and_plan(self, plan, receipt):
-                order.append('archive'); slices.append(min(len(plan),512))
-                if native_error:raise ValueError('storage_failure')
-                remaining=plan[512:]
-                if len(slices)==12:stop.set()
-                return remaining, None if remaining else {'rows':[1]}
-            def retention(self):order.append('retention');return outcome
-        state=State()
-        async def work(fn,priority,*,label):
-            self.assertEqual(priority,4)
-            order.append('source')  # independent mandatory work between grants
-            return fn(state)
-        maintenance=production_maintenance(stop,work,counts,pressure,Pool(),'unused')
-        if native_error:
-            with self.assertRaisesRegex(ValueError,'storage_failure'):await maintenance()
-        else:
-            await maintenance()
-        return order,slices,counts,pressure
-
-    async def test_sustained_ready_work_has_one_retirement_turn_per_archive_slice(self):
-        order,slices,counts,pressure=await self.model()
-        turns=[x for x in order if x in ('archive','retention')]
-        self.assertEqual(turns,['archive','retention']*12,
-                         'READY archive service has no bounded retirement handoff')
-        self.assertEqual(slices,[512,488]*6)
-        self.assertEqual(counts.get('retention.after_archive_slice_grants'),12)
-        self.assertIs(pressure['retention'],True)
+    async def test_sustained_ready_work_has_bounded_two_sided_service(self):
+        """Replaces the prohibited fixed-ratio assertion, not the liveness gate."""
+        def after(r,f,result,b):
+            for scope in SCOPES:
+                ingest(r.writer,rows(b['clock'],scope,32,start=3_000_000+b['turns']*32,tag='ongoing',same_slot=True))
+            b['clock'].advance(.5)
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(2000,2000,2000),retired=(700,700,700)),
+                           after=after,turns=72)
+        healthy(self,box)
+        self.assertGreater(box['clock'].monotonic(),box['runtime'].leases.drought)
+        sides=[s for s,_,_ in box['operations']]
+        self.assertTrue(any(a==b=='archive' for a,b in zip(sides,sides[1:])),sides)
+        for scope in SCOPES:
+            self.assertGreater(box['counters'].get('lifecycle.archived.'+scope,0),700)
+            self.assertGreater(box['counters'].get('lifecycle.retired.'+scope,0),0)
+            self.assertLess(box['runtime'].arbiter.max_scope_gap['archive',scope],box['runtime'].leases.drought)
+            self.assertLess(box['runtime'].arbiter.max_scope_gap['retirement',scope],box['runtime'].leases.drought)
 
     async def test_completed_receipt_prefetch_precedes_earned_retirement(self):
-        order,_,_,_=await self.model()
-        archives=[i for i,x in enumerate(order) if x=='archive']
-        for i in archives[1::2]:
-            following=order[i+1:]
-            self.assertIn('retention',following,'no retirement handoff after completed receipt')
-            self.assertLess(following.index('prepare'),following.index('retention'),
-                            'retirement delayed starting the next archive worker')
+        order=[]
+        class Pool(NativeCompletionPool):
+            def submit(self,fn,*a,**k):
+                if fn is EvidenceWriter.prepare_and_write_archive:order.append('prepare')
+                return super().submit(fn,*a,**k)
+        def archive(state,plan,receipt,native,b):
+            result=native()
+            order.append('completed-with-successor' if not result[0] and result[1] else 'archive')
+            return result
+        def retention(state,native,b):order.append('retirement');return native()
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(5000,0,0),retired=(200,0,0),same_slot=True),
+                           archive_hook=archive,retention_hook=retention,pool_class=Pool,turns=22)
+        healthy(self,box)
+        completed=[i for i,s in enumerate(order) if s=='completed-with-successor']
+        self.assertTrue(completed)
+        for i in completed:self.assertEqual(order[i+1],'prepare',order)
 
     async def test_failed_archive_does_not_mint_retirement_turn(self):
-        order,_,counts,_=await self.model(native_error=True)
-        self.assertNotIn('retention',order)
-        self.assertNotIn('retention.after_archive_slice_grants',counts)
+        def archive(state,plan,receipt,native,b):raise ValueError('storage_failure')
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(3000,0,0)),archive_hook=archive,turns=5)
+        self.assertTrue(any('storage_failure' in str(e) for e in box['errors']))
+        sides=[s for s,_,_ in box['operations']];self.assertIn('archive',sides)
+        self.assertNotIn('retirement',sides[sides.index('archive')+1:])
+        self.assertTrue(box['runtime'].failure)
+        self.assertEqual(box['counters'].get('archived_records',0),0)
 
     async def test_earned_retirement_keeps_unknown_outcome_distinct_from_idle(self):
-        order,_,counts,pressure=await self.model(outcome=RetentionOutcome(
-            pending=None,interrupted=True,yield_reason='urgent_sql'))
-        self.assertEqual(order.count('retention'),12)
-        self.assertEqual(counts.get('retention.after_archive_slice_grants'),12)
-        self.assertIs(pressure['retention'],False)  # unknown is not proven backlog
-        self.assertNotIn('retention_outcome.idle',counts)
+        outcomes=[]
+        def retention(state,native,b):
+            value=RetentionOutcome(pending=None,interrupted=True,yield_reason='urgent_sql')
+            outcomes.append(value);return value
+        def after(r,f,result,b):
+            if result['side']=='retirement':
+                self.assertIs(result['retention_outcome'],outcomes[-1])
+                self.assertIsNone(result['retention_outcome'].pending)
+                self.assertFalse(any(r.ring[-1].get('durable_progress',{}).values()))
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(0,0,0),retired=(300,0,0)),
+                           retention_hook=retention,after=after,turns=4)
+        healthy(self,box);self.assertTrue(outcomes)
+        self.assertEqual(box['counters'].get('compacted_records',0),0)
+        self.assertEqual(box['runtime'].arbiter.max_gap['retirement'],0)
 
     async def test_continuous_ready_guard_has_no_unearned_ordinary_retirement(self):
-        stop=asyncio.Event();counts={};pressure={'retention':True};calls=[];checks=0
-        async def work(*args,**kwargs):calls.append(1);raise AssertionError('unearned grant')
-        async def sleep(delay):
-            nonlocal checks
-            self.assertEqual(delay,.001);checks+=1
-            if checks==1024:stop.set()
-        retention,ready=production_retention(stop,work,counts,pressure);ready(True)
-        with patch.object(asyncio,'sleep',sleep):await retention()
-        self.assertEqual(calls,[])
-        self.assertEqual(counts['retention.archive_commit_ready_deferrals'],1024)
-        self.assertIs(pressure['retention'],True)
+        calls=[]
+        def retirement(state,native,b):
+            d=b['runtime'].arbiter.pending
+            self.assertIsNotNone(d)
+            self.assertEqual(d.side,'retirement')
+            self.assertIn(d.reason,('debt_surplus','peer_reservation'))
+            self.assertGreater(dict(d.need_by_side)['retirement'],0)
+            calls.append(d.sequence);return native()
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(8000,0,0),retired=(1,0,0),same_slot=True),
+                           retention_hook=retirement,turns=25)
+        healthy(self,box);self.assertTrue(calls)
+        self.assertEqual(len(calls),len(set(calls)))
 
     async def test_eligible_reader_and_all_scopes_progress_under_source_pressure(self):
-        """Native SQLite/owner/retention; six bounded maintenance turns.
-
-        The test proves a service-count bound, not a timing adjustment to the
-        frozen 1.35s pressure observer. Real cohort timing remains mandatory.
-        """
-        from meme_machine.solana_provider_config import AlchemyEndpoint
-        scopes=('program:meteora','program:pump','program:pumpswap')
-        stop=asyncio.Event();counts={};pressure={};archive_sizes=[];sources=[];retired=[]
-        with tempfile.TemporaryDirectory() as td:
-            path=Path(td)/'db'
-            class State(service.ServiceState):
-                def __init__(self):
-                    super().__init__(path,AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
-                    old=[replace(record(),scope=s,identity=s+':old:%04d'%i,
-                                 signature=s+':old:%04d'%i,slot=10+i,market_time=10)
-                         for s in scopes for i in range(900)]
-                    for i in range(0,len(old),1000):self.writer.ingest(old[i:i+1000])
-                    while self.writer.archive(1000):pass
-                    self.writer.retain(1000,max_records=256,archive_first=False,checkpoint=False)
-                    hot=[replace(record(),scope=s,identity=s+':hot:%04d'%i,
-                                 signature=s+':hot:%04d'%i,slot=1000+i,market_time=20)
-                         for s in scopes for i in range(1500)]
-                    for i in range(0,len(hot),1000):self.writer.ingest(hot[i:i+1000])
-                def archive_commit_slice_and_plan(self,plan,receipt):
-                    archive_sizes.append(min(len(plan),512))
-                    result=super().archive_commit_slice_and_plan(plan,receipt)
-                    if len(archive_sizes)==6:stop.set()
-                    return result
-                def retention(self):
-                    queued=[]
-                    def source_work(state):
-                        with state.writer.transaction():state.writer._count('stream_accepted_messages')
-                    def on_statement(sql):
-                        if not queued and sql.startswith('DELETE FROM lineage'):
-                            queued.append(owner.submit(source_work,priority=2));sources.extend(queued)
-                    self.writer.db.set_trace_callback(on_statement)
-                    try:outcome=super().retention()
-                    finally:self.writer.db.set_trace_callback(None)
-                    retired.append(outcome)
-                    return outcome
-            owner=PriorityOwner(State);await asyncio.wrap_future(owner.ready)
-            class Pool:
-                # Publication still uses the real immutable snapshot and receipt.
-                def submit(self,fn,*args,**kwargs):
-                    future=concurrent.futures.Future()
-                    try:future.set_result(fn(*args,**kwargs))
-                    except BaseException as exc:future.set_exception(exc)
-                    return future
-            async def work(fn,priority,*,label):
-                return await asyncio.wrap_future(owner.submit(fn,priority=priority))
-            reader=sqlite3.connect(path,isolation_level=None)
+        reader=[None];baseline=[None];sources=[];outcomes=[]
+        def seed(state,clock):
+            seed_book(state,clock,hot=(1500,1500,1500),retired=(900,900,900))
+            state.writer.retain(clock.time()-180,max_records=256,archive_first=False,checkpoint=False)
+        def before(r,f,b):
+            if reader[0] is None:
+                db=reader[0]=sqlite3.connect(b['path'],isolation_level=None,check_same_thread=False)
+                db.execute('BEGIN');baseline[0]=dict(db.execute('SELECT key,value FROM counters'))
+                self.assertTrue(any(db.execute('SELECT 1 FROM records WHERE scope=? AND body IS NULL AND slot<'
+                    '(SELECT CAST(value AS INTEGER) FROM meta WHERE key=?) LIMIT 1',(scope,'retention_floor:'+scope)).fetchone() for scope in SCOPES))
+        def retention(state,native,b):
+            queued=[]
+            def source_work(state):
+                with state.writer.transaction():state.writer._count('regression_source_progress')
+            def trace(sql):
+                if not queued and sql.startswith('DELETE FROM lineage'):
+                    queued.append(b['owner'].submit(source_work,priority=2));sources.extend(queued)
+            state.writer.db.set_trace_callback(trace)
             try:
-                reader.execute('BEGIN')
-                before=dict(reader.execute('SELECT key,value FROM counters'))
-                eligible=any(reader.execute(
-                    'SELECT 1 FROM records WHERE scope=? AND body IS NULL AND slot<'
-                    '(SELECT CAST(value AS INTEGER) FROM meta WHERE key=?) LIMIT 1',
-                    (scope,'retention_floor:'+scope)).fetchone() for scope in scopes)
-                self.assertTrue(eligible)
-                maintenance=production_maintenance(stop,work,counts,pressure,Pool(),path)
-                await maintenance()
-                for f in sources:await asyncio.wrap_future(f)
-                self.assertEqual(dict(reader.execute('SELECT key,value FROM counters')),before,
-                                 'held reader snapshot changed')
-                current=sqlite3.connect(path,isolation_level=None)
-                try:after=dict(current.execute('SELECT key,value FROM counters'))
-                finally:current.close()
-                self.assertGreater(after.get('stream_accepted_messages',0)-before.get('stream_accepted_messages',0),0)
-                self.assertGreater(after.get('compacted_records',0)-before.get('compacted_records',0),0)
-                self.assertEqual(len(retired),6)
-                self.assertTrue(all(o.retired_records>0 and o.committed_slices<=3 for o in retired))
-                reader.execute('ROLLBACK')
-                durable=dict(reader.execute('SELECT key,value FROM counters'))
-                for scope in scopes:self.assertGreater(durable.get('lifecycle.retired.'+scope,0),0,scope)
-                self.assertTrue(all(0<n<=512 for n in archive_sizes))
-                self.assertEqual(reader.execute('PRAGMA integrity_check').fetchone(),('ok',))
-            finally:
-                if reader.in_transaction:reader.execute('ROLLBACK')
-                reader.close();owner.close()
+                result=native();outcomes.append(result);return result
+            finally:state.writer.db.set_trace_callback(None)
+        def after(r,f,result,b):
+            self.assertEqual(dict(reader[0].execute('SELECT key,value FROM counters')),baseline[0])
+        try:
+            box=await run_case(seed=seed,before=before,after=after,retention_hook=retention,turns=28)
+            healthy(self,box)
+            self.assertGreater(box['counters'].get('regression_source_progress',0),0)
+            self.assertTrue(all(f.done() and f.exception() is None for f in sources))
+            self.assertGreater(box['counters'].get('compacted_records',0),baseline[0].get('compacted_records',0))
+            self.assertTrue(any(o.retired_records>0 for o in outcomes))
+            self.assertTrue(all(o.committed_slices<=3 for o in outcomes if o.yield_reason=='source'))
+            for scope in SCOPES:
+                self.assertGreater(box['counters'].get('lifecycle.retired.'+scope,0),baseline[0].get('lifecycle.retired.'+scope,0))
+        finally:
+            if reader[0]:reader[0].execute('ROLLBACK');reader[0].close()
 
 
 if __name__=='__main__':unittest.main()

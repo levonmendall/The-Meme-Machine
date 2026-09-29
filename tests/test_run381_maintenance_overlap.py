@@ -286,7 +286,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
   class SeededState(service.ServiceState):
    def __init__(self,path,config):
     super().__init__(path,config);owner_threads.append(threading.get_ident())
-    self.writer.ingest([replace(record(),identity='health-overlap:'+str(i),market_time=10) for i in range(40)])
+    self.writer.ingest([replace(record(),identity='health-overlap:'+str(i),market_time=int(time.time())-185,observed_at=time.time()) for i in range(40)])
    def maintenance_health(self,http):
     calls.append(1)
     raise service.EvidenceUnavailable('evidence_background_yield')
@@ -333,9 +333,9 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
   class SeededState(service.ServiceState):
    def __init__(self,path,config):
     super().__init__(path,config)
-    rows=[replace(record(),scope='program:meteora',identity='overlap:%04d'%i,slot=900+i,market_time=10) for i in range(40)]
+    rows=[replace(record(),scope='program:meteora',identity='overlap:%04d'%i,slot=900+i,market_time=int(time.time())-185,observed_at=time.time()) for i in range(40)]
     self.writer.ingest(rows)
-    plan=self.writer.archive_plan(1000,max_records=20)
+    plan=self.writer.archive_plan(time.time()-180,max_records=20)
     self.writer.commit_archive(plan,self.writer.write_archive(self.writer.path,plan))
   class Wire:
    def __init__(self):self.acks=asyncio.Queue();self.slot=1000
@@ -371,11 +371,15 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
    db=sqlite3.connect(path)
    try:
     counters=json.loads(db.execute("SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
-    self.assertGreater(counters['owner.stage.retention.calls'],0)
-    self.assertGreater(counters['owner.stage.archive_plan.calls'],0)
-    self.assertGreaterEqual(counters['owner.stage.retention.queue_total_microseconds'],0)
+    self.assertGreater(counters['owner.stage.maintenance_decision.calls'],0)
+    self.assertGreaterEqual(counters['owner.stage.maintenance_decision.queue_total_microseconds'],0)
+    maintenance=json.loads(db.execute(
+      "SELECT value FROM service_health WHERE key='storage_maintenance'").fetchone()[0])
+    events=maintenance['maintenance_arbiter']['events']
+    self.assertTrue(any(e['selected']=='retirement' and any(e.get('durable_records',{}).values())
+                        for e in events),'pending preparation suppressed durable cleanup')
     labels={k.split('.')[2] for k in counters if k.startswith('owner.stage.')}
-    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','source_commit'})
+    self.assertLessEqual(labels,{'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','source_commit','maintenance_decision'})
    finally:db.close()
 
 if __name__=='__main__':unittest.main()

@@ -118,6 +118,7 @@ class PriorityOwner:
                         if queued is None or queued>=4:return None
                         return 'urgent' if queued<2 else 'source'
                     if priority==4 and writer:
+                        writer._owner_progress_handler=interrupt_background
                         writer._retention_yield_requested=yield_retention_boundary
                         writer.db.set_progress_handler(interrupt_background,1000)
                     try:result=fn(self.state)
@@ -127,6 +128,7 @@ class PriorityOwner:
                     finally:
                         if priority==4 and writer:
                             writer.db.set_progress_handler(None,0)
+                            writer._owner_progress_handler=None
                             writer._retention_yield_requested=None
                 except BaseException as exc: future.set_exception(exc)
                 else: future.set_result(result)

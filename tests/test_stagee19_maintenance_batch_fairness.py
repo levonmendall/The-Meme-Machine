@@ -1,6 +1,8 @@
 import asyncio,tempfile,time,unittest
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
+from tests.test_run381_retention_progress import record
 from unittest.mock import patch
 
 from meme_machine.solana_evidence_plane import EvidenceReader,EvidenceWriter
@@ -24,6 +26,15 @@ class StageE19MaintenanceBatchFairnessTests(unittest.IsolatedAsyncioTestCase):
         )
         stop=asyncio.Event()
         original_transaction=EvidenceWriter.transaction
+        class SeededState(service.ServiceState):
+            def __init__(self,path,config):
+                super().__init__(path,config)
+                # Single-authority pressure must come from actual eligible
+                # evidence, not a fabricated outcome of an independent loop.
+                now=time.time()
+                self.writer.ingest([replace(record(),scope='program:meteora',
+                    identity='maintenance-pressure:'+str(i),slot=10+i,
+                    market_time=int(now)-185,observed_at=now) for i in range(400)])
 
         @contextmanager
         def delayed_transaction(writer):
@@ -43,7 +54,7 @@ class StageE19MaintenanceBatchFairnessTests(unittest.IsolatedAsyncioTestCase):
             service.ServiceState,'retention',return_value=RetentionOutcome(pending=True)
         ),patch(
             'websockets.asyncio.client.connect',return_value=socket
-        ),patch(
+        ),patch.object(service,'ServiceState',SeededState),patch(
             'asyncio.start_unix_server',side_effect=local_server
         ):
             path=Path(temp)/'db'

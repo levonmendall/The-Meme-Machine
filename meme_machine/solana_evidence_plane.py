@@ -262,6 +262,8 @@ class EvidenceWriter:
             self.db.execute('PRAGMA foreign_keys=ON')
             self.db.executescript(SCHEMA)
             install_storage(self.db)
+            from .solana_maintenance_state import install as install_maintenance_state
+            install_maintenance_state(self)
             with self.transaction():
                 initialized = self.db.execute("SELECT value FROM meta WHERE key='initialized'").fetchone()
                 if initialized:
@@ -586,6 +588,7 @@ class EvidenceWriter:
         if not receipt:return 0
         archived=0
         archived_by_scope={}
+        actual_scope_progress={}
         # A service archive may be committed in bounded owner slices after the
         # complete immutable file has already been published off-owner. Preserve
         # the file's full record count in the manifest even when this call owns
@@ -612,12 +615,16 @@ class EvidenceWriter:
                     changed=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
                     archived+=changed
                     if changed:
+                        actual_scope_progress[scope]=actual_scope_progress.get(scope,0)+changed
                         bucket=lifecycle_scope(scope)
                         archived_by_scope[bucket]=archived_by_scope.get(bucket,0)+changed
                     self.db.execute('DELETE FROM hot_refs WHERE identity=?',(row['identity'],))
             self._count('archived_records',archived)
             for bucket,count in archived_by_scope.items():
                 self._count('lifecycle.archived.'+bucket,count)
+            from .solana_maintenance_state import progress
+            for scope,count in actual_scope_progress.items():
+                progress(self,scope,'archive',count,count)
         return archived
 
     def _account_floor(self,scope):
@@ -715,6 +722,8 @@ class EvidenceWriter:
                         self._count('lifecycle.retired.'+lifecycle_scope(scope),len(ids))
                     if removed[0]:
                         self._count('lifecycle.continuity.'+lifecycle_scope(scope),removed[0])
+                    from .solana_maintenance_state import progress as maintenance_progress
+                    maintenance_progress(self,scope,'retirement',len(ids)+removed[0]+int(floor_changed),len(ids))
                 if not more_here:break
         # Skip no-op housekeeping transactions too. Keep immutable archive files;
         # only unreferenced operational manifests/chunks/dictionary keys retire.
@@ -732,6 +741,8 @@ class EvidenceWriter:
                 for table,key,keys in garbage:
                     marks=','.join('?' for _ in keys)
                     removed+=self.db.execute('DELETE FROM '+table+' WHERE '+key+' IN ('+marks+')',keys).rowcount
+                from .solana_maintenance_state import progress as maintenance_progress
+                maintenance_progress(self,'__housekeeping__','retirement',removed)
             progress.housekeeping_rows+=removed
         if checkpoint:self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
         self.db.execute('PRAGMA incremental_vacuum(256)')
