@@ -45,7 +45,7 @@ jobs:
         run: |
           set -o pipefail
           python -m unittest discover -v 2>&1 | tee "$RUNNER_TEMP/full-deterministic-tests.log"
-          grep -Eq '^Ran 1007 tests in ' "$RUNNER_TEMP/full-deterministic-tests.log"
+          grep -Eq '^Ran 1009 tests in ' "$RUNNER_TEMP/full-deterministic-tests.log"
           grep -Eq '^OK$' "$RUNNER_TEMP/full-deterministic-tests.log"
           ! grep -Eq 'skipped=[1-9]' "$RUNNER_TEMP/full-deterministic-tests.log"
       - name: Run generic resource gate
@@ -61,7 +61,7 @@ jobs:
             'candidate_sha':'be3f735d1bddfb0fce5f9a6416310e43eac4d945',
             'candidate_tree':'3b2da1c3535091c5ea36dfaaab3866ac8de97920',
             'source_candidate':'af4da58bcde0e194229d17b192242004d1449e8d',
-            'deterministic_tests':1007,
+            'deterministic_tests':1009,
             'skips':0,
             'deterministic_test_log_sha256':hashlib.sha256(log.read_bytes()).hexdigest(),
             'canonical_authority':False,
