@@ -1,0 +1,152 @@
+{
+  "runtime": {
+    "sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "tree": "68736cf664169dee665762019800bf87ca0f1f67",
+    "parent": "ce4257309cb1f6ec68e38d363320edf62d59db7f"
+  },
+  "bundle_sha256": "306ab9b286ba9e74bd9f73ae7095c41b03219e554e36f1b39c13e96a6056636b",
+  "chunks": [
+    {
+      "blob": "9c80f8ec619564a5783431a5f54655b06a33c8bb",
+      "bytes": 2048
+    },
+    {
+      "blob": "14a44b2d17f25e927c81682b7729f707ddc9373a",
+      "bytes": 2048
+    },
+    {
+      "blob": "2ce022283d903c860a1cdf60763a3554c67d4d33",
+      "bytes": 2048
+    },
+    {
+      "blob": "8a99e73d69c4685f4fb70bde69344cf19e3de7b9",
+      "bytes": 2048
+    },
+    {
+      "blob": "3e3c8ae4453d50e01d54f8df80cb8ed5a5419d01",
+      "bytes": 2048
+    },
+    {
+      "blob": "d6bbeab164b93d1b4ddda64aa44a2e83cea86250",
+      "bytes": 2048
+    },
+    {
+      "blob": "44047f418da8184da9517b9d1e309fd199769b40",
+      "bytes": 2048
+    },
+    {
+      "blob": "633e353ea04636b13cf3da3fa464742a1b20efab",
+      "bytes": 2048
+    },
+    {
+      "blob": "79ff47868d8802247dbf494ff134d5be7c170aed",
+      "bytes": 2048
+    },
+    {
+      "blob": "aa13c5643e1342356689bea6f54c13777b2e9002",
+      "bytes": 2048
+    },
+    {
+      "blob": "4800f0b9d1b00d36d89862c3948c3f885a07f5dc",
+      "bytes": 2048
+    },
+    {
+      "blob": "77cbc55b56b3379bbb59f02e8d5508b1dab18b9e",
+      "bytes": 2048
+    },
+    {
+      "blob": "9d043bcab75a12f475ed1d78f2755286bfcaead8",
+      "bytes": 2048
+    },
+    {
+      "blob": "19e3975fd5d695d874ab4c1beea07f8694bd0f31",
+      "bytes": 2048
+    },
+    {
+      "blob": "bee157d74c488c9b3cba5ae74a1f458ffc5b33c2",
+      "bytes": 2048
+    },
+    {
+      "blob": "98afc4325f0f33451c7dec6100e41fbc5f534f7e",
+      "bytes": 2048
+    },
+    {
+      "blob": "70cca006efcf5b0f1bb307a0026d95561d82a5b5",
+      "bytes": 2048
+    },
+    {
+      "blob": "08ade8087b3da4608da1e813c266d237f89827e9",
+      "bytes": 2048
+    },
+    {
+      "blob": "53852930805849ccae9377ed3659094c7c5dcfa1",
+      "bytes": 1102
+    }
+  ],
+  "changed_files": [
+    ".github/stagee27/cohort-request.json",
+    "certification/build_consistency.py",
+    "certification/profitability_protocol.json",
+    "certification/sources.json",
+    "certification/tests/test_build_consistency.py",
+    "meme_machine/solana_evidence_control.py",
+    "meme_machine/solana_evidence_plane.py",
+    "meme_machine/solana_evidence_service.py",
+    "meme_machine/solana_maintenance_arbiter.py",
+    "meme_machine/solana_maintenance_runtime.py",
+    "meme_machine/solana_maintenance_state.py",
+    "tests/maintenance_production_harness.py",
+    "tests/test_production_maintenance_arbiter.py",
+    "tests/test_run381_archive_scheduling.py",
+    "tests/test_run381_maintenance_overlap.py",
+    "tests/test_solana_evidence_service_runtime.py",
+    "tests/test_stagee19_maintenance_batch_fairness.py"
+  ],
+  "source_files": 1152,
+  "source_digest": "dd416da937481c63dc2f7adb2980649bea0684bc26f922d7a0531ca71ef52553",
+  "driver_sha256": "0929971134ad7a8c3d72d3377eb5ee41bd9abe5422d71b0a4b78b379434d3f53",
+  "plan_sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e",
+  "test_modules": [
+    "tests.test_production_maintenance_arbiter",
+    "tests.test_run381_archive_scheduling",
+    "tests.test_run381_maintenance_overlap",
+    "tests.test_run381_retention_progress",
+    "tests.test_retention_outcomes",
+    "certification.tests.test_lifecycle_capacity",
+    "certification.tests.test_build_consistency",
+    "certification.tests.test_stagee24_environment",
+    "certification.tests.test_dispatch_phase_e",
+    "certification.tests.test_stagee25_promotion",
+    "certification.tests.test_stagee27_cohort_wiring",
+    "tests.test_archive_pipeline",
+    "tests.test_checkpoint_handoff",
+    "tests.test_evidence_interest_checkpoint",
+    "tests.test_run370_storage",
+    "tests.test_run372_large_frame_runtime",
+    "tests.test_run377_persistence",
+    "tests.test_run379_control_pressure",
+    "tests.test_run379_transport_backpressure",
+    "tests.test_run380_atomic_frame",
+    "tests.test_run381_archive_canonical",
+    "tests.test_run381_repair_pagination",
+    "tests.test_run381_subscription_progress",
+    "tests.test_solana_checkpoint_owner",
+    "tests.test_solana_evidence_broker",
+    "tests.test_solana_evidence_fences",
+    "tests.test_solana_evidence_plane",
+    "tests.test_solana_evidence_queries",
+    "tests.test_solana_evidence_retention",
+    "tests.test_solana_evidence_service_runtime",
+    "tests.test_solana_evidence_transport",
+    "tests.test_solana_health_atomicity",
+    "tests.test_solana_retained_raw",
+    "tests.test_solana_retention_working_set",
+    "tests.test_stagee19_maintenance_batch_fairness",
+    "tests.test_stagee21_retention_access_path",
+    "tests.test_stagee24_maintenance_integrity"
+  ],
+  "expected_tests": 286,
+  "cohort_authority": false,
+  "canonical_authority": false,
+  "market_authority": false
+}

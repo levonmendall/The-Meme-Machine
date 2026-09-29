@@ -1,0 +1,57 @@
+name: Qualify then publish exact dc08f906 - no cohort
+on:
+  push:
+    branches: [recovery/qualify-publish-exact-dc08f906-20260929]
+    paths: ['.github/workflows/qualify-publish-exact-dc08f906.yml']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: exact-dc08f906-qualification-publication
+  cancel-in-progress: false
+jobs:
+  qualify-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout immutable control
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: control
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Checkout exact runtime parent and full source history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: runtime
+          ref: ce4257309cb1f6ec68e38d363320edf62d59db7f
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Restore and verify frozen candidate without publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python "$GITHUB_WORKSPACE/control/.github/exact-dc08/qualify_publish.py" restore
+      - name: Install exact Python 3.12.14
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Install unchanged locked runtime dependency
+        run: python -m pip install --disable-pip-version-check -r runtime/requirements.txt
+      - name: Pinned exact-source build and all 286 focused integrated tests
+        run: python "$GITHUB_WORKSPACE/control/.github/exact-dc08/qualify_publish.py" qualify
+      - name: Publish original Git object only after pinned qualification succeeds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python "$GITHUB_WORKSPACE/control/.github/exact-dc08/qualify_publish.py" publish
+      - name: Seal evidence even on failure
+        if: always()
+        run: python "$GITHUB_WORKSPACE/control/.github/exact-dc08/qualify_publish.py" seal
+      - name: Preserve pinned verification and publication evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: exact-dc08f906-qualification-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/exact-dc08-qualification/
+          if-no-files-found: error
+          retention-days: 90
