@@ -155,4 +155,149 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
     finally:stop.set();await runner
 
 
+# Diagnostic 36586266000: cover readiness changing after retention submission.
+import ast
+from meme_machine.solana_retention_outcome import RetentionOutcome
+
+
+def production_retention(stop, work, counts, pressure):
+    module = ast.parse(Path(service.__file__).read_text())
+    functions = [node for node in ast.walk(module)
+                 if isinstance(node, ast.AsyncFunctionDef) and node.name == 'retention']
+    if len(functions) != 1:
+        raise AssertionError('production retention coroutine identity changed')
+    factory = ast.parse('''
+def factory(stop, work, counts, maintenance_pressure):
+    archive_commit_ready = False
+    def set_ready(value):
+        nonlocal archive_commit_ready
+        archive_commit_ready = value
+    return retention, set_ready
+''')
+    factory.body[0].body.insert(1, functions[0])
+    namespace = {'asyncio': asyncio}
+    exec(compile(ast.fix_missing_locations(factory), str(Path(service.__file__)), 'exec'), namespace)
+    return namespace['factory'](stop, work, counts, pressure)
+
+
+class RetentionExecutionGuardTests(unittest.IsolatedAsyncioTestCase):
+    async def test_already_queued_retention_defers_after_receipt_readiness(self):
+        """The original E27 executes retirement here; the repair must not."""
+        entered, release = threading.Event(), threading.Event()
+        queued = asyncio.Event()
+        stop = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        order, counts, calls = [], {}, []
+        pressure = {'retention': True}
+        def retire():
+            order.append('retention')
+            loop.call_soon_threadsafe(stop.set)
+            return RetentionOutcome(retired_records=256, pending=True)
+        owner = PriorityOwner(lambda: SimpleNamespace(retention=retire, close=lambda: None))
+        owner.ready.result(timeout=2)
+        blocker = owner.submit(lambda state: (entered.set(), release.wait(3)), priority=2)
+        self.assertTrue(entered.wait(2))
+        async def work(fn, priority, *, label):
+            calls.append((priority, label))
+            future = owner.submit(fn, priority=priority)
+            queued.set()
+            return await asyncio.wrap_future(future)
+        retention, ready = production_retention(stop, work, counts, pressure)
+        task = asyncio.create_task(retention())
+        try:
+            await asyncio.wait_for(queued.wait(), 2)
+            # Exact observed order: retirement queued while worker not ready;
+            # then receipt ready, archive queued, then owner admits retirement.
+            ready(True)
+            jobs = [owner.submit(lambda state: order.append('source-before'), priority=2),
+                    owner.submit(lambda state: (order.append('archive'), ready(False)), priority=4),
+                    owner.submit(lambda state: order.append('source-after'), priority=2),
+                    owner.submit(lambda state: order.append('foreground'), priority=1),
+                    owner.submit(lambda state: order.append('urgent'), priority=0)]
+            release.set()
+            await asyncio.wait_for(asyncio.gather(*(asyncio.wrap_future(f) for f in [blocker, *jobs])), 3)
+            await asyncio.wait_for(task, 3)
+            self.assertEqual(order, ['urgent', 'foreground', 'source-before', 'archive',
+                                     'source-after', 'retention'])
+            self.assertEqual(calls, [(4, 'retention'), (4, 'retention')])
+            self.assertEqual(counts.get('retention.archive_ready_at_execution_deferrals'), 1)
+            self.assertTrue(pressure['retention'])
+        finally:
+            release.set(); stop.set()
+            if not task.done(): task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            owner.close()
+
+    async def test_deferred_callback_does_not_report_idle_or_progress(self):
+        for prior in (False, True):
+            with self.subTest(prior=prior):
+                stop=asyncio.Event(); counts={}; pressure={'retention':prior}; calls=[]
+                def retire():
+                    calls.append('forbidden');return RetentionOutcome(pending=False)
+                async def work(fn, priority, *, label):
+                    ready(True); value=fn(SimpleNamespace(retention=retire));stop.set();return value
+                retention,ready=production_retention(stop,work,counts,pressure)
+                await retention()
+                self.assertEqual(calls,[])
+                self.assertIs(pressure['retention'],prior)
+                self.assertEqual(counts.get('retention.archive_ready_at_execution_deferrals'),1)
+
+    async def test_no_ready_receipt_preserves_native_outcome(self):
+        for pending in (False,True,None):
+            with self.subTest(pending=pending):
+                stop=asyncio.Event();counts={};pressure={};calls=[]
+                outcome=RetentionOutcome(retired_records=256,pending=pending,interrupted=pending is None)
+                def retire():calls.append(1);stop.set();return outcome
+                async def work(fn,priority,*,label):
+                    self.assertEqual((priority,label),(4,'retention'))
+                    return fn(SimpleNamespace(retention=retire))
+                retention,_=production_retention(stop,work,counts,pressure)
+                await retention()
+                self.assertEqual(calls,[1]);self.assertIs(pressure['retention'],pending is True)
+                self.assertEqual(counts,{})
+
+    async def test_existing_ready_guard_does_not_enqueue_new_work(self):
+        stop=asyncio.Event();counts={};pressure={'retention':True};calls=[]
+        async def work(*args,**kwargs):calls.append(1);raise AssertionError('must not queue')
+        async def sleep(delay):self.assertEqual(delay,.001);stop.set()
+        retention,ready=production_retention(stop,work,counts,pressure);ready(True)
+        with patch.object(asyncio,'sleep',sleep):await retention()
+        self.assertEqual(calls,[]);self.assertTrue(pressure['retention'])
+        self.assertEqual(counts,{'retention.archive_commit_ready_deferrals':1})
+
+    async def test_current_retention_grant_not_interrupted_by_new_readiness(self):
+        stop=asyncio.Event();counts={};pressure={};calls=[]
+        def retire():
+            calls.append('entered');ready(True);calls.append('committed');stop.set()
+            return RetentionOutcome(retired_records=256,pending=True)
+        async def work(fn,priority,*,label):return fn(SimpleNamespace(retention=retire))
+        retention,ready=production_retention(stop,work,counts,pressure)
+        await retention()
+        self.assertEqual(calls,['entered','committed']);self.assertEqual(counts,{})
+
+    async def test_storage_error_is_not_silently_converted_to_deferral(self):
+        stop=asyncio.Event();counts={};pressure={}
+        def retire():raise ValueError('storage_failure')
+        async def work(fn,priority,*,label):return fn(SimpleNamespace(retention=retire))
+        retention,_=production_retention(stop,work,counts,pressure)
+        with self.assertRaisesRegex(ValueError,'storage_failure'):await retention()
+        self.assertEqual(counts,{})
+
+    async def test_retention_reenters_when_worker_preparation_releases_ready(self):
+        stop=asyncio.Event();counts={};pressure={};sequence=[];attempts=0
+        def retire():sequence.append('retired');stop.set();return RetentionOutcome(pending=True)
+        async def work(fn,priority,*,label):
+            nonlocal attempts
+            attempts+=1
+            if attempts==1:
+                ready(True);value=fn(SimpleNamespace(retention=retire))
+                sequence.append('deferred' if value is None else 'unexpected-service')
+                ready(False);return value
+            return fn(SimpleNamespace(retention=retire))
+        retention,ready=production_retention(stop,work,counts,pressure)
+        await retention()
+        self.assertEqual(sequence,['deferred','retired']);self.assertEqual(attempts,2)
+
+
+
 if __name__=='__main__':unittest.main()

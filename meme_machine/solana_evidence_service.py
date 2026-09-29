@@ -1407,7 +1407,18 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         counts.get('retention.archive_commit_ready_deferrals',0)+1)
                     await asyncio.sleep(.001)
                     continue
-                outcome=await work(lambda state:state.retention(),4,label='retention')
+                # Readiness can change while this already-admitted callback
+                # waits behind source work. Recheck on the owner before opening
+                # a retention grant; never interrupt a grant already executing.
+                outcome=await work(
+                    lambda state:None if archive_commit_ready else state.retention(),
+                    4,label='retention')
+                if outcome is None:
+                    # A deferred examination proves neither idleness nor debt.
+                    counts['retention.archive_ready_at_execution_deferrals']=(
+                        counts.get('retention.archive_ready_at_execution_deferrals',0)+1)
+                    await asyncio.sleep(.001)
+                    continue
                 # Only positively observed eligible work is a backlog signal.
                 # A partial/interrupt outcome requests re-examination without
                 # pretending to be either durable progress or proven idleness.

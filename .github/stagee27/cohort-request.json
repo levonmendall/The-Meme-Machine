@@ -1,19 +1,20 @@
 {
-  "generation": "e27-complete-publication-v2-http204",
-  "expected_parent": "fdeee2721d2bb63e0ff3234328b06936257493b1",
+  "generation": "e27-retention-execution-admission-v1",
+  "expected_parent": "9356068cc92f9cadbd35adead3c33b532cbd4268",
   "plan_sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e",
   "reviewed_files": [
-    "certification/build_consistency.py",
+    "meme_machine/solana_evidence_service.py",
+    "tests/test_run381_archive_scheduling.py",
     "certification/sources.json",
     "certification/profitability_protocol.json",
-    ".github/workflows/stagee-fixed-cohort.yml",
-    "certification/tests/test_stagee27_cohort_wiring.py",
-    ".github/stagee27/cohort-request.json",
-    "certification/dispatch_phase_e.py",
-    "certification/tests/test_stagee25_promotion.py"
+    ".github/stagee27/cohort-request.json"
   ],
-  "focused_evidence_run": 36523414921,
+  "diagnostic_evidence_run": 36586266000,
+  "diagnostic_artifact_id": 11043655450,
+  "diagnostic_artifact_sha256": "81097a3850ac8a22a13abbf8e1e7193108f18ca7f8b490f4dd926e6281aa2fe8",
+  "failed_historical_cohort": 36525293113,
+  "local_focused_test_count": 111,
+  "local_tests_are_authoritative": false,
   "paper_only": true,
-  "market_authority": false,
-  "superseded_local_candidate": "eec4e05692b05afbd89d8f429065fbb29e262091"
+  "market_authority": false
 }
