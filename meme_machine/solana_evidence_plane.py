@@ -230,6 +230,13 @@ CREATE TABLE IF NOT EXISTS counters(key TEXT PRIMARY KEY,value INTEGER NOT NULL)
 '''
 
 
+def lifecycle_scope(scope):
+    """Fixed, payload-free telemetry buckets; never evidence authority."""
+    if scope in ('program:meteora','program:pump','program:pumpswap'):
+        return scope
+    return 'account' if scope.startswith('account:') else 'other'
+
+
 class EvidenceWriter:
     """One process/thread owns all evidence mutations; consumers open read-only DBs."""
     def __init__(self, path, *, clock=time.time, max_hot_bytes=256 * 1024 * 1024):
@@ -390,6 +397,7 @@ class EvidenceWriter:
                 self.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
                 self._count('evidence_conflicts')
             else:
+                scope_insertions={}
                 for row in prepared:
                     record=row.record
                     inserted = self.db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
@@ -404,6 +412,12 @@ class EvidenceWriter:
                         (record.scope, record.slot, self.clock()))
                     if inserted:
                         self._count('ingested_' + record.kind)
+                        bucket=lifecycle_scope(record.scope)
+                        scope_insertions[bucket]=scope_insertions.get(bucket,0)+inserted
+                # Aggregate inside the same transaction/savepoint. Rolled-back
+                # frames and duplicate delivery cannot manufacture useful work.
+                for bucket,count in scope_insertions.items():
+                    self._count('lifecycle.ingested.'+bucket,count)
                 if repair_receipt:
                     gap_id, cursor, max_pages = repair_receipt
                     self._repair_progress(gap_id, cursor, max_pages)
@@ -571,6 +585,7 @@ class EvidenceWriter:
     def commit_archive(self,plan,receipt):
         if not receipt:return 0
         archived=0
+        archived_by_scope={}
         # A service archive may be committed in bounded owner slices after the
         # complete immutable file has already been published off-owner. Preserve
         # the file's full record count in the manifest even when this call owns
@@ -594,9 +609,15 @@ class EvidenceWriter:
                 floor=self._account_floor(scope)
                 pinned=pinned or (floor is not None and slot>=floor)
                 if not pinned:
-                    archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
+                    changed=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
+                    archived+=changed
+                    if changed:
+                        bucket=lifecycle_scope(scope)
+                        archived_by_scope[bucket]=archived_by_scope.get(bucket,0)+changed
                     self.db.execute('DELETE FROM hot_refs WHERE identity=?',(row['identity'],))
             self._count('archived_records',archived)
+            for bucket,count in archived_by_scope.items():
+                self._count('lifecycle.archived.'+bucket,count)
         return archived
 
     def _account_floor(self,scope):
@@ -689,7 +710,11 @@ class EvidenceWriter:
                             removed[0]+=self.db.execute(
                                 'DELETE FROM '+table+' WHERE '+key+' IN (SELECT '+key+
                                 ' FROM '+table+' WHERE '+where+' LIMIT ?)',(*args,max_records)).rowcount
-                    if ids:self._count('compacted_records',len(ids))
+                    if ids:
+                        self._count('compacted_records',len(ids))
+                        self._count('lifecycle.retired.'+lifecycle_scope(scope),len(ids))
+                    if removed[0]:
+                        self._count('lifecycle.continuity.'+lifecycle_scope(scope),removed[0])
                 if not more_here:break
         # Skip no-op housekeeping transactions too. Keep immutable archive files;
         # only unreferenced operational manifests/chunks/dictionary keys retire.

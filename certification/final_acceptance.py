@@ -86,8 +86,8 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
         and pressure.get('archive_records_verified',0)>0
         and pressure.get('counters',{}).get('compacted_records',0)>0
         and 0<=pressure.get('lag_peak',float('inf'))<45
-        and 0<pressure.get('oldest_hot_age_peak',float('inf'))<=240
-        and 0<pressure.get('oldest_retained_age_peak',float('inf'))<=240
+        and 0<pressure.get('oldest_hot_age_peak',float('inf'))<240
+        and 0<pressure.get('oldest_retained_age_peak',float('inf'))<240
         and 0<pressure.get('hot_peak',float('inf'))<2*1024**3
         and pressure.get('integrity')==['ok'])
     from certification.combined_observer import verified as combined_verified

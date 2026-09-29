@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "d2f68724cca917779d721195ab73baa6d728f79173acea70ae889ca9b7718b7f",
+      "source_diff_sha256": "a68e35c72e4cde63aa7f475e807c3a9827b0afc2cf78f276ec984a015104a5fe",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -342,7 +342,7 @@
         "meme_machine/pumpswap_survivor_evidence.py": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946",
         "meme_machine/pumpswap_survivor_runtime.py": "b545e08eb7fa1a68fa9c2cc7b8645e1a8fc1cad0777f52151af126a206e43a4c",
         "meme_machine/solana_evidence_runtime.py": "07253419f6385f6da4d6426e2a5737c5cf0826252a2d8ad039ec658ce0c092bd",
-        "meme_machine/solana_evidence_service.py": "2e3e3e1d434c4f40929ca260f8dce66dd1c850cfd4eb174077b28d9eaf8302a4",
+        "meme_machine/solana_evidence_service.py": "b7af530e4c9bd714b6bcf9a52599910a2501adc78552787fed1ef97f0d6bc557",
         "tests/pump_acceleration_natural_prospective.py": "e79f534862e3b48113bcfc5bb1779eacbfffa74196f02c09ada84fee681eec37",
         "tests/test_directional_capacity.py": "cf03c522706e8eda4c5f93bc53762bf5dfc6c47765a990a55a4258120f26e8e8",
         "tests/test_evidence_runtime_cutover.py": "ee7a5140ceca1f188cecd89948789163e1a902fd23977d88305e1354bf578351",
@@ -413,7 +413,8 @@
         "tests/test_archive_pipeline.py",
         "tests/evidence_stream_harness.py",
         "meme_machine/solana_retention_outcome.py",
-        "tests/test_retention_outcomes.py"
+        "tests/test_retention_outcomes.py",
+        "tests/test_stagee24_maintenance_integrity.py"
       ]
     },
     "meteora": {
@@ -421,7 +422,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "c14d7381a40afe23d8ee0119e0868f60f437a72f9c50b876884de4894a7ffda4",
+      "source_diff_sha256": "84c0287ac423107393e509579ac1d9c05a22bc314cf0a1baef34d58a329a21cb",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -740,7 +741,8 @@
         "tests/test_archive_pipeline.py",
         "tests/evidence_stream_harness.py",
         "meme_machine/solana_retention_outcome.py",
-        "tests/test_retention_outcomes.py"
+        "tests/test_retention_outcomes.py",
+        "tests/test_stagee24_maintenance_integrity.py"
       ],
       "composed_file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",

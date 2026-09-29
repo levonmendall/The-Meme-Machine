@@ -551,7 +551,7 @@ class ServiceState:
 
     def _storage_stage(self,name,fn):
         """Fixed stage names, numeric costs only; retained across service restarts."""
-        if name not in ('archive_plan','archive_commit','retention','repair_apply'):
+        if name not in ('source_commit','archive_plan','archive_commit','retention','repair_apply'):
             raise EvidenceUnavailable('storage_stage_identity')
         started=time.monotonic()
         try:return fn()
@@ -589,6 +589,11 @@ class ServiceState:
             self._source_locked(sub,message,seen,byte_count)
 
     def source_batch(self,items):
+        # One timer per bounded owner admission, never per record. Execution is
+        # separate from the work() admission timer and includes durable COMMIT.
+        return self._storage_stage('source_commit',lambda:self._source_batch(items))
+
+    def _source_batch(self,items):
         """Commit consecutive block/account frames with one durable outer fsync.
 
         Each frame retains its own SAVEPOINT so a malformed later frame cannot
@@ -753,8 +758,12 @@ class ServiceState:
         except EvidenceUnavailable as exc:
             if str(exc)!='evidence_background_yield':raise
             self.writer.last_retention_progress.interrupted=True
-        except sqlite3.OperationalError:
-            if not getattr(self.writer,'_background_sql_interrupted',False):raise
+        except sqlite3.OperationalError as exc:
+            # A prior interrupted query is not evidence that a later disk/busy
+            # error was a cooperative yield. Preserve unrelated storage failures.
+            if (str(exc) != 'interrupted' or
+                    not getattr(self.writer,'_background_sql_interrupted',False)):
+                raise
             report=self.writer.last_retention_progress
             report.interrupted=True;report.yield_reason='urgent_sql'
         outcome=self.writer.last_retention_progress.snapshot()
@@ -802,7 +811,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                            for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1,*,label=None):
-        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
+        if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
             raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic();execution=[None,None]
         def timed(state):
@@ -1141,7 +1150,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                     counts.get('stream.ordered_commit_wait_peak_microseconds',0),wait_us)
                                                 source_items=tuple((row[0],row[1],row[2],row[3]) for row in batch)
                                                 await work(lambda state,items=source_items:state.source_batch(items),
-                                                           0 if all(row[0].evidence_class=='account' for row in batch) else 2)
+                                                           0 if all(row[0].evidence_class=='account' for row in batch) else 2,
+                                                           label='source_commit')
                                                 commit_us=int((time.monotonic()-commit_started)*1_000_000)
                                                 counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+len(batch)
                                                 counts['stream.commit_batches']=counts.get('stream.commit_batches',0)+1

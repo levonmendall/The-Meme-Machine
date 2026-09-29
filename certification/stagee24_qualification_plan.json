@@ -1,0 +1,45 @@
+{
+  "version": "e24-joint-lifecycle-durable-window-v4",
+  "predecessor": "0a4a8bdad1670b1f70c03ed6c861d03c303e9e84",
+  "failed_canonical_run": 36472549044,
+  "trials": [
+    "combined-1",
+    "combined-2",
+    "combined-3",
+    "recovery-1"
+  ],
+  "repeat_frames": 2223,
+  "extended_frames": 4445,
+  "sample_wall_seconds": 5,
+  "burst_source_seconds": [
+    216,
+    378
+  ],
+  "recovery_deadline_source_seconds": 120,
+  "pipeline_slack_records": 1000,
+  "minimum_decline_records": 256,
+  "trend_slack_records": 256,
+  "requires_all_trials": true,
+  "retry_until_pass": false,
+  "market_authority": false,
+  "rationale": "New identity; every historical rejected cohort remains rejected. Same source frames, seeds, delays, bursts, observation duration, source admission and transaction bounds. Require hot and archived debt recovery for every program scope, durable commit-window overlap, strict age <240 and bounded observation overhead.",
+  "unchanged_inputs": {
+    "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+    "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+    "certification/pressure_diagnostics.py": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45",
+    "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47",
+    "tests/test_run373_dispatch_throughput.py": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+    "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+    "certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+    "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3"
+  },
+  "observation_revision": "durable-window-v4",
+  "lifecycle_revision": "joint-hot-archive-retirement-v1",
+  "observer_wall_fraction_limit": 0.01,
+  "observation_sources": {
+    "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+    "certification/lifecycle_capacity.py": "394ca634591411e03723358ec50a8697a2d899f3de3039b1cdba06b7ecad11bd",
+    "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f",
+    "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf"
+  }
+}

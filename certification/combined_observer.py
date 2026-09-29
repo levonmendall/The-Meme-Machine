@@ -15,7 +15,7 @@ import time
 from unittest.mock import patch
 from certification import combined_pressure as legacy
 
-REVISION='durable-window-v3'
+REVISION='durable-window-v4'
 legacy_verified=legacy.verified
 
 
@@ -117,12 +117,17 @@ def observation_verified(row):
         s.get('observation_revision')==REVISION and s.get('cleanup_window_status')=='serviced'
         and type(s.get('eligible_at_reader_start')) is bool
         and type(s.get('eligible_at_reader_end')) is bool
+        and type(s.get('reader_source_advance')) is int and s['reader_source_advance']>0
+        and type(s.get('reader_compaction_advance')) is int and s['reader_compaction_advance']>0
+        and s.get('reader_snapshot_preserved') is True
         and s.get('source_frames_while_reader')==s.get('reader_source_advance')
         for s in samples))
 
 
 def verified(row,sha):
-    return legacy_verified(row,sha) and observation_verified(row)
+    return (legacy_verified(row,sha) and observation_verified(row)
+            and 0<row.get('oldest_hot_age_peak',float('inf'))<240
+            and 0<row.get('oldest_retained_age_peak',float('inf'))<240)
 
 
 async def run(output):

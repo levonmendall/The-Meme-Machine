@@ -13,7 +13,7 @@ def valid_report(sha='sha'):
             observed_pause_seconds=8.01,multiframe_batches=3,source_frames_while_reader=4,
             reader_source_advance=4,reader_compaction_advance=256,
             reader_snapshot_preserved=True,completed_tail_delayed=True,
-            observation_revision='durable-window-v3',cleanup_window_status='serviced',
+            observation_revision='durable-window-v4',cleanup_window_status='serviced',
             eligible_at_reader_start=True,eligible_at_reader_end=False))
     return dict(passed=True,integration_sha=sha,provider_calls=0,frames=2223,source_seconds=600.21,
         candidate_checks=60,archive_records_verified=200000,
@@ -26,7 +26,7 @@ def valid_report(sha='sha'):
         lag_peak=8,hot_peak=1000000000,integrity=['ok'],oldest_hot_age_peak=188,oldest_retained_age_peak=189,
         measured_contention=dict(profile='run381-fullcert-36293751021',owner_seconds_per_frame=.165,
             archive_seconds_per_thousand=.36,additional_commit_latency_seconds=.006,delayed_commits=100),
-        combined_load=dict(observation_revision='durable-window-v3',profile='mature-burst-reader-tail-urgent-v2',held_reader_cycles=2,
+        combined_load=dict(observation_revision='durable-window-v4',profile='mature-burst-reader-tail-urgent-v2',held_reader_cycles=2,
             tail_delay_cycles=2,urgent_acks=100,urgent_errors=[],burst_evidence=samples))
 
 

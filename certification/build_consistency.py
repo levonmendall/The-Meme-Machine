@@ -17,6 +17,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 REVIEWED_BASE = '23f06ed84e5b5e2d4efd074618ab44ae7ed58011'
 ALLOWED_RUNTIME = frozenset({
+    'tests/test_stagee24_maintenance_integrity.py',
     'meme_machine/solana_retention_outcome.py',
     'tests/test_retention_outcomes.py',
     'meme_machine/solana_evidence_plane.py',
