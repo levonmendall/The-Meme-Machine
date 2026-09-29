@@ -26,7 +26,7 @@ jobs:
           python - <<'PY'
           import datetime,json,os,time,urllib.parse,urllib.request
           request_row=json.load(open('.github/stagee25/promotion-request.json'))
-          candidate='91a77a59f2f8c12f74bd6581e33f59e9446cab21'; canonical='a775849c940d48bc8f809e99c075e421744bc53f'; branch='repair/stagee25-promotion-wiring-20260928'
+          candidate='acfa2d8063240ead4dc6d5663f17fa3ae0d75d9b'; canonical='a775849c940d48bc8f809e99c075e421744bc53f'; branch='repair/stagee26-eligible-hot-measurement-20260928'
           if request_row.get('candidate_sha')!=candidate: raise ValueError('promotion_candidate_mismatch')
           if request_row.get('expected_canonical_sha')!=canonical: raise ValueError('promotion_canonical_predecessor_mismatch')
           cohort_run=request_row.get('cohort_run_id'); full_run=request_row.get('full_run_id')
