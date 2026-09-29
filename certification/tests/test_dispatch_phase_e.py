@@ -39,6 +39,7 @@ class DispatchTests(unittest.TestCase):
         calls=[];posts=[]
         def api(repo,method,path,data=None):
             calls.append((method,path))
+            if path=='git/refs' and method=='POST':return dict(ref=data['ref'],object=dict(sha=data['sha']))
             if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
             if path.startswith('git/commits'):return dict(tree=dict(sha='tree'))
             if method=='POST':
@@ -52,6 +53,7 @@ class DispatchTests(unittest.TestCase):
     def test_duplicate_local_intent_blocks_another_post(self):
         posts=[]
         def api(repo,method,path,data=None):
+            if path=='git/refs' and method=='POST':return dict(ref=data['ref'],object=dict(sha=data['sha']))
             if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
             if path.startswith('git/commits'):return dict(tree=dict(sha='tree'))
             if method=='POST':posts.append(1);return {}
@@ -72,6 +74,7 @@ class DispatchTests(unittest.TestCase):
 
     def test_current_api_response_id_is_verified(self):
         def api(repo,method,path,data=None):
+            if path=='git/refs' and method=='POST':return dict(ref=data['ref'],object=dict(sha=data['sha']))
             if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
             if path.startswith('git/commits'):return dict(tree=dict(sha='tree'))
             if method=='POST':return dict(workflow_run_id=99)

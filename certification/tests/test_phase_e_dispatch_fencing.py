@@ -24,6 +24,7 @@ class ExactCommitFencingTests(unittest.TestCase):
         calls=[]
         def api(repo,method,path,data=None):
             calls.append((method,path))
+            if path=='git/refs' and method=='POST':return dict(ref=data['ref'],object=dict(sha=data['sha']))
             if path.startswith('git/ref'): return dict(object=dict(sha=SHA))
             if path.startswith('git/commits'): return dict(tree=dict(sha='same-tree'))
             if method=='POST': return dict(workflow_run_id=99)
@@ -38,6 +39,7 @@ class ExactCommitFencingTests(unittest.TestCase):
     def test_ref_changed_after_inventory_is_not_dispatched(self):
         refs=[];posts=[]
         def api(repo,method,path,data=None):
+            if path=='git/refs' and method=='POST':return dict(ref=data['ref'],object=dict(sha=data['sha']))
             if path.startswith('git/ref'):
                 refs.append(1);return dict(object=dict(sha=SHA if len(refs)==1 else OTHER))
             if path.startswith('git/commits'):return dict(tree=dict(sha='tree'))
@@ -52,6 +54,7 @@ class ExactCommitFencingTests(unittest.TestCase):
     def test_new_wrong_sha_run_is_failure_not_invisible(self):
         posts=[]
         def api(repo,method,path,data=None):
+            if path=='git/refs' and method=='POST':return dict(ref=data['ref'],object=dict(sha=data['sha']))
             if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
             if path.startswith('git/commits'):return dict(tree=dict(sha='tree'))
             if method=='POST':posts.append(data);return {}
@@ -77,3 +80,32 @@ class InventoryTests(unittest.TestCase):
             run_inventory('owner/repo','inventory?per_page=100',repeated)
         with self.assertRaisesRegex(ValueError,'inventory_incomplete'):
             run_inventory('owner/repo','inventory?per_page=100',repeated,max_pages=1)
+
+
+class RemoteIntentTests(unittest.TestCase):
+    def test_lost_runner_cannot_reacquire_same_sha_dispatch_authority(self):
+        refs=set();dispatches=[]
+        def api(repo,method,path,data=None):
+            if path=='git/refs' and method=='POST':
+                if data['ref'] in refs:raise ValueError('remote_intent_exists')
+                refs.add(data['ref']);return dict(ref=data['ref'],object=dict(sha=data['sha']))
+            if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
+            if method=='POST':dispatches.append(data);raise TimeoutError('ambiguous')
+            return dict(workflow_runs=[])
+        with tempfile.TemporaryDirectory() as first,tempfile.TemporaryDirectory() as replacement:
+            with self.assertRaisesRegex(RuntimeError,'do_not_retry'):
+                dispatch('owner/repo',SHA,SHA,PLAN,*evidence(),Path(first)/'out.json',api=api,sleep=lambda _:None,polls=1)
+            with self.assertRaisesRegex(ValueError,'remote_intent_exists'):
+                dispatch('owner/repo',SHA,SHA,PLAN,*evidence(),Path(replacement)/'out.json',api=api,sleep=lambda _:None,polls=1)
+        self.assertEqual(len(dispatches),1)
+
+    def test_ambiguous_remote_intent_blocks_workflow_post(self):
+        workflow_posts=[]
+        def api(repo,method,path,data=None):
+            if path=='git/refs' and method=='POST':raise TimeoutError('reservation reply lost')
+            if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
+            if method=='POST':workflow_posts.append(data)
+            return dict(workflow_runs=[])
+        with tempfile.TemporaryDirectory() as td,self.assertRaises(TimeoutError):
+            dispatch('owner/repo',SHA,SHA,PLAN,*evidence(),Path(td)/'out.json',api=api,polls=1)
+        self.assertFalse(workflow_posts)

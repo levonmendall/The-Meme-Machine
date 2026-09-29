@@ -1,7 +1,8 @@
-"""Dispatch exactly once and bind canonical Phase E to the reviewed commit.
+"""Attempt one canonical dispatch and bind Phase E to the reviewed commit.
 
-No token is logged. A durable local intent is written BEFORE the POST; ambiguous
-network errors are resolved by GET-only reconciliation, never another POST.
+No token is logged. Local and create-only remote intents precede the dispatch
+POST. Ambiguous network errors are reconciled by GET, never another dispatch.
+An interrupted intent consumes this SHA's one-shot authority; it is not a lease.
 The caller supplies the reverified fixed-cohort and final-build receipts.
 """
 from __future__ import annotations
@@ -114,6 +115,16 @@ def dispatch(repo,sha,runtime,plan_sha,cohort,build,output,*,api=request,sleep=t
     if api(repo,'GET','git/ref/heads/'+BRANCH).get('object',{}).get('sha') != sha:
         raise ValueError('canonical_branch_moved')
     store(intent,row,exclusive=True)
+    # Unlike an ephemeral runner file, this create-only repository reference
+    # survives a lost runner. A conflicting or ambiguous reservation fails
+    # closed BEFORE workflow dispatch. Never delete it to obtain another try.
+    remote_intent='refs/tags/phase-e-dispatch-intent-'+sha
+    reservation=api(repo,'POST','git/refs',{'ref':remote_intent,'sha':sha})
+    if (reservation.get('ref')!=remote_intent
+            or reservation.get('object',{}).get('sha')!=sha):
+        raise ValueError('canonical_remote_intent_not_confirmed')
+    row['remote_intent_ref']=remote_intent
+    store(intent,row)
     post_error=None;receipt={}
     try:
         receipt=api(repo,'POST','actions/workflows/'+WORKFLOW+'/dispatches',
