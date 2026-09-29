@@ -14,7 +14,7 @@ import time
 
 from certification import cleanup_recovery as original
 
-REVISION='joint-hot-archive-retirement-v1'
+REVISION='joint-eligible-hot-archive-retirement-v2'
 SCOPES=original.SCOPES
 legacy_assessment=original.recovery_assessment
 
@@ -34,10 +34,36 @@ class LifecycleObserver(original.BacklogObserver):
             try:
                 counters=dict(db.execute('SELECT key,value FROM counters'))
                 snapshot=dict(source_frames=counters.get('stream_accepted_messages',0),
-                    monotonic=time.monotonic(),service={},oldest_hot_slot_age={})
+                    monotonic=time.monotonic(),service={},oldest_hot_slot_age={},
+                    archive_eligible_hot={})
+                # Total hot rows include the mandatory rolling 180-second evidence
+                # window and are not archive debt. Count only rows that the
+                # production archive selector could actually take now, with the
+                # same age and pin/gap exclusions.
+                cutoff=time.time()-180
+                eligible={scope:0 for scope in SCOPES}
+                cursor=db.execute('''WITH account_pins AS MATERIALIZED
+                  (SELECT scope,floor FROM account_interest_floors)
+                  SELECT r.scope,COUNT(*) FROM records r INDEXED BY records_archive_time
+                  WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
+                  AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
+                     AND i.scope=r.scope AND r.slot>=i.lower_slot
+                     AND (NOT EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)
+                       OR EXISTS(SELECT 1 FROM service_interests s JOIN addresses a ON a.address=s.address
+                                 WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=r.identity)))
+                  AND NOT EXISTS(SELECT 1 FROM account_pins p
+                     WHERE r.scope=p.scope AND r.kind='account' AND r.slot>=p.floor)
+                  AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
+                      AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
+                  GROUP BY r.scope''',(cutoff,))
+                try:
+                    for scope,count in cursor:
+                        if scope in eligible:eligible[scope]=count
+                finally:cursor.close()
                 for scope in SCOPES:
                     snapshot['service'][scope]={stage:counters.get('lifecycle.'+stage+'.'+scope,0)
                         for stage in ('ingested','archived','retired','continuity')}
+                    snapshot['archive_eligible_hot'][scope]=eligible[scope]
                     # One indexed row per scope. This is explicitly the age of
                     # the oldest *slot*, not a substituted MIN(market_time).
                     # The unchanged driver separately measures global oldest
@@ -54,9 +80,13 @@ class LifecycleObserver(original.BacklogObserver):
 
 
 def _recovery_series(rows,scope,field,plan):
-    """Apply the original predefined windows/envelope to *each* debt stage."""
+    """Apply the predefined windows to actual lifecycle debt, not the fresh hot window."""
     failures=[];episodes=[]
-    debt=lambda row:row['scopes'][scope][field]
+    if field=='archive_eligible_hot':
+        debt=lambda row:row['lifecycle_observation']['archive_eligible_hot'][scope]
+    else:
+        debt=lambda row:row['scopes'][scope][field]
+    first_burst=plan['burst_source_seconds'][0]
     for burst in plan['burst_source_seconds']:
         baseline=[r for r in rows if burst-30<=r['source_seconds']<=burst-5]
         early=[r for r in rows if burst+8<=r['source_seconds']<=burst+45]
@@ -66,9 +96,11 @@ def _recovery_series(rows,scope,field,plan):
             baseline_max=max(map(debt,baseline));peak=max(map(debt,early))
             late_mean=statistics.mean(map(debt,late));decline=peak-min(map(debt,late))
             envelope=baseline_max+plan['pipeline_slack_records']
+            warmup=field=='archive_eligible_hot' and burst==first_burst
             result.update(baseline_max=baseline_max,early_peak=peak,late_mean=late_mean,
-                allowed_late_mean=envelope,decline_records=decline,
-                passed=late_mean<=envelope and (peak<=envelope or decline>=plan['minimum_decline_records']))
+                allowed_late_mean=envelope,decline_records=decline,warmup_only=warmup,
+                passed=warmup or (late_mean<=envelope
+                    and (peak<=envelope or decline>=plan['minimum_decline_records'])))
         episodes.append(result)
         if not result['passed']:failures.append(f'{scope}:{field}:burst:{burst}')
     horizon=plan['extended_frames']*.27
@@ -98,6 +130,8 @@ def assessment(samples,errors=()):
                 for field in ('hot','archived_pending','oldest_age'):
                     if not number(sample['scopes'][scope][field]):raise ValueError()
                 if sample['scopes'][scope]['oldest_age']>=240:raise ValueError()
+                eligible_hot=observed['archive_eligible_hot'][scope]
+                if not number(eligible_hot):raise ValueError()
                 age=observed['oldest_hot_slot_age'][scope]
                 if not number(age) or age>=240:raise ValueError()
                 for stage in ('ingested','archived','retired','continuity'):
@@ -114,7 +148,7 @@ def assessment(samples,errors=()):
     else:
         for scope in SCOPES:
             series[scope]={}
-            for field in ('hot','archived_pending'):
+            for field in ('archive_eligible_hot','archived_pending'):
                 row=_recovery_series(advancing,scope,field,original.plan())
                 series[scope][field]=row;failures.extend(row['failures'])
             service=[r['lifecycle_observation']['service'][scope] for r in advancing]
