@@ -1,0 +1,78 @@
+name: E25 exact candidate verification
+on:
+  push:
+    branches: [recovery/stagee25-github-native-publication-20260928]
+    paths:
+      - '.github/stagee25/verify-trigger.txt'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: e25-exact-candidate-verification
+  cancel-in-progress: false
+jobs:
+  verify-exact-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: cbc09686d09f117276d20a332ab5c51b215bfaaa
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact candidate identity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = cbc09686d09f117276d20a332ab5c51b215bfaaa
+          test "$(git rev-parse HEAD^{tree})" = 83280acd7c2fd4ce5d20d387668595d8fee8e798
+          git diff --exit-code HEAD
+      - name: Install deterministic-test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Prepare canonical lane worktrees
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/qualification-worktrees"
+      - name: Verify complete assembled source
+        run: |
+          python -m certification.build_consistency verify             --worktrees "$RUNNER_TEMP/qualification-worktrees"             --expected-sha cbc09686d09f117276d20a332ab5c51b215bfaaa             --output "$RUNNER_TEMP/build-preflight.json"
+      - name: Run exact deterministic suite with all lanes
+        env:
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/qualification-worktrees
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -v 2>&1 | tee "$RUNNER_TEMP/full-deterministic-tests.log"
+          grep -Eq '^Ran 1007 tests in ' "$RUNNER_TEMP/full-deterministic-tests.log"
+          grep -Eq '^OK$' "$RUNNER_TEMP/full-deterministic-tests.log"
+          ! grep -Eq 'skipped=[1-9]' "$RUNNER_TEMP/full-deterministic-tests.log"
+      - name: Run generic resource gate
+        run: python -m tests.resource_check
+      - name: Record exact-SHA verification
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib
+          temp=pathlib.Path(os.environ['RUNNER_TEMP'])
+          log=temp/'full-deterministic-tests.log'
+          row={
+            'schema':'e25-exact-candidate-verification-v1',
+            'candidate_sha':'cbc09686d09f117276d20a332ab5c51b215bfaaa',
+            'candidate_tree':'83280acd7c2fd4ce5d20d387668595d8fee8e798',
+            'source_candidate':'af4da58bcde0e194229d17b192242004d1449e8d',
+            'deterministic_tests':1007,
+            'skips':0,
+            'deterministic_test_log_sha256':hashlib.sha256(log.read_bytes()).hexdigest(),
+            'canonical_authority':False,
+            'market_authority':False,
+          }
+          (temp/'exact-candidate-verification.json').write_text(json.dumps(row,indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e25-exact-candidate-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/exact-candidate-verification.json
+            ${{ runner.temp }}/build-preflight.json
+            ${{ runner.temp }}/full-deterministic-tests.log
+          if-no-files-found: warn
+          retention-days: 90
