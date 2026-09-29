@@ -1,2 +1,6 @@
-candidate=20b2787616b8c65ac49fd7229a415545deb74588
-repair=archive-ready-retention-deferral
+candidate=fdeee2721d2bb63e0ff3234328b06936257493b1
+parent=20b2787616b8c65ac49fd7229a415545deb74588
+reason=correct confirmed nested-test discovery defect; runtime and acceptance unchanged
+prior_run=36522356333
+one_shot=e27-discovery-fdeee2721d2b
+paper_only=true
