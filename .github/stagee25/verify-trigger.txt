@@ -1,2 +1,2 @@
-candidate=91a77a59f2f8c12f74bd6581e33f59e9446cab21
-tree=83280acd7c2fd4ce5d20d387668595d8fee8e798
+candidate=5440f76aaf7be07149f8df2fba229f2407c9e515
+measurement=archive-eligible-hot-v2
