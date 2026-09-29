@@ -1,0 +1,3 @@
+trigger=e25-github-native-publication-v1
+source_candidate=af4da58bcde0e194229d17b192242004d1449e8d
+expected_tree=83280acd7c2fd4ce5d20d387668595d8fee8e798
