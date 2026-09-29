@@ -1,6 +1,7 @@
 source=fdeee2721d2bb63e0ff3234328b06936257493b1
-reason=demonstrated stale composed service hash and missing exact-head mandatory cohort wiring
-one_shot=e27-complete-publication-v1
+preserved_run=36524401712
+reason=recover verified manifest bytes; repair reproduced HTTP204 adapter crash; use connection for workflow tree publication
+one_shot=e27-complete-publication-v2-http204
 no_runtime_changes=true
 no_gate_changes=true
 no_branch_promotion=true

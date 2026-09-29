@@ -1,0 +1,10 @@
+{
+  "defect": "promotion_http_204_adapter_receipt_crash",
+  "error": "'NoneType' object has no attribute 'get'",
+  "candidate": "eec4e05692b05afbd89d8f429065fbb29e262091",
+  "simulated_only": true,
+  "posts": 1,
+  "canonical_simulated_moved": true,
+  "simulated_child_created": true,
+  "repair": "Normalize only a None receipt to an empty mapping and retain GET-only reconciliation, immutable identity checks, and one-shot dispatch"
+}
