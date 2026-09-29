@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 5440f76aaf7be07149f8df2fba229f2407c9e515
-          test "$(git rev-parse HEAD^{tree})" = 83280acd7c2fd4ce5d20d387668595d8fee8e798
+          test "$(git rev-parse HEAD^{tree})" = f8cd1f4c6567c82755ab63731f6673fbd942d113
           git diff --exit-code HEAD
       - name: Install deterministic-test dependencies
         run: python -m pip install --disable-pip-version-check -r requirements.txt
@@ -59,7 +59,7 @@ jobs:
           row={
             'schema':'e25-exact-candidate-verification-v1',
             'candidate_sha':'5440f76aaf7be07149f8df2fba229f2407c9e515',
-            'candidate_tree':'83280acd7c2fd4ce5d20d387668595d8fee8e798',
+            'candidate_tree':'f8cd1f4c6567c82755ab63731f6673fbd942d113',
             'source_candidate':'af4da58bcde0e194229d17b192242004d1449e8d',
             'deterministic_tests':1007,
             'skips':0,
