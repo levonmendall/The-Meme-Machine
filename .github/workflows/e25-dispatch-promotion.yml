@@ -1,0 +1,75 @@
+name: E25 dispatch evidence-gated promotion
+on:
+  push:
+    branches: [recovery/stagee25-github-native-publication-20260928]
+    paths:
+      - '.github/stagee25/promotion-request.json'
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: e25-dispatch-evidence-gated-promotion
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Dispatch promotion exactly once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import datetime,json,os,time,urllib.parse,urllib.request
+          request_row=json.load(open('.github/stagee25/promotion-request.json'))
+          candidate='cbc09686d09f117276d20a332ab5c51b215bfaaa'; canonical='a775849c940d48bc8f809e99c075e421744bc53f'; branch='repair/stagee25-promotion-wiring-20260928'
+          if request_row.get('candidate_sha')!=candidate: raise ValueError('promotion_candidate_mismatch')
+          if request_row.get('expected_canonical_sha')!=canonical: raise ValueError('promotion_canonical_predecessor_mismatch')
+          cohort_run=request_row.get('cohort_run_id'); full_run=request_row.get('full_run_id')
+          cohort_artifact=request_row.get('cohort_artifact')
+          if type(cohort_run) is not int or type(full_run) is not int or not isinstance(cohort_artifact,str):
+              raise ValueError('promotion_request_incomplete')
+          repo=os.environ['REPO']; token=os.environ['GH_TOKEN']; workflow='stagee-accepted-candidate-promotion.yml'
+          started=datetime.datetime.now(datetime.timezone.utc)
+          def api(method,path,body=None):
+              data=None if body is None else json.dumps(body).encode()
+              req=urllib.request.Request('https://api.github.com/repos/'+repo+'/'+path,data=data,method=method,
+                  headers={'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json',
+                           'X-GitHub-Api-Version':'2022-11-28','User-Agent':'e25-stagee'})
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  raw=response.read(); return response.status, json.loads(raw) if raw else {}
+          status,_=api('POST','actions/workflows/'+workflow+'/dispatches',
+              {'ref':branch,'inputs':{
+                  'expected_sha':candidate,'expected_canonical_sha':canonical,
+                  'cohort_run_id':str(cohort_run),'cohort_artifact':cohort_artifact,
+                  'full_run_id':str(full_run)}})
+          if status not in (200,201,202,204): raise RuntimeError('promotion_dispatch_status:'+str(status))
+          found=[]
+          for _ in range(30):
+              time.sleep(5)
+              q=urllib.parse.urlencode({'event':'workflow_dispatch','branch':branch,'per_page':100})
+              _,row=api('GET','actions/workflows/'+workflow+'/runs?'+q)
+              found=[r for r in row.get('workflow_runs',[])
+                     if r.get('head_sha')==candidate and r.get('event')=='workflow_dispatch'
+                     and r.get('run_attempt')==1
+                     and datetime.datetime.fromisoformat(r['created_at'].replace('Z','+00:00'))>=started-datetime.timedelta(seconds=5)]
+              if len(found)==1: break
+              if len(found)>1: raise RuntimeError('duplicate_promotion_runs')
+          if len(found)!=1: raise RuntimeError('promotion_dispatch_not_confirmed')
+          receipt={'schema':'e25-promotion-dispatch-v1','candidate_sha':candidate,
+                   'run_id':found[0]['id'],'run_url':found[0].get('html_url'),
+                   'canonical_authority':False,'market_authority':False}
+          open(os.environ['RUNNER_TEMP']+'/promotion-dispatch.json','w').write(json.dumps(receipt,indent=2)+'\n')
+          print(json.dumps(receipt,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e25-promotion-dispatch-${{ github.run_id }}
+          path: ${{ runner.temp }}/promotion-dispatch.json
+          if-no-files-found: error
+          retention-days: 90
