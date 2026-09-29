@@ -1,4 +1,4 @@
-candidate=48fee7b1aab5597c2d39ccab711853c637332da8
-tree=d6977d200ab98827a86ef1dc2b4e5f32fdfcc51f
+candidate=acfa2d8063240ead4dc6d5663f17fa3ae0d75d9b
+tree=7156eca779727de652336e728e797d0429b0d395
 measurement=archive-eligible-hot-v2
-verification_revision=1009-tests-source-commit-label
+verification_revision=1009-tests-refreshed-overlays
