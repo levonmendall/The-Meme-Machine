@@ -23,7 +23,7 @@ jobs:
           python - <<'PY'
           import datetime,json,os,time,urllib.parse,urllib.request
           repo=os.environ['REPO']; token=os.environ['GH_TOKEN']
-          candidate='91a77a59f2f8c12f74bd6581e33f59e9446cab21'; branch='repair/stagee25-promotion-wiring-20260928'
+          candidate='acfa2d8063240ead4dc6d5663f17fa3ae0d75d9b'; branch='repair/stagee26-eligible-hot-measurement-20260928'
           workflow='non-market-certification.yml'
           started=datetime.datetime.now(datetime.timezone.utc)
           def request(method,path,body=None):
