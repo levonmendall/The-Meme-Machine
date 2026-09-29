@@ -1,0 +1,6 @@
+candidate=9356068cc92f9cadbd35adead3c33b532cbd4268
+cohort_run=36525293113
+canonical_predecessor=a775849c940d48bc8f809e99c075e421744bc53f
+one_shot=e27-9356068-cohort-full-official-promotion
+phase_f_authorized=false
+market_authority=false
