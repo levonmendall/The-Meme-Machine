@@ -8,7 +8,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: e25-authoritative-lifecycle-profile
+  group: e25-authoritative-lifecycle-profile-final
   cancel-in-progress: false
 jobs:
   profile:
