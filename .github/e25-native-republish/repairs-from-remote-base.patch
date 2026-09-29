@@ -1,0 +1,2284 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 16170a1c..0dfd6a39 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -14,7 +14,9 @@ jobs:
+     steps:
+       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+         with:
+-          fetch-depth: 2
++          # Policy verification reads exact historical source objects. A shallow
++          # checkout is not a complete build even when current files are present.
++          fetch-depth: 0
+       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+         with:
+           python-version: '3.12.14'
+diff --git a/.github/workflows/stagee-accepted-candidate-promotion.yml b/.github/workflows/stagee-accepted-candidate-promotion.yml
+new file mode 100644
+index 00000000..c89d68ef
+--- /dev/null
++++ b/.github/workflows/stagee-accepted-candidate-promotion.yml
+@@ -0,0 +1,123 @@
++name: Evidence-gated canonical Phase E promotion
++on:
++  workflow_dispatch:
++    inputs:
++      expected_sha:
++        description: Exact candidate already accepted by all four fixed trials and full machinery verification
++        type: string
++        required: true
++      expected_canonical_sha:
++        description: Exact current canonical predecessor; compare-and-swap only
++        type: string
++        required: true
++      cohort_run_id:
++        description: Completed exact-SHA run containing all four fixed trials and environment.json
++        type: string
++        required: true
++      cohort_artifact:
++        description: Artifact name containing original trial directories, not an aggregate alone
++        type: string
++        required: true
++      full_run_id:
++        description: Completed exact-SHA full machinery verification run after cohort acceptance
++        type: string
++        required: true
++permissions:
++  contents: read
++concurrency:
++  group: canonical-phase-e-promotion
++  cancel-in-progress: false
++jobs:
++  promote-and-dispatch:
++    permissions:
++      contents: write
++      actions: write
++    outputs:
++      canonical_run_id: ${{ steps.promote.outputs.canonical_run_id }}
++    runs-on: ubuntu-24.04
++    timeout-minutes: 15
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
++        with:
++          fetch-depth: 0
++      - name: Bind manual attempt to immutable candidate before Python execution
++        env:
++          EXPECTED_SHA: ${{ inputs.expected_sha }}
++        run: |
++          set -euo pipefail
++          test "$GITHUB_EVENT_NAME" = workflow_dispatch
++          test "$GITHUB_RUN_ATTEMPT" = 1
++          test "$GITHUB_SHA" = "$EXPECTED_SHA"
++          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
++      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
++        with:
++          python-version: '3.12.14'
++      - run: python -m pip install --disable-pip-version-check -r requirements.txt
++      - name: Reverify raw proofs, reserve one-shot intent, promote and explicitly dispatch
++        id: promote
++        env:
++          GH_TOKEN: ${{ github.token }}
++          EXPECTED_SHA: ${{ inputs.expected_sha }}
++          PRIOR_SHA: ${{ inputs.expected_canonical_sha }}
++          COHORT_RUN: ${{ inputs.cohort_run_id }}
++          COHORT_ARTIFACT: ${{ inputs.cohort_artifact }}
++          FULL_RUN: ${{ inputs.full_run_id }}
++        run: |
++          set -euo pipefail
++          python -m certification.promote_phase_e \
++            --sha "$EXPECTED_SHA" --old-sha "$PRIOR_SHA" \
++            --cohort-run "$COHORT_RUN" --cohort-artifact "$COHORT_ARTIFACT" \
++            --full-run "$FULL_RUN" --output "$RUNNER_TEMP/phase-e-promotion"
++          python - <<'PYCODE'
++          import json, os
++          from pathlib import Path
++          row = json.loads((Path(os.environ['RUNNER_TEMP']) / 'phase-e-promotion/promotion.json').read_text())
++          assert type(row['run_id']) is int
++          with open(os.environ['GITHUB_OUTPUT'], 'a') as target:
++              target.write(f"canonical_run_id={row['run_id']}\n")
++          PYCODE
++      - name: Preserve success or failure without granting market authority
++        if: always()
++        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
++        with:
++          name: phase-e-promotion-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
++          path: ${{ runner.temp }}/phase-e-promotion/
++          retention-days: 90
++          if-no-files-found: error
++
++  review-canonical-artifacts:
++    needs: promote-and-dispatch
++    permissions:
++      contents: read
++      actions: read
++    runs-on: ubuntu-24.04
++    timeout-minutes: 95
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
++        with:
++          fetch-depth: 0
++          persist-credentials: false
++      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
++        with:
++          python-version: '3.12.14'
++      - run: python -m pip install --disable-pip-version-check -r requirements.txt
++      - name: Read canonical run to completion and reverify its raw artifacts
++        env:
++          GH_TOKEN: ${{ github.token }}
++          EXPECTED_SHA: ${{ inputs.expected_sha }}
++          CANONICAL_RUN: ${{ needs.promote-and-dispatch.outputs.canonical_run_id }}
++        run: |
++          set -euo pipefail
++          test "$GITHUB_SHA" = "$EXPECTED_SHA"
++          test "$GITHUB_RUN_ATTEMPT" = 1
++          python -m certification.promote_phase_e --sha "$EXPECTED_SHA" \
++            --verify-run "$CANONICAL_RUN" --polls 360 \
++            --output "$RUNNER_TEMP/phase-e-canonical-review"
++      - name: Preserve canonical review even when the child workflow fails
++        if: always()
++        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
++        with:
++          name: phase-e-canonical-review-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
++          path: ${{ runner.temp }}/phase-e-canonical-review/
++          retention-days: 90
++          if-no-files-found: error
+diff --git a/certification/build_consistency.py b/certification/build_consistency.py
+index 0e4ec64d..6e38229d 100644
+--- a/certification/build_consistency.py
++++ b/certification/build_consistency.py
+@@ -17,6 +17,7 @@ import tempfile
+ ROOT = Path(__file__).resolve().parents[1]
+ REVIEWED_BASE = '23f06ed84e5b5e2d4efd074618ab44ae7ed58011'
+ ALLOWED_RUNTIME = frozenset({
++    'tests/test_stagee24_maintenance_integrity.py',
+     'meme_machine/solana_retention_outcome.py',
+     'tests/test_retention_outcomes.py',
+     'meme_machine/solana_evidence_plane.py',
+diff --git a/certification/combined_observer.py b/certification/combined_observer.py
+index 7c189af7..08f9c0ee 100644
+--- a/certification/combined_observer.py
++++ b/certification/combined_observer.py
+@@ -15,7 +15,7 @@ import time
+ from unittest.mock import patch
+ from certification import combined_pressure as legacy
+ 
+-REVISION='durable-window-v3'
++REVISION='durable-window-v4'
+ legacy_verified=legacy.verified
+ 
+ 
+@@ -117,12 +117,17 @@ def observation_verified(row):
+         s.get('observation_revision')==REVISION and s.get('cleanup_window_status')=='serviced'
+         and type(s.get('eligible_at_reader_start')) is bool
+         and type(s.get('eligible_at_reader_end')) is bool
++        and type(s.get('reader_source_advance')) is int and s['reader_source_advance']>0
++        and type(s.get('reader_compaction_advance')) is int and s['reader_compaction_advance']>0
++        and s.get('reader_snapshot_preserved') is True
+         and s.get('source_frames_while_reader')==s.get('reader_source_advance')
+         for s in samples))
+ 
+ 
+ def verified(row,sha):
+-    return legacy_verified(row,sha) and observation_verified(row)
++    return (legacy_verified(row,sha) and observation_verified(row)
++            and 0<row.get('oldest_hot_age_peak',float('inf'))<240
++            and 0<row.get('oldest_retained_age_peak',float('inf'))<240)
+ 
+ 
+ async def run(output):
+diff --git a/certification/dispatch_phase_e.py b/certification/dispatch_phase_e.py
+index 195b3d6c..95c4d5a2 100644
+--- a/certification/dispatch_phase_e.py
++++ b/certification/dispatch_phase_e.py
+@@ -12,6 +12,8 @@ import os
+ from pathlib import Path
+ import re
+ import time
++import tempfile
++import hashlib
+ import urllib.error
+ import urllib.parse
+ import urllib.request
+@@ -19,6 +21,15 @@ import urllib.request
+ WORKFLOW='directional-six-regime-nonmarket.yml'
+ BRANCH='cert/autonomous-paper-machinery-20260927'
+ ACTIVE={'queued','in_progress','waiting','pending','requested'}
++FULL_GATES=frozenset({
++    'exact_source_offline','native_crash_matrix','restart_safety',
++    'integrated_current_policy','historical_exposure_resolution',
++    'historical_registry_released','resource_bounds','mature_solana_pressure',
++    'combined_mature_solana_pressure','joined_eight_day_system',
++    'exact_integration_identity','six_regime_integration',
++    'preserved_production_adapter_contracts','bounded_preserved_validation',
++})
++
+ 
+ 
+ def require_sha(sha):
+@@ -28,15 +39,23 @@ def require_sha(sha):
+ 
+ def prerequisites(cohort,build,runtime,plan_sha):
+     require_sha(runtime)
++    if not re.fullmatch('[0-9a-f]{64}',plan_sha):
++        raise ValueError('invalid_plan_sha256')
+     trials=cohort.get('trials',[])
+     if not (cohort.get('passed') is True and not cohort.get('failures')
++            and cohort.get('canonical_authority') is False
+             and cohort.get('integration_sha')==runtime and cohort.get('plan_sha256')==plan_sha
+             and len(trials)==4 and {r.get('trial') for r in trials}==
+                 {'combined-1','combined-2','combined-3','recovery-1'}
+             and all(r.get('passed') is True for r in trials)):
+         raise ValueError('fixed_cohort_not_accepted')
++    gates=build.get('gates') or {}
+     if not (build.get('passed') is True and not build.get('failures')
+-            and build.get('integration_sha')==runtime and build.get('paper_only') is True):
++            and build.get('integration_sha')==runtime and build.get('expected_integration_sha')==runtime
++            and build.get('engineering_certification')=='CERTIFIED_NON_MARKET_ENGINEERING'
++            and build.get('validation_scope')=='preserved_evidence_only'
++            and build.get('paper_only') is True and build.get('live_money') is False
++            and FULL_GATES.issubset(gates) and all(value is True for value in gates.values())):
+         raise ValueError('complete_build_not_verified')
+ 
+ 
+@@ -65,32 +84,103 @@ def request(repo,method,path,data=None):
+ 
+ 
+ def store(path,row,exclusive=False):
++    """Publish a complete durable JSON file, never a truncated dispatch intent.
++
++    An exclusive hard link is the no-clobber publication boundary. Updates use
++    atomic replacement; both paths fsync the directory after publishing.
++    """
+     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
+-    with path.open('x' if exclusive else 'w') as stream:
+-        json.dump(row,stream,indent=2);stream.write('\n');stream.flush();os.fsync(stream.fileno())
++    fd,name=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
++    temporary=Path(name)
++    try:
++        with os.fdopen(fd,'w') as stream:
++            json.dump(row,stream,indent=2);stream.write('\n')
++            stream.flush();os.fsync(stream.fileno())
++        if exclusive:os.link(temporary,path)
++        else:os.replace(temporary,path)
++        directory=os.open(path.parent,os.O_RDONLY|os.O_DIRECTORY)
++        try:os.fsync(directory)
++        finally:os.close(directory)
++    finally:
++        temporary.unlink(missing_ok=True)
++
++
++def canonical_runs(repo,api):
++    """No omitted page may hide an active or previously dispatched run."""
++    rows=[]
++    for page in range(1,101):
++        query='actions/workflows/'+WORKFLOW+'/runs?'+urllib.parse.urlencode(
++            {'branch':BRANCH,'per_page':100,'page':page})
++        result=api(repo,'GET',query)
++        batch=result.get('workflow_runs',[])
++        if not isinstance(batch,list):raise ValueError('invalid_workflow_runs')
++        rows.extend(batch)
++        if len(batch)<100:
++            if result.get('total_count',len(rows))>len(rows):
++                raise ValueError('incomplete_canonical_run_listing')
++            return rows
++    raise ValueError('canonical_run_listing_bound_exceeded')
++
++
++def _reconcile(repo,row,output,api,sleep,polls):
++    sha=row['canonical_sha']
++    for _ in range(polls):
++        if row.get('dispatch_response_run_id'):
++            candidates=[api(repo,'GET','actions/runs/'+str(row['dispatch_response_run_id']))]
++        else:
++            # Keep wrong-SHA/new-event rows in the candidate set: a branch race
++            # is an identity failure, not permission to ignore it and retry POST.
++            candidates=[r for r in canonical_runs(repo,api)
++                        if r.get('id') not in row['previous_run_ids']]
++        if len(candidates)>1:raise ValueError('duplicate_canonical_runs')
++        if candidates:
++            run=run_identity(candidates[0],sha)
++            row.update(dispatched=True,run_id=run['id'],run_url=run.get('html_url'),
++                       run_status=run.get('status'),conclusion=run.get('conclusion'),
++                       canonical_authority=False,artifacts_verified=False)
++            store(output,row);return row
++        sleep(5)
++    raise RuntimeError('dispatch_not_confirmed_do_not_retry_post')
++
++
++def reconcile_existing(repo,output,*,api=request,sleep=time.sleep,polls=12):
++    """Resume a lost response using GET only; never submit another dispatch."""
++    output=Path(output);intent=output.with_suffix('.intent.json')
++    row=json.loads(intent.read_text())
++    if (row.get('repository')!=repo or row.get('post_attempts')!=1 or
++            row.get('canonical_sha')!=row.get('runtime_sha')):
++        raise ValueError('dispatch_intent_identity_mismatch')
++    require_sha(row['canonical_sha'])
++    # An existing result contains an authoritative API response ID when one was
++    # returned. It cannot override any identity in the pre-POST durable intent.
++    if output.exists():
++        receipt=json.loads(output.read_text())
++        if any(receipt.get(k)!=v for k,v in row.items()):
++            raise ValueError('dispatch_receipt_intent_mismatch')
++        row=receipt
++    return _reconcile(repo,row,output,api,sleep,polls)
+ 
+ 
+ def dispatch(repo,sha,runtime,plan_sha,cohort,build,output,*,api=request,sleep=time.sleep,polls=12):
+     require_sha(sha);prerequisites(cohort,build,runtime,plan_sha)
++    if sha!=runtime:raise ValueError('canonical_sha_not_verified_candidate')
+     if not re.fullmatch('[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',repo):
+         raise ValueError('invalid_repository')
+     output=Path(output);intent=output.with_suffix('.intent.json')
+-    # Verify the exact canonical branch and both identical trees before authority.
++    # Tree equivalence is insufficient: the certified candidate SHA must match.
+     ref=api(repo,'GET','git/ref/heads/'+BRANCH)
+     if ref.get('object',{}).get('sha')!=sha:
+         raise ValueError('canonical_branch_moved')
+-    commit=api(repo,'GET','git/commits/'+sha)
+-    parent=api(repo,'GET','git/commits/'+runtime)
+-    if commit.get('tree',{}).get('sha')!=parent.get('tree',{}).get('sha'):
+-        raise ValueError('canonical_tree_not_reviewed')
+-    query='actions/workflows/'+WORKFLOW+'/runs?'+urllib.parse.urlencode({'branch':BRANCH,'per_page':100})
+-    before=api(repo,'GET',query).get('workflow_runs',[])
++    before=canonical_runs(repo,api)
+     if any(r.get('status') in ACTIVE for r in before):
+         raise ValueError('competing_canonical_run')
+     existing=[r for r in before if r.get('head_sha')==sha and r.get('event')=='workflow_dispatch']
+     if existing:
+         raise ValueError('canonical_sha_already_dispatched')
+-    row=dict(canonical_sha=sha,runtime_sha=runtime,plan_sha256=plan_sha,
++    row=dict(repository=repo,canonical_sha=sha,runtime_sha=runtime,plan_sha256=plan_sha,
++             canonical_authority=False,artifacts_verified=False,
++             cohort_sha256=hashlib.sha256(json.dumps(cohort,sort_keys=True,separators=(',',':')).encode()).hexdigest(),
++             build_sha256=hashlib.sha256(json.dumps(build,sort_keys=True,separators=(',',':')).encode()).hexdigest(),
+              previous_run_ids=[r['id'] for r in before],paper_only=True,
+              market_authority=False,created_at=dt.datetime.now(dt.timezone.utc).isoformat(),post_attempts=1)
+     store(intent,row,exclusive=True)
+@@ -102,29 +192,23 @@ def dispatch(repo,sha,runtime,plan_sha,cohort,build,output,*,api=request,sleep=t
+         post_error=type(exc).__name__
+     row['dispatch_response_run_id']=receipt.get('workflow_run_id')
+     row['post_error_type']=post_error;store(output,row)
+-    for _ in range(polls):
+-        if receipt.get('workflow_run_id'):
+-            candidates=[api(repo,'GET','actions/runs/'+str(receipt['workflow_run_id']))]
+-        else:
+-            candidates=[r for r in api(repo,'GET',query).get('workflow_runs',[])
+-                        if r.get('id') not in row['previous_run_ids'] and r.get('head_sha')==sha]
+-        if len(candidates)>1:raise ValueError('duplicate_canonical_runs')
+-        if candidates:
+-            run=run_identity(candidates[0],sha)
+-            row.update(dispatched=True,run_id=run['id'],run_url=run.get('html_url'),
+-                       run_status=run.get('status'),conclusion=run.get('conclusion'))
+-            store(output,row);return row
+-        sleep(5)
+-    raise RuntimeError('dispatch_not_confirmed_do_not_retry_post')
++    return _reconcile(repo,row,output,api,sleep,polls)
+ 
+ 
+ def main():
+     parser=argparse.ArgumentParser()
+-    for name in ('repo','sha','runtime','plan-sha256','cohort','build','output'):
+-        parser.add_argument('--'+name,required=True)
++    parser.add_argument('--repo',required=True);parser.add_argument('--output',required=True)
++    parser.add_argument('--reconcile-only',action='store_true')
++    for name in ('sha','runtime','plan-sha256','cohort','build'):
++        parser.add_argument('--'+name)
+     args=parser.parse_args()
+-    dispatch(args.repo,args.sha,args.runtime,args.plan_sha256,
+-             json.loads(Path(args.cohort).read_text()),json.loads(Path(args.build).read_text()),args.output)
++    if args.reconcile_only:
++        reconcile_existing(args.repo,args.output)
++    else:
++        if not all((args.sha,args.runtime,args.plan_sha256,args.cohort,args.build)):
++            parser.error('fresh dispatch requires candidate, plan and verification receipts')
++        dispatch(args.repo,args.sha,args.runtime,args.plan_sha256,
++                 json.loads(Path(args.cohort).read_text()),json.loads(Path(args.build).read_text()),args.output)
+ 
+ 
+ if __name__=='__main__':main()
+diff --git a/certification/final_acceptance.py b/certification/final_acceptance.py
+index f81c9545..988999da 100644
+--- a/certification/final_acceptance.py
++++ b/certification/final_acceptance.py
+@@ -86,8 +86,8 @@ def run(evidence,output,expected_sha=None,registry_path=None,preserved_only=Fals
+         and pressure.get('archive_records_verified',0)>0
+         and pressure.get('counters',{}).get('compacted_records',0)>0
+         and 0<=pressure.get('lag_peak',float('inf'))<45
+-        and 0<pressure.get('oldest_hot_age_peak',float('inf'))<=240
+-        and 0<pressure.get('oldest_retained_age_peak',float('inf'))<=240
++        and 0<pressure.get('oldest_hot_age_peak',float('inf'))<240
++        and 0<pressure.get('oldest_retained_age_peak',float('inf'))<240
+         and 0<pressure.get('hot_peak',float('inf'))<2*1024**3
+         and pressure.get('integrity')==['ok'])
+     from certification.combined_observer import verified as combined_verified
+diff --git a/certification/lifecycle_capacity.py b/certification/lifecycle_capacity.py
+new file mode 100644
+index 00000000..ec38661f
+--- /dev/null
++++ b/certification/lifecycle_capacity.py
+@@ -0,0 +1,140 @@
++"""Joint lifecycle observation and acceptance; no scheduler or workload changes.
++
++The historical recovery observer is retained. Additional service counters have
++an explicit independent snapshot identity; they are never added to overlapping
++owner/stage timings or used as source/retirement authority.
++"""
++from __future__ import annotations
++from contextlib import closing
++import math
++from pathlib import Path
++import sqlite3
++import statistics
++import time
++
++from certification import cleanup_recovery as original
++
++REVISION='joint-hot-archive-retirement-v1'
++SCOPES=original.SCOPES
++legacy_assessment=original.recovery_assessment
++
++
++def number(value):
++    return type(value) in (int,float) and math.isfinite(value) and value>=0
++
++
++class LifecycleObserver(original.BacklogObserver):
++    def _capture(self):
++        row=super()._capture()
++        if row is None:return None
++        started=time.monotonic()
++        with closing(sqlite3.connect(Path(self.path).resolve().as_uri()+'?mode=ro',
++                uri=True,isolation_level=None,timeout=.5)) as db:
++            db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
++            try:
++                counters=dict(db.execute('SELECT key,value FROM counters'))
++                snapshot=dict(source_frames=counters.get('stream_accepted_messages',0),
++                    monotonic=time.monotonic(),service={},oldest_hot_slot_age={})
++                for scope in SCOPES:
++                    snapshot['service'][scope]={stage:counters.get('lifecycle.'+stage+'.'+scope,0)
++                        for stage in ('ingested','archived','retired','continuity')}
++                    # One indexed row per scope. This is explicitly the age of
++                    # the oldest *slot*, not a substituted MIN(market_time).
++                    # The unchanged driver separately measures global oldest
++                    # hot/retained age and its strict 240-second gate still applies.
++                    oldest=db.execute('SELECT COALESCE(market_time,first_seen) '
++                        'FROM records INDEXED BY records_hot_scope_slot '
++                        'WHERE scope=? AND body IS NOT NULL ORDER BY slot LIMIT 1',(scope,)).fetchone()
++                    snapshot['oldest_hot_slot_age'][scope]=max(0,time.time()-oldest[0]) if oldest else 0
++            finally:db.execute('ROLLBACK')
++        row['lifecycle_observation']=snapshot
++        row['lifecycle_revision']=REVISION
++        row['observer_ms']+=(time.monotonic()-started)*1000
++        return row
++
++
++def _recovery_series(rows,scope,field,plan):
++    """Apply the original predefined windows/envelope to *each* debt stage."""
++    failures=[];episodes=[]
++    debt=lambda row:row['scopes'][scope][field]
++    for burst in plan['burst_source_seconds']:
++        baseline=[r for r in rows if burst-30<=r['source_seconds']<=burst-5]
++        early=[r for r in rows if burst+8<=r['source_seconds']<=burst+45]
++        late=[r for r in rows if burst+90<=r['source_seconds']<=burst+120]
++        result=dict(burst_source_seconds=burst,passed=False)
++        if min(len(baseline),len(early),len(late))>=3:
++            baseline_max=max(map(debt,baseline));peak=max(map(debt,early))
++            late_mean=statistics.mean(map(debt,late));decline=peak-min(map(debt,late))
++            envelope=baseline_max+plan['pipeline_slack_records']
++            result.update(baseline_max=baseline_max,early_peak=peak,late_mean=late_mean,
++                allowed_late_mean=envelope,decline_records=decline,
++                passed=late_mean<=envelope and (peak<=envelope or decline>=plan['minimum_decline_records']))
++        episodes.append(result)
++        if not result['passed']:failures.append(f'{scope}:{field}:burst:{burst}')
++    horizon=plan['extended_frames']*.27
++    first=[r for r in rows if horizon-240<=r['source_seconds']<horizon-120]
++    last=[r for r in rows if horizon-120<=r['source_seconds']<horizon]
++    tail=dict(passed=False)
++    if min(len(first),len(last))>=10 and last[-1]['source_seconds']>=horizon-15:
++        before=statistics.mean(map(debt,first));after=statistics.mean(map(debt,last))
++        envelope=max(e.get('baseline_max',0) for e in episodes)+plan['pipeline_slack_records']
++        tail.update(first_mean=before,last_mean=after,allowed_late_mean=envelope,
++            passed=after<=envelope and after<=before+plan['trend_slack_records'])
++    if not tail['passed']:failures.append(f'{scope}:{field}:sustained_growth_or_missing_tail')
++    return dict(passed=not failures,failures=failures,episodes=episodes,tail=tail)
++
++
++def assessment(samples,errors=()):
++    # Preserve the original fixed Meteora cohort and archived-debt acceptance.
++    result=legacy_assessment(samples,errors)
++    failures=list(result['failures']);advancing=[];last=-1
++    for sample in samples:
++        try:
++            if sample.get('lifecycle_revision')!=REVISION:raise ValueError()
++            observed=sample['lifecycle_observation']
++            if type(observed['source_frames']) is not int:raise ValueError()
++            if observed['source_frames']<sample['source_frames']:raise ValueError()
++            for scope in SCOPES:
++                for field in ('hot','archived_pending','oldest_age'):
++                    if not number(sample['scopes'][scope][field]):raise ValueError()
++                if sample['scopes'][scope]['oldest_age']>=240:raise ValueError()
++                age=observed['oldest_hot_slot_age'][scope]
++                if not number(age) or age>=240:raise ValueError()
++                for stage in ('ingested','archived','retired','continuity'):
++                    value=observed['service'][scope][stage]
++                    if type(value) is not int or value<0:raise ValueError()
++            if not number(sample['observer_ms']):raise ValueError()
++        except (KeyError,TypeError,ValueError):
++            failures.append('invalid_or_missing_lifecycle_observation')
++            continue
++        if sample['source_frames']>last:
++            advancing.append(sample);last=sample['source_frames']
++    series={}
++    if len(advancing)<30:failures.append('insufficient_joint_lifecycle_observations')
++    else:
++        for scope in SCOPES:
++            series[scope]={}
++            for field in ('hot','archived_pending'):
++                row=_recovery_series(advancing,scope,field,original.plan())
++                series[scope][field]=row;failures.extend(row['failures'])
++            service=[r['lifecycle_observation']['service'][scope] for r in advancing]
++            for stage in ('ingested','archived','retired','continuity'):
++                if any(b[stage]<a[stage] for a,b in zip(service,service[1:])):
++                    failures.append(f'{scope}:{stage}:service_counter_regressed')
++            if service[-1]['ingested']>service[0]['ingested']:
++                if any(service[-1][stage]<=service[0][stage] for stage in ('archived','retired')):
++                    failures.append(f'{scope}:lifecycle_service_starved')
++    # Instrumentation overhead is a measurement, not CPU time. The ratio is
++    # summed short reader wall times divided by the observed wall interval.
++    # No overlapping source/owner/archive timing is added into this number.
++    overhead=dict(passed=False)
++    if len(advancing)>=2:
++        elapsed=advancing[-1]['monotonic']-advancing[0]['monotonic']
++        measured_ms=sum(r['observer_ms'] for r in advancing[1:])
++        ratio=measured_ms/(1000*elapsed) if elapsed>0 else float('inf')
++        overhead=dict(observer_wall_fraction=ratio,observer_peak_ms=max(r['observer_ms'] for r in advancing),
++            passed=ratio<=original.plan().get('observer_wall_fraction_limit',.01))
++    if not overhead['passed']:failures.append('observer_overhead_not_bounded')
++    result.update(passed=not failures,failures=sorted(set(failures)),
++                  lifecycle_revision=REVISION,joint_lifecycle=series,observer_overhead=overhead)
++    return result
+diff --git a/certification/maintenance_qualification.py b/certification/maintenance_qualification.py
+index c7cf7328..2ff5a4cd 100644
+--- a/certification/maintenance_qualification.py
++++ b/certification/maintenance_qualification.py
+@@ -1,23 +1,41 @@
+-"""E23 fixed-cohort runner: same workload/limits, versioned observed commit windows."""
++"""E24 fixed cohort: unchanged workload, joint lifecycle and durable-window evidence."""
+ from contextlib import ExitStack,contextmanager
+ from pathlib import Path
++import sys
++import hashlib
++import json
+ from unittest.mock import patch
+ from certification import cleanup_recovery as recovery
+ from certification import combined_pressure as legacy
+ from certification.combined_observer import Interaction,verified,observation_verified
++from certification.lifecycle_capacity import LifecycleObserver,assessment
++from certification.qualification_environment import require as require_environment
+ 
+-PLAN_PATH=Path(__file__).with_name('maintenance_qualification_plan.json')
++PLAN_PATH=Path(__file__).with_name('stagee24_qualification_plan.json')
+ original_extended_verified=recovery.extended_verified
++original_frozen_inputs=recovery.frozen_inputs
+ 
+ 
+ def extended_verified(row,frames):
+-    return original_extended_verified(row,frames) and observation_verified(row)
++    return (original_extended_verified(row,frames) and observation_verified(row)
++            and 0<row.get('oldest_hot_age_peak',float('inf'))<240
++            and 0<row.get('oldest_retained_age_peak',float('inf'))<240)
++
++
++def frozen_inputs():
++    plan=json.loads(PLAN_PATH.read_text())
++    return original_frozen_inputs() and all(
++        hashlib.sha256((recovery.ROOT/name).read_bytes()).hexdigest()==expected
++        for name,expected in plan['observation_sources'].items())
+ 
+ 
+ @contextmanager
+ def qualification():
+     with ExitStack() as stack:
+         stack.enter_context(patch.object(recovery,'PLAN_PATH',PLAN_PATH))
++        stack.enter_context(patch.object(recovery,'frozen_inputs',frozen_inputs))
++        stack.enter_context(patch.object(recovery,'BacklogObserver',LifecycleObserver))
++        stack.enter_context(patch.object(recovery,'recovery_assessment',assessment))
+         stack.enter_context(patch.object(legacy,'Interaction',Interaction))
+         stack.enter_context(patch.object(legacy,'verified',verified))
+         stack.enter_context(patch.object(recovery,'extended_verified',extended_verified))
+@@ -25,6 +43,9 @@ def qualification():
+ 
+ 
+ def main():
++    # Verification of already preserved artifacts is portable. Execution of an
++    # authoritative new trial is not allowed on a different Python/dependency set.
++    if '--aggregate' not in sys.argv:require_environment()
+     with qualification():
+         return recovery.main()
+ 
+diff --git a/certification/profitability_protocol.json b/certification/profitability_protocol.json
+index b0053910..28394bf6 100644
+--- a/certification/profitability_protocol.json
++++ b/certification/profitability_protocol.json
+@@ -28,14 +28,14 @@
+       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+       "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+       "policy_hash": "0f909d1e7eb90cdbb504b4e52fec693ccaf810f87f80259be760c81361a3babc",
+-      "source_diff_sha256": "d2f68724cca917779d721195ab73baa6d728f79173acea70ae889ca9b7718b7f"
++      "source_diff_sha256": "a68e35c72e4cde63aa7f475e807c3a9827b0afc2cf78f276ec984a015104a5fe"
+     },
+     "meteora": {
+       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
+       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
+-      "source_diff_sha256": "c14d7381a40afe23d8ee0119e0868f60f437a72f9c50b876884de4894a7ffda4"
++      "source_diff_sha256": "84c0287ac423107393e509579ac1d9c05a22bc314cf0a1baef34d58a329a21cb"
+     },
+     "pons": {
+       "strategy_version": "pons-shared-sleeve-six-regime-v1",
+diff --git a/certification/promote_phase_e.py b/certification/promote_phase_e.py
+new file mode 100644
+index 00000000..7131b603
+--- /dev/null
++++ b/certification/promote_phase_e.py
+@@ -0,0 +1,423 @@
++"""Evidence-gated, one-shot promotion and explicit canonical Phase E dispatch.
++
++Only the dedicated manual PAPER workflow calls the write path. Raw artifact
++hashes, all fixed trials, complete machinery gates, and immutable source bytes
++are checked before a durable remote intent is created. A lost response burns
++that intent; reconciliation is GET-only. No market or deployment authority.
++"""
++from __future__ import annotations
++
++import argparse
++import base64
++from datetime import datetime
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import subprocess
++import time
++from typing import Any
++from urllib.error import HTTPError
++
++from certification import dispatch_phase_e as dispatch
++from certification.autonomous_control import _artifact_metadata
++from certification.autonomous_window import extract_artifact
++from certification.journal import digest
++from certification.maintenance_qualification import PLAN_PATH, frozen_inputs, qualification
++from certification.prospective_program import GitHub, REPOSITORY
++from certification.qualification_environment import PYTHON, DEPENDENCIES
++from certification.run import ROOT, implementation_hash, manifest
++from certification.single_campaign_control import all_pages, checkout_files
++
++WORKFLOW = '.github/workflows/stagee-accepted-candidate-promotion.yml'
++INTENT_FILE = 'phase-e-intent.json'
++CERTIFICATE_JOBS = {'durability-prerequisites', 'offline-prerequisites'}
++
++
++def read(path: Path) -> dict[str, Any]:
++    row = json.loads(path.read_text())
++    if not isinstance(row, dict):
++        raise ValueError('phase_e_receipt_not_object')
++    return row
++
++
++def successful_run(api: Any, run_id: int, sha: str) -> dict[str, Any]:
++    row = api.request('GET', f'actions/runs/{run_id}')
++    if (row.get('id') != run_id or row.get('head_sha') != sha
++            or row.get('run_attempt') != 1 or row.get('status') != 'completed'
++            or row.get('conclusion') != 'success'):
++        raise ValueError('phase_e_prerequisite_run_not_exact_success')
++    for item in row.get('referenced_workflows', []):
++        if item.get('sha') != sha:
++            raise ValueError('phase_e_prerequisite_reusable_sha')
++    return row
++
++
++def require_actor(api: Any, actor: int, sha: str) -> dict[str, Any]:
++    row = api.request('GET', f'actions/runs/{actor}')
++    if (row.get('id') != actor or row.get('head_sha') != sha
++            or row.get('path') != WORKFLOW or row.get('event') != 'workflow_dispatch'
++            or row.get('run_attempt') != 1 or row.get('status') != 'in_progress'):
++        raise ValueError('phase_e_promotion_actor_identity')
++    return row
++
++
++def require_full_jobs(api: Any, run_id: int) -> None:
++    jobs = all_pages(api, f'actions/runs/{run_id}/attempts/1/jobs', 'jobs')
++    for required in CERTIFICATE_JOBS:
++        matches = [job for job in jobs if job.get('name', '').split(' / ')[-1] == required]
++        if (len(matches) != 1 or matches[0].get('status') != 'completed'
++                or matches[0].get('conclusion') != 'success'):
++            raise ValueError('phase_e_complete_job_missing_or_failed:' + required)
++
++
++def verify_environment(row: dict[str, Any]) -> None:
++    if (row.get('passed') is not True or row.get('failures') != []
++            or row.get('python') != PYTHON or row.get('dependencies') != DEPENDENCIES
++            or row.get('policy_predecessor_available') is not True
++            or row.get('canonical_authority') is not False):
++        raise ValueError('phase_e_frozen_environment_not_verified')
++
++
++def verify_evidence(cohort_root: Path, build_root: Path, sha: str,
++                    output: Path) -> tuple[dict[str, Any], dict[str, Any]]:
++    """Recompute acceptance from original files; never accept a summary alone."""
++    from certification import cleanup_recovery, final_acceptance
++    if not frozen_inputs():
++        raise ValueError('phase_e_frozen_inputs_changed')
++    verify_environment(read(cohort_root / 'environment.json'))
++    with qualification():
++        cohort = cleanup_recovery.aggregate(cohort_root, sha)
++    # The downloadable artifact must include the raw fixed trial directories.
++    # The old rejected cohorts cannot satisfy the new plan hash and assessments.
++    offline = read(build_root / 'offline/result.json')
++    spec = manifest()
++    if (offline.get('passed') is not True or offline.get('integration_sha') != sha
++            or offline.get('implementation_hash') != implementation_hash()
++            or offline.get('source_manifest_hash') != digest(spec)
++            or offline.get('source_diff_hashes') != {
++                lane: row['source_diff_sha256'] for lane, row in spec['lanes'].items()}):
++        raise ValueError('phase_e_complete_source_identity')
++    output.mkdir(parents=True, exist_ok=True)
++    final_acceptance.run(build_root, output / 'recomputed-build.json', sha, preserved_only=True)
++    build = read(output / 'recomputed-build.json')
++    if build != read(build_root / 'final-acceptance.json'):
++        raise ValueError('phase_e_complete_acceptance_changed')
++    plan_sha = hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest()
++    dispatch.prerequisites(cohort, build, sha, plan_sha)
++    dispatch.store(output / 'recomputed-cohort.json', cohort)
++    return cohort, build
++
++
++def collect(api: Any, sha: str, cohort_run: int, cohort_name: str,
++            full_run: int, output: Path) -> dict[str, Any]:
++    if (not isinstance(cohort_name, str) or not re.fullmatch(r'[A-Za-z0-9_.-]{1,180}', cohort_name)):
++        raise ValueError('phase_e_artifact_name')
++    if cohort_run == full_run:
++        raise ValueError('phase_e_full_verification_must_follow_cohort')
++    source_runs = [successful_run(api, run_id, sha) for run_id in (cohort_run, full_run)]
++    # Completed cohort evidence must predate full machinery verification.
++    try:
++        cohort_end = datetime.fromisoformat(source_runs[0]['updated_at'].replace('Z', '+00:00'))
++        build_start = datetime.fromisoformat(source_runs[1]['run_started_at'].replace('Z', '+00:00'))
++        if cohort_end.tzinfo is None or build_start.tzinfo is None or cohort_end > build_start:
++            raise ValueError('phase_e_verification_order')
++    except (KeyError, TypeError, ValueError, AttributeError) as exc:
++        raise ValueError('phase_e_verification_order') from exc
++    require_full_jobs(api, full_run)
++    references = {
++        'cohort': _artifact_metadata(api, cohort_run, cohort_name),
++        'build': _artifact_metadata(api, full_run, f'non-market-certification-{sha}-1'),
++    }
++    roots = {key: extract_artifact(api, reference, output / key)
++             for key, reference in references.items()}
++    cohort, build = verify_evidence(roots['cohort'], roots['build'], sha, output / 'verified')
++    # Detect deletion, replacement or a rerun while the original bytes were read.
++    for run_id in (cohort_run, full_run):
++        successful_run(api, run_id, sha)
++    for reference in references.values():
++        if _artifact_metadata(api, reference['workflow_run_id'], reference['name']) != reference:
++            raise ValueError('phase_e_artifact_changed_during_verification')
++    return dict(cohort=cohort, build=build, artifacts=references,
++                plan_sha256=hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest())
++
++
++def read_optional_ref(api: Any, name: str) -> dict[str, Any] | None:
++    try:
++        return api.request('GET', 'git/ref/' + name)
++    except HTTPError as exc:
++        if exc.code != 404:
++            raise
++        return None
++
++
++def intent_ref(sha: str) -> str:
++    dispatch.require_sha(sha)
++    return 'heads/cert/phase-e-dispatch-intent-' + sha
++
++
++def reserve_intent(api: Any, row: dict[str, Any]) -> dict[str, Any]:
++    """Atomic ref creation is the cross-run one-shot boundary, before any push."""
++    name = intent_ref(row['runtime_sha'])
++    if read_optional_ref(api, name) is not None:
++        raise ValueError('phase_e_intent_already_consumed_use_get_only')
++    text = json.dumps(row, sort_keys=True, separators=(',', ':')) + '\n'
++    tree = api.request('POST', 'git/trees', {'tree': [
++        dict(path=INTENT_FILE, mode='100644', type='blob', content=text)]})
++    commit = api.request('POST', 'git/commits', dict(
++        message='Preserve one-shot Phase E promotion and dispatch intent [skip ci]',
++        tree=tree['sha'], parents=[]))
++    # POST exactly once. Conflicts and lost responses stop; no ref replacement.
++    result = api.request('POST', 'git/refs', dict(ref='refs/' + name, sha=commit['sha']))
++    expected = commit['sha']
++    visible = read_optional_ref(api, name) or {}
++    if (result.get('ref') != 'refs/' + name
++            or result.get('object', {}).get('sha') != expected
++            or visible.get('object', {}).get('sha') != expected):
++        raise ValueError('phase_e_intent_not_durable')
++    return dict(ref='refs/' + name, commit_sha=expected,
++                sha256=hashlib.sha256(text.encode()).hexdigest())
++
++
++def promotion_environment() -> None:
++    if (os.environ.get('GITHUB_REPOSITORY') != REPOSITORY
++            or os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch'
++            or os.environ.get('GITHUB_RUN_ATTEMPT') != '1'):
++        raise ValueError('phase_e_promotion_requires_first_manual_attempt')
++
++
++def require_origin() -> None:
++    origin = subprocess.check_output(['git', 'remote', 'get-url', 'origin'],
++                                     cwd=ROOT, text=True).strip()
++    allowed = {'https://github.com/' + REPOSITORY, 'https://github.com/' + REPOSITORY + '.git'}
++    if origin not in allowed:
++        raise ValueError('phase_e_unapproved_publish_origin')
++
++
++def push_exact(sha: str, old_sha: str) -> None:
++    # Ancestor check forbids history loss. The explicit lease is a CAS, not
++    # permission to discard someone else's newer canonical commit.
++    subprocess.run(['git', 'merge-base', '--is-ancestor', old_sha, sha], cwd=ROOT, check=True)
++    subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', 'push', '--porcelain',
++                    f'--force-with-lease=refs/heads/{dispatch.BRANCH}:{old_sha}',
++                    'origin', f'{sha}:refs/heads/{dispatch.BRANCH}'], cwd=ROOT, check=True)
++
++
++def require_dispatch_workflow(api: Any, sha: str) -> None:
++    """Registration and candidate workflow bytes are required before promotion."""
++    row = api.request('GET', 'actions/workflows/' + dispatch.WORKFLOW)
++    if (row.get('path') != '.github/workflows/' + dispatch.WORKFLOW
++            or row.get('state') != 'active'):
++        raise ValueError('phase_e_dispatch_workflow_not_registered')
++    for filename in (dispatch.WORKFLOW, 'non-market-certification.yml'):
++        path = '.github/workflows/' + filename
++        content = api.request('GET', 'contents/' + path + '?ref=' + sha)
++        if (content.get('encoding') != 'base64'
++                or base64.b64decode(content['content']) != (ROOT / path).read_bytes()):
++            raise ValueError('phase_e_dispatch_workflow_bytes_changed')
++
++
++def promote(api: Any, sha: str, old_sha: str, actor: int, evidence: dict[str, Any],
++            output: Path, *, push=push_exact) -> dict[str, Any]:
++    dispatch.require_sha(sha)
++    dispatch.require_sha(old_sha)
++    if sha == old_sha:
++        raise ValueError('phase_e_candidate_already_canonical')
++    dispatch.prerequisites(evidence['cohort'], evidence['build'], sha, evidence['plan_sha256'])
++    require_actor(api, actor, sha)
++    require_dispatch_workflow(api, sha)
++    adapt = lambda repo, method, path, data=None: api.request(method, path, data)
++    before = dispatch.canonical_runs(REPOSITORY, adapt)
++    if (any(row.get('status') in dispatch.ACTIVE for row in before)
++            or any(row.get('head_sha') == sha and row.get('event') == 'workflow_dispatch' for row in before)):
++        raise ValueError('phase_e_canonical_run_exists')
++    if api.request('GET', 'git/ref/heads/' + dispatch.BRANCH).get('object', {}).get('sha') != old_sha:
++        raise ValueError('phase_e_canonical_reference_changed')
++    if not evidence.get('artifacts') or set(evidence['artifacts']) != {'cohort', 'build'}:
++        raise ValueError('phase_e_artifact_bindings_missing')
++    row = dict(schema='phase-e-one-shot-promotion-v1', repository=REPOSITORY,
++               runtime_sha=sha, prior_canonical_sha=old_sha, actor_run_id=actor,
++               artifacts=evidence['artifacts'], plan_sha256=evidence['plan_sha256'],
++               cohort_sha256=digest(evidence['cohort']), build_sha256=digest(evidence['build']),
++               previous_run_ids=[r['id'] for r in before], post_attempts=1,
++               canonical_authority=False, market_authority=False, paper_only=True)
++    claim = reserve_intent(api, row)
++    dispatch.store(output / 'remote-intent.json', dict(intent=row, claim=claim), exclusive=True)
++    # Any exception from the push/dispatch is a stop. No retry and no rollback
++    # that could overwrite concurrent legitimate canonical work.
++    push(sha, old_sha)
++    actual = api.request('GET', 'git/ref/heads/' + dispatch.BRANCH)
++    if actual.get('object', {}).get('sha') != sha:
++        raise ValueError('phase_e_promoted_sha_not_confirmed')
++    result = dispatch.dispatch(REPOSITORY, sha, sha, evidence['plan_sha256'],
++                               evidence['cohort'], evidence['build'], output / 'dispatch.json', api=adapt)
++    result['promotion'] = dict(prior_sha=old_sha, promoted_sha=sha, intent=claim)
++    dispatch.store(output / 'promotion.json', result)
++    return result
++
++
++def retained_intent(api: Any, sha: str) -> tuple[dict[str, Any], str]:
++    dispatch.require_sha(sha)
++    ref = read_optional_ref(api, intent_ref(sha))
++    if ref is None:
++        raise ValueError('phase_e_intent_missing')
++    commit_sha = ref['object']['sha']
++    content = api.request('GET', f'contents/{INTENT_FILE}?ref={commit_sha}')
++    if content.get('encoding') != 'base64':
++        raise ValueError('phase_e_intent_encoding')
++    row = json.loads(base64.b64decode(content['content']))
++    if (row.get('schema') != 'phase-e-one-shot-promotion-v1'
++            or row.get('repository') != REPOSITORY or row.get('runtime_sha') != sha
++            or row.get('post_attempts') != 1 or row.get('canonical_authority') is not False
++            or row.get('market_authority') is not False or row.get('paper_only') is not True
++            or not isinstance(row.get('previous_run_ids'), list)):
++        raise ValueError('phase_e_intent_identity')
++    return row, commit_sha
++
++
++def reconcile(api: Any, sha: str, output: Path) -> dict[str, Any]:
++    """Recover remote intent and observable state using GET requests only."""
++    row, commit_sha = retained_intent(api, sha)
++    adapt = lambda repo, method, path, data=None: api.request(method, path, data)
++    new = [run for run in dispatch.canonical_runs(REPOSITORY, adapt)
++           if run.get('id') not in row['previous_run_ids']]
++    if len(new) > 1:
++        raise ValueError('phase_e_ambiguous_new_runs')
++    result = dict(runtime_sha=sha, intent_commit_sha=commit_sha, reconciliation_only=True,
++                  canonical_authority=False, market_authority=False, new_post_permitted=False,
++                  canonical_sha=api.request('GET', 'git/ref/heads/' + dispatch.BRANCH)['object']['sha'],
++                  run=None)
++    if new:
++        result['run'] = dispatch.run_identity(new[0], sha)
++    dispatch.store(output / 'reconciliation.json', result)
++    return result
++
++
++def review_canonical(api: Any, sha: str, run_id: int, output: Path, *,
++                     polls: int = 1, sleep=time.sleep) -> dict[str, Any]:
++    """Wait/read only. Green Actions status cannot replace raw proof review."""
++    if type(polls) is not int or not 1 <= polls <= 360:
++        raise ValueError('phase_e_review_poll_bound')
++    row, claim_sha = retained_intent(api, sha)
++    if run_id in row['previous_run_ids']:
++        raise ValueError('phase_e_review_run_predates_intent')
++    expected_plan = hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest()
++    if row.get('plan_sha256') != expected_plan:
++        raise ValueError('phase_e_review_plan_changed')
++    result = dict(passed=False, runtime_sha=sha, run_id=run_id, intent_commit_sha=claim_sha,
++                  canonical_authority=False, artifacts_verified=False, market_authority=False,
++                  paper_only=True, failure=None)
++    output.mkdir(parents=True, exist_ok=False)
++    dispatch.store(output / 'canonical-review.json', result)
++    for index in range(polls):
++        run = dispatch.run_identity(api.request('GET', f'actions/runs/{run_id}'), sha)
++        result.update(run_status=run.get('status'), conclusion=run.get('conclusion'))
++        dispatch.store(output / 'canonical-review.json', result)
++        print(json.dumps(dict(run_id=run_id, runtime_sha=sha, poll=index + 1,
++                              status=run.get('status'), conclusion=run.get('conclusion'))), flush=True)
++        if run.get('status') == 'completed':
++            break
++        if run.get('status') not in dispatch.ACTIVE:
++            raise ValueError('phase_e_unknown_run_status')
++        if index + 1 < polls:
++            sleep(15)
++    else:
++        result['failure'] = 'canonical_run_not_terminal_within_review_bound'
++        dispatch.store(output / 'canonical-review.json', result)
++        return result
++    if run.get('conclusion') != 'success':
++        # Preserve available raw failure artifacts even for a failed workflow.
++        inventory = all_pages(api, f'actions/runs/{run_id}/artifacts', 'artifacts')
++        result['available_artifacts'] = [
++            {k: a.get(k) for k in ('id', 'name', 'digest', 'expired')} for a in inventory]
++        result['artifact_recovery'] = []
++        for name in (f'non-market-durability-{sha}-1', f'non-market-certification-{sha}-1'):
++            try:
++                reference = _artifact_metadata(api, run_id, name)
++                extract_artifact(api, reference, output / name)
++                result['artifact_recovery'].append(dict(reference=reference, recovered=True))
++            except (OSError, ValueError, KeyError) as exc:
++                result['artifact_recovery'].append(dict(name=name, recovered=False,
++                                                       error_type=type(exc).__name__))
++        result['failure'] = 'canonical_workflow_failed'
++        dispatch.store(output / 'canonical-review.json', result)
++        return result
++    try:
++        adapt = lambda repo, method, path, data=None: api.request(method, path, data)
++        candidates = [r for r in dispatch.canonical_runs(REPOSITORY, adapt)
++                      if r.get('id') not in row['previous_run_ids']]
++        if len(candidates) != 1 or candidates[0].get('id') != run_id:
++            raise ValueError('phase_e_review_dispatch_not_unique')
++        cohort_ref = row['artifacts']['cohort']
++        evidence = collect(api, sha, cohort_ref['workflow_run_id'], cohort_ref['name'],
++                           run_id, output / 'evidence')
++        if (evidence['artifacts']['cohort'] != cohort_ref
++                or digest(evidence['cohort']) != row['cohort_sha256']):
++            raise ValueError('phase_e_review_cohort_changed')
++        latest = dispatch.run_identity(api.request('GET', f'actions/runs/{run_id}'), sha)
++        if latest.get('status') != 'completed' or latest.get('conclusion') != 'success':
++            raise ValueError('phase_e_review_terminal_changed')
++        if api.request('GET', 'git/ref/heads/' + dispatch.BRANCH)['object']['sha'] != sha:
++            raise ValueError('phase_e_review_canonical_branch_changed')
++    except (OSError, ValueError, KeyError) as exc:
++        result['failure'] = 'canonical_artifact_review_failed'
++        result['error_type'] = type(exc).__name__
++        dispatch.store(output / 'canonical-review.json', result)
++        raise
++    result.update(passed=True, canonical_authority=True, artifacts_verified=True,
++                  artifacts=evidence['artifacts'], plan_sha256=evidence['plan_sha256'],
++                  final_acceptance_sha256=digest(evidence['build']))
++    dispatch.store(output / 'canonical-review.json', result)
++    return result
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--sha', required=True)
++    parser.add_argument('--old-sha')
++    parser.add_argument('--cohort-run', type=int)
++    parser.add_argument('--cohort-artifact')
++    parser.add_argument('--full-run', type=int)
++    parser.add_argument('--output', required=True, type=Path)
++    mode = parser.add_mutually_exclusive_group()
++    mode.add_argument('--reconcile-only', action='store_true')
++    mode.add_argument('--verify-run', type=int)
++    parser.add_argument('--polls', type=int, default=1)
++    args = parser.parse_args()
++    dispatch.require_sha(args.sha)
++    api = GitHub()
++    if args.verify_run:
++        checkout_files(args.sha)
++        result = review_canonical(api, args.sha, args.verify_run, args.output, polls=args.polls)
++        if not result['passed']:
++            raise SystemExit(1)
++        return
++    if args.reconcile_only:
++        reconcile(api, args.sha, args.output)
++        return
++    if not all((args.old_sha, args.cohort_run, args.cohort_artifact, args.full_run)):
++        parser.error('fresh promotion requires exact old SHA and both prerequisite artifact runs')
++    promotion_environment()
++    require_origin()
++    dispatch.require_sha(args.old_sha)
++    if args.cohort_run <= 0 or args.full_run <= 0:
++        raise ValueError('phase_e_invalid_prerequisite_run_id')
++    if os.environ.get('GITHUB_SHA') != args.sha:
++        raise ValueError('phase_e_workflow_sha_mismatch')
++    checkout_files(args.sha)
++    # Reject non-ancestor input before reserving an irreversible remote intent.
++    subprocess.run(['git', 'merge-base', '--is-ancestor', args.old_sha, args.sha], cwd=ROOT, check=True)
++    args.output.mkdir(parents=True, exist_ok=False)
++    dispatch.store(args.output / 'preflight.json', dict(
++        runtime_sha=args.sha, prior_canonical_sha=args.old_sha,
++        cohort_run_id=args.cohort_run, full_run_id=args.full_run,
++        canonical_authority=False, market_authority=False, passed=False))
++    evidence = collect(api, args.sha, args.cohort_run, args.cohort_artifact,
++                       args.full_run, args.output / 'evidence')
++    checkout_files(args.sha)
++    promote(api, args.sha, args.old_sha, int(os.environ['GITHUB_RUN_ID']), evidence, args.output)
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/certification/qualification_environment.py b/certification/qualification_environment.py
+new file mode 100644
+index 00000000..b0950434
+--- /dev/null
++++ b/certification/qualification_environment.py
+@@ -0,0 +1,46 @@
++"""Fail before an authoritative fixed trial when the frozen runner is different."""
++from __future__ import annotations
++import argparse
++import importlib.metadata
++import json
++from pathlib import Path
++import platform
++import subprocess
++
++PYTHON='3.12.14'
++DEPENDENCIES={'websockets':'17.1'}
++POLICY_PREDECESSOR='af60b355995dfa960555288fa73808bb7aba5d25'
++ROOT=Path(__file__).resolve().parents[1]
++
++
++def inspect():
++    dependencies={}
++    for name in DEPENDENCIES:
++        try:dependencies[name]=importlib.metadata.version(name)
++        except importlib.metadata.PackageNotFoundError:dependencies[name]=None
++    python=platform.python_version()
++    history=subprocess.run(['git','cat-file','-e',POLICY_PREDECESSOR+':certification/sources.json'],
++        cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
++    failures=[]
++    if python!=PYTHON:failures.append('frozen_python_mismatch')
++    if dependencies!=DEPENDENCIES:failures.append('frozen_dependencies_mismatch')
++    if not history:failures.append('required_policy_predecessor_missing')
++    return dict(passed=not failures,failures=failures,python=python,expected_python=PYTHON,
++        dependencies=dependencies,expected_dependencies=DEPENDENCIES,
++        policy_predecessor_available=history,canonical_authority=False,market_authority=False)
++
++
++def require():
++    row=inspect()
++    if not row['passed']:raise RuntimeError('qualification_environment_blocked:'+','.join(row['failures']))
++    return row
++
++
++def main():
++    parser=argparse.ArgumentParser();parser.add_argument('--output',required=True);args=parser.parse_args()
++    row=inspect();target=Path(args.output);target.parent.mkdir(parents=True,exist_ok=True)
++    target.write_text(json.dumps(row,indent=2)+'\n');print(json.dumps(row,sort_keys=True))
++    return 0 if row['passed'] else 1
++
++
++if __name__=='__main__':raise SystemExit(main())
+diff --git a/certification/sources.json b/certification/sources.json
+index 76002379..8827faa0 100644
+--- a/certification/sources.json
++++ b/certification/sources.json
+@@ -302,7 +302,7 @@
+         "broad_source_rows_count_as_observed_market": false,
+         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
+       },
+-      "source_diff_sha256": "d2f68724cca917779d721195ab73baa6d728f79173acea70ae889ca9b7718b7f",
++      "source_diff_sha256": "a68e35c72e4cde63aa7f475e807c3a9827b0afc2cf78f276ec984a015104a5fe",
+       "source_integrity_mode": "declared_overlay_index",
+       "overlay_patches": [
+         "certification/patches/pump-accounting.patch",
+@@ -342,7 +342,7 @@
+         "meme_machine/pumpswap_survivor_evidence.py": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946",
+         "meme_machine/pumpswap_survivor_runtime.py": "b545e08eb7fa1a68fa9c2cc7b8645e1a8fc1cad0777f52151af126a206e43a4c",
+         "meme_machine/solana_evidence_runtime.py": "07253419f6385f6da4d6426e2a5737c5cf0826252a2d8ad039ec658ce0c092bd",
+-        "meme_machine/solana_evidence_service.py": "2e3e3e1d434c4f40929ca260f8dce66dd1c850cfd4eb174077b28d9eaf8302a4",
++        "meme_machine/solana_evidence_service.py": "b7af530e4c9bd714b6bcf9a52599910a2501adc78552787fed1ef97f0d6bc557",
+         "tests/pump_acceleration_natural_prospective.py": "e79f534862e3b48113bcfc5bb1779eacbfffa74196f02c09ada84fee681eec37",
+         "tests/test_directional_capacity.py": "cf03c522706e8eda4c5f93bc53762bf5dfc6c47765a990a55a4258120f26e8e8",
+         "tests/test_evidence_runtime_cutover.py": "ee7a5140ceca1f188cecd89948789163e1a902fd23977d88305e1354bf578351",
+@@ -413,7 +413,8 @@
+         "tests/test_archive_pipeline.py",
+         "tests/evidence_stream_harness.py",
+         "meme_machine/solana_retention_outcome.py",
+-        "tests/test_retention_outcomes.py"
++        "tests/test_retention_outcomes.py",
++        "tests/test_stagee24_maintenance_integrity.py"
+       ]
+     },
+     "meteora": {
+@@ -421,7 +422,7 @@
+       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
+       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
+-      "source_diff_sha256": "c14d7381a40afe23d8ee0119e0868f60f437a72f9c50b876884de4894a7ffda4",
++      "source_diff_sha256": "84c0287ac423107393e509579ac1d9c05a22bc314cf0a1baef34d58a329a21cb",
+       "file_hashes": {
+         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
+         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
+@@ -740,7 +741,8 @@
+         "tests/test_archive_pipeline.py",
+         "tests/evidence_stream_harness.py",
+         "meme_machine/solana_retention_outcome.py",
+-        "tests/test_retention_outcomes.py"
++        "tests/test_retention_outcomes.py",
++        "tests/test_stagee24_maintenance_integrity.py"
+       ],
+       "composed_file_hashes": {
+         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
+diff --git a/certification/stagee24_qualification_plan.json b/certification/stagee24_qualification_plan.json
+new file mode 100644
+index 00000000..da5e2183
+--- /dev/null
++++ b/certification/stagee24_qualification_plan.json
+@@ -0,0 +1,45 @@
++{
++  "version": "e24-joint-lifecycle-durable-window-v4",
++  "predecessor": "0a4a8bdad1670b1f70c03ed6c861d03c303e9e84",
++  "failed_canonical_run": 36472549044,
++  "trials": [
++    "combined-1",
++    "combined-2",
++    "combined-3",
++    "recovery-1"
++  ],
++  "repeat_frames": 2223,
++  "extended_frames": 4445,
++  "sample_wall_seconds": 5,
++  "burst_source_seconds": [
++    216,
++    378
++  ],
++  "recovery_deadline_source_seconds": 120,
++  "pipeline_slack_records": 1000,
++  "minimum_decline_records": 256,
++  "trend_slack_records": 256,
++  "requires_all_trials": true,
++  "retry_until_pass": false,
++  "market_authority": false,
++  "rationale": "New identity; every historical rejected cohort remains rejected. Same source frames, seeds, delays, bursts, observation duration, source admission and transaction bounds. Require hot and archived debt recovery for every program scope, durable commit-window overlap, strict age <240 and bounded observation overhead.",
++  "unchanged_inputs": {
++    "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
++    "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
++    "certification/pressure_diagnostics.py": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45",
++    "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47",
++    "tests/test_run373_dispatch_throughput.py": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
++    "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
++    "certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
++    "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3"
++  },
++  "observation_revision": "durable-window-v4",
++  "lifecycle_revision": "joint-hot-archive-retirement-v1",
++  "observer_wall_fraction_limit": 0.01,
++  "observation_sources": {
++    "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
++    "certification/lifecycle_capacity.py": "394ca634591411e03723358ec50a8697a2d899f3de3039b1cdba06b7ecad11bd",
++    "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f",
++    "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf"
++  }
++}
+diff --git a/certification/tests/test_combined_pressure.py b/certification/tests/test_combined_pressure.py
+index f293078b..c314a5f2 100644
+--- a/certification/tests/test_combined_pressure.py
++++ b/certification/tests/test_combined_pressure.py
+@@ -13,7 +13,7 @@ def valid_report(sha='sha'):
+             observed_pause_seconds=8.01,multiframe_batches=3,source_frames_while_reader=4,
+             reader_source_advance=4,reader_compaction_advance=256,
+             reader_snapshot_preserved=True,completed_tail_delayed=True,
+-            observation_revision='durable-window-v3',cleanup_window_status='serviced',
++            observation_revision='durable-window-v4',cleanup_window_status='serviced',
+             eligible_at_reader_start=True,eligible_at_reader_end=False))
+     return dict(passed=True,integration_sha=sha,provider_calls=0,frames=2223,source_seconds=600.21,
+         candidate_checks=60,archive_records_verified=200000,
+@@ -26,7 +26,7 @@ def valid_report(sha='sha'):
+         lag_peak=8,hot_peak=1000000000,integrity=['ok'],oldest_hot_age_peak=188,oldest_retained_age_peak=189,
+         measured_contention=dict(profile='run381-fullcert-36293751021',owner_seconds_per_frame=.165,
+             archive_seconds_per_thousand=.36,additional_commit_latency_seconds=.006,delayed_commits=100),
+-        combined_load=dict(observation_revision='durable-window-v3',profile='mature-burst-reader-tail-urgent-v2',held_reader_cycles=2,
++        combined_load=dict(observation_revision='durable-window-v4',profile='mature-burst-reader-tail-urgent-v2',held_reader_cycles=2,
+             tail_delay_cycles=2,urgent_acks=100,urgent_errors=[],burst_evidence=samples))
+ 
+ 
+diff --git a/certification/tests/test_dispatch_phase_e.py b/certification/tests/test_dispatch_phase_e.py
+index dfd277c7..c96cb0c1 100644
+--- a/certification/tests/test_dispatch_phase_e.py
++++ b/certification/tests/test_dispatch_phase_e.py
+@@ -2,15 +2,17 @@ import copy
+ import tempfile
+ from pathlib import Path
+ import unittest
+-from certification.dispatch_phase_e import dispatch,run_identity,prerequisites,BRANCH,WORKFLOW
++from certification.dispatch_phase_e import dispatch,run_identity,prerequisites,BRANCH,WORKFLOW,FULL_GATES
+ 
+-SHA='a'*40;RUNTIME='b'*40;PLAN='c'*64
++SHA='a'*40;RUNTIME=SHA;WRONG='b'*40;PLAN='c'*64
+ 
+ def accepted():
+-    return dict(passed=True,failures=[],integration_sha=RUNTIME,plan_sha256=PLAN,
++    return dict(passed=True,failures=[],canonical_authority=False,integration_sha=RUNTIME,plan_sha256=PLAN,
+         trials=[dict(trial=t,passed=True) for t in ('combined-1','combined-2','combined-3','recovery-1')])
+ 
+-def build():return dict(passed=True,integration_sha=RUNTIME,paper_only=True,failures=[])
++def build():return dict(passed=True,integration_sha=RUNTIME,expected_integration_sha=RUNTIME,
++    engineering_certification='CERTIFIED_NON_MARKET_ENGINEERING',validation_scope='preserved_evidence_only',
++    paper_only=True,live_money=False,failures=[],gates={name:True for name in FULL_GATES})
+ 
+ def run():return dict(id=99,head_sha=SHA,head_branch=BRANCH,event='workflow_dispatch',
+     path='.github/workflows/'+WORKFLOW,run_attempt=1,status='queued',
+@@ -25,14 +27,14 @@ class DispatchTests(unittest.TestCase):
+             with self.assertRaisesRegex(ValueError,'fixed_cohort'):prerequisites(row,build(),RUNTIME,PLAN)
+         row=accepted();row['trials'][3]=row['trials'][0]
+         with self.assertRaises(ValueError):prerequisites(row,build(),RUNTIME,PLAN)
+-        row=build();row['integration_sha']=SHA
++        row=build();row['integration_sha']=WRONG
+         with self.assertRaisesRegex(ValueError,'complete_build'):prerequisites(accepted(),row,RUNTIME,PLAN)
+ 
+     def test_wrong_sha_branch_event_attempt_and_reusable_sha_fail(self):
+-        for field,value in (('head_sha',RUNTIME),('head_branch','main'),('event','push'),('run_attempt',2)):
++        for field,value in (('head_sha',WRONG),('head_branch','main'),('event','push'),('run_attempt',2)):
+             row=run();row[field]=value
+             with self.assertRaises(ValueError):run_identity(row,SHA)
+-        row=run();row['referenced_workflows']=[dict(sha=RUNTIME)]
++        row=run();row['referenced_workflows']=[dict(sha=WRONG)]
+         with self.assertRaisesRegex(ValueError,'reusable'):run_identity(row,SHA)
+ 
+     def test_ambiguous_post_reconciles_get_only_without_duplicate(self):
+@@ -66,7 +68,7 @@ class DispatchTests(unittest.TestCase):
+ 
+     def test_moved_branch_does_not_dispatch(self):
+         def api(repo,method,path,data=None):
+-            self.assertEqual(method,'GET');return dict(object=dict(sha=RUNTIME))
++            self.assertEqual(method,'GET');return dict(object=dict(sha=WRONG))
+         with tempfile.TemporaryDirectory() as td,self.assertRaisesRegex(ValueError,'branch_moved'):
+             dispatch('owner/repo',SHA,RUNTIME,PLAN,accepted(),build(),Path(td)/'receipt.json',api=api)
+ 
+diff --git a/certification/tests/test_lifecycle_capacity.py b/certification/tests/test_lifecycle_capacity.py
+new file mode 100644
+index 00000000..1bd1f78a
+--- /dev/null
++++ b/certification/tests/test_lifecycle_capacity.py
+@@ -0,0 +1,64 @@
++"""A smaller retirement queue cannot hide hot/archive or another scope's debt."""
++from copy import deepcopy
++import unittest
++from certification.lifecycle_capacity import assessment,REVISION,SCOPES
++from certification.tests.test_cleanup_recovery import samples as original_samples
++
++
++def samples():
++    rows=original_samples()
++    for row in rows:
++        row['monotonic']=row['source_seconds'];row['observer_ms']=1
++        row['lifecycle_revision']=REVISION
++        row['lifecycle_observation']=dict(source_frames=row['source_frames'],
++            service={},oldest_hot_slot_age={})
++        base=row['scopes']['program:meteora']['archived_pending']
++        for scope in SCOPES:
++            row['scopes'][scope]=dict(hot=180000+base,archived_pending=base,oldest_age=190)
++            row['lifecycle_observation']['oldest_hot_slot_age'][scope]=185
++            frames=row['source_frames']
++            row['lifecycle_observation']['service'][scope]=dict(
++                ingested=frames*1000,archived=frames*700,retired=frames*600,continuity=frames)
++    return rows
++
++
++class LifecycleCapacityTests(unittest.TestCase):
++    def test_all_stages_scopes_and_original_fixed_cohort_must_recover(self):
++        result=assessment(samples())
++        self.assertTrue(result['passed'],result['failures'])
++        self.assertEqual(set(result['joint_lifecycle']),set(SCOPES))
++        self.assertTrue(result['observer_overhead']['passed'])
++
++    def test_hot_growth_fails_even_when_all_archived_queues_clear(self):
++        for scope in SCOPES:
++            rows=samples()
++            for row in rows:
++                if row['source_seconds']>245:row['scopes'][scope]['hot']+=int((row['source_seconds']-245)*500)
++            result=assessment(rows)
++            self.assertFalse(result['passed'])
++            self.assertTrue(any(f'{scope}:hot:' in e for e in result['failures']))
++
++    def test_other_scope_retirement_starvation_is_not_hidden_by_meteora(self):
++        rows=samples()
++        for row in rows:
++            if row['source_seconds']>245:row['scopes']['program:pump']['archived_pending']+=50000
++        self.assertFalse(assessment(rows)['passed'])
++
++    def test_retention_boundary_missing_hot_metrics_or_counter_regression_fail(self):
++        for mutate in (
++            lambda r:r['scopes']['program:meteora'].pop('hot'),
++            lambda r:r['scopes']['program:meteora'].update(oldest_age=240),
++            lambda r:r['lifecycle_observation']['oldest_hot_slot_age'].update({'program:meteora':240}),
++            lambda r:r['lifecycle_observation']['service']['program:meteora'].update(retired=0),
++        ):
++            rows=samples();mutate(rows[100]);self.assertFalse(assessment(rows)['passed'])
++
++    def test_expensive_observation_missing_tail_and_old_unversioned_evidence_fail(self):
++        rows=samples()
++        for row in rows:row['observer_ms']=200
++        self.assertFalse(assessment(rows)['passed'])
++        self.assertFalse(assessment(samples()[:80])['passed'])
++        self.assertFalse(assessment(original_samples())['passed'])
++
++
++if __name__=='__main__':unittest.main()
+diff --git a/certification/tests/test_stagee24_dispatch.py b/certification/tests/test_stagee24_dispatch.py
+new file mode 100644
+index 00000000..bdafb407
+--- /dev/null
++++ b/certification/tests/test_stagee24_dispatch.py
+@@ -0,0 +1,76 @@
++"""Exact candidate, full prerequisite, pagination and durable one-POST recovery."""
++import json
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++
++from certification.dispatch_phase_e import dispatch,reconcile_existing,prerequisites,store
++from certification.tests.test_dispatch_phase_e import SHA,RUNTIME,WRONG,PLAN,accepted,build,run
++
++
++class ExactDispatchTests(unittest.TestCase):
++    def test_tree_equivalent_different_commit_is_not_the_verified_candidate(self):
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError,'canonical_sha_not_verified_candidate'):
++                dispatch('owner/repo',WRONG,RUNTIME,PLAN,accepted(),build(),Path(folder)/'receipt.json',
++                    api=lambda *a: self.fail('mismatched candidate must fail before API access'))
++
++    def test_preflight_or_incomplete_full_certificate_cannot_authorize_promotion(self):
++        partial=dict(passed=True,integration_sha=RUNTIME,paper_only=True,failures=[])
++        with self.assertRaisesRegex(ValueError,'complete_build'):prerequisites(accepted(),partial,RUNTIME,PLAN)
++        for name in build()['gates']:
++            certificate=build();certificate['gates'].pop(name)
++            with self.assertRaisesRegex(ValueError,'complete_build'):
++                prerequisites(accepted(),certificate,RUNTIME,PLAN)
++
++    def test_run_on_wrong_sha_after_branch_race_fails_without_a_second_post(self):
++        posts=[]
++        def api(repo,method,path,data=None):
++            if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
++            if method=='POST':posts.append(data);return {}
++            row=run();row['head_sha']=WRONG
++            return dict(workflow_runs=[row] if posts else [])
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError,'identity_mismatch'):
++                dispatch('owner/repo',SHA,RUNTIME,PLAN,accepted(),build(),Path(folder)/'receipt.json',api=api,sleep=lambda _:None)
++            self.assertEqual(len(posts),1)
++
++    def test_active_run_on_second_page_cannot_be_hidden(self):
++        def api(repo,method,path,data=None):
++            self.assertEqual(method,'GET')
++            if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
++            if path.endswith('page=1'):
++                return dict(total_count=101,workflow_runs=[dict(id=i,status='completed',head_sha=WRONG) for i in range(100)])
++            return dict(total_count=101,workflow_runs=[dict(id=999,status='queued',head_sha=WRONG)])
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError,'competing_canonical_run'):
++                dispatch('owner/repo',SHA,RUNTIME,PLAN,accepted(),build(),Path(folder)/'receipt.json',api=api)
++
++    def test_interrupted_response_can_be_reconciled_after_restart_with_get_only(self):
++        posts=[];visible=[False]
++        def api(repo,method,path,data=None):
++            if path.startswith('git/ref'):return dict(object=dict(sha=SHA))
++            if method=='POST':posts.append(data);raise TimeoutError('ambiguous response')
++            return dict(workflow_runs=[run()] if visible[0] else [])
++        with tempfile.TemporaryDirectory() as folder:
++            output=Path(folder)/'receipt.json'
++            with self.assertRaises(RuntimeError):
++                dispatch('owner/repo',SHA,RUNTIME,PLAN,accepted(),build(),output,api=api,sleep=lambda _:None,polls=1)
++            visible[0]=True
++            def reads_only(repo,method,path,data=None):
++                self.assertEqual(method,'GET');return api(repo,method,path,data)
++            result=reconcile_existing('owner/repo',output,api=reads_only,sleep=lambda _:None)
++            self.assertEqual(result['run_id'],99);self.assertEqual(len(posts),1)
++            self.assertFalse(result['canonical_authority']);self.assertFalse(result['artifacts_verified'])
++
++    def test_failed_json_update_preserves_previous_complete_receipt(self):
++        with tempfile.TemporaryDirectory() as folder:
++            output=Path(folder)/'receipt.json';store(output,{'previous':True})
++            with patch('certification.dispatch_phase_e.os.replace',side_effect=OSError('disk failure')):
++                with self.assertRaises(OSError):store(output,{'previous':False})
++            self.assertEqual(json.loads(output.read_text()),{'previous':True})
++            self.assertEqual(list(Path(folder).iterdir()),[output])
++
++
++if __name__=='__main__':unittest.main()
+diff --git a/certification/tests/test_stagee24_environment.py b/certification/tests/test_stagee24_environment.py
+new file mode 100644
+index 00000000..0710b384
+--- /dev/null
++++ b/certification/tests/test_stagee24_environment.py
+@@ -0,0 +1,29 @@
++"""Do not spend a fixed cohort on a shallow or differently configured runtime."""
++from pathlib import Path
++import unittest
++from unittest.mock import patch
++from certification import qualification_environment as env
++from certification.maintenance_qualification import qualification,frozen_inputs
++
++
++class QualificationEnvironmentTests(unittest.TestCase):
++    def test_version_mismatch_is_an_explicit_failed_precondition(self):
++        with patch.object(env.platform,'python_version',return_value='3.13.5'),patch.object(
++            env.importlib.metadata,'version',return_value='16.0'):
++            result=env.inspect()
++        self.assertFalse(result['passed'])
++        self.assertIn('frozen_python_mismatch',result['failures'])
++        self.assertIn('frozen_dependencies_mismatch',result['failures'])
++        self.assertFalse(result['canonical_authority'])
++
++    def test_generic_ci_retains_policy_predecessor_history(self):
++        workflow=(env.ROOT/'.github/workflows/ci.yml').read_text()
++        self.assertIn('fetch-depth: 0',workflow)
++        self.assertNotIn('fetch-depth: 2',workflow)
++        self.assertTrue(env.inspect()['policy_predecessor_available'])
++
++    def test_new_observation_identity_and_original_workload_are_both_bound(self):
++        with qualification():self.assertTrue(frozen_inputs())
++
++
++if __name__=='__main__':unittest.main()
+diff --git a/certification/tests/test_stagee24_overlap.py b/certification/tests/test_stagee24_overlap.py
+new file mode 100644
+index 00000000..ce4778a3
+--- /dev/null
++++ b/certification/tests/test_stagee24_overlap.py
+@@ -0,0 +1,82 @@
++"""Real source/retirement commits across a held snapshot, with a pre-window batch."""
++from contextlib import closing
++import json
++from pathlib import Path
++import sqlite3
++import tempfile
++import threading
++import unittest
++from unittest.mock import patch
++
++from certification.combined_observer import Interaction,observe_window,verified,REVISION
++from certification.tests.test_combined_pressure import valid_report
++from meme_machine.solana_evidence_control import PriorityOwner
++from meme_machine.solana_evidence_service import ServiceState
++from meme_machine.solana_evidence_transport import Subscription
++from tests.test_retention_outcomes import CONFIG,seed
++from tests.test_run376_dispatch_pressure import account_frame
++
++
++class RealOverlapTests(unittest.TestCase):
++    def test_pre_snapshot_batch_four_source_commits_and_real_retirement(self):
++        with tempfile.TemporaryDirectory() as folder:
++            path=Path(folder)/'db'
++            owner=PriorityOwner(lambda:ServiceState(path,CONFIG));owner.ready.result(5)
++            entered=threading.Event();release=threading.Event();control=Interaction()
++            sample=dict(eligible_at_reader_start=False,source_frames_while_reader=0)
++            control.metrics['burst_evidence']=[sample]
++            sub=Subscription('observer','account:overlap','overlap','account',0)
++            def item(slot):
++                raw=account_frame(slot)
++                return (sub,json.loads(raw),1000,len(raw))
++            try:
++                owner.submit(lambda s:seed(s,256),priority=4).result(5)
++                def first(state):
++                    token=control.source_started(1)
++                    original=state._source_locked
++                    def held(*args):
++                        self.assertTrue(state.writer.db.in_transaction)
++                        entered.set()
++                        if not release.wait(5):raise TimeoutError('reader_barrier')
++                        return original(*args)
++                    with patch.object(state,'_source_locked',side_effect=held):
++                        result=state.source_batch((item(100),))
++                    control.source_completed(token,1)
++                    return result
++                pending=owner.submit(first,priority=2)
++                self.assertTrue(entered.wait(5))
++                with closing(sqlite3.connect(path,isolation_level=None)) as reader:
++                    reader.execute('BEGIN')
++                    before=dict(reader.execute('SELECT key,value FROM counters'))
++                    control.reader_phase=1
++                    release.set();self.assertEqual(pending.result(5),1)
++                    # Three more real, separately committed source batches. No
++                    # artificial increment of either authoritative counter.
++                    for slot in (101,102,103):
++                        owner.submit(lambda s,slot=slot:s.source_batch((item(slot),)),priority=2).result(5)
++                    outcome=owner.submit(lambda s:s.retention(),priority=4).result(5)
++                    self.assertEqual(outcome.retired_records,256)
++                    observe_window(reader,path,before,sample)
++                    self.assertEqual(sample['source_frames_while_reader'],4)
++                    self.assertEqual(sample['reader_compaction_advance'],256)
++                    self.assertEqual(sample['legacy_start_phase_frames'],0)
++                    self.assertEqual(sample['cleanup_window_status'],'serviced')
++                    self.assertEqual(dict(reader.execute('SELECT key,value FROM counters')),before)
++                    self.assertEqual(reader.execute("SELECT COUNT(*) FROM records WHERE scope='program:meteora'").fetchone()[0],256)
++                    with closing(sqlite3.connect(path)) as current:
++                        self.assertEqual(current.execute("SELECT COUNT(*) FROM records WHERE scope='program:meteora'").fetchone()[0],0)
++                    reader.execute('ROLLBACK')
++            finally:
++                release.set();owner.close()
++
++    def test_exact_retention_boundary_is_failure_not_a_rounding_waiver(self):
++        for field in ('oldest_hot_age_peak','oldest_retained_age_peak'):
++            row=valid_report()
++            row['combined_load']['observation_revision']=REVISION
++            for sample in row['combined_load']['burst_evidence']:sample['observation_revision']=REVISION
++            self.assertTrue(verified(row,'sha'))
++            row[field]=240
++            self.assertFalse(verified(row,'sha'))
++
++
++if __name__=='__main__':unittest.main()
+diff --git a/certification/tests/test_stagee25_promotion.py b/certification/tests/test_stagee25_promotion.py
+new file mode 100644
+index 00000000..9ab92b31
+--- /dev/null
++++ b/certification/tests/test_stagee25_promotion.py
+@@ -0,0 +1,474 @@
++"""Deterministic promotion tests: fake API writes never reach a real repository."""
++from __future__ import annotations
++
++import base64
++from copy import deepcopy
++import io
++import json
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++import unittest
++from unittest.mock import patch
++from urllib.error import HTTPError
++
++from certification import promote_phase_e as promotion
++from certification import dispatch_phase_e as dispatch
++from certification.tests.test_dispatch_phase_e import SHA, WRONG, PLAN, accepted, build, run
++
++OLD = 'd' * 40
++ACTOR = 77
++
++
++def evidence():
++    return dict(cohort=accepted(), build=build(), plan_sha256=PLAN, artifacts={
++        'cohort': dict(id=51, name='fixed-cohort', digest='sha256:' + '1' * 64, workflow_run_id=10),
++        'build': dict(id=52, name=f'non-market-certification-{SHA}-1',
++                      digest='sha256:' + '2' * 64, workflow_run_id=20)})
++
++
++class FakeAPI:
++    """Implements only the reviewed endpoints; unknown operations fail tests."""
++    def __init__(self):
++        self.calls = []
++        self.canonical = OLD
++        self.claim = None
++        self.intent = None
++        self.run = None
++        self.actor = dict(id=ACTOR, head_sha=SHA, path=promotion.WORKFLOW,
++                          event='workflow_dispatch', run_attempt=1, status='in_progress')
++        self.registered = 'active'
++        self.wrong_workflow = False
++        self.ref_failure = False
++
++    def request(self, method, path, data=None):
++        self.calls.append((method, path, deepcopy(data)))
++        if method == 'GET' and path == f'actions/runs/{ACTOR}':
++            return deepcopy(self.actor)
++        if method == 'GET' and path == 'actions/runs/99':
++            return deepcopy(self.run)
++        if method == 'GET' and path == 'actions/workflows/' + dispatch.WORKFLOW:
++            return dict(path='.github/workflows/' + dispatch.WORKFLOW, state=self.registered)
++        if method == 'GET' and path.startswith('contents/.github/workflows/'):
++            filename = path.split('contents/', 1)[1].split('?ref=', 1)[0]
++            raw = b'changed' if self.wrong_workflow else (promotion.ROOT / filename).read_bytes()
++            return dict(encoding='base64', content=base64.b64encode(raw).decode())
++        if method == 'GET' and path == 'git/ref/heads/' + dispatch.BRANCH:
++            return dict(object=dict(sha=self.canonical))
++        if method == 'GET' and path == 'git/ref/' + promotion.intent_ref(SHA):
++            if self.claim is None:
++                raise HTTPError('https://api.github.com/ref', 404, 'not found', {}, None)
++            return dict(object=dict(sha=self.claim))
++        if method == 'GET' and path.startswith('contents/' + promotion.INTENT_FILE):
++            return dict(encoding='base64', content=base64.b64encode(json.dumps(self.intent).encode()).decode())
++        if method == 'GET' and path.startswith('actions/workflows/' + dispatch.WORKFLOW + '/runs?'):
++            return dict(total_count=bool(self.run), workflow_runs=[deepcopy(self.run)] if self.run else [])
++        if method == 'POST' and path == 'git/trees':
++            self.intent = json.loads(data['tree'][0]['content'])
++            return dict(sha='f' * 40)
++        if method == 'POST' and path == 'git/commits':
++            return dict(sha='e' * 40)
++        if method == 'POST' and path == 'git/refs':
++            if self.ref_failure:
++                raise TimeoutError('lost creation response')
++            if self.claim is not None:
++                raise HTTPError('https://api.github.com/ref', 422, 'already exists', {}, None)
++            self.claim = data['sha']
++            return dict(ref=data['ref'], object=dict(sha=data['sha']))
++        if method == 'POST' and path == 'actions/workflows/' + dispatch.WORKFLOW + '/dispatches':
++            self.run = run()
++            return dict(workflow_run_id=99)
++        if method == 'GET' and path == 'actions/runs/99/artifacts?per_page=100&page=1':
++            return dict(total_count=0, artifacts=[])
++        raise AssertionError((method, path, data))
++
++    def push(self, sha, old):
++        if old != self.canonical:
++            raise ValueError('simulated_compare_and_swap_failure')
++        self.calls.append(('PUSH', sha, old))
++        self.canonical = sha
++
++    def writes(self):
++        return [call for call in self.calls if call[0] != 'GET']
++
++
++class PromotionTests(unittest.TestCase):
++    def execute(self, api, folder, proof=None):
++        return promotion.promote(api, SHA, OLD, ACTOR, proof or evidence(), Path(folder), push=api.push)
++
++    def test_remote_intent_precedes_exact_push_and_single_dispatch(self):
++        api = FakeAPI()
++        with tempfile.TemporaryDirectory() as folder:
++            result = self.execute(api, folder)
++            self.assertEqual(result['run_id'], 99)
++            self.assertEqual(result['promotion']['promoted_sha'], SHA)
++            self.assertFalse(result['canonical_authority'])
++            writes = api.writes()
++            self.assertEqual([(a, b) for a, b, _ in writes], [
++                ('POST', 'git/trees'), ('POST', 'git/commits'), ('POST', 'git/refs'),
++                ('PUSH', SHA), ('POST', 'actions/workflows/' + dispatch.WORKFLOW + '/dispatches')])
++            self.assertEqual(writes[-1][2]['inputs'], {'expected_sha': SHA})
++            self.assertFalse(api.intent['market_authority'])
++            self.assertEqual(api.intent['post_attempts'], 1)
++
++    def test_any_failed_trial_blocks_before_api_or_ref_mutation(self):
++        for trial in range(4):
++            api = FakeAPI(); proof = evidence(); proof['cohort']['trials'][trial]['passed'] = False
++            with self.subTest(trial=trial), tempfile.TemporaryDirectory() as folder:
++                with self.assertRaisesRegex(ValueError, 'fixed_cohort'):
++                    self.execute(api, folder, proof)
++                self.assertEqual(api.calls, [])
++
++    def test_every_missing_full_gate_blocks_without_api_or_push(self):
++        for gate in dispatch.FULL_GATES:
++            api = FakeAPI(); proof = evidence(); proof['build']['gates'].pop(gate)
++            with self.subTest(gate=gate), tempfile.TemporaryDirectory() as folder:
++                with self.assertRaisesRegex(ValueError, 'complete_build'):
++                    self.execute(api, folder, proof)
++                self.assertEqual(api.calls, [])
++
++    def test_changed_canonical_predecessor_blocks_before_remote_intent(self):
++        api = FakeAPI(); api.canonical = WRONG
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError, 'reference_changed'):
++                self.execute(api, folder)
++        self.assertEqual(api.writes(), [])
++
++    def test_wrong_actor_sha_rerun_or_event_cannot_promote(self):
++        for field, value in [('head_sha', WRONG), ('run_attempt', 2), ('event', 'push'), ('path', 'other')]:
++            api = FakeAPI(); api.actor[field] = value
++            with self.subTest(field=field), tempfile.TemporaryDirectory() as folder:
++                with self.assertRaisesRegex(ValueError, 'actor_identity'):
++                    self.execute(api, folder)
++            self.assertEqual(api.writes(), [])
++
++    def test_missing_workflow_registration_blocks_before_canonical_move(self):
++        api = FakeAPI(); api.registered = 'disabled_manually'
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError, 'not_registered'):
++                self.execute(api, folder)
++        self.assertEqual(api.writes(), [])
++
++    def test_changed_candidate_workflow_bytes_block_before_claim(self):
++        api = FakeAPI(); api.wrong_workflow = True
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError, 'bytes_changed'):
++                self.execute(api, folder)
++        self.assertEqual(api.writes(), [])
++
++    def test_missing_artifact_bindings_cannot_create_remote_intent(self):
++        api = FakeAPI(); proof = evidence(); proof['artifacts'] = {}
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError, 'artifact_bindings_missing'):
++                self.execute(api, folder, proof)
++        self.assertEqual(api.writes(), [])
++
++    def test_remote_intent_from_prior_process_blocks_fresh_local_directory(self):
++        api = FakeAPI(); api.claim = 'e' * 40
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError, 'already_consumed'):
++                self.execute(api, folder)
++        self.assertEqual(api.writes(), [])
++
++    def test_lost_remote_intent_response_never_reaches_push_or_dispatch(self):
++        api = FakeAPI(); api.ref_failure = True
++        with tempfile.TemporaryDirectory() as folder, self.assertRaises(TimeoutError):
++            self.execute(api, folder)
++        self.assertEqual([x[:2] for x in api.writes()],
++                         [('POST', 'git/trees'), ('POST', 'git/commits'), ('POST', 'git/refs')])
++        self.assertEqual(api.canonical, OLD)
++
++    def test_failed_push_consumes_intent_and_never_dispatches_or_retries(self):
++        api = FakeAPI()
++        def failed_push(*args):
++            raise OSError('push response lost')
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaises(OSError):
++                promotion.promote(api, SHA, OLD, ACTOR, evidence(), Path(folder), push=failed_push)
++        self.assertIsNotNone(api.claim)
++        self.assertIsNone(api.run)
++        prior_writes = len(api.writes())
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError, 'already_consumed'):
++                self.execute(api, folder)
++        self.assertEqual(len(api.writes()), prior_writes)
++
++    def test_existing_queued_canonical_run_blocks_even_before_claim(self):
++        api = FakeAPI(); api.run = run(); api.run['head_sha'] = WRONG
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaisesRegex(ValueError, 'canonical_run_exists'):
++                self.execute(api, folder)
++        self.assertEqual(api.writes(), [])
++
++    def test_read_only_reconciliation_does_not_promote_missing_run(self):
++        api = FakeAPI()
++        with tempfile.TemporaryDirectory() as folder:
++            with self.assertRaises(OSError):
++                promotion.promote(api, SHA, OLD, ACTOR, evidence(), Path(folder),
++                                  push=lambda *_: (_ for _ in ()).throw(OSError('cut')))
++            before = len(api.writes())
++            result = promotion.reconcile(api, SHA, Path(folder) / 'review')
++            self.assertEqual(len(api.writes()), before)
++            self.assertIsNone(result['run'])
++            self.assertFalse(result['new_post_permitted'])
++            self.assertFalse(result['canonical_authority'])
++
++    def test_successful_dispatch_reconciles_by_read_only_identities(self):
++        api = FakeAPI()
++        with tempfile.TemporaryDirectory() as folder:
++            self.execute(api, folder)
++            before = len(api.writes())
++            result = promotion.reconcile(api, SHA, Path(folder) / 'review')
++            self.assertEqual(result['run']['id'], 99)
++            self.assertFalse(result['canonical_authority'])
++            self.assertEqual(len(api.writes()), before)
++
++    def test_frozen_environment_mismatch_is_never_qualified(self):
++        good = dict(passed=True, failures=[], python=promotion.PYTHON,
++                    dependencies=promotion.DEPENDENCIES, policy_predecessor_available=True,
++                    canonical_authority=False)
++        promotion.verify_environment(good)
++        for key, value in [('python', '3.13.5'), ('dependencies', {}), ('failures', ['failure']),
++                           ('passed', False), ('policy_predecessor_available', False)]:
++            bad = dict(good); bad[key] = value
++            with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'environment_not_verified'):
++                promotion.verify_environment(bad)
++
++    def test_manual_rerun_or_other_repository_cannot_enter_write_path(self):
++        valid = dict(GITHUB_REPOSITORY=promotion.REPOSITORY,
++                     GITHUB_EVENT_NAME='workflow_dispatch', GITHUB_RUN_ATTEMPT='1')
++        with patch.dict(os.environ, valid, clear=True):
++            promotion.promotion_environment()
++        for field, value in [('GITHUB_RUN_ATTEMPT', '2'), ('GITHUB_EVENT_NAME', 'push'),
++                             ('GITHUB_REPOSITORY', 'someone/else')]:
++            env = dict(valid); env[field] = value
++            with patch.dict(os.environ, env, clear=True), self.assertRaises(ValueError):
++                promotion.promotion_environment()
++
++    def test_workflow_routes_only_manual_proofs_to_promotion_then_readonly_review(self):
++        text = (promotion.ROOT / promotion.WORKFLOW).read_text()
++        self.assertIn('  workflow_dispatch:', text)
++        self.assertNotIn('  push:', text)
++        self.assertNotIn('schedule:', text)
++        self.assertIn('cancel-in-progress: false', text)
++        self.assertIn('python -m certification.promote_phase_e', text)
++        self.assertIn('needs: promote-and-dispatch', text)
++        review = text.split('  review-canonical-artifacts:', 1)[1]
++        self.assertIn('contents: read', review)
++        self.assertIn('actions: read', review)
++        self.assertNotIn('actions: write', review)
++        self.assertIn('--verify-run "$CANONICAL_RUN"', review)
++        self.assertNotIn('MM_SOLANA_READ_RPC_URL', text)
++        self.assertNotIn('MM_ROBINHOOD_READ_RPC_URL', text)
++
++    def test_publish_origin_cannot_be_redirected_to_another_repository(self):
++        for origin in ('https://example.invalid/receiver.git', '/tmp/local.git',
++                       'https://github.com/another/repo.git'):
++            with patch.object(promotion.subprocess, 'check_output', return_value=origin):
++                with self.assertRaisesRegex(ValueError, 'unapproved_publish_origin'):
++                    promotion.require_origin()
++        with patch.object(promotion.subprocess, 'check_output',
++                          return_value='https://github.com/' + promotion.REPOSITORY + '.git'):
++            promotion.require_origin()
++
++
++class CanonicalReviewTests(unittest.TestCase):
++    def prepared(self, folder):
++        api = FakeAPI()
++        promotion.promote(api, SHA, OLD, ACTOR, evidence(), Path(folder) / 'promotion', push=api.push)
++        api.intent['plan_sha256'] = promotion.hashlib.sha256(promotion.PLAN_PATH.read_bytes()).hexdigest()
++        return api
++
++    def test_queued_run_never_grants_authority_or_another_post(self):
++        with tempfile.TemporaryDirectory() as folder:
++            api = self.prepared(folder); before = len(api.writes())
++            result = promotion.review_canonical(api, SHA, 99, Path(folder) / 'review')
++            self.assertFalse(result['passed']); self.assertFalse(result['canonical_authority'])
++            self.assertEqual(result['failure'], 'canonical_run_not_terminal_within_review_bound')
++            self.assertEqual(len(api.writes()), before)
++
++    def test_failed_run_preserves_artifact_inventory_and_never_grants_authority(self):
++        with tempfile.TemporaryDirectory() as folder:
++            api = self.prepared(folder); api.run.update(status='completed', conclusion='failure')
++            before = len(api.writes())
++            result = promotion.review_canonical(api, SHA, 99, Path(folder) / 'review')
++            self.assertEqual(result['failure'], 'canonical_workflow_failed')
++            self.assertFalse(result['canonical_authority'])
++            self.assertEqual(result['available_artifacts'], [])
++            self.assertEqual(len(result['artifact_recovery']), 2)
++            self.assertEqual(len(api.writes()), before)
++
++    def test_green_run_with_invalid_artifacts_stays_uncertified(self):
++        with tempfile.TemporaryDirectory() as folder:
++            api = self.prepared(folder); api.run.update(status='completed', conclusion='success')
++            with patch.object(promotion, 'collect', side_effect=ValueError('missing raw trial')):
++                with self.assertRaises(ValueError):
++                    promotion.review_canonical(api, SHA, 99, Path(folder) / 'review')
++            row = promotion.read(Path(folder) / 'review/canonical-review.json')
++            self.assertFalse(row['canonical_authority'])
++            self.assertEqual(row['failure'], 'canonical_artifact_review_failed')
++
++    def test_full_terminal_evidence_is_required_before_authority_is_recorded(self):
++        with tempfile.TemporaryDirectory() as folder:
++            api = self.prepared(folder); api.run.update(status='completed', conclusion='success')
++            before = len(api.writes()); proof = evidence()
++            with patch.object(promotion, 'collect', return_value=proof) as collect:
++                result = promotion.review_canonical(api, SHA, 99, Path(folder) / 'review')
++            collect.assert_called_once()
++            self.assertTrue(result['passed']); self.assertTrue(result['canonical_authority'])
++            self.assertTrue(result['artifacts_verified']); self.assertFalse(result['market_authority'])
++            self.assertEqual(len(api.writes()), before)
++
++    def test_changed_cohort_or_canonical_reference_blocks_final_authority(self):
++        for changed in ('cohort', 'canonical'):
++            with self.subTest(changed=changed), tempfile.TemporaryDirectory() as folder:
++                api = self.prepared(folder); api.run.update(status='completed', conclusion='success')
++                proof = evidence()
++                if changed == 'cohort':
++                    proof['cohort']['trials'][0]['retained_age_peak'] = 999
++                else:
++                    api.canonical = WRONG
++                with patch.object(promotion, 'collect', return_value=proof), self.assertRaises(ValueError):
++                    promotion.review_canonical(api, SHA, 99, Path(folder) / 'review')
++                self.assertFalse(promotion.read(Path(folder) / 'review/canonical-review.json')['canonical_authority'])
++
++    def test_wrong_sha_terminal_run_cannot_be_certified(self):
++        with tempfile.TemporaryDirectory() as folder:
++            api = self.prepared(folder); api.run.update(status='completed', conclusion='success', head_sha=WRONG)
++            with self.assertRaisesRegex(ValueError, 'identity_mismatch'):
++                promotion.review_canonical(api, SHA, 99, Path(folder) / 'review')
++            self.assertFalse(promotion.read(Path(folder) / 'review/canonical-review.json')['canonical_authority'])
++
++    def test_duplicate_post_intent_runs_cannot_receive_final_authority(self):
++        with tempfile.TemporaryDirectory() as folder:
++            api = self.prepared(folder); api.run.update(status='completed', conclusion='success')
++            duplicate = dict(api.run, id=100)
++            with patch.object(dispatch, 'canonical_runs', return_value=[api.run, duplicate]):
++                with self.assertRaisesRegex(ValueError, 'dispatch_not_unique'):
++                    promotion.review_canonical(api, SHA, 99, Path(folder) / 'review')
++            self.assertFalse(promotion.read(Path(folder) / 'review/canonical-review.json')['canonical_authority'])
++
++    def test_review_bound_is_fixed(self):
++        for polls in (0, 361, True):
++            with self.assertRaisesRegex(ValueError, 'poll_bound'):
++                promotion.review_canonical(FakeAPI(), SHA, 99, Path('unused'), polls=polls)
++
++
++class RealGitLeaseTests(unittest.TestCase):
++    def test_real_compare_and_swap_rejects_a_concurrent_canonical_move(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder); local = root / 'local'; remote = root / 'remote.git'
++            def git(*args, cwd=local):
++                return subprocess.check_output(['git', *args], cwd=cwd, stderr=subprocess.DEVNULL, text=True).strip()
++            local.mkdir(); git('init'); git('config', 'user.name', 'Test'); git('config', 'user.email', 'test@example.invalid')
++            git('commit', '--allow-empty', '-m', 'base'); base = git('rev-parse', 'HEAD')
++            git('commit', '--allow-empty', '-m', 'candidate'); candidate = git('rev-parse', 'HEAD')
++            git('init', '--bare', str(remote), cwd=root); git('remote', 'add', 'origin', str(remote))
++            git('push', 'origin', f'{base}:refs/heads/{dispatch.BRANCH}')
++            with patch.object(promotion, 'ROOT', local):
++                with patch('sys.stdout', new_callable=io.StringIO):
++                    promotion.push_exact(candidate, base)
++            self.assertEqual(git('rev-parse', 'refs/heads/' + dispatch.BRANCH, cwd=remote), candidate)
++            git('commit', '--allow-empty', '-m', 'concurrent'); concurrent = git('rev-parse', 'HEAD')
++            git('push', 'origin', f'{concurrent}:refs/heads/{dispatch.BRANCH}')
++            with patch.object(promotion, 'ROOT', local), self.assertRaises(subprocess.CalledProcessError):
++                promotion.push_exact(candidate, base)
++            self.assertEqual(git('rev-parse', 'refs/heads/' + dispatch.BRANCH, cwd=remote), concurrent)
++
++
++class ArtifactPreflightTests(unittest.TestCase):
++    def test_incomplete_failed_or_wrong_sha_source_runs_are_rejected(self):
++        good = dict(id=10, head_sha=SHA, run_attempt=1, status='completed', conclusion='success')
++        for field, value in [('id', 11), ('head_sha', WRONG), ('run_attempt', 2),
++                             ('status', 'in_progress'), ('conclusion', 'failure')]:
++            row = dict(good); row[field] = value
++            api = unittest.mock.Mock(); api.request.return_value = row
++            with self.subTest(field=field), self.assertRaisesRegex(ValueError, 'prerequisite_run'):
++                promotion.successful_run(api, 10, SHA)
++
++    def test_missing_skipped_or_duplicate_full_jobs_are_rejected(self):
++        good = [dict(name='full / ' + name, status='completed', conclusion='success')
++                for name in promotion.CERTIFICATE_JOBS]
++        for jobs in (good[:1], good + good[:1], [dict(good[0], conclusion='skipped'), good[1]]):
++            with patch.object(promotion, 'all_pages', return_value=jobs), self.assertRaises(ValueError):
++                promotion.require_full_jobs(FakeAPI(), 20)
++
++    def test_full_verification_before_cohort_completion_is_rejected(self):
++        rows = [dict(id=10, head_sha=SHA, run_attempt=1, status='completed', conclusion='success',
++                     updated_at='2026-09-29T02:00:00Z'),
++                dict(id=20, head_sha=SHA, run_attempt=1, status='completed', conclusion='success',
++                     run_started_at='2026-09-29T01:00:00Z')]
++        api = unittest.mock.Mock(); api.request.side_effect = rows
++        with tempfile.TemporaryDirectory() as folder, self.assertRaisesRegex(ValueError, 'verification_order'):
++            promotion.collect(api, SHA, 10, 'cohort', 20, Path(folder))
++        self.assertEqual([call.args[0] for call in api.request.call_args_list], ['GET', 'GET'])
++
++    def test_same_run_cannot_substitute_for_ordered_independent_full_verification(self):
++        with tempfile.TemporaryDirectory() as folder, self.assertRaisesRegex(ValueError, 'must_follow'):
++            promotion.collect(FakeAPI(), SHA, 10, 'cohort', 10, Path(folder))
++
++    def test_aggregate_label_without_environment_and_raw_trials_is_rejected(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder); (root / 'aggregate.json').write_text(json.dumps(accepted()))
++            with self.assertRaises(FileNotFoundError):
++                promotion.verify_evidence(root, root, SHA, root / 'out')
++
++    def fixture(self, root):
++        from certification.tests.test_final_acceptance import FinalAcceptanceTests
++        FinalAcceptanceTests().build(root)
++        for path in root.rglob('*.json'):
++            value = json.loads(path.read_text())
++            def replace(item):
++                if isinstance(item, dict): return {k: replace(v) for k, v in item.items()}
++                if isinstance(item, list): return [replace(v) for v in item]
++                return SHA if item == 'sha' else item
++            path.write_text(json.dumps(replace(value)))
++        offline = promotion.read(root / 'offline/result.json')
++        spec = promotion.manifest()
++        offline.update(implementation_hash=promotion.implementation_hash(),
++                       source_manifest_hash=promotion.digest(spec),
++                       source_diff_hashes={lane: row['source_diff_sha256'] for lane, row in spec['lanes'].items()})
++        (root / 'offline/result.json').write_text(json.dumps(offline))
++        registry = promotion.read(promotion.ROOT / 'certification/historical_exposure.json')
++        historical = promotion.read(root / 'historical-resolution.json')
++        historical['receipt_sha256'] = registry['resolved'][0]['resolution']['receipt_sha256']
++        (root / 'historical-resolution.json').write_text(json.dumps(historical))
++        (root / 'directional-acceptance').mkdir()
++        (root / 'directional-acceptance/result.json').write_text(json.dumps(dict(passed=True, integration_sha=SHA)))
++        (root / 'preserved-validation.json').write_text(json.dumps(dict(
++            passed=True, integration_sha=SHA, fresh_market_data_used=False)))
++        from certification.final_acceptance import run as final_run
++        final_run(root, root / 'final-acceptance.json', SHA, preserved_only=True)
++
++    def test_raw_machinery_recomputation_rejects_a_forged_green_summary(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder); build_root = root / 'build'; build_root.mkdir(); self.fixture(build_root)
++            cohort = root / 'cohort'; cohort.mkdir()
++            (cohort / 'environment.json').write_text(json.dumps(dict(
++                passed=True, failures=[], python=promotion.PYTHON, dependencies=promotion.DEPENDENCIES,
++                policy_predecessor_available=True, canonical_authority=False)))
++            from certification import cleanup_recovery
++            accepted_cohort = accepted()
++            accepted_cohort['plan_sha256'] = promotion.hashlib.sha256(promotion.PLAN_PATH.read_bytes()).hexdigest()
++            with patch.object(cleanup_recovery, 'aggregate', return_value=accepted_cohort):
++                validated, _ = promotion.verify_evidence(cohort, build_root, SHA, root / 'first-review')
++                self.assertTrue(validated['passed'])
++                # Leave final-acceptance.json green; corrupt a required raw result.
++                (build_root / 'restart-safety/result.json').write_text(json.dumps(dict(passed=False)))
++                with self.assertRaisesRegex(ValueError, 'complete_acceptance_changed'):
++                    promotion.verify_evidence(cohort, build_root, SHA, root / 'second-review')
++
++    def test_exact_240_second_age_fails_the_canonical_pressure_gate(self):
++        from certification.final_acceptance import run as final_run
++        for field in ('oldest_hot_age_peak', 'oldest_retained_age_peak'):
++            with self.subTest(field=field), tempfile.TemporaryDirectory() as folder:
++                root = Path(folder); self.fixture(root)
++                path = root / 'run381-pressure/result.json'; row = promotion.read(path)
++                row[field] = 240; path.write_text(json.dumps(row))
++                self.assertEqual(final_run(root, root / 'recomputed.json', SHA, preserved_only=True), 1)
++                self.assertFalse(promotion.read(root / 'recomputed.json')['gates']['mature_solana_pressure'])
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/meme_machine/solana_evidence_plane.py b/meme_machine/solana_evidence_plane.py
+index c143a2aa..a6185923 100644
+--- a/meme_machine/solana_evidence_plane.py
++++ b/meme_machine/solana_evidence_plane.py
+@@ -230,6 +230,13 @@ CREATE TABLE IF NOT EXISTS counters(key TEXT PRIMARY KEY,value INTEGER NOT NULL)
+ '''
+ 
+ 
++def lifecycle_scope(scope):
++    """Fixed, payload-free telemetry buckets; never evidence authority."""
++    if scope in ('program:meteora','program:pump','program:pumpswap'):
++        return scope
++    return 'account' if scope.startswith('account:') else 'other'
++
++
+ class EvidenceWriter:
+     """One process/thread owns all evidence mutations; consumers open read-only DBs."""
+     def __init__(self, path, *, clock=time.time, max_hot_bytes=256 * 1024 * 1024):
+@@ -390,6 +397,7 @@ class EvidenceWriter:
+                 self.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
+                 self._count('evidence_conflicts')
+             else:
++                scope_insertions={}
+                 for row in prepared:
+                     record=row.record
+                     inserted = self.db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
+@@ -404,6 +412,12 @@ class EvidenceWriter:
+                         (record.scope, record.slot, self.clock()))
+                     if inserted:
+                         self._count('ingested_' + record.kind)
++                        bucket=lifecycle_scope(record.scope)
++                        scope_insertions[bucket]=scope_insertions.get(bucket,0)+inserted
++                # Aggregate inside the same transaction/savepoint. Rolled-back
++                # frames and duplicate delivery cannot manufacture useful work.
++                for bucket,count in scope_insertions.items():
++                    self._count('lifecycle.ingested.'+bucket,count)
+                 if repair_receipt:
+                     gap_id, cursor, max_pages = repair_receipt
+                     self._repair_progress(gap_id, cursor, max_pages)
+@@ -571,6 +585,7 @@ class EvidenceWriter:
+     def commit_archive(self,plan,receipt):
+         if not receipt:return 0
+         archived=0
++        archived_by_scope={}
+         # A service archive may be committed in bounded owner slices after the
+         # complete immutable file has already been published off-owner. Preserve
+         # the file's full record count in the manifest even when this call owns
+@@ -594,9 +609,15 @@ class EvidenceWriter:
+                 floor=self._account_floor(scope)
+                 pinned=pinned or (floor is not None and slot>=floor)
+                 if not pinned:
+-                    archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
++                    changed=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
++                    archived+=changed
++                    if changed:
++                        bucket=lifecycle_scope(scope)
++                        archived_by_scope[bucket]=archived_by_scope.get(bucket,0)+changed
+                     self.db.execute('DELETE FROM hot_refs WHERE identity=?',(row['identity'],))
+             self._count('archived_records',archived)
++            for bucket,count in archived_by_scope.items():
++                self._count('lifecycle.archived.'+bucket,count)
+         return archived
+ 
+     def _account_floor(self,scope):
+@@ -689,7 +710,11 @@ class EvidenceWriter:
+                             removed[0]+=self.db.execute(
+                                 'DELETE FROM '+table+' WHERE '+key+' IN (SELECT '+key+
+                                 ' FROM '+table+' WHERE '+where+' LIMIT ?)',(*args,max_records)).rowcount
+-                    if ids:self._count('compacted_records',len(ids))
++                    if ids:
++                        self._count('compacted_records',len(ids))
++                        self._count('lifecycle.retired.'+lifecycle_scope(scope),len(ids))
++                    if removed[0]:
++                        self._count('lifecycle.continuity.'+lifecycle_scope(scope),removed[0])
+                 if not more_here:break
+         # Skip no-op housekeeping transactions too. Keep immutable archive files;
+         # only unreferenced operational manifests/chunks/dictionary keys retire.
+diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
+index b8f68272..e49ed215 100644
+--- a/meme_machine/solana_evidence_service.py
++++ b/meme_machine/solana_evidence_service.py
+@@ -551,7 +551,7 @@ class ServiceState:
+ 
+     def _storage_stage(self,name,fn):
+         """Fixed stage names, numeric costs only; retained across service restarts."""
+-        if name not in ('archive_plan','archive_commit','retention','repair_apply'):
++        if name not in ('source_commit','archive_plan','archive_commit','retention','repair_apply'):
+             raise EvidenceUnavailable('storage_stage_identity')
+         started=time.monotonic()
+         try:return fn()
+@@ -589,6 +589,11 @@ class ServiceState:
+             self._source_locked(sub,message,seen,byte_count)
+ 
+     def source_batch(self,items):
++        # One timer per bounded owner admission, never per record. Execution is
++        # separate from the work() admission timer and includes durable COMMIT.
++        return self._storage_stage('source_commit',lambda:self._source_batch(items))
++
++    def _source_batch(self,items):
+         """Commit consecutive block/account frames with one durable outer fsync.
+ 
+         Each frame retains its own SAVEPOINT so a malformed later frame cannot
+@@ -753,8 +758,12 @@ class ServiceState:
+         except EvidenceUnavailable as exc:
+             if str(exc)!='evidence_background_yield':raise
+             self.writer.last_retention_progress.interrupted=True
+-        except sqlite3.OperationalError:
+-            if not getattr(self.writer,'_background_sql_interrupted',False):raise
++        except sqlite3.OperationalError as exc:
++            # A prior interrupted query is not evidence that a later disk/busy
++            # error was a cooperative yield. Preserve unrelated storage failures.
++            if (str(exc) != 'interrupted' or
++                    not getattr(self.writer,'_background_sql_interrupted',False)):
++                raise
+             report=self.writer.last_retention_progress
+             report.interrupted=True;report.yield_reason='urgent_sql'
+         outcome=self.writer.last_retention_progress.snapshot()
+@@ -802,7 +811,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                            for _ in range(STREAM_DECODE_WORKERS)))
+     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
+     async def work(fn,priority=1,*,label=None):
+-        if label not in (None,'archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
++        if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish'):
+             raise EvidenceUnavailable('owner_stage_identity')
+         submitted=time.monotonic();execution=[None,None]
+         def timed(state):
+@@ -1141,7 +1150,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                                                     counts.get('stream.ordered_commit_wait_peak_microseconds',0),wait_us)
+                                                 source_items=tuple((row[0],row[1],row[2],row[3]) for row in batch)
+                                                 await work(lambda state,items=source_items:state.source_batch(items),
+-                                                           0 if all(row[0].evidence_class=='account' for row in batch) else 2)
++                                                           0 if all(row[0].evidence_class=='account' for row in batch) else 2,
++                                                           label='source_commit')
+                                                 commit_us=int((time.monotonic()-commit_started)*1_000_000)
+                                                 counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+len(batch)
+                                                 counts['stream.commit_batches']=counts.get('stream.commit_batches',0)+1
+diff --git a/tests/test_stagee24_maintenance_integrity.py b/tests/test_stagee24_maintenance_integrity.py
+new file mode 100644
+index 00000000..0b1bc8c1
+--- /dev/null
++++ b/tests/test_stagee24_maintenance_integrity.py
+@@ -0,0 +1,90 @@
++"""E24: stale interruption flags and durable, fixed-cardinality lifecycle counts."""
++from contextlib import contextmanager
++from dataclasses import replace
++from pathlib import Path
++import sqlite3
++import tempfile
++import unittest
++from unittest.mock import patch
++
++from meme_machine.solana_evidence_plane import lifecycle_scope
++from meme_machine.solana_evidence_service import ServiceState
++from tests.test_retention_outcomes import CONFIG, seed
++from tests.test_run381_retention_progress import record
++
++
++class MaintenanceIntegrityTests(unittest.TestCase):
++    @contextmanager
++    def state(self):
++        with tempfile.TemporaryDirectory() as folder:
++            state=ServiceState(Path(folder)/'db',CONFIG)
++            try:yield state
++            finally:state.close()
++
++    def counts(self,state):
++        return dict(state.writer.db.execute('SELECT key,value FROM counters WHERE key LIKE \'lifecycle.%\''))
++
++    def test_stale_interruption_flag_never_swallows_storage_error(self):
++        for message in ('disk I/O error','database is locked','database or disk is full'):
++            with self.subTest(message=message),self.state() as state:
++                state.writer._background_sql_interrupted=True
++                with patch.object(state.writer,'retain',side_effect=sqlite3.OperationalError(message)):
++                    with self.assertRaisesRegex(sqlite3.OperationalError,message):state.retention()
++                self.assertNotIn('retention_outcome.unknown',state.storage_metrics)
++                self.assertEqual(state.storage_metrics['retention.failed'],1)
++
++    def test_actual_interrupt_without_owner_evidence_is_not_swallowed(self):
++        with self.state() as state:
++            with patch.object(state.writer,'retain',side_effect=sqlite3.OperationalError('interrupted')):
++                with self.assertRaises(sqlite3.OperationalError):state.retention()
++
++    def test_new_rows_archive_retry_and_retirement_counts_are_exact(self):
++        with self.state() as state:
++            seed(state,256)
++            initial=self.counts(state)
++            self.assertEqual(initial['lifecycle.ingested.program:meteora'],256)
++            self.assertEqual(initial['lifecycle.archived.program:meteora'],256)
++            # Archive publication already succeeded in seed(); replaying retention
++            # after drain must not book the same work twice.
++            state.retention();state.retention()
++            counts=self.counts(state)
++            self.assertEqual(counts['lifecycle.retired.program:meteora'],256)
++            self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
++
++    def test_rollback_and_duplicate_ingestion_cannot_count_useful_work(self):
++        with self.state() as state:
++            row=replace(record(),scope='program:meteora')
++            state.writer.ingest([row]);state.writer.ingest([row])
++            self.assertEqual(self.counts(state)['lifecycle.ingested.program:meteora'],1)
++            with self.assertRaisesRegex(RuntimeError,'rollback'):
++                with state.writer.transaction():
++                    state.writer.ingest([replace(row,identity='other-identity',signature='new-signature')])
++                    raise RuntimeError('rollback')
++            self.assertEqual(self.counts(state)['lifecycle.ingested.program:meteora'],1)
++            self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],1)
++
++    def test_failed_archive_and_retirement_do_not_count_rolled_back_rows(self):
++        with self.state() as state:
++            state.writer.ingest([replace(record(),scope='program:meteora')])
++            plan=state.writer.archive_plan(1000)
++            receipt=state.writer.write_archive(state.writer.path,plan)
++            db=state.writer.db
++            db.execute("CREATE TRIGGER reject_archive BEFORE UPDATE OF body ON records BEGIN SELECT RAISE(ABORT,'archive_test'); END")
++            with self.assertRaisesRegex(sqlite3.IntegrityError,'archive_test'):state.writer.commit_archive(plan,receipt)
++            self.assertNotIn('lifecycle.archived.program:meteora',self.counts(state))
++            db.execute('DROP TRIGGER reject_archive')
++            state.writer.commit_archive(plan,receipt);state.writer.commit_archive(plan,receipt)
++            self.assertEqual(self.counts(state)['lifecycle.archived.program:meteora'],1)
++            db.execute("CREATE TRIGGER reject_retire BEFORE DELETE ON records BEGIN SELECT RAISE(ABORT,'retire_test'); END")
++            with self.assertRaisesRegex(sqlite3.IntegrityError,'retire_test'):state.retention()
++            self.assertNotIn('lifecycle.retired.program:meteora',self.counts(state))
++            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0],'ok')
++
++    def test_scope_telemetry_cardinality_never_contains_an_address(self):
++        scopes=['account:secret-'+str(i) for i in range(1000)]+['custom-'+str(i) for i in range(1000)]
++        self.assertEqual({lifecycle_scope(s) for s in scopes},{'account','other'})
++        for name in ('program:meteora','program:pump','program:pumpswap'):
++            self.assertEqual(lifecycle_scope(name),name)
++
++
++if __name__=='__main__':unittest.main()
