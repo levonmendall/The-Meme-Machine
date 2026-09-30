@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "validate_only": true,
+  "validate_only": false,
   "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
   "paper_only": true,
   "market_authority": false,
@@ -15,11 +15,5 @@
       "commit_latency": 0.006
     }
   ],
-  "reason": "Read the uploaded fresh validation log and run the skipped resource check. Do not rerun tests or start a material workload.",
-  "recover_artifact": {
-    "id": 11116354967,
-    "run_id": 36756490388,
-    "head_sha": "7234dcc545b7372c2f177bbe3ef938db5f2454e6",
-    "zip_sha256": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457"
-  }
+  "reason": "Material variant 1: fresh coupled baseline. Syntax, arithmetic, source identity and resource checks passed. Preserve unchanged-base unit suite failures (1 failure, 2 errors, 46 skips), including older pressure clocks. Do not repair them or claim complete deterministic green."
 }
