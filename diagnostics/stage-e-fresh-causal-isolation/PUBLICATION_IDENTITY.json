@@ -1,0 +1,19 @@
+{
+  "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "source_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "publication_sha": "a4b559d36c313e482cfa18bd9c7b12e7329d5529",
+  "publication_tree": "a6f99d4b514c93d6ef7f30e7391799d1c7d5a917",
+  "preexisting_files_verified": 1152,
+  "all_preexisting_blobs_and_modes_unchanged": true,
+  "workflow_run_id": "36764834925",
+  "run_attempt": "1",
+  "package_only": true,
+  "workloads_executed": 0,
+  "material_variants_consumed": 2,
+  "publishing_environment": {
+    "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu_count": 4,
+    "purpose": "stdlib packaging; not a runtime-equivalence receipt"
+  }
+}

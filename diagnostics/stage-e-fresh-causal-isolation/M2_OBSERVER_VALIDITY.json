@@ -1,0 +1,7 @@
+{
+  "sample_count": 66,
+  "window_210_301_samples": 19,
+  "invalid_window_samples": [],
+  "final_disconnect_gaps": 3,
+  "source": "hash-verified existing M2 artifact; no fresh workload"
+}

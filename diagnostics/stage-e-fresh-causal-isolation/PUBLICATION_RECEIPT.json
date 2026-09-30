@@ -1,0 +1,178 @@
+{
+  "status": "ASTRA_REVIEW_READY: HISTORICAL_MECHANISM_REPRODUCED",
+  "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "source_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "publication_sha": "a4b559d36c313e482cfa18bd9c7b12e7329d5529",
+  "publication_tree": "a6f99d4b514c93d6ef7f30e7391799d1c7d5a917",
+  "run_id": 36764834925,
+  "job_id": 110056270404,
+  "run_conclusion": "success",
+  "package_only": true,
+  "workloads_executed": 0,
+  "material_variants_consumed": 2,
+  "unused_material_variants": 4,
+  "artifact_id": 11119244681,
+  "artifact_name": "stage-e-fresh-a4b559d36c313e482cfa18bd9c7b12e7329d5529-36764834925-1",
+  "artifact_zip_sha256": "54797566c06a4dc485b452a1ff5dbabff5e860cf2004365b82ac3eec7de0f330",
+  "artifact_bytes": 495487,
+  "artifact_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/36764834925/artifacts/11119244681",
+  "expires_at": "2026-12-29T19:19:14Z",
+  "production_verification": {
+    "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "source_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+    "publication_sha": "a4b559d36c313e482cfa18bd9c7b12e7329d5529",
+    "publication_tree": "a6f99d4b514c93d6ef7f30e7391799d1c7d5a917",
+    "preexisting_files_verified": 1152,
+    "all_preexisting_blobs_and_modes_unchanged": true,
+    "workflow_run_id": "36764834925",
+    "run_attempt": "1",
+    "package_only": true,
+    "workloads_executed": 0,
+    "material_variants_consumed": 2,
+    "publishing_environment": {
+      "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+      "python": "3.12.3",
+      "cpu_count": 4,
+      "purpose": "stdlib packaging; not a runtime-equivalence receipt"
+    }
+  },
+  "all_test_and_workload_steps": [
+    {
+      "name": "Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Run python -m pip install --disable-pip-version-check -r requirements.txt",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify unchanged production and diagnostic arithmetic",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Inspect the fresh validation artifact",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Required deterministic checks (validation request only)",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Required resource checks",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Execute one predeclared material variant, with no retry",
+      "conclusion": "skipped"
+    }
+  ],
+  "captured_artifacts": [
+    {
+      "id": 11117967050,
+      "run_id": 36757944292,
+      "head_sha": "d72b80b5bb8afe21fbea1453f4c926d3f1872c3d",
+      "zip_sha256": "f9e1a4ef53a82d785a1508369703d8db0528754c9db36cbf1175cfd729fc0ec4"
+    },
+    {
+      "id": 11118550681,
+      "run_id": 36759485146,
+      "head_sha": "b7928fe14e5952a9811cfa0f50ac36334dbb7d09",
+      "zip_sha256": "b6281d1964d2de281a3d33623cbf581c60feeb3568b917bc46c58c42d2d27e74"
+    }
+  ],
+  "m2_observer_validity": {
+    "sample_count": 66,
+    "window_210_301_samples": 19,
+    "invalid_window_samples": [],
+    "final_disconnect_gaps": 3,
+    "source": "hash-verified existing M2 artifact; no fresh workload"
+  },
+  "repository_timeline": {
+    "path": "diagnostics/stage-e-fresh-causal-isolation/M2_TIMELINE.json",
+    "encoding": "Compact JSON extracted verbatim from successful publication log marker PACKAGED_M2_TIMELINE; parsed rows match the artifact's pretty-printed derivative. No fresh execution.",
+    "raw_runtime_timeline_sha256": "9e50823df1a91b8c2f8faf5d115d693d27246ee1ae27b9378f213154038da6f8",
+    "published_pretty_timeline_sha256": "767d3547dc2d426f9c9a050da2de52a09db9c7771570cecebabbe25d892dc38a",
+    "samples": 66
+  },
+  "artifact_evidence_sha256": {
+    "ARCHITECTURE.md": "61d501ec11845e6a70252635f21b6d9870931c47ae6d327c03943d3f112400b0",
+    "ASTRA_GATE.json": "4722b8b7153f5550088ae28c9183a3410f037cd028170edf78887d057d5d2061",
+    "ASTRA_REVIEW_PACKAGE.md": "8960aaf994785c7dee28bb2cafa86179b36177d29ae66370899066d79e38c0f4",
+    "CANONICAL_STAGE_E_RECONSTRUCTION.md": "ea2e3a14fcd6e9112ae42ede43393c091f75d941611f16db126735c2fbd3804d",
+    "CAPACITY_RATES.json": "0d2e47e56e836f96e9be18f9836fea0193a9342b4a83e5f76548c48613d0dda8",
+    "EXPERIMENTS.md": "fe7fc951bcffa7c35e2f0c982befbe735652371f036fad2c107d7a67321075b8",
+    "M1_ARTIFACT.json": "0ef8ee172a20e1b56c17fb180134fd34eff76a0e114441781cb0c7cd06ffe907",
+    "M1_CAPACITY_EXCERPTS.json": "f6819a00f4044acaaa02ff84dc62c0c5c80d608e8c9c8e41b22329801866a1b8",
+    "M1_SUMMARY.json": "88c30e7a114048087e780b2e4410ff133e285fb4769f4e91676ba941ecb6a13b",
+    "M1_TERMINAL_EXCERPTS.json": "2a74084f5a31f206cd19ea5468df14c007a8b579ea67be856861958f32a23805",
+    "M2_ARTIFACT.json": "131d6fcdcf70fbd4a7783a197d29c6bd5cf82b144c72f9041ab5873721cae09b",
+    "M2_CAPACITY_EXCERPTS.json": "4bcddfd44825ada6278c865f56458197b87e5185d5b7c359277232bcfbb34d15",
+    "M2_OBSERVER_VALIDITY.json": "fba9fcc42380ba81d5e5783a9333d3d204aecd714a6eb95dd66d9f7df975b428",
+    "M2_SUMMARY.json": "e66d13dff3a01a2c72bf06d1a15b277d2b436cebdd388e417913482c6e85773c",
+    "M2_TERMINAL_EXCERPTS.json": "f365d81a55ea41a6c4eb1d56d67e32979587cb2cf0b03fc6c70ff4e0b5489c76",
+    "M2_TIMELINE.json": "767d3547dc2d426f9c9a050da2de52a09db9c7771570cecebabbe25d892dc38a",
+    "MATURE_CAPACITY_COSTS.json": "9dde25cc32147dfee9e5de141b054c95b44f6dd9719ab3ca927d4079bb0aa1ea",
+    "PREFLIGHT_EVIDENCE.json": "9e8db5760fa8c69c94bd4ee71497d016a86f61d3dc813f49f3039bf00dfa6e4d",
+    "PUBLICATION_ATTEMPTS.json": "a6734d7e92efdce134abdd99b522a7a8f7635c50053eb5cea33e02226220e869",
+    "PUBLICATION_IDENTITY.json": "a6cb90b861401329b1481a5bed99ec2303e9a6d45e62e8810dfceee05c093598",
+    "README.md": "a3a834df18a8606595ad9db34679196b98c495f0dd15486193225d003f7461f4",
+    "SUMMARY.md": "d0f2c9f8cd670c7fc81bb6be2f53076b38605d009da5afb519c6e62ba2c27077",
+    "captured/M1/ARCHITECTURE.md": "e70eef8604eb9698372b64fee128f66b486001c89fbad90ea5d890611317e857",
+    "captured/M1/CANONICAL_STAGE_E_RECONSTRUCTION.md": "ea2e3a14fcd6e9112ae42ede43393c091f75d941611f16db126735c2fbd3804d",
+    "captured/M1/README.md": "27a0a29048489bd295fc6893de44def72fc91d5f0c8d00b6a2eae6ceb1063beb",
+    "captured/M1/SHA256.json": "1bdb466c3e88a96458681203fa4e5f85b4de6562a3f9c47200f0841b38244c7a",
+    "captured/M1/SUMMARY.md": "138b9a5a47b38ab5364448f4c7be31f16866dcfb0ce6ed65b27b6d7223a2d094",
+    "captured/M1/environment.json": "efa28d3b7efcafec8a6ae820a8f5db49d82886b38bcf00bfd2b07e2b79a0e9bf",
+    "captured/M1/execution-request.json": "64aae4f2a72d62efdabf7d6b062e72148df6d048b42b948885b5771269238212",
+    "captured/M1/finalize.py": "93a0e549a3426821022e86a80ea245eca6c6fc80079b87a9d2b61617e5522037",
+    "captured/M1/git-identity.txt": "9b71627c98ad50f267a2065b05aa23deefbf06ab6f2d099125d4edc966dfa82c",
+    "captured/M1/harness.py": "fe79d13e990424a7f68eb14578efae54f9acd080b07470b1d1510701a6033eb9",
+    "captured/M1/identity.json": "0c848998dd90781982dcd0fa67f4c2317decc6d4149248d36021d02e55633410",
+    "captured/M1/recover.py": "fae152f17e34b87f616bdb2f902699513f062e876f43718909d5db5bf7195534",
+    "captured/M1/variant/archive-hashes.json": "2f70eddf350bb1e5a294270dea1891ce46b750f69fe7c1226887e2f284c69a66",
+    "captured/M1/variant/capacity-timeline.json": "9efd5e8858da1ca9a6df5f4a65c83f4084306c5afdc69016579e145897eb3b95",
+    "captured/M1/variant/configuration.json": "839e7b0c6873313bd7d8ca12a4096fe1363d4a6f999b7cc35b777cebc797a376",
+    "captured/M1/variant/environment.json": "8b7b65eb8a6870a2eb7a8085317f4d66741f95a9c1ac286444d083fbb5e96b47",
+    "captured/M1/variant/failure-stack.json": "4fc9dd07a237d30b636c6f60bff211760ed3258790f12207189bad1cfd2034fb",
+    "captured/M1/variant/final-snapshot.json": "1efc7d676e446edaf13218ba955917bd30735448ca9585ebbba9c028e0d2707d",
+    "captured/M1/variant/identity.json": "0c848998dd90781982dcd0fa67f4c2317decc6d4149248d36021d02e55633410",
+    "captured/M1/variant/interaction.json": "5d31fca7d6c0d873e0394a30a9f295f980ea6689cb429c24517ac83f46e1a859",
+    "captured/M1/variant/native-health.json": "1ac994c44dd9b84cf0823729d6f359a06992114af8c06b828c6a1411a8311676",
+    "captured/M1/variant/summary.json": "79c8375d7542ae888add9ec29aa2c8e477d321b91638c65a2e177f8d2105f5e1",
+    "captured/M1/variant/terminal-ring.json": "e6d775086e72a305ace224661af8c6e6159abced4e08b8006624a775255a65c6",
+    "captured/M1/variant/timeline.jsonl": "f085c6e9f42400cb93332b9a27056228fa76fffbb736b4745ca646043e889713",
+    "captured/M2/ARCHITECTURE.md": "e70eef8604eb9698372b64fee128f66b486001c89fbad90ea5d890611317e857",
+    "captured/M2/CANONICAL_STAGE_E_RECONSTRUCTION.md": "ea2e3a14fcd6e9112ae42ede43393c091f75d941611f16db126735c2fbd3804d",
+    "captured/M2/EXPERIMENTS.md": "511828a7cd8882cb0d543d435cd6b4c25c55fd93d982244aadeb1939939849a9",
+    "captured/M2/README.md": "27a0a29048489bd295fc6893de44def72fc91d5f0c8d00b6a2eae6ceb1063beb",
+    "captured/M2/SHA256.json": "6e0cd0b10cb6108d133f5c2ffc25c23fac1960f4fe0b60eb103e269a5662c871",
+    "captured/M2/SUMMARY.md": "cbf664202b0b3aea5dd39f39533ce88fc704ad6ebb422bbe8126e85afaa468ae",
+    "captured/M2/environment.json": "91eec74aab49ffce6e2223b404cd4af896a460e87e73a5e27899392dec5986d3",
+    "captured/M2/execution-request.json": "79d23ec12df8d9c69bdddea4d6035ff85de26bf2faa2d48d8ee6b14a9608f64b",
+    "captured/M2/finalize.py": "93a0e549a3426821022e86a80ea245eca6c6fc80079b87a9d2b61617e5522037",
+    "captured/M2/git-identity.txt": "80f8486aecf7f9e58f09c436cd43b6ba615acae1e7d41a159df9aa147a73713a",
+    "captured/M2/harness.py": "2a0fc08b043aef235fb12ead669ffa9abff9e77c4bbd206ae418ae707b8b2362",
+    "captured/M2/identity.json": "6849e36b295ba68578229166e9a0ce8f3f3932a9f4eed840df9b8584bb811fe1",
+    "captured/M2/recover.py": "fae152f17e34b87f616bdb2f902699513f062e876f43718909d5db5bf7195534",
+    "captured/M2/variant/archive-hashes.json": "7f8dc79483e8c265898fd71e3bdaf4fcc31f1ba366f46775f94fc9251503dca2",
+    "captured/M2/variant/capacity-timeline.json": "08b223e58ce7b28002bd2a14d7e13c8884517e84eed8e5d1eb740461543dc959",
+    "captured/M2/variant/configuration.json": "cd5babe75ce7bcd9b65af52ef2537d22018cce332dd60739a3bc54b7349dd912",
+    "captured/M2/variant/environment.json": "a2a2fa81dd22d7f25c3462b764f38c1d27cecbf2011c6395286d2c1bee818207",
+    "captured/M2/variant/failure-stack.json": "068397ec6c096f5e7667a751208d4a65270d36b474f01ed08b36df6813dd3655",
+    "captured/M2/variant/final-snapshot.json": "8190734da18a3316222137b1b9bd85f8dce1d7cb8d4b0fd10e67a26db9964729",
+    "captured/M2/variant/identity.json": "6849e36b295ba68578229166e9a0ce8f3f3932a9f4eed840df9b8584bb811fe1",
+    "captured/M2/variant/interaction.json": "1ac1595f5d2a3188cad20379b830a9fe21d9ef525767d53a313659e959a1eb70",
+    "captured/M2/variant/native-health.json": "dbafc8e61eeecf3723665c9b6d6c976f93c6982f2b13ef9d84c8e72589c9c926",
+    "captured/M2/variant/summary.json": "2527b3796028c158cd0785ed6930e6486943b255f94088177e19dddecba79d72",
+    "captured/M2/variant/terminal-ring.json": "a5bfff2e74f51d01c51a23e7ab779fab11131560ecc903e93c77cf2ee26e7c74",
+    "captured/M2/variant/timeline.jsonl": "9e50823df1a91b8c2f8faf5d115d693d27246ee1ae27b9378f213154038da6f8",
+    "execution-request.json": "6f67477b8a1039264098159ea20eea9f5258c26636d5df9c0cd7f708b5a0477c",
+    "finalize.py": "735d0bf0da5e30ca5df1dcc27262c341dfa5a1a51f253c9732dc20cfc7648844",
+    "git-identity.txt": "4bec4d102a52defcd66217bb277f03aeb53552f4eaa6e5bd62a43fe2592fd4da",
+    "harness.py": "2a0fc08b043aef235fb12ead669ffa9abff9e77c4bbd206ae418ae707b8b2362",
+    "publish.py": "2ebbb1399710f3bda427d3a722613733bf3b76747fa0039cf8edfb7d14d0d395",
+    "recover.py": "fae152f17e34b87f616bdb2f902699513f062e876f43718909d5db5bf7195534",
+    "workflow.yml": "a472564edb2643e4cfe135902a4508e0c89dbe00a3f1d463d7a44670ed58cce5"
+  },
+  "lineage": "Final repository receipt is an evidence-only child of publication_sha. Its exact SHA/tree are Git metadata; no candidate freeze or qualification identity is created."
+}
