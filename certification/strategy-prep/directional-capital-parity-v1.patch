@@ -1,0 +1,58 @@
+diff --git a/meme_machine/pumpswap_survivor.py b/meme_machine/pumpswap_survivor.py
+--- a/meme_machine/pumpswap_survivor.py
++++ b/meme_machine/pumpswap_survivor.py
+@@
+ POLICY = dict(
+     strategy=STRATEGY_ID, paper_only=True, quote='SOL',
++    capital_revision='directional-capital-parity-v1',
+@@
+-    minimum_fill_breadth_bps=5000, target_sleeve_bps=25, turnover_divisor=40,
++    minimum_fill_breadth_bps=5000, target_sleeve_bps=500, turnover_divisor=40,
+diff --git a/meme_machine/pumpswap_survivor_runtime.py b/meme_machine/pumpswap_survivor_runtime.py
+--- a/meme_machine/pumpswap_survivor_runtime.py
++++ b/meme_machine/pumpswap_survivor_runtime.py
+@@
+     def _enter(self,row,decision,generation,regime,identity):
+         return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
+             strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
+-            target=self.capital*25//10000,minimum=GAS*2+1,retention_bps=5000,
++            target=self.capital*500//10000,minimum=GAS*2+1,retention_bps=5000,
+             ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
+diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_research/pons_selective_continuation.py
+--- a/robinhood_research/pons_selective_continuation.py
++++ b/robinhood_research/pons_selective_continuation.py
+@@
+-POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1"
++POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1-directional-capital-parity-v1"
+@@
+-    capital_size_bps=25,          # 0.25% of strategy capital
++    capital_size_bps=500,         # 5.00% target; capacity gates may only downsize
+diff --git a/robinhood_research/pons_postgrad_survivor.py b/robinhood_research/pons_postgrad_survivor.py
+--- a/robinhood_research/pons_postgrad_survivor.py
++++ b/robinhood_research/pons_postgrad_survivor.py
+@@
+ POLICY=dict(
++    capital_revision="directional-capital-parity-v1",
+     authority=dict(
+@@
+     execution=dict(
+-        target_capital_bps=25,
++        target_capital_bps=500,
+         minimum_capital_bps=5,
+diff --git a/robinhood_research/pons_survivor_runtime.py b/robinhood_research/pons_survivor_runtime.py
+--- a/robinhood_research/pons_survivor_runtime.py
++++ b/robinhood_research/pons_survivor_runtime.py
+@@
+-        cap=min(self.capital*25//10000,flow['turnover']//40)
++        cap=min(self.capital*500//10000,flow['turnover']//40)
+         capacity=resize(cap,self.capital*5//10000,quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
+@@
+     def _enter(self,row):
+         return commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
+             strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,decision=row['decision'],regime=row['regime'],at=self.now(),
+-            target=self.capital*25//10000,minimum=self.capital*5//10000,retention_bps=5000,
++            target=self.capital*500//10000,minimum=self.capital*5//10000,retention_bps=5000,
+             ordinary_limit=450,stress_limit=650,adapter=self,qualify=self.qualify)
+@@
+-                    state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.capital*25//10000)
++                    state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.capital*500//10000)
