@@ -1,0 +1,80 @@
+{
+  "schema": "meme-machine-exit-optimization-v1",
+  "paper_only": true,
+  "live_money_authority": false,
+  "prepared_at": "2026-09-30",
+  "preparation_parent": {
+    "branch": "strategy/directional-capital-parity-prep-20260930",
+    "commit": "4a3d4516ea75a14e18018c8e7defcadf353ab072"
+  },
+  "stage_e_isolation": {
+    "stage_e_candidate_modified": false,
+    "stage_e_branch_modified": false,
+    "workflow_dispatch_authorized": false,
+    "market_run_authorized": false,
+    "activation_allowed": false,
+    "requires_explicit_post_stage_e_promotion": true,
+    "requires_exact_sha_non_market_recertification_after_composition": true
+  },
+  "objective": "Improve profit retention in Current directional runners and remove Meteora entry/exit hysteresis conflict while preserving risk stops, Survivor exits, Ramses, entry gates, execution safeguards, and PAPER-only authority.",
+  "changes": {
+    "pump_current": {
+      "hard_stop_bps": -800,
+      "first_profit_bps": 1500,
+      "first_profit_sell_bps": 2500,
+      "runner_giveback_bps_before": 1200,
+      "runner_giveback_bps_after": 1400,
+      "demand_exit_confirmations": 2,
+      "other_exit_logic_changed": false
+    },
+    "pons_current": {
+      "hard_stop_bps": -800,
+      "first_profit_bps": 1800,
+      "first_profit_sell_bps_before": 3333,
+      "first_profit_sell_bps_after": 2500,
+      "runner_trailing_drawdown_bps_before": 1000,
+      "runner_trailing_drawdown_bps_after": 1200,
+      "immediate_adverse_sell_buy_ratio_bps_before": 10000,
+      "immediate_adverse_sell_buy_ratio_bps_after": 12000,
+      "soft_deterioration_confirmations": 2,
+      "max_total_hold_seconds": 900
+    },
+    "meteora": {
+      "entry_min_two_way_balance": 0.20,
+      "entry_max_drift_ratio": 0.80,
+      "exit_one_way_two_way_balance_before": 0.25,
+      "exit_one_way_two_way_balance_after": 0.18,
+      "exit_one_way_drift_ratio_before": 0.75,
+      "exit_one_way_drift_ratio_after": 0.82,
+      "economic_collapse_confirmation_segments_before": 2,
+      "economic_collapse_confirmation_segments_after": 3,
+      "observation_segment_seconds": 300,
+      "core_hold_seconds": 14400
+    }
+  },
+  "unchanged": [
+    "Pump Current -8% hard stop, +15% first realization, 25% first sale, demand deterioration confirmation count, graduation continuation logic, and hold deadlines.",
+    "Pons Current -8% hard stop, +18% first realization level, two-confirmation soft deterioration logic, creator-distribution exit, and 900-second maximum hold.",
+    "Pump Survivor exit policy in full.",
+    "Pons Survivor exit policy in full.",
+    "Ramses Active Wide Maker exit/recenter controller in full.",
+    "All entry/admission thresholds except no thresholds are changed by this package.",
+    "Capital-parity sizing prep remains separate and unchanged.",
+    "Freshness, generation fencing, turnover limits, fill persistence, execution-capacity stress checks, accounting, and provider boundaries."
+  ],
+  "composition_order": [
+    "existing six-regime strategy upgrade",
+    "existing moderate-admission-thresholds revision",
+    "directional-capital-parity-v1.patch",
+    "exit-optimization-v1.patch"
+  ],
+  "promotion_requirements": [
+    "Do not compose into the active Stage E/F/G exact-candidate lineage.",
+    "Regenerate every affected Pump, Pons, and Meteora policy hash after final composition.",
+    "Run focused Pump/Pons exit-state tests including exact threshold boundaries.",
+    "Run Meteora one-way-flow hysteresis and 3-segment economic-collapse tests.",
+    "Run shared-sleeve/accounting and restart replay tests to prove exit changes do not alter capital identity.",
+    "Run exact-SHA non-market certification before any market smoke.",
+    "Begin a fresh affected-lane profitability cohort because exit economics changed."
+  ]
+}
