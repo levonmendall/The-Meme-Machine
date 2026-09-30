@@ -1,0 +1,618 @@
+{
+  "schema": "stage-e-causal-isolation-preflight-v1",
+  "recorded_at_utc": "2026-09-30T16:45:30Z",
+  "repository": "levonmendall/The-Meme-Machine",
+  "paper_only": true,
+  "status": "OWNER_LEVEL_STOP_PHASE_0",
+  "astra_transition_condition_reached": false,
+  "rejected_candidate": {
+    "commit": "06f7a129eb9a1deab02af5f1f6bdfbaea89ea142",
+    "tree": "90839dfc47c1665e8d84eea62e6ba95e5e369efd",
+    "parent": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "qualification_revision": "stage-e-native-transition-contract-v1",
+    "cohort_component": "native-transition-cohort-v1",
+    "reader_component": "native-contract-held-reader-v1",
+    "status": "FROZEN_REJECTED_HISTORICAL_REFERENCE_ONLY",
+    "provenance": "User-supplied recovered handoff; rejected commit/tree not accessible in this session"
+  },
+  "accessible_parent": {
+    "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "tree": "68736cf664169dee665762019800bf87ca0f1f67",
+    "metadata_observed": {
+      "sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+      "node_id": "C_kwDOUeBpC9oAKGRjMDhmOTA2NGNmNWUzN2I2M2YzODNmNTJhYTcwOWQwYWZjMTcyM2Y",
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+      "html_url": "https://github.com/levonmendall/The-Meme-Machine/commit/dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+      "author": {
+        "name": "Local Engineering Assistant",
+        "email": "assistant@localhost",
+        "date": "2026-09-29T20:21:31Z"
+      },
+      "committer": {
+        "name": "Local Engineering Assistant",
+        "email": "assistant@localhost",
+        "date": "2026-09-29T20:21:31Z"
+      },
+      "tree": {
+        "sha": "68736cf664169dee665762019800bf87ca0f1f67",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/trees/68736cf664169dee665762019800bf87ca0f1f67"
+      },
+      "message": "[runtime-v2-promotion] Finish recovered production arbiter adapter corrections\n\nContinue the original recovered eight-path implementation on exact ce42573.\nUse validated durable finalized frontiers, not deletable receipts, and credit\nnon-record housekeeping only to its own native durable maintenance progress.\nPersist unserviced non-record obligations across restart; preserve existing\nsource-clock episodes and reject missing current authority. Preserve a final\narchive receipt across cooperative yield without duplicate publishing or record\nprogress; surface completed maintenance errors during concurrent stop/drain.\n\nOne production owner-entry arbiter; no independent retention loop or fixed\narchive:retirement ratio. Original source/urgent priority, single worker, <=512\narchive slices, native retention bounds, 240-second residence, 120-source-second\nrecovery, workload and strategy/policy/acceptance bytes are unchanged.\n\n286 focused/integrated/storage/control tests passed locally on Python 3.13.5,\nzero failures/errors/skips. All four native assemblies import/collect; complete\nprepared-byte and policy checks passed. These are NOT frozen-environment or\ncapacity qualification. This commit is a durable exact-source checkpoint.\nThe required Python 3.12.14 / websockets 17.1 verification and one unchanged\nfour-trial cohort remain unused. No canonical, market, Phase F or deployment\nauthority is established. Detailed original and failed/passing logs accompany\nthe recovery package. Liveness is conditional on fresh demand, valid clock and\nservice leases, positive native progress and bounded owner delay.",
+      "parents": [
+        {
+          "sha": "ce4257309cb1f6ec68e38d363320edf62d59db7f",
+          "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/ce4257309cb1f6ec68e38d363320edf62d59db7f",
+          "html_url": "https://github.com/levonmendall/The-Meme-Machine/commit/ce4257309cb1f6ec68e38d363320edf62d59db7f"
+        }
+      ],
+      "verification": {
+        "verified": false,
+        "reason": "unsigned",
+        "signature": null,
+        "payload": null,
+        "verified_at": null
+      }
+    },
+    "source_files": 1152,
+    "tree_hashes_reconstructed_and_verified": [
+      {
+        "path": "/",
+        "sha": "68736cf664169dee665762019800bf87ca0f1f67",
+        "direct_entries": 18
+      },
+      {
+        "path": ".github",
+        "sha": "d3ae0b23c788dfe6e53992cd23b9240185c81928",
+        "direct_entries": 5
+      },
+      {
+        "path": ".github/e23-recovery",
+        "sha": "f05add78845a28287a2845b18bb3d4e78bbb6e11",
+        "direct_entries": 1
+      },
+      {
+        "path": ".github/edge-validation",
+        "sha": "102ebbefb0dc0df242272ffa3efcd744b08f2854",
+        "direct_entries": 1
+      },
+      {
+        "path": ".github/live-triggers",
+        "sha": "97ac3e4b27ca65144794ad059464e5ebea414f83",
+        "direct_entries": 82
+      },
+      {
+        "path": ".github/stagee27",
+        "sha": "ec7d757fec1416a9c2fc574f06d6aa0e8a5d967f",
+        "direct_entries": 1
+      },
+      {
+        "path": ".github/workflows",
+        "sha": "4262c02fee7d22217eaf2ad691a219fcbd6145e9",
+        "direct_entries": 78
+      },
+      {
+        "path": "certification",
+        "sha": "301a6b0be60c300cf0d21eff6f4cbaf7d4fa65c1",
+        "direct_entries": 168
+      },
+      {
+        "path": "certification/cohorts",
+        "sha": "0b6bc1bc60f8441cf3cf402c2f8185cf3eb2145a",
+        "direct_entries": 2
+      },
+      {
+        "path": "certification/evidence",
+        "sha": "f2814812ad66f1480be2df2c52b4ebef2977f02d",
+        "direct_entries": 4
+      },
+      {
+        "path": "certification/notes",
+        "sha": "aa12fa48d3b0c0db31f798339b0457232edc1cf6",
+        "direct_entries": 12
+      },
+      {
+        "path": "certification/patches",
+        "sha": "03d6141e355623cdae29be54130fbd7c5061212f",
+        "direct_entries": 92
+      },
+      {
+        "path": "certification/results",
+        "sha": "719488370ea51848179f9e13f206aa0c13335a10",
+        "direct_entries": 147
+      },
+      {
+        "path": "certification/results/alchemy-local-validation",
+        "sha": "e014433e6dfc51c27e776e128c7f11714965d030",
+        "direct_entries": 14
+      },
+      {
+        "path": "certification/results/autonomous-local-verification",
+        "sha": "6f8513762649202fb29ba1eb7e9cf21011e6e87e",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/deadline-repair-verification",
+        "sha": "c380c0d5ae1c308dd9070b51305d226ad3b85980",
+        "direct_entries": 9
+      },
+      {
+        "path": "certification/results/entry-priority-verification",
+        "sha": "6bacaf29064e0a8c8c9546d71caa619c586e2d5d",
+        "direct_entries": 9
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair",
+        "sha": "f18618fb95954e2e763311a443b070a07e612485",
+        "direct_entries": 19
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/authentication",
+        "sha": "3e895d0ddab82ad6b617f628e445eb1472cdf273",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/candidate-authentication",
+        "sha": "b5d670f9229306c55862ed8b795a208c5f667c61",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/capacity-and-archive",
+        "sha": "aa2ea5b01d865c186d6f85be570bccab183ffed4",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/default-signature-admission",
+        "sha": "57602d9972127bf61ecbece90008fabd18bdc5e6",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/pons-discovery-range-batching",
+        "sha": "54e7c56210e1ccca2369566f4ce1f8a97c0c9b4d",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/ramses-dynamic-events",
+        "sha": "403993772dc5adab388a1b59a839e79b57567f8f",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/shared-broker-wal-startup",
+        "sha": "ed06bdbd6d2023beace07674f053b06fc1767566",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/stream-log-retention-observability",
+        "sha": "faf54eb90f2dca7c34a36fb8ec1ae44f3a8818ed",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/hosted-frozen-repair/stream-log-retention",
+        "sha": "dec0f8aa829fe52e598602618f12b118df72cb8d",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/local-retry-verification",
+        "sha": "f7c358f9e0de9efaabfed090b2030444cc329da4",
+        "direct_entries": 9
+      },
+      {
+        "path": "certification/results/run370-repair",
+        "sha": "e5aa153632985223edacc2883f8b5b9c3d46e7b2",
+        "direct_entries": 7
+      },
+      {
+        "path": "certification/results/solana-atomic-validation",
+        "sha": "c9f7dd03c37d29eb1900519317aa5601dd77cb66",
+        "direct_entries": 9
+      },
+      {
+        "path": "certification/results/solana-local-validation",
+        "sha": "235ebe7aa5b9ac713c9bf1296ed260d430d481d2",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/solana-publisher-validation",
+        "sha": "82bf23e4814a782f4fa0d8589d19a50c591f4cca",
+        "direct_entries": 9
+      },
+      {
+        "path": "certification/results/solana-recovery-validation",
+        "sha": "c7b55fa4e3bc5b477f86d0777277c4a96cd433d3",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/solana-reservation-validation",
+        "sha": "d2e4a53f12f2b052089a0420b960aed7f00855c0",
+        "direct_entries": 10
+      },
+      {
+        "path": "certification/results/terminal-report-verification",
+        "sha": "bd4450203fb835a453a88828494b530a72fbac42",
+        "direct_entries": 9
+      },
+      {
+        "path": "certification/robinhood",
+        "sha": "0fd5bc9cd9af05f1354cb01af84b34884522096b",
+        "direct_entries": 14
+      },
+      {
+        "path": "certification/tests",
+        "sha": "18d195e1d992e6f6a1bba0487640c05488598b62",
+        "direct_entries": 100
+      },
+      {
+        "path": "certification/tests/fixtures",
+        "sha": "9ddecf2219e05fb64517cc0a6afc504c12abdfd6",
+        "direct_entries": 6
+      },
+      {
+        "path": "docs",
+        "sha": "32fa7fafd6c484ba9b8df8c6e2cf1fee2f9e3a39",
+        "direct_entries": 27
+      },
+      {
+        "path": "docs/coverage-repair-20260924",
+        "sha": "81972fa68e40d4ae59f339b4e1e05d321107141e",
+        "direct_entries": 5
+      },
+      {
+        "path": "docs/evidence-reconstruction-20260924",
+        "sha": "7dbcaa781fb01da02483c62e5e0102806f6bbafc",
+        "direct_entries": 11
+      },
+      {
+        "path": "docs/evidence",
+        "sha": "728aba3fd28989a492a038ca900cad7aaa82794b",
+        "direct_entries": 2
+      },
+      {
+        "path": "docs/solana-evidence-plane",
+        "sha": "ce7bf32c8c38c2cd3698d7113cef1bf995f0bc93",
+        "direct_entries": 4
+      },
+      {
+        "path": "docs/v10-postrun",
+        "sha": "4a36fb43ffdfb30dabd6b1b757b6480c5536741e",
+        "direct_entries": 4
+      },
+      {
+        "path": "evidence",
+        "sha": "f5ed2a07a6334e0de3338e1fea4b0548edb5054a",
+        "direct_entries": 7
+      },
+      {
+        "path": "meme_machine",
+        "sha": "983cc0b08f76c1841c26a9720b5b426db42081f5",
+        "direct_entries": 45
+      },
+      {
+        "path": "research",
+        "sha": "6af5e907a5b8e404802835599dffb34cc87ff9c1",
+        "direct_entries": 3
+      },
+      {
+        "path": "tests",
+        "sha": "96ff0a96a072c095e2841eb4aaae64bc50bc6f6a",
+        "direct_entries": 120
+      },
+      {
+        "path": "tests/fixtures",
+        "sha": "ecb8351d85e01e6425d19a9c87c7e0e220128980",
+        "direct_entries": 10
+      },
+      {
+        "path": "tests/fixtures/solana_evidence_plane",
+        "sha": "884a56e19bdfd0ee0291f3b840216aa38e10959c",
+        "direct_entries": 8
+      }
+    ],
+    "individual_public_source_blobs_verified": 11,
+    "local_git_fsck_performed": false
+  },
+  "diagnostic_execution": {
+    "material_executions": 0,
+    "budget": 6,
+    "environment_failure_executions": 0,
+    "production_repairs": 0,
+    "authoritative_stage_e_profiles": 0,
+    "stage_f_started": false,
+    "qualification_wiring_activated": false,
+    "branch_role": "Paper preflight/evidence preservation based on accessible exact parent. No frozen runtime substitute."
+  },
+  "blockers": [
+    {
+      "code": "REJECTED_COMMIT_UNAVAILABLE",
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/06f7a129eb9a1deab02af5f1f6bdfbaea89ea142",
+      "response": {
+        "error": "GitHub API error 404: {\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest/git/commits#get-a-commit-object\",\"status\":\"404\"}",
+        "error_code": "NOT_FOUND",
+        "error_data": {
+          "message": "Not Found",
+          "documentation_url": "https://docs.github.com/rest/git/commits#get-a-commit-object",
+          "status": "404"
+        }
+      }
+    },
+    {
+      "code": "REJECTED_TREE_UNAVAILABLE",
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/trees/90839dfc47c1665e8d84eea62e6ba95e5e369efd?recursive=1",
+      "response": {
+        "error": "GitHub API error 422: {\"message\":\"Invalid object requested. SHA must identify a commit or a tree.\",\"documentation_url\":\"https://docs.github.com/rest/git/trees#get-a-tree\",\"status\":\"422\"}",
+        "error_code": "INVALID_ARGUMENT",
+        "error_data": {
+          "message": "Invalid object requested. SHA must identify a commit or a tree.",
+          "documentation_url": "https://docs.github.com/rest/git/trees#get-a-tree",
+          "status": "422"
+        }
+      }
+    },
+    {
+      "code": "RECOVERED_PACKAGE_NOT_EXPOSED",
+      "detail": "No recovered package path, file ID or download URL was provided; no filesystem reader is callable."
+    },
+    {
+      "code": "NATIVE_EXECUTION_TOOL_UNAVAILABLE",
+      "detail": "Callable tools include GitHub API and isolated JavaScript orchestration, but no terminal, filesystem read/write, Python, Git CLI or SQLite runtime."
+    }
+  ],
+  "recovered_scripts": {
+    "main_expected_sha256": "0e7d8df4b5fc5c70ff7bc5076789d4d9346a249d59cdce2ca57a5b42c37b6427",
+    "paths": [
+      "scripts/environment_check.py",
+      "scripts/run_pinned.sh",
+      "scripts/coupled_diagnostic.py",
+      "scripts/supervise_diagnostic.py",
+      "scripts/analyze_coupled.py"
+    ],
+    "bytes_read": false,
+    "main_sha256_verified": false,
+    "other_four_reviewed": false,
+    "executed": false
+  },
+  "handoff_verification": {
+    "package_manifest_verified": false,
+    "rejected_commit_tree_parent_independently_verified": false,
+    "rejected_source_file_modes_verified": false,
+    "protected_1155_paths_verified": false,
+    "root_45_production_files_verified": false,
+    "clean_local_git_state_verified": false,
+    "git_object_integrity_verified": false,
+    "prior_claims_preserved_as_handoff_reports": true
+  },
+  "bounded_new_artifact_search": {
+    "source": "Accessible GitHub Actions API",
+    "finished": true,
+    "scope": "One bounded attempt: repository artifact-list endpoint, latest 10 runs, and maximum 10 runs filtered to exact rejected head SHA; no pagination or other artifact locations.",
+    "artifact_list_attempt": {
+      "error": "HTTPError: 400: GitHub Fetch URL is not an allowed public GitHub repository or search endpoint. (Response: None)",
+      "error_code": "INVALID_ARGUMENT"
+    },
+    "latest_run_ids": [
+      36738857561,
+      36738811265,
+      36738763813,
+      36738604706,
+      36738376249,
+      36737121491,
+      36737113781,
+      36737106849,
+      36735794562,
+      36735699367
+    ],
+    "exact_rejected_sha_runs": {
+      "total_count": 0,
+      "workflow_runs": []
+    },
+    "result": "No rejected-SHA Actions run or recovered raw artifact located within the bound; this is not proof that artifacts do not exist elsewhere.",
+    "repeat_search_authorized": false
+  },
+  "transport_inspection": {
+    "ref": {
+      "ref": "refs/heads/transport/stagee-exact-objects-20260930",
+      "node_id": "REF_kwDOUeBpC9oAMnJlZnMvaGVhZHMvdHJhbnNwb3J0L3N0YWdlZS1leGFjdC1vYmplY3RzLTIwMjYwOTMw",
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/refs/heads/transport/stagee-exact-objects-20260930",
+      "object": {
+        "sha": "4be1e700b6b2293386134f709408cb9dce78ebe9",
+        "type": "commit",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/4be1e700b6b2293386134f709408cb9dce78ebe9"
+      }
+    },
+    "commit": {
+      "sha": "4be1e700b6b2293386134f709408cb9dce78ebe9",
+      "node_id": "C_kwDOUeBpC9oAKDRiZTFlNzAwYjZiMjI5MzM4NjEzNGY3MDk0MDhjYjlkY2U3OGViZTk",
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/4be1e700b6b2293386134f709408cb9dce78ebe9",
+      "html_url": "https://github.com/levonmendall/The-Meme-Machine/commit/4be1e700b6b2293386134f709408cb9dce78ebe9",
+      "author": {
+        "name": "levonmendall",
+        "email": "levon_mendall@yahoo.com",
+        "date": "2026-09-30T07:34:25Z"
+      },
+      "committer": {
+        "name": "levonmendall",
+        "email": "levon_mendall@yahoo.com",
+        "date": "2026-09-30T07:34:25Z"
+      },
+      "tree": {
+        "sha": "905bdd0be6d92f184e585d2d154aad83d36e185b",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/trees/905bdd0be6d92f184e585d2d154aad83d36e185b"
+      },
+      "message": "Bind inert transport workflow to hash-verified exact object restoration",
+      "parents": [
+        {
+          "sha": "004f44859f4d13b8d7d6b3df6cf02a054eda6120",
+          "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/004f44859f4d13b8d7d6b3df6cf02a054eda6120",
+          "html_url": "https://github.com/levonmendall/The-Meme-Machine/commit/004f44859f4d13b8d7d6b3df6cf02a054eda6120"
+        }
+      ],
+      "verification": {
+        "verified": false,
+        "reason": "unsigned",
+        "signature": null,
+        "payload": null,
+        "verified_at": null
+      }
+    },
+    "contents_under_transport": [
+      {
+        "path": ".github/stagee-object-transport/restore_objects.py",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c019dfbdeb11fec023fee21dd4195dc8b4d2033c",
+        "size": 5118,
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/blobs/c019dfbdeb11fec023fee21dd4195dc8b4d2033c"
+      }
+    ],
+    "result": "Validator source is present; request.json and candidate.part* payloads are absent at inspected transport SHA. Transport was not run."
+  },
+  "reported_evidence": {
+    "provenance": "User-supplied recovered evidence; raw runtime artifacts not independently reverified here",
+    "historical": {
+      "planned_frames": 4445,
+      "planned_source_seconds": 1200.15,
+      "actual_frames": 1215,
+      "actual_source_seconds_approx": 328.05,
+      "reason": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides",
+      "binding": "RECOVERY",
+      "archive_ready": false,
+      "retirement_ready": true,
+      "headroom_seconds_approx": 5.936821,
+      "archive_peer_finish_after_selection_seconds_approx": 9,
+      "peer_overrun_seconds_approx": 3.063179,
+      "archive_worker_age_seconds_approx": 0.218312,
+      "owner_admission_delay_seconds_approx": 0.209254,
+      "meteora_eligible": 5632,
+      "meteora_recovery_excess": 4632,
+      "recorded_arbiter_replay": "63/63 available inputs reproduced recorded decisions"
+    },
+    "coupled_baseline_01": {
+      "revision": "coupled-interval-diagnostic-v1",
+      "planned_frames": 1334,
+      "planned_source_seconds": 360.18,
+      "actual_frames": 896,
+      "actual_source_seconds": 241.92,
+      "refusal_frame": 888,
+      "shutdown_frame": 896,
+      "pressure_passed": false,
+      "pressure_error": "AssertionError:('runtime_gap', 3)",
+      "harness_error": null,
+      "supervisor_returncode": 0,
+      "supervisor_timeout": false,
+      "archive_ready": true,
+      "retirement_ready": true,
+      "feasible_sides": [],
+      "selected_side": null,
+      "binding": "SAFETY",
+      "eligible_by_scope": {
+        "Meteora": 24192,
+        "Pump": 9639,
+        "PumpSwap": 16313
+      },
+      "total_eligible": 50144,
+      "total_recovery_excess": 47144,
+      "pins": 0,
+      "gaps": 0,
+      "owner_delay_seconds": 0.124863238,
+      "recorded_execution_interval_seconds": 0.058188638,
+      "carrier_rows": 488,
+      "carrier_age_seconds": 8.509659037,
+      "safety_headroom_seconds_approx": 5.016921631,
+      "peer_overrun_seconds_approx": 3.983078369,
+      "exact_eligible_arrivals": null,
+      "final_worker_receipt_records": 1000,
+      "final_worker_queue_seconds": 0.774157,
+      "final_worker_wrapper_seconds": 0.620101,
+      "progress": [
+        {
+          "elapsed_seconds": 180.79576,
+          "frames": 666,
+          "archived": 792,
+          "source_lag_seconds": 1.670743
+        },
+        {
+          "elapsed_seconds": 210.997514,
+          "frames": 745,
+          "archived": 14304,
+          "source_lag_seconds": 9.872782
+        },
+        {
+          "elapsed_seconds": 241.110154,
+          "frames": 835,
+          "archived": 26304,
+          "source_lag_seconds": 15.985395
+        }
+      ],
+      "final_timing_window": {
+        "start_seconds": 235,
+        "end_seconds": 263.434886,
+        "source_occupancy_seconds": 21.455574,
+        "source_occupancy_fraction": 0.7545510820757291,
+        "mean_source_batch_frames": 3.714,
+        "maintenance_queue_mean_seconds": 1.025,
+        "archive_worker_queue_mean_seconds": 0.411503,
+        "mean_source_commit_seconds": 1.014,
+        "max_source_commit_seconds": 2.143
+      },
+      "observer": {
+        "periodic_seconds": 3.024733895,
+        "native_reader_seconds": 0.125063685,
+        "recorded_total_seconds": 3.14979758,
+        "active_seconds": 263.434886258,
+        "recorded_fraction": 0.01195664562405446,
+        "inclusive": false,
+        "native_vs_extra_diagnostic_split": null
+      },
+      "wal_checkpoint": {
+        "peak_db_plus_wal_bytes": 1131964688,
+        "wal_at_reader_start_bytes": 23768312,
+        "boundary_calls": 89,
+        "reclamations": 75,
+        "boundary_peak_seconds": 1.740762,
+        "checkpoint_trace_events": 120,
+        "complete_history_available": false
+      },
+      "reader_proof": {
+        "summary_reported": true,
+        "complete_identity_proof_available": false,
+        "independently_reverified": false
+      }
+    },
+    "missing_raw_artifacts": [
+      "original baseline-01 SQLite database/archive",
+      "complete 8081-event trace",
+      "complete worker logs",
+      "complete backlog series",
+      "full sidecars",
+      "original full result object",
+      "some peak/integrity/resource measurements",
+      "historical approximately 969 MB capture bytes"
+    ]
+  },
+  "conclusions": {
+    "independently_verified": [
+      "Accessible parent Git tree hierarchy matches 68736cf664169dee665762019800bf87ca0f1f67; all 50 tree object hashes reconstructed.",
+      "Eleven inspected parent files match their Git blob SHA-1; SHA-256 recorded.",
+      "Parent fixed-cohort workflow executes predecessor certification.maintenance_qualification and aggregates through its qualification context."
+    ],
+    "reported_handoff_conclusions": [
+      "Historical refusal and baseline-01 refusal have materially different mechanisms.",
+      "Baseline-01 final archive receipt was ready; a final preparation failure does not explain that terminal state.",
+      "Shared source/SQLite-owner pressure is the highest-priority causal hypothesis.",
+      "Recorded observer fraction exceeded strict 1%, and the accounting was not fully inclusive."
+    ],
+    "not_established": [
+      "Cause of archive recovery capacity loss",
+      "Instrumentation perturbation effect",
+      "Native qualification observer vs extra diagnostic cost",
+      "Specific production repair justified",
+      "Historical mechanism reproduction",
+      "Rejected candidate local-only qualification entrypoint and exact native wiring diff"
+    ]
+  },
+  "resume_requires": [
+    "Terminal-enabled Codex workspace with the recovered package available.",
+    "Read-only verification of recovered manifests, rejected commit/tree/parent, file modes, protected paths, Git integrity and clean state.",
+    "Read all recovered scripts and verify the exact main diagnostic SHA-256 before reuse.",
+    "Create durable diagnostic worktree on rejected SHA, preserve exact commands/configuration/stop conditions, then perform C0 followed by C1.",
+    "Keep the six-run budget; zero executions consumed in this session."
+  ]
+}

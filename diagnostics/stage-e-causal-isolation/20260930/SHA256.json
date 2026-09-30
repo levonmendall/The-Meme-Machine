@@ -1,0 +1,18 @@
+{
+  "schema": "stage-e-paper-preflight-hashes-v1",
+  "files": {
+    "diagnostics/stage-e-causal-isolation/20260930/README.md": {
+      "sha256": "6d8c2c5c79fe6395c505d48fe3197acc52c2704f6702e10d49c384becc1bd3ef",
+      "size": 9570
+    },
+    "diagnostics/stage-e-causal-isolation/20260930/preflight.json": {
+      "sha256": "2589042e8d0844b9511e18e797124f09660afeb40e2a39e6b0026168180a9a15",
+      "size": 24979
+    },
+    "diagnostics/stage-e-causal-isolation/20260930/static-source-evidence.json": {
+      "sha256": "a437366223c7f89951c5ea10d53a1e0e65da2892d236e4945c617b93541d6f42",
+      "size": 111927
+    }
+  },
+  "manifest_excludes_itself": true
+}
