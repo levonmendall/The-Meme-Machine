@@ -29,7 +29,7 @@ def main():
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as stream: stream.write(body)
     files={}
     for file in root.rglob('*'):
-        if file.is_file() and 'runtime' not in file.relative_to(root).parts and file.name!='SHA256.json':
+        if file.is_file() and 'runtime' not in file.relative_to(root).parts and file!=root/'SHA256.json':
             files[str(file.relative_to(root))]=hashlib.sha256(file.read_bytes()).hexdigest()
     (root/'SHA256.json').write_text(json.dumps(files,indent=2)+'\n')
     print('EVIDENCE_HASHES '+json.dumps(files,sort_keys=True),flush=True)

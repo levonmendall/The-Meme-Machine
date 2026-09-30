@@ -7,5 +7,6 @@
   "market_authority": false,
   "material_variants_consumed": 2,
   "variants": [],
-  "reason": "Astra hard stop reached. Publish committed review files and hash-verified existing M1/M2 evidence only; do not import/run the harness, tests, certification, SQLite workloads, or additional diagnostic variants."
+  "reason": "Astra hard stop reached. Publish committed review files and hash-verified existing M1/M2 evidence only; do not import/run the harness, tests, certification, SQLite workloads, or additional diagnostic variants. Correct only publisher newline formatting from package-only run 36763975970; no workload retries.",
+  "publication_revision": 2
 }

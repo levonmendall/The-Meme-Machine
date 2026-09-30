@@ -76,7 +76,11 @@ def publish(root):
                     source_seconds=r['source_seconds'],source_lag=r['source_lag'],
                     wal_bytes=r['wal_bytes'],pins=r['pins'],gaps=r['gaps'],
                     arrival_inference_valid=r['arrival_inference_valid'],scopes=r['scopes'],
-                    owner_observation=dict(monotonic=obs.get('monotonic'),wall=obs.get('wall'),scopes=obs.get('scopes')),\n                    owner={k:v for k,v in r['owner'].items() if k in ('queued','queue_peak',\n                        'priority2.execution_total_us','priority4.execution_total_us',\n                        'priority4.queue_total_us','priority4.completed','checkpoint_handoff_total_us')},\n                    scheduling={k:v for k,v in scheduling.items()
+                    owner_observation=dict(monotonic=obs.get('monotonic'),wall=obs.get('wall'),scopes=obs.get('scopes')),
+                    owner={k:v for k,v in r['owner'].items() if k in ('queued','queue_peak',
+                        'priority2.execution_total_us','priority4.execution_total_us',
+                        'priority4.queue_total_us','priority4.completed','checkpoint_handoff_total_us')},
+                    scheduling={k:v for k,v in scheduling.items()
                         if k in ('at','ready','selected','feasible','needs','owner_delay',
                                  'worker_age','error','committed_frame','source_coordinate')},
                     cumulative_metrics={k:v for k,v in r['metrics'].items()

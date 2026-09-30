@@ -1,0 +1,18 @@
+[
+  {
+    "purpose": "Evidence publication, not a diagnostic workload execution",
+    "run_id": 36763975970,
+    "job_id": 110053343874,
+    "sha": "1d6576e0862b1d81839a8a529ebba49689632632",
+    "tree": "e32c686660597f9e6e04eafd84c39c198d6f5430",
+    "result": "publication copy failed: publisher contained literal newline escape in Python code; review files still uploaded",
+    "workloads_executed": 0,
+    "material_variants_consumed": 2,
+    "all_test_and_workload_steps": "skipped",
+    "artifact_id": 11120405469,
+    "artifact_zip_sha256": "6f1cf4bf6fb2281c14771d74c4ab416c170fcbdcba12017204a0ee2d8ce72250",
+    "artifact_size": 81306,
+    "artifact_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/36763975970/artifacts/11120405469",
+    "resolution": "New package-only revision corrects formatting; no workload rerun."
+  }
+]
