@@ -1,0 +1,70 @@
+{
+  "scope": "One bounded archive-overlap proposal, gates only in this CI request; no pressure workload launch.",
+  "review_package_sha": "3eeb02f060b4623b6842d8f18853e5340dec0684",
+  "previous_diagnostic_sha": "6e104c122dc495d75bd8828a5fea7237b48effdf",
+  "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "source_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "evidence_run": 36771603217,
+  "artifact": 11124508037,
+  "zip_sha256": "485a522b8e1ab820674528905fa87e953cb444eade31c77635f5ba8cce2cdec6",
+  "original_comparison_sha256": "f8601ccc5316bf0a3885a1d4979a28271f2f16a17b1b04f9c6d775e46b4b94d3",
+  "paper_only": true,
+  "provider_calls_allowed": 0,
+  "canonical_authority": false,
+  "stage_f_allowed": false,
+  "material_executions_consumed_before": 4,
+  "material_execution_ceiling": 6,
+  "material_executions_remaining": 2,
+  "material_launch_enabled": false,
+  "no_retry": true,
+  "stop_on_first_design_or_safety_blocker": true,
+  "predeclared_material_order": [
+    "control",
+    "treatment"
+  ],
+  "material_wall_bound_seconds": 600,
+  "planned_configuration": {
+    "frames": 1334,
+    "frame_count_source_coordinate": 360.18,
+    "cadence_seconds": 0.27,
+    "first_recovery_window": [
+      216,
+      336
+    ],
+    "fixed_observation_guard_source_seconds": 23.91,
+    "original_pause_and_catchup": true,
+    "archive_floor": 0.36,
+    "archive_floor_records": 1000,
+    "commit_floor": 0.006,
+    "workers": 2,
+    "source_owner_floor_control": 0.165,
+    "source_owner_floor_treatment": 0.165,
+    "urgent_controls": false,
+    "reduced_acks_diagnostic_only": true,
+    "observer_cadence_seconds": 5
+  },
+  "focused_boundary": {
+    "records": 1,
+    "payload_padding_bytes": 13631488,
+    "pressure_workload": false,
+    "native_ingestion_and_archive_body_target_bytes": 16777216,
+    "proposed_initial_current_records": 750,
+    "proposed_initial_lookahead_records": 250,
+    "proposed_initial_current_body_allocation_bytes": 12582912,
+    "no_active_lookahead": true
+  },
+  "preserved_preflight": {
+    "failures": 1,
+    "errors": 2,
+    "skips": 46,
+    "tests": 1062
+  },
+  "certification_blockers_preserved": [
+    "M1 urgent interruption/completion",
+    "qualification reconstruction",
+    "assembled-source verification",
+    "new observer measurement",
+    "exact successor freeze",
+    "canonical Stage E"
+  ]
+}
