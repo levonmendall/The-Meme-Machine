@@ -1,0 +1,152 @@
+diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acceleration_strategy.py
+--- a/meme_machine/pump_acceleration_strategy.py
++++ b/meme_machine/pump_acceleration_strategy.py
+@@
+-    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1"
++    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1-exit-optimization-v1"
+@@
+-    trailing_drawdown_bps: int = 1200
++    trailing_drawdown_bps: int = 1400
+diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_research/pons_selective_continuation.py
+--- a/robinhood_research/pons_selective_continuation.py
++++ b/robinhood_research/pons_selective_continuation.py
+@@
+-POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1"
++POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1-exit-optimization-v1"
+@@
+ EXIT_POLICY = dict(
+     risk_bps=-800,
+     first_profit_bps=1800,
+-    first_profit_sell_bps=3333,
+-    runner_trailing_drawdown_bps=1000,
++    first_profit_sell_bps=2500,
++    runner_trailing_drawdown_bps=1200,
++    min_adverse_sell_buy_ratio_bps=12_000,
+     no_new_high_seconds=120,
+     soft_deterioration_confirmations=2,
+@@
+-        if int(demand.get("current_sell_quote",0)) > int(demand.get("current_buy_quote",0)):
++        if (
++            int(demand.get("current_sell_quote",0)) > 0
++            and int(demand.get("current_sell_quote",0))*10_000
++                >= max(1,int(demand.get("current_buy_quote",0)))
++                    * EXIT_POLICY["min_adverse_sell_buy_ratio_bps"]
++        ):
+             return dict(action="full_exit",reason="flow_reversal",exit_tokens=tokens)
+@@
+-    if int(demand.get("current_sell_quote",0)) > int(demand.get("current_buy_quote",0)):
++    if (
++        int(demand.get("current_sell_quote",0)) > 0
++        and int(demand.get("current_sell_quote",0))*10_000
++            >= max(1,int(demand.get("current_buy_quote",0)))
++                * EXIT_POLICY["min_adverse_sell_buy_ratio_bps"]
++    ):
+         return dict(action="full_exit",reason="flow_reversal",exit_tokens=tokens)
+@@
+-        if int(sell_quote) > int(buy_quote):
++        if (
++            int(sell_quote) > 0
++            and int(sell_quote)*10_000
++                >= max(1,int(buy_quote))
++                    * EXIT_POLICY["min_adverse_sell_buy_ratio_bps"]
++        ):
+             return dict(action="full_exit",reason="demand_failure",exit_tokens=tokens)
+diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
+--- a/robinhood_tests/test_pons_selective_continuation.py
++++ b/robinhood_tests/test_pons_selective_continuation.py
+@@
+-        self.assertEqual(EXIT_POLICY["first_profit_sell_bps"],3333)
++        self.assertEqual(EXIT_POLICY["first_profit_sell_bps"],2500)
++        self.assertEqual(EXIT_POLICY["runner_trailing_drawdown_bps"],1200)
++        self.assertEqual(EXIT_POLICY["min_adverse_sell_buy_ratio_bps"],12000)
+@@
+         self.assertEqual(
+             (first["action"],first["reason"],first["exit_tokens"]),
+-            ("partial_exit","first_profit",333),
++            ("partial_exit","first_profit",250),
+         )
+@@
+-        self.assertEqual((first["action"],first["exit_tokens"]),("partial_exit",333))
++        self.assertEqual((first["action"],first["exit_tokens"]),("partial_exit",250))
+@@
+-        adverse=runner_action(
++        mild_reversal=runner_action(
++            tokens=500,partial_taken=True,after_cost_return_bps=2500,
++            high_water_return_bps=2600,seconds_since_high=20,new_buyer_growth=1,
++            buy_quote=10,sell_quote=11,
++        )
++        self.assertEqual(mild_reversal["action"],"hold")
++        adverse=runner_action(
+             tokens=500,partial_taken=True,after_cost_return_bps=2500,
+             high_water_return_bps=2600,seconds_since_high=20,new_buyer_growth=1,
+-            buy_quote=2,sell_quote=3,
++            buy_quote=10,sell_quote=12,
+         )
+         self.assertEqual(
+             (adverse["action"],adverse["reason"]),
+             ("full_exit","demand_failure"),
+         )
+diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
+--- a/SOLANA_DLMM_INDEPENDENT_V1.json
++++ b/SOLANA_DLMM_INDEPENDENT_V1.json
+@@
+-      "recent verified flow has >=2 swaps, two_way_balance <0.25 and drift_ratio >0.75 (immediate adverse-selection exit)",
+-      "after the 4h core hold, recent fee density remains below 50% of entry authenticated fee density for at least 2 consecutive verified 300s segments",
+-      "after the 4h core hold, recent volume rate remains below 50% of entry warmup volume rate for at least 2 consecutive verified 300s segments",
++      "recent verified flow has >=2 swaps, two_way_balance <0.18 and drift_ratio >0.82 (immediate adverse-selection exit)",
++      "after the 4h core hold, recent fee density remains below 50% of entry authenticated fee density for at least 3 consecutive verified 300s segments",
++      "after the 4h core hold, recent volume rate remains below 50% of entry warmup volume rate for at least 3 consecutive verified 300s segments",
+@@
+-    "economic_collapse_confirmation_segments": 2,
++    "economic_collapse_confirmation_segments": 3,
+@@
+-  "revision": "2.1-moderate-admission-thresholds-v1",
++  "revision": "2.2-moderate-admission-exit-hysteresis-v1",
+@@
+-    "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
++    "policy_hash": "REGENERATE_AFTER_FINAL_COMPOSITION",
+@@
+-    "reference_profitability_policy_revision": "2.1-moderate-admission-thresholds-v1",
++    "reference_profitability_policy_revision": "2.2-moderate-admission-exit-hysteresis-v1",
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@
+     directional=(
+         recent["touch_swaps"]>=2
+-        and recent["two_way_balance"]<0.25
+-        and recent["drift_ratio"]>0.75
++        and recent["two_way_balance"]<0.18
++        and recent["drift_ratio"]>0.82
+     )
+diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
+--- a/tests/test_solana_dlmm_independent_v1.py
++++ b/tests/test_solana_dlmm_independent_v1.py
+@@
+-            p["revision"],"2.1-moderate-admission-thresholds-v1")
++            p["revision"],"2.2-moderate-admission-exit-hysteresis-v1")
+@@
+-        self.assertEqual(p["exit"]["economic_collapse_confirmation_segments"],2)
++        self.assertEqual(p["exit"]["economic_collapse_confirmation_segments"],3)
+@@
+-    def test_economic_collapse_needs_two_verified_segments_after_core_hold(self):
++    def test_economic_collapse_needs_three_verified_segments_after_core_hold(self):
+         p=strategy.load_policy()
+-        one=strategy._eligible_exit_reasons(
++        two=strategy._eligible_exit_reasons(
+             ["fee_density_collapse"],elapsed_seconds=14400,
+-            collapse_streaks={"volume_collapse":0,"fee_density_collapse":1},
++            collapse_streaks={"volume_collapse":0,"fee_density_collapse":2},
+             policy=p,
+         )
+-        self.assertEqual(one,[])
+-        two=strategy._eligible_exit_reasons(
++        self.assertEqual(two,[])
++        three=strategy._eligible_exit_reasons(
+             ["fee_density_collapse"],elapsed_seconds=14400,
+-            collapse_streaks={"volume_collapse":0,"fee_density_collapse":2},
++            collapse_streaks={"volume_collapse":0,"fee_density_collapse":3},
+             policy=p,
+         )
+-        self.assertEqual(two,["fee_density_collapse"])
++        self.assertEqual(three,["fee_density_collapse"])
