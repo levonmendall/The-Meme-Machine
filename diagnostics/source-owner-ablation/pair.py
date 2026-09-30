@@ -6,6 +6,7 @@ def write(path,value):path.write_text(json.dumps(value,indent=2)+'\n')
 def main():
     p=argparse.ArgumentParser();p.add_argument('--root',required=True);a=p.parse_args()
     root=Path(a.root)
+    assert not (HERE/'FOLLOWUP_STOP.json').exists(), 'astra_followup_hard_stop'
     assert os.environ['GITHUB_RUN_ATTEMPT']=='1'
     assert json.loads((root/'STATIC_PREFIX_VERIFICATION.json').read_text())['verified']
     assert not (root/'FOLLOWUP_STOP.json').exists()

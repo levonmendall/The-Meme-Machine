@@ -10,7 +10,9 @@ def write(path,value):
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--root',required=True)
-    args=parser.parse_args();out=Path(args.root);out.mkdir(parents=True,exist_ok=False)
+    args=parser.parse_args()
+    assert not (HERE/'FOLLOWUP_STOP.json').exists(), 'astra_followup_hard_stop'
+    out=Path(args.root);out.mkdir(parents=True,exist_ok=False)
     assert os.environ['GITHUB_RUN_ATTEMPT']=='1'
     req=json.loads((HERE/'execution-request.json').read_text())
     c,t=req['arms']['control'],req['arms']['treatment']

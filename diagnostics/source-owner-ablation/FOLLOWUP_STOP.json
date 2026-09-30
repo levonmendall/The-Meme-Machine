@@ -1,0 +1,18 @@
+{
+  "status": "ASTRA_REVIEW_READY: SOURCE_OWNER_ABLATION_COMPLETE",
+  "declared_after_run": 36771603217,
+  "artifact": 11124508037,
+  "execution_sha": "6e104c122dc495d75bd8828a5fea7237b48effdf",
+  "execution_tree": "084245305a1bbe49c522b99be20396d633add6e2",
+  "stop_all_diagnostic_execution": true,
+  "material_executions_consumed": 4,
+  "material_execution_ceiling": 6,
+  "unused_material_executions": 2,
+  "production_repair_approved": false,
+  "production_repair_implemented": false,
+  "canonical_authority": false,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "paper_only": true,
+  "scope": "Matched pair complete. Preserve captured evidence and stop for Astra. No further workload or remaining-budget use."
+}

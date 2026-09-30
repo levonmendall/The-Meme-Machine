@@ -589,6 +589,7 @@ def main():
     assert os.getenv('GITHUB_RUN_ATTEMPT')=='1'
     historical=json.loads((ROOT/'diagnostics/stage-e-fresh-causal-isolation/ASTRA_GATE.json').read_text())
     assert historical['stop_all_diagnostic_execution'] is True
+    assert not (ROOT/'diagnostics/source-owner-ablation/FOLLOWUP_STOP.json').exists(), 'astra_followup_hard_stop'
     assert not (Path(args.output).parent/'FOLLOWUP_STOP.json').exists()
     config=request['arms'][args.arm]
     assert config['frames']==1334 and config['sample_seconds']==5
