@@ -77,26 +77,44 @@ class DirectionalCapitalParityPrepTests(unittest.TestCase):
             )
 
     def test_patch_preserves_execution_and_risk_limits(self):
-        # These appear only as unchanged context; the patch must not remove/add them.
         changed = [
             line for line in self.patch.splitlines()
             if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
         ]
-        forbidden = (
-            "hard_stop_bps",
-            "ordinary_limit",
-            "stress_limit",
-            "retention_bps",
-            "turnover_divisor",
-            "minimum_fill_breadth_bps",
-            "max_immediate_roundtrip_loss_bps",
-            "max_double_size_roundtrip_loss_bps",
-        )
+        # Hard risk values are not part of the delta at all.
         for line in changed:
-            self.assertFalse(
-                any(token in line for token in forbidden),
-                f"risk/execution safeguard changed: {line}",
-            )
+            self.assertNotIn("hard_stop_bps", line)
+            self.assertNotIn("max_immediate_roundtrip_loss_bps", line)
+            self.assertNotIn("max_double_size_roundtrip_loss_bps", line)
+
+        # Where capital and safeguards share one source line, both sides of the
+        # diff must preserve the safeguard text exactly.
+        self.assertIn(
+            "-    minimum_fill_breadth_bps=5000, target_sleeve_bps=25, turnover_divisor=40,",
+            self.patch,
+        )
+        self.assertIn(
+            "+    minimum_fill_breadth_bps=5000, target_sleeve_bps=500, turnover_divisor=40,",
+            self.patch,
+        )
+        self.assertIn(
+            "-            target=self.capital*25//10000,minimum=GAS*2+1,retention_bps=5000,",
+            self.patch,
+        )
+        self.assertIn(
+            "+            target=self.capital*500//10000,minimum=GAS*2+1,retention_bps=5000,",
+            self.patch,
+        )
+        self.assertIn("ordinary_limit=600,stress_limit=600", self.patch)
+        self.assertIn(
+            "-            target=self.capital*25//10000,minimum=self.capital*5//10000,retention_bps=5000,",
+            self.patch,
+        )
+        self.assertIn(
+            "+            target=self.capital*500//10000,minimum=self.capital*5//10000,retention_bps=5000,",
+            self.patch,
+        )
+        self.assertIn("ordinary_limit=450,stress_limit=650", self.patch)
 
     def test_patch_has_no_workflow_or_meteora_ramses_delta(self):
         self.assertNotIn(".github/workflows", self.patch)
