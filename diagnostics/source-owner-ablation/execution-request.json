@@ -1,0 +1,46 @@
+{
+  "reviewed_package_sha": "2cc7a7c42e8f98acd57c2b606d132867d2393def",
+  "reviewed_publication_run": 36764834925,
+  "reviewed_publication_artifact": 11119244681,
+  "reviewed_publication_digest": "54797566c06a4dc485b452a1ff5dbabff5e860cf2004365b82ac3eec7de0f330",
+  "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "paper_only": true,
+  "executions": 2,
+  "order": [
+    "control",
+    "treatment"
+  ],
+  "wall_time_bound_seconds": 600,
+  "planned_budget_before": 2,
+  "planned_budget_after": 4,
+  "unused_after": 2,
+  "no_retry": true,
+  "first_recovery_window": [
+    216,
+    336
+  ],
+  "fixed_observation_guard_source_seconds": 23.91,
+  "last_payload_deadline_source_offset": 359.91,
+  "frame_count_source_coordinate": 360.18,
+  "second_burst_source_seconds": 378,
+  "arms": {
+    "control": {
+      "archive_floor": 0.36,
+      "commit_latency": 0.006,
+      "frames": 1334,
+      "id": "matched-source-owner-ablation",
+      "sample_seconds": 5,
+      "urgent_controls": false,
+      "source_owner_floor": 0.165
+    },
+    "treatment": {
+      "archive_floor": 0.36,
+      "commit_latency": 0.006,
+      "frames": 1334,
+      "id": "matched-source-owner-ablation",
+      "sample_seconds": 5,
+      "urgent_controls": false,
+      "source_owner_floor": 0
+    }
+  }
+}
