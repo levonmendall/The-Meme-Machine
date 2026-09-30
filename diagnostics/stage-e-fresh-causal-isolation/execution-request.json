@@ -15,5 +15,11 @@
       "commit_latency": 0.006
     }
   ],
-  "reason": "Validate source identity, syntax, arithmetic and required deterministic checks before consuming the first material variant."
+  "reason": "Read the uploaded fresh validation log and run the skipped resource check. Do not rerun tests or start a material workload.",
+  "recover_artifact": {
+    "id": 11116354967,
+    "run_id": 36756490388,
+    "head_sha": "7234dcc545b7372c2f177bbe3ef938db5f2454e6",
+    "zip_sha256": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457"
+  }
 }

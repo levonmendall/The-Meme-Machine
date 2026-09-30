@@ -65,7 +65,7 @@ def environment():
 class Telemetry:
     def __init__(self):
         self.lock=threading.RLock(); self.rows={}; self.ring=deque(maxlen=64)
-        self.latest=None; self.runtime=None; self.owner=None; self.state=None
+        self.latest=None; self.runtime=None; self.owner=None; self.state=None; self.frames=0
         self.checkpoints=deque(maxlen=8); self.start=time.monotonic()
     def add(self, name, wall=0, cpu=0, units=0, error=False):
         with self.lock:
@@ -245,7 +245,7 @@ def compact(row):
             'hot_age','retained_age','archived','archive_drain','net_debt_change','eligibility_arrivals_inferred',
             'archive_drain_per_second','eligibility_arrivals_per_second')} for s,x in row['scopes'].items()},
         scheduling={k:v for k,v in scheduling.items() if k in ('at','ready','selected','feasible','needs',
-            'owner_delay','worker_age','error')},metrics=row['metrics'],owner=row['owner'])
+            'owner_delay','worker_age','error','committed_frame','source_coordinate')},metrics=row['metrics'],owner=row['owner'])
 
 
 async def run(config,output):
@@ -267,7 +267,7 @@ async def run(config,output):
             super().__init__(*args,**kwargs); G.state=self; control.path=path
         def source_batch(self,items):
             phase=control.source_started(len(items)); start=time.monotonic(); cpu=time.thread_time()
-            value=native_source(self,items); end=time.monotonic()
+            value=native_source(self,items); end=time.monotonic(); G.frames+=value
             wait=max(0,config['source_owner_floor']*len(items)-(end-start))
             if wait: time.sleep(wait)
             G.add('source_owner_native',end-start,time.thread_time()-cpu,len(items))
@@ -335,7 +335,8 @@ async def run(config,output):
         finally:
             start=time.monotonic()
             row=explain(arbiter,kw['needs'],kw['ready'],kw['now'])
-            row.update(selected=selected.side if selected else None,error=error)
+            row.update(selected=selected.side if selected else None,error=error,
+                       committed_frame=G.frames,source_coordinate=G.frames*.27)
             with G.lock: G.latest=row
             G.add('diagnostic_wrapper',time.monotonic()-start)
     def owner_init(owner,*args,**kwargs):
@@ -411,6 +412,7 @@ async def run(config,output):
                 failure=failure or type(exc).__name__+':'+str(exc)
             await asyncio.gather(ack,reads,return_exceptions=True)
             observer.close()
+    runtime_elapsed=time.monotonic()-G.start
     final=observer.capture()
     if final: observer.rows.append(final); write('final-snapshot.json',final)
     with contextlib.closing(sqlite3.connect(path)) as db:
@@ -418,7 +420,6 @@ async def run(config,output):
         health={k:json.loads(v) for k,v in db.execute('SELECT key,value FROM service_health')}
         integrity=db.execute('PRAGMA integrity_check').fetchall()
         pragmas={p:db.execute('PRAGMA '+p).fetchall() for p in ['journal_mode','synchronous','page_count','freelist_count']}
-    runtime_elapsed=time.monotonic()-G.start
     write('terminal-ring.json',list(G.ring)); write('native-health.json',health)
     write('interaction.json',control.metrics)
     errors=observer.errors+failures+control.metrics['urgent_errors']
@@ -473,6 +474,7 @@ def main():
     if args.selfcheck: selfcheck(); return
     request=json.loads(Path(args.request).read_text())
     assert request['source_sha']==BASE and request['paper_only'] is True
+    assert request['validate_only'] is False, 'material_run_requires_execution_request'
     assert 1<=request['material_variant_number']<=6 and len(request['variants'])==1
     assert not os.getenv('GITHUB_RUN_ATTEMPT') or os.getenv('GITHUB_RUN_ATTEMPT')=='1'
     assert not (ROOT/'diagnostics/stage-e-fresh-causal-isolation/ASTRA_GATE.json').exists()

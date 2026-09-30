@@ -89,8 +89,11 @@ meme_machine/solana_evidence_service.py:61-79, 790-870, 990-1190, 1330-1366:
   from oldest hot slot, recent coverage, lifecycle/gap/account floors and durable
   prior floor. Only archived rows strictly below that floor can retire. Deletes
   of continuity, index fanout and bounded housekeeping also have native limits.
-  ServiceState.retention uses max_records=1000, archive_first=False and no inline
-  checkpoint; actual durable record progress is distinct from floor/housekeeping.
+  ServiceState.retention uses max_records=1000 per scope, separate <=256-record
+  transactions, at most three slices before a queued-source boundary yield,
+  rotating scopes; archive_first=False, no inline PASSIVE checkpoint. It still
+  performs native incremental_vacuum(256). Actual durable record progress is
+  distinct from floor/housekeeping.
 - solana_maintenance_state.py:19-350: transactional synopsis triggers, <=260
   scopes, <=4,096 cohorts per bounded query, <=250,000 observation VM steps.
   Native hot eligibility mirrors selector exclusions; retirement eligibility is

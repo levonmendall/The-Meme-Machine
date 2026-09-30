@@ -5,6 +5,7 @@ on:
     paths: ['diagnostics/stage-e-fresh-causal-isolation/execution-request.json']
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: stage-e-fresh-causal-isolation
   cancel-in-progress: false
@@ -49,14 +50,23 @@ jobs:
           request=json.loads(Path('diagnostics/stage-e-fresh-causal-isolation/execution-request.json').read_text())
           with open(os.environ['GITHUB_ENV'],'a') as f:
               f.write('VALIDATE_ONLY='+str(request['validate_only']).lower()+'\n')
+              f.write('RECOVER_ARTIFACT='+str(request.get('recover_artifact',{}).get('id',''))+'\n')
           print('ENVIRONMENT '+json.dumps(m.environment()),flush=True)
           PY
+      - name: Inspect the fresh validation artifact
+        if: env.RECOVER_ARTIFACT != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python diagnostics/stage-e-fresh-causal-isolation/recover.py --request diagnostics/stage-e-fresh-causal-isolation/execution-request.json --output "$RUNNER_TEMP/stage-e"
       - name: Required deterministic checks (validation request only)
-        if: env.VALIDATE_ONLY == 'true'
+        if: env.VALIDATE_ONLY == 'true' && env.RECOVER_ARTIFACT == ''
         run: |
           set -euo pipefail
           python -m unittest discover -v > "$RUNNER_TEMP/stage-e/unittest.log" 2>&1
           tail -n 5 "$RUNNER_TEMP/stage-e/unittest.log"
+      - name: Required resource checks
+        if: always() && env.VALIDATE_ONLY == 'true'
+        run: |
           python -m tests.resource_check > "$RUNNER_TEMP/stage-e/resource-check.log" 2>&1
           cat "$RUNNER_TEMP/stage-e/resource-check.log"
       - name: Execute one predeclared material variant, with no retry
