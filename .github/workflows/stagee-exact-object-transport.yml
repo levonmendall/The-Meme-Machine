@@ -1,0 +1,67 @@
+name: Preserve exact Stage E Git objects only
+on:
+  push:
+    branches: [transport/stagee-exact-objects-20260930]
+    paths: ['.github/stagee-object-transport/request.json']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: stagee-exact-object-transport
+  cancel-in-progress: false
+jobs:
+  preserve-objects:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Verify and preserve exact objects without running candidate code
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/exact-object-evidence"
+          python3 - <<'PY'
+          import hashlib,json,os,re,subprocess
+          from pathlib import Path
+          request_path=Path('.github/stagee-object-transport/request.json')
+          value=json.loads(request_path.read_text())
+          assert set(value)=={'expected_commit','expected_tree','expected_parent','bundle_sha256','bundle_path','destination_ref','paper_only','execute_candidate','market_authority'}
+          assert value['paper_only'] is True and value['execute_candidate'] is False and value['market_authority'] is False
+          for key in ('expected_commit','expected_tree','expected_parent'):
+              assert re.fullmatch('[0-9a-f]{40}',value[key]),key
+          assert re.fullmatch('[0-9a-f]{64}',value['bundle_sha256'])
+          assert value['bundle_path']=='.github/stagee-object-transport/candidate.bundle'
+          assert value['destination_ref']=='refs/heads/preserved/stagee-objects-'+value['expected_commit']
+          bundle=Path(value['bundle_path'])
+          assert bundle.is_file() and not bundle.is_symlink() and 0<bundle.stat().st_size<8*1024*1024
+          assert hashlib.sha256(bundle.read_bytes()).hexdigest()==value['bundle_sha256']
+          def git(*args):
+              return subprocess.check_output(['git',*args],text=True).strip()
+          subprocess.run(['git','bundle','verify',str(bundle)],check=True)
+          subprocess.run(['git','fetch','--no-tags',str(bundle),'HEAD'],check=True)
+          sha=value['expected_commit']
+          assert git('rev-parse','FETCH_HEAD')==sha
+          assert git('rev-parse',sha+'^{tree}')==value['expected_tree']
+          assert git('rev-list','--parents','-n','1',sha).split()==[sha,value['expected_parent']]
+          assert git('rev-parse','HEAD')==os.environ['GITHUB_SHA']
+          assert not git('status','--porcelain')
+          subprocess.run(['git','fsck','--full'],check=True)
+          ref=value['destination_ref']
+          assert not git('ls-remote','--heads','origin',ref),'destination_already_exists'
+          subprocess.run(['git','push','--porcelain','--force-with-lease='+ref+':','origin',sha+':'+ref],check=True)
+          assert git('ls-remote','--heads','origin',ref).split()==[sha,ref]
+          result=dict(passed=True,request=value,transport_sha=os.environ['GITHUB_SHA'],run_id=os.environ['GITHUB_RUN_ID'],candidate_code_executed=False,tests_executed=0,profiles_executed=0,provider_calls=0,canonical_promotion=False)
+          (Path(os.environ['RUNNER_TEMP'])/'exact-object-evidence/receipt.json').write_text(json.dumps(result,indent=2)+'\n')
+          PY
+      - name: Preserve transport evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: exact-object-transport-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/exact-object-evidence/
+          if-no-files-found: warn
+          retention-days: 90
