@@ -22,8 +22,8 @@
     "pump_current": {
       "previous_target_bps": 500,
       "prepared_target_bps": 500,
-      "hard_stop_bps": -1000,
-      "planned_stop_risk_bps_of_sleeve": 50
+      "hard_stop_bps": -800,
+      "planned_stop_risk_bps_of_sleeve": 40
     },
     "pons_current": {
       "previous_target_bps": 25,
