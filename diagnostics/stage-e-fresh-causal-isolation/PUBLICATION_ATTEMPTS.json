@@ -14,5 +14,21 @@
     "artifact_size": 81306,
     "artifact_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/36763975970/artifacts/11120405469",
     "resolution": "New package-only revision corrects formatting; no workload rerun."
+  },
+  {
+    "purpose": "Evidence publication, not a diagnostic workload execution",
+    "run_id": 36764365696,
+    "job_id": 110054675146,
+    "sha": "e3baf3a7d454c72594f46ee2a1d728bd69a0ce23",
+    "tree": "6c102365a75b93f6699c989edd3cc8f3524e2c62",
+    "result": "Unchanged production verified; archive storage redirect returned HTTP 401 because default urllib forwarded API authorization. Packaging review files/identity still uploaded.",
+    "workloads_executed": 0,
+    "material_variants_consumed": 2,
+    "all_test_and_workload_steps": "skipped",
+    "artifact_id": 11119811648,
+    "artifact_zip_sha256": "937f4ee49a08e4b8523cf40c9c1d2b47d441b2b2610e51da5847bc06d0f4de48",
+    "artifact_size": 82675,
+    "artifact_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/36764365696/artifacts/11119811648",
+    "resolution": "Use the same SafeRedirect handler that successfully inspected the initial fresh validation artifact; no workload rerun."
   }
 ]

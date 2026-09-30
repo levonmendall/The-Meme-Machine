@@ -7,6 +7,11 @@ PREFIX = 'diagnostics/stage-e-fresh-causal-isolation'
 ROOT = Path(__file__).resolve().parents[2]
 REPO = 'levonmendall/The-Meme-Machine'
 
+class SafeRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Signed artifact storage URLs must not receive the repository token.
+        return urllib.request.Request(newurl, headers={'Accept':'application/vnd.github+json'})
+
 def git(*args):
     return subprocess.check_output(['git', *args], cwd=ROOT, text=True).strip()
 
@@ -38,7 +43,7 @@ def publish(root):
         url = 'https://api.github.com/repos/'+REPO+'/actions/artifacts/'+str(binding['id'])+'/zip'
         req = urllib.request.Request(url, headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],
             'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28'})
-        with urllib.request.urlopen(req, timeout=60) as response:
+        with urllib.request.build_opener(SafeRedirect()).open(req, timeout=60) as response:
             raw = response.read(2*1024*1024+1)
         assert len(raw) <= 2*1024*1024
         assert hashlib.sha256(raw).hexdigest() == binding['zip_sha256'], label+'_zip_hash'
