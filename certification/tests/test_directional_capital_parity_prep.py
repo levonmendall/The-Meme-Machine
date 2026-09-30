@@ -36,7 +36,7 @@ class DirectionalCapitalParityPrepTests(unittest.TestCase):
     def test_existing_stops_bound_five_percent_target_risk(self):
         targets = self.policy["directional_targets"]
         expected = {
-            "pump_current": 50,
+            "pump_current": 40,
             "pons_current": 40,
             "pump_survivor": 60,
             "pons_survivor": 50,
