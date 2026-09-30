@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "validate_only": true,
+  "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "paper_only": true,
+  "market_authority": false,
+  "material_variant_number": 1,
+  "variants": [
+    {
+      "id": "M1-fresh-baseline",
+      "frames": 4445,
+      "sample_seconds": 5,
+      "source_owner_floor": 0.165,
+      "archive_floor": 0.36,
+      "commit_latency": 0.006
+    }
+  ],
+  "reason": "Validate source identity, syntax, arithmetic and required deterministic checks before consuming the first material variant."
+}
