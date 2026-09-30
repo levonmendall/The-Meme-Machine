@@ -62,8 +62,10 @@ meme_machine/solana_evidence_service.py:61-79, 790-870, 990-1190, 1330-1366:
 - source_batch calls _source_batch, one durable outer transaction with per-frame
   rollback boundaries. _source_locked reuses a filtered block across all three
   program scopes. FinalizedFence validates parent witnesses and seals coverage.
-- Source admission is priority 3, urgent ACK/reservation work priority 0/1,
-  maintenance priority 4, checkpoint handshakes priority 2.
+- solana_evidence_service.py:1157-1159: ordinary transaction/event source
+  commits enter at priority 2; all-account batches use priority 0.
+  Urgent ACK/reservation work uses priority 0/1; maintenance uses priority 4.
+  Checkpoint fallback handshakes use the nonurgent FIFO owner path.
 - solana_evidence_control.py:29-143: one owner thread owns all writer SQLite access.
   When no urgent work is queued, nonurgent work shares FIFO sequence, including
   source and maintenance. Urgent SQL preemption and native retention boundary

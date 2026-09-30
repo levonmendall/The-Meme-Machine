@@ -1,0 +1,96 @@
+{
+  "method": "delta eligible hot + delta durable archived; source counters and wall cutoff from one SQLite read snapshot; conditional on no active pins/gaps. Headroom/readiness are separately timestamped owner observations, not read snapshot values. Exclude shutdown snapshot 330.561 s/WAL=0 from rate conclusion.",
+  "rows": [
+    {
+      "elapsed": 210.341,
+      "frames": 775,
+      "aggregate_eligible": 904,
+      "aggregate_archived": 28400,
+      "meteora_eligible": 384,
+      "meteora_archived": 13824
+    },
+    {
+      "elapsed": 240.397,
+      "frames": 866,
+      "aggregate_eligible": 7632,
+      "aggregate_archived": 50976,
+      "meteora_eligible": 3688,
+      "meteora_archived": 24728
+    },
+    {
+      "elapsed": 270.421,
+      "frames": 985,
+      "aggregate_eligible": 15688,
+      "aggregate_archived": 72488,
+      "meteora_eligible": 7528,
+      "meteora_archived": 35224
+    },
+    {
+      "elapsed": 300.472,
+      "frames": 1096,
+      "aggregate_eligible": 18992,
+      "aggregate_archived": 98488,
+      "meteora_eligible": 9088,
+      "meteora_archived": 47872
+    }
+  ],
+  "intervals": [
+    {
+      "from": 210.341,
+      "to": 240.397,
+      "seconds": 30.055999999999983,
+      "aggregate": {
+        "drain": 22576,
+        "net": 6728,
+        "arrivals_inferred": 29304,
+        "drain_per_second": 751.1312217194575,
+        "arrivals_per_second": 974.9800372637749
+      },
+      "meteora": {
+        "drain": 10904,
+        "net": 3304,
+        "arrivals_inferred": 14208,
+        "drain_per_second": 362.789459675273,
+        "arrivals_per_second": 472.7175938248605
+      }
+    },
+    {
+      "from": 240.397,
+      "to": 270.421,
+      "seconds": 30.024,
+      "aggregate": {
+        "drain": 21512,
+        "net": 8056,
+        "arrivals_inferred": 29568,
+        "drain_per_second": 716.4934718891553,
+        "arrivals_per_second": 984.8121502797761
+      },
+      "meteora": {
+        "drain": 10496,
+        "net": 3840,
+        "arrivals_inferred": 14336,
+        "drain_per_second": 349.58699706901143,
+        "arrivals_per_second": 477.48467892352784
+      }
+    },
+    {
+      "from": 270.421,
+      "to": 300.472,
+      "seconds": 30.050999999999988,
+      "aggregate": {
+        "drain": 26000,
+        "net": 3304,
+        "arrivals_inferred": 29304,
+        "drain_per_second": 865.1958337492932,
+        "arrivals_per_second": 975.1422581611265
+      },
+      "meteora": {
+        "drain": 12648,
+        "net": 1560,
+        "arrivals_inferred": 14208,
+        "drain_per_second": 420.88449635619463,
+        "arrivals_per_second": 472.79624638115223
+      }
+    }
+  ]
+}

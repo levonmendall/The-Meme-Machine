@@ -1,0 +1,1116 @@
+[
+  {
+    "at": 364.786789807,
+    "committed_frame": 1200,
+    "deadlines": {
+      "archive": 372.2434823513031,
+      "retirement": 380.42155265808105
+    },
+    "durable_records": {
+      "program:meteora": 64,
+      "program:pump": 204,
+      "program:pumpswap": 220
+    },
+    "error": null,
+    "execution": 0.11066783900002974,
+    "feasible": [
+      "archive"
+    ],
+    "needs": [
+      {
+        "binding": "recovery",
+        "records": 7616,
+        "recovery_deadline": 372.2434823513031,
+        "recovery_excess": 6616,
+        "recovery_headroom": 7.45669254430311,
+        "safety_deadline": 405.2434823513031,
+        "safety_headroom": 40.45669254430311,
+        "scope": "program:meteora",
+        "service_deadline": 409.552330208,
+        "service_headroom": 44.76554040100001,
+        "side": "archive",
+        "units": 7616
+      },
+      {
+        "binding": "safety",
+        "records": 7040,
+        "recovery_deadline": 457.2434823513031,
+        "recovery_excess": 6040,
+        "recovery_headroom": 92.45669254430311,
+        "safety_deadline": 390.2434823513031,
+        "safety_headroom": 25.45669254430311,
+        "scope": "program:meteora",
+        "service_deadline": 407.088795849,
+        "service_headroom": 42.302006042000016,
+        "side": "retirement",
+        "units": 7045
+      },
+      {
+        "binding": "recovery",
+        "records": 3213,
+        "recovery_deadline": 383.2434823513031,
+        "recovery_excess": 2213,
+        "recovery_headroom": 18.45669254430311,
+        "safety_deadline": 405.2434823513031,
+        "safety_headroom": 40.45669254430311,
+        "scope": "program:pump",
+        "service_deadline": 409.142408498,
+        "service_headroom": 44.35561869100002,
+        "side": "archive",
+        "units": 3213
+      },
+      {
+        "binding": "safety",
+        "records": 357,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 403.2434823513031,
+        "safety_headroom": 38.45669254430311,
+        "scope": "program:pump",
+        "service_deadline": 404.7778158187866,
+        "service_headroom": 39.99102601178663,
+        "side": "retirement",
+        "units": 362
+      },
+      {
+        "binding": "recovery",
+        "records": 5355,
+        "recovery_deadline": 376.2434823513031,
+        "recovery_excess": 4355,
+        "recovery_headroom": 11.45669254430311,
+        "safety_deadline": 405.2434823513031,
+        "safety_headroom": 40.45669254430311,
+        "scope": "program:pumpswap",
+        "service_deadline": 409.552330208,
+        "service_headroom": 44.76554040100001,
+        "side": "archive",
+        "units": 5355
+      },
+      {
+        "binding": "safety",
+        "records": 2355,
+        "recovery_deadline": 466.2434823513031,
+        "recovery_excess": 1355,
+        "recovery_headroom": 101.45669254430311,
+        "safety_deadline": 397.2434823513031,
+        "safety_headroom": 32.45669254430311,
+        "scope": "program:pumpswap",
+        "service_deadline": 407.811728389,
+        "service_headroom": 43.024938582000004,
+        "side": "retirement",
+        "units": 2360
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 380.42155265808105,
+        "safety_headroom": 15.634762851081064,
+        "scope": "__housekeeping__",
+        "service_deadline": 383.435151797,
+        "service_headroom": 18.648361990000012,
+        "side": "retirement",
+        "units": 2
+      },
+      {
+        "binding": "service",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 424.143861936,
+        "safety_headroom": 59.35707212900002,
+        "scope": "__archive_receipt__",
+        "service_deadline": 409.521583776,
+        "service_headroom": 44.73479396900001,
+        "side": "archive",
+        "units": 1
+      }
+    ],
+    "owner_delay": 0.23025084099998594,
+    "pending_after_turn": null,
+    "ready": {
+      "archive": true,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": "archive",
+    "source_coordinate": 324,
+    "worker_age": 0.7498477899999898
+  },
+  {
+    "at": 365.116121352,
+    "committed_frame": 1201,
+    "deadlines": {
+      "archive": 372.2434823513031,
+      "retirement": 380.42155265808105
+    },
+    "durable_records": null,
+    "error": null,
+    "execution": 0.0057943580000028305,
+    "feasible": [],
+    "needs": [
+      {
+        "binding": "recovery",
+        "records": 7552,
+        "recovery_deadline": 372.2434823513031,
+        "recovery_excess": 6552,
+        "recovery_headroom": 7.127360999303107,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 41.12736099930311,
+        "scope": "program:meteora",
+        "service_deadline": 409.893634966,
+        "service_headroom": 44.777513613999986,
+        "side": "archive",
+        "units": 7552
+      },
+      {
+        "binding": "safety",
+        "records": 7168,
+        "recovery_deadline": 457.2434823513031,
+        "recovery_excess": 6168,
+        "recovery_headroom": 92.12736099930311,
+        "safety_deadline": 390.2434823513031,
+        "safety_headroom": 25.127360999303107,
+        "scope": "program:meteora",
+        "service_deadline": 407.088795849,
+        "service_headroom": 41.972674497000014,
+        "side": "retirement",
+        "units": 7173
+      },
+      {
+        "binding": "recovery",
+        "records": 3009,
+        "recovery_deadline": 383.2434823513031,
+        "recovery_excess": 2009,
+        "recovery_headroom": 18.127360999303107,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 41.12736099930311,
+        "scope": "program:pump",
+        "service_deadline": 409.893634966,
+        "service_headroom": 44.777513613999986,
+        "side": "archive",
+        "units": 3009
+      },
+      {
+        "binding": "safety",
+        "records": 561,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 403.2434823513031,
+        "safety_headroom": 38.12736099930311,
+        "scope": "program:pump",
+        "service_deadline": 404.7778158187866,
+        "service_headroom": 39.66169446678663,
+        "side": "retirement",
+        "units": 566
+      },
+      {
+        "binding": "recovery",
+        "records": 5135,
+        "recovery_deadline": 376.2434823513031,
+        "recovery_excess": 4135,
+        "recovery_headroom": 11.127360999303107,
+        "safety_deadline": 405.2434823513031,
+        "safety_headroom": 40.12736099930311,
+        "scope": "program:pumpswap",
+        "service_deadline": 409.893634966,
+        "service_headroom": 44.777513613999986,
+        "side": "archive",
+        "units": 5135
+      },
+      {
+        "binding": "safety",
+        "records": 2525,
+        "recovery_deadline": 466.2434823513031,
+        "recovery_excess": 1525,
+        "recovery_headroom": 101.12736099930311,
+        "safety_deadline": 397.2434823513031,
+        "safety_headroom": 32.12736099930311,
+        "scope": "program:pumpswap",
+        "service_deadline": 407.811728389,
+        "service_headroom": 42.695607037,
+        "side": "retirement",
+        "units": 2530
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 380.42155265808105,
+        "safety_headroom": 15.305431306081061,
+        "scope": "__housekeeping__",
+        "service_deadline": 383.435151797,
+        "service_headroom": 18.31903044500001,
+        "side": "retirement",
+        "units": 2
+      }
+    ],
+    "owner_delay": 0.21526867299996866,
+    "pending_after_turn": null,
+    "ready": {
+      "archive": false,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": null,
+    "source_coordinate": 324.27000000000004,
+    "worker_age": 0.22114322099997707
+  },
+  {
+    "at": 365.297467991,
+    "committed_frame": 1202,
+    "deadlines": {
+      "archive": 372.2434823513031,
+      "retirement": 380.42155265808105
+    },
+    "durable_records": {
+      "program:meteora": 392,
+      "program:pumpswap": 120
+    },
+    "error": null,
+    "execution": 0.0344651039999917,
+    "feasible": [
+      "archive"
+    ],
+    "needs": [
+      {
+        "binding": "recovery",
+        "records": 8064,
+        "recovery_deadline": 372.2434823513031,
+        "recovery_excess": 7064,
+        "recovery_headroom": 6.9460143603030815,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 40.94601436030308,
+        "scope": "program:meteora",
+        "service_deadline": 409.893634966,
+        "service_headroom": 44.59616697499996,
+        "side": "archive",
+        "units": 8064
+      },
+      {
+        "binding": "safety",
+        "records": 7168,
+        "recovery_deadline": 457.2434823513031,
+        "recovery_excess": 6168,
+        "recovery_headroom": 91.94601436030308,
+        "safety_deadline": 390.2434823513031,
+        "safety_headroom": 24.94601436030308,
+        "scope": "program:meteora",
+        "service_deadline": 407.088795849,
+        "service_headroom": 41.79132785799999,
+        "side": "retirement",
+        "units": 7173
+      },
+      {
+        "binding": "recovery",
+        "records": 3213,
+        "recovery_deadline": 383.2434823513031,
+        "recovery_excess": 2213,
+        "recovery_headroom": 17.94601436030308,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 40.94601436030308,
+        "scope": "program:pump",
+        "service_deadline": 409.893634966,
+        "service_headroom": 44.59616697499996,
+        "side": "archive",
+        "units": 3213
+      },
+      {
+        "binding": "safety",
+        "records": 561,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 403.2434823513031,
+        "safety_headroom": 37.94601436030308,
+        "scope": "program:pump",
+        "service_deadline": 404.7778158187866,
+        "service_headroom": 39.4803478277866,
+        "side": "retirement",
+        "units": 566
+      },
+      {
+        "binding": "recovery",
+        "records": 5475,
+        "recovery_deadline": 376.2434823513031,
+        "recovery_excess": 4475,
+        "recovery_headroom": 10.946014360303082,
+        "safety_deadline": 405.2434823513031,
+        "safety_headroom": 39.94601436030308,
+        "scope": "program:pumpswap",
+        "service_deadline": 409.893634966,
+        "service_headroom": 44.59616697499996,
+        "side": "archive",
+        "units": 5475
+      },
+      {
+        "binding": "safety",
+        "records": 2525,
+        "recovery_deadline": 466.2434823513031,
+        "recovery_excess": 1525,
+        "recovery_headroom": 100.94601436030308,
+        "safety_deadline": 397.2434823513031,
+        "safety_headroom": 31.94601436030308,
+        "scope": "program:pumpswap",
+        "service_deadline": 407.811728389,
+        "service_headroom": 42.514260397999976,
+        "side": "retirement",
+        "units": 2530
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 380.42155265808105,
+        "safety_headroom": 15.124084667081036,
+        "scope": "__housekeeping__",
+        "service_deadline": 383.435151797,
+        "service_headroom": 18.137683805999984,
+        "side": "retirement",
+        "units": 2
+      },
+      {
+        "binding": "service",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 424.895187221,
+        "safety_headroom": 59.597719229999996,
+        "scope": "__archive_receipt__",
+        "service_deadline": 410.297467991,
+        "service_headroom": 45,
+        "side": "archive",
+        "units": 1
+      }
+    ],
+    "owner_delay": 0.0098325920000093,
+    "pending_after_turn": null,
+    "ready": {
+      "archive": true,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": "archive",
+    "source_coordinate": 324.54,
+    "worker_age": 0.4341491000000133
+  },
+  {
+    "at": 365.556817177,
+    "committed_frame": 1203,
+    "deadlines": {
+      "archive": 372.2434823513031,
+      "retirement": 380.42155265808105
+    },
+    "durable_records": {
+      "program:meteora": 120,
+      "program:pump": 204,
+      "program:pumpswap": 164
+    },
+    "error": null,
+    "execution": 0.16218872199999623,
+    "feasible": [
+      "archive"
+    ],
+    "needs": [
+      {
+        "binding": "recovery",
+        "records": 7672,
+        "recovery_deadline": 372.2434823513031,
+        "recovery_excess": 6672,
+        "recovery_headroom": 6.686665174303073,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 40.68666517430307,
+        "scope": "program:meteora",
+        "service_deadline": 410.329251493,
+        "service_headroom": 44.77243431599999,
+        "side": "archive",
+        "units": 7672
+      },
+      {
+        "binding": "safety",
+        "records": 7552,
+        "recovery_deadline": 457.2434823513031,
+        "recovery_excess": 6552,
+        "recovery_headroom": 91.68666517430307,
+        "safety_deadline": 390.2434823513031,
+        "safety_headroom": 24.686665174303073,
+        "scope": "program:meteora",
+        "service_deadline": 407.088795849,
+        "service_headroom": 41.53197867199998,
+        "side": "retirement",
+        "units": 7557
+      },
+      {
+        "binding": "recovery",
+        "records": 3213,
+        "recovery_deadline": 383.2434823513031,
+        "recovery_excess": 2213,
+        "recovery_headroom": 17.686665174303073,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 40.68666517430307,
+        "scope": "program:pump",
+        "service_deadline": 409.893634966,
+        "service_headroom": 44.33681778899995,
+        "side": "archive",
+        "units": 3213
+      },
+      {
+        "binding": "safety",
+        "records": 561,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 403.2434823513031,
+        "safety_headroom": 37.68666517430307,
+        "scope": "program:pump",
+        "service_deadline": 404.7778158187866,
+        "service_headroom": 39.22099864178659,
+        "side": "retirement",
+        "units": 566
+      },
+      {
+        "binding": "recovery",
+        "records": 5355,
+        "recovery_deadline": 376.2434823513031,
+        "recovery_excess": 4355,
+        "recovery_headroom": 10.686665174303073,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 40.68666517430307,
+        "scope": "program:pumpswap",
+        "service_deadline": 410.329251493,
+        "service_headroom": 44.77243431599999,
+        "side": "archive",
+        "units": 5355
+      },
+      {
+        "binding": "safety",
+        "records": 2695,
+        "recovery_deadline": 466.2434823513031,
+        "recovery_excess": 1695,
+        "recovery_headroom": 100.68666517430307,
+        "safety_deadline": 397.2434823513031,
+        "safety_headroom": 31.686665174303073,
+        "scope": "program:pumpswap",
+        "service_deadline": 407.811728389,
+        "service_headroom": 42.25491121199997,
+        "side": "retirement",
+        "units": 2700
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 380.42155265808105,
+        "safety_headroom": 14.864735481081027,
+        "scope": "__housekeeping__",
+        "service_deadline": 383.435151797,
+        "service_headroom": 17.878334619999976,
+        "side": "retirement",
+        "units": 2
+      },
+      {
+        "binding": "service",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 424.895187221,
+        "safety_headroom": 59.33837004399999,
+        "scope": "__archive_receipt__",
+        "service_deadline": 410.297467991,
+        "service_headroom": 44.74065081399999,
+        "side": "archive",
+        "units": 1
+      }
+    ],
+    "owner_delay": 0.16497733500000322,
+    "pending_after_turn": null,
+    "ready": {
+      "archive": true,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": "archive",
+    "source_coordinate": 324.81,
+    "worker_age": 0.7617456129999596
+  },
+  {
+    "at": 365.846835982,
+    "committed_frame": 1204,
+    "deadlines": {
+      "archive": 372.2434823513031,
+      "retirement": 380.42155265808105
+    },
+    "durable_records": null,
+    "error": null,
+    "execution": 0.003494769000042197,
+    "feasible": [],
+    "needs": [
+      {
+        "binding": "recovery",
+        "records": 7552,
+        "recovery_deadline": 372.2434823513031,
+        "recovery_excess": 6552,
+        "recovery_headroom": 6.396646369303085,
+        "safety_deadline": 407.2434823513031,
+        "safety_headroom": 41.396646369303085,
+        "scope": "program:meteora",
+        "service_deadline": 410.656793774,
+        "service_headroom": 44.80995779199998,
+        "side": "archive",
+        "units": 7552
+      },
+      {
+        "binding": "safety",
+        "records": 7680,
+        "recovery_deadline": 457.2434823513031,
+        "recovery_excess": 6680,
+        "recovery_headroom": 91.39664636930308,
+        "safety_deadline": 390.2434823513031,
+        "safety_headroom": 24.396646369303085,
+        "scope": "program:meteora",
+        "service_deadline": 407.088795849,
+        "service_headroom": 41.24195986699999,
+        "side": "retirement",
+        "units": 7685
+      },
+      {
+        "binding": "recovery",
+        "records": 3009,
+        "recovery_deadline": 383.2434823513031,
+        "recovery_excess": 2009,
+        "recovery_headroom": 17.396646369303085,
+        "safety_deadline": 407.2434823513031,
+        "safety_headroom": 41.396646369303085,
+        "scope": "program:pump",
+        "service_deadline": 410.656793774,
+        "service_headroom": 44.80995779199998,
+        "side": "archive",
+        "units": 3009
+      },
+      {
+        "binding": "safety",
+        "records": 765,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 403.2434823513031,
+        "safety_headroom": 37.396646369303085,
+        "scope": "program:pump",
+        "service_deadline": 404.7778158187866,
+        "service_headroom": 38.930979836786605,
+        "side": "retirement",
+        "units": 770
+      },
+      {
+        "binding": "recovery",
+        "records": 5191,
+        "recovery_deadline": 376.2434823513031,
+        "recovery_excess": 4191,
+        "recovery_headroom": 10.396646369303085,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 40.396646369303085,
+        "scope": "program:pumpswap",
+        "service_deadline": 410.656793774,
+        "service_headroom": 44.80995779199998,
+        "side": "archive",
+        "units": 5191
+      },
+      {
+        "binding": "safety",
+        "records": 2780,
+        "recovery_deadline": 466.2434823513031,
+        "recovery_excess": 1780,
+        "recovery_headroom": 100.39664636930308,
+        "safety_deadline": 397.2434823513031,
+        "safety_headroom": 31.396646369303085,
+        "scope": "program:pumpswap",
+        "service_deadline": 407.811728389,
+        "service_headroom": 41.96489240699998,
+        "side": "retirement",
+        "units": 2785
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 380.42155265808105,
+        "safety_headroom": 14.574716676081039,
+        "scope": "__housekeeping__",
+        "service_deadline": 383.435151797,
+        "service_headroom": 17.588315814999987,
+        "side": "retirement",
+        "units": 2
+      }
+    ],
+    "owner_delay": 0.1852369559999829,
+    "pending_after_turn": null,
+    "ready": {
+      "archive": false,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": null,
+    "source_coordinate": 325.08000000000004,
+    "worker_age": 0.18879753799996024
+  },
+  {
+    "at": 366.05365582,
+    "committed_frame": 1205,
+    "deadlines": {
+      "archive": 372.2434823513031,
+      "retirement": 380.42155265808105
+    },
+    "durable_records": {
+      "program:meteora": 336,
+      "program:pumpswap": 176
+    },
+    "error": null,
+    "execution": 0.03297203299996454,
+    "feasible": [
+      "archive"
+    ],
+    "needs": [
+      {
+        "binding": "recovery",
+        "records": 7552,
+        "recovery_deadline": 372.2434823513031,
+        "recovery_excess": 6552,
+        "recovery_headroom": 6.189826531303083,
+        "safety_deadline": 407.2434823513031,
+        "safety_headroom": 41.18982653130308,
+        "scope": "program:meteora",
+        "service_deadline": 410.656793774,
+        "service_headroom": 44.603137953999976,
+        "side": "archive",
+        "units": 7552
+      },
+      {
+        "binding": "safety",
+        "records": 7680,
+        "recovery_deadline": 457.2434823513031,
+        "recovery_excess": 6680,
+        "recovery_headroom": 91.18982653130308,
+        "safety_deadline": 390.2434823513031,
+        "safety_headroom": 24.189826531303083,
+        "scope": "program:meteora",
+        "service_deadline": 407.088795849,
+        "service_headroom": 41.03514002899999,
+        "side": "retirement",
+        "units": 7685
+      },
+      {
+        "binding": "recovery",
+        "records": 3009,
+        "recovery_deadline": 383.2434823513031,
+        "recovery_excess": 2009,
+        "recovery_headroom": 17.189826531303083,
+        "safety_deadline": 407.2434823513031,
+        "safety_headroom": 41.18982653130308,
+        "scope": "program:pump",
+        "service_deadline": 410.656793774,
+        "service_headroom": 44.603137953999976,
+        "side": "archive",
+        "units": 3009
+      },
+      {
+        "binding": "safety",
+        "records": 765,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 403.2434823513031,
+        "safety_headroom": 37.18982653130308,
+        "scope": "program:pump",
+        "service_deadline": 404.7778158187866,
+        "service_headroom": 38.724159998786604,
+        "side": "retirement",
+        "units": 770
+      },
+      {
+        "binding": "recovery",
+        "records": 5191,
+        "recovery_deadline": 376.2434823513031,
+        "recovery_excess": 4191,
+        "recovery_headroom": 10.189826531303083,
+        "safety_deadline": 406.2434823513031,
+        "safety_headroom": 40.18982653130308,
+        "scope": "program:pumpswap",
+        "service_deadline": 410.656793774,
+        "service_headroom": 44.603137953999976,
+        "side": "archive",
+        "units": 5191
+      },
+      {
+        "binding": "safety",
+        "records": 2780,
+        "recovery_deadline": 466.2434823513031,
+        "recovery_excess": 1780,
+        "recovery_headroom": 100.18982653130308,
+        "safety_deadline": 397.2434823513031,
+        "safety_headroom": 31.189826531303083,
+        "scope": "program:pumpswap",
+        "service_deadline": 407.811728389,
+        "service_headroom": 41.75807256899998,
+        "side": "retirement",
+        "units": 2785
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 380.42155265808105,
+        "safety_headroom": 14.367896838081037,
+        "scope": "__housekeeping__",
+        "service_deadline": 383.435151797,
+        "service_headroom": 17.381495976999986,
+        "side": "retirement",
+        "units": 2
+      },
+      {
+        "binding": "service",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 425.658294822,
+        "safety_headroom": 59.604639002,
+        "scope": "__archive_receipt__",
+        "service_deadline": 411.05365582,
+        "service_headroom": 45,
+        "side": "archive",
+        "units": 1
+      }
+    ],
+    "owner_delay": 0.019308343000034256,
+    "pending_after_turn": null,
+    "ready": {
+      "archive": true,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": "archive",
+    "source_coordinate": 325.35,
+    "worker_age": 0.4259437739999612
+  },
+  {
+    "at": 366.334492501,
+    "committed_frame": 1206,
+    "deadlines": {
+      "archive": 372.2434823513031,
+      "retirement": 380.42155265808105
+    },
+    "durable_records": {
+      "program:meteora": 176,
+      "program:pump": 204,
+      "program:pumpswap": 108
+    },
+    "error": null,
+    "execution": 0.054787484999963,
+    "feasible": [
+      "archive"
+    ],
+    "needs": [
+      {
+        "binding": "recovery",
+        "records": 7728,
+        "recovery_deadline": 372.2434823513031,
+        "recovery_excess": 6728,
+        "recovery_headroom": 5.908989850303101,
+        "safety_deadline": 407.2434823513031,
+        "safety_headroom": 40.9089898503031,
+        "scope": "program:meteora",
+        "service_deadline": 411.084163967,
+        "service_headroom": 44.749671465999995,
+        "side": "archive",
+        "units": 7728
+      },
+      {
+        "binding": "safety",
+        "records": 7936,
+        "recovery_deadline": 457.2434823513031,
+        "recovery_excess": 6936,
+        "recovery_headroom": 90.9089898503031,
+        "safety_deadline": 390.2434823513031,
+        "safety_headroom": 23.9089898503031,
+        "scope": "program:meteora",
+        "service_deadline": 407.088795849,
+        "service_headroom": 40.75430334800001,
+        "side": "retirement",
+        "units": 7941
+      },
+      {
+        "binding": "recovery",
+        "records": 3213,
+        "recovery_deadline": 383.2434823513031,
+        "recovery_excess": 2213,
+        "recovery_headroom": 16.9089898503031,
+        "safety_deadline": 407.2434823513031,
+        "safety_headroom": 40.9089898503031,
+        "scope": "program:pump",
+        "service_deadline": 410.656793774,
+        "service_headroom": 44.322301272999994,
+        "side": "archive",
+        "units": 3213
+      },
+      {
+        "binding": "safety",
+        "records": 765,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 403.2434823513031,
+        "safety_headroom": 36.9089898503031,
+        "scope": "program:pump",
+        "service_deadline": 404.7778158187866,
+        "service_headroom": 38.44332331778662,
+        "side": "retirement",
+        "units": 770
+      },
+      {
+        "binding": "recovery",
+        "records": 5355,
+        "recovery_deadline": 376.2434823513031,
+        "recovery_excess": 4355,
+        "recovery_headroom": 9.9089898503031,
+        "safety_deadline": 407.2434823513031,
+        "safety_headroom": 40.9089898503031,
+        "scope": "program:pumpswap",
+        "service_deadline": 411.084163967,
+        "service_headroom": 44.749671465999995,
+        "side": "archive",
+        "units": 5355
+      },
+      {
+        "binding": "safety",
+        "records": 3035,
+        "recovery_deadline": 466.2434823513031,
+        "recovery_excess": 2035,
+        "recovery_headroom": 99.9089898503031,
+        "safety_deadline": 397.2434823513031,
+        "safety_headroom": 30.9089898503031,
+        "scope": "program:pumpswap",
+        "service_deadline": 407.811728389,
+        "service_headroom": 41.477235887999996,
+        "side": "retirement",
+        "units": 3040
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 380.42155265808105,
+        "safety_headroom": 14.087060157081055,
+        "scope": "__housekeeping__",
+        "service_deadline": 383.435151797,
+        "service_headroom": 17.100659296000003,
+        "side": "retirement",
+        "units": 2
+      },
+      {
+        "binding": "service",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 425.658294822,
+        "safety_headroom": 59.32380232100002,
+        "scope": "__archive_receipt__",
+        "service_deadline": 411.05365582,
+        "service_headroom": 44.71916331900002,
+        "side": "archive",
+        "units": 1
+      }
+    ],
+    "owner_delay": 0.24608046800000238,
+    "pending_after_turn": null,
+    "ready": {
+      "archive": true,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": "archive",
+    "source_coordinate": 325.62,
+    "worker_age": 0.7272080390000042
+  },
+  {
+    "at": 366.571091259,
+    "committed_frame": 1207,
+    "deadlines": {
+      "archive": 372.2434823513031,
+      "retirement": 380.42155265808105
+    },
+    "durable_records": null,
+    "error": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides",
+    "execution": 0.0037243479999915508,
+    "feasible": [],
+    "needs": [
+      {
+        "binding": "recovery",
+        "records": 7552,
+        "recovery_deadline": 372.2434823513031,
+        "recovery_excess": 6552,
+        "recovery_headroom": 5.672391092303087,
+        "safety_deadline": 408.2434823513031,
+        "safety_headroom": 41.67239109230309,
+        "scope": "program:meteora",
+        "service_deadline": 411.385427931,
+        "service_headroom": 44.81433667199997,
+        "side": "archive",
+        "units": 7552
+      },
+      {
+        "binding": "safety",
+        "records": 8192,
+        "recovery_deadline": 457.2434823513031,
+        "recovery_excess": 7192,
+        "recovery_headroom": 90.67239109230309,
+        "safety_deadline": 390.2434823513031,
+        "safety_headroom": 23.672391092303087,
+        "scope": "program:meteora",
+        "service_deadline": 407.088795849,
+        "service_headroom": 40.517704589999994,
+        "side": "retirement",
+        "units": 8197
+      },
+      {
+        "binding": "recovery",
+        "records": 3009,
+        "recovery_deadline": 383.2434823513031,
+        "recovery_excess": 2009,
+        "recovery_headroom": 16.672391092303087,
+        "safety_deadline": 408.2434823513031,
+        "safety_headroom": 41.67239109230309,
+        "scope": "program:pump",
+        "service_deadline": 411.385427931,
+        "service_headroom": 44.81433667199997,
+        "side": "archive",
+        "units": 3009
+      },
+      {
+        "binding": "safety",
+        "records": 969,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 403.2434823513031,
+        "safety_headroom": 36.67239109230309,
+        "scope": "program:pump",
+        "service_deadline": 404.7778158187866,
+        "service_headroom": 38.20672455978661,
+        "side": "retirement",
+        "units": 974
+      },
+      {
+        "binding": "recovery",
+        "records": 5247,
+        "recovery_deadline": 376.2434823513031,
+        "recovery_excess": 4247,
+        "recovery_headroom": 9.672391092303087,
+        "safety_deadline": 407.2434823513031,
+        "safety_headroom": 40.67239109230309,
+        "scope": "program:pumpswap",
+        "service_deadline": 411.385427931,
+        "service_headroom": 44.81433667199997,
+        "side": "archive",
+        "units": 5247
+      },
+      {
+        "binding": "safety",
+        "records": 3120,
+        "recovery_deadline": 466.2434823513031,
+        "recovery_excess": 2120,
+        "recovery_headroom": 99.67239109230309,
+        "safety_deadline": 397.2434823513031,
+        "safety_headroom": 30.672391092303087,
+        "scope": "program:pumpswap",
+        "service_deadline": 407.811728389,
+        "service_headroom": 41.24063712999998,
+        "side": "retirement",
+        "units": 3125
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 380.42155265808105,
+        "safety_headroom": 13.850461399081041,
+        "scope": "__housekeeping__",
+        "service_deadline": 383.435151797,
+        "service_headroom": 16.86406053799999,
+        "side": "retirement",
+        "units": 2
+      }
+    ],
+    "owner_delay": 0.1804958400000487,
+    "pending_after_turn": null,
+    "ready": {
+      "archive": false,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": null,
+    "source_coordinate": 325.89000000000004,
+    "worker_age": 0.18430015700005242
+  }
+]

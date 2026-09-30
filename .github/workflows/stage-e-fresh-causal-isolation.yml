@@ -28,14 +28,37 @@ jobs:
           git rev-parse HEAD HEAD^{tree} dc08f9064cf5e37b63f383f52aa709d0afc1723f > "$RUNNER_TEMP/stage-e/git-identity.txt"
           cp diagnostics/stage-e-fresh-causal-isolation/*.md "$RUNNER_TEMP/stage-e/"
           cp diagnostics/stage-e-fresh-causal-isolation/*.py "$RUNNER_TEMP/stage-e/"
-          cp diagnostics/stage-e-fresh-causal-isolation/execution-request.json "$RUNNER_TEMP/stage-e/"
+          cp diagnostics/stage-e-fresh-causal-isolation/*.json "$RUNNER_TEMP/stage-e/"
+          cp .github/workflows/stage-e-fresh-causal-isolation.yml "$RUNNER_TEMP/stage-e/workflow.yml"
           test "$GITHUB_RUN_ATTEMPT" = 1
-          test ! -f diagnostics/stage-e-fresh-causal-isolation/ASTRA_GATE.json
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          prefix=Path('diagnostics/stage-e-fresh-causal-isolation')
+          request=json.loads((prefix/'execution-request.json').read_text())
+          package=request.get('package_only',False)
+          if package:
+              gate=json.loads((prefix/'ASTRA_GATE.json').read_text())
+              assert gate['stop_all_diagnostic_execution'] is True and request['variants']==[]
+              print('ASTRA_STOP: publication only, no diagnostic execution',flush=True)
+          else:
+              assert not (prefix/'ASTRA_GATE.json').exists(), 'astra_gate_hard_stop'
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write('PACKAGE_ONLY='+str(package).lower()+'\n')
+          PY
+      - name: Publish hash-verified captured evidence only (Astra hard stop)
+        if: env.PACKAGE_ONLY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 diagnostics/stage-e-fresh-causal-isolation/publish.py --root "$RUNNER_TEMP/stage-e"
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        if: env.PACKAGE_ONLY == 'false'
         with:
           python-version: '3.12.14'
-      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - if: env.PACKAGE_ONLY == 'false'
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Verify unchanged production and diagnostic arithmetic
+        if: env.PACKAGE_ONLY == 'false'
         run: |
           python -m py_compile diagnostics/stage-e-fresh-causal-isolation/harness.py diagnostics/stage-e-fresh-causal-isolation/finalize.py
           python diagnostics/stage-e-fresh-causal-isolation/harness.py --selfcheck
@@ -54,23 +77,23 @@ jobs:
           print('ENVIRONMENT '+json.dumps(m.environment()),flush=True)
           PY
       - name: Inspect the fresh validation artifact
-        if: env.RECOVER_ARTIFACT != ''
+        if: env.PACKAGE_ONLY == 'false' && env.RECOVER_ARTIFACT != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: python diagnostics/stage-e-fresh-causal-isolation/recover.py --request diagnostics/stage-e-fresh-causal-isolation/execution-request.json --output "$RUNNER_TEMP/stage-e"
       - name: Required deterministic checks (validation request only)
-        if: env.VALIDATE_ONLY == 'true' && env.RECOVER_ARTIFACT == ''
+        if: env.PACKAGE_ONLY == 'false' && env.VALIDATE_ONLY == 'true' && env.RECOVER_ARTIFACT == ''
         run: |
           set -euo pipefail
           python -m unittest discover -v > "$RUNNER_TEMP/stage-e/unittest.log" 2>&1
           tail -n 5 "$RUNNER_TEMP/stage-e/unittest.log"
       - name: Required resource checks
-        if: always() && env.VALIDATE_ONLY == 'true'
+        if: always() && env.PACKAGE_ONLY == 'false' && env.VALIDATE_ONLY == 'true'
         run: |
           python -m tests.resource_check > "$RUNNER_TEMP/stage-e/resource-check.log" 2>&1
           cat "$RUNNER_TEMP/stage-e/resource-check.log"
       - name: Execute one predeclared material variant, with no retry
-        if: env.VALIDATE_ONLY == 'false'
+        if: env.PACKAGE_ONLY == 'false' && env.VALIDATE_ONLY == 'false'
         run: |
           set -euo pipefail
           python diagnostics/stage-e-fresh-causal-isolation/harness.py \
@@ -78,7 +101,7 @@ jobs:
             --output "$RUNNER_TEMP/stage-e/variant"
       - name: Hash and summarize bounded evidence even on failure
         if: always()
-        run: python diagnostics/stage-e-fresh-causal-isolation/finalize.py --root "$RUNNER_TEMP/stage-e"
+        run: python3 diagnostics/stage-e-fresh-causal-isolation/finalize.py --root "$RUNNER_TEMP/stage-e"
       - name: Preserve every execution's evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

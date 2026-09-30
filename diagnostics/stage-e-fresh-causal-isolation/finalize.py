@@ -5,7 +5,8 @@ from pathlib import Path
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--root',required=True); a=p.parse_args()
     root=Path(a.root); root.mkdir(parents=True,exist_ok=True)
-    rows=[json.loads(p.read_text()) for p in root.glob('*/summary.json')]
+    paths=list(root.glob('*/summary.json'))+list(root.glob('captured/*/variant/summary.json'))
+    rows=[json.loads(p.read_text()) for p in paths]
     lines=['# Fresh Stage-E diagnosis','',
         'PAPER ONLY. Stage E RED. Stage F NOT STARTED. No production repair.','',
         '| ID | committed frames | source seconds | refusal/result | observer/debug fraction |',
@@ -17,10 +18,15 @@ def main():
     lines+=['','The reported wrapper component times measured numeric bookkeeping; entry/return',
         'trampolines and extra clock calls are not fully captured. No <1% qualification claim.',
         'Stage/transaction/owner/worker intervals overlap; they must not be added as independent cost.']
-    text='\n'.join(lines)+'\n'
-    (root/'SUMMARY.md').write_text(text)
+    gate=root/'ASTRA_GATE.json'
+    if gate.exists():
+        lines+=['',json.loads(gate.read_text())['status'],
+            'Workload execution stopped. This publication runs zero diagnostic workloads.',
+            'See ASTRA_REVIEW_PACKAGE.md and PUBLICATION_IDENTITY.json.']
+    body='\n'.join(lines)+'\n'
+    (root/'SUMMARY.md').write_text(body)
     if os.getenv('GITHUB_STEP_SUMMARY'):
-        with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as stream: stream.write(text)
+        with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as stream: stream.write(body)
     files={}
     for file in root.rglob('*'):
         if file.is_file() and 'runtime' not in file.relative_to(root).parts and file.name!='SHA256.json':

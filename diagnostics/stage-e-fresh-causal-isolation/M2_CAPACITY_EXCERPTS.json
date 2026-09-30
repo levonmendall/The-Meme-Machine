@@ -1,0 +1,3542 @@
+[
+  {
+    "elapsed": 30.159,
+    "frames": 109,
+    "source_seconds": 29.430000000000003,
+    "source_lag": 0.677,
+    "wal_bytes": 17481192,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 29.677334785461426,
+        "retained_age": 29.677334785461426,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pump": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 29.677334785461426,
+        "retained_age": 29.677334785461426,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pumpswap": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 29.677334785461426,
+        "retained_age": 29.677334785461426,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      }
+    },
+    "scheduling": {
+      "at": 66.083945979,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [],
+      "feasible": [],
+      "selected": null,
+      "error": null,
+      "committed_frame": 106,
+      "source_coordinate": 28.62,
+      "owner_delay": 0.07730164400000206,
+      "worker_age": null
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 150,
+        "wall": 0.9128682920000202,
+        "cpu": 0,
+        "peak": 0.006109883000000593,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 150,
+        "wall": 14.931889428000012,
+        "cpu": 11.540248553999994,
+        "peak": 0.5443950979999954,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 593,
+        "wall": 0.023890997999870933,
+        "cpu": 0,
+        "peak": 0.004681015999999261,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 112,
+        "wall": 0.06640070200001702,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 111,
+        "wall": 1.0720280029999856,
+        "cpu": 0,
+        "peak": 0.20007978400000326,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 111,
+        "wall": 20.331829254999953,
+        "cpu": 20.328663435000017,
+        "peak": 0.20836388600000078,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 111,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 111,
+        "wall": 3.2101809440000793,
+        "cpu": 0,
+        "peak": 0.04238645899999938,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 26,
+        "wall": 0.9871714609999813,
+        "cpu": 0.420388696,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 26,
+        "wall": 0.9885259899999852,
+        "cpu": 0.42165656999999973,
+        "peak": 0.19472047400000037,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 5,
+        "wall": 0.07518545699999635,
+        "cpu": 0.052194393999999956,
+        "peak": 0.03462859299999366,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 106,
+        "wall": 14.166688292000053,
+        "cpu": 11.480392824000004,
+        "peak": 0.5444649079999948,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 106,
+        "wall": 14.16864234700003,
+        "cpu": 11.48538155400001,
+        "peak": 0.5444860079999998,
+        "units": 109,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 106,
+        "wall": 4.261923665999975,
+        "cpu": 0,
+        "peak": 0.13230501599999828,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 1,
+        "wall": 0.02138684399999846,
+        "cpu": 0.0017071390000000242,
+        "peak": 0.02138684399999846,
+        "units": 0,
+        "errors": 1
+      },
+      "qualification_observer_equivalent": {
+        "calls": 6,
+        "wall": 0.012900364999985925,
+        "cpu": 0,
+        "peak": 0.004080401999999594,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 5,
+        "wall": 0.0009909749999934547,
+        "cpu": 0,
+        "peak": 0.0002382750000009537,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 5,
+        "wall": 0.012733420999985867,
+        "cpu": 0,
+        "peak": 0.0042904549999960295,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 5,
+        "wall": 0.0012631630000115024,
+        "cpu": 0,
+        "peak": 0.0003431230000003893,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 5,
+        "wall": 0.0009222969999953534,
+        "cpu": 0,
+        "peak": 0.0003172340000006102,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 3,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 219,
+      "priority4.queue_peak_us": 600743,
+      "priority4.queue_total_us": 4643523,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 778092,
+      "priority4.completed": 56,
+      "priority2.queue_peak_us": 580973,
+      "priority2.queue_total_us": 3054071,
+      "priority2.execution_peak_us": 544567,
+      "priority2.execution_total_us": 18528031,
+      "priority2.completed": 163,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 5,
+      "checkpoint_handoff_total_us": 84638,
+      "checkpoint_handoff_peak_us": 42464,
+      "queued": 0
+    }
+  },
+  {
+    "elapsed": 60.207,
+    "frames": 220,
+    "source_seconds": 59.400000000000006,
+    "source_lag": 0.693,
+    "wal_bytes": 6406632,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 59.69261431694031,
+        "retained_age": 59.69261431694031,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pump": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 59.69261431694031,
+        "retained_age": 59.69261431694031,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pumpswap": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 59.69261431694031,
+        "retained_age": 59.69261431694031,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      }
+    },
+    "scheduling": {
+      "at": 96.326412293,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [],
+      "feasible": [],
+      "selected": null,
+      "error": null,
+      "committed_frame": 218,
+      "source_coordinate": 58.86000000000001,
+      "owner_delay": 0.07287042400000132,
+      "worker_age": null
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 289,
+        "wall": 1.7590673120000915,
+        "cpu": 0,
+        "peak": 0.006121628999991913,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 289,
+        "wall": 30.306610763999906,
+        "cpu": 24.36291135599998,
+        "peak": 0.5443950979999954,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 1179,
+        "wall": 0.07104410700023323,
+        "cpu": 0,
+        "peak": 0.00574652000000242,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 223,
+        "wall": 0.07440072299996103,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 223,
+        "wall": 1.8324996279999226,
+        "cpu": 0,
+        "peak": 0.20007978400000326,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 223,
+        "wall": 41.58879426400002,
+        "cpu": 41.582740876000045,
+        "peak": 0.2186261550000097,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 223,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 223,
+        "wall": 6.776792170999947,
+        "cpu": 0,
+        "peak": 0.05645664700000452,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 54,
+        "wall": 2.4317026159999315,
+        "cpu": 0.9534813839999996,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 54,
+        "wall": 2.4346116509999405,
+        "cpu": 0.9562139159999998,
+        "peak": 0.19472047400000037,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 6,
+        "wall": 0.11290865699999841,
+        "cpu": 0.06878108299999999,
+        "peak": 0.037723200000002066,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 217,
+        "wall": 29.25782106000006,
+        "cpu": 24.206400859999995,
+        "peak": 0.5444649079999948,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 217,
+        "wall": 29.261961021000033,
+        "cpu": 24.216537908000017,
+        "peak": 0.5444860079999998,
+        "units": 220,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 217,
+        "wall": 7.568395161999979,
+        "cpu": 0,
+        "peak": 0.13230501599999828,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 1,
+        "wall": 0.02138684399999846,
+        "cpu": 0.0017071390000000242,
+        "peak": 0.02138684399999846,
+        "units": 0,
+        "errors": 1
+      },
+      "qualification_observer_equivalent": {
+        "calls": 12,
+        "wall": 0.056859804000005454,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 11,
+        "wall": 0.002221087999998872,
+        "cpu": 0,
+        "peak": 0.0002579810000042926,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 11,
+        "wall": 0.024752282999990882,
+        "cpu": 0,
+        "peak": 0.0042904549999960295,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 11,
+        "wall": 0.0026253620000105116,
+        "cpu": 0,
+        "peak": 0.0003431230000003893,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 11,
+        "wall": 0.0017810579999988363,
+        "cpu": 0,
+        "peak": 0.0003172340000006102,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 3,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 444,
+      "priority4.queue_peak_us": 600743,
+      "priority4.queue_total_us": 8688197,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 1167026,
+      "priority4.completed": 112,
+      "priority2.queue_peak_us": 580973,
+      "priority2.queue_total_us": 3938729,
+      "priority2.execution_peak_us": 544567,
+      "priority2.execution_total_us": 37065271,
+      "priority2.completed": 331,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 6,
+      "checkpoint_handoff_total_us": 122879,
+      "checkpoint_handoff_peak_us": 42464,
+      "queued": 0
+    }
+  },
+  {
+    "elapsed": 90.226,
+    "frames": 331,
+    "source_seconds": 89.37,
+    "source_lag": 0.744,
+    "wal_bytes": 13122232,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 89.74353528022766,
+        "retained_age": 89.74353528022766,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pump": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 89.74353528022766,
+        "retained_age": 89.74353528022766,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pumpswap": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 89.74353528022766,
+        "retained_age": 89.74353528022766,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      }
+    },
+    "scheduling": {
+      "at": 126.5736761,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [],
+      "feasible": [],
+      "selected": null,
+      "error": null,
+      "committed_frame": 330,
+      "source_coordinate": 89.10000000000001,
+      "owner_delay": 0.07034371899999314,
+      "worker_age": null
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 428,
+        "wall": 2.605227835000072,
+        "cpu": 0,
+        "peak": 0.006121628999991913,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 428,
+        "wall": 45.984001247999906,
+        "cpu": 37.44804297099999,
+        "peak": 0.5443950979999954,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 1764,
+        "wall": 0.10555709100016486,
+        "cpu": 0,
+        "peak": 0.0059659970000041085,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 335,
+        "wall": 0.08198724100000021,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 334,
+        "wall": 2.5690084269998863,
+        "cpu": 0,
+        "peak": 0.20007978400000326,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 334,
+        "wall": 62.689574610999976,
+        "cpu": 62.678857767000025,
+        "peak": 0.2255961249999956,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 334,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 334,
+        "wall": 10.347821136999961,
+        "cpu": 0,
+        "peak": 0.05645664700000452,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 81,
+        "wall": 3.879957092999909,
+        "cpu": 1.533518293999999,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 81,
+        "wall": 3.884419703999967,
+        "cpu": 1.5377127819999998,
+        "peak": 0.19472047400000037,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 8,
+        "wall": 0.17768541599999566,
+        "cpu": 0.104507457,
+        "peak": 0.038402996000002076,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 328,
+        "wall": 44.62437081000002,
+        "cpu": 37.173724467000014,
+        "peak": 0.5444649079999948,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 328,
+        "wall": 44.63063654099999,
+        "cpu": 37.18900715500003,
+        "peak": 0.5444860079999998,
+        "units": 331,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 328,
+        "wall": 10.703805189999937,
+        "cpu": 0,
+        "peak": 0.13230501599999828,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 1,
+        "wall": 0.02138684399999846,
+        "cpu": 0.0017071390000000242,
+        "peak": 0.02138684399999846,
+        "units": 0,
+        "errors": 1
+      },
+      "qualification_observer_equivalent": {
+        "calls": 18,
+        "wall": 0.07081262999999893,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 17,
+        "wall": 0.003528465999991681,
+        "cpu": 0,
+        "peak": 0.00030139199999723587,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 17,
+        "wall": 0.07200450599997765,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 17,
+        "wall": 0.004062032000014426,
+        "cpu": 0,
+        "peak": 0.0003431230000003893,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 17,
+        "wall": 0.0028386100000190595,
+        "cpu": 0,
+        "peak": 0.0003172340000006102,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 3,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 667,
+      "priority4.queue_peak_us": 600743,
+      "priority4.queue_total_us": 12658542,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 1635283,
+      "priority4.completed": 168,
+      "priority2.queue_peak_us": 580973,
+      "priority2.queue_total_us": 4971552,
+      "priority2.execution_peak_us": 544567,
+      "priority2.execution_total_us": 55736573,
+      "priority2.completed": 498,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 8,
+      "checkpoint_handoff_total_us": 188619,
+      "checkpoint_handoff_peak_us": 42464,
+      "queued": 0
+    }
+  },
+  {
+    "elapsed": 120.245,
+    "frames": 442,
+    "source_seconds": 119.34,
+    "source_lag": 0.762,
+    "wal_bytes": 6493152,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 119.76156973838806,
+        "retained_age": 119.76156973838806,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pump": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 119.76156973838806,
+        "retained_age": 119.76156973838806,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pumpswap": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 119.76156973838806,
+        "retained_age": 119.76156973838806,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      }
+    },
+    "scheduling": {
+      "at": 156.811556825,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [],
+      "feasible": [],
+      "selected": null,
+      "error": null,
+      "committed_frame": 442,
+      "source_coordinate": 119.34,
+      "owner_delay": 0.06305305199998656,
+      "worker_age": null
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 567,
+        "wall": 3.4513735200001534,
+        "cpu": 0,
+        "peak": 0.006178123000012192,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 567,
+        "wall": 61.71713947799977,
+        "cpu": 50.679160108999966,
+        "peak": 0.5443950979999954,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 2348,
+        "wall": 0.14083275100043124,
+        "cpu": 0,
+        "peak": 0.0059659970000041085,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 446,
+        "wall": 0.08958754000000368,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 445,
+        "wall": 3.3044021179999703,
+        "cpu": 0,
+        "peak": 0.20007978400000326,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 445,
+        "wall": 83.6621863109998,
+        "cpu": 83.64838333400003,
+        "peak": 0.2255961249999956,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 445,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 445,
+        "wall": 14.031472179999817,
+        "cpu": 0,
+        "peak": 0.0649966450000079,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 109,
+        "wall": 5.2002781399999165,
+        "cpu": 2.1319621939999984,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 109,
+        "wall": 5.206337143000013,
+        "cpu": 2.1376619430000003,
+        "peak": 0.19472047400000037,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 8,
+        "wall": 0.17768541599999566,
+        "cpu": 0.104507457,
+        "peak": 0.038402996000002076,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 439,
+        "wall": 60.056431356999774,
+        "cpu": 50.29017327900003,
+        "peak": 0.5444649079999948,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 439,
+        "wall": 60.06476111099995,
+        "cpu": 50.31055573300003,
+        "peak": 0.5444860079999998,
+        "units": 442,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 439,
+        "wall": 13.69505433599986,
+        "cpu": 0,
+        "peak": 0.13230501599999828,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 1,
+        "wall": 0.02138684399999846,
+        "cpu": 0.0017071390000000242,
+        "peak": 0.02138684399999846,
+        "units": 0,
+        "errors": 1
+      },
+      "qualification_observer_equivalent": {
+        "calls": 24,
+        "wall": 0.08447054699998802,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 23,
+        "wall": 0.00477456099999074,
+        "cpu": 0,
+        "peak": 0.00030139199999723587,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 23,
+        "wall": 0.08669524100000814,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 23,
+        "wall": 0.00549409300000292,
+        "cpu": 0,
+        "peak": 0.0003431230000003893,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 23,
+        "wall": 0.0037032140000050617,
+        "cpu": 0,
+        "peak": 0.0003172340000006102,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 3,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 889,
+      "priority4.queue_peak_us": 600743,
+      "priority4.queue_total_us": 16575065,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 2133128,
+      "priority4.completed": 224,
+      "priority2.queue_peak_us": 580973,
+      "priority2.queue_total_us": 5721341,
+      "priority2.execution_peak_us": 544567,
+      "priority2.execution_total_us": 74322696,
+      "priority2.completed": 664,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 8,
+      "checkpoint_handoff_total_us": 188619,
+      "checkpoint_handoff_peak_us": 42464,
+      "queued": 0
+    }
+  },
+  {
+    "elapsed": 150.292,
+    "frames": 554,
+    "source_seconds": 149.58,
+    "source_lag": 0.809,
+    "wal_bytes": 13966832,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 149.80895900726318,
+        "retained_age": 149.80895900726318,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pump": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 149.80895900726318,
+        "retained_age": 149.80895900726318,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pumpswap": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 149.80895900726318,
+        "retained_age": 149.80895900726318,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      }
+    },
+    "scheduling": {
+      "at": 185.986046125,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [],
+      "feasible": [],
+      "selected": null,
+      "error": null,
+      "committed_frame": 550,
+      "source_coordinate": 148.5,
+      "owner_delay": 0.07095098600001393,
+      "worker_age": null
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 707,
+        "wall": 4.30351488700024,
+        "cpu": 0,
+        "peak": 0.006178123000012192,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 707,
+        "wall": 77.6491194249997,
+        "cpu": 64.11353715299998,
+        "peak": 0.5443950979999954,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 2933,
+        "wall": 0.16638868500064063,
+        "cpu": 0,
+        "peak": 0.0059659970000041085,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 557,
+        "wall": 0.09795607099994896,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 556,
+        "wall": 4.02906481199993,
+        "cpu": 0,
+        "peak": 0.20007978400000326,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 556,
+        "wall": 104.64809862199968,
+        "cpu": 104.63107131800004,
+        "peak": 0.2255961249999956,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 556,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 556,
+        "wall": 17.70078753399975,
+        "cpu": 0,
+        "peak": 0.0649966450000079,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 136,
+        "wall": 6.656183737999875,
+        "cpu": 2.7454835139999987,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 136,
+        "wall": 6.663715932000059,
+        "cpu": 2.752569551,
+        "peak": 0.19472047400000037,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 11,
+        "wall": 0.37820340300000765,
+        "cpu": 0.16162435200000005,
+        "peak": 0.0946536490000085,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 551,
+        "wall": 75.68246324999984,
+        "cpu": 63.603058434999966,
+        "peak": 0.5444649079999948,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 551,
+        "wall": 75.69285842200001,
+        "cpu": 63.62854289300003,
+        "peak": 0.5444860079999998,
+        "units": 554,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 551,
+        "wall": 16.6326730639997,
+        "cpu": 0,
+        "peak": 0.13230501599999828,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 1,
+        "wall": 0.02138684399999846,
+        "cpu": 0.0017071390000000242,
+        "peak": 0.02138684399999846,
+        "units": 0,
+        "errors": 1
+      },
+      "qualification_observer_equivalent": {
+        "calls": 30,
+        "wall": 0.12164658099995762,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 29,
+        "wall": 0.006009031999994363,
+        "cpu": 0,
+        "peak": 0.00030139199999723587,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 29,
+        "wall": 0.12540818199997972,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 29,
+        "wall": 0.007088436999985959,
+        "cpu": 0,
+        "peak": 0.00036800699999162134,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 29,
+        "wall": 0.004893154999983551,
+        "cpu": 0,
+        "peak": 0.00041270999997777835,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 3,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 1113,
+      "priority4.queue_peak_us": 600743,
+      "priority4.queue_total_us": 20457792,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 2681327,
+      "priority4.completed": 279,
+      "priority2.queue_peak_us": 580973,
+      "priority2.queue_total_us": 6838814,
+      "priority2.execution_peak_us": 544567,
+      "priority2.execution_total_us": 93052201,
+      "priority2.completed": 833,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 11,
+      "checkpoint_handoff_total_us": 390695,
+      "checkpoint_handoff_peak_us": 95185,
+      "queued": 0
+    }
+  },
+  {
+    "elapsed": 180.314,
+    "frames": 665,
+    "source_seconds": 179.55,
+    "source_lag": 0.831,
+    "wal_bytes": 27542232,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 179.83146405220032,
+        "retained_age": 179.83146405220032,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pump": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 179.83146405220032,
+        "retained_age": 179.83146405220032,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      },
+      "program:pumpswap": {
+        "archived_pending": 0,
+        "eligible_hot": 0,
+        "recovery_excess": 0,
+        "hot_age": 179.83146405220032,
+        "retained_age": 179.83146405220032,
+        "archived": 0,
+        "archive_drain": 0,
+        "net_debt_change": 0,
+        "eligibility_arrivals_inferred": 0,
+        "archive_drain_per_second": 0,
+        "eligibility_arrivals_per_second": 0
+      }
+    },
+    "scheduling": {
+      "at": 216.223891431,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [],
+      "feasible": [],
+      "selected": null,
+      "error": null,
+      "committed_frame": 662,
+      "source_coordinate": 178.74,
+      "owner_delay": 0.06500146700000187,
+      "worker_age": null
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 845,
+        "wall": 5.156568362999828,
+        "cpu": 0,
+        "peak": 0.018675577000010435,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 845,
+        "wall": 93.7020964449998,
+        "cpu": 77.57538991300008,
+        "peak": 0.5443950979999954,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 3515,
+        "wall": 0.20839666900030807,
+        "cpu": 0,
+        "peak": 0.0059659970000041085,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 668,
+        "wall": 0.107671074999935,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 667,
+        "wall": 4.7556332749999655,
+        "cpu": 0,
+        "peak": 0.20007978400000326,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 667,
+        "wall": 125.73472499199968,
+        "cpu": 125.71382458400016,
+        "peak": 0.2255961249999956,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 667,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 667,
+        "wall": 21.529647374999747,
+        "cpu": 0,
+        "peak": 0.0649966450000079,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 163,
+        "wall": 8.064222691999795,
+        "cpu": 3.370841907999998,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 163,
+        "wall": 8.073280977000024,
+        "cpu": 3.3793635800000015,
+        "peak": 0.19472047400000037,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 12,
+        "wall": 0.4002923900000255,
+        "cpu": 0.17945212800000035,
+        "peak": 0.0946536490000085,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 662,
+        "wall": 91.43198837599988,
+        "cpu": 76.94416008799996,
+        "peak": 0.5444649079999948,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 662,
+        "wall": 91.44451471299995,
+        "cpu": 76.97489200000005,
+        "peak": 0.5444860079999998,
+        "units": 665,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 662,
+        "wall": 19.419830926999655,
+        "cpu": 0,
+        "peak": 0.13230501599999828,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 1,
+        "wall": 0.02138684399999846,
+        "cpu": 0.0017071390000000242,
+        "peak": 0.02138684399999846,
+        "units": 0,
+        "errors": 1
+      },
+      "qualification_observer_equivalent": {
+        "calls": 36,
+        "wall": 0.1380224279999922,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 35,
+        "wall": 0.007355441000029828,
+        "cpu": 0,
+        "peak": 0.00030139199999723587,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 35,
+        "wall": 0.14407555299994357,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 35,
+        "wall": 0.008759162999972148,
+        "cpu": 0,
+        "peak": 0.00036800699999162134,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 35,
+        "wall": 0.005903718999967111,
+        "cpu": 0,
+        "peak": 0.00041270999997777835,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 3,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 1334,
+      "priority4.queue_peak_us": 600743,
+      "priority4.queue_total_us": 24089448,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 3314056,
+      "priority4.completed": 334,
+      "priority2.queue_peak_us": 580973,
+      "priority2.queue_total_us": 7697850,
+      "priority2.execution_peak_us": 544567,
+      "priority2.execution_total_us": 111754402,
+      "priority2.completed": 1000,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 12,
+      "checkpoint_handoff_total_us": 413177,
+      "checkpoint_handoff_peak_us": 95185,
+      "queued": 0
+    }
+  },
+  {
+    "elapsed": 210.341,
+    "frames": 775,
+    "source_seconds": 209.25,
+    "source_lag": 0.859,
+    "wal_bytes": 43865672,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 0,
+        "eligible_hot": 384,
+        "recovery_excess": 0,
+        "hot_age": 180.85858130455017,
+        "retained_age": 180.85858130455017,
+        "archived": 13824,
+        "archive_drain": 2432,
+        "net_debt_change": -128,
+        "eligibility_arrivals_inferred": 2304,
+        "archive_drain_per_second": 486.1462469240962,
+        "eligibility_arrivals_per_second": 460.5596023491438
+      },
+      "program:pump": {
+        "archived_pending": 0,
+        "eligible_hot": 153,
+        "recovery_excess": 0,
+        "hot_age": 180.85858130455017,
+        "retained_age": 180.85858130455017,
+        "archived": 5508,
+        "archive_drain": 969,
+        "net_debt_change": -51,
+        "eligibility_arrivals_inferred": 918,
+        "archive_drain_per_second": 193.6988952588196,
+        "eligibility_arrivals_per_second": 183.50421656098698
+      },
+      "program:pumpswap": {
+        "archived_pending": 58,
+        "eligible_hot": 367,
+        "recovery_excess": 0,
+        "hot_age": 181.85858130455017,
+        "retained_age": 181.85858130455017,
+        "archived": 9068,
+        "archive_drain": 1559,
+        "net_debt_change": -29,
+        "eligibility_arrivals_inferred": 1530,
+        "archive_drain_per_second": 311.637335096491,
+        "eligibility_arrivals_per_second": 305.84036093497826
+      }
+    },
+    "scheduling": {
+      "at": 246.856544521,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [
+        {
+          "scope": "program:meteora",
+          "side": "archive",
+          "units": 384,
+          "records": 384,
+          "recovery_excess": 0,
+          "safety_deadline": 303.2434823513031,
+          "recovery_deadline": null,
+          "service_deadline": 291.42270608800004,
+          "safety_headroom": 56.38693783030311,
+          "recovery_headroom": null,
+          "service_headroom": 44.56616156700005,
+          "binding": "service"
+        },
+        {
+          "scope": "program:meteora",
+          "side": "retirement",
+          "units": 517,
+          "records": 512,
+          "recovery_excess": 0,
+          "safety_deadline": 302.2434823513031,
+          "recovery_deadline": null,
+          "service_deadline": 287.926815032959,
+          "safety_headroom": 55.38693783030311,
+          "recovery_headroom": null,
+          "service_headroom": 41.070270511958995,
+          "binding": "service"
+        },
+        {
+          "scope": "program:pump",
+          "side": "archive",
+          "units": 153,
+          "records": 153,
+          "recovery_excess": 0,
+          "safety_deadline": 303.2434823513031,
+          "recovery_deadline": null,
+          "service_deadline": 291.42270608800004,
+          "safety_headroom": 56.38693783030311,
+          "recovery_headroom": null,
+          "service_headroom": 44.56616156700005,
+          "binding": "service"
+        },
+        {
+          "scope": "program:pump",
+          "side": "retirement",
+          "units": 209,
+          "records": 204,
+          "recovery_excess": 0,
+          "safety_deadline": 302.2434823513031,
+          "recovery_deadline": null,
+          "service_deadline": 287.94456577301025,
+          "safety_headroom": 55.38693783030311,
+          "recovery_headroom": null,
+          "service_headroom": 41.088021252010265,
+          "binding": "service"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "archive",
+          "units": 367,
+          "records": 367,
+          "recovery_excess": 0,
+          "safety_deadline": 302.2434823513031,
+          "recovery_deadline": null,
+          "service_deadline": 291.42270608800004,
+          "safety_headroom": 55.38693783030311,
+          "recovery_headroom": null,
+          "service_headroom": 44.56616156700005,
+          "binding": "service"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "retirement",
+          "units": 2,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 288.6691792011261,
+          "recovery_deadline": null,
+          "service_deadline": 291.678054685,
+          "safety_headroom": 41.81263468012611,
+          "recovery_headroom": null,
+          "service_headroom": 44.82151016400002,
+          "binding": "safety"
+        },
+        {
+          "scope": "__housekeeping__",
+          "side": "retirement",
+          "units": 2,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 270.1815707683563,
+          "recovery_deadline": null,
+          "service_deadline": 273.19106569300004,
+          "safety_headroom": 23.325026247356334,
+          "recovery_headroom": null,
+          "service_headroom": 26.334521172000052,
+          "binding": "safety"
+        },
+        {
+          "scope": "__archive_receipt__",
+          "side": "archive",
+          "units": 1,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 306.425097855,
+          "recovery_deadline": null,
+          "service_deadline": 291.856544521,
+          "safety_headroom": 59.568553334,
+          "recovery_headroom": null,
+          "service_headroom": 45,
+          "binding": "service"
+        }
+      ],
+      "feasible": [
+        "archive",
+        "retirement"
+      ],
+      "selected": "retirement",
+      "error": null,
+      "committed_frame": 774,
+      "source_coordinate": 208.98000000000002,
+      "owner_delay": 0.16990323299998522,
+      "worker_age": 0.5265735119999988
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 1217,
+        "wall": 7.570833019999334,
+        "cpu": 0,
+        "peak": 0.025963227999994842,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 1217,
+        "wall": 117.57698820000007,
+        "cpu": 95.78340752300004,
+        "peak": 0.5443950979999954,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 4691,
+        "wall": 0.29657080100108146,
+        "cpu": 0,
+        "peak": 0.010760758000003534,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 809,
+        "wall": 0.11753793099999399,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 779,
+        "wall": 5.74028999399998,
+        "cpu": 0,
+        "peak": 0.20007978400000326,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 779,
+        "wall": 149.3127052379996,
+        "cpu": 149.27861169600016,
+        "peak": 0.31533858500000633,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 779,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 779,
+        "wall": 25.654963522999743,
+        "cpu": 0,
+        "peak": 0.0649966450000079,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 181,
+        "wall": 9.655948958999808,
+        "cpu": 3.900278617999997,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 181,
+        "wall": 9.665961755999945,
+        "cpu": 3.909699102000001,
+        "peak": 0.19472047400000037,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 29,
+        "wall": 1.5398199830000223,
+        "cpu": 0.6561211849999999,
+        "peak": 0.13017961399998512,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 772,
+        "wall": 108.09269158599986,
+        "cpu": 90.78713664900002,
+        "peak": 0.5444649079999948,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 771,
+        "wall": 107.98173902699993,
+        "cpu": 90.72028277800005,
+        "peak": 0.5444860079999998,
+        "units": 774,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 771,
+        "wall": 22.04671003499953,
+        "cpu": 0,
+        "peak": 0.13230501599999828,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 51,
+        "wall": 4.768398787999949,
+        "cpu": 3.160896986999997,
+        "peak": 0.22768867900001055,
+        "units": 0,
+        "errors": 47
+      },
+      "qualification_observer_equivalent": {
+        "calls": 42,
+        "wall": 0.1591881700000144,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 41,
+        "wall": 0.008706492999991156,
+        "cpu": 0,
+        "peak": 0.00030139199999723587,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 41,
+        "wall": 0.16693075599997798,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 41,
+        "wall": 0.010919521999959159,
+        "cpu": 0,
+        "peak": 0.00047638899999924433,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 41,
+        "wall": 0.006932138999950155,
+        "cpu": 0,
+        "peak": 0.00041270999997777835,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_plan": {
+        "calls": 30,
+        "wall": 0.8796570540000346,
+        "cpu": 0.8390441259999761,
+        "peak": 0.053824658999985786,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.dispatch_to_start": {
+        "calls": 30,
+        "wall": 0.2505521850000605,
+        "cpu": 0,
+        "peak": 0.010177354000006744,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.native": {
+        "calls": 30,
+        "wall": 10.450454998999987,
+        "cpu": 10.40615303200002,
+        "peak": 0.39109376899997983,
+        "units": 29304,
+        "errors": 0
+      },
+      "archive_worker.injected_wait": {
+        "calls": 30,
+        "wall": 0.3376917629999971,
+        "cpu": 0,
+        "peak": 0.0403604569999777,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.return_transport": {
+        "calls": 30,
+        "wall": 0.1970744799999693,
+        "cpu": 0,
+        "peak": 0.03595766099999764,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_commit": {
+        "calls": 58,
+        "wall": 2.0977131240001086,
+        "cpu": 1.273205835000013,
+        "peak": 0.15095729800000868,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 3,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 1631,
+      "priority4.queue_peak_us": 600743,
+      "priority4.queue_total_us": 49942426,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 12427734,
+      "priority4.completed": 469,
+      "priority2.queue_peak_us": 580973,
+      "priority2.queue_total_us": 25511012,
+      "priority2.execution_peak_us": 544567,
+      "priority2.execution_total_us": 131099990,
+      "priority2.completed": 1161,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 29,
+      "checkpoint_handoff_total_us": 1584417,
+      "checkpoint_handoff_peak_us": 130849,
+      "queued": 2
+    }
+  },
+  {
+    "elapsed": 240.397,
+    "frames": 866,
+    "source_seconds": 233.82000000000002,
+    "source_lag": 6.913,
+    "wal_bytes": 57461672,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 3096,
+        "eligible_hot": 3688,
+        "recovery_excess": 2688,
+        "hot_age": 187.91343331336975,
+        "retained_age": 194.91343331336975,
+        "archived": 24728,
+        "archive_drain": 912,
+        "net_debt_change": 1392,
+        "eligibility_arrivals_inferred": 2304,
+        "archive_drain_per_second": 182.25370804686474,
+        "eligibility_arrivals_per_second": 460.43042032892146
+      },
+      "program:pump": {
+        "archived_pending": 762,
+        "eligible_hot": 1479,
+        "recovery_excess": 479,
+        "hot_age": 187.91343331336975,
+        "retained_age": 191.91343331336975,
+        "archived": 9843,
+        "archive_drain": 408,
+        "net_debt_change": 510,
+        "eligibility_arrivals_inferred": 918,
+        "archive_drain_per_second": 81.53455359991318,
+        "eligibility_arrivals_per_second": 183.45274559980464
+      },
+      "program:pumpswap": {
+        "archived_pending": 2635,
+        "eligible_hot": 2465,
+        "recovery_excess": 1465,
+        "hot_age": 187.91343331336975,
+        "retained_age": 196.91343331336975,
+        "archived": 16405,
+        "archive_drain": 680,
+        "net_debt_change": 850,
+        "eligibility_arrivals_inferred": 1530,
+        "archive_drain_per_second": 135.89092266652196,
+        "eligibility_arrivals_per_second": 305.75457599967444
+      }
+    },
+    "scheduling": {
+      "at": 276.264955746,
+      "ready": {
+        "archive": false,
+        "retirement": true
+      },
+      "needs": [
+        {
+          "scope": "program:meteora",
+          "side": "archive",
+          "units": 3304,
+          "records": 3304,
+          "recovery_excess": 2304,
+          "safety_deadline": 326.2434823513031,
+          "recovery_deadline": 372.2434823513031,
+          "service_deadline": 320.945073298,
+          "safety_headroom": 49.9785266053031,
+          "recovery_headroom": 95.9785266053031,
+          "service_headroom": 44.68011755200001,
+          "binding": "service"
+        },
+        {
+          "scope": "program:meteora",
+          "side": "retirement",
+          "units": 3077,
+          "records": 3072,
+          "recovery_excess": 2072,
+          "safety_deadline": 319.2434823513031,
+          "recovery_deadline": 373.2434823513031,
+          "service_deadline": 317.349444386,
+          "safety_headroom": 42.9785266053031,
+          "recovery_headroom": 96.9785266053031,
+          "service_headroom": 41.08448864000002,
+          "binding": "service"
+        },
+        {
+          "scope": "program:pump",
+          "side": "archive",
+          "units": 1326,
+          "records": 1326,
+          "recovery_excess": 326,
+          "safety_deadline": 326.2434823513031,
+          "recovery_deadline": 383.2434823513031,
+          "service_deadline": 320.945073298,
+          "safety_headroom": 49.9785266053031,
+          "recovery_headroom": 106.9785266053031,
+          "service_headroom": 44.68011755200001,
+          "binding": "service"
+        },
+        {
+          "scope": "program:pump",
+          "side": "retirement",
+          "units": 1535,
+          "records": 1530,
+          "recovery_excess": 530,
+          "safety_deadline": 318.2434823513031,
+          "recovery_deadline": 381.2434823513031,
+          "service_deadline": 303.8159182071686,
+          "safety_headroom": 41.9785266053031,
+          "recovery_headroom": 104.9785266053031,
+          "service_headroom": 27.55096246116858,
+          "binding": "service"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "archive",
+          "units": 2210,
+          "records": 2210,
+          "recovery_excess": 1210,
+          "safety_deadline": 326.2434823513031,
+          "recovery_deadline": 376.2434823513031,
+          "service_deadline": 320.945073298,
+          "safety_headroom": 49.9785266053031,
+          "recovery_headroom": 99.9785266053031,
+          "service_headroom": 44.68011755200001,
+          "binding": "service"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "retirement",
+          "units": 2640,
+          "records": 2635,
+          "recovery_excess": 1635,
+          "safety_deadline": 317.2434823513031,
+          "recovery_deadline": 376.2434823513031,
+          "service_deadline": 303.8395776748657,
+          "safety_headroom": 40.9785266053031,
+          "recovery_headroom": 99.9785266053031,
+          "service_headroom": 27.574621928865724,
+          "binding": "service"
+        },
+        {
+          "scope": "__housekeeping__",
+          "side": "retirement",
+          "units": 1,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 305.05409145355225,
+          "recovery_deadline": null,
+          "service_deadline": 308.111556291,
+          "safety_headroom": 28.789135707552248,
+          "recovery_headroom": null,
+          "service_headroom": 31.846600545,
+          "binding": "safety"
+        }
+      ],
+      "feasible": [
+        "retirement"
+      ],
+      "selected": "retirement",
+      "error": null,
+      "committed_frame": 862,
+      "source_coordinate": 232.74,
+      "owner_delay": 0.21750767600002519,
+      "worker_age": 0.38305846800000154
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 1486,
+        "wall": 9.263224860998783,
+        "cpu": 0,
+        "peak": 0.025963227999994842,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 1486,
+        "wall": 135.91769652600004,
+        "cpu": 110.17681047499998,
+        "peak": 0.899603801000012,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 5616,
+        "wall": 0.3342584900005363,
+        "cpu": 0,
+        "peak": 0.010760758000003534,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 942,
+        "wall": 0.1265914850002119,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 885,
+        "wall": 9.474829553999953,
+        "cpu": 0,
+        "peak": 0.3255839849999802,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 885,
+        "wall": 175.30670073799968,
+        "cpu": 175.23876598300023,
+        "peak": 0.3246807119999744,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 885,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 885,
+        "wall": 30.00977901999969,
+        "cpu": 0,
+        "peak": 0.19408613699999933,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 198,
+        "wall": 10.540683450999701,
+        "cpu": 4.271751716999996,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 197,
+        "wall": 12.654289479999932,
+        "cpu": 4.2845596640000005,
+        "peak": 2.2780179040000235,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 39,
+        "wall": 2.5792639300000744,
+        "cpu": 1.0126919169999997,
+        "peak": 0.24657940899999176,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 818,
+        "wall": 121.6254924939999,
+        "cpu": 102.33752858700004,
+        "peak": 0.8998134219999656,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 818,
+        "wall": 121.64086196499996,
+        "cpu": 102.37596470500011,
+        "peak": 0.8998691769999709,
+        "units": 866,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 818,
+        "wall": 24.35129945699954,
+        "cpu": 0,
+        "peak": 0.2105570619999958,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 86,
+        "wall": 7.645658227000062,
+        "cpu": 5.0531105950000175,
+        "peak": 0.24327956100000847,
+        "units": 0,
+        "errors": 63
+      },
+      "qualification_observer_equivalent": {
+        "calls": 48,
+        "wall": 0.20390363200007044,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 47,
+        "wall": 0.010061708999970165,
+        "cpu": 0,
+        "peak": 0.00030139199999723587,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 47,
+        "wall": 0.2119336939999883,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 47,
+        "wall": 0.013291956999971433,
+        "cpu": 0,
+        "peak": 0.000483021000007966,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 47,
+        "wall": 0.00793522900001875,
+        "cpu": 0,
+        "peak": 0.00041270999997777835,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_plan": {
+        "calls": 58,
+        "wall": 2.0198055179999983,
+        "cpu": 1.8869438089999448,
+        "peak": 0.3111484759999712,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.dispatch_to_start": {
+        "calls": 55,
+        "wall": 1.7538372970001888,
+        "cpu": 0,
+        "peak": 0.32974524899998414,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.native": {
+        "calls": 55,
+        "wall": 17.605939612000014,
+        "cpu": 17.526668016000045,
+        "peak": 0.41571255200000223,
+        "units": 51976,
+        "errors": 0
+      },
+      "archive_worker.injected_wait": {
+        "calls": 55,
+        "wall": 1.5280420950000058,
+        "cpu": 0,
+        "peak": 0.12248741399998658,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.return_transport": {
+        "calls": 55,
+        "wall": 0.3260218239998949,
+        "cpu": 0,
+        "peak": 0.03595766099999764,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_commit": {
+        "calls": 106,
+        "wall": 3.754880657000257,
+        "cpu": 2.374710680000007,
+        "peak": 0.15095729800000868,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 3,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 1838,
+      "priority4.queue_peak_us": 913281,
+      "priority4.queue_total_us": 73246366,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 20642229,
+      "priority4.completed": 587,
+      "priority2.queue_peak_us": 900768,
+      "priority2.queue_total_us": 42282085,
+      "priority2.execution_peak_us": 909006,
+      "priority2.execution_total_us": 147112683,
+      "priority2.completed": 1251,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 40,
+      "checkpoint_handoff_total_us": 2658949,
+      "checkpoint_handoff_peak_us": 253253,
+      "queued": 3
+    }
+  },
+  {
+    "elapsed": 270.421,
+    "frames": 985,
+    "source_seconds": 265.95000000000005,
+    "source_lag": 4.937,
+    "wal_bytes": 49930312,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 1560,
+        "eligible_hot": 7528,
+        "recovery_excess": 6528,
+        "hot_age": 195.9372854232788,
+        "retained_age": 198.9372854232788,
+        "archived": 35224,
+        "archive_drain": 2976,
+        "net_debt_change": -544,
+        "eligibility_arrivals_inferred": 2432,
+        "archive_drain_per_second": 594.6750249317786,
+        "eligibility_arrivals_per_second": 485.9709881162921
+      },
+      "program:pump": {
+        "archived_pending": 153,
+        "eligible_hot": 3060,
+        "recovery_excess": 2060,
+        "hot_age": 195.9372854232788,
+        "retained_age": 196.9372854232788,
+        "archived": 13974,
+        "archive_drain": 1326,
+        "net_debt_change": -357,
+        "eligibility_arrivals_inferred": 969,
+        "archive_drain_per_second": 264.9660897377481,
+        "eligibility_arrivals_per_second": 193.62906557758515
+      },
+      "program:pumpswap": {
+        "archived_pending": 1102,
+        "eligible_hot": 5100,
+        "recovery_excess": 4100,
+        "hot_age": 195.9372854232788,
+        "retained_age": 199.9372854232788,
+        "archived": 23290,
+        "archive_drain": 2210,
+        "net_debt_change": -595,
+        "eligibility_arrivals_inferred": 1615,
+        "archive_drain_per_second": 441.6101495629135,
+        "eligibility_arrivals_per_second": 322.71510929597525
+      }
+    },
+    "scheduling": {
+      "at": 307.102676737,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [
+        {
+          "scope": "program:meteora",
+          "side": "archive",
+          "units": 7680,
+          "records": 7680,
+          "recovery_excess": 6680,
+          "safety_deadline": 348.2434823513031,
+          "recovery_deadline": 372.2434823513031,
+          "service_deadline": 351.659466286,
+          "safety_headroom": 41.140805614303076,
+          "recovery_headroom": 65.14080561430308,
+          "service_headroom": 44.55678954899997,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:meteora",
+          "side": "retirement",
+          "units": 1413,
+          "records": 1408,
+          "recovery_excess": 408,
+          "safety_deadline": 345.2434823513031,
+          "recovery_deadline": 419.2434823513031,
+          "service_deadline": 351.157170859,
+          "safety_headroom": 38.140805614303076,
+          "recovery_headroom": 112.14080561430308,
+          "service_headroom": 44.054494121999994,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:pump",
+          "side": "archive",
+          "units": 3165,
+          "records": 3165,
+          "recovery_excess": 2165,
+          "safety_deadline": 347.2434823513031,
+          "recovery_deadline": 383.2434823513031,
+          "service_deadline": 351.659466286,
+          "safety_headroom": 40.140805614303076,
+          "recovery_headroom": 76.14080561430308,
+          "service_headroom": 44.55678954899997,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "archive",
+          "units": 5355,
+          "records": 5355,
+          "recovery_excess": 4355,
+          "safety_deadline": 347.2434823513031,
+          "recovery_deadline": 376.2434823513031,
+          "service_deadline": 351.659466286,
+          "safety_headroom": 40.140805614303076,
+          "recovery_headroom": 69.14080561430308,
+          "service_headroom": 44.55678954899997,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "retirement",
+          "units": 852,
+          "records": 847,
+          "recovery_excess": 0,
+          "safety_deadline": 344.2434823513031,
+          "recovery_deadline": null,
+          "service_deadline": 350.291865348,
+          "safety_headroom": 37.140805614303076,
+          "recovery_headroom": null,
+          "service_headroom": 43.18918861099996,
+          "binding": "safety"
+        },
+        {
+          "scope": "__housekeeping__",
+          "side": "retirement",
+          "units": 2,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 342.3546214103699,
+          "recovery_deadline": null,
+          "service_deadline": 345.43328049,
+          "safety_headroom": 35.25194467336985,
+          "recovery_headroom": null,
+          "service_headroom": 38.33060375299999,
+          "binding": "safety"
+        },
+        {
+          "scope": "__archive_receipt__",
+          "side": "archive",
+          "units": 1,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 366.660884774,
+          "recovery_deadline": null,
+          "service_deadline": 352.102676737,
+          "safety_headroom": 59.558208036999986,
+          "recovery_headroom": null,
+          "service_headroom": 45,
+          "binding": "service"
+        }
+      ],
+      "feasible": [
+        "archive",
+        "retirement"
+      ],
+      "selected": "archive",
+      "error": null,
+      "committed_frame": 985,
+      "source_coordinate": 265.95000000000005,
+      "owner_delay": 0.21113274200001797,
+      "worker_age": 0.46888285500000393
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 1766,
+        "wall": 11.154427763999202,
+        "cpu": 0,
+        "peak": 0.04794648500001131,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 1766,
+        "wall": 158.21756919400002,
+        "cpu": 127.82848344200016,
+        "peak": 0.899603801000012,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 6559,
+        "wall": 0.45608292700097763,
+        "cpu": 0,
+        "peak": 0.051896362000036333,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 1078,
+        "wall": 0.13579635299979742,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 1001,
+        "wall": 11.647875641999704,
+        "cpu": 0,
+        "peak": 0.3255839849999802,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 1001,
+        "wall": 199.6672990039993,
+        "cpu": 199.5877218610002,
+        "peak": 0.3246807119999744,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 1001,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 1001,
+        "wall": 34.05586711499988,
+        "cpu": 0,
+        "peak": 0.19408613699999933,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 212,
+        "wall": 11.96503471899971,
+        "cpu": 4.752515599999995,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 211,
+        "wall": 14.079349849999915,
+        "cpu": 4.765991411999998,
+        "peak": 2.2780179040000235,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 53,
+        "wall": 4.277467356000095,
+        "cpu": 1.506655235999998,
+        "peak": 0.24657940899999176,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 899,
+        "wall": 138.37930456399982,
+        "cpu": 116.41028375200013,
+        "peak": 0.8998134219999656,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 899,
+        "wall": 138.39613377199998,
+        "cpu": 116.45292370200002,
+        "peak": 0.8998691769999709,
+        "units": 985,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 899,
+        "wall": 27.849987200999568,
+        "cpu": 0,
+        "peak": 0.23154555300002133,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 125,
+        "wall": 11.479594809999973,
+        "cpu": 7.656127855000047,
+        "peak": 0.24327956100000847,
+        "units": 0,
+        "errors": 101
+      },
+      "qualification_observer_equivalent": {
+        "calls": 54,
+        "wall": 0.2224281060000166,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 53,
+        "wall": 0.011433097999955066,
+        "cpu": 0,
+        "peak": 0.00030139199999723587,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 53,
+        "wall": 0.2312773259998906,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 53,
+        "wall": 0.015673640000038347,
+        "cpu": 0,
+        "peak": 0.0005268230000297081,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 53,
+        "wall": 0.008895830000049898,
+        "cpu": 0,
+        "peak": 0.00041270999997777835,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_plan": {
+        "calls": 79,
+        "wall": 3.1757583020001903,
+        "cpu": 2.927549507999885,
+        "peak": 0.3111484759999712,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.dispatch_to_start": {
+        "calls": 76,
+        "wall": 2.2602631150002708,
+        "cpu": 0,
+        "peak": 0.32974524899998414,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.native": {
+        "calls": 76,
+        "wall": 24.619435958000025,
+        "cpu": 24.470552795000003,
+        "peak": 0.41571255200000223,
+        "units": 72976,
+        "errors": 0
+      },
+      "archive_worker.injected_wait": {
+        "calls": 76,
+        "wall": 2.22856129699995,
+        "cpu": 0,
+        "peak": 0.12248741399998658,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.return_transport": {
+        "calls": 76,
+        "wall": 0.4518610619999208,
+        "cpu": 0,
+        "peak": 0.03595766099999764,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_commit": {
+        "calls": 149,
+        "wall": 5.118285408000105,
+        "cpu": 3.3633352299999757,
+        "peak": 0.15095729800000868,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 4,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 2066,
+      "priority4.queue_peak_us": 913281,
+      "priority4.queue_total_us": 103606715,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 28634544,
+      "priority4.completed": 692,
+      "priority2.queue_peak_us": 900768,
+      "priority2.queue_total_us": 64362681,
+      "priority2.execution_peak_us": 909006,
+      "priority2.execution_total_us": 167473479,
+      "priority2.completed": 1373,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 53,
+      "checkpoint_handoff_total_us": 4437758,
+      "checkpoint_handoff_peak_us": 253253,
+      "queued": 2
+    }
+  },
+  {
+    "elapsed": 300.472,
+    "frames": 1096,
+    "source_seconds": 295.92,
+    "source_lag": 4.989,
+    "wal_bytes": 34233112,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 640,
+        "eligible_hot": 9088,
+        "recovery_excess": 8088,
+        "hot_age": 198.9887945652008,
+        "retained_age": 200.9887945652008,
+        "archived": 47872,
+        "archive_drain": 808,
+        "net_debt_change": 1624,
+        "eligibility_arrivals_inferred": 2432,
+        "archive_drain_per_second": 161.46429233011807,
+        "eligibility_arrivals_per_second": 485.9915333500583
+      },
+      "program:pump": {
+        "archived_pending": 0,
+        "eligible_hot": 3621,
+        "recovery_excess": 2621,
+        "hot_age": 198.9887945652008,
+        "retained_age": 198.9887945652008,
+        "archived": 19074,
+        "archive_drain": 357,
+        "net_debt_change": 612,
+        "eligibility_arrivals_inferred": 969,
+        "archive_drain_per_second": 71.34004005179722,
+        "eligibility_arrivals_per_second": 193.63725156916385
+      },
+      "program:pumpswap": {
+        "archived_pending": 7,
+        "eligible_hot": 6283,
+        "recovery_excess": 5283,
+        "hot_age": 199.9887945652008,
+        "retained_age": 199.9887945652008,
+        "archived": 31542,
+        "archive_drain": 347,
+        "net_debt_change": 1268,
+        "eligibility_arrivals_inferred": 1615,
+        "archive_drain_per_second": 69.34171960216703,
+        "eligibility_arrivals_per_second": 322.7287526152731
+      }
+    },
+    "scheduling": {
+      "at": 337.144216816,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      },
+      "needs": [
+        {
+          "scope": "program:meteora",
+          "side": "archive",
+          "units": 9088,
+          "records": 9088,
+          "recovery_excess": 8088,
+          "safety_deadline": 375.2434823513031,
+          "recovery_deadline": 372.2434823513031,
+          "service_deadline": 378.28788547,
+          "safety_headroom": 38.09926553530312,
+          "recovery_headroom": 35.09926553530312,
+          "service_headroom": 41.14366865400001,
+          "binding": "recovery"
+        },
+        {
+          "scope": "program:meteora",
+          "side": "retirement",
+          "units": 1152,
+          "records": 1152,
+          "recovery_excess": 152,
+          "safety_deadline": 372.2434823513031,
+          "recovery_deadline": 419.2434823513031,
+          "service_deadline": 381.729833947,
+          "safety_headroom": 35.09926553530312,
+          "recovery_headroom": 82.09926553530312,
+          "service_headroom": 44.58561713099999,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:pump",
+          "side": "archive",
+          "units": 3621,
+          "records": 3621,
+          "recovery_excess": 2621,
+          "safety_deadline": 375.2434823513031,
+          "recovery_deadline": 383.2434823513031,
+          "service_deadline": 378.28788547,
+          "safety_headroom": 38.09926553530312,
+          "recovery_headroom": 46.09926553530312,
+          "service_headroom": 41.14366865400001,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "archive",
+          "units": 6283,
+          "records": 6283,
+          "recovery_excess": 5283,
+          "safety_deadline": 374.2434823513031,
+          "recovery_deadline": 376.2434823513031,
+          "service_deadline": 378.28788547,
+          "safety_headroom": 37.09926553530312,
+          "recovery_headroom": 39.09926553530312,
+          "service_headroom": 41.14366865400001,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "retirement",
+          "units": 2,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 378.9237811565399,
+          "recovery_deadline": null,
+          "service_deadline": 381.931468486,
+          "safety_headroom": 41.779564340539935,
+          "recovery_headroom": null,
+          "service_headroom": 44.787251670000046,
+          "binding": "safety"
+        },
+        {
+          "scope": "__housekeeping__",
+          "side": "retirement",
+          "units": 2,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 342.3546214103699,
+          "recovery_deadline": null,
+          "service_deadline": 345.43328049,
+          "safety_headroom": 5.210404594369891,
+          "recovery_headroom": null,
+          "service_headroom": 8.289063674000033,
+          "binding": "safety"
+        },
+        {
+          "scope": "__archive_receipt__",
+          "side": "archive",
+          "units": 1,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 392.624855204,
+          "recovery_deadline": null,
+          "service_deadline": 378.258410258,
+          "safety_headroom": 55.480638388000045,
+          "recovery_headroom": null,
+          "service_headroom": 41.114193442000044,
+          "binding": "service"
+        }
+      ],
+      "feasible": [
+        "retirement"
+      ],
+      "selected": "retirement",
+      "error": null,
+      "committed_frame": 1096,
+      "source_coordinate": 295.92
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 2069,
+        "wall": 13.282192418999223,
+        "cpu": 0,
+        "peak": 0.08543151099996749,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 2069,
+        "wall": 181.2461077259993,
+        "cpu": 145.327440372,
+        "peak": 0.899603801000012,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 7578,
+        "wall": 0.5659158460005074,
+        "cpu": 0,
+        "peak": 0.051896362000036333,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 1215,
+        "wall": 0.14676024699989654,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 1112,
+        "wall": 12.583013488999725,
+        "cpu": 0,
+        "peak": 0.3255839849999802,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 1112,
+        "wall": 222.51771388599917,
+        "cpu": 222.4158936700002,
+        "peak": 0.3246807119999744,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 1112,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 1112,
+        "wall": 38.221882400999824,
+        "cpu": 0,
+        "peak": 0.20127970400000095,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 227,
+        "wall": 13.551783763999687,
+        "cpu": 5.218037305999994,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 226,
+        "wall": 15.666892917999917,
+        "cpu": 5.232264071999995,
+        "peak": 2.2780179040000235,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 69,
+        "wall": 5.836290483000191,
+        "cpu": 2.0581508240000015,
+        "peak": 0.24657940899999176,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 992,
+        "wall": 154.40657201699952,
+        "cpu": 129.648610312,
+        "peak": 0.8998134219999656,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 992,
+        "wall": 154.42517480400005,
+        "cpu": 129.6957619069999,
+        "peak": 0.8998691769999709,
+        "units": 1096,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 992,
+        "wall": 31.169495696999522,
+        "cpu": 0,
+        "peak": 0.23154555300002133,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 165,
+        "wall": 16.013891751999886,
+        "cpu": 10.671585359999934,
+        "peak": 0.36640125299999227,
+        "units": 0,
+        "errors": 141
+      },
+      "qualification_observer_equivalent": {
+        "calls": 60,
+        "wall": 0.2564338569999549,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 59,
+        "wall": 0.012951462000003744,
+        "cpu": 0,
+        "peak": 0.00030270500002416156,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 59,
+        "wall": 0.26743454999985516,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 59,
+        "wall": 0.018205491999985668,
+        "cpu": 0,
+        "peak": 0.0005268230000297081,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 59,
+        "wall": 0.010133478000078355,
+        "cpu": 0,
+        "peak": 0.00041270999997777835,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_plan": {
+        "calls": 105,
+        "wall": 3.992136408000192,
+        "cpu": 3.6759017739998683,
+        "peak": 0.3111484759999712,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.dispatch_to_start": {
+        "calls": 102,
+        "wall": 2.496748796000361,
+        "cpu": 0,
+        "peak": 0.32974524899998414,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.native": {
+        "calls": 102,
+        "wall": 33.89277037700006,
+        "cpu": 33.5958110709999,
+        "peak": 0.41676076400000284,
+        "units": 98976,
+        "errors": 0
+      },
+      "archive_worker.injected_wait": {
+        "calls": 102,
+        "wall": 2.633789982999844,
+        "cpu": 0,
+        "peak": 0.12248741399998658,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.return_transport": {
+        "calls": 102,
+        "wall": 0.8336544050000043,
+        "cpu": 0,
+        "peak": 0.1923081300000149,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_commit": {
+        "calls": 201,
+        "wall": 7.27805348300015,
+        "cpu": 4.552822929999891,
+        "peak": 0.2239020150000215,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 4,
+      "priority0.queue_peak_us": 5617,
+      "priority0.queue_total_us": 5702,
+      "priority0.execution_peak_us": 7268,
+      "priority0.execution_total_us": 7300,
+      "priority0.completed": 2,
+      "nonurgent_fifo_selections": 2321,
+      "priority4.queue_peak_us": 913281,
+      "priority4.queue_total_us": 130668417,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 37533101,
+      "priority4.completed": 808,
+      "priority2.queue_peak_us": 900768,
+      "priority2.queue_total_us": 85282009,
+      "priority2.execution_peak_us": 909006,
+      "priority2.execution_total_us": 186926366,
+      "priority2.completed": 1512,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 69,
+      "checkpoint_handoff_total_us": 6082649,
+      "checkpoint_handoff_peak_us": 253253,
+      "queued": 1
+    }
+  },
+  {
+    "elapsed": 330.561,
+    "frames": 1209,
+    "source_seconds": 326.43,
+    "source_lag": 4.078,
+    "wal_bytes": 0,
+    "scopes": {
+      "program:meteora": {
+        "archived_pending": 8192,
+        "eligible_hot": 7936,
+        "recovery_excess": 6936,
+        "hot_age": 196.07835006713867,
+        "retained_age": 214.07835006713867,
+        "archived": 63616,
+        "archive_drain": 2944,
+        "net_debt_change": -640,
+        "eligibility_arrivals_inferred": 2304,
+        "archive_drain_per_second": 588.3902622023945,
+        "eligibility_arrivals_per_second": 460.4793356366566
+      },
+      "program:pump": {
+        "archived_pending": 969,
+        "eligible_hot": 3162,
+        "recovery_excess": 2162,
+        "hot_age": 196.07835006713867,
+        "retained_age": 201.07835006713867,
+        "archived": 25347,
+        "archive_drain": 1173,
+        "net_debt_change": -255,
+        "eligibility_arrivals_inferred": 918,
+        "archive_drain_per_second": 234.43674509626658,
+        "eligibility_arrivals_per_second": 183.47223529273035
+      },
+      "program:pumpswap": {
+        "archived_pending": 3143,
+        "eligible_hot": 5502,
+        "recovery_excess": 4502,
+        "hot_age": 197.07835006713867,
+        "retained_age": 207.07835006713867,
+        "archived": 42013,
+        "archive_drain": 1883,
+        "net_debt_change": -353,
+        "eligibility_arrivals_inferred": 1530,
+        "archive_drain_per_second": 376.3379292551321,
+        "eligibility_arrivals_per_second": 305.7870588212173
+      }
+    },
+    "scheduling": {
+      "at": 366.571091259,
+      "ready": {
+        "archive": false,
+        "retirement": true
+      },
+      "needs": [
+        {
+          "scope": "program:meteora",
+          "side": "archive",
+          "units": 7552,
+          "records": 7552,
+          "recovery_excess": 6552,
+          "safety_deadline": 408.2434823513031,
+          "recovery_deadline": 372.2434823513031,
+          "service_deadline": 411.385427931,
+          "safety_headroom": 41.67239109230309,
+          "recovery_headroom": 5.672391092303087,
+          "service_headroom": 44.81433667199997,
+          "binding": "recovery"
+        },
+        {
+          "scope": "program:meteora",
+          "side": "retirement",
+          "units": 8197,
+          "records": 8192,
+          "recovery_excess": 7192,
+          "safety_deadline": 390.2434823513031,
+          "recovery_deadline": 457.2434823513031,
+          "service_deadline": 407.088795849,
+          "safety_headroom": 23.672391092303087,
+          "recovery_headroom": 90.67239109230309,
+          "service_headroom": 40.517704589999994,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:pump",
+          "side": "archive",
+          "units": 3009,
+          "records": 3009,
+          "recovery_excess": 2009,
+          "safety_deadline": 408.2434823513031,
+          "recovery_deadline": 383.2434823513031,
+          "service_deadline": 411.385427931,
+          "safety_headroom": 41.67239109230309,
+          "recovery_headroom": 16.672391092303087,
+          "service_headroom": 44.81433667199997,
+          "binding": "recovery"
+        },
+        {
+          "scope": "program:pump",
+          "side": "retirement",
+          "units": 974,
+          "records": 969,
+          "recovery_excess": 0,
+          "safety_deadline": 403.2434823513031,
+          "recovery_deadline": null,
+          "service_deadline": 404.7778158187866,
+          "safety_headroom": 36.67239109230309,
+          "recovery_headroom": null,
+          "service_headroom": 38.20672455978661,
+          "binding": "safety"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "archive",
+          "units": 5247,
+          "records": 5247,
+          "recovery_excess": 4247,
+          "safety_deadline": 407.2434823513031,
+          "recovery_deadline": 376.2434823513031,
+          "service_deadline": 411.385427931,
+          "safety_headroom": 40.67239109230309,
+          "recovery_headroom": 9.672391092303087,
+          "service_headroom": 44.81433667199997,
+          "binding": "recovery"
+        },
+        {
+          "scope": "program:pumpswap",
+          "side": "retirement",
+          "units": 3125,
+          "records": 3120,
+          "recovery_excess": 2120,
+          "safety_deadline": 397.2434823513031,
+          "recovery_deadline": 466.2434823513031,
+          "service_deadline": 407.811728389,
+          "safety_headroom": 30.672391092303087,
+          "recovery_headroom": 99.67239109230309,
+          "service_headroom": 41.24063712999998,
+          "binding": "safety"
+        },
+        {
+          "scope": "__housekeeping__",
+          "side": "retirement",
+          "units": 2,
+          "records": 0,
+          "recovery_excess": 0,
+          "safety_deadline": 380.42155265808105,
+          "recovery_deadline": null,
+          "service_deadline": 383.435151797,
+          "safety_headroom": 13.850461399081041,
+          "recovery_headroom": null,
+          "service_headroom": 16.86406053799999,
+          "binding": "safety"
+        }
+      ],
+      "feasible": [],
+      "selected": null,
+      "error": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides",
+      "committed_frame": 1207,
+      "source_coordinate": 325.89000000000004,
+      "owner_delay": 0.1804958400000487,
+      "worker_age": 0.18430015700005242
+    },
+    "metrics": {
+      "transaction_injected_wait": {
+        "calls": 2393,
+        "wall": 15.551943253999077,
+        "cpu": 0,
+        "peak": 0.19115898399996922,
+        "units": 0,
+        "errors": 0
+      },
+      "outer_transaction": {
+        "calls": 2393,
+        "wall": 204.37662882499944,
+        "cpu": 162.82748911899975,
+        "peak": 0.899603801000012,
+        "units": 0,
+        "errors": 0
+      },
+      "diagnostic_wrapper": {
+        "calls": 8689,
+        "wall": 0.6201828190003198,
+        "cpu": 0,
+        "peak": 0.051896362000036333,
+        "units": 0,
+        "errors": 0
+      },
+      "worker_parent_submission": {
+        "calls": 1358,
+        "wall": 0.15949221200052222,
+        "cpu": 0,
+        "peak": 0.055820093000001236,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.dispatch_to_start": {
+        "calls": 1223,
+        "wall": 14.30041132700002,
+        "cpu": 0,
+        "peak": 0.3255839849999802,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.native": {
+        "calls": 1223,
+        "wall": 246.58339979299927,
+        "cpu": 246.4727148970002,
+        "peak": 0.3246807119999744,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.injected_wait": {
+        "calls": 1223,
+        "wall": 0,
+        "cpu": 0,
+        "peak": 0,
+        "units": 0,
+        "errors": 0
+      },
+      "source_worker.return_transport": {
+        "calls": 1223,
+        "wall": 42.59449414399942,
+        "cpu": 0,
+        "peak": 0.26671975300001804,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_passive_native": {
+        "calls": 244,
+        "wall": 15.377934175999805,
+        "cpu": 5.782551508999993,
+        "peak": 0.194671692,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_with_workload_interaction": {
+        "calls": 243,
+        "wall": 17.49393667399994,
+        "cpu": 5.797611572999998,
+        "peak": 2.2780179040000235,
+        "units": 0,
+        "errors": 0
+      },
+      "checkpoint_boundary_native": {
+        "calls": 86,
+        "wall": 7.43983665200016,
+        "cpu": 2.5801917350000028,
+        "peak": 0.24657940899999176,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.source_commit": {
+        "calls": 1099,
+        "wall": 171.81651557299944,
+        "cpu": 143.54874873000003,
+        "peak": 0.8998134219999656,
+        "units": 0,
+        "errors": 0
+      },
+      "source_owner_native": {
+        "calls": 1099,
+        "wall": 171.8370923840002,
+        "cpu": 143.60071114599998,
+        "peak": 0.8998691769999709,
+        "units": 1209,
+        "errors": 0
+      },
+      "source_owner_injected_wait": {
+        "calls": 1099,
+        "wall": 33.74320409399937,
+        "cpu": 0,
+        "peak": 0.23154555300002133,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.retention": {
+        "calls": 200,
+        "wall": 19.22836681799975,
+        "cpu": 12.913748684000009,
+        "peak": 0.36640125299999227,
+        "units": 0,
+        "errors": 175
+      },
+      "qualification_observer_equivalent": {
+        "calls": 66,
+        "wall": 0.2775557320000175,
+        "cpu": 0,
+        "peak": 0.034564797999991015,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_debug_observer": {
+        "calls": 65,
+        "wall": 0.018156101999991847,
+        "cpu": 0,
+        "peak": 0.004104326000003766,
+        "units": 0,
+        "errors": 0
+      },
+      "periodic_observer_total": {
+        "calls": 65,
+        "wall": 0.2946308029998548,
+        "cpu": 0,
+        "peak": 0.03476916899998628,
+        "units": 0,
+        "errors": 0
+      },
+      "serialization": {
+        "calls": 65,
+        "wall": 0.02061800100005229,
+        "cpu": 0,
+        "peak": 0.0005268230000297081,
+        "units": 0,
+        "errors": 0
+      },
+      "persistence": {
+        "calls": 65,
+        "wall": 0.011276126999995029,
+        "cpu": 0,
+        "peak": 0.00041270999997777835,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_plan": {
+        "calls": 138,
+        "wall": 5.303970504000404,
+        "cpu": 4.8958512759997745,
+        "peak": 0.3111484759999712,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.dispatch_to_start": {
+        "calls": 135,
+        "wall": 2.909637578000286,
+        "cpu": 0,
+        "peak": 0.32974524899998414,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.native": {
+        "calls": 135,
+        "wall": 45.02103299300043,
+        "cpu": 44.588320656999855,
+        "peak": 0.4206932260000258,
+        "units": 131976,
+        "errors": 0
+      },
+      "archive_worker.injected_wait": {
+        "calls": 135,
+        "wall": 3.6736705379996364,
+        "cpu": 0,
+        "peak": 0.12248741399998658,
+        "units": 0,
+        "errors": 0
+      },
+      "archive_worker.return_transport": {
+        "calls": 135,
+        "wall": 1.0828655330000174,
+        "cpu": 0,
+        "peak": 0.1923081300000149,
+        "units": 0,
+        "errors": 0
+      },
+      "stage.archive_commit": {
+        "calls": 266,
+        "wall": 9.343559391000014,
+        "cpu": 5.9785850499998645,
+        "peak": 0.2239020150000215,
+        "units": 0,
+        "errors": 0
+      }
+    },
+    "owner": {
+      "queue_peak": 4,
+      "priority0.queue_peak_us": 180893,
+      "priority0.queue_total_us": 354934,
+      "priority0.execution_peak_us": 7320,
+      "priority0.execution_total_us": 28837,
+      "priority0.completed": 6,
+      "nonurgent_fifo_selections": 2607,
+      "priority4.queue_peak_us": 913281,
+      "priority4.queue_total_us": 156671730,
+      "priority4.execution_peak_us": 410068,
+      "priority4.execution_total_us": 45546217,
+      "priority4.completed": 937,
+      "priority2.queue_peak_us": 900768,
+      "priority2.queue_total_us": 103767199,
+      "priority2.execution_peak_us": 909006,
+      "priority2.execution_total_us": 206969531,
+      "priority2.completed": 1670,
+      "priority1.queue_peak_us": 113,
+      "priority1.queue_total_us": 113,
+      "priority1.execution_peak_us": 10386,
+      "priority1.execution_total_us": 10386,
+      "priority1.completed": 1,
+      "checkpoint_handoffs": 86,
+      "checkpoint_handoff_total_us": 7797900,
+      "checkpoint_handoff_peak_us": 253253,
+      "queued": 0
+    }
+  }
+]

@@ -1,0 +1,79 @@
+{
+  "from": 210.341,
+  "to": 300.472,
+  "seconds": 90.13099999999997,
+  "metrics": {
+    "checkpoint_passive_native": {
+      "wall": 3.895834804999879,
+      "cpu": 1.317758687999997,
+      "calls": 46,
+      "units": 0
+    },
+    "checkpoint_with_workload_interaction": {
+      "wall": 6.000931161999972,
+      "cpu": 1.322564969999994,
+      "calls": 45,
+      "units": 0
+    },
+    "checkpoint_boundary_native": {
+      "wall": 4.296470500000169,
+      "cpu": 1.4020296390000015,
+      "calls": 40,
+      "units": 0
+    },
+    "source_owner_native": {
+      "wall": 46.44343577700012,
+      "cpu": 38.97547912899985,
+      "calls": 221,
+      "units": 322
+    },
+    "source_owner_injected_wait": {
+      "wall": 9.122785661999991,
+      "cpu": 0,
+      "calls": 221,
+      "units": 0
+    },
+    "stage.retention": {
+      "wall": 11.245492963999936,
+      "cpu": 7.510688372999937,
+      "calls": 114,
+      "units": 0
+    },
+    "stage.archive_plan": {
+      "wall": 3.1124793540001576,
+      "cpu": 2.836857647999892,
+      "calls": 75,
+      "units": 0
+    },
+    "archive_worker.dispatch_to_start": {
+      "wall": 2.2461966110003004,
+      "cpu": 0,
+      "calls": 72,
+      "units": 0
+    },
+    "archive_worker.native": {
+      "wall": 23.442315378000075,
+      "cpu": 23.18965803899988,
+      "calls": 72,
+      "units": 69672
+    },
+    "archive_worker.injected_wait": {
+      "wall": 2.296098219999847,
+      "cpu": 0,
+      "calls": 72,
+      "units": 0
+    },
+    "archive_worker.return_transport": {
+      "wall": 0.636579925000035,
+      "cpu": 0,
+      "calls": 72,
+      "units": 0
+    },
+    "stage.archive_commit": {
+      "wall": 5.180340359000041,
+      "cpu": 3.279617094999878,
+      "calls": 143,
+      "units": 0
+    }
+  }
+}

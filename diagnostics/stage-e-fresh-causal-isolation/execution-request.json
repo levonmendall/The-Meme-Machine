@@ -1,20 +1,11 @@
 {
   "version": 1,
   "validate_only": false,
+  "package_only": true,
   "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
   "paper_only": true,
   "market_authority": false,
-  "material_variant_number": 2,
-  "variants": [
-    {
-      "id": "M2-capacity-without-urgent-acks",
-      "frames": 4445,
-      "sample_seconds": 5,
-      "source_owner_floor": 0.165,
-      "archive_floor": 0.36,
-      "commit_latency": 0.006,
-      "urgent_controls": false
-    }
-  ],
-  "reason": "Fresh M1 was truncated by native retirement SQL interruption leaving an in-flight arbiter decision, with ~95 seconds recovery headroom. Remove only urgent ACK load (periodic and candidate ACKs) to observe upstream capacity beyond this separate blocker; keep data reads, all source/profile costs, readers, checkpoints and production semantics."
+  "material_variants_consumed": 2,
+  "variants": [],
+  "reason": "Astra hard stop reached. Publish committed review files and hash-verified existing M1/M2 evidence only; do not import/run the harness, tests, certification, SQLite workloads, or additional diagnostic variants."
 }
