@@ -288,6 +288,8 @@ async def run(config,output):
                         event=self.ring[-1]
                         row.update(owner_delay=event.get('owner_delay'),execution=event.get('execution'),
                                    durable_records=event.get('durable_records'),error=event.get('error'))
+                    pending=self.arbiter.pending
+                    row['pending_after_turn']=None if pending is None else dict(sequence=pending.sequence,side=pending.side,started=pending.started)
                     with G.lock: G.latest=row; G.ring.append(row)
                 G.add('diagnostic_wrapper',time.monotonic()-begin)
 
@@ -362,7 +364,8 @@ async def run(config,output):
                     plane=RuntimeEvidence(path,owner='meteora')
                     try:
                         top=plane.frontier('program:meteora')
-                        plane.command(op='ack',owner='meteora:run381',scope='program:meteora',slot=top)
+                        if config.get('urgent_controls',True):
+                            plane.command(op='ack',owner='meteora:run381',scope='program:meteora',slot=top)
                         counts={s:len(plane.reader.window(s,top,top,as_of=time.time())) for s in SCOPES}
                         assert counts['program:meteora']==128 and all(counts.values())
                     finally: plane.close()
@@ -386,7 +389,7 @@ async def run(config,output):
         observer.thread.start()
         runner=asyncio.create_task(service.serve(path,
             'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
-        ack=asyncio.create_task(control.acknowledgements())
+        ack=asyncio.create_task(control.acknowledgements() if config.get('urgent_controls',True) else stop.wait())
         reads=asyncio.create_task(candidate_reads())
         try:
             while True:
@@ -484,6 +487,7 @@ def main():
     assert config['archive_floor']==workload.ARCHIVE_SECONDS_PER_THOUSAND
     assert config['commit_latency']==workload.COMMIT_LATENCY_SECONDS
     assert config['source_owner_floor'] in (0.,workload.OWNER_SECONDS_PER_FRAME)
+    assert type(config.get('urgent_controls',True)) is bool
     asyncio.run(run(config,Path(args.output)))
 
 

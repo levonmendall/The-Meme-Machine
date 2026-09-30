@@ -4,16 +4,17 @@
   "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
   "paper_only": true,
   "market_authority": false,
-  "material_variant_number": 1,
+  "material_variant_number": 2,
   "variants": [
     {
-      "id": "M1-fresh-baseline",
+      "id": "M2-capacity-without-urgent-acks",
       "frames": 4445,
       "sample_seconds": 5,
       "source_owner_floor": 0.165,
       "archive_floor": 0.36,
-      "commit_latency": 0.006
+      "commit_latency": 0.006,
+      "urgent_controls": false
     }
   ],
-  "reason": "Material variant 1: fresh coupled baseline. Syntax, arithmetic, source identity and resource checks passed. Preserve unchanged-base unit suite failures (1 failure, 2 errors, 46 skips), including older pressure clocks. Do not repair them or claim complete deterministic green."
+  "reason": "Fresh M1 was truncated by native retirement SQL interruption leaving an in-flight arbiter decision, with ~95 seconds recovery headroom. Remove only urgent ACK load (periodic and candidate ACKs) to observe upstream capacity beyond this separate blocker; keep data reads, all source/profile costs, readers, checkpoints and production semantics."
 }

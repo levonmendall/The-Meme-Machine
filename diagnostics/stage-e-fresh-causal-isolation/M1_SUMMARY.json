@@ -1,0 +1,488 @@
+{
+  "arrival_definition": "delta eligible hot + delta durable archived in same read snapshot; invalid with pins/gaps",
+  "canonical_authority": false,
+  "completed_frames": 886,
+  "configuration": {
+    "archive_floor": 0.36,
+    "commit_latency": 0.006,
+    "frames": 4445,
+    "id": "M1-fresh-baseline",
+    "sample_seconds": 5,
+    "source_owner_floor": 0.165
+  },
+  "counters": {
+    "archive_bytes": 117183619,
+    "archived_records": 53960,
+    "compacted_records": 51846,
+    "expired_candidate_interests": 0,
+    "gap_repair_retries": 0,
+    "gaps_created": 3,
+    "gaps_repaired": 0,
+    "ingested_account": 0,
+    "ingested_event": 120496,
+    "ingested_transaction": 113408,
+    "ipc.applied": 242,
+    "lifecycle.archived.program:meteora": 26240,
+    "lifecycle.archived.program:pump": 10455,
+    "lifecycle.archived.program:pumpswap": 17265,
+    "lifecycle.continuity.program:meteora": 52890,
+    "lifecycle.continuity.program:pump": 19796,
+    "lifecycle.continuity.program:pumpswap": 170884,
+    "lifecycle.ingested.program:meteora": 113408,
+    "lifecycle.ingested.program:pump": 45186,
+    "lifecycle.ingested.program:pumpswap": 75310,
+    "lifecycle.retired.program:meteora": 25216,
+    "lifecycle.retired.program:pump": 10302,
+    "lifecycle.retired.program:pumpswap": 16328,
+    "meteora.complete_local_reads": 0,
+    "meteora.historical_reconstruction_rpc_calls": 0,
+    "meteora.incomplete_local_reads": 0,
+    "meteora.local_evidence_reads": 0,
+    "meteora.repair_assisted_windows": 0,
+    "pump.complete_local_reads": 0,
+    "pump.foreground_historical_rpc_calls": 0,
+    "pump.incomplete_local_reads": 0,
+    "pump.local_evidence_reads": 0,
+    "pump.repair_assisted_windows": 0,
+    "rejected_evidence_records": 0,
+    "stream_accepted_messages": 886,
+    "stream_bytes": 3616656428,
+    "stream_messages": 886,
+    "stream_reconnects": 0,
+    "stream_rejected_messages": 0
+  },
+  "diagnostic_overhead_fraction": 0.001173879023116052,
+  "diagnostic_overhead_seconds": 0.2849087199999225,
+  "environment": {
+    "affinity_count": 4,
+    "cpu_count": 4,
+    "cpu_quota": null,
+    "differences": {},
+    "expected": {
+      "python": "3.12.14",
+      "sqlite": "3.45.1",
+      "websockets": "17.1"
+    },
+    "memory": "MemTotal:       16373452 kB\nMemFree:        12579700 kB\nMemAvailable:   14887520 kB\nBuffers:           88392 kB\nCached:          2477224 kB\nSwapCached:            0 kB\nActive:           740716 kB\nInactive:        2090504 kB\nActive(anon):     321380 kB\nInactive(anon):        0 kB\nActive(file):     419336 kB\nInactive(file):  2090504 kB\nUnevictable:       46728 kB\nMlocked:           43656 kB\nSwapTotal:       3145724 kB\nSwapFree:        3145724 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:            764800 kB\nWriteback:             4 kB\nAnonPages:        303908 kB\nMapped:           323308 kB\nShmem:             47016 kB\nKReclaimable:     118676 kB\nSlab:             197100 kB\nSReclaimable:     118676 kB\nSUnreclaim:        78424 kB\nKernelStack:        4216 kB\nPageTables:         6688 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    11332448 kB\nCommitted_AS:    1976704 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:       38040 kB\nVmallocChunk:          0 kB\nPercpu:             2224 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:     65536 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nCmaTotal:              0 kB\nCmaFree:               0 kB\nUnaccepted:            0 kB\nBalloon:               0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      130176 kB\nDirectMap2M:     4059136 kB\nDirectMap1G:    14680064 kB\n",
+    "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "python": "3.12.14",
+    "run_attempt": "1",
+    "run_id": "36757944292",
+    "runner_os": "Linux",
+    "sqlite": "3.45.1",
+    "websockets": "17.1"
+  },
+  "failure": "EvidenceUnavailable:maintenance_decision_in_flight",
+  "integrity": [
+    [
+      "ok"
+    ]
+  ],
+  "metrics": {
+    "archive_worker.dispatch_to_start": {
+      "calls": 82,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.11342897700001231,
+      "units": 0,
+      "wall": 0.6308645079999451
+    },
+    "archive_worker.injected_wait": {
+      "calls": 82,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.2139262810000423,
+      "units": 0,
+      "wall": 10.417886465999992
+    },
+    "archive_worker.native": {
+      "calls": 82,
+      "cpu": 8.894568455000062,
+      "errors": 0,
+      "peak": 0.23271725600000082,
+      "units": 54448,
+      "wall": 9.183393534000004
+    },
+    "archive_worker.return_transport": {
+      "calls": 82,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.016804602999997087,
+      "units": 0,
+      "wall": 0.2219858970003088
+    },
+    "checkpoint_boundary_native": {
+      "calls": 63,
+      "cpu": 1.029063141999998,
+      "errors": 0,
+      "peak": 0.4994753639999985,
+      "units": 0,
+      "wall": 3.409394446000057
+    },
+    "checkpoint_passive_native": {
+      "calls": 199,
+      "cpu": 3.2277285040000008,
+      "errors": 0,
+      "peak": 0.41655106500000016,
+      "units": 0,
+      "wall": 13.864713697999786
+    },
+    "checkpoint_with_workload_interaction": {
+      "calls": 198,
+      "cpu": 3.2371692260000016,
+      "errors": 0,
+      "peak": 2.2150144919999946,
+      "units": 0,
+      "wall": 15.976707868000027
+    },
+    "diagnostic_wrapper": {
+      "calls": 6621,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.005266406000004054,
+      "units": 0,
+      "wall": 0.16153117999969524
+    },
+    "outer_transaction": {
+      "calls": 2045,
+      "cpu": 57.8050096169999,
+      "errors": 0,
+      "peak": 0.4305334569999957,
+      "units": 0,
+      "wall": 93.39057681400051
+    },
+    "periodic_debug_observer": {
+      "calls": 49,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.0006619219999990378,
+      "units": 0,
+      "wall": 0.006372391000027733
+    },
+    "periodic_observer_total": {
+      "calls": 49,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.007152292000000671,
+      "units": 0,
+      "wall": 0.08083300900008794
+    },
+    "persistence": {
+      "calls": 48,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.023325219000000175,
+      "units": 0,
+      "wall": 0.03523479100008586
+    },
+    "qualification_observer_equivalent": {
+      "calls": 49,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.0070404530000018894,
+      "units": 0,
+      "wall": 0.07384483900001726
+    },
+    "serialization": {
+      "calls": 48,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.0003038390000256186,
+      "units": 0,
+      "wall": 0.007309740000053466
+    },
+    "source_owner_injected_wait": {
+      "calls": 834,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.39764964499999766,
+      "units": 0,
+      "wall": 71.20522511499964
+    },
+    "source_owner_native": {
+      "calls": 834,
+      "cpu": 52.87551276000001,
+      "errors": 0,
+      "peak": 0.4305867919999997,
+      "units": 886,
+      "wall": 75.89512205099992
+    },
+    "source_worker.dispatch_to_start": {
+      "calls": 898,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.16788791100000822,
+      "units": 0,
+      "wall": 3.996963688000008
+    },
+    "source_worker.injected_wait": {
+      "calls": 898,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0,
+      "units": 0,
+      "wall": 0
+    },
+    "source_worker.native": {
+      "calls": 898,
+      "cpu": 94.61980107900004,
+      "errors": 0,
+      "peak": 0.17245218300001852,
+      "units": 0,
+      "wall": 94.63519387500043
+    },
+    "source_worker.return_transport": {
+      "calls": 898,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.1940931130000081,
+      "units": 0,
+      "wall": 19.541906446999878
+    },
+    "stage.archive_commit": {
+      "calls": 138,
+      "cpu": 1.2967320779999625,
+      "errors": 1,
+      "peak": 0.05611208199999851,
+      "units": 0,
+      "wall": 3.0813870350000627
+    },
+    "stage.archive_plan": {
+      "calls": 100,
+      "cpu": 1.027776926999941,
+      "errors": 0,
+      "peak": 0.0673594229999992,
+      "units": 0,
+      "wall": 1.2447378430000526
+    },
+    "stage.retention": {
+      "calls": 129,
+      "cpu": 3.601412229,
+      "errors": 54,
+      "peak": 0.2963257350000106,
+      "units": 0,
+      "wall": 8.605977728999896
+    },
+    "stage.source_commit": {
+      "calls": 834,
+      "cpu": 52.85023313200002,
+      "errors": 0,
+      "peak": 0.4305747129999986,
+      "units": 0,
+      "wall": 75.88491197199994
+    },
+    "transaction_injected_wait": {
+      "calls": 2044,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.022765114999970137,
+      "units": 0,
+      "wall": 12.839390613999804
+    },
+    "worker_parent_submission": {
+      "calls": 980,
+      "cpu": 0,
+      "errors": 0,
+      "peak": 0.018080294000000663,
+      "units": 0,
+      "wall": 0.06340845000001138
+    }
+  },
+  "observer_errors": [],
+  "overlap_warning": "Stage, transaction, owner and worker measurements overlap; do not sum.",
+  "paper_only": true,
+  "planned_frames": 4445,
+  "pragmas": {
+    "freelist_count": [
+      [
+        0
+      ]
+    ],
+    "journal_mode": [
+      [
+        "wal"
+      ]
+    ],
+    "page_count": [
+      [
+        237914
+      ]
+    ],
+    "synchronous": [
+      [
+        2
+      ]
+    ]
+  },
+  "production_identity": {
+    "all_preexisting_blobs_and_modes_unchanged": true,
+    "diagnostic_hashes": {
+      ".github/workflows/stage-e-fresh-causal-isolation.yml": "4162290c57fe7b01b086f2320bc03af92d3dbd3dab90770e8b4c3748e645d5d4",
+      "diagnostics/stage-e-fresh-causal-isolation/ARCHITECTURE.md": "e70eef8604eb9698372b64fee128f66b486001c89fbad90ea5d890611317e857",
+      "diagnostics/stage-e-fresh-causal-isolation/CANONICAL_STAGE_E_RECONSTRUCTION.md": "ea2e3a14fcd6e9112ae42ede43393c091f75d941611f16db126735c2fbd3804d",
+      "diagnostics/stage-e-fresh-causal-isolation/PREFLIGHT_EVIDENCE.json": "9e8db5760fa8c69c94bd4ee71497d016a86f61d3dc813f49f3039bf00dfa6e4d",
+      "diagnostics/stage-e-fresh-causal-isolation/README.md": "27a0a29048489bd295fc6893de44def72fc91d5f0c8d00b6a2eae6ceb1063beb",
+      "diagnostics/stage-e-fresh-causal-isolation/execution-request.json": "64aae4f2a72d62efdabf7d6b062e72148df6d048b42b948885b5771269238212",
+      "diagnostics/stage-e-fresh-causal-isolation/finalize.py": "93a0e549a3426821022e86a80ea245eca6c6fc80079b87a9d2b61617e5522037",
+      "diagnostics/stage-e-fresh-causal-isolation/harness.py": "fe79d13e990424a7f68eb14578efae54f9acd080b07470b1d1510701a6033eb9",
+      "diagnostics/stage-e-fresh-causal-isolation/recover.py": "fae152f17e34b87f616bdb2f902699513f062e876f43718909d5db5bf7195534"
+    },
+    "diagnostic_revision": "fresh-capacity-v1",
+    "diagnostic_sha": "d72b80b5bb8afe21fbea1453f4c926d3f1872c3d",
+    "diagnostic_tree": "4bff5cf1c050134ad2abefcded6cb9d00754b08b",
+    "preexisting_files_verified": 1152,
+    "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "source_tree": "68736cf664169dee665762019800bf87ca0f1f67"
+  },
+  "provider_calls": 0,
+  "queries": 23,
+  "runtime_elapsed": 242.70705446600002,
+  "source_seconds": 239.22000000000003,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "terminal": {
+    "at": 269.733318902,
+    "committed_frame": 884,
+    "deadlines": {
+      "archive": 314.231378732,
+      "retirement": 294.9946258068085
+    },
+    "durable_records": null,
+    "error": "EvidenceUnavailable:maintenance_decision_in_flight",
+    "execution": 0.0017705470000350942,
+    "feasible": [
+      "archive",
+      "retirement"
+    ],
+    "needs": [
+      {
+        "binding": "service",
+        "records": 3328,
+        "recovery_deadline": 364.50154876708984,
+        "recovery_excess": 2328,
+        "recovery_headroom": 94.76822986508984,
+        "safety_deadline": 320.50154876708984,
+        "safety_headroom": 50.768229865089836,
+        "scope": "program:meteora",
+        "service_deadline": 314.249144116,
+        "service_headroom": 44.51582521400002,
+        "side": "archive",
+        "units": 3328
+      },
+      {
+        "binding": "service",
+        "records": 1024,
+        "recovery_deadline": 379.50154876708984,
+        "recovery_excess": 24,
+        "recovery_headroom": 109.76822986508984,
+        "safety_deadline": 317.50154876708984,
+        "safety_headroom": 47.768229865089836,
+        "scope": "program:meteora",
+        "service_deadline": 313.630642223,
+        "service_headroom": 43.89732332099999,
+        "side": "retirement",
+        "units": 1024
+      },
+      {
+        "binding": "service",
+        "records": 1326,
+        "recovery_deadline": 370.50154876708984,
+        "recovery_excess": 326,
+        "recovery_headroom": 100.76822986508984,
+        "safety_deadline": 320.50154876708984,
+        "safety_headroom": 50.768229865089836,
+        "scope": "program:pump",
+        "service_deadline": 314.249144116,
+        "service_headroom": 44.51582521400002,
+        "side": "archive",
+        "units": 1326
+      },
+      {
+        "binding": "service",
+        "records": 153,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 319.50154876708984,
+        "safety_headroom": 49.768229865089836,
+        "scope": "program:pump",
+        "service_deadline": 311.0103838443756,
+        "service_headroom": 41.2770649423756,
+        "side": "retirement",
+        "units": 158
+      },
+      {
+        "binding": "service",
+        "records": 2370,
+        "recovery_deadline": 364.50154876708984,
+        "recovery_excess": 1370,
+        "recovery_headroom": 94.76822986508984,
+        "safety_deadline": 319.50154876708984,
+        "safety_headroom": 49.768229865089836,
+        "scope": "program:pumpswap",
+        "service_deadline": 314.249144116,
+        "service_headroom": 44.51582521400002,
+        "side": "archive",
+        "units": 2370
+      },
+      {
+        "binding": "service",
+        "records": 927,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 316.50154876708984,
+        "safety_headroom": 46.768229865089836,
+        "scope": "program:pumpswap",
+        "service_deadline": 314.057874132,
+        "service_headroom": 44.32455522999999,
+        "side": "retirement",
+        "units": 932
+      },
+      {
+        "binding": "safety",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 294.9946258068085,
+        "safety_headroom": 25.261306904808464,
+        "scope": "__housekeeping__",
+        "service_deadline": 298.003382923,
+        "service_headroom": 28.270064020999996,
+        "side": "retirement",
+        "units": 2
+      },
+      {
+        "binding": "service",
+        "records": 0,
+        "recovery_deadline": null,
+        "recovery_excess": 0,
+        "recovery_headroom": null,
+        "safety_deadline": 328.832249118,
+        "safety_headroom": 59.098930215999985,
+        "scope": "__archive_receipt__",
+        "service_deadline": 314.231378732,
+        "service_headroom": 44.49805982999999,
+        "side": "archive",
+        "units": 1
+      }
+    ],
+    "owner_delay": 0.17249063899998873,
+    "ready": {
+      "archive": true,
+      "retirement": true
+    },
+    "reservations": {
+      "clock_error": 3,
+      "execution": 3,
+      "owner": 3,
+      "worker": 15
+    },
+    "selected": null,
+    "source_coordinate": 238.68,
+    "worker_age": 0.9011674019999987
+  },
+  "variant": "M1-fresh-baseline",
+  "worker_queue_definition": "submit-to-child-start includes serialization/IPC and pool queue"
+}
