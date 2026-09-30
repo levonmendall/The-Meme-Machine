@@ -10,7 +10,7 @@ The directional families use one common position target: **500 bps (5.00%) of th
 
 | Regime | Previous target | Prepared target | Existing hard stop | Approx. sleeve loss at stop |
 |---|---:|---:|---:|---:|
-| Pump Current | 500 bps | 500 bps | -10% | 50 bps |
+| Pump Current | 500 bps | 500 bps | -8% | 40 bps |
 | Pons Current | 25 bps | 500 bps | -8% | 40 bps |
 | Pump Survivor | 25 bps | 500 bps | -12% | 60 bps |
 | Pons Survivor | 25 bps | 500 bps | -10% | 50 bps |
