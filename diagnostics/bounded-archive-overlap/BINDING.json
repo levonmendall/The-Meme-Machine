@@ -1,0 +1,173 @@
+{
+  "repository": "levonmendall/The-Meme-Machine",
+  "review_package": "3eeb02f060b4623b6842d8f18853e5340dec0684",
+  "previous_diagnostic": "6e104c122dc495d75bd8828a5fea7237b48effdf",
+  "production_reference": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "production_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "reviewed_evidence": {
+    "run_id": 36771603217,
+    "artifact_id": 11124508037,
+    "zip_sha256": "485a522b8e1ab820674528905fa87e953cb444eade31c77635f5ba8cce2cdec6",
+    "original_comparison_sha256": "f8601ccc5316bf0a3885a1d4979a28271f2f16a17b1b04f9c6d775e46b4b94d3",
+    "independently_rehashed_in_gate_ci": true,
+    "preserved_inside_new_artifact": true
+  },
+  "execution_sha": "cba6d17c318f049cf602cfdf8329aef83b8f3163",
+  "diagnostic_tree": "cc09c06d39b8ab8d9d55e0d9e8175e06141fd58c",
+  "isolated_treatment": {
+    "treatment_tree": "7d276678c4ffabaff71a592183eb7dbd0495b236",
+    "modified_files": [
+      "meme_machine/solana_archive_snapshot.py",
+      "meme_machine/solana_bounded_overlap.py",
+      "meme_machine/solana_evidence_plane.py",
+      "meme_machine/solana_evidence_service.py",
+      "meme_machine/solana_maintenance_runtime.py"
+    ],
+    "patch_sha256": "fa3255ca7f01aaf5a6d61e2637f22c5863839b605bee89f4c3a1eb1a373af750",
+    "actual_source_hashes": {
+      "meme_machine/solana_maintenance_runtime.py": "d403521764468940fce3d8db6ccb61d30ff2ca39ae4c14abbd575a96a6ee9abd",
+      "meme_machine/solana_archive_snapshot.py": "8473e37600b3b2106254dd23d1d2eaafa26e6842b9016571d95a199140a2a3e8",
+      "meme_machine/solana_evidence_plane.py": "f406248ff937c305e9b0992a26664649755030293e0069b56b23a74ada29ece7",
+      "meme_machine/solana_evidence_service.py": "c9701e4aab9aa57f994f9bb2c5628e14fe06f8bf5c8ce5b98297c978639e2c2a",
+      "meme_machine/solana_bounded_overlap.py": "f23706b095db9b6706578ae3b290b1c4d8b7bf5ba2d18c12ea7a94f99764a7bd"
+    },
+    "production_byte_identical": false,
+    "review_package": "3eeb02f060b4623b6842d8f18853e5340dec0684",
+    "treatment_parent": "cba6d17c318f049cf602cfdf8329aef83b8f3163"
+  },
+  "isolated_treatment_commit": null,
+  "treatment_commit_note": "CI recorded the actual staged Git tree and source hashes; no modified treatment commit was created or promoted.",
+  "run_id": 36782892873,
+  "job_id": 110117261872,
+  "attempt": 1,
+  "workflow_conclusion": "failure",
+  "artifact": {
+    "id": 11128617306,
+    "name": "bounded-overlap-gates-cba6d17c318f049cf602cfdf8329aef83b8f3163-36782892873-1",
+    "size_in_bytes": 1058384,
+    "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11128617306",
+    "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11128617306/zip",
+    "expired": false,
+    "created_at": "2026-09-30T22:00:22Z",
+    "expires_at": "2026-12-29T21:59:35Z",
+    "updated_at": "2026-09-30T22:00:22Z",
+    "digest": "sha256:26f68c9ce884534c0e6ff39e689628a4c6eb3e015bb1b8caaee5a37b8f9764d4",
+    "workflow_run": {
+      "id": 36782892873,
+      "repository_id": 1373661451,
+      "head_repository_id": 1373661451,
+      "head_branch": "diagnostics/bounded-archive-overlap-20260930",
+      "head_sha": "cba6d17c318f049cf602cfdf8329aef83b8f3163"
+    }
+  },
+  "original_blob_shas": {
+    "meme_machine/solana_maintenance_runtime.py": "73a2801136483d47e84e964435d11590f3ba0cdc",
+    "meme_machine/solana_archive_snapshot.py": "2bb30f9eb3467d9e7914c2fe5266aa4ccf32330b",
+    "meme_machine/solana_evidence_plane.py": "34ef169e139baebfe12f9801b12f1774c94eaa05",
+    "meme_machine/solana_evidence_service.py": "a54d3ed1876f138a6b2db37ef917f414173869db"
+  },
+  "verified_source_hashes": {
+    "meme_machine/solana_maintenance_runtime.py": "d403521764468940fce3d8db6ccb61d30ff2ca39ae4c14abbd575a96a6ee9abd",
+    "meme_machine/solana_archive_snapshot.py": "8473e37600b3b2106254dd23d1d2eaafa26e6842b9016571d95a199140a2a3e8",
+    "meme_machine/solana_evidence_plane.py": "f406248ff937c305e9b0992a26664649755030293e0069b56b23a74ada29ece7",
+    "meme_machine/solana_evidence_service.py": "c9701e4aab9aa57f994f9bb2c5628e14fe06f8bf5c8ce5b98297c978639e2c2a",
+    "meme_machine/solana_bounded_overlap.py": "f23706b095db9b6706578ae3b290b1c4d8b7bf5ba2d18c12ea7a94f99764a7bd"
+  },
+  "all_source_sha256_independently_match_ci": true,
+  "unchanged_reviewed_blobs_and_modes": 1195,
+  "diagnostic_hashes": {
+    "diagnostics/bounded-archive-overlap/execution-request.json": "75e0f2edb4fb0e51cc653528db9895b0d2394297e07996e72947cceb326d001a",
+    "diagnostics/bounded-archive-overlap/DESIGN.md": "daf9a3c54ab250f0bc34f1697d437ce36ca3acbcb502fafb838bf6a444eb248c",
+    "diagnostics/bounded-archive-overlap/SCOPE.md": "45c2e2de8514868a1f65584128529c187d9f8535f4d0acf1a8f1dfadbfde6f51",
+    "diagnostics/bounded-archive-overlap/replacement-files.json": "381d89bc261ad6429715475735ef7125121ed8612b69eca32165604e0cdb40cb",
+    "diagnostics/bounded-archive-overlap/original-blob-shas.json": "c9026428d2d0128332244b13dddb0603a321d323d4fc8a376c1372f9bea8411e",
+    "diagnostics/bounded-archive-overlap/prototype.py": "f23706b095db9b6706578ae3b290b1c4d8b7bf5ba2d18c12ea7a94f99764a7bd",
+    "diagnostics/bounded-archive-overlap/apply.py": "d18a03d87b63031e2442c5810b9480dcf5bfa4a2a4d975e71ae81f0a9ed0e66c",
+    "diagnostics/bounded-archive-overlap/design_gate.py": "02a0ef9a3b1333bc7a79428c6c96d79691c7cfad83113b17f17b18e26896d88d",
+    "diagnostics/bounded-archive-overlap/test_focused.py": "f50361232b66b7ebcc9d00a2383994f7b1cb02d3030ae73375de6d66cb30bb75",
+    "diagnostics/bounded-archive-overlap/bootstrap.py": "7f775162da3f382e508a94422137ffcb6060a56d1308c0d4902038e30a5f2307",
+    ".github/workflows/bounded-archive-overlap-gates.yml": "11e0ec4479b4ac9b77c32715f2ffee75a45a3507d5d5ccc3ad1e1202861d27ff"
+  },
+  "decoded_ci_log_sha256": "cff0502dfa6e2fe55213c863f7d4ad86c44d97ba2b2d2b103eeeed2a47f3181a",
+  "projections_note": "Literal compact JSON records from the decoded CI log. Projection hashes are not hashes of the original pretty-printed artifact files.",
+  "tested": {
+    "boundary_records_per_database": 1,
+    "pressure_workload": false,
+    "material_execution": false,
+    "native": {
+      "accepted": true,
+      "archived_records": 1,
+      "integrity": "ok"
+    },
+    "prototype": {
+      "accepted": false,
+      "error": "EvidenceUnavailable:overlap_worker_body_reservation",
+      "archived_records": 0,
+      "hot_records": 1,
+      "archive_files": 0,
+      "integrity": "ok"
+    }
+  },
+  "gate": {
+    "budget_consumed": 4,
+    "first_blocker": "Fixed initial 750/250 partition rejects a native-valid single body even without lookahead",
+    "focused_safety_suite_launched": false,
+    "kind": "unchanged_single_file_eligibility",
+    "material_workloads_launched": false,
+    "native_accepted": true,
+    "no_lookahead_in_either_case": true,
+    "passed": false,
+    "prototype_accepted": false,
+    "prototype_current_allocation": 12582912,
+    "prototype_error": "EvidenceUnavailable:overlap_worker_body_reservation",
+    "reference_body_bytes": 13631744,
+    "unused": 2
+  },
+  "stop": {
+    "status": "ASTRA_REVIEW_READY: OVERLAP_DESIGN_OR_SAFETY_BLOCKED",
+    "stop_all_diagnostic_execution": true,
+    "scoped_request": "bounded-archive-overlap",
+    "execution_sha": "cba6d17c318f049cf602cfdf8329aef83b8f3163",
+    "run_id": 36782892873,
+    "job_id": 110117261872,
+    "artifact_id": 11128617306,
+    "blocker": "The initial 750/250 allocation imposes a 12-MiB current-body allowance even with empty lookahead; native accepts the same 13,631,744-byte record.",
+    "blocker_confirmed": true,
+    "prototype_error": "EvidenceUnavailable:overlap_worker_body_reservation",
+    "design_gate_passed": false,
+    "focused_safety_suite_run": false,
+    "material_pair_run": false,
+    "material_executions_consumed_before": 4,
+    "material_executions_added": 0,
+    "material_executions_consumed_after": 4,
+    "material_execution_ceiling": 6,
+    "unused_material_executions": 2,
+    "additional_variants_authorized": false,
+    "automatic_extension": false,
+    "retries_authorized": false,
+    "source_owner_floor_planned_for_both_arms": 0.165,
+    "source_owner_floor_removed": false,
+    "previous_stop_records_preserved": true,
+    "production_files_and_workflows_unchanged": true,
+    "prototype_promoted": false,
+    "successor_frozen": false,
+    "canonical_authority": false,
+    "stage_e": "RED",
+    "stage_f": "NOT_STARTED",
+    "paper_only": true,
+    "provider_calls": 0,
+    "m1_completion_protocol_modified": false,
+    "preflight_preserved": {
+      "failures": 1,
+      "errors": 2,
+      "skips": 46
+    }
+  },
+  "projection_sha256": {
+    "TREATMENT_SOURCE_LOG_PROJECTION.json": "556187945966c10555b860aa44f1fee9fc0a6d0e64a348875000915401ecd024",
+    "REFERENCE_BOUNDARY_LOG_PROJECTION.json": "ada4edf5cd27279c8130082c9ce9c33ae54af454d9155df47a60dc186c71a9a0",
+    "PROTOTYPE_BOUNDARY_LOG_PROJECTION.json": "8452916717799a494862593926982cf08fce8c5d2c663f6f3e8d819d907a64a6",
+    "DESIGN_GATE_LOG_PROJECTION.json": "7590f00d1dc8c2b3bd126d5c8fcbc67c1f6575dd093497160ff1c379f3579d89"
+  },
+  "review_report_sha256": "7209c840ac5422d1b9644ef13c2c33df1cdbc5b54dcf2f1bfbe91a8b2343f4b5"
+}
