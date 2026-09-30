@@ -1,0 +1,70 @@
+{
+  "schema": "meme-machine-directional-capital-parity-v1",
+  "paper_only": true,
+  "live_money_authority": false,
+  "prepared_at": "2026-09-30",
+  "preparation_base": {
+    "branch": "cert/autonomous-paper-machinery-20260927",
+    "commit": "a775849c940d48bc8f809e99c075e421744bc53f"
+  },
+  "stage_e_isolation": {
+    "stage_e_candidate_modified": false,
+    "stage_e_branch_modified": false,
+    "workflow_dispatch_authorized": false,
+    "market_run_authorized": false,
+    "activation_allowed": false,
+    "requires_explicit_post_stage_e_promotion": true,
+    "requires_exact_sha_non_market_recertification_after_composition": true,
+    "note": "This branch is preparation only. Do not merge into the active certification lineage while Stage E/F/G exact-candidate work is in progress."
+  },
+  "objective": "Remove the 20x directional capital asymmetry while preserving all strategy, execution-capacity, freshness, concentration, turnover, fill-persistence, stop, and shared-sleeve safeguards.",
+  "directional_targets": {
+    "pump_current": {
+      "previous_target_bps": 500,
+      "prepared_target_bps": 500,
+      "hard_stop_bps": -1000,
+      "planned_stop_risk_bps_of_sleeve": 50
+    },
+    "pons_current": {
+      "previous_target_bps": 25,
+      "prepared_target_bps": 500,
+      "hard_stop_bps": -800,
+      "planned_stop_risk_bps_of_sleeve": 40
+    },
+    "pump_survivor": {
+      "previous_target_bps": 25,
+      "prepared_target_bps": 500,
+      "hard_stop_bps": -1200,
+      "planned_stop_risk_bps_of_sleeve": 60
+    },
+    "pons_survivor": {
+      "previous_target_bps": 25,
+      "prepared_target_bps": 500,
+      "hard_stop_bps": -1000,
+      "planned_stop_risk_bps_of_sleeve": 50
+    }
+  },
+  "unchanged_controls": [
+    "Pump and Pons family sleeves remain shared between Current and Survivor regimes; no new capital lane is created.",
+    "Actual fill size remains capped by available sleeve capital.",
+    "Turnover and independent-demand capacity remain binding downsize caps.",
+    "Ordinary and 2x execution-stress loss checks remain binding.",
+    "Fill-time breadth-retention checks remain binding.",
+    "Freshness, generation fencing, concentration safety, and creator/distribution safety remain unchanged.",
+    "Existing hard stops, partial realizations, runner trails, deterioration exits, and maximum holds remain unchanged.",
+    "Meteora and Ramses sizing are not changed by this revision."
+  ],
+  "composition_order": [
+    "existing six-regime strategy upgrade",
+    "existing moderate-admission-thresholds revision",
+    "directional-capital-parity-v1.patch"
+  ],
+  "promotion_requirements": [
+    "Do not promote during the current Stage E/F/G exact-candidate lineage.",
+    "Rebase or regenerate the patch against the final machinery SHA after that lineage is complete.",
+    "Regenerate every affected policy hash and frozen identity.",
+    "Run affected deterministic strategy, sizing, shared-sleeve, restart, and execution-capacity tests.",
+    "Run exact-SHA non-market certification of the newly composed PAPER candidate before any market smoke.",
+    "Start a fresh affected-lane profitability cohort because economic sizing policy changed."
+  ]
+}
