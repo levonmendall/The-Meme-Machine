@@ -1,0 +1,19 @@
+{
+  "sha": "3928947f44e57ab7eb268afd074fc242faf5bf9f",
+  "tree": "a2b4bc7b75ab2fc4b8fbffcb5c9fb69023d63adc",
+  "run_id": 36873005778,
+  "job_id": 110405253666,
+  "focused_tests_executed": 0,
+  "full_suite_executions": 0,
+  "artifact_id": 11167617251,
+  "artifact_sha256": "bd6bc386f1dc627c6875f76664d8c5173b471b53d4e34b217990ff82deaa5c08",
+  "original_zip_verified": true,
+  "original_log_verified": true,
+  "issue": "The raw asyncio/unittest output has an interleaved skip status. The parser requiring literal '... skipped ' found 45; the original footer says 46. Match the unittest skipped status independent of the preceding progress marker, still requiring all 46 statuses.",
+  "deterministic_contract_probe": {
+    "frozen_wall": "maintenance_clock_relationship_invalid",
+    "age_240": "maintenance_service_deadline_exhausted",
+    "projected_safety_headroom": -3,
+    "successful_service_headroom": -18
+  }
+}

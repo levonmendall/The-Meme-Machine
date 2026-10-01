@@ -25,7 +25,7 @@ def main():
     assert hashlib.sha256(log).hexdigest() == LOG_SHA256, "original_log_digest_mismatch"
     (out / "original-unittest.log").write_bytes(log)
     lines = log.decode().splitlines()
-    skips = [l for l in lines if re.search(r"\.\.\. skipped ", l)]
+    skips = [l for l in lines if re.search(r"\bskipped [\'\"]", l)]
     assert len(skips) == 46, ("original_skip_count", len(skips))
     (out / "original-skips.json").write_text(json.dumps(skips, indent=2) + "\n")
     print("LANE_C_ORIGINAL_BINDING " + json.dumps({
