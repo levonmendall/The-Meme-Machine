@@ -1,0 +1,100 @@
+{
+  "schema": "meme-machine-directional-realized-equity-sizing-v1",
+  "paper_only": true,
+  "live_money_authority": false,
+  "prepared_at": "2026-10-01",
+  "preparation_parent": {
+    "branch": "strategy/directional-opportunity-preservation-prep-20261001",
+    "commit": "76e5bfb96b73e2d1e56f3b8bb3d127b7d2bb4065"
+  },
+  "stage_e_isolation": {
+    "stage_e_candidate_modified": false,
+    "stage_e_branch_modified": false,
+    "stage_e_workflow_modified": false,
+    "workflow_dispatch_authorized": false,
+    "market_run_authorized": false,
+    "activation_allowed": false,
+    "requires_explicit_post_stage_e_promotion": true,
+    "requires_exact_sha_non_market_recertification_after_composition": true
+  },
+  "objective": "Replace fixed-genesis directional sizing with deterministic compounding from each Pump/Pons family's reconciled realized sleeve equity while preserving the 5% target and every existing safety/capacity/downsize control.",
+  "scope": [
+    "pump_current",
+    "pump_survivor",
+    "pons_current",
+    "pons_survivor"
+  ],
+  "sizing_rule": {
+    "target_bps_of_realized_sleeve_equity": 500,
+    "realized_equity_formula": "immutable_genesis_sleeve_capital + reconciled_realized_pnl",
+    "target_formula": "floor(max(realized_equity, 0) * 500 / 10000)",
+    "reservation_cap_formula": "min(target, currently_available_sleeve_capital) before strategy-specific execution/capacity downsizing",
+    "unrealized_pnl_included": false,
+    "mark_to_market_equity_included": false,
+    "held_capital_subtracted_from_equity_basis": false,
+    "held_capital_restricts_available_reservation": true,
+    "positive_realized_pnl_increases_future_targets": true,
+    "realized_losses_reduce_future_targets": true,
+    "zero_or_negative_realized_equity_allows_new_directional_entry": false,
+    "cross_sleeve_borrowing": false,
+    "automatic_cross_sleeve_rebalancing": false,
+    "genesis_capital_remains_immutable_for_audit": true
+  },
+  "minimums": {
+    "pump_current": "preserve existing gas/entry-overhead semantics; 5% economic target compounds from realized equity",
+    "pump_survivor": "preserve existing gas-based minimum",
+    "pons_current": "existing execution/impact/demand caps remain binding after dynamic 5% capital cap",
+    "pons_survivor": "scale the existing 5 bps minimum-capital floor from the same realized-equity basis"
+  },
+  "examples_usd_if_sleeve_equity_is_usd_equivalent": [
+    {
+      "realized_sleeve_equity": 125,
+      "target_5pct": 6.25
+    },
+    {
+      "realized_sleeve_equity": 150,
+      "target_5pct": 7.5
+    },
+    {
+      "realized_sleeve_equity": 187.5,
+      "target_5pct": 9.375
+    },
+    {
+      "realized_sleeve_equity": 100,
+      "target_5pct": 5
+    },
+    {
+      "realized_sleeve_equity": 250,
+      "target_5pct": 12.5
+    }
+  ],
+  "invariants": [
+    "A profitable Pump sleeve may compound independently of Pons and vice versa; no cross-family capital transfer is created.",
+    "Open-position unrealized gains never enlarge a new entry target.",
+    "Realized profit is eligible for sizing only after native terminal accounting and sleeve reconciliation make it durable.",
+    "Realized losses reduce the next target immediately after durable reconciliation.",
+    "Available capital, turnover, independent-demand capacity, execution stress, fill-time breadth retention, freshness, generation fencing, concentration, creator/distribution safety, and all hard stops remain binding.",
+    "A dynamic target is an upper bound, never a mandate to deploy the full amount."
+  ],
+  "composition_order": [
+    "existing six-regime strategy upgrade",
+    "existing moderate-admission-thresholds revision",
+    "directional-capital-parity-v1",
+    "exit-optimization-v1",
+    "directional-opportunity-preservation-v1",
+    "directional-realized-equity-sizing-v1"
+  ],
+  "promotion_requirements": [
+    "Do not compose into the active Stage E/F/G exact-candidate lineage.",
+    "After Stage E/F/G is complete, regenerate this patch against the exact final machinery SHA and the already-prepared strategy layers.",
+    "Make realized-equity sizing a single shared deterministic primitive used by all four directional regimes rather than four independent formulas.",
+    "Prove restart/replay reconstructs identical realized equity and target size.",
+    "Prove unrealized marks and partial nonterminal state cannot increase the sizing basis.",
+    "Prove durable terminal profits increase and durable losses decrease the next target.",
+    "Prove available-capital and shared-sleeve reservation fences still prevent over-allocation and duplicate Current/Survivor exposure.",
+    "Run exact boundary tests for 500 bps target and Pons Survivor 5 bps minimum.",
+    "Run execution-capacity, turnover, breadth, accounting, restart, and policy-identity regressions.",
+    "Run exact-SHA non-market certification before any PAPER market smoke.",
+    "Economic sizing changed, so affected directional profitability cohorts must restart after final promotion."
+  ]
+}

@@ -1,0 +1,98 @@
+diff --git a/certification/sleeve_reservations.py b/certification/sleeve_reservations.py
+--- a/certification/sleeve_reservations.py
++++ b/certification/sleeve_reservations.py
+@@
+ class SleeveReservations:
++    def sizing_basis(self,target_bps,*,minimum_bps=0):
++        """Deterministic realized-equity sizing; unrealized marks have no authority."""
++        if (type(target_bps) is not int or not 0 < target_bps <= 10_000
++                or type(minimum_bps) is not int or not 0 <= minimum_bps <= target_bps):
++            raise ValueError('directional_sizing_bps')
++        state=self.reconcile()
++        equity=state['capital']+state['realized']
++        if equity <= 0:
++            target=minimum=allocatable=0
++        else:
++            target=equity*target_bps//10_000
++            minimum=equity*minimum_bps//10_000
++            allocatable=min(target,state['available'])
++        return dict(genesis_capital=state['capital'],realized_pnl=state['realized'],
++            realized_equity=equity,reserved=state['reserved'],available=state['available'],
++            target_bps=target_bps,minimum_bps=minimum_bps,target=target,
++            minimum=minimum,allocatable_target=allocatable)
++
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@
+ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
++
++def _current_pump_sizing():
++    from certification.directional_sleeve import open_sleeve
++    sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
++    if sleeve is None:
++        return dict(realized_equity=INITIAL_LAMPORTS,target=ENTRY_BUDGET,
++                    allocatable_target=ENTRY_BUDGET,available=INITIAL_LAMPORTS)
++    try:return sleeve.sizing_basis(POLICY.entry_fraction_bps)
++    finally:sleeve.close()
+@@
+-def _capacity(snapshot, turnover, intended=ENTRY_BUDGET):
++def _capacity(snapshot, turnover, intended=None):
++    if intended is None:intended=_current_pump_sizing()['allocatable_target']
+@@
+-    life.reserve(qualification,ENTRY_BUDGET+GAS,reserved_at)
++    sizing=_current_pump_sizing()
++    intended=min(sizing['target'],max(0,sizing['available']-GAS))
++    if intended<=0:raise ValueError('directional_realized_equity_unavailable')
++    life.reserve(qualification,intended+GAS,reserved_at)
+@@
+-                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover)
++                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover,intended)
+@@
+-                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover)
++                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover,intended)
+
+diff --git a/meme_machine/pumpswap_survivor_runtime.py b/meme_machine/pumpswap_survivor_runtime.py
+--- a/meme_machine/pumpswap_survivor_runtime.py
++++ b/meme_machine/pumpswap_survivor_runtime.py
+@@
+     def _enter(self,row,decision,generation,regime,identity):
++        sizing=self.sleeve.sizing_basis(POLICY['target_sleeve_bps'])
+         return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
+             strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
+-            target=self.capital*500//10000,minimum=GAS*2+1,retention_bps=5000,
++            target=sizing['target'],minimum=GAS*2+1,retention_bps=5000,
+             ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
+
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@
++def _current_pons_realized_equity():
++    from contextlib import closing
++    from certification.directional_sleeve import open_sleeve
++    sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
++    if sleeve is None:return STRATEGY_CAPITAL_QUOTE
++    with closing(sleeve):
++        return max(0,sleeve.sizing_basis(500)['realized_equity'])
+@@
+-                    strategy_capital_quote=STRATEGY_CAPITAL_QUOTE,
++                    strategy_capital_quote=_current_pons_realized_equity(),
+
+diff --git a/robinhood_research/pons_survivor_runtime.py b/robinhood_research/pons_survivor_runtime.py
+--- a/robinhood_research/pons_survivor_runtime.py
++++ b/robinhood_research/pons_survivor_runtime.py
+@@
+-        cap=min(self.capital*500//10000,flow['turnover']//40)
+-        capacity=resize(cap,self.capital*5//10000,quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
++        sizing=self.sleeve.sizing_basis(500,minimum_bps=5)
++        cap=min(sizing['allocatable_target'],flow['turnover']//40)
++        capacity=resize(cap,sizing['minimum'],quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
+@@
+     def _enter(self,row):
++        sizing=self.sleeve.sizing_basis(500,minimum_bps=5)
+         return commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
+             strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,decision=row['decision'],regime=row['regime'],at=self.now(),
+-            target=self.capital*500//10000,minimum=self.capital*5//10000,retention_bps=5000,
++            target=sizing['target'],minimum=sizing['minimum'],retention_bps=5000,
+             ordinary_limit=450,stress_limit=650,adapter=self,qualify=self.qualify)
