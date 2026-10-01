@@ -1,0 +1,13 @@
+diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
+index 27e270b49996d6d2a1d02979c56f69888f3d5b8d..ed3e29459315aa2ec20cf5abf295fb5d9b50186b 100644
+--- a/meme_machine/solana_evidence_service.py
++++ b/meme_machine/solana_evidence_service.py
+@@ -1159,7 +1159,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                                                         receive_capacity_waiting,inbound.qsize(),decoded.qsize(),len(ready),
+                                                         now-commit_progress,now-decoded_at,
+                                                         stop.is_set() or connection_stop.is_set())
+-                                                offer=await admission.rendezvous(source_state)
++                                                offer=None
+                                                 try:
+                                                     batch=[];batch_bytes=0;cursor=next_sequence
+                                                     batch_limit=maintenance_batch_limit(pending_frames)

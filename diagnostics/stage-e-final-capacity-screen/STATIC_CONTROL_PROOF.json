@@ -1,0 +1,25 @@
+{
+  "all_other_tracked_blobs_and_modes_identical": true,
+  "changed_files": [
+    "meme_machine/solana_evidence_service.py"
+  ],
+  "constant_file_hashes": {
+    "meme_machine/solana_checkpoint.py": "a8a866361dd026a83eeb4e8e020c559bbca03b3655ff46249207483ad3042aba",
+    "meme_machine/solana_evidence_control.py": "6e0cc16ee3cb52e9ca5f53af8997c20c5b56cf4d300d36f35e5a03bbb9cf5ad3",
+    "meme_machine/solana_evidence_plane.py": "d898792ba7b9bbd155dad4d4f9a401a0cd2c0c3f9053e0b164127f28fdb7d1e4",
+    "meme_machine/solana_maintenance_arbiter.py": "736bc378bf01cdf3294fbeacea20576a4a34d97c3b68dfa609d919d4054d07d5",
+    "meme_machine/solana_maintenance_runtime.py": "178fe8ace0e60490aeede8ed0c4a34492b322a0dfc1f6cdd2960fed50d923577",
+    "meme_machine/solana_maintenance_state.py": "c3f0639eefd0a688846a822cbd7f700720aa27936c8e4c6becdd9be3d894068b",
+    "meme_machine/solana_owner_admission.py": "183c900e1ec2e5f19243bc5c14e7ca289a8e028ad5f1a5020d4ee330fc415530"
+  },
+  "control_ast_equals_single_replacement_treatment_ast": true,
+  "control_commit": "19b4244d6c09eeebab37319784109b876c94a0d4",
+  "control_tree": "dda7f9df08fa258d9856b5521ada10a7cb8e8b25",
+  "exact_one_callsite_replacement": true,
+  "m1_and_housekeeping_service_functions_unchanged": true,
+  "patch_sha256": "6e05436dce786c9c1f7d8f9dbbee1c708be4e771408f7cbc3bd7826c11219344",
+  "qualification_v2_bytes_unchanged": true,
+  "semantic_delta": "The blocks/account branch receives offer=None instead of awaiting A2 rendezvous. No offer can open. SourceState construction, batching, source submission, admission.source_accepted, abort(None), ordinary maintenance admission, native arbitration and all other service code remain exact.",
+  "treatment_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "treatment_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7"
+}

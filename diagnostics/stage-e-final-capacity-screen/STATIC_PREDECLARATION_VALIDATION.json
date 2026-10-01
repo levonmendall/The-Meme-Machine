@@ -1,0 +1,14 @@
+{
+  "syntax": {
+    "execute_arm.py": true,
+    "harness.py": true,
+    "prepare.py": true,
+    "publish.py": true,
+    "screen_support.py": true
+  },
+  "all_bound_screen_hashes_match": true,
+  "runtime_environment_exact_match": true,
+  "material_executions_started": 0,
+  "budget_consumed": 0,
+  "generic_test_discovery_not_run": "User forbids extra pressure/cohort execution; exact reviewed runtime proofs remain referenced, not counted anew."
+}
