@@ -1,0 +1,65 @@
+{
+  "base_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "base_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "baseline_sha": "54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340",
+  "baseline_tree": "938df84aff26d3502bcaeb70559e5f3f2d6c2d7f",
+  "baseline_run": 36873350412,
+  "baseline_job": 110406426566,
+  "baseline_artifact": 11167657807,
+  "baseline_zip_sha256": "fd05083744e45c299b03ee097185f05ec4a578defbba788e0a79e5eaedfff141",
+  "focused": {
+    "error_cases": [
+      "tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds",
+      "tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain"
+    ],
+    "errors": 2,
+    "failure_cases": [
+      "tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect"
+    ],
+    "failures": 1,
+    "observability": "Post-error numeric state only; original methods, bounds and assertions unchanged.",
+    "passes": 0,
+    "skip_cases": [],
+    "skips": 0,
+    "tests": 3
+  },
+  "hashes": {
+    "contract-probe.json": "3a5f37adc5011915f78f17fb326a4c650d31c9d8903cb570a1ae31c199e579ea",
+    "environment.json": "b8e3981cad28a8d578b5782031589f3fb091b943d461f974a2997a69c98be838",
+    "focused-summary.json": "828f4a0e6a9467630649b5036fa3e4eb336db590a64e4b131ef10ac9ebf4f7d5",
+    "focused.log": "f7e9f93852a0f3f08b3dbafe18acd14d4fae63f22019e26df80c54b646a3f756",
+    "identity.json": "de635273c8f56df30d2745e03dc4fcb0c99b159c4471d13f35286de2c1d0158f",
+    "original-preflight.zip": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457",
+    "original-skips.json": "ddf28f723a85fadcf31fcd7b650e14676d5f61389e0ec0f92adf4581f31595a5",
+    "original-unittest.log": "afd19c3842af1c00ff5e35f35917d6511e1ceeb67257235469d88e324a4181a0"
+  },
+  "classifications": [
+    {
+      "case": "run379",
+      "primary": "C",
+      "secondary": "B",
+      "cause": "Live blocks and their durable finalized source frontier are artificially aged by 240 seconds. Both residence and first-service deadlines are already expired; debt >1000 also starts recovery from an obsolete source coordinate.",
+      "evidence": "Native observation hot=1440, source_time=1790863175; wall=1790863416.2409189; safety_deadline=46.74746608734131<now=51.010864828; recovery_deadline=-73.25253391265869. Pending null; housekeeping 0.",
+      "correction": "Keep the original 16000-body aged backlog as preexisting unpinned native records at age 181; use a natively validated fresh empty block to establish the source frontier; retain all 120 live frames, cadence .05, 160 bodies/frame and all acceptance assertions."
+    },
+    {
+      "case": "run380",
+      "primary": "C",
+      "secondary": "B",
+      "cause": "Fixed fresh synthetic block envelopes surround historical Pump/PumpSwap encoded economic event timestamps. The authoritative decoder retains event time; maintenance correctly refuses expired records.",
+      "evidence": "Native first nonempty observation: Pump hot=204 and PumpSwap hot=340 with oldest=1790464453; finalized source=1790863418 and wall=1790863419.164949; safety deadline=-398675.25253391266. Pending null; housekeeping 0.",
+      "correction": "Translate only known signed 64-bit event-clock bytes to the same int(due) coordinate fixed before recv/backpressure; retain all other event bytes, fixture gzip blobs, frame counts, cadence, lag/coverage/drain/control and bounds."
+    },
+    {
+      "case": "run373",
+      "primary": "D",
+      "secondary": "C",
+      "cause": "Frozen wall time disagrees with advancing monotonic time beyond the unchanged 3-second clock lease.",
+      "evidence": "wall=anchor_wall=1790439000; monotonic=57.323668057; anchor_monotonic=54.128584317. Deterministic ClockModel rejects after 3.001 seconds.",
+      "correction": "Use real advancing wall time and generated finalized block timestamps; keep the 14 x 10MiB frames at .75 seconds, 80 relevant transactions, continuity and all bounds. Other SustainedSocket callers keep their existing default clock."
+    }
+  ],
+  "cross_lane_changes": 0,
+  "original_skip_statuses": 46,
+  "full_preflight_executions": 0
+}

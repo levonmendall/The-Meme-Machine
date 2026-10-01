@@ -1,7 +1,7 @@
 {
-  "mode": "baseline",
+  "mode": "corrected",
   "base_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
-  "expected_parent": "3928947f44e57ab7eb268afd074fc242faf5bf9f",
+  "expected_parent": "54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340",
   "full_preflight_authorized": false,
   "paper_only": true
 }

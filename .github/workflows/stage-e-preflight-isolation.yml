@@ -39,13 +39,14 @@ jobs:
           base = 'dc08f9064cf5e37b63f383f52aa709d0afc1723f'
           git = lambda *a: subprocess.check_output(['git', *a], text=True).strip()
           request = json.loads(Path('diagnostics/stage-e-preflight/execution-request.json').read_text())
-          assert request['mode'] == 'baseline'
+          assert request['mode'] in ('baseline', 'corrected')
           assert os.environ['GITHUB_RUN_ATTEMPT'] == '1'
           assert git('rev-parse', 'HEAD') == os.environ['GITHUB_SHA']
           assert git('rev-parse', 'HEAD^') == request['expected_parent']
           assert not git('status', '--porcelain')
           changed = git('diff', '--name-only', base, 'HEAD').splitlines()
-          assert all(p.startswith('diagnostics/stage-e-preflight/') or p == '.github/workflows/stage-e-preflight-isolation.yml' for p in changed)
+          allowed_tests = {'tests/test_run379_production_pressure.py','tests/test_run380_production_pressure.py','tests/test_run373_dispatch_throughput.py','tests/evidence_fixture_clock.py'}
+          assert all(p.startswith('diagnostics/stage-e-preflight/') or p == '.github/workflows/stage-e-preflight-isolation.yml' or (request['mode']=='corrected' and p in allowed_tests) for p in changed)
           row = dict(base_sha=base, base_tree=git('rev-parse', base+'^{tree}'), sha=git('rev-parse', 'HEAD'), tree=git('rev-parse', 'HEAD^{tree}'), changed=changed, mode=request['mode'], paper_only=True)
           Path(os.environ['LANE_C_EVIDENCE'], 'identity.json').write_text(json.dumps(row, indent=2)+'\n')
           with open(os.environ['GITHUB_ENV'], 'a') as env:
@@ -76,6 +77,9 @@ jobs:
       - name: Deterministic original contract reproductions
         if: always()
         run: python diagnostics/stage-e-preflight/contract_probe.py
+      - name: Verify translated fixture bytes against the native decoders
+        if: always()
+        run: python diagnostics/stage-e-preflight/fixture_clock_probe.py
       - name: Hash bounded evidence
         if: always()
         run: |

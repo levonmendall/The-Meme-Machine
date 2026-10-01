@@ -1,6 +1,6 @@
 """Run 380 production bodies, fixed source clock, actual ordered SQLite pipeline.
 
-Reconstructed envelopes and failed-transaction filler are explicitly synthetic.
+Reconstructed envelopes, translated event clocks and failed-transaction filler are explicitly synthetic.
 Every source deadline is fixed before recv; backpressure cannot refresh its age.
 """
 import asyncio,copy,gzip,json,sqlite3,tempfile,time,unittest
@@ -9,6 +9,7 @@ from unittest.mock import patch
 import meme_machine.solana_evidence_service as service
 from tests.test_run373_dispatch_throughput import database_ready
 from tests.evidence_ipc_harness import ipc_transport
+from tests.evidence_fixture_clock import event_clock_patches,rebase_event_clocks
 class Wire:
  def __init__(self):
   self.templates=json.loads(gzip.decompress((Path(__import__('certification').__file__).parent/'tests/fixtures/run380-production-templates.json.gz').read_bytes()))['templates']
@@ -18,6 +19,7 @@ class Wire:
     t=copy.deepcopy(self.templates[kind if kind!='empty' else 'pumpswap'][i%len(self.templates[kind if kind!='empty' else 'pumpswap'])]);t['transaction']['signatures']=['run380:1000:'+str(len(txs))]
     if kind=='empty':t['meta']['err']={'InstructionError':[0,{'Custom':1}]}
     txs.append(t)
+  self.event_clocks=event_clock_patches(txs)
   self.template=json.dumps(dict(method='blockNotification',params=dict(subscription=1,result=dict(value=dict(slot=1000,err=None,block=dict(parentSlot=999,blockhash='h1000',previousBlockhash='h999',blockTime=1000000000,transactions=txs))))),separators=(',',':')).encode()
   self.sent=0;self.frames=240;self.acks=asyncio.Queue();self.start=None
  async def __aenter__(self):return self
@@ -31,6 +33,7 @@ class Wire:
   due=self.start+self.sent*.27;await asyncio.sleep(max(0,due-time.time()));slot=1000+self.sent
   raw=self.template.replace(b'run380:1000:',('run380:'+str(slot)+':').encode())
   for old,new in [(b'"slot":1000,',f'"slot":{slot},'.encode()),(b'"parentSlot":999,',f'"parentSlot":{slot-1},'.encode()),(b'"blockhash":"h1000"',f'"blockhash":"h{slot}"'.encode()),(b'"previousBlockhash":"h999"',f'"previousBlockhash":"h{slot-1}"'.encode()),(b'"blockTime":1000000000,',f'"blockTime":{int(due)},'.encode())]:raw=raw.replace(old,new)
+  raw=rebase_event_clocks(raw,self.event_clocks,int(due))
   self.sent+=1;return raw
 
 class SourceClockPressureTests(unittest.IsolatedAsyncioTestCase):

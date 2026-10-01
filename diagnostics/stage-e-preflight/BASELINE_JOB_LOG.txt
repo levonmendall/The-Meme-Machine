@@ -1,0 +1,1013 @@
+﻿2026-10-01T14:03:27.7205753Z Current runner version: '2.337.0'
+2026-10-01T14:03:27.7225519Z ##[group]Runner Image Provisioner
+2026-10-01T14:03:27.7226322Z Hosted Compute Agent
+2026-10-01T14:03:27.7226816Z Version: 20260901.588
+2026-10-01T14:03:27.7227449Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-01T14:03:27.7228040Z Build Date: 2026-09-01T19:56:44Z
+2026-10-01T14:03:27.7228580Z Worker ID: {5aa38dd0-672f-430c-b0db-87e6ff7e6b69}
+2026-10-01T14:03:27.7229218Z Azure Region: westus3
+2026-10-01T14:03:27.7229728Z ##[endgroup]
+2026-10-01T14:03:27.7231217Z ##[group]Operating System
+2026-10-01T14:03:27.7231748Z Ubuntu
+2026-10-01T14:03:27.7232182Z 24.04.5
+2026-10-01T14:03:27.7232647Z LTS
+2026-10-01T14:03:27.7233078Z ##[endgroup]
+2026-10-01T14:03:27.7233618Z ##[group]Runner Image
+2026-10-01T14:03:27.7234111Z Image: ubuntu-24.04
+2026-10-01T14:03:27.7234575Z Version: 20260927.320.1
+2026-10-01T14:03:27.7235901Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-01T14:03:27.7237247Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+2026-10-01T14:03:27.7238063Z ##[endgroup]
+2026-10-01T14:03:27.7239006Z ##[group]GITHUB_TOKEN Permissions
+2026-10-01T14:03:27.7240837Z Actions: read
+2026-10-01T14:03:27.7241358Z Contents: read
+2026-10-01T14:03:27.7241886Z Metadata: read
+2026-10-01T14:03:27.7242336Z ##[endgroup]
+2026-10-01T14:03:27.7243925Z Secret source: Actions
+2026-10-01T14:03:27.7244927Z Cache mode: write
+2026-10-01T14:03:27.7245683Z Prepare workflow directory
+2026-10-01T14:03:27.7573541Z Prepare all required actions
+2026-10-01T14:03:27.7625892Z Getting action download info
+2026-10-01T14:03:28.0830272Z Download action repository 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-10-01T14:03:28.6719678Z Download action repository 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-01T14:03:28.8470075Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-01T14:03:29.6899482Z Complete job name: focused
+2026-10-01T14:03:29.7468791Z ##[group]Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+2026-10-01T14:03:29.7469353Z with:
+2026-10-01T14:03:29.7469594Z   ref: 54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340
+2026-10-01T14:03:29.7469880Z   fetch-depth: 0
+2026-10-01T14:03:29.7470100Z   persist-credentials: false
+2026-10-01T14:03:29.7470361Z   repository: levonmendall/The-Meme-Machine
+2026-10-01T14:03:29.7472285Z   token: ***
+2026-10-01T14:03:29.7472496Z   ssh-strict: true
+2026-10-01T14:03:29.7472710Z   ssh-user: git
+2026-10-01T14:03:29.7472914Z   clean: true
+2026-10-01T14:03:29.7473133Z   sparse-checkout-cone-mode: true
+2026-10-01T14:03:29.7473390Z   fetch-tags: false
+2026-10-01T14:03:29.7473646Z   show-progress: true
+2026-10-01T14:03:29.7473863Z   lfs: false
+2026-10-01T14:03:29.7474073Z   submodules: false
+2026-10-01T14:03:29.7474315Z   set-safe-directory: true
+2026-10-01T14:03:29.7474676Z env:
+2026-10-01T14:03:29.7474887Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:29.7475104Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:29.7475478Z ##[endgroup]
+2026-10-01T14:03:29.8270879Z Syncing repository: levonmendall/The-Meme-Machine
+2026-10-01T14:03:29.8272754Z ##[group]Getting Git version info
+2026-10-01T14:03:29.8273366Z Working directory is '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+2026-10-01T14:03:29.8274214Z [command]/usr/bin/git version
+2026-10-01T14:03:29.8313125Z git version 2.55.0
+2026-10-01T14:03:29.8334709Z ##[endgroup]
+2026-10-01T14:03:29.8339863Z Temporarily overriding HOME='/home/runner/work/_temp/b1b521c2-3aed-42ac-b674-76782fb45b31' before making global git config changes
+2026-10-01T14:03:29.8340881Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-01T14:03:29.8343773Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T14:03:29.8384667Z Deleting the contents of '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+2026-10-01T14:03:29.8387965Z ##[group]Initializing the repository
+2026-10-01T14:03:29.8392318Z [command]/usr/bin/git init /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T14:03:30.0469279Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-01T14:03:30.0469917Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-01T14:03:30.0470550Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-01T14:03:30.0471086Z hint: call:
+2026-10-01T14:03:30.0471367Z hint:
+2026-10-01T14:03:30.0471725Z hint: 	git config --global init.defaultBranch <name>
+2026-10-01T14:03:30.0472032Z hint:
+2026-10-01T14:03:30.0472312Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-01T14:03:30.0472758Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-01T14:03:30.0473124Z hint:
+2026-10-01T14:03:30.0473329Z hint: 	git branch -m <name>
+2026-10-01T14:03:30.0473558Z hint:
+2026-10-01T14:03:30.0473865Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-01T14:03:30.0474453Z Initialized empty Git repository in /home/runner/work/The-Meme-Machine/The-Meme-Machine/.git/
+2026-10-01T14:03:30.0481900Z [command]/usr/bin/git remote add origin https://github.com/levonmendall/The-Meme-Machine
+2026-10-01T14:03:30.0525283Z ##[endgroup]
+2026-10-01T14:03:30.0525923Z ##[group]Disabling automatic garbage collection
+2026-10-01T14:03:30.0528391Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-01T14:03:30.0556966Z ##[endgroup]
+2026-10-01T14:03:30.0563524Z ##[group]Setting up auth
+2026-10-01T14:03:30.0564510Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T14:03:30.0591350Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T14:03:30.0884540Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T14:03:30.0915017Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T14:03:30.1102103Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-01T14:03:30.1136684Z ##[endgroup]
+2026-10-01T14:03:30.1137096Z ##[group]Fetching the repository
+2026-10-01T14:03:30.1143996Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-10-01T14:03:31.8945220Z From https://github.com/levonmendall/The-Meme-Machine
+2026-10-01T14:03:31.8946469Z  * [new branch]        analysis/run377-preserved-evidence-20260926 -> origin/analysis/run377-preserved-evidence-20260926
+2026-10-01T14:03:31.8947665Z  * [new branch]        analysis/run379-preserved-evidence-20260926 -> origin/analysis/run379-preserved-evidence-20260926
+2026-10-01T14:03:31.8948706Z  * [new branch]        analysis/run380-preserved-evidence-20260926 -> origin/analysis/run380-preserved-evidence-20260926
+2026-10-01T14:03:31.8949677Z  * [new branch]        analysis/run381-preserved-evidence-20260927 -> origin/analysis/run381-preserved-evidence-20260927
+2026-10-01T14:03:31.8950550Z  * [new branch]        analysis/run381-sqlite-lifetime-20260927 -> origin/analysis/run381-sqlite-lifetime-20260927
+2026-10-01T14:03:31.8951695Z  * [new branch]        analysis/stage-e-causal-isolation-phase0-20260930-paper -> origin/analysis/stage-e-causal-isolation-phase0-20260930-paper
+2026-10-01T14:03:31.8953039Z  * [new branch]        architecture/certify-changes-preflight-runs-20260925 -> origin/architecture/certify-changes-preflight-runs-20260925
+2026-10-01T14:03:31.8954574Z  * [new branch]        architecture/robinhood-evidence-plane-20260925 -> origin/architecture/robinhood-evidence-plane-20260925
+2026-10-01T14:03:31.8955886Z  * [new branch]        archive/one-hour-repair-campaign-b145417c-20260923 -> origin/archive/one-hour-repair-campaign-b145417c-20260923
+2026-10-01T14:03:31.8956978Z  * [new branch]        audit/coverage-evidence-35935431384 -> origin/audit/coverage-evidence-35935431384
+2026-10-01T14:03:31.8957623Z  * [new branch]        audit/coverage-successor-handoff-20260924 -> origin/audit/coverage-successor-handoff-20260924
+2026-10-01T14:03:31.8958255Z  * [new branch]        audit/missed-winner-market-replay -> origin/audit/missed-winner-market-replay
+2026-10-01T14:03:31.8958792Z  * [new branch]        cert/active-next-run-v12-20260924 -> origin/cert/active-next-run-v12-20260924
+2026-10-01T14:03:31.8959408Z  * [new branch]        cert/all-market-certification-20260923 -> origin/cert/all-market-certification-20260923
+2026-10-01T14:03:31.8960095Z  * [new branch]        cert/autonomous-paper-control-66898d4 -> origin/cert/autonomous-paper-control-66898d4
+2026-10-01T14:03:31.8960965Z  * [new branch]        cert/autonomous-paper-control-d63caf3 -> origin/cert/autonomous-paper-control-d63caf3
+2026-10-01T14:03:31.8961547Z  * [new branch]        cert/autonomous-paper-final-4e52b4d -> origin/cert/autonomous-paper-final-4e52b4d
+2026-10-01T14:03:31.8962100Z  * [new branch]        cert/autonomous-paper-final-4f6c155 -> origin/cert/autonomous-paper-final-4f6c155
+2026-10-01T14:03:31.8962651Z  * [new branch]        cert/autonomous-paper-final-518e857 -> origin/cert/autonomous-paper-final-518e857
+2026-10-01T14:03:31.8963200Z  * [new branch]        cert/autonomous-paper-final-72cbb01 -> origin/cert/autonomous-paper-final-72cbb01
+2026-10-01T14:03:31.8963787Z  * [new branch]        cert/autonomous-paper-final-a60326b -> origin/cert/autonomous-paper-final-a60326b
+2026-10-01T14:03:31.8964359Z  * [new branch]        cert/autonomous-paper-final-aa50bf8 -> origin/cert/autonomous-paper-final-aa50bf8
+2026-10-01T14:03:31.8964949Z  * [new branch]        cert/autonomous-paper-final-b408dec -> origin/cert/autonomous-paper-final-b408dec
+2026-10-01T14:03:31.8965854Z  * [new branch]        cert/autonomous-paper-final-df7b376 -> origin/cert/autonomous-paper-final-df7b376
+2026-10-01T14:03:31.8966517Z  * [new branch]        cert/autonomous-paper-machinery-20260927 -> origin/cert/autonomous-paper-machinery-20260927
+2026-10-01T14:03:31.8967290Z  * [new branch]        cert/cancel-combined-preflight-20260920 -> origin/cert/cancel-combined-preflight-20260920
+2026-10-01T14:03:31.8967977Z  * [new branch]        cert/cancel-four-hour-20260920 -> origin/cert/cancel-four-hour-20260920
+2026-10-01T14:03:31.8968933Z  * [new branch]        cert/cancel-superseded-20260920 -> origin/cert/cancel-superseded-20260920
+2026-10-01T14:03:31.8969616Z  * [new branch]        cert/cohort-state-2c3ac1d49dc0 -> origin/cert/cohort-state-2c3ac1d49dc0
+2026-10-01T14:03:31.8970164Z  * [new branch]        cert/cohort-state-513baef4b555 -> origin/cert/cohort-state-513baef4b555
+2026-10-01T14:03:31.8970656Z  * [new branch]        cert/cohort-state-59078c3dec08 -> origin/cert/cohort-state-59078c3dec08
+2026-10-01T14:03:31.8971129Z  * [new branch]        cert/cohort-state-95f602943ed4 -> origin/cert/cohort-state-95f602943ed4
+2026-10-01T14:03:31.8971608Z  * [new branch]        cert/cohort-state-d4c12afcd902 -> origin/cert/cohort-state-d4c12afcd902
+2026-10-01T14:03:31.8972180Z  * [new branch]        cert/dlmm-machinery-proof-current -> origin/cert/dlmm-machinery-proof-current
+2026-10-01T14:03:31.8972710Z  * [new branch]        cert/execution-certification-v1 -> origin/cert/execution-certification-v1
+2026-10-01T14:03:31.8973186Z  * [new branch]        cert/four-lane-capacity-v2 -> origin/cert/four-lane-capacity-v2
+2026-10-01T14:03:31.8973695Z  * [new branch]        cert/four-lane-dlmm-profitability-v1 -> origin/cert/four-lane-dlmm-profitability-v1
+2026-10-01T14:03:31.8974198Z  * [new branch]        cert/four-lane-run-records -> origin/cert/four-lane-run-records
+2026-10-01T14:03:31.8974797Z  * [new branch]        cert/four-lane-sustained-v1 -> origin/cert/four-lane-sustained-v1
+2026-10-01T14:03:31.8975557Z  * [new branch]        cert/hourly-launch-evidence-35493891947 -> origin/cert/hourly-launch-evidence-35493891947
+2026-10-01T14:03:31.8976321Z  * [new branch]        cert/meteora-execution-cert-v1 -> origin/cert/meteora-execution-cert-v1
+2026-10-01T14:03:31.8976855Z  * [new branch]        cert/meteora-machinery-proof-v2 -> origin/cert/meteora-machinery-proof-v2
+2026-10-01T14:03:31.8977482Z  * [new branch]        cert/moderate-admission-thresholds-v1-20260926 -> origin/cert/moderate-admission-thresholds-v1-20260926
+2026-10-01T14:03:31.8978072Z  * [new branch]        cert/non-market-e2e-20260922 -> origin/cert/non-market-e2e-20260922
+2026-10-01T14:03:31.8978557Z  * [new branch]        cert/one-hour-repair-campaign -> origin/cert/one-hour-repair-campaign
+2026-10-01T14:03:31.8979037Z  * [new branch]        cert/pons-execution-cert-v1 -> origin/cert/pons-execution-cert-v1
+2026-10-01T14:03:31.8979639Z  * [new branch]        cert/pons-opportunity-preservation-v2-20260925 -> origin/cert/pons-opportunity-preservation-v2-20260925
+2026-10-01T14:03:31.8980351Z  * [new branch]        cert/profit-protection-v2-four-lane-20260923 -> origin/cert/profit-protection-v2-four-lane-20260923
+2026-10-01T14:03:31.8981053Z  * [new branch]        cert/profitability-persistence-edge-current-v1 -> origin/cert/profitability-persistence-edge-current-v1
+2026-10-01T14:03:31.8981837Z  * [new branch]        cert/profitability-persistence-edge-current-v1-compose -> origin/cert/profitability-persistence-edge-current-v1-compose
+2026-10-01T14:03:31.8982554Z  * [new branch]        cert/profitability-persistence-edge-v1 -> origin/cert/profitability-persistence-edge-v1
+2026-10-01T14:03:31.8983221Z  * [new branch]        cert/profitability-persistence-edge-v1-compose -> origin/cert/profitability-persistence-edge-v1-compose
+2026-10-01T14:03:31.8983967Z  * [new branch]        cert/profitability-portfolio-autonomy-current-v1 -> origin/cert/profitability-portfolio-autonomy-current-v1
+2026-10-01T14:03:31.8984846Z  * [new branch]        cert/profitability-portfolio-autonomy-final-v1 -> origin/cert/profitability-portfolio-autonomy-final-v1
+2026-10-01T14:03:31.8985631Z  * [new branch]        cert/profitability-portfolio-autonomy-v1 -> origin/cert/profitability-portfolio-autonomy-v1
+2026-10-01T14:03:31.8986245Z  * [new branch]        cert/profitability-v1-current -> origin/cert/profitability-v1-current
+2026-10-01T14:03:31.8986738Z  * [new branch]        cert/prospective-market-v1 -> origin/cert/prospective-market-v1
+2026-10-01T14:03:31.8987217Z  * [new branch]        cert/pump-execution-cert-v1 -> origin/cert/pump-execution-cert-v1
+2026-10-01T14:03:31.8987707Z  * [new branch]        cert/ramses-execution-cert-v1 -> origin/cert/ramses-execution-cert-v1
+2026-10-01T14:03:31.8988217Z  * [new branch]        cert/ramses-machinery-proof-v2 -> origin/cert/ramses-machinery-proof-v2
+2026-10-01T14:03:31.8988779Z  * [new branch]        cert/single-campaign-004fe011b4412e6d -> origin/cert/single-campaign-004fe011b4412e6d
+2026-10-01T14:03:31.8989386Z  * [new branch]        cert/single-campaign-120002d402a7d838 -> origin/cert/single-campaign-120002d402a7d838
+2026-10-01T14:03:31.8989973Z  * [new branch]        cert/single-campaign-16ffe821fbb298da -> origin/cert/single-campaign-16ffe821fbb298da
+2026-10-01T14:03:31.8990555Z  * [new branch]        cert/single-campaign-298f9012c4a1d0a8 -> origin/cert/single-campaign-298f9012c4a1d0a8
+2026-10-01T14:03:31.8991147Z  * [new branch]        cert/single-campaign-2fbf4cef086b296f -> origin/cert/single-campaign-2fbf4cef086b296f
+2026-10-01T14:03:31.8991745Z  * [new branch]        cert/single-campaign-318a483fb097df0d -> origin/cert/single-campaign-318a483fb097df0d
+2026-10-01T14:03:31.8992320Z  * [new branch]        cert/single-campaign-3d20ec8b1604ecc8 -> origin/cert/single-campaign-3d20ec8b1604ecc8
+2026-10-01T14:03:31.8992901Z  * [new branch]        cert/single-campaign-3d80885094112b95 -> origin/cert/single-campaign-3d80885094112b95
+2026-10-01T14:03:31.8993596Z  * [new branch]        cert/single-campaign-3e5c47d8091b321c -> origin/cert/single-campaign-3e5c47d8091b321c
+2026-10-01T14:03:31.8994179Z  * [new branch]        cert/single-campaign-52e4f159fbe325bf -> origin/cert/single-campaign-52e4f159fbe325bf
+2026-10-01T14:03:31.8994790Z  * [new branch]        cert/single-campaign-5595941feb9921b7 -> origin/cert/single-campaign-5595941feb9921b7
+2026-10-01T14:03:31.8995806Z  * [new branch]        cert/single-campaign-6682fd49a1a743fe -> origin/cert/single-campaign-6682fd49a1a743fe
+2026-10-01T14:03:31.8996593Z  * [new branch]        cert/single-campaign-6d8a18efe2f5abe0 -> origin/cert/single-campaign-6d8a18efe2f5abe0
+2026-10-01T14:03:31.8997203Z  * [new branch]        cert/single-campaign-7ae753830f26155a -> origin/cert/single-campaign-7ae753830f26155a
+2026-10-01T14:03:31.8997802Z  * [new branch]        cert/single-campaign-7b7e6ef978e77e03 -> origin/cert/single-campaign-7b7e6ef978e77e03
+2026-10-01T14:03:31.8998621Z  * [new branch]        cert/single-campaign-8c3af7eeff6ef235 -> origin/cert/single-campaign-8c3af7eeff6ef235
+2026-10-01T14:03:31.8999225Z  * [new branch]        cert/single-campaign-af9d23141e561767 -> origin/cert/single-campaign-af9d23141e561767
+2026-10-01T14:03:31.8999914Z  * [new branch]        cert/single-campaign-c34336216bf3fac9 -> origin/cert/single-campaign-c34336216bf3fac9
+2026-10-01T14:03:31.9000620Z  * [new branch]        cert/single-campaign-continuation-06ce910be36e94e7 -> origin/cert/single-campaign-continuation-06ce910be36e94e7
+2026-10-01T14:03:31.9001353Z  * [new branch]        cert/single-campaign-d2e25fc450f968cf -> origin/cert/single-campaign-d2e25fc450f968cf
+2026-10-01T14:03:31.9001972Z  * [new branch]        cert/single-campaign-d94e983d3a8ff02b -> origin/cert/single-campaign-d94e983d3a8ff02b
+2026-10-01T14:03:31.9002590Z  * [new branch]        cert/single-campaign-de96686205d33ad7 -> origin/cert/single-campaign-de96686205d33ad7
+2026-10-01T14:03:31.9061718Z  * [new branch]        cert/single-campaign-ee3d321d0445aff6 -> origin/cert/single-campaign-ee3d321d0445aff6
+2026-10-01T14:03:31.9063011Z  * [new branch]        cert/single-campaign-f1038ba98e853c28 -> origin/cert/single-campaign-f1038ba98e853c28
+2026-10-01T14:03:31.9064024Z  * [new branch]        cert/single-market-510872d8-20260927 -> origin/cert/single-market-510872d8-20260927
+2026-10-01T14:03:31.9064815Z  * [new branch]        cert/single-market-ee6523fb-20260926 -> origin/cert/single-market-ee6523fb-20260926
+2026-10-01T14:03:31.9065849Z  * [new branch]        cert/single-market-evidence-planes-20260925 -> origin/cert/single-market-evidence-planes-20260925
+2026-10-01T14:03:31.9066878Z  * [new branch]        cert/single-market-evidence-planes-v1-20260925 -> origin/cert/single-market-evidence-planes-v1-20260925
+2026-10-01T14:03:31.9067992Z  * [new branch]        cert/single-market-evidence-reconstruction-20260924 -> origin/cert/single-market-evidence-reconstruction-20260924
+2026-10-01T14:03:31.9069179Z  * [new branch]        cert/single-market-latest-policies-350e9c-20260926 -> origin/cert/single-market-latest-policies-350e9c-20260926
+2026-10-01T14:03:31.9070346Z  * [new branch]        cert/single-market-run367-repaired-v1-20260924 -> origin/cert/single-market-run367-repaired-v1-20260924
+2026-10-01T14:03:31.9071441Z  * [new branch]        cert/single-market-run369-repairs-20260925 -> origin/cert/single-market-run369-repairs-20260925
+2026-10-01T14:03:31.9072574Z  * [new branch]        cert/single-market-run371-all-repairs-20260925 -> origin/cert/single-market-run371-all-repairs-20260925
+2026-10-01T14:03:31.9073728Z  * [new branch]        cert/single-market-run372-run371-repairs-20260926 -> origin/cert/single-market-run372-run371-repairs-20260926
+2026-10-01T14:03:31.9075019Z  * [new branch]        cert/single-market-run373-run372-large-frame-repair-20260926 -> origin/cert/single-market-run373-run372-large-frame-repair-20260926
+2026-10-01T14:03:31.9076591Z  * [new branch]        cert/single-market-run374-run373-dispatch-repair-20260926 -> origin/cert/single-market-run374-run373-dispatch-repair-20260926
+2026-10-01T14:03:31.9078010Z  * [new branch]        cert/single-market-run375-run374-publisher-repair-20260926 -> origin/cert/single-market-run375-run374-publisher-repair-20260926
+2026-10-01T14:03:31.9078862Z  * [new branch]        cert/single-market-run376-run375-runtime-repair-20260926 -> origin/cert/single-market-run376-run375-runtime-repair-20260926
+2026-10-01T14:03:31.9079661Z  * [new branch]        cert/single-market-run376-six-regime-48e46b-20260926 -> origin/cert/single-market-run376-six-regime-48e46b-20260926
+2026-10-01T14:03:31.9080416Z  * [new branch]        cert/single-market-run377-repairs-1e50d476-20260926 -> origin/cert/single-market-run377-repairs-1e50d476-20260926
+2026-10-01T14:03:31.9081091Z  * [new branch]        cert/single-market-runtime-v2-20260926 -> origin/cert/single-market-runtime-v2-20260926
+2026-10-01T14:03:31.9081737Z  * [new branch]        cert/single-market-v10-one-market-20260924 -> origin/cert/single-market-v10-one-market-20260924
+2026-10-01T14:03:31.9082371Z  * [new branch]        cert/single-market-v10-postrun-20260924 -> origin/cert/single-market-v10-postrun-20260924
+2026-10-01T14:03:31.9083054Z  * [new branch]        cert/single-market-v10-provider-pressure-20260924 -> origin/cert/single-market-v10-provider-pressure-20260924
+2026-10-01T14:03:31.9083876Z  * [new branch]        cert/single-market-v10-provider-pressure-one-market-20260924 -> origin/cert/single-market-v10-provider-pressure-one-market-20260924
+2026-10-01T14:03:31.9084630Z  * [new branch]        cert/single-market-v10-smoke-tail-20260924 -> origin/cert/single-market-v10-smoke-tail-20260924
+2026-10-01T14:03:31.9085253Z  * [new branch]        cert/single-market-v11-ramses-v4-20260924 -> origin/cert/single-market-v11-ramses-v4-20260924
+2026-10-01T14:03:31.9086135Z  * [new branch]        cert/single-market-v11-ramses-viability-v4-20260924 -> origin/cert/single-market-v11-ramses-viability-v4-20260924
+2026-10-01T14:03:31.9086814Z  * [new branch]        cert/single-market-v12-combined-20260924 -> origin/cert/single-market-v12-combined-20260924
+2026-10-01T14:03:31.9087593Z  * [new branch]        cert/single-market-v12-pump-ramses-20260924 -> origin/cert/single-market-v12-pump-ramses-20260924
+2026-10-01T14:03:31.9088251Z  * [new branch]        cert/single-market-v12-pump-ramses-20260925 -> origin/cert/single-market-v12-pump-ramses-20260925
+2026-10-01T14:03:31.9088874Z  * [new branch]        cert/single-market-v8-monitored-20260924 -> origin/cert/single-market-v8-monitored-20260924
+2026-10-01T14:03:31.9089490Z  * [new branch]        cert/single-market-v8-monitored-v2-20260924 -> origin/cert/single-market-v8-monitored-v2-20260924
+2026-10-01T14:03:31.9090107Z  * [new branch]        cert/single-market-v9-monitored-20260924 -> origin/cert/single-market-v9-monitored-20260924
+2026-10-01T14:03:31.9090665Z  * [new branch]        cert/solana-consumer-scheduling -> origin/cert/solana-consumer-scheduling
+2026-10-01T14:03:31.9091218Z  * [new branch]        cert/solana-scheduling-verification -> origin/cert/solana-scheduling-verification
+2026-10-01T14:03:31.9091870Z  * [new branch]        cert/source-pump-profit-protection-v2-20260923 -> origin/cert/source-pump-profit-protection-v2-20260923
+2026-10-01T14:03:31.9092443Z  * [new branch]        cert/tmp-pons-overlay-v1 -> origin/cert/tmp-pons-overlay-v1
+2026-10-01T14:03:31.9092983Z  * [new branch]        cert/v10-one-market-authorization-20260924 -> origin/cert/v10-one-market-authorization-20260924
+2026-10-01T14:03:31.9093646Z  * [new branch]        cert/v10-provider-pressure-one-market-20260924 -> origin/cert/v10-provider-pressure-one-market-20260924
+2026-10-01T14:03:31.9094386Z  * [new branch]        certification/four-lane-repair-integration-20260920 -> origin/certification/four-lane-repair-integration-20260920
+2026-10-01T14:03:31.9095133Z  * [new branch]        diag/meme-machine-api-key-chain-binding-20260923 -> origin/diag/meme-machine-api-key-chain-binding-20260923
+2026-10-01T14:03:31.9095946Z  * [new branch]        diag/ramses-public-state-20260922 -> origin/diag/ramses-public-state-20260922
+2026-10-01T14:03:31.9096687Z  * [new branch]        diag/robinhood-alchemy-availability-20260923 -> origin/diag/robinhood-alchemy-availability-20260923
+2026-10-01T14:03:31.9097357Z  * [new branch]        diag/robinhood-alchemy-edge-sample-20260923 -> origin/diag/robinhood-alchemy-edge-sample-20260923
+2026-10-01T14:03:31.9098041Z  * [new branch]        diagnostic/autonomous-paper-socket-a60326b -> origin/diagnostic/autonomous-paper-socket-a60326b
+2026-10-01T14:03:31.9098663Z  * [new branch]        diagnostic/e27-receipt-timing-20260929 -> origin/diagnostic/e27-receipt-timing-20260929
+2026-10-01T14:03:31.9099287Z  * [new branch]        diagnostic/meteora-one-side-compose-20260924 -> origin/diagnostic/meteora-one-side-compose-20260924
+2026-10-01T14:03:31.9099944Z  * [new branch]        diagnostics/bounded-archive-overlap-20260930 -> origin/diagnostics/bounded-archive-overlap-20260930
+2026-10-01T14:03:31.9100605Z  * [new branch]        diagnostics/housekeeping-ordering-20261001 -> origin/diagnostics/housekeeping-ordering-20261001
+2026-10-01T14:03:31.9101243Z  * [new branch]        diagnostics/source-owner-ablation-20260930 -> origin/diagnostics/source-owner-ablation-20260930
+2026-10-01T14:03:31.9101876Z  * [new branch]        diagnostics/stage-e-fresh-causal-isolation -> origin/diagnostics/stage-e-fresh-causal-isolation
+2026-10-01T14:03:31.9102604Z  * [new branch]        diagnostics/stage-e-housekeeping-attribution-20261001 -> origin/diagnostics/stage-e-housekeeping-attribution-20261001
+2026-10-01T14:03:31.9103415Z  * [new branch]        diagnostics/stage-e-owner-admission-design-20261001-paper -> origin/diagnostics/stage-e-owner-admission-design-20261001-paper
+2026-10-01T14:03:31.9104247Z  * [new branch]        diagnostics/stage-e-owner-admission-deterministic-20261001 -> origin/diagnostics/stage-e-owner-admission-deterministic-20261001
+2026-10-01T14:03:31.9105094Z  * [new branch]        diagnostics/stage-e-owner-scheduling-attribution-20260930 -> origin/diagnostics/stage-e-owner-scheduling-attribution-20260930
+2026-10-01T14:03:31.9106092Z  * [new branch]        feat/dashboard-runtime-integration-prep -> origin/feat/dashboard-runtime-integration-prep
+2026-10-01T14:03:31.9106692Z  * [new branch]        feat/market-native-active-discovery -> origin/feat/market-native-active-discovery
+2026-10-01T14:03:31.9107260Z  * [new branch]        feat/meteora-dlmm-paper-foundation -> origin/feat/meteora-dlmm-paper-foundation
+2026-10-01T14:03:31.9107838Z  * [new branch]        feat/pons-selective-continuation-v1 -> origin/feat/pons-selective-continuation-v1
+2026-10-01T14:03:31.9108466Z  * [new branch]        feat/post-graduation-pumpswap-raydium -> origin/feat/post-graduation-pumpswap-raydium
+2026-10-01T14:03:31.9109072Z  * [new branch]        feat/pump-acceleration-independent-v1 -> origin/feat/pump-acceleration-independent-v1
+2026-10-01T14:03:31.9109635Z  * [new branch]        feat/pump-alpha-v1-independent -> origin/feat/pump-alpha-v1-independent
+2026-10-01T14:03:31.9110139Z  * [new branch]        feat/pump-directional-paper -> origin/feat/pump-directional-paper
+2026-10-01T14:03:31.9110710Z  * [new branch]        feat/ramses-all-pool-connected-lifecycle -> origin/feat/ramses-all-pool-connected-lifecycle
+2026-10-01T14:03:31.9111270Z  * [new branch]        feat/ramses-all-pool-universe -> origin/feat/ramses-all-pool-universe
+2026-10-01T14:03:31.9111828Z  * [new branch]        feat/ramses-automatic-cost-evidence-20m -> origin/feat/ramses-automatic-cost-evidence-20m
+2026-10-01T14:03:31.9112392Z  * [new branch]        feat/ramses-extended-market-test -> origin/feat/ramses-extended-market-test
+2026-10-01T14:03:31.9112883Z  * [new branch]        feat/ramses-fee-pulse-v1 -> origin/feat/ramses-fee-pulse-v1
+2026-10-01T14:03:31.9113387Z  * [new branch]        feat/read-only-portfolio-dashboard -> origin/feat/read-only-portfolio-dashboard
+2026-10-01T14:03:31.9113980Z  * [new branch]        feat/robinhood-multisource-observability -> origin/feat/robinhood-multisource-observability
+2026-10-01T14:03:31.9114671Z  * [new branch]        feat/robinhood-research-foundation -> origin/feat/robinhood-research-foundation
+2026-10-01T14:03:31.9115207Z  * [new branch]        feat/shared-portfolio-accounting -> origin/feat/shared-portfolio-accounting
+2026-10-01T14:03:31.9115956Z  * [new branch]        feat/shared-portfolio-lane-integration -> origin/feat/shared-portfolio-lane-integration
+2026-10-01T14:03:31.9116487Z  * [new branch]        fix/ramses-dlmm-rate-limit -> origin/fix/ramses-dlmm-rate-limit
+2026-10-01T14:03:31.9117036Z  * [new branch]        fix/ramses-exact-horizon-inventory-cache -> origin/fix/ramses-exact-horizon-inventory-cache
+2026-10-01T14:03:31.9117638Z  * [new branch]        fix/ramses-finality-cadence-20m-rerun -> origin/fix/ramses-finality-cadence-20m-rerun
+2026-10-01T14:03:31.9118281Z  * [new branch]        fix/ramses-finalized-frontier-driven-discovery -> origin/fix/ramses-finalized-frontier-driven-discovery
+2026-10-01T14:03:31.9118863Z  * [new branch]        fix/ramses-prestate-handoff -> origin/fix/ramses-prestate-handoff
+2026-10-01T14:03:31.9119395Z  * [new branch]        fix/ramses-qualifier-history-handoff -> origin/fix/ramses-qualifier-history-handoff
+2026-10-01T14:03:31.9119957Z  * [new branch]        fix/ramses-target-coverage-windows -> origin/fix/ramses-target-coverage-windows
+2026-10-01T14:03:31.9120520Z  * [new branch]        fix/robinhood-discovery-dlmm-fallback -> origin/fix/robinhood-discovery-dlmm-fallback
+2026-10-01T14:03:31.9121125Z  * [new branch]        fix/robinhood-primary-fallback-pacing -> origin/fix/robinhood-primary-fallback-pacing
+2026-10-01T14:03:31.9121777Z  * [new branch]        fix/robinhood-provider-endpoint-isolation-v2 -> origin/fix/robinhood-provider-endpoint-isolation-v2
+2026-10-01T14:03:31.9122406Z  * [new branch]        fix/robinhood-provider-role-isolation -> origin/fix/robinhood-provider-role-isolation
+2026-10-01T14:03:31.9122983Z  * [new branch]        fix/robinhood-sequencer-compression -> origin/fix/robinhood-sequencer-compression
+2026-10-01T14:03:31.9123602Z  * [new branch]        fix/robinhood-sequencer-nonmessage-envelope -> origin/fix/robinhood-sequencer-nonmessage-envelope
+2026-10-01T14:03:31.9124318Z  * [new branch]        fix/robinhood-sequencer-start-cursor -> origin/fix/robinhood-sequencer-start-cursor
+2026-10-01T14:03:31.9124911Z  * [new branch]        fix/robinhood-shared-primary-capacity -> origin/fix/robinhood-shared-primary-capacity
+2026-10-01T14:03:31.9125695Z  * [new branch]        launch/autonomous-paper-v1 -> origin/launch/autonomous-paper-v1
+2026-10-01T14:03:31.9126236Z  * [new branch]        launch/certified-runtime-authority-v2 -> origin/launch/certified-runtime-authority-v2
+2026-10-01T14:03:31.9126878Z  * [new branch]        launch/evidence-reconstruction-single-20260924 -> origin/launch/evidence-reconstruction-single-20260924
+2026-10-01T14:03:31.9127366Z  * [new branch]        main       -> origin/main
+2026-10-01T14:03:31.9127896Z  * [new branch]        ops/cancel-obsolete-pump-source-diagnostic-20260923 -> origin/ops/cancel-obsolete-pump-source-diagnostic-20260923
+2026-10-01T14:03:31.9128513Z  * [new branch]        ops/cancel-pons-study-20260926 -> origin/ops/cancel-pons-study-20260926
+2026-10-01T14:03:31.9129100Z  * [new branch]        ops/manual-close-meteora-36043064083-20260924 -> origin/ops/manual-close-meteora-36043064083-20260924
+2026-10-01T14:03:31.9129707Z  * [new branch]        ops/resume-meteora-36043064083-20260924 -> origin/ops/resume-meteora-36043064083-20260924
+2026-10-01T14:03:31.9130232Z  * [new branch]        perf/meme-solana-public-4rps -> origin/perf/meme-solana-public-4rps
+2026-10-01T14:03:31.9130803Z  * [new branch]        perf/robinhood-pons-batched-discovery-auth -> origin/perf/robinhood-pons-batched-discovery-auth
+2026-10-01T14:03:31.9131410Z  * [new branch]        perf/robinhood-pons-batched-followup -> origin/perf/robinhood-pons-batched-followup
+2026-10-01T14:03:31.9131956Z  * [new branch]        proof/market-native-active-paper -> origin/proof/market-native-active-paper
+2026-10-01T14:03:31.9132639Z  * [new branch]        proof/natural-continuation-v1-pumpswap -> origin/proof/natural-continuation-v1-pumpswap
+2026-10-01T14:03:31.9133216Z  * [new branch]        publication/exact-8723600-20260929 -> origin/publication/exact-8723600-20260929
+2026-10-01T14:03:31.9133734Z  * [new branch]        publication/exact-ce42573-20260929 -> origin/publication/exact-ce42573-20260929
+2026-10-01T14:03:31.9134219Z  * [new branch]        reconcile/pump-pumpswap-ci -> origin/reconcile/pump-pumpswap-ci
+2026-10-01T14:03:31.9134723Z  * [new branch]        recovery/e24-source-import-20260928 -> origin/recovery/e24-source-import-20260928
+2026-10-01T14:03:31.9135276Z  * [new branch]        recovery/e25-native-republish-20260928 -> origin/recovery/e25-native-republish-20260928
+2026-10-01T14:03:31.9136036Z  * [new branch]        recovery/publish-exact-514ed2c-20260929 -> origin/recovery/publish-exact-514ed2c-20260929
+2026-10-01T14:03:31.9136625Z  * [new branch]        recovery/publish-exact-8723600-20260929 -> origin/recovery/publish-exact-8723600-20260929
+2026-10-01T14:03:31.9137222Z  * [new branch]        recovery/publish-exact-ce42573-20260929 -> origin/recovery/publish-exact-ce42573-20260929
+2026-10-01T14:03:31.9137872Z  * [new branch]        recovery/qualify-publish-exact-dc08f906-20260929 -> origin/recovery/qualify-publish-exact-dc08f906-20260929
+2026-10-01T14:03:31.9138602Z  * [new branch]        recovery/stagee25-github-native-publication-20260928 -> origin/recovery/stagee25-github-native-publication-20260928
+2026-10-01T14:03:31.9139322Z  * [new branch]        refactor/robinhood-solana-style-rpc-governance -> origin/refactor/robinhood-solana-style-rpc-governance
+2026-10-01T14:03:31.9139924Z  * [new branch]        release/portfolio-dashboard-v1 -> origin/release/portfolio-dashboard-v1
+2026-10-01T14:03:31.9140544Z  * [new branch]        repair/alchemy-scarce-onfinality-removal-20260922 -> origin/repair/alchemy-scarce-onfinality-removal-20260922
+2026-10-01T14:03:31.9141266Z  * [new branch]        repair/attempt13-maintenance-contention-20260928 -> origin/repair/attempt13-maintenance-contention-20260928
+2026-10-01T14:03:31.9142076Z  * [new branch]        repair/attempt13-retention-density-20260928 -> origin/repair/attempt13-retention-density-20260928
+2026-10-01T14:03:31.9142732Z  * [new branch]        repair/attempt14-archive-throughput-20260928 -> origin/repair/attempt14-archive-throughput-20260928
+2026-10-01T14:03:31.9143364Z  * [new branch]        repair/autonomous-paper-runtime-20260927 -> origin/repair/autonomous-paper-runtime-20260927
+2026-10-01T14:03:31.9144025Z  * [new branch]        repair/capability-probe-transient-retry-20260923 -> origin/repair/capability-probe-transient-retry-20260923
+2026-10-01T14:03:31.9144721Z  * [new branch]        repair/dlmm-durable-state-certification-20260920 -> origin/repair/dlmm-durable-state-certification-20260920
+2026-10-01T14:03:31.9145337Z  * [new branch]        repair/dlmm-final-replay-20260924 -> origin/repair/dlmm-final-replay-20260924
+2026-10-01T14:03:31.9146071Z  * [new branch]        repair/dlmm-json-checkpoint-certification -> origin/repair/dlmm-json-checkpoint-certification
+2026-10-01T14:03:31.9146666Z  * [new branch]        repair/e23-overlap-witness-20260928 -> origin/repair/e23-overlap-witness-20260928
+2026-10-01T14:03:31.9147242Z  * [new branch]        repair/e24-maintenance-lifecycle-20260928 -> origin/repair/e24-maintenance-lifecycle-20260928
+2026-10-01T14:03:31.9147900Z  * [new branch]        repair/evidence-completion-bottlenecks-20260921 -> origin/repair/evidence-completion-bottlenecks-20260921
+2026-10-01T14:03:31.9148541Z  * [new branch]        repair/evidence-reconstruction-20260924 -> origin/repair/evidence-reconstruction-20260924
+2026-10-01T14:03:31.9149120Z  * [new branch]        repair/final-alchemy-scarcity-20260922 -> origin/repair/final-alchemy-scarcity-20260922
+2026-10-01T14:03:31.9149637Z  * [new branch]        repair/four-lane-acquisition -> origin/repair/four-lane-acquisition
+2026-10-01T14:03:31.9150116Z  * [new branch]        repair/four-lane-observability -> origin/repair/four-lane-observability
+2026-10-01T14:03:31.9150875Z  * [new branch]        repair/four-lane-strategy-scope-efficiency-20260922 -> origin/repair/four-lane-strategy-scope-efficiency-20260922
+2026-10-01T14:03:31.9151487Z  * [new branch]        repair/frozen-campaign-handoff -> origin/repair/frozen-campaign-handoff
+2026-10-01T14:03:31.9152054Z  * [new branch]        repair/lifecycle-clock-decoupling-20260923 -> origin/repair/lifecycle-clock-decoupling-20260923
+2026-10-01T14:03:31.9152667Z  * [new branch]        repair/market-scope-efficiency-20260922 -> origin/repair/market-scope-efficiency-20260922
+2026-10-01T14:03:31.9153311Z  * [new branch]        repair/market-scope-efficiency-current-20260923 -> origin/repair/market-scope-efficiency-current-20260923
+2026-10-01T14:03:31.9154016Z  * [new branch]        repair/market-scope-efficiency-current-v2-20260923 -> origin/repair/market-scope-efficiency-current-v2-20260923
+2026-10-01T14:03:31.9154717Z  * [new branch]        repair/market-scope-efficiency-final-20260923 -> origin/repair/market-scope-efficiency-final-20260923
+2026-10-01T14:03:31.9155509Z  * [new branch]        repair/meme-solana-public-primary-failover -> origin/repair/meme-solana-public-primary-failover
+2026-10-01T14:03:31.9156246Z  * [new branch]        repair/meteora-alchemy-authoritative-evidence-20260922 -> origin/repair/meteora-alchemy-authoritative-evidence-20260922
+2026-10-01T14:03:31.9156953Z  * [new branch]        repair/meteora-alchemy-only-no-onfinality -> origin/repair/meteora-alchemy-only-no-onfinality
+2026-10-01T14:03:31.9157535Z  * [new branch]        repair/meteora-consumer-scheduling -> origin/repair/meteora-consumer-scheduling
+2026-10-01T14:03:31.9158073Z  * [new branch]        repair/meteora-continuous-campaign -> origin/repair/meteora-continuous-campaign
+2026-10-01T14:03:31.9158653Z  * [new branch]        repair/meteora-durable-paper-lifecycle -> origin/repair/meteora-durable-paper-lifecycle
+2026-10-01T14:03:31.9159211Z  * [new branch]        repair/meteora-hydration-deadline -> origin/repair/meteora-hydration-deadline
+2026-10-01T14:03:31.9159950Z  * [new branch]        repair/meteora-legacy-one-side-replay-20260924 -> origin/repair/meteora-legacy-one-side-replay-20260924
+2026-10-01T14:03:31.9160640Z  * [new branch]        repair/meteora-legacy-one-side-source-20260924 -> origin/repair/meteora-legacy-one-side-source-20260924
+2026-10-01T14:03:31.9161307Z  * [new branch]        repair/meteora-one-side-replay-source-20260924 -> origin/repair/meteora-one-side-replay-source-20260924
+2026-10-01T14:03:31.9162010Z  * [new branch]        repair/meteora-post-entry-lifecycle-exit-20260922 -> origin/repair/meteora-post-entry-lifecycle-exit-20260922
+2026-10-01T14:03:31.9162730Z  * [new branch]        repair/meteora-reconstruction-completion-20260922 -> origin/repair/meteora-reconstruction-completion-20260922
+2026-10-01T14:03:31.9163411Z  * [new branch]        repair/meteora-strategy2-continuity-20260922 -> origin/repair/meteora-strategy2-continuity-20260922
+2026-10-01T14:03:31.9164095Z  * [new branch]        repair/moderate-thresholds-certification-20260926 -> origin/repair/moderate-thresholds-certification-20260926
+2026-10-01T14:03:31.9164729Z  * [new branch]        repair/pons-429-backpressure-20m -> origin/repair/pons-429-backpressure-20m
+2026-10-01T14:03:31.9165451Z  * [new branch]        repair/pons-alchemy-scarcity-public-discovery -> origin/repair/pons-alchemy-scarcity-public-discovery
+2026-10-01T14:03:31.9166156Z  * [new branch]        repair/pons-cohort-capital-certification -> origin/repair/pons-cohort-capital-certification
+2026-10-01T14:03:31.9166768Z  * [new branch]        repair/pons-combined-evidence-batching -> origin/repair/pons-combined-evidence-batching
+2026-10-01T14:03:31.9167401Z  * [new branch]        repair/pons-concurrent-certification-20260920 -> origin/repair/pons-concurrent-certification-20260920
+2026-10-01T14:03:31.9167984Z  * [new branch]        repair/pons-continuous-campaign -> origin/repair/pons-continuous-campaign
+2026-10-01T14:03:31.9168605Z  * [new branch]        repair/pons-entry-confirmation-ordering-20260925 -> origin/repair/pons-entry-confirmation-ordering-20260925
+2026-10-01T14:03:31.9169400Z  * [new branch]        repair/pons-partial-accounting-timeline -> origin/repair/pons-partial-accounting-timeline
+2026-10-01T14:03:31.9170033Z  * [new branch]        repair/pons-provider-session-recovery-20m -> origin/repair/pons-provider-session-recovery-20m
+2026-10-01T14:03:31.9170696Z  * [new branch]        repair/pons-sequencer-session-recovery-20260922 -> origin/repair/pons-sequencer-session-recovery-20260922
+2026-10-01T14:03:31.9171295Z  * [new branch]        repair/pons-unfilled-reservation -> origin/repair/pons-unfilled-reservation
+2026-10-01T14:03:31.9171932Z  * [new branch]        repair/pump-alchemy-authoritative-evidence-20260922 -> origin/repair/pump-alchemy-authoritative-evidence-20260922
+2026-10-01T14:03:31.9172610Z  * [new branch]        repair/pump-alchemy-only-no-onfinality -> origin/repair/pump-alchemy-only-no-onfinality
+2026-10-01T14:03:31.9173169Z  * [new branch]        repair/pump-continuous-campaign -> origin/repair/pump-continuous-campaign
+2026-10-01T14:03:31.9173752Z  * [new branch]        repair/pump-decision-window-bootstrap-20m -> origin/repair/pump-decision-window-bootstrap-20m
+2026-10-01T14:03:31.9174396Z  * [new branch]        repair/pump-finalized-log-authority-20260924 -> origin/repair/pump-finalized-log-authority-20260924
+2026-10-01T14:03:31.9174969Z  * [new branch]        repair/pump-hydration-deadline -> origin/repair/pump-hydration-deadline
+2026-10-01T14:03:31.9175685Z  * [new branch]        repair/pump-paper-accounting-certification-20260920 -> origin/repair/pump-paper-accounting-certification-20260920
+2026-10-01T14:03:31.9176378Z  * [new branch]        repair/pump-tape-dedup-trajectory-gates -> origin/repair/pump-tape-dedup-trajectory-gates
+2026-10-01T14:03:31.9176964Z  * [new branch]        repair/pump-transaction-pressure -> origin/repair/pump-transaction-pressure
+2026-10-01T14:03:31.9177605Z  * [new branch]        repair/ramses-alchemy-scarcity-public-observation -> origin/repair/ramses-alchemy-scarcity-public-observation
+2026-10-01T14:03:31.9178398Z  * [new branch]        repair/ramses-capital-reservation-replay -> origin/repair/ramses-capital-reservation-replay
+2026-10-01T14:03:31.9179080Z  * [new branch]        repair/ramses-concurrent-certification-20260920 -> origin/repair/ramses-concurrent-certification-20260920
+2026-10-01T14:03:31.9179697Z  * [new branch]        repair/ramses-continuous-campaign -> origin/repair/ramses-continuous-campaign
+2026-10-01T14:03:31.9180316Z  * [new branch]        repair/ramses-cost-route-completion-20260921 -> origin/repair/ramses-cost-route-completion-20260921
+2026-10-01T14:03:31.9180996Z  * [new branch]        repair/ramses-deferred-capital-initialization -> origin/repair/ramses-deferred-capital-initialization
+2026-10-01T14:03:31.9181665Z  * [new branch]        repair/ramses-economic-census-429-v1-20260923 -> origin/repair/ramses-economic-census-429-v1-20260923
+2026-10-01T14:03:31.9182300Z  * [new branch]        repair/ramses-factory-enumeration-20m -> origin/repair/ramses-factory-enumeration-20m
+2026-10-01T14:03:31.9183033Z  * [new branch]        repair/ramses-finalized-frontier-monotonicity-20260922 -> origin/repair/ramses-finalized-frontier-monotonicity-20260922
+2026-10-01T14:03:31.9183759Z  * [new branch]        repair/ramses-public-factory-call-20260922 -> origin/repair/ramses-public-factory-call-20260922
+2026-10-01T14:03:31.9184376Z  * [new branch]        repair/ramses-v3-authority-lock-20260923 -> origin/repair/ramses-v3-authority-lock-20260923
+2026-10-01T14:03:31.9184925Z  * [new branch]        repair/robinhood-cu-efficiency -> origin/repair/robinhood-cu-efficiency
+2026-10-01T14:03:31.9185656Z  * [new branch]        repair/robinhood-public-rpc-403-20260922 -> origin/repair/robinhood-public-rpc-403-20260922
+2026-10-01T14:03:31.9186248Z  * [new branch]        repair/run367-composed-fixes-20260924 -> origin/repair/run367-composed-fixes-20260924
+2026-10-01T14:03:31.9186880Z  * [new branch]        repair/run367-pons-sequencer-liveness-20260924 -> origin/repair/run367-pons-sequencer-liveness-20260924
+2026-10-01T14:03:31.9187648Z  * [new branch]        repair/run369-pons-accounting-20260925 -> origin/repair/run369-pons-accounting-20260925
+2026-10-01T14:03:31.9188237Z  * [new branch]        repair/run369-solana-runtime-20260925 -> origin/repair/run369-solana-runtime-20260925
+2026-10-01T14:03:31.9188869Z  * [new branch]        repair/run370-solana-evidence-capacity-20260925 -> origin/repair/run370-solana-evidence-capacity-20260925
+2026-10-01T14:03:31.9189519Z  * [new branch]        repair/run371-infra-continuity-20260926 -> origin/repair/run371-infra-continuity-20260926
+2026-10-01T14:03:31.9190123Z  * [new branch]        repair/run372-solana-large-frame-20260926 -> origin/repair/run372-solana-large-frame-20260926
+2026-10-01T14:03:31.9190792Z  * [new branch]        repair/run373-solana-dispatch-throughput-20260926 -> origin/repair/run373-solana-dispatch-throughput-20260926
+2026-10-01T14:03:31.9191474Z  * [new branch]        repair/run374-live-status-publisher-20260926 -> origin/repair/run374-live-status-publisher-20260926
+2026-10-01T14:03:31.9192128Z  * [new branch]        repair/run375-runtime-capacity-wal-20260926 -> origin/repair/run375-runtime-capacity-wal-20260926
+2026-10-01T14:03:31.9192812Z  * [new branch]        repair/run375-runtime-repairs-20260926 -> origin/repair/run375-runtime-repairs-20260926
+2026-10-01T14:03:31.9193468Z  * [new branch]        repair/run376-six-regime-machinery-20260926 -> origin/repair/run376-six-regime-machinery-20260926
+2026-10-01T14:03:31.9194103Z  * [new branch]        repair/run377-runtime-six-regime-20260926 -> origin/repair/run377-runtime-six-regime-20260926
+2026-10-01T14:03:31.9194678Z  * [new branch]        repair/solana-alchemy-efficiency -> origin/repair/solana-alchemy-efficiency
+2026-10-01T14:03:31.9195283Z  * [new branch]        repair/solana-broker-atomic-claims -> origin/repair/solana-broker-atomic-claims
+2026-10-01T14:03:31.9195928Z  * [new branch]        repair/solana-broker-global-pacing -> origin/repair/solana-broker-global-pacing
+2026-10-01T14:03:31.9196466Z  * [new branch]        repair/solana-broker-sync-dlmm -> origin/repair/solana-broker-sync-dlmm
+2026-10-01T14:03:31.9197131Z  * [new branch]        repair/solana-consumer-scheduling -> origin/repair/solana-consumer-scheduling
+2026-10-01T14:03:31.9197721Z  * [new branch]        repair/solana-dlmm-broker-expiry-sync -> origin/repair/solana-dlmm-broker-expiry-sync
+2026-10-01T14:03:31.9198274Z  * [new branch]        repair/solana-dlmm-gap-finalize -> origin/repair/solana-dlmm-gap-finalize
+2026-10-01T14:03:31.9198851Z  * [new branch]        repair/solana-dlmm-trigger-censoring-20m -> origin/repair/solana-dlmm-trigger-censoring-20m
+2026-10-01T14:03:31.9199469Z  * [new branch]        repair/solana-evidence-broker-finalize -> origin/repair/solana-evidence-broker-finalize
+2026-10-01T14:03:31.9200022Z  * [new branch]        repair/solana-evidence-final-v2 -> origin/repair/solana-evidence-final-v2
+2026-10-01T14:03:31.9200586Z  * [new branch]        repair/solana-evidence-plane-v1-20260925 -> origin/repair/solana-evidence-plane-v1-20260925
+2026-10-01T14:03:31.9201181Z  * [new branch]        repair/solana-evidence-queue-expiry -> origin/repair/solana-evidence-queue-expiry
+2026-10-01T14:03:31.9201736Z  * [new branch]        repair/solana-global-pacing-dlmm -> origin/repair/solana-global-pacing-dlmm
+2026-10-01T14:03:31.9202304Z  * [new branch]        repair/solana-provider-error-telemetry -> origin/repair/solana-provider-error-telemetry
+2026-10-01T14:03:31.9202902Z  * [new branch]        repair/solana-pumpswap-address-stream -> origin/repair/solana-pumpswap-address-stream
+2026-10-01T14:03:31.9203504Z  * [new branch]        repair/solana-stream-first-evidence-dlmm -> origin/repair/solana-stream-first-evidence-dlmm
+2026-10-01T14:03:31.9204112Z  * [new branch]        repair/solana-stream-first-evidence-pump -> origin/repair/solana-stream-first-evidence-pump
+2026-10-01T14:03:31.9204655Z  * [new branch]        repair/stage-e-m1-completion -> origin/repair/stage-e-m1-completion
+2026-10-01T14:03:31.9205231Z  * [new branch]        repair/stage-e-preflight -> origin/repair/stage-e-preflight
+2026-10-01T14:03:31.9206072Z  * [new branch]        repair/stagee-attempt16-maintenance-throughput-20260928 -> origin/repair/stagee-attempt16-maintenance-throughput-20260928
+2026-10-01T14:03:31.9206812Z  * [new branch]        repair/stagee16-archive-throughput-20260928 -> origin/repair/stagee16-archive-throughput-20260928
+2026-10-01T14:03:31.9207453Z  * [new branch]        repair/stagee17-archive-throughput-20260928 -> origin/repair/stagee17-archive-throughput-20260928
+2026-10-01T14:03:31.9208081Z  * [new branch]        repair/stagee18-retention-fairness-20260928 -> origin/repair/stagee18-retention-fairness-20260928
+2026-10-01T14:03:31.9208771Z  * [new branch]        repair/stagee19-batch-maintenance-fairness-20260928 -> origin/repair/stagee19-batch-maintenance-fairness-20260928
+2026-10-01T14:03:31.9209445Z  * [new branch]        repair/stagee19-retention-rowid-20260928 -> origin/repair/stagee19-retention-rowid-20260928
+2026-10-01T14:03:31.9210103Z  * [new branch]        repair/stagee20-compose-current-cert-20260928 -> origin/repair/stagee20-compose-current-cert-20260928
+2026-10-01T14:03:31.9210790Z  * [new branch]        repair/stagee22-retention-service-grant-20260928 -> origin/repair/stagee22-retention-service-grant-20260928
+2026-10-01T14:03:31.9211473Z  * [new branch]        repair/stagee23-maintenance-outcomes-20260928 -> origin/repair/stagee23-maintenance-outcomes-20260928
+2026-10-01T14:03:31.9212112Z  * [new branch]        repair/stagee25-promotion-wiring-20260928 -> origin/repair/stagee25-promotion-wiring-20260928
+2026-10-01T14:03:31.9212779Z  * [new branch]        repair/stagee26-eligible-hot-measurement-20260928 -> origin/repair/stagee26-eligible-hot-measurement-20260928
+2026-10-01T14:03:31.9213492Z  * [new branch]        repair/stagee27-archive-ready-allocation-20260928 -> origin/repair/stagee27-archive-ready-allocation-20260928
+2026-10-01T14:03:31.9214122Z  * [new branch]        repair/strategy-prospect-admission -> origin/repair/strategy-prospect-admission
+2026-10-01T14:03:31.9214799Z  * [new branch]        repair/target-market-coverage-20260924 -> origin/repair/target-market-coverage-20260924
+2026-10-01T14:03:31.9215526Z  * [new branch]        repair/v10-postrun-provider-pressure-20260924 -> origin/repair/v10-postrun-provider-pressure-20260924
+2026-10-01T14:03:31.9216141Z  * [new branch]        repair/v10-postrun-repairs-20260924 -> origin/repair/v10-postrun-repairs-20260924
+2026-10-01T14:03:31.9216653Z  * [new branch]        repair/v10-smoke-tail-20260924 -> origin/repair/v10-smoke-tail-20260924
+2026-10-01T14:03:31.9217250Z  * [new branch]        repair/v9-launch-guard-reauthorization-20260924 -> origin/repair/v9-launch-guard-reauthorization-20260924
+2026-10-01T14:03:31.9218018Z  * [new branch]        repair/v9-meteora-handoff-position-continuation-20260924 -> origin/repair/v9-meteora-handoff-position-continuation-20260924
+2026-10-01T14:03:31.9218790Z  * [new branch]        repair/v9-position-continuation-dispatch-20260924 -> origin/repair/v9-position-continuation-dispatch-20260924
+2026-10-01T14:03:31.9219503Z  * [new branch]        report/evidence-reconstruction-single-20260924 -> origin/report/evidence-reconstruction-single-20260924
+2026-10-01T14:03:31.9220139Z  * [new branch]        research/dlmm-add-liquidity2-support -> origin/research/dlmm-add-liquidity2-support
+2026-10-01T14:03:31.9220762Z  * [new branch]        research/dlmm-alchemy-pacing-per-pool-budget -> origin/research/dlmm-alchemy-pacing-per-pool-budget
+2026-10-01T14:03:31.9221333Z  * [new branch]        research/dlmm-alchemy-routing -> origin/research/dlmm-alchemy-routing
+2026-10-01T14:03:31.9221911Z  * [new branch]        research/dlmm-blank-slate-market-evidence-v1 -> origin/research/dlmm-blank-slate-market-evidence-v1
+2026-10-01T14:03:31.9222525Z  * [new branch]        research/dlmm-capital-case-ranking-v1 -> origin/research/dlmm-capital-case-ranking-v1
+2026-10-01T14:03:31.9223092Z  * [new branch]        research/dlmm-capital-efficiency-v1 -> origin/research/dlmm-capital-efficiency-v1
+2026-10-01T14:03:31.9223769Z  * [new branch]        research/dlmm-claim-event-association -> origin/research/dlmm-claim-event-association
+2026-10-01T14:03:31.9224363Z  * [new branch]        research/dlmm-claim-fee2-reconstruction -> origin/research/dlmm-claim-fee2-reconstruction
+2026-10-01T14:03:31.9224938Z  * [new branch]        research/dlmm-economic-strategy-v1 -> origin/research/dlmm-economic-strategy-v1
+2026-10-01T14:03:31.9225657Z  * [new branch]        research/dlmm-existing-alchemy-secret -> origin/research/dlmm-existing-alchemy-secret
+2026-10-01T14:03:31.9226281Z  * [new branch]        research/dlmm-expanded-observation-universe -> origin/research/dlmm-expanded-observation-universe
+2026-10-01T14:03:31.9226869Z  * [new branch]        research/dlmm-host-fee-route-scope -> origin/research/dlmm-host-fee-route-scope
+2026-10-01T14:03:31.9227439Z  * [new branch]        research/dlmm-host-fee-shape-diagnostic -> origin/research/dlmm-host-fee-shape-diagnostic
+2026-10-01T14:03:31.9228051Z  * [new branch]        research/dlmm-host-fee-terminal-fallback -> origin/research/dlmm-host-fee-terminal-fallback
+2026-10-01T14:03:31.9228677Z  * [new branch]        research/dlmm-host-fee-transfer-attribution -> origin/research/dlmm-host-fee-transfer-attribution
+2026-10-01T14:03:31.9229352Z  * [new branch]        research/dlmm-perpspad-external-effect-transfer -> origin/research/dlmm-perpspad-external-effect-transfer
+2026-10-01T14:03:31.9230037Z  * [new branch]        research/dlmm-perpspad-single-tx-isolation -> origin/research/dlmm-perpspad-single-tx-isolation
+2026-10-01T14:03:31.9230617Z  * [new branch]        research/dlmm-point-in-time-replay -> origin/research/dlmm-point-in-time-replay
+2026-10-01T14:03:31.9231233Z  * [new branch]        research/dlmm-profitability-density-preflight -> origin/research/dlmm-profitability-density-preflight
+2026-10-01T14:03:31.9231930Z  * [new branch]        research/dlmm-profitability-density-preflight-v2 -> origin/research/dlmm-profitability-density-preflight-v2
+2026-10-01T14:03:31.9232733Z  * [new branch]        research/dlmm-profitable-operator-discovery -> origin/research/dlmm-profitable-operator-discovery
+2026-10-01T14:03:31.9233330Z  * [new branch]        research/dlmm-protocol-coverage-v2 -> origin/research/dlmm-protocol-coverage-v2
+2026-10-01T14:03:31.9233917Z  * [new branch]        research/dlmm-small-pool-profitability -> origin/research/dlmm-small-pool-profitability
+2026-10-01T14:03:31.9234479Z  * [new branch]        research/dlmm-solana-roi-alchemy -> origin/research/dlmm-solana-roi-alchemy
+2026-10-01T14:03:31.9235028Z  * [new branch]        research/dlmm-top-roi-wallet-evaluation -> origin/research/dlmm-top-roi-wallet-evaluation
+2026-10-01T14:03:31.9235705Z  * [new branch]        research/dlmm-wallet-derived-discovery -> origin/research/dlmm-wallet-derived-discovery
+2026-10-01T14:03:31.9236242Z  * [new branch]        research/fomo-100-event-study -> origin/research/fomo-100-event-study
+2026-10-01T14:03:31.9236743Z  * [new branch]        research/fomo-active-trader-skill -> origin/research/fomo-active-trader-skill
+2026-10-01T14:03:31.9237262Z  * [new branch]        research/fomo-market-edge-pilot -> origin/research/fomo-market-edge-pilot
+2026-10-01T14:03:31.9237815Z  * [new branch]        research/fomo-offline-intelligence-v1 -> origin/research/fomo-offline-intelligence-v1
+2026-10-01T14:03:31.9238381Z  * [new branch]        research/fomo-prospective-market-test -> origin/research/fomo-prospective-market-test
+2026-10-01T14:03:31.9238905Z  * [new branch]        research/fomo-shadow-scaffold -> origin/research/fomo-shadow-scaffold
+2026-10-01T14:03:31.9239451Z  * [new branch]        research/fomo-top-wallet-lifecycle-study -> origin/research/fomo-top-wallet-lifecycle-study
+2026-10-01T14:03:31.9240045Z  * [new branch]        research/fomo-wallet-alpha-event-study -> origin/research/fomo-wallet-alpha-event-study
+2026-10-01T14:03:31.9240586Z  * [new branch]        research/fomoapi-key-validation -> origin/research/fomoapi-key-validation
+2026-10-01T14:03:31.9241226Z  * [new branch]        research/fomoscan-three-way-check -> origin/research/fomoscan-three-way-check
+2026-10-01T14:03:31.9241794Z  * [new branch]        research/four-lane-shadow-registration -> origin/research/four-lane-shadow-registration
+2026-10-01T14:03:31.9242353Z  * [new branch]        research/hansem-fomoscan-validation -> origin/research/hansem-fomoscan-validation
+2026-10-01T14:03:31.9242914Z  * [new branch]        research/market-native-natural-sample -> origin/research/market-native-natural-sample
+2026-10-01T14:03:31.9243524Z  * [new branch]        research/market-native-opportunity-outcomes -> origin/research/market-native-opportunity-outcomes
+2026-10-01T14:03:31.9244111Z  * [new branch]        research/market-native-prioritizer -> origin/research/market-native-prioritizer
+2026-10-01T14:03:31.9244614Z  * [new branch]        research/market-native-shadow -> origin/research/market-native-shadow
+2026-10-01T14:03:31.9245179Z  * [new branch]        research/meme-continuation-expected-value-v1 -> origin/research/meme-continuation-expected-value-v1
+2026-10-01T14:03:31.9246043Z  * [new branch]        research/pons-postgrad-breakout-study-20260926 -> origin/research/pons-postgrad-breakout-study-20260926
+2026-10-01T14:03:31.9246729Z  * [new branch]        research/pons-postgrad-shadow-outcomes-20260926 -> origin/research/pons-postgrad-shadow-outcomes-20260926
+2026-10-01T14:03:31.9247387Z  * [new branch]        research/ramses-branch-b-certification-v1 -> origin/research/ramses-branch-b-certification-v1
+2026-10-01T14:03:31.9248000Z  * [new branch]        research/ramses-dlmm-historical-market-v1 -> origin/research/ramses-dlmm-historical-market-v1
+2026-10-01T14:03:31.9248631Z  * [new branch]        research/ramses-exact-replay-efficiency-v1 -> origin/research/ramses-exact-replay-efficiency-v1
+2026-10-01T14:03:31.9249258Z  * [new branch]        research/ramses-exact-replay-sharded-v1 -> origin/research/ramses-exact-replay-sharded-v1
+2026-10-01T14:03:31.9249823Z  * [new branch]        research/ramses-fee-attribution-v1 -> origin/research/ramses-fee-attribution-v1
+2026-10-01T14:03:31.9250623Z  * [new branch]        research/ramses-profitable-operator-reverse-engineering-v1 -> origin/research/ramses-profitable-operator-reverse-engineering-v1
+2026-10-01T14:03:31.9251310Z  * [new branch]        research/ramses-public-lp-skill-v1 -> origin/research/ramses-public-lp-skill-v1
+2026-10-01T14:03:31.9251845Z  * [new branch]        research/ramses-quiet-escalation-v1 -> origin/research/ramses-quiet-escalation-v1
+2026-10-01T14:03:31.9252378Z  * [new branch]        research/ramses-quiet-expansion-v1 -> origin/research/ramses-quiet-expansion-v1
+2026-10-01T14:03:31.9252922Z  * [new branch]        research/ramses-quiet-subsegments-v1 -> origin/research/ramses-quiet-subsegments-v1
+2026-10-01T14:03:31.9253506Z  * [new branch]        research/ramses-strategy-finalization-v2 -> origin/research/ramses-strategy-finalization-v2
+2026-10-01T14:03:31.9254156Z  * [new branch]        research/ramses-terminal-state-counterfactual-v1 -> origin/research/ramses-terminal-state-counterfactual-v1
+2026-10-01T14:03:31.9254779Z  * [new branch]        research/solana-dlmm-independent-v1 -> origin/research/solana-dlmm-independent-v1
+2026-10-01T14:03:31.9255322Z  * [new branch]        research/solana-skilled-wallet-alpha -> origin/research/solana-skilled-wallet-alpha
+2026-10-01T14:03:31.9256040Z  * [new branch]        research/solana-skilled-wallet-alpha-24h -> origin/research/solana-skilled-wallet-alpha-24h
+2026-10-01T14:03:31.9256675Z  * [new branch]        review/attempt14-retention-density-20260928 -> origin/review/attempt14-retention-density-20260928
+2026-10-01T14:03:31.9257319Z  * [new branch]        review/autonomous-paper-evidence-a60326b -> origin/review/autonomous-paper-evidence-a60326b
+2026-10-01T14:03:31.9257960Z  * [new branch]        review/evidence-reconstruction-single-20260924 -> origin/review/evidence-reconstruction-single-20260924
+2026-10-01T14:03:31.9258559Z  * [new branch]        review/stagee-coordinated-20260928 -> origin/review/stagee-coordinated-20260928
+2026-10-01T14:03:31.9259264Z  * [new branch]        review/stagee16-archive-throughput-20260928 -> origin/review/stagee16-archive-throughput-20260928
+2026-10-01T14:03:31.9259890Z  * [new branch]        review/stagee17-archive-throughput-20260928 -> origin/review/stagee17-archive-throughput-20260928
+2026-10-01T14:03:31.9260506Z  * [new branch]        review/stagee18-retention-fairness-20260928 -> origin/review/stagee18-retention-fairness-20260928
+2026-10-01T14:03:31.9261140Z  * [new branch]        review/stagee19-all-scopes-pressure-20260928 -> origin/review/stagee19-all-scopes-pressure-20260928
+2026-10-01T14:03:31.9261760Z  * [new branch]        review/stagee19-retention-rowid-20260928 -> origin/review/stagee19-retention-rowid-20260928
+2026-10-01T14:03:31.9262306Z  * [new branch]        review/stagee20-compose-20260928 -> origin/review/stagee20-compose-20260928
+2026-10-01T14:03:31.9262856Z  * [new branch]        review/stagee20-source-identity-20260928 -> origin/review/stagee20-source-identity-20260928
+2026-10-01T14:03:31.9263503Z  * [new branch]        review/stagee23-maintenance-semantics-20260928 -> origin/review/stagee23-maintenance-semantics-20260928
+2026-10-01T14:03:31.9264187Z  * [new branch]        state/autonomous-launch-00265f09d14a5849010ad007 -> origin/state/autonomous-launch-00265f09d14a5849010ad007
+2026-10-01T14:03:31.9264872Z  * [new branch]        state/autonomous-launch-00f93d80a08ba2024eeabf10 -> origin/state/autonomous-launch-00f93d80a08ba2024eeabf10
+2026-10-01T14:03:31.9265719Z  * [new branch]        state/autonomous-launch-03a4af83a5116c80c1292151 -> origin/state/autonomous-launch-03a4af83a5116c80c1292151
+2026-10-01T14:03:31.9266399Z  * [new branch]        state/autonomous-launch-2410907f22606897629d8df6 -> origin/state/autonomous-launch-2410907f22606897629d8df6
+2026-10-01T14:03:31.9267071Z  * [new branch]        state/autonomous-launch-3d866b01be76ba6ae09e8b2a -> origin/state/autonomous-launch-3d866b01be76ba6ae09e8b2a
+2026-10-01T14:03:31.9267755Z  * [new branch]        state/autonomous-launch-48370b6d0746a4c58b6f578f -> origin/state/autonomous-launch-48370b6d0746a4c58b6f578f
+2026-10-01T14:03:31.9268551Z  * [new branch]        state/autonomous-launch-4f05a3a3b9e19732f4f64ef2 -> origin/state/autonomous-launch-4f05a3a3b9e19732f4f64ef2
+2026-10-01T14:03:31.9269238Z  * [new branch]        state/autonomous-launch-51429576c048c7770d068d1d -> origin/state/autonomous-launch-51429576c048c7770d068d1d
+2026-10-01T14:03:31.9269922Z  * [new branch]        state/autonomous-launch-5a4f6f6d001ccdf4a2f2669f -> origin/state/autonomous-launch-5a4f6f6d001ccdf4a2f2669f
+2026-10-01T14:03:31.9270598Z  * [new branch]        state/autonomous-launch-5b4fc3c614287d7f712b7c0b -> origin/state/autonomous-launch-5b4fc3c614287d7f712b7c0b
+2026-10-01T14:03:31.9271272Z  * [new branch]        state/autonomous-launch-6df6eb8a4016b311f6c8c2b9 -> origin/state/autonomous-launch-6df6eb8a4016b311f6c8c2b9
+2026-10-01T14:03:31.9271939Z  * [new branch]        state/autonomous-launch-d2679c420933378bf40c394c -> origin/state/autonomous-launch-d2679c420933378bf40c394c
+2026-10-01T14:03:31.9272626Z  * [new branch]        state/autonomous-launch-dc95ce22cddbf1ca7c4478c5 -> origin/state/autonomous-launch-dc95ce22cddbf1ca7c4478c5
+2026-10-01T14:03:31.9273311Z  * [new branch]        state/autonomous-launch-f32caad9a683fadae75fe14b -> origin/state/autonomous-launch-f32caad9a683fadae75fe14b
+2026-10-01T14:03:31.9273998Z  * [new branch]        state/autonomous-paper-1ef43ce521823a314bfa1a70 -> origin/state/autonomous-paper-1ef43ce521823a314bfa1a70
+2026-10-01T14:03:31.9274675Z  * [new branch]        state/autonomous-paper-4f2524a14f8f9e048a1aa784 -> origin/state/autonomous-paper-4f2524a14f8f9e048a1aa784
+2026-10-01T14:03:31.9275474Z  * [new branch]        state/autonomous-paper-b1b0c8c3cf4b660bdec590cd -> origin/state/autonomous-paper-b1b0c8c3cf4b660bdec590cd
+2026-10-01T14:03:31.9276156Z  * [new branch]        state/autonomous-paper-bcca3595dd2cd91299d72016 -> origin/state/autonomous-paper-bcca3595dd2cd91299d72016
+2026-10-01T14:03:31.9276943Z  * [new branch]        state/autonomous-paper-db5b0cb5fe55c1c7f061cd8c -> origin/state/autonomous-paper-db5b0cb5fe55c1c7f061cd8c
+2026-10-01T14:03:31.9277610Z  * [new branch]        strategy/counterfactual-replay-v1-20260924 -> origin/strategy/counterfactual-replay-v1-20260924
+2026-10-01T14:03:31.9278297Z  * [new branch]        strategy/directional-capital-parity-prep-20260930 -> origin/strategy/directional-capital-parity-prep-20260930
+2026-10-01T14:03:31.9278961Z  * [new branch]        strategy/exit-optimization-prep-20260930 -> origin/strategy/exit-optimization-prep-20260930
+2026-10-01T14:03:31.9279554Z  * [new branch]        strategy/meteora-core-hold-v2-20260923 -> origin/strategy/meteora-core-hold-v2-20260923
+2026-10-01T14:03:31.9280181Z  * [new branch]        strategy/meteora-fee-density-profitability-v1 -> origin/strategy/meteora-fee-density-profitability-v1
+2026-10-01T14:03:31.9280822Z  * [new branch]        strategy/meteora-fee-density-v1-runtime -> origin/strategy/meteora-fee-density-v1-runtime
+2026-10-01T14:03:31.9281474Z  * [new branch]        strategy/moderate-admission-thresholds-20260926 -> origin/strategy/moderate-admission-thresholds-20260926
+2026-10-01T14:03:31.9282186Z  * [new branch]        strategy/pons-opportunity-preservation-v2-20260925 -> origin/strategy/pons-opportunity-preservation-v2-20260925
+2026-10-01T14:03:31.9282923Z  * [new branch]        strategy/pons-postgrad-survivor-momentum-v1-20260926 -> origin/strategy/pons-postgrad-survivor-momentum-v1-20260926
+2026-10-01T14:03:31.9283612Z  * [new branch]        strategy/pons-profit-protection-v2-20260923 -> origin/strategy/pons-profit-protection-v2-20260923
+2026-10-01T14:03:31.9284300Z  * [new branch]        strategy/pons-profitability-persistence-current-v1 -> origin/strategy/pons-profitability-persistence-current-v1
+2026-10-01T14:03:31.9284917Z  * [new branch]        strategy/pons-profitability-v1 -> origin/strategy/pons-profitability-v1
+2026-10-01T14:03:31.9285714Z  * [new branch]        strategy/pump-counterfactual-replay-v1-20260924 -> origin/strategy/pump-counterfactual-replay-v1-20260924
+2026-10-01T14:03:31.9286516Z  * [new branch]        strategy/pump-pons-six-regime-upgrade-20260926 -> origin/strategy/pump-pons-six-regime-upgrade-20260926
+2026-10-01T14:03:31.9287186Z  * [new branch]        strategy/pump-profit-protection-v2-20260923 -> origin/strategy/pump-profit-protection-v2-20260923
+2026-10-01T14:03:31.9287749Z  * [new branch]        strategy/pump-profitability-v1 -> origin/strategy/pump-profitability-v1
+2026-10-01T14:03:31.9288299Z  * [new branch]        strategy/pump-ramses-v4-composed-20260924 -> origin/strategy/pump-ramses-v4-composed-20260924
+2026-10-01T14:03:31.9288934Z  * [new branch]        strategy/ramses-active-wide-maker-v3-runtime -> origin/strategy/ramses-active-wide-maker-v3-runtime
+2026-10-01T14:03:31.9289567Z  * [new branch]        strategy/ramses-active-wide-maker-v4-runtime -> origin/strategy/ramses-active-wide-maker-v4-runtime
+2026-10-01T14:03:31.9290117Z  * [new branch]        strategy/ramses-quiet-mint-v2 -> origin/strategy/ramses-quiet-mint-v2
+2026-10-01T14:03:31.9290642Z  * [new branch]        strategy/ramses-viability-v4-20260924 -> origin/strategy/ramses-viability-v4-20260924
+2026-10-01T14:03:31.9291240Z  * [new branch]        strategy/ramses-viability-v4-source-20260924 -> origin/strategy/ramses-viability-v4-source-20260924
+2026-10-01T14:03:31.9291904Z  * [new branch]        tmp/meteora-overlay-canonicalize-20260922 -> origin/tmp/meteora-overlay-canonicalize-20260922
+2026-10-01T14:03:31.9292595Z  * [new branch]        tmp/nonmarket-meteora-alchemy-primary-fix-20260922 -> origin/tmp/nonmarket-meteora-alchemy-primary-fix-20260922
+2026-10-01T14:03:31.9293267Z  * [new branch]        transport/stagee-exact-objects-20260930 -> origin/transport/stagee-exact-objects-20260930
+2026-10-01T14:03:31.9294570Z [command]/usr/bin/git rev-parse --verify --quiet 54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340^{object}
+2026-10-01T14:03:31.9295066Z 54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340
+2026-10-01T14:03:31.9295964Z ##[endgroup]
+2026-10-01T14:03:31.9296308Z ##[group]Determining the checkout info
+2026-10-01T14:03:31.9296687Z ##[endgroup]
+2026-10-01T14:03:31.9296932Z [command]/usr/bin/git sparse-checkout disable
+2026-10-01T14:03:31.9790868Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-01T14:03:31.9822977Z ##[group]Checking out the ref
+2026-10-01T14:03:31.9826827Z [command]/usr/bin/git checkout --progress --force 54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340
+2026-10-01T14:03:32.0901628Z Note: switching to '54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340'.
+2026-10-01T14:03:32.0901947Z 
+2026-10-01T14:03:32.0902157Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-01T14:03:32.0902605Z changes and commit them, and you can discard any commits you make in this
+2026-10-01T14:03:32.0903028Z state without impacting any branches by switching back to a branch.
+2026-10-01T14:03:32.0903258Z 
+2026-10-01T14:03:32.0903443Z If you want to create a new branch to retain commits you create, you may
+2026-10-01T14:03:32.0903876Z do so (now or later) by using -c with the switch command. Example:
+2026-10-01T14:03:32.0904093Z 
+2026-10-01T14:03:32.0904214Z   git switch -c <new-branch-name>
+2026-10-01T14:03:32.0904382Z 
+2026-10-01T14:03:32.0904488Z Or undo this operation with:
+2026-10-01T14:03:32.0904639Z 
+2026-10-01T14:03:32.0904736Z   git switch -
+2026-10-01T14:03:32.0904853Z 
+2026-10-01T14:03:32.0905059Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-01T14:03:32.0905306Z 
+2026-10-01T14:03:32.0905910Z HEAD is now at 54ddc75f [runtime-v2-promotion] [lane-c-preflight] Parse preserved interleaved skip statuses before the first focused execution
+2026-10-01T14:03:32.0924521Z ##[endgroup]
+2026-10-01T14:03:32.0997552Z [command]/usr/bin/git log -1 --format=%H
+2026-10-01T14:03:32.1020595Z 54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340
+2026-10-01T14:03:32.1028029Z ##[group]Removing auth
+2026-10-01T14:03:32.1030929Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T14:03:32.1059096Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T14:03:32.1249279Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T14:03:32.1272919Z http.https://github.com/.extraheader
+2026-10-01T14:03:32.1278708Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-01T14:03:32.1309177Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T14:03:32.1491434Z ##[endgroup]
+2026-10-01T14:03:32.1699296Z ##[group]Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+2026-10-01T14:03:32.1699647Z with:
+2026-10-01T14:03:32.1699874Z   python-version: 3.12.14
+2026-10-01T14:03:32.1700108Z   check-latest: false
+2026-10-01T14:03:32.1702014Z   token: ***
+2026-10-01T14:03:32.1702232Z   update-environment: true
+2026-10-01T14:03:32.1702496Z   allow-prereleases: false
+2026-10-01T14:03:32.1702725Z   freethreaded: false
+2026-10-01T14:03:32.1702953Z env:
+2026-10-01T14:03:32.1703146Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:32.1703360Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:32.1703571Z ##[endgroup]
+2026-10-01T14:03:32.2719498Z ##[group]Installed versions
+2026-10-01T14:03:32.2748468Z (node:2135) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-01T14:03:32.2749067Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-01T14:03:32.2749687Z Successfully set up CPython (3.12.14)
+2026-10-01T14:03:32.2750570Z ##[endgroup]
+2026-10-01T14:03:32.2898317Z ##[group]Run mkdir -p "$LANE_C_EVIDENCE"
+2026-10-01T14:03:32.2898713Z [36;1mmkdir -p "$LANE_C_EVIDENCE"[0m
+2026-10-01T14:03:32.2899141Z [36;1mpython - <<'PY'[0m
+2026-10-01T14:03:32.2899381Z [36;1mimport json, os, subprocess[0m
+2026-10-01T14:03:32.2899635Z [36;1mfrom pathlib import Path[0m
+2026-10-01T14:03:32.2899929Z [36;1mbase = 'dc08f9064cf5e37b63f383f52aa709d0afc1723f'[0m
+2026-10-01T14:03:32.2900327Z [36;1mgit = lambda *a: subprocess.check_output(['git', *a], text=True).strip()[0m
+2026-10-01T14:03:32.2900832Z [36;1mrequest = json.loads(Path('diagnostics/stage-e-preflight/execution-request.json').read_text())[0m
+2026-10-01T14:03:32.2901260Z [36;1massert request['mode'] == 'baseline'[0m
+2026-10-01T14:03:32.2901563Z [36;1massert os.environ['GITHUB_RUN_ATTEMPT'] == '1'[0m
+2026-10-01T14:03:32.2901915Z [36;1massert git('rev-parse', 'HEAD') == os.environ['GITHUB_SHA'][0m
+2026-10-01T14:03:32.2902320Z [36;1massert git('rev-parse', 'HEAD^') == request['expected_parent'][0m
+2026-10-01T14:03:32.2902658Z [36;1massert not git('status', '--porcelain')[0m
+2026-10-01T14:03:32.2903000Z [36;1mchanged = git('diff', '--name-only', base, 'HEAD').splitlines()[0m
+2026-10-01T14:03:32.2903577Z [36;1massert all(p.startswith('diagnostics/stage-e-preflight/') or p == '.github/workflows/stage-e-preflight-isolation.yml' for p in changed)[0m
+2026-10-01T14:03:32.2904409Z [36;1mrow = dict(base_sha=base, base_tree=git('rev-parse', base+'^{tree}'), sha=git('rev-parse', 'HEAD'), tree=git('rev-parse', 'HEAD^{tree}'), changed=changed, mode=request['mode'], paper_only=True)[0m
+2026-10-01T14:03:32.2905120Z [36;1mPath(os.environ['LANE_C_EVIDENCE'], 'identity.json').write_text(json.dumps(row, indent=2)+'\n')[0m
+2026-10-01T14:03:32.2905762Z [36;1mwith open(os.environ['GITHUB_ENV'], 'a') as env:[0m
+2026-10-01T14:03:32.2906120Z [36;1m    env.write('LANE_C_EVIDENCE='+os.environ['LANE_C_EVIDENCE']+'\n')[0m
+2026-10-01T14:03:32.2906500Z [36;1mprint('LANE_C_IDENTITY '+json.dumps(row, sort_keys=True))[0m
+2026-10-01T14:03:32.2906800Z [36;1mPY[0m
+2026-10-01T14:03:32.3146958Z shell: /usr/bin/bash -e {0}
+2026-10-01T14:03:32.3147285Z env:
+2026-10-01T14:03:32.3147503Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:32.3147728Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:32.3147997Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:32.3148383Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T14:03:32.3148757Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:32.3149103Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:32.3149434Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:32.3149765Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T14:03:32.3150119Z   LANE_C_EVIDENCE: /home/runner/work/_temp/lane-c-preflight
+2026-10-01T14:03:32.3150422Z ##[endgroup]
+2026-10-01T14:03:32.5465962Z LANE_C_IDENTITY {"base_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f", "base_tree": "68736cf664169dee665762019800bf87ca0f1f67", "changed": [".github/workflows/stage-e-preflight-isolation.yml", "diagnostics/stage-e-preflight/ORIGINAL_EVIDENCE.json", "diagnostics/stage-e-preflight/RECOVERY_PARSER_FAILURE.json", "diagnostics/stage-e-preflight/WORKFLOW_BOOTSTRAP_FAILURE.json", "diagnostics/stage-e-preflight/contract_probe.py", "diagnostics/stage-e-preflight/execution-request.json", "diagnostics/stage-e-preflight/focused.py", "diagnostics/stage-e-preflight/recover_original.py"], "mode": "baseline", "paper_only": true, "sha": "54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340", "tree": "938df84aff26d3502bcaeb70559e5f3f2d6c2d7f"}
+2026-10-01T14:03:32.5539555Z ##[group]Run python -m pip install --disable-pip-version-check -r requirements.txt
+2026-10-01T14:03:32.5540018Z [36;1mpython -m pip install --disable-pip-version-check -r requirements.txt[0m
+2026-10-01T14:03:32.5601012Z shell: /usr/bin/bash -e {0}
+2026-10-01T14:03:32.5601303Z env:
+2026-10-01T14:03:32.5601471Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:32.5601653Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:32.5601876Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:32.5602481Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T14:03:32.5602889Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:32.5603211Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:32.5603510Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:32.5603889Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T14:03:32.5604244Z   LANE_C_EVIDENCE: /home/runner/work/_temp/lane-c-preflight
+2026-10-01T14:03:32.5604557Z ##[endgroup]
+2026-10-01T14:03:33.3450064Z Collecting websockets==17.1 (from -r requirements.txt (line 1))
+2026-10-01T14:03:33.4029529Z   Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+2026-10-01T14:03:33.4160780Z Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (224 kB)
+2026-10-01T14:03:33.4757212Z Installing collected packages: websockets
+2026-10-01T14:03:33.5711714Z Successfully installed websockets-17.1
+2026-10-01T14:03:33.6099769Z ##[group]Run python - <<'PY'
+2026-10-01T14:03:33.6100042Z [36;1mpython - <<'PY'[0m
+2026-10-01T14:03:33.6100270Z [36;1mimport json, os, platform, sqlite3, websockets[0m
+2026-10-01T14:03:33.6100533Z [36;1mfrom pathlib import Path[0m
+2026-10-01T14:03:33.6101000Z [36;1mrow = dict(python=platform.python_version(), sqlite=sqlite3.sqlite_version, websockets=websockets.__version__, os=platform.platform())[0m
+2026-10-01T14:03:33.6101479Z [36;1massert row['python'] == '3.12.14'[0m
+2026-10-01T14:03:33.6101710Z [36;1massert row['sqlite'] == '3.45.1'[0m
+2026-10-01T14:03:33.6101934Z [36;1massert row['websockets'] == '17.1'[0m
+2026-10-01T14:03:33.6102302Z [36;1mPath(os.environ['LANE_C_EVIDENCE'], 'environment.json').write_text(json.dumps(row, indent=2)+'\n')[0m
+2026-10-01T14:03:33.6102695Z [36;1mprint('LANE_C_ENVIRONMENT '+json.dumps(row))[0m
+2026-10-01T14:03:33.6102944Z [36;1mPY[0m
+2026-10-01T14:03:33.6159897Z shell: /usr/bin/bash -e {0}
+2026-10-01T14:03:33.6160100Z env:
+2026-10-01T14:03:33.6160297Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:33.6160475Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:33.6160722Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:33.6161060Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T14:03:33.6161390Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:33.6161684Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:33.6161973Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:33.6162266Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T14:03:33.6162572Z   LANE_C_EVIDENCE: /home/runner/work/_temp/lane-c-preflight
+2026-10-01T14:03:33.6162823Z ##[endgroup]
+2026-10-01T14:03:33.6771664Z LANE_C_ENVIRONMENT {"python": "3.12.14", "sqlite": "3.45.1", "websockets": "17.1", "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"}
+2026-10-01T14:03:33.6875565Z ##[group]Run python diagnostics/stage-e-preflight/recover_original.py
+2026-10-01T14:03:33.6875995Z [36;1mpython diagnostics/stage-e-preflight/recover_original.py[0m
+2026-10-01T14:03:33.6930209Z shell: /usr/bin/bash -e {0}
+2026-10-01T14:03:33.6930416Z env:
+2026-10-01T14:03:33.6930582Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:33.6930765Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:33.6930994Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:33.6931324Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T14:03:33.6931648Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:33.6931946Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:33.6932240Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:33.6932532Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T14:03:33.6932860Z   LANE_C_EVIDENCE: /home/runner/work/_temp/lane-c-preflight
+2026-10-01T14:03:33.6934965Z   GH_TOKEN: ***
+2026-10-01T14:03:33.6935145Z ##[endgroup]
+2026-10-01T14:03:34.5540116Z LANE_C_ORIGINAL_BINDING {"artifact_id": 11116354967, "errors": 2, "failures": 1, "passes": 1013, "skips": 46, "tests": 1062, "unittest_sha256": "afd19c3842af1c00ff5e35f35917d6511e1ceeb67257235469d88e324a4181a0", "zip_sha256": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457"}
+2026-10-01T14:03:34.5542467Z LANE_C_ORIGINAL_SKIP test_all_six_native_regimes_reconcile_after_snapshot_and_relocated_restore (certification.tests.test_autonomous_native_handoff.AutonomousNativeHandoff.test_all_six_native_regimes_reconcile_after_snapshot_and_relocated_restore) ... skipped 'requires prepared native lanes'
+2026-10-01T14:03:34.5544827Z LANE_C_ORIGINAL_SKIP test_pons_completed_checkpoint_requires_verified_new_window (certification.tests.test_campaign_state.NativeCampaignWindowTests.test_pons_completed_checkpoint_requires_verified_new_window) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5547098Z LANE_C_ORIGINAL_SKIP test_async_lifecycle_preserves_campaign_capital (certification.tests.test_continuity_state.ContinuityTests.test_async_lifecycle_preserves_campaign_capital) ... skipped 'prepared lane unavailable'
+2026-10-01T14:03:34.5549091Z LANE_C_ORIGINAL_SKIP test_meteora_process_cut_restores_compact_mark_without_boundary_exit (certification.tests.test_continuity_state.ContinuityTests.test_meteora_process_cut_restores_compact_mark_without_boundary_exit) ... skipped 'prepared lane unavailable'
+2026-10-01T14:03:34.5550923Z LANE_C_ORIGINAL_SKIP test_meteora_recovered_native_lifecycle_does_not_block_discovery (certification.tests.test_continuity_state.ContinuityTests.test_meteora_recovered_native_lifecycle_does_not_block_discovery) ... skipped 'prepared lane unavailable'
+2026-10-01T14:03:34.5552035Z LANE_C_ORIGINAL_SKIP test_native_checkpoint_restart_matrix (certification.tests.test_continuity_state.ContinuityTests.test_native_checkpoint_restart_matrix) ... skipped 'prepared lane unavailable'
+2026-10-01T14:03:34.5553078Z LANE_C_ORIGINAL_SKIP test_smoke_boundary_also_preserves_campaign_capital (certification.tests.test_continuity_state.ContinuityTests.test_smoke_boundary_also_preserves_campaign_capital) ... skipped 'prepared lane unavailable'
+2026-10-01T14:03:34.5554412Z LANE_C_ORIGINAL_SKIP test_current_changing_terminal_identities_plateau_with_live_reservation_unchanged (certification.tests.test_current_sleeve_archive.CurrentSleeveArchive.test_current_changing_terminal_identities_plateau_with_live_reservation_unchanged) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5556317Z LANE_C_ORIGINAL_SKIP test_every_lane_preserves_causal_classes_and_required_stages_on_restart (certification.tests.test_evidence_obligations.EvidenceObligationTests.test_every_lane_preserves_causal_classes_and_required_stages_on_restart) ... skipped 'prepared exact lane sources unavailable'
+2026-10-01T14:03:34.5558278Z LANE_C_ORIGINAL_SKIP test_meteora_restart_retains_native_core_hold_and_consecutive_counters (certification.tests.test_market_assurance.AssuranceTests.test_meteora_restart_retains_native_core_hold_and_consecutive_counters) ... skipped 'prepared exact lane sources unavailable'
+2026-10-01T14:03:34.5559597Z LANE_C_ORIGINAL_SKIP test_completed_native_identity_churn_plateaus (certification.tests.test_meteora_terminal_archive.MeteoraTerminalArchiveTests.test_completed_native_identity_churn_plateaus) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5560933Z LANE_C_ORIGINAL_SKIP test_live_exit_state_survives_checkpoint_and_failed_publication (certification.tests.test_meteora_terminal_archive.MeteoraTerminalArchiveTests.test_live_exit_state_survives_checkpoint_and_failed_publication) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5562385Z LANE_C_ORIGINAL_SKIP test_writeoffs_cancellations_and_unresolved_inventory_remain_truthful (certification.tests.test_meteora_terminal_archive.MeteoraTerminalArchiveTests.test_writeoffs_cancellations_and_unresolved_inventory_remain_truthful) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5563967Z LANE_C_ORIGINAL_SKIP test_native_decisions_serialize_and_replay_without_provider_or_book (certification.tests.test_native_decision_conformance.NativeConformanceTests.test_native_decisions_serialize_and_replay_without_provider_or_book) ... skipped 'prepared lanes unavailable'
+2026-10-01T14:03:34.5565273Z LANE_C_ORIGINAL_SKIP test_active_survivor_entry_and_runner_capture_replay (certification.tests.test_native_decision_conformance.SurvivorConformanceTests.test_active_survivor_entry_and_runner_capture_replay) ... skipped 'prepared lanes unavailable'
+2026-10-01T14:03:34.5566847Z LANE_C_ORIGINAL_SKIP test_meteora_native_commit_acknowledgement_crash_boundaries (certification.tests.test_native_evidence_checkpoints.NativeEvidenceCheckpointTests.test_meteora_native_commit_acknowledgement_crash_boundaries) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5568306Z LANE_C_ORIGINAL_SKIP test_existing_ramses_position_starts_native_monitor_while_discovery_continues (certification.tests.test_normal_window_recovery.NormalWindowRecoveryTests.test_existing_ramses_position_starts_native_monitor_while_discovery_continues) ... skipped 'requires prepared native lanes'
+2026-10-01T14:03:34.5569653Z LANE_C_ORIGINAL_SKIP test_changing_trials_capital_and_reentry_plateau (certification.tests.test_pons_terminal_archive.PonsTerminalArchive.test_changing_trials_capital_and_reentry_plateau) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5571022Z LANE_C_ORIGINAL_SKIP test_compaction_cuts_recover_from_preserved_predecessor_and_reject_corruption (certification.tests.test_pons_terminal_archive.PonsTerminalArchive.test_compaction_cuts_recover_from_preserved_predecessor_and_reject_corruption) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5572458Z LANE_C_ORIGINAL_SKIP test_previous_window_does_not_permanently_exhaust_next_window (certification.tests.test_pons_window_capacity.PonsWindowCapacityTests.test_previous_window_does_not_permanently_exhaust_next_window) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5573804Z LANE_C_ORIGINAL_SKIP test_native_recovered_position_uses_existing_monitor (certification.tests.test_pump_current_continuation.PumpCurrentContinuationTests.test_native_recovered_position_uses_existing_monitor) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5575224Z LANE_C_ORIGINAL_SKIP test_repeated_recenter_restart_and_seven_day_exit_use_native_controller (certification.tests.test_ramses_long_horizon.RamsesLongHorizonTests.test_repeated_recenter_restart_and_seven_day_exit_use_native_controller) ... skipped 'requires prepared native lanes'
+2026-10-01T14:03:34.5576970Z LANE_C_ORIGINAL_SKIP test_active_recenter_and_unresolved_reserve_survive_rollback_and_restore (certification.tests.test_ramses_terminal_archive.RamsesTerminalArchiveTests.test_active_recenter_and_unresolved_reserve_survive_rollback_and_restore) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5578328Z LANE_C_ORIGINAL_SKIP test_changing_completed_positions_plateau (certification.tests.test_ramses_terminal_archive.RamsesTerminalArchiveTests.test_changing_completed_positions_plateau) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5579587Z LANE_C_ORIGINAL_SKIP test_changing_rolling_keys_leave_only_preserved_raw_history (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_changing_rolling_keys_leave_only_preserved_raw_history) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5580975Z LANE_C_ORIGINAL_SKIP test_d1_changing_identities_plateau_and_preserved_prefix_cannot_reenter (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_d1_changing_identities_plateau_and_preserved_prefix_cannot_reenter) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5581996Z LANE_C_ORIGINAL_SKIP skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5582928Z LANE_C_ORIGINAL_SKIP test_repeated_native_windows_bound_history_cache_and_projection_receipts (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_repeated_native_windows_bound_history_cache_and_projection_receipts) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5584410Z LANE_C_ORIGINAL_SKIP test_rolling_archive_publication_cut_rolls_back_and_corruption_blocks_seal (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_rolling_archive_publication_cut_rolls_back_and_corruption_blocks_seal) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5586150Z LANE_C_ORIGINAL_SKIP test_scoped_native_terminal_projections_plateau_and_live_projection_survives (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_scoped_native_terminal_projections_plateau_and_live_projection_survives) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5587632Z LANE_C_ORIGINAL_SKIP test_unpreserved_unprojected_and_interrupted_capsules_fail_closed (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_unpreserved_unprojected_and_interrupted_capsules_fail_closed) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5589103Z LANE_C_ORIGINAL_SKIP test_all_four_prepared_workers_accept_exact_active_policy_identity (certification.tests.test_run379_worker_policy.PreparedWorkerStartupTests.test_all_four_prepared_workers_accept_exact_active_policy_identity) ... skipped 'Prepared lanes required; exercised by full hosted certification'
+2026-10-01T14:03:34.5590563Z LANE_C_ORIGINAL_SKIP test_pons_captured_graduation_through_authoritative_discovery (certification.tests.test_survivor_acquisition.SurvivorAcquisitionTests.test_pons_captured_graduation_through_authoritative_discovery) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5591850Z LANE_C_ORIGINAL_SKIP test_pons_full_hot_set_and_discovery_keep_pace (certification.tests.test_survivor_acquisition.SurvivorAcquisitionTests.test_pons_full_hot_set_and_discovery_keep_pace) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5593410Z LANE_C_ORIGINAL_SKIP test_pons_shared_transport_keeps_pool_authority_and_recovers (certification.tests.test_survivor_acquisition.SurvivorAcquisitionTests.test_pons_shared_transport_keeps_pool_authority_and_recovers) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5594739Z LANE_C_ORIGINAL_SKIP test_pump_raw_migration_finality_and_target_market (certification.tests.test_survivor_acquisition.SurvivorAcquisitionTests.test_pump_raw_migration_finality_and_target_market) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5596437Z LANE_C_ORIGINAL_SKIP test_dense_native_pump_history_preserves_exact_state_at_unchanged_point_limit (certification.tests.test_survivor_archive_bounds.SurvivorArchiveTests.test_dense_native_pump_history_preserves_exact_state_at_unchanged_point_limit) ... skipped 'requires prepared native lanes'
+2026-10-01T14:03:34.5597877Z LANE_C_ORIGINAL_SKIP test_capacity_cannot_prevent_expired_candidate_retirement (certification.tests.test_survivor_candidate_progress.SurvivorCandidateProgressTests.test_capacity_cannot_prevent_expired_candidate_retirement) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5599525Z LANE_C_ORIGINAL_SKIP test_pons_runtime_binds_approved_turnover_capacity (certification.tests.test_survivor_candidate_progress.SurvivorCandidateProgressTests.test_pons_runtime_binds_approved_turnover_capacity) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5601099Z LANE_C_ORIGINAL_SKIP test_pump_native_reconstruction_and_missing_continuity (certification.tests.test_survivor_candidate_progress.SurvivorCandidateProgressTests.test_pump_native_reconstruction_and_missing_continuity) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5602557Z LANE_C_ORIGINAL_SKIP test_runtime_binds_frozen_policy_minimum_age (certification.tests.test_survivor_candidate_progress.SurvivorCandidateProgressTests.test_runtime_binds_frozen_policy_minimum_age) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5603869Z LANE_C_ORIGINAL_SKIP test_native_survivor_startup_from_exact_preserved_snapshots (certification.tests.test_survivor_terminal_native.SurvivorTerminalNativeTests.test_native_survivor_startup_from_exact_preserved_snapshots) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5605670Z LANE_C_ORIGINAL_SKIP test_reserved_capital_survives_cancellation_without_inventing_settlement (certification.tests.test_terminal_reconciliation.NativeTerminalReconciliationTests.test_reserved_capital_survives_cancellation_without_inventing_settlement) ... skipped 'requires prepared native lane sources; required in full certification workflow'
+2026-10-01T14:03:34.5607373Z LANE_C_ORIGINAL_SKIP test_restored_pons_relative_trial_paths_replay_without_journal_mutation (certification.tests.test_terminal_reconciliation.NativeTerminalReconciliationTests.test_restored_pons_relative_trial_paths_replay_without_journal_mutation) ... skipped 'requires prepared native lane sources'
+2026-10-01T14:03:34.5608881Z LANE_C_ORIGINAL_SKIP test_open_native_controller_and_recoverable_intent_are_bound_read_only (certification.tests.test_terminal_reconciliation.RamsesDurableHandoffTests.test_open_native_controller_and_recoverable_intent_are_bound_read_only) ... skipped 'requires canonical prepared native lanes'
+2026-10-01T14:03:34.5610085Z LANE_C_ORIGINAL_SKIP Old-policy records stay immutable; exact replay is required within a policy epoch. ... skipped 'Prepared lanes required; exercised by exact-SHA non-market certification'
+2026-10-01T14:03:34.5610677Z LANE_C_ORIGINAL_TRACEBACKS
+2026-10-01T14:03:34.5611344Z ERROR: test_dense_commits_controls_and_retention_all_progress_with_original_bounds (tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds)
+2026-10-01T14:03:34.5612058Z ----------------------------------------------------------------------
+2026-10-01T14:03:34.5612356Z Traceback (most recent call last):
+2026-10-01T14:03:34.5618176Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py", line 118, in run
+2026-10-01T14:03:34.5618619Z     return self._loop.run_until_complete(task)
+2026-10-01T14:03:34.5618865Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5619325Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+2026-10-01T14:03:34.5619738Z     return future.result()
+2026-10-01T14:03:34.5619934Z            ^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5620530Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run379_production_pressure.py", line 95, in test_dense_commits_controls_and_retention_all_progress_with_original_bounds
+2026-10-01T14:03:34.5621272Z     stop.set();await runner
+2026-10-01T14:03:34.5621463Z                ^^^^^^^^^^^^
+2026-10-01T14:03:34.5621786Z meme_machine.solana_evidence_plane.EvidenceUnavailable: maintenance_service_deadline_exhausted
+2026-10-01T14:03:34.5622080Z 
+2026-10-01T14:03:34.5622177Z ======================================================================
+2026-10-01T14:03:34.5622828Z ERROR: test_sustained_source_clock_candidate_progress_and_durable_drain (tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain)
+2026-10-01T14:03:34.5623488Z ----------------------------------------------------------------------
+2026-10-01T14:03:34.5623751Z Traceback (most recent call last):
+2026-10-01T14:03:34.5624343Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run380_production_pressure.py", line 65, in test_sustained_source_clock_candidate_progress_and_durable_drain
+2026-10-01T14:03:34.5624897Z     self.assertEqual(gaps,0)
+2026-10-01T14:03:34.5625208Z AssertionError: 3 != 0
+2026-10-01T14:03:34.5625324Z 
+2026-10-01T14:03:34.5625678Z During handling of the above exception, another exception occurred:
+2026-10-01T14:03:34.5625897Z 
+2026-10-01T14:03:34.5625985Z Traceback (most recent call last):
+2026-10-01T14:03:34.5626352Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py", line 118, in run
+2026-10-01T14:03:34.5626727Z     return self._loop.run_until_complete(task)
+2026-10-01T14:03:34.5626955Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5627362Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+2026-10-01T14:03:34.5627757Z     return future.result()
+2026-10-01T14:03:34.5627946Z            ^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5628492Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run380_production_pressure.py", line 81, in test_sustained_source_clock_candidate_progress_and_durable_drain
+2026-10-01T14:03:34.5629043Z     stop.set();await runner
+2026-10-01T14:03:34.5629227Z                ^^^^^^^^^^^^
+2026-10-01T14:03:34.5629614Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_evidence_service.py", line 1446, in serve
+2026-10-01T14:03:34.5630053Z     if task.done() and not task.cancelled():task.result()
+2026-10-01T14:03:34.5630308Z                                             ^^^^^^^^^^^^^
+2026-10-01T14:03:34.5630783Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_evidence_service.py", line 1340, in maintenance
+2026-10-01T14:03:34.5631333Z     result=await work(lambda state:runtime.turn(flight,submitted),4,label='maintenance_decision')
+2026-10-01T14:03:34.5631715Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5632174Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_evidence_service.py", line 823, in work
+2026-10-01T14:03:34.5632633Z     try:value,queued,executed=await asyncio.shield(wrapped)
+2026-10-01T14:03:34.5632901Z                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5633307Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_evidence_control.py", line 124, in _run
+2026-10-01T14:03:34.5633711Z     try:result=fn(self.state)
+2026-10-01T14:03:34.5633895Z                ^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5634276Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_evidence_service.py", line 819, in timed
+2026-10-01T14:03:34.5634672Z     try:value=fn(state)
+2026-10-01T14:03:34.5634859Z               ^^^^^^^^^
+2026-10-01T14:03:34.5635239Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_evidence_service.py", line 1340, in <lambda>
+2026-10-01T14:03:34.5636033Z     result=await work(lambda state:runtime.turn(flight,submitted),4,label='maintenance_decision')
+2026-10-01T14:03:34.5636507Z                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5636953Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_maintenance_runtime.py", line 306, in turn
+2026-10-01T14:03:34.5637428Z     decision=self.arbiter.choose(generation=self.state.fence.session,
+2026-10-01T14:03:34.5637733Z              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5638181Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_maintenance_arbiter.py", line 184, in choose
+2026-10-01T14:03:34.5656103Z ##[error]    raise EvidenceUnavailable('maintenance_service_deadline_exhausted')
+2026-10-01T14:03:34.5662171Z meme_machine.solana_evidence_plane.EvidenceUnavailable: maintenance_service_deadline_exhausted
+2026-10-01T14:03:34.5662495Z 
+2026-10-01T14:03:34.5662597Z ======================================================================
+2026-10-01T14:03:34.5663332Z FAIL: test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect (tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect)
+2026-10-01T14:03:34.5664254Z ----------------------------------------------------------------------
+2026-10-01T14:03:34.5664538Z Traceback (most recent call last):
+2026-10-01T14:03:34.5664954Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py", line 118, in run
+2026-10-01T14:03:34.5665549Z     return self._loop.run_until_complete(task)
+2026-10-01T14:03:34.5665811Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5666234Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+2026-10-01T14:03:34.5666635Z     return future.result()
+2026-10-01T14:03:34.5666828Z            ^^^^^^^^^^^^^^^
+2026-10-01T14:03:34.5667424Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run373_dispatch_throughput.py", line 162, in test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect
+2026-10-01T14:03:34.5668002Z     self.fail('sustained service exited: '
+2026-10-01T14:03:34.5668381Z AssertionError: sustained service exited: EvidenceUnavailable:maintenance_clock_relationship_invalid
+2026-10-01T14:03:34.5668680Z 
+2026-10-01T14:03:34.5668802Z ----------------------------------------------------------------------
+2026-10-01T14:03:34.5669071Z Ran 1062 tests in 208.514s
+2026-10-01T14:03:34.5669195Z 
+2026-10-01T14:03:34.5669289Z FAILED (failures=1, errors=2, skipped=46)
+2026-10-01T14:03:34.5700521Z ##[group]Run set -o pipefail
+2026-10-01T14:03:34.5700767Z [36;1mset -o pipefail[0m
+2026-10-01T14:03:34.5701117Z [36;1mpython diagnostics/stage-e-preflight/focused.py 2>&1 | tee "$LANE_C_EVIDENCE/focused.log"[0m
+2026-10-01T14:03:34.5758416Z shell: /usr/bin/bash -e {0}
+2026-10-01T14:03:34.5758618Z env:
+2026-10-01T14:03:34.5758779Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:34.5758960Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:34.5759187Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:34.5759532Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T14:03:34.5759860Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:34.5760147Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:34.5760435Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:34.5760721Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T14:03:34.5761045Z   LANE_C_EVIDENCE: /home/runner/work/_temp/lane-c-preflight
+2026-10-01T14:03:34.5761288Z ##[endgroup]
+2026-10-01T14:03:36.2653554Z test_dense_commits_controls_and_retention_all_progress_with_original_bounds (tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds) ... LANE_C_ARBITER_ERROR {"error": "EvidenceUnavailable:maintenance_service_deadline_exhausted", "leases": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "needs": [{"records": 1440, "recovery_deadline": -73.25253391265869, "recovery_excess": 440, "safety_deadline": 46.74746608734131, "scope": "program:meteora", "side": "archive", "units": 1440}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 92.98838496208191, "scope": "program:meteora", "side": "retirement", "units": 1}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 96.008465392, "scope": "program:pump", "side": "archive", "units": 0}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 92.98838496208191, "scope": "program:pump", "side": "retirement", "units": 1}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 96.008465392, "scope": "program:pumpswap", "side": "archive", "units": 0}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 92.98838496208191, "scope": "program:pumpswap", "side": "retirement", "units": 1}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 96.008465392, "scope": "__housekeeping__", "side": "retirement", "units": 0}], "now": 51.010864828, "origins": [["archive", "program:meteora", -13.252533912658691], ["retirement", "program:meteora", 47.98838496208191], ["retirement", "program:pump", 47.98838496208191], ["retirement", "program:pumpswap", 47.98838496208191]], "pending": null, "ready": {"archive": true, "retirement": true}}
+2026-10-01T14:03:36.2673065Z LANE_C_RUNTIME_ERROR {"anchor_monotonic": 49.861604988, "anchor_wall": 1790863415.1141388, "error": "EvidenceUnavailable:maintenance_service_deadline_exhausted", "monotonic": 51.011108992, "nonrecord_since": [["retirement", "program:meteora", 1790863416.2409189], ["retirement", "program:pump", 1790863416.2409189], ["retirement", "program:pumpswap", 1790863416.2409189]], "observation": {"elapsed": 0.020080745999997873, "generation": "9ff3c95544e44fa9a4d59fe88b695faf", "housekeeping": 0, "monotonic": 51.008465392, "recent_progress": [], "scopes": [{"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot_eligible": 1440, "hot_oldest": 1790863175.0, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:meteora", "source_time": 1790863175}, {"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot_eligible": 0, "hot_oldest": null, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:pump", "source_time": 1790863175}, {"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot_eligible": 0, "hot_oldest": null, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:pumpswap", "source_time": 1790863175}], "vm_steps": 2009, "wall": 1790863416.2409189}, "ring": [{"at": 49.867363731, "deadlines": {}, "execution": 0.0022300540000017577, "generation": "9ff3c95544e44fa9a4d59fe88b695faf", "housekeeping": 0, "owner_delay": 6.357999999551112e-05, "ready": {"archive": true, "retirement": true}, "reason": "no_ready_required_work", "receipt_pending": false, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "scope_state": [{"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:meteora"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pump"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pumpswap"}], "selected": null, "sequence": null}, {"at": 50.988364246, "error": "EvidenceUnavailable:maintenance_service_deadline_exhausted", "execution": 0.022719998999995994, "generation": "9ff3c95544e44fa9a4d59fe88b695faf", "owner_delay": 0.11947597800000409, "reason": "fail_closed", "selected": null, "sequence": null}], "wall": 1790863416.263643}
+2026-10-01T14:03:37.8990140Z run379-pressure {"counters": {"pump.foreground_historical_rpc_calls": 0, "meteora.historical_reconstruction_rpc_calls": 0, "stream_messages": 26, "stream_bytes": 54990206, "stream_reconnects": 0, "stream_rejected_messages": 0, "stream_accepted_messages": 26, "gap_repair_retries": 0, "rejected_evidence_records": 0, "ingested_event": 0, "ingested_transaction": 4160, "ingested_account": 0, "pump.local_evidence_reads": 0, "meteora.local_evidence_reads": 0, "pump.complete_local_reads": 0, "meteora.complete_local_reads": 0, "pump.incomplete_local_reads": 0, "meteora.incomplete_local_reads": 0, "pump.repair_assisted_windows": 0, "meteora.repair_assisted_windows": 0, "expired_candidate_interests": 0, "lifecycle.ingested.program:meteora": 4160, "gaps_repaired": 0, "pump.run379_control_probe": 3, "ipc.applied": 3, "gaps_created": 3}, "unresolved_gaps": null, "hot_bytes": null}
+2026-10-01T14:03:37.9436088Z ERROR
+2026-10-01T14:03:37.9912506Z test_sustained_source_clock_candidate_progress_and_durable_drain (tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain) ... Task exception was never retrieved
+2026-10-01T14:03:37.9914896Z future: <Task finished name='Task-19' coro=<to_thread() done, defined at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/threads.py:12> exception=EvidenceUnavailable('evidence_command_unacknowledged') created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/tasks.py:420>
+2026-10-01T14:03:37.9916494Z source_traceback: Object created at (most recent call last):
+2026-10-01T14:03:37.9917396Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/diagnostics/stage-e-preflight/focused.py", line 82, in <module>
+2026-10-01T14:03:37.9918253Z     raise SystemExit(main())
+2026-10-01T14:03:37.9918898Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/diagnostics/stage-e-preflight/focused.py", line 60, in main
+2026-10-01T14:03:37.9919680Z     result = unittest.TextTestRunner(verbosity=2).run(suite)
+2026-10-01T14:03:37.9920383Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/runner.py", line 240, in run
+2026-10-01T14:03:37.9921207Z     test(result)
+2026-10-01T14:03:37.9921773Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/suite.py", line 84, in __call__
+2026-10-01T14:03:37.9922381Z     return self.run(*args, **kwds)
+2026-10-01T14:03:37.9922989Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/suite.py", line 122, in run
+2026-10-01T14:03:37.9923567Z     test(result)
+2026-10-01T14:03:37.9924065Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/suite.py", line 84, in __call__
+2026-10-01T14:03:37.9924679Z     return self.run(*args, **kwds)
+2026-10-01T14:03:37.9925213Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/suite.py", line 122, in run
+2026-10-01T14:03:37.9925915Z     test(result)
+2026-10-01T14:03:37.9926376Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/case.py", line 690, in __call__
+2026-10-01T14:03:37.9926973Z     return self.run(*args, **kwds)
+2026-10-01T14:03:37.9927559Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/async_case.py", line 132, in run
+2026-10-01T14:03:37.9928158Z     return super().run(result)
+2026-10-01T14:03:37.9928689Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/case.py", line 634, in run
+2026-10-01T14:03:37.9929273Z     self._callTestMethod(testMethod)
+2026-10-01T14:03:37.9929924Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/async_case.py", line 91, in _callTestMethod
+2026-10-01T14:03:37.9930596Z     if self._callMaybeAsync(method) is not None:
+2026-10-01T14:03:37.9931341Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/unittest/async_case.py", line 113, in _callMaybeAsync
+2026-10-01T14:03:37.9932014Z     return self._asyncioRunner.run(
+2026-10-01T14:03:37.9932641Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py", line 118, in run
+2026-10-01T14:03:37.9933262Z     return self._loop.run_until_complete(task)
+2026-10-01T14:03:37.9934017Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 678, in run_until_complete
+2026-10-01T14:03:37.9934665Z     self.run_forever()
+2026-10-01T14:03:37.9935300Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 645, in run_forever
+2026-10-01T14:03:37.9936023Z     self._run_once()
+2026-10-01T14:03:37.9936563Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 1991, in _run_once
+2026-10-01T14:03:37.9937362Z     handle._run()
+2026-10-01T14:03:37.9937883Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/events.py", line 88, in _run
+2026-10-01T14:03:37.9938496Z     self._context.run(self._callback, *self._args)
+2026-10-01T14:03:37.9939553Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run379_production_pressure.py", line 74, in test_dense_commits_controls_and_retention_all_progress_with_original_bounds
+2026-10-01T14:03:37.9940666Z     if n>=5 and control is None:control=asyncio.create_task(asyncio.to_thread(controls))
+2026-10-01T14:03:37.9941472Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/tasks.py", line 420, in create_task
+2026-10-01T14:03:37.9942081Z     task = loop.create_task(coro)
+2026-10-01T14:03:37.9942389Z Traceback (most recent call last):
+2026-10-01T14:03:37.9942945Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+2026-10-01T14:03:37.9943607Z     return await loop.run_in_executor(None, func_call)
+2026-10-01T14:03:37.9943978Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:37.9944624Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+2026-10-01T14:03:37.9945299Z     result = self.fn(*self.args, **self.kwargs)
+2026-10-01T14:03:37.9945785Z              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:37.9946650Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run379_production_pressure.py", line 66, in controls
+2026-10-01T14:03:37.9947524Z     for _ in range(25):plane.command(op='counter',key='pump.run379_control_probe',count=1)
+2026-10-01T14:03:37.9948105Z                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:37.9948884Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/solana_evidence_runtime.py", line 62, in command
+2026-10-01T14:03:37.9949587Z     raise error
+2026-10-01T14:03:37.9950072Z meme_machine.solana_evidence_plane.EvidenceUnavailable: evidence_command_unacknowledged
+2026-10-01T14:03:39.1677345Z LANE_C_ARBITER_ERROR {"error": "EvidenceUnavailable:maintenance_service_deadline_exhausted", "leases": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "needs": [{"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 98.913462977, "scope": "program:meteora", "side": "archive", "units": 0}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 95.91241502761841, "scope": "program:meteora", "side": "retirement", "units": 1}, {"records": 204, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": -398675.25253391266, "scope": "program:pump", "side": "archive", "units": 204}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 95.91241502761841, "scope": "program:pump", "side": "retirement", "units": 1}, {"records": 340, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": -398675.25253391266, "scope": "program:pumpswap", "side": "archive", "units": 340}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 95.91241502761841, "scope": "program:pumpswap", "side": "retirement", "units": 1}, {"records": 0, "recovery_deadline": null, "recovery_excess": 0, "safety_deadline": 98.913462977, "scope": "__housekeeping__", "side": "retirement", "units": 0}], "now": 53.914491309, "origins": [["retirement", "program:meteora", 50.91241502761841], ["archive", "program:pump", -398735.25253391266], ["retirement", "program:pump", 50.91241502761841], ["archive", "program:pumpswap", -398735.25253391266], ["retirement", "program:pumpswap", 50.91241502761841]], "pending": null, "ready": {"archive": true, "retirement": true}}
+2026-10-01T14:03:39.1688332Z LANE_C_RUNTIME_ERROR {"anchor_monotonic": 52.867983512, "anchor_wall": 1790863418.1205175, "error": "EvidenceUnavailable:maintenance_service_deadline_exhausted", "monotonic": 53.914637037, "nonrecord_since": [["retirement", "program:meteora", 1790863419.164949], ["retirement", "program:pump", 1790863419.164949], ["retirement", "program:pumpswap", 1790863419.164949]], "observation": {"elapsed": 0.001047802000002207, "generation": "915e653152e44eb0bb900dbeaec383f0", "housekeeping": 0, "monotonic": 53.913462977, "recent_progress": [], "scopes": [{"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot_eligible": 0, "hot_oldest": null, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:meteora", "source_time": 1790863418}, {"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot_eligible": 204, "hot_oldest": 1790464453.0, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:pump", "source_time": 1790863418}, {"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot_eligible": 340, "hot_oldest": 1790464453.0, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:pumpswap", "source_time": 1790863418}], "vm_steps": 4080, "wall": 1790863419.164949}, "ring": [{"at": 52.887180713, "deadlines": {}, "execution": 0.004343193000003964, "generation": "915e653152e44eb0bb900dbeaec383f0", "housekeeping": 0, "owner_delay": 0.000123937999994439, "ready": {"archive": true, "retirement": true}, "reason": "no_ready_required_work", "receipt_pending": false, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "scope_state": [{"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:meteora"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pump"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pumpswap"}], "selected": null, "sequence": null}, {"at": 53.912405661, "error": "EvidenceUnavailable:maintenance_service_deadline_exhausted", "execution": 0.002209903999997209, "generation": "915e653152e44eb0bb900dbeaec383f0", "owner_delay": 0.024242294000003994, "reason": "fail_closed", "selected": null, "sequence": null}], "wall": 1790863419.1671708}
+2026-10-01T14:03:39.2823657Z ERROR
+2026-10-01T14:03:42.5794994Z test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect (tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect) ... LANE_C_RUNTIME_ERROR {"anchor_monotonic": 54.128584317, "anchor_wall": 1790439000, "error": "EvidenceUnavailable:maintenance_clock_relationship_invalid", "monotonic": 57.323713464, "nonrecord_since": [], "observation": {"elapsed": 0.0010597899999993388, "generation": "776eaba1c07d425fa775485eb2766805", "housekeeping": 0, "monotonic": 57.323668057, "recent_progress": [["program:meteora", "retirement", 1790863421.395317, 1, null, 0], ["program:pump", "retirement", 1790863421.3959298, 1, null, 0], ["program:pumpswap", "retirement", 1790863421.3964214, 1, null, 0]], "scopes": [{"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": false, "gaps": 0, "hot_eligible": 0, "hot_oldest": null, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:meteora", "source_time": 1790438999}, {"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": false, "gaps": 0, "hot_eligible": 0, "hot_oldest": null, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:pump", "source_time": 1790438999}, {"account_floor": null, "archived_pending": 0, "blocked_retirement_oldest": null, "continuity": 0, "floor": 1000, "floor_changed": false, "gaps": 0, "hot_eligible": 0, "hot_oldest": null, "pins": 0, "retirement_eligible": 0, "retirement_oldest": null, "scope": "program:pumpswap", "source_time": 1790438999}], "vm_steps": 0, "wall": 1790439000}, "ring": [{"at": 54.134693277, "deadlines": {}, "execution": 0.002465184000001841, "generation": "776eaba1c07d425fa775485eb2766805", "housekeeping": 0, "owner_delay": 6.497199999699887e-05, "ready": {"archive": true, "retirement": true}, "reason": "no_ready_required_work", "receipt_pending": false, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "scope_state": [{"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:meteora"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pump"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pumpswap"}], "selected": null, "sequence": null}, {"at": 55.136047059, "deadlines": {}, "execution": 0.0006170690000004697, "generation": "776eaba1c07d425fa775485eb2766805", "housekeeping": 0, "owner_delay": 7.83620000035512e-05, "ready": {"archive": true, "retirement": true}, "reason": "no_ready_required_work", "receipt_pending": false, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "scope_state": [{"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:meteora"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pump"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 0, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pumpswap"}], "selected": null, "sequence": null}, {"at": 56.139439454, "deadlines": {"retirement": 96.12858438491821}, "durable_progress": {"program:meteora": 1, "program:pump": 1, "program:pumpswap": 1}, "durable_records": {}, "execution": 0.007109014999997498, "generation": "776eaba1c07d425fa775485eb2766805", "housekeeping": 0, "owner_delay": 0.00019341300000519368, "ready": {"archive": true, "retirement": true}, "reason": "debt_surplus", "receipt_pending": false, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "scope_state": [{"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:meteora"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pump"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 1000, "floor_changed": true, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pumpswap"}], "selected": "retirement", "sequence": 1}, {"at": 56.147286268, "deadlines": {}, "execution": 0.0021071409999962043, "generation": "776eaba1c07d425fa775485eb2766805", "housekeeping": 0, "owner_delay": 6.686400000432968e-05, "ready": {"archive": true, "retirement": true}, "reason": "no_ready_required_work", "receipt_pending": false, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "scope_state": [{"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 1000, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:meteora"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 1000, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pump"}, {"account_floor": null, "archived_pending": 0, "continuity": 0, "floor": 1000, "floor_changed": false, "gaps": 0, "hot": 0, "hot_age": null, "pins": 0, "retirement": 0, "retirement_age": null, "scope": "program:pumpswap"}], "selected": null, "sequence": null}, {"at": 57.322591031, "error": "EvidenceUnavailable:maintenance_clock_relationship_invalid", "execution": 0.0011019529999956035, "generation": "776eaba1c07d425fa775485eb2766805", "owner_delay": 0.1684302250000016, "reason": "fail_closed", "selected": null, "sequence": null}], "wall": 1790439000}
+2026-10-01T14:03:43.4665756Z Executing <Task pending name='Task-58' coro=<Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run373_dispatch_throughput.py:164> wait_for=<Future pending cb=[Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.120 seconds
+2026-10-01T14:03:43.8750396Z FAIL
+2026-10-01T14:03:43.8760876Z 
+2026-10-01T14:03:43.8761111Z ======================================================================
+2026-10-01T14:03:43.8762348Z ERROR: test_dense_commits_controls_and_retention_all_progress_with_original_bounds (tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds)
+2026-10-01T14:03:43.8763770Z ----------------------------------------------------------------------
+2026-10-01T14:03:43.8764198Z Traceback (most recent call last):
+2026-10-01T14:03:43.8766196Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py", line 118, in run
+2026-10-01T14:03:43.8766803Z     return self._loop.run_until_complete(task)
+2026-10-01T14:03:43.8767130Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:43.8767774Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+2026-10-01T14:03:43.8768361Z     return future.result()
+2026-10-01T14:03:43.8768611Z            ^^^^^^^^^^^^^^^
+2026-10-01T14:03:43.8769504Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run379_production_pressure.py", line 95, in test_dense_commits_controls_and_retention_all_progress_with_original_bounds
+2026-10-01T14:03:43.8770482Z     stop.set();await runner
+2026-10-01T14:03:43.8770759Z                ^^^^^^^^^^^^
+2026-10-01T14:03:43.8771298Z meme_machine.solana_evidence_plane.EvidenceUnavailable: maintenance_service_deadline_exhausted
+2026-10-01T14:03:43.8771785Z 
+2026-10-01T14:03:43.8772231Z ======================================================================
+2026-10-01T14:03:43.8773233Z ERROR: test_sustained_source_clock_candidate_progress_and_durable_drain (tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain)
+2026-10-01T14:03:43.8774225Z ----------------------------------------------------------------------
+2026-10-01T14:03:43.8774604Z Traceback (most recent call last):
+2026-10-01T14:03:43.8775124Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py", line 118, in run
+2026-10-01T14:03:43.8775773Z     return self._loop.run_until_complete(task)
+2026-10-01T14:03:43.8776317Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:43.8776920Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+2026-10-01T14:03:43.8777504Z     return future.result()
+2026-10-01T14:03:43.8777745Z            ^^^^^^^^^^^^^^^
+2026-10-01T14:03:43.8778558Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run380_production_pressure.py", line 81, in test_sustained_source_clock_candidate_progress_and_durable_drain
+2026-10-01T14:03:43.8779346Z     stop.set();await runner
+2026-10-01T14:03:43.8779586Z                ^^^^^^^^^^^^
+2026-10-01T14:03:43.8780027Z meme_machine.solana_evidence_plane.EvidenceUnavailable: maintenance_service_deadline_exhausted
+2026-10-01T14:03:43.8780431Z 
+2026-10-01T14:03:43.8780549Z ======================================================================
+2026-10-01T14:03:43.8781563Z FAIL: test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect (tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect)
+2026-10-01T14:03:43.8782612Z ----------------------------------------------------------------------
+2026-10-01T14:03:43.8782994Z Traceback (most recent call last):
+2026-10-01T14:03:43.8783722Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py", line 118, in run
+2026-10-01T14:03:43.8784501Z     return self._loop.run_until_complete(task)
+2026-10-01T14:03:43.8785049Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-01T14:03:43.8785898Z   File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+2026-10-01T14:03:43.8786596Z     return future.result()
+2026-10-01T14:03:43.8787033Z            ^^^^^^^^^^^^^^^
+2026-10-01T14:03:43.8787946Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_run373_dispatch_throughput.py", line 162, in test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect
+2026-10-01T14:03:43.8788963Z     self.fail('sustained service exited: '
+2026-10-01T14:03:43.8789593Z AssertionError: sustained service exited: EvidenceUnavailable:maintenance_clock_relationship_invalid
+2026-10-01T14:03:43.8846099Z 
+2026-10-01T14:03:43.8846312Z ----------------------------------------------------------------------
+2026-10-01T14:03:43.8846700Z Ran 3 tests in 8.993s
+2026-10-01T14:03:43.8846853Z 
+2026-10-01T14:03:43.8846974Z FAILED (failures=1, errors=2)
+2026-10-01T14:03:43.8849750Z LANE_C_FOCUSED_RESULT {"error_cases": ["tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds", "tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain"], "errors": 2, "failure_cases": ["tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect"], "failures": 1, "observability": "Post-error numeric state only; original methods, bounds and assertions unchanged.", "passes": 0, "skip_cases": [], "skips": 0, "tests": 3}
+2026-10-01T14:03:43.9626773Z ##[error]Process completed with exit code 1.
+2026-10-01T14:03:43.9656355Z ##[group]Run python diagnostics/stage-e-preflight/contract_probe.py
+2026-10-01T14:03:43.9656752Z [36;1mpython diagnostics/stage-e-preflight/contract_probe.py[0m
+2026-10-01T14:03:43.9721855Z shell: /usr/bin/bash -e {0}
+2026-10-01T14:03:43.9722155Z env:
+2026-10-01T14:03:43.9722398Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:43.9722674Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:43.9723015Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:43.9723546Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T14:03:43.9724073Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:43.9724542Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:43.9725187Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:43.9725782Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T14:03:43.9726259Z   LANE_C_EVIDENCE: /home/runner/work/_temp/lane-c-preflight
+2026-10-01T14:03:43.9726685Z ##[endgroup]
+2026-10-01T14:03:44.1425143Z LANE_C_CONTRACT_PROBE {"advancing_wall_same_monotonic_delta": "accepted", "age_240": "maintenance_service_deadline_exhausted", "age_240_projected_safety_headroom": -3.0, "age_240_successful_service_headroom": -18.0, "frozen_wall": "maintenance_clock_relationship_invalid", "leases": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "preservation_seconds": 180.0, "production_modified": false, "residence_seconds": 240.0}
+2026-10-01T14:03:44.1718823Z ##[group]Run python - <<'PY'
+2026-10-01T14:03:44.1719091Z [36;1mpython - <<'PY'[0m
+2026-10-01T14:03:44.1719284Z [36;1mimport hashlib, json, os[0m
+2026-10-01T14:03:44.1719499Z [36;1mfrom pathlib import Path[0m
+2026-10-01T14:03:44.1719744Z [36;1mroot = Path(os.environ['LANE_C_EVIDENCE'])[0m
+2026-10-01T14:03:44.1720164Z [36;1mrows = {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.iterdir()) if p.is_file()}[0m
+2026-10-01T14:03:44.1720634Z [36;1m(root/'SHA256.json').write_text(json.dumps(rows, indent=2)+'\n')[0m
+2026-10-01T14:03:44.1721016Z [36;1mprint('LANE_C_EVIDENCE_HASHES '+json.dumps(rows, sort_keys=True))[0m
+2026-10-01T14:03:44.1721300Z [36;1mPY[0m
+2026-10-01T14:03:44.1777257Z shell: /usr/bin/bash -e {0}
+2026-10-01T14:03:44.1777459Z env:
+2026-10-01T14:03:44.1777623Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:44.1777801Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:44.1778026Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:44.1778462Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T14:03:44.1778807Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:44.1779099Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:44.1779391Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:44.1779681Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T14:03:44.1779976Z   LANE_C_EVIDENCE: /home/runner/work/_temp/lane-c-preflight
+2026-10-01T14:03:44.1780228Z ##[endgroup]
+2026-10-01T14:03:44.2333488Z LANE_C_EVIDENCE_HASHES {"contract-probe.json": "3a5f37adc5011915f78f17fb326a4c650d31c9d8903cb570a1ae31c199e579ea", "environment.json": "b8e3981cad28a8d578b5782031589f3fb091b943d461f974a2997a69c98be838", "focused-summary.json": "828f4a0e6a9467630649b5036fa3e4eb336db590a64e4b131ef10ac9ebf4f7d5", "focused.log": "f7e9f93852a0f3f08b3dbafe18acd14d4fae63f22019e26df80c54b646a3f756", "identity.json": "de635273c8f56df30d2745e03dc4fcb0c99b159c4471d13f35286de2c1d0158f", "original-preflight.zip": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457", "original-skips.json": "ddf28f723a85fadcf31fcd7b650e14676d5f61389e0ec0f92adf4581f31595a5", "original-unittest.log": "afd19c3842af1c00ff5e35f35917d6511e1ceeb67257235469d88e324a4181a0"}
+2026-10-01T14:03:44.2413097Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-01T14:03:44.2413423Z with:
+2026-10-01T14:03:44.2413716Z   name: lane-c-preflight-54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340-36873350412-1
+2026-10-01T14:03:44.2414083Z   path: /home/runner/work/_temp/lane-c-preflight/
+2026-10-01T14:03:44.2414330Z   if-no-files-found: error
+2026-10-01T14:03:44.2414532Z   retention-days: 90
+2026-10-01T14:03:44.2414711Z   compression-level: 6
+2026-10-01T14:03:44.2414887Z   overwrite: false
+2026-10-01T14:03:44.2415063Z   include-hidden-files: false
+2026-10-01T14:03:44.2415255Z env:
+2026-10-01T14:03:44.2415577Z   PYTHONUNBUFFERED: 1
+2026-10-01T14:03:44.2415811Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T14:03:44.2416040Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:44.2416377Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T14:03:44.2416872Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:44.2417201Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:44.2417495Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T14:03:44.2417786Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T14:03:44.2418085Z   LANE_C_EVIDENCE: /home/runner/work/_temp/lane-c-preflight
+2026-10-01T14:03:44.2418331Z ##[endgroup]
+2026-10-01T14:03:44.3706622Z (node:2228) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-01T14:03:44.3707508Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-01T14:03:44.3770364Z With the provided path, there will be 9 files uploaded
+2026-10-01T14:03:44.3778919Z Artifact name is valid!
+2026-10-01T14:03:44.3779495Z Root directory input is valid!
+2026-10-01T14:03:44.7147120Z Beginning upload of artifact content to blob storage
+2026-10-01T14:03:44.7461463Z (node:2228) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-01T14:03:45.1423310Z Uploaded bytes 102223
+2026-10-01T14:03:45.2052852Z Finished uploading artifact content to blob storage!
+2026-10-01T14:03:45.2053512Z SHA256 digest of uploaded artifact zip is fd05083744e45c299b03ee097185f05ec4a578defbba788e0a79e5eaedfff141
+2026-10-01T14:03:45.2054816Z Finalizing artifact upload
+2026-10-01T14:03:45.4849775Z Artifact lane-c-preflight-54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340-36873350412-1.zip successfully finalized. Artifact ID 11167657807
+2026-10-01T14:03:45.4850693Z Artifact lane-c-preflight-54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340-36873350412-1 has been successfully uploaded! Final size is 102223 bytes. Artifact ID is 11167657807
+2026-10-01T14:03:45.4855521Z Artifact download URL: https://github.com/levonmendall/The-Meme-Machine/actions/runs/36873350412/artifacts/11167657807
+2026-10-01T14:03:45.5016161Z Post job cleanup.
+2026-10-01T14:03:45.5685541Z [command]/usr/bin/git version
+2026-10-01T14:03:45.5720336Z git version 2.55.0
+2026-10-01T14:03:45.5748727Z Temporarily overriding HOME='/home/runner/work/_temp/b0571abb-acea-45d8-b810-dd60b78a74c8' before making global git config changes
+2026-10-01T14:03:45.5749727Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-01T14:03:45.5752562Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T14:03:45.5785107Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T14:03:45.5812904Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T14:03:45.6020125Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T14:03:45.6052041Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T14:03:45.6419613Z Cleaning up orphan processes
+2026-10-01T14:03:45.6672593Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683, actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
