@@ -1,0 +1,38 @@
+{
+  "schema": "meme-machine-provisional-shadow-parameters-20261001",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "paper_allocation_authority": false,
+  "live_money_authority": false,
+  "derived_from": "research/public-market-7d-scaling-reset-20261001/results.json",
+  "pons_staged_scaling": {
+    "enabled_for_shadow_observation": true,
+    "strength_from_recent_low_bps": 500,
+    "local_breakout_required": true,
+    "add_size_bps": null,
+    "maximum_total_position_bps": null,
+    "allocation_authority": false,
+    "reason": "Market-path trigger validated for research observation; economic scale size remains unvalidated."
+  },
+  "pons_reset_recovery": {
+    "enabled_for_shadow_observation": true,
+    "minimum_drawdown_bps": 1500,
+    "minimum_recovery_from_trough_bps": 1000,
+    "structural_survival_required": true,
+    "selling_exhaustion_required": true,
+    "independent_demand_recovery_required": true,
+    "executable_capacity_required": true,
+    "capital_target_bps": null,
+    "exits_unset": true,
+    "allocation_authority": false
+  },
+  "pump_staged_scaling": {
+    "enabled_for_shadow_observation": false,
+    "reason": "Higher-volume 7d public cohort rejected simple price-strength scale rule."
+  },
+  "pump_reset_recovery": {
+    "enabled_for_shadow_observation": true,
+    "parameters_frozen": false,
+    "allocation_authority": false,
+    "reason": "No repeatable higher-volume public-market signal; observe only without a threshold-qualified shadow policy."
+  }
+}

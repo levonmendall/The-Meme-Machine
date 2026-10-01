@@ -1,0 +1,299 @@
+{
+  "schema": "meme-machine-public-market-7d-scaling-reset-research-v1",
+  "status": "COMPLETE_EXTENDED_MARKET_RESEARCH",
+  "paper_only": true,
+  "allocation_authority": false,
+  "live_money_authority": false,
+  "window": {
+    "start": "2026-09-24T19:00:00Z",
+    "end": "2026-10-01T19:05:00Z",
+    "duration_hours": 168,
+    "source": "CoinGecko public market data",
+    "primary_resolution_minutes_approx": 85,
+    "note": "Seven days is the longest available CoinGecko range retaining useful intraday path resolution for this study. Thirty-day sampling is too coarse for reliable intraday trigger ordering."
+  },
+  "data_policy": {
+    "public_market_data_only": true,
+    "meme_machine_market_or_trade_data_used": false,
+    "private_provider_data_used": false
+  },
+  "robustness_cohort": {
+    "purpose": "Remove low-volume microcaps that dominated the original 48h Pump findings and use current Pons V2 DEX-visible names for the Pons robustness subset.",
+    "pump_fun_high_volume_usable": [
+      "fartcoin",
+      "pippin",
+      "the-black-bull",
+      "ai-rig-complex",
+      "comedian",
+      "jelly-my-jelly",
+      "peanut-the-squirrel",
+      "alchemist-ai",
+      "troll-2",
+      "moo-deng",
+      "neet"
+    ],
+    "pons_v2_usable": [
+      "bundle-cat",
+      "orbio-so",
+      "zzz-2",
+      "harmonic-agent",
+      "priors-agent",
+      "novaai"
+    ],
+    "pons_v2_requested_but_insufficient_chart_history": [
+      "commander-vrax-2"
+    ]
+  },
+  "staged_scaling": {
+    "methodology": "Same frozen price-path proxy as the 48h study: local breakout plus strength from recent low; 12h forward path; trigger grid unchanged at 5/10/15/20%.",
+    "pump_high_volume": {
+      "trigger_5": {
+        "events": 29,
+        "assets": 9,
+        "days": 7,
+        "event_mean_return_pct": -1.66,
+        "win_rate": 0.379,
+        "asset_mean_return_pct": -0.66,
+        "asset_ci95_approx": [
+          -2.12,
+          0.8
+        ],
+        "positive_asset_fraction": 0.333,
+        "positive_day_fraction": 0.429
+      },
+      "trigger_10": {
+        "events": 8,
+        "assets": 3,
+        "days": 5,
+        "event_mean_return_pct": -3.8,
+        "win_rate": 0.25,
+        "asset_mean_return_pct": -6.28,
+        "asset_ci95_approx": [
+          -11.75,
+          -0.81
+        ],
+        "positive_asset_fraction": 0,
+        "positive_day_fraction": 0.2
+      },
+      "trigger_15": {
+        "events": 4,
+        "assets": 3,
+        "days": 3,
+        "event_mean_return_pct": -7.22,
+        "win_rate": 0.25,
+        "asset_mean_return_pct": -9.17,
+        "asset_ci95_approx": [
+          -17.23,
+          -1.1
+        ],
+        "positive_asset_fraction": 0,
+        "positive_day_fraction": 0
+      },
+      "trigger_20": {
+        "events": 2,
+        "assets": 1,
+        "days": 2,
+        "event_mean_return_pct": -5.85,
+        "win_rate": 0,
+        "asset_mean_return_pct": -5.85
+      },
+      "conclusion": "REJECT_SIMPLE_PRICE_STRENGTH_SCALE_RULE_FOR_PUMP",
+      "interpretation": "The positive Pump result in the earlier 48h study was microcap-driven. In a higher-volume Pump.fun cohort, +10% and +15% scale proxies are consistently negative across every observed asset."
+    },
+    "pons_v2": {
+      "trigger_5": {
+        "events": 59,
+        "assets": 6,
+        "days": 7,
+        "event_mean_return_pct": 7.91,
+        "win_rate": 0.508,
+        "asset_mean_return_pct": 6.67,
+        "asset_ci95_approx": [
+          0.82,
+          12.52
+        ],
+        "positive_asset_fraction": 0.833,
+        "positive_day_fraction": 0.857,
+        "by_asset_mean_pct": {
+          "bundle_cat": 9.83,
+          "orbio": 11.57,
+          "zzz": -1.22,
+          "harmonic": 2.37,
+          "priors": 17.21,
+          "novaai": 0.26
+        },
+        "leave_one_asset_out_asset_mean_range_pct": [
+          4.56,
+          8.25
+        ]
+      },
+      "trigger_10": {
+        "events": 49,
+        "assets": 6,
+        "days": 7,
+        "event_mean_return_pct": 7.78,
+        "asset_mean_return_pct": 5.37,
+        "asset_ci95_approx": [
+          -1.26,
+          12
+        ]
+      },
+      "trigger_15": {
+        "events": 36,
+        "assets": 5,
+        "days": 7,
+        "event_mean_return_pct": 10.2,
+        "asset_mean_return_pct": 8.48,
+        "asset_ci95_approx": [
+          -2.32,
+          19.28
+        ]
+      },
+      "trigger_20": {
+        "events": 31,
+        "assets": 5,
+        "days": 7,
+        "event_mean_return_pct": 9.61,
+        "asset_mean_return_pct": 6.03,
+        "asset_ci95_approx": [
+          -5.04,
+          17.1
+        ]
+      },
+      "conclusion": "FREEZE_5PCT_STRENGTH_AS_PROVISIONAL_PONS_SHADOW_TRIGGER_ONLY",
+      "interpretation": "The +5% strength proxy is the only tested scale trigger whose asset-level interval remains positive and whose leave-one-asset-out mean stays positive. This supports further Pons-specific shadow testing, not allocation or an add-size decision."
+    }
+  },
+  "reset_recovery": {
+    "methodology": "Same frozen reset grid as 48h study: drawdown 15/20/25/30/35% and recovery 5/10/15%; 12h forward path. Robustness focuses on higher-volume Pump.fun cohort and Pons V2 cohort.",
+    "pump_high_volume": {
+      "findings": "No repeatable positive reset signal. The 15%/5% rule produced one NEET event with -6.3% forward return; 15%/10% and stronger rules produced no qualifying events in the higher-volume Pump cohort.",
+      "conclusion": "NO_PUMP_RESET_PARAMETER_FREEZE",
+      "interpretation": "Earlier Pump reset evidence was driven by STONKS PARK. Removing microcap dominance removes the apparent Pump reset edge."
+    },
+    "pons_v2": {
+      "rule_15_5": {
+        "events": 35,
+        "assets": 5,
+        "days": 7,
+        "event_mean_return_pct": 9.41,
+        "asset_mean_return_pct": 7.82,
+        "asset_ci95_approx": [
+          2.18,
+          13.45
+        ],
+        "positive_asset_fraction": 0.8,
+        "positive_day_fraction": 0.571
+      },
+      "rule_15_10": {
+        "events": 28,
+        "assets": 4,
+        "days": 7,
+        "event_mean_return_pct": 6.96,
+        "win_rate": 0.571,
+        "asset_mean_return_pct": 9.71,
+        "asset_ci95_approx": [
+          2.75,
+          16.66
+        ],
+        "positive_asset_fraction": 1,
+        "positive_day_fraction": 0.571,
+        "by_asset_mean_pct": {
+          "bundle_cat": 14.38,
+          "orbio": 16.99,
+          "harmonic": 2.2,
+          "priors": 5.26
+        },
+        "leave_one_asset_out_asset_mean_range_pct": [
+          7.28,
+          12.21
+        ]
+      },
+      "rule_15_15": {
+        "events": 20,
+        "assets": 4,
+        "days": 7,
+        "event_mean_return_pct": 6.89,
+        "asset_mean_return_pct": 8.31,
+        "asset_ci95_approx": [
+          0.95,
+          15.68
+        ],
+        "positive_asset_fraction": 0.75,
+        "positive_day_fraction": 0.714
+      },
+      "rule_20_5": {
+        "events": 23,
+        "assets": 4,
+        "days": 7,
+        "event_mean_return_pct": 5.75,
+        "asset_mean_return_pct": 6.5,
+        "asset_ci95_approx": [
+          0.24,
+          12.76
+        ],
+        "positive_asset_fraction": 1,
+        "positive_day_fraction": 0.714
+      },
+      "rule_20_10": {
+        "events": 20,
+        "assets": 4,
+        "days": 7,
+        "event_mean_return_pct": 5.64,
+        "asset_mean_return_pct": 7.34,
+        "asset_ci95_approx": [
+          0.87,
+          13.8
+        ],
+        "positive_asset_fraction": 1,
+        "positive_day_fraction": 0.714
+      },
+      "rule_20_15": {
+        "events": 16,
+        "assets": 4,
+        "days": 7,
+        "event_mean_return_pct": 4.11,
+        "asset_mean_return_pct": 3.2,
+        "asset_ci95_approx": [
+          -2.24,
+          8.64
+        ]
+      },
+      "conclusion": "FREEZE_15PCT_DRAWDOWN_10PCT_RECOVERY_AS_PROVISIONAL_PONS_SHADOW_CANDIDATE",
+      "rationale": [
+        "15/10 balances sample size and confirmation strength.",
+        "All four Pons V2 assets with qualifying events have positive asset-level mean outcomes.",
+        "Dropping any single asset leaves the equal-asset mean positive (7.28% to 12.21%).",
+        "The signal appears on all seven days, although daily average returns are negative on three days; therefore it is not an unconditional entry rule.",
+        "Structural/execution filters remain necessary before allocation."
+      ]
+    }
+  },
+  "conclusions": {
+    "staged_scaling_pump": "Do not promote or parameterize simple price-strength staged scaling. Keep the generic machinery concept only; future Pump scaling would need additional non-price confirmation and new evidence.",
+    "staged_scaling_pons": "Market-path evidence supports a provisional +5% strength/local-breakout shadow trigger. Add size and total-position ceiling remain unset; no allocation authority.",
+    "reset_recovery_pump": "Do not freeze Pump thresholds. Keep research open but deprioritized.",
+    "reset_recovery_pons": "Market-path evidence is strong enough to freeze a provisional shadow shape: >=15% flush followed by >=10% recovery. This is not sufficient for PAPER allocation without breadth, concentration, creator/distribution, liquidity/depth and executable-cost confirmation.",
+    "conclusive_scope": "Conclusive for research triage and provisional shadow parameterization; not conclusive for profitability certification or allocation authority."
+  },
+  "required_next_validation": {
+    "pons_scaling": [
+      "Use +5% strength/local-breakout as the frozen shadow trigger in the finished PAPER observer.",
+      "Do not set scale add percentage or maximum total exposure until position-context and executable after-cost evidence exist."
+    ],
+    "pons_reset": [
+      "Use 15% drawdown / 10% recovery as the frozen market-path shadow shape.",
+      "Require the already-staged structural evidence categories before any shadow-qualified decision is considered complete."
+    ],
+    "pump": [
+      "No active staged scaling or reset-recovery parameter should be composed into the first PAPER smoke from this research."
+    ]
+  },
+  "limitations": [
+    "Public listed-asset survivor bias remains.",
+    "Approx. 85-minute sampling cannot prove intrabar ordering or actual executable fill quality.",
+    "No buyer-cluster, concentration, creator/distribution, exact depth or quote/slippage path.",
+    "Confidence intervals are descriptive equal-asset normal approximations, not formal strategy profitability inference.",
+    "Pons V2 sample contains only assets with enough public chart history; Commander Vrax lacked sufficient comparable history."
+  ]
+}
