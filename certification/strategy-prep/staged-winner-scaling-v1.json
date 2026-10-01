@@ -70,10 +70,10 @@
     "Common portfolio accounting must map the event to the same canonical lifecycle and record added basis rather than a second trade."
   ],
   "risk_requirements": [
-    "An add cannot erase a prior high-water mark, deterioration streak, realization state, stop state, or pending exit intent.",
-    "Post-add exits operate on the aggregate remaining position while preserving exact lot/basis accounting.",
-    "Partial realization semantics must define whether original and added lots are reduced pro-rata or by a deterministic lot rule before promotion.",
-    "Total worst-case loss after the add must remain inside a separately certified position/lane risk ceiling.",
+    "An add cannot erase a prior high-water mark, deterioration streak, realization state, stop state, bridge state, or pending exit intent.",
+    "Economic accounting preserves aggregate and lot-level basis, but right-tail risk high-water remains anchored to the original entry reference and cannot be reset or diluted by the add.",
+    "First realization must be durably committed before scaling; v1 introduces no post-add partial realization. Any future post-add partial requires a separately certified successor policy with a deterministic lot rule.",
+    "Total worst-case loss after the add must remain inside the certified 750-bps-of-realized-sleeve committed-basis ceiling plus existing strategy hard-stop/execution-stress controls.",
     "If fresh validation fails between scale decision and commit, fail closed and retain the original position without modification."
   ],
   "research_instrumentation": [
@@ -103,11 +103,19 @@
   "promotion_requirements": [
     "Do not implement in the active Stage E/F/G lineage.",
     "After final machinery certification, compose against the exact final machinery SHA.",
-    "Use right-tail-capture-v1 as the frozen initial economic calibration; collect prospective shadow/market evidence after composition and treat any later parameter change as a new policy/cohort.",
+    "Use right-tail-capture-v1 as the frozen v1 economic calibration. No trigger, add-size, total-position, high-water-basis, or lot-handling decision remains open for initial promotion.",
     "First realization must precede scale; no new post-add partial is introduced in v1. Any future post-add partial requires a separately frozen deterministic pro-rata lot rule or certified successor.",
     "Run native ledger, shared sleeve, portfolio accounting, restart/replay, duplicate-event, exit-state, and execution-capacity tests.",
     "Regenerate affected policy/runtime identities.",
     "Run exact-SHA non-market certification before any PAPER market smoke.",
     "Restart affected profitability cohorts because economic exposure changes."
-  ]
+  ],
+  "implementation_resolution": {
+    "economic_parameters_frozen": true,
+    "high_water_basis": "original entry reference",
+    "post_add_partial_realization_authorized": false,
+    "maximum_scale_events_per_lifecycle": 1,
+    "final_sha_regeneration_required": true,
+    "unresolved_economic_decisions": []
+  }
 }
