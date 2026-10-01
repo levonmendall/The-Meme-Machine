@@ -1,7 +1,8 @@
 {
-  "capacity_consumed": 0,
   "capacity_ceiling": 2,
-  "historical_consumed": 6,
+  "capacity_consumed": 1,
   "historical_ceiling": 6,
-  "no_retry": true
+  "historical_consumed": 6,
+  "no_retry": true,
+  "started_arm": "control"
 }
