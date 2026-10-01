@@ -33,12 +33,13 @@ class PriorityOwner:
         self.metrics={}
         self.cv=threading.Condition(); self.queue=[]; self.sequence=0
         self.closed=False; self.ready=concurrent.futures.Future()
+        self.admission_notify=None
         self._checkpoint_epoch=0; self._checkpoint_busy=False
         self._checkpoint_handoff=None
         self.thread=threading.Thread(target=self._run,args=(factory,),name='solana-evidence-owner',daemon=True)
         self.thread.start()
 
-    def submit(self, fn, *, priority=1, expires=None):
+    def submit(self, fn, *, priority=1, expires=None, admit_before=None):
         future=concurrent.futures.Future()
         with self.cv:
             if self.closed: raise EvidenceUnavailable('evidence_owner_unavailable')
@@ -46,10 +47,18 @@ class PriorityOwner:
             if len(self.queue)>=limit:
                 self.metrics['rejected']=self.metrics.get('rejected',0)+1
                 raise EvidenceUnavailable('evidence_control_overloaded')
+            accepted_at=self.clock()
+            if admit_before is not None and accepted_at>=admit_before:
+                raise EvidenceUnavailable('evidence_admission_offer_expired')
             self.sequence+=1
-            self.enqueued[self.sequence]=self.clock()
+            future.owner_sequence=self.sequence
+            future.owner_accepted_at=accepted_at
+            self.enqueued[self.sequence]=accepted_at
             heapq.heappush(self.queue,(priority,self.sequence,expires,fn,future)); self.cv.notify()
             self.metrics['queue_peak']=max(self.metrics.get('queue_peak',0),len(self.queue))
+        # A scheduling observer wakes the event loop outside the owner lock.
+        # It has no power to reorder, cancel or choose admitted work.
+        if self.admission_notify is not None:self.admission_notify()
         return future
 
     def _run(self,factory):

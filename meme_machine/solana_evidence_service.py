@@ -810,7 +810,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
                            for _ in range(STREAM_DECODE_WORKERS)))
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
-    async def work(fn,priority=1,*,label=None):
+    async def work(fn,priority=1,*,label=None,accepted=None,admit_before=None):
         if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision'):
             raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic();execution=[None,None]
@@ -819,7 +819,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             try:value=fn(state)
             finally:execution[1]=time.monotonic()
             return value,int((started-submitted)*1_000_000),int((execution[1]-started)*1_000_000)
-        wrapped=asyncio.wrap_future(owner.submit(timed,priority=priority))
+        future=owner.submit(timed,priority=priority,admit_before=admit_before)
+        if accepted is not None:accepted(future)
+        wrapped=asyncio.wrap_future(future)
         try:value,queued,executed=await asyncio.shield(wrapped)
         except asyncio.CancelledError:
             # Accepted owner work outlives a cancelled maintenance waiter. Its
@@ -847,6 +849,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         return value
     stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
     clients=set();counts={}
+    from .solana_owner_admission import OwnerAdmission,SourceState
+    admission=OwnerAdmission(owner,clock=time.monotonic)
+    loop=asyncio.get_running_loop()
+    owner.admission_notify=lambda:loop.call_soon_threadsafe(admission.recheck)
     # Source batching amortizes FULL-synchronous fsyncs while the store is clean.
     # Once archive/retention has real backlog, however, a multi-frame batch would
     # consume several frames inside one owner admission and make cleanup fairness
@@ -938,6 +944,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         decoded=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
                         pending_bytes=0;pending_frames=0;receive_sequence=0
                         commit_progress=time.monotonic()
+                        receive_capacity_waiting=False
                         drained=asyncio.Event();drained.set()
                         capacity_available=asyncio.Event()
                         wanted=set()
@@ -977,7 +984,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                 except TimeoutError:pass
 
                         async def receive():
-                            nonlocal pending_bytes,pending_frames,receive_sequence
+                            nonlocal pending_bytes,pending_frames,receive_sequence,receive_capacity_waiting
                             last_receive=time.monotonic()
                             while not stop.is_set() and not connection_stop.is_set():
                                 # Reserve room for one maximum-sized frame before
@@ -993,6 +1000,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     if wait_started is None:
                                         wait_started=time.monotonic()
                                         count('stream.admission_waits')
+                                        receive_capacity_waiting=True;admission.recheck()
                                     capacity_available.clear()
                                     try:await asyncio.wait_for(capacity_available.wait(),.5)
                                     except TimeoutError:pass
@@ -1000,6 +1008,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     if time.monotonic()-commit_progress>STREAM_COMMIT_STALL_SECONDS:
                                         raise EvidenceUnavailable('local_ordered_commit_stalled')
                                 if wait_started is not None:
+                                    receive_capacity_waiting=False
                                     wait_us=int((time.monotonic()-wait_started)*1_000_000)
                                     counts['stream.admission_wait_total_microseconds']=counts.get('stream.admission_wait_total_microseconds',0)+wait_us
                                     counts['stream.admission_wait_peak_microseconds']=max(counts.get('stream.admission_wait_peak_microseconds',0),wait_us)
@@ -1027,6 +1036,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     return ('capacity',size)
                                 sequence=receive_sequence;receive_sequence+=1
                                 pending_frames+=1;pending_bytes+=size;drained.clear()
+                                admission.recheck()
                                 received_at=time.monotonic()
                                 inbound.put_nowait((sequence,raw,time.time(),size,received_at))
                                 counts['stream.received_messages']=counts.get('stream.received_messages',0)+1
@@ -1077,6 +1087,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     counts['stream.retained_transactions']=(
                                         counts.get('stream.retained_transactions',0)+retained_transactions)
                                     await decoded.put(('frame',sequence,message,seen,size,decoded_at))
+                                    admission.recheck()
                                 finally:
                                     inbound.task_done()
 
@@ -1115,6 +1126,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                         # order, retaining per-frame savepoints and
                                         # the existing 8-frame/16-MiB transaction cap.
                                         # Subscription/control ACKs remain barriers.
+                                        if 'id' in message:admission.counters['bypass_head_ack']+=1
                                         if 'id' not in message:
                                             sid=(message.get('params') or {}).get('subscription')
                                             sub=active.get(sid)
@@ -1122,65 +1134,78 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                 sub=None
                                             elif sub is None:
                                                 raise EvidenceUnavailable('unknown_source_subscription')
+                                            if sub is not None and sub.evidence_class not in ('blocks','account'):
+                                                admission.counters['bypass_head_control']+=1
                                             if sub is not None and sub.evidence_class in ('blocks','account'):
-                                                batch=[];batch_bytes=0;cursor=next_sequence
-                                                batch_limit=maintenance_batch_limit(pending_frames)
-                                                maintenance_limited=batch_limit==1
-                                                if (not maintenance_limited
-                                                        and any(maintenance_pressure.values())):
-                                                    counts['stream.maintenance_backpressure_batching']=(
-                                                        counts.get('stream.maintenance_backpressure_batching',0)+1)
-                                                while (cursor in ready
-                                                       and len(batch)<batch_limit):
-                                                    candidate,c_seen,c_size,c_decoded_at=ready[cursor]
-                                                    if 'id' in candidate:
-                                                        break
-                                                    c_sid=(candidate.get('params') or {}).get('subscription')
-                                                    c_sub=active.get(c_sid)
-                                                    if c_sub is None:
-                                                        break
-                                                    if c_sub.evidence_class not in ('blocks','account'):
-                                                        break
-                                                    if batch and batch_bytes+c_size>STREAM_COMMIT_BATCH_MAX_BYTES:
-                                                        break
-                                                    if c_size>STREAM_COMMIT_BATCH_MAX_BYTES:
-                                                        raise EvidenceUnavailable('stream_commit_batch_bound')
-                                                    ready.pop(cursor)
-                                                    batch.append((c_sub,candidate,c_seen,c_size,c_decoded_at))
-                                                    batch_bytes+=c_size;cursor+=1
-                                                commit_started=time.monotonic()
-                                                wait_us=max(int(max(0.0,commit_started-row[4])*1_000_000)
-                                                            for row in batch)
-                                                counts['stream.ordered_commit_wait_peak_microseconds']=max(
-                                                    counts.get('stream.ordered_commit_wait_peak_microseconds',0),wait_us)
-                                                source_items=tuple((row[0],row[1],row[2],row[3]) for row in batch)
-                                                await work(lambda state,items=source_items:state.source_batch(items),
-                                                           0 if all(row[0].evidence_class=='account' for row in batch) else 2,
-                                                           label='source_commit')
-                                                commit_us=int((time.monotonic()-commit_started)*1_000_000)
-                                                counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+len(batch)
-                                                counts['stream.commit_batches']=counts.get('stream.commit_batches',0)+1
-                                                counts['stream.commit_batch_messages_peak']=max(
-                                                    counts.get('stream.commit_batch_messages_peak',0),len(batch))
-                                                counts['stream.commit_batch_bytes_peak']=max(
-                                                    counts.get('stream.commit_batch_bytes_peak',0),batch_bytes)
-                                                counts['stream.commit_batch_saved_transactions']=(
-                                                    counts.get('stream.commit_batch_saved_transactions',0)+max(0,len(batch)-1))
-                                                if maintenance_limited:
-                                                    counts['stream.maintenance_limited_commit_batches']=(
-                                                        counts.get('stream.maintenance_limited_commit_batches',0)+1)
-                                                    counts['stream.maintenance_limited_commit_messages']=(
-                                                        counts.get('stream.maintenance_limited_commit_messages',0)+len(batch))
-                                                counts['stream.commit_peak_microseconds']=max(
-                                                    counts.get('stream.commit_peak_microseconds',0),commit_us)
-                                                counts['stream.commit_total_microseconds']=(
-                                                    counts.get('stream.commit_total_microseconds',0)+commit_us)
-                                                pending_bytes=max(0,pending_bytes-batch_bytes)
-                                                pending_frames=max(0,pending_frames-len(batch))
-                                                commit_progress=time.monotonic()
-                                                capacity_available.set()
-                                                if pending_frames==0:drained.set()
-                                                next_sequence+=len(batch)
+                                                def source_state():
+                                                    now=time.monotonic()
+                                                    return SourceState(sub.evidence_class,pending_frames,pending_bytes,
+                                                        receive_capacity_waiting,inbound.qsize(),decoded.qsize(),len(ready),
+                                                        now-commit_progress,now-decoded_at,
+                                                        stop.is_set() or connection_stop.is_set())
+                                                offer=await admission.rendezvous(source_state)
+                                                try:
+                                                    batch=[];batch_bytes=0;cursor=next_sequence
+                                                    batch_limit=maintenance_batch_limit(pending_frames)
+                                                    maintenance_limited=batch_limit==1
+                                                    if (not maintenance_limited
+                                                            and any(maintenance_pressure.values())):
+                                                        counts['stream.maintenance_backpressure_batching']=(
+                                                            counts.get('stream.maintenance_backpressure_batching',0)+1)
+                                                    while (cursor in ready
+                                                           and len(batch)<batch_limit):
+                                                        candidate,c_seen,c_size,c_decoded_at=ready[cursor]
+                                                        if 'id' in candidate:
+                                                            break
+                                                        c_sid=(candidate.get('params') or {}).get('subscription')
+                                                        c_sub=active.get(c_sid)
+                                                        if c_sub is None:
+                                                            break
+                                                        if c_sub.evidence_class not in ('blocks','account'):
+                                                            break
+                                                        if batch and batch_bytes+c_size>STREAM_COMMIT_BATCH_MAX_BYTES:
+                                                            break
+                                                        if c_size>STREAM_COMMIT_BATCH_MAX_BYTES:
+                                                            raise EvidenceUnavailable('stream_commit_batch_bound')
+                                                        ready.pop(cursor)
+                                                        batch.append((c_sub,candidate,c_seen,c_size,c_decoded_at))
+                                                        batch_bytes+=c_size;cursor+=1
+                                                    commit_started=time.monotonic()
+                                                    wait_us=max(int(max(0.0,commit_started-row[4])*1_000_000)
+                                                                for row in batch)
+                                                    counts['stream.ordered_commit_wait_peak_microseconds']=max(
+                                                        counts.get('stream.ordered_commit_wait_peak_microseconds',0),wait_us)
+                                                    source_items=tuple((row[0],row[1],row[2],row[3]) for row in batch)
+                                                    await work(lambda state,items=source_items:state.source_batch(items),
+                                                               0 if all(row[0].evidence_class=='account' for row in batch) else 2,
+                                                               label='source_commit',
+                                                               accepted=lambda future:admission.source_accepted(future,offer,len(batch)))
+                                                    commit_us=int((time.monotonic()-commit_started)*1_000_000)
+                                                    counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+len(batch)
+                                                    counts['stream.commit_batches']=counts.get('stream.commit_batches',0)+1
+                                                    counts['stream.commit_batch_messages_peak']=max(
+                                                        counts.get('stream.commit_batch_messages_peak',0),len(batch))
+                                                    counts['stream.commit_batch_bytes_peak']=max(
+                                                        counts.get('stream.commit_batch_bytes_peak',0),batch_bytes)
+                                                    counts['stream.commit_batch_saved_transactions']=(
+                                                        counts.get('stream.commit_batch_saved_transactions',0)+max(0,len(batch)-1))
+                                                    if maintenance_limited:
+                                                        counts['stream.maintenance_limited_commit_batches']=(
+                                                            counts.get('stream.maintenance_limited_commit_batches',0)+1)
+                                                        counts['stream.maintenance_limited_commit_messages']=(
+                                                            counts.get('stream.maintenance_limited_commit_messages',0)+len(batch))
+                                                    counts['stream.commit_peak_microseconds']=max(
+                                                        counts.get('stream.commit_peak_microseconds',0),commit_us)
+                                                    counts['stream.commit_total_microseconds']=(
+                                                        counts.get('stream.commit_total_microseconds',0)+commit_us)
+                                                    pending_bytes=max(0,pending_bytes-batch_bytes)
+                                                    pending_frames=max(0,pending_frames-len(batch))
+                                                    commit_progress=time.monotonic()
+                                                    capacity_available.set()
+                                                    if pending_frames==0:drained.set()
+                                                    next_sequence+=len(batch)
+                                                finally:
+                                                    admission.abort(offer)
                                                 continue
 
                                         # Subscription acknowledgements, retired
@@ -1254,6 +1279,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         # before the dedicated waiter runs. The flag, not which
                         # task wins FIRST_COMPLETED, owns admitted-frame drain.
                         if stop.is_set():
+                            admission.recheck()
                             connection_stop.set();receiver.cancel()
                             await asyncio.gather(receiver,return_exceptions=True)
                             for _ in decoders:await inbound.put(None)
@@ -1264,7 +1290,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         if receiver in done:
                             receiver_exc=receiver.exception()
                             outcome=None if receiver_exc else receiver.result()
-                            connection_stop.set()
+                            connection_stop.set();admission.recheck()
                             for _ in decoders:await inbound.put(None)
                             drain_started=time.monotonic()
                             await asyncio.gather(*decoders)
@@ -1295,7 +1321,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     try:await asyncio.wait_for(stop.wait(),1)
                     except TimeoutError:pass
                 finally:
-                    connection_stop.set()
+                    connection_stop.set();admission.recheck()
                     for task in connection_tasks:task.cancel()
                     if connection_tasks:await asyncio.gather(*connection_tasks,return_exceptions=True)
 
@@ -1321,6 +1347,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
                     snapshot=dict(counts)
                     scheduler=owner.telemetry()
+                    scheduler['owner_admission']=admission.telemetry()
                     await work(lambda state:state.publish_health(http,snapshot,scheduler),4,label='maintenance_health')
                 except EvidenceUnavailable as exc:
                     if str(exc)!='evidence_background_yield':raise
@@ -1333,11 +1360,26 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             # can be waiting with an obsolete pre-queue ordering decision.
             from .solana_maintenance_runtime import ArchiveFlight,MaintenanceRuntime
             runtime=await work(lambda state:MaintenanceRuntime(state),4,label='maintenance_decision')
+            admission.generation=runtime.generation
             flight=ArchiveFlight()
             while not stop.is_set():
+                offer=await admission.before_maintenance()
                 submitted=time.monotonic()
                 try:
-                    result=await work(lambda state:runtime.turn(flight,submitted),4,label='maintenance_decision')
+                    def turn(state):
+                        admission.entry(offer)
+                        try:
+                            result=runtime.turn(flight,submitted)
+                        except BaseException as exc:
+                            admission.completed(offer,error=exc,event=runtime.ring[-1] if runtime.ring else None)
+                            raise
+                        else:
+                            admission.completed(offer,result=result,event=runtime.ring[-1])
+                            return result
+                    result=await work(turn,4,label='maintenance_decision',
+                        accepted=lambda future:admission.accepted(future,offer),
+                        admit_before=offer.row['deadline'] if offer is not None else None)
+                    admission.publish(runtime.generation,result)
                     maintenance_pressure['archive']=result['archive_pressure']
                     maintenance_pressure['retention']=result['retirement_pressure']
                     if flight.prepared is not None:
@@ -1351,19 +1393,20 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         await asyncio.sleep(0)
                         continue
                 except EvidenceUnavailable as exc:
-                    if str(exc)!='evidence_background_yield':raise
+                    admission.refused(offer,exc)
+                    if str(exc)=='evidence_admission_offer_expired':
+                        continue
+                    if str(exc)!='evidence_background_yield':
+                        admission.failed=True
+                        admission.generation_invalid='generation' in str(exc)
+                        admission.recheck()
+                        raise
                     await asyncio.sleep(0)
                     continue
-                if flight.future is not None:
-                    # Do not block retirement behind archive preparation. When
-                    # there is no current retirement work, wake on the one future
-                    # or the existing bounded 1-second idle observation cadence.
-                    waiter=asyncio.wrap_future(flight.future)
-                    try:await asyncio.wait_for(asyncio.shield(waiter),1)
-                    except TimeoutError:pass
-                else:
-                    try:await asyncio.wait_for(stop.wait(),1)
-                    except TimeoutError:pass
+                except BaseException as exc:
+                    admission.refused(offer,exc);admission.failed=True;admission.recheck()
+                    raise
+                await admission.idle(stop,flight.future)
 
         async def checkpoint():
             # One outstanding disk flush, with no pending-work queue. Retention
@@ -1431,6 +1474,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
+            admission.close()
             # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception
             # stops immediately, but the source owns the admitted-frame drain.
             # Do not cancel that owner while decoded frames still await commit.
@@ -1448,6 +1492,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         await work(lambda state:setattr(state,'failed',True),0)
         raise
     finally:
+        admission.close()
+        owner.admission_notify=None
         await work(lambda state:state.fence.health('phase','DRAINING'),0)
         if server:server.close();await server.wait_closed()
         for task in tasks:task.cancel()
@@ -1457,6 +1503,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         # can otherwise finish between maintenance snapshots and hide pressure.
         await work(lambda state:state.fence.health('ipc',dict(counts)),0)
         scheduler=owner.telemetry()
+        scheduler['owner_admission']=admission.telemetry()
         await work(lambda state:state.fence.health('owner_scheduler',scheduler),0)
         await asyncio.to_thread(owner.close)
         await asyncio.to_thread(decoder_pool.shutdown,wait=True,cancel_futures=True)
