@@ -1,0 +1,107 @@
+{
+  "schema": "meme-machine-staged-winner-scaling-v1",
+  "status": "PREPARED_ONLY_NOT_ACTIVE",
+  "paper_only": true,
+  "live_money_authority": false,
+  "prepared_at": "2026-10-01",
+  "preparation_parent": {
+    "branch": "strategy/directional-realized-equity-sizing-prep-20261001",
+    "commit": "f41c7348054eac59d18488ee83688559c6a40d1f"
+  },
+  "objective": "Add bounded scale-in authority to already-open winning Pump/Pons directional positions only after fresh thesis confirmation, without creating a new lane, resetting risk state, or weakening any entry/execution/safety control.",
+  "stage_e_isolation": {
+    "stage_e_candidate_modified": false,
+    "stage_e_branch_modified": false,
+    "stage_e_workflow_modified": false,
+    "workflow_dispatch_authorized": false,
+    "market_run_authorized": false,
+    "activation_allowed": false,
+    "requires_post_stage_e_composition": true
+  },
+  "scope": [
+    "pump_current",
+    "pump_survivor",
+    "pons_current",
+    "pons_survivor"
+  ],
+  "strategy_class": "existing_position_lifecycle_extension",
+  "economic_parameters": {
+    "initial_entry_target": "inherits directional-realized-equity-sizing-v1 (5% target before downsizing)",
+    "scale_trigger_bps": null,
+    "scale_target_bps": null,
+    "maximum_total_position_bps": null,
+    "parameter_status": "RESEARCH_AND_CALIBRATION_REQUIRED_BEFORE_PROMOTION",
+    "note": "No add percentage, trigger, or total-position ceiling is frozen by this staging layer."
+  },
+  "hard_requirements": {
+    "original_position_must_be_open_and_natively_reconciled": true,
+    "original_entry_must_have_been_policy_qualified": true,
+    "no_pending_full_exit_or_irreversible_exit_intent": true,
+    "no_average_down": true,
+    "current_after_cost_return_must_be_positive": true,
+    "fresh_policy_requalification_required": true,
+    "fresh_generation_and_state_required": true,
+    "fresh_executable_quote_required": true,
+    "turnover_and_depth_capacity_required": true,
+    "execution_stress_required": true,
+    "fill_breadth_retention_required": true,
+    "concentration_safety_required": true,
+    "creator_distribution_safety_required": true,
+    "available_realized_sleeve_capital_required": true,
+    "shared_sleeve_conflict_fence_required": true,
+    "scale_event_uses_same_native_lifecycle_identity": true,
+    "scale_event_cannot_create_second_position_identity": true,
+    "risk_state_cannot_be_reset_by_scale": true,
+    "high_water_and_exit_intent_must_survive_scale": true,
+    "hard_stop_may_not_be_widened_due_to_scale": true,
+    "scale_failure_must_leave_original_position_unchanged": true
+  },
+  "accounting_requirements": [
+    "Persist scale-in as an append-only native economic event on the existing lifecycle.",
+    "Track added quantity, added basis, fees/costs, quote identity, generation, and capacity telemetry separately from the original lot.",
+    "Maintain aggregate remaining quantity and aggregate remaining basis while preserving lot-level provenance.",
+    "Shared sleeve reservation authority must atomically increase held capital before the native add can commit and release only on proven failure/terminal accounting.",
+    "Common portfolio accounting must map the event to the same canonical lifecycle and record added basis rather than a second trade."
+  ],
+  "risk_requirements": [
+    "An add cannot erase a prior high-water mark, deterioration streak, realization state, stop state, or pending exit intent.",
+    "Post-add exits operate on the aggregate remaining position while preserving exact lot/basis accounting.",
+    "Partial realization semantics must define whether original and added lots are reduced pro-rata or by a deterministic lot rule before promotion.",
+    "Total worst-case loss after the add must remain inside a separately certified position/lane risk ceiling.",
+    "If fresh validation fails between scale decision and commit, fail closed and retain the original position without modification."
+  ],
+  "research_instrumentation": [
+    "Record every scale-eligible observation even while allocation authority is false.",
+    "Preserve fresh gate values/distances, executable add quote, 1x/2x execution stress, proposed added basis, and total-basis risk.",
+    "Measure counterfactual incremental P&L versus the unchanged no-add position at 5m, 15m, 1h, 6h, and terminal settlement.",
+    "Separate value from larger winner capture versus additional drawdown/fee/slippage cost."
+  ],
+  "required_proofs": [
+    "Restart/replay reconstructs original and added lots, aggregate basis, risk state, and sleeve reservation identically.",
+    "Repeated scale decision/event delivery is idempotent and cannot double-add.",
+    "A scale event cannot occur after a durable full-exit intent.",
+    "Unrealized profit may satisfy a scale signal but does not increase realized-equity sizing authority.",
+    "The add is downsize-only under turnover/depth/stress/breadth constraints.",
+    "A failed add quote/commit leaves the pre-add position and risk state byte-equivalent.",
+    "Current/Survivor shared-sleeve fencing prevents another regime from double-spending the added capital."
+  ],
+  "composition_order": [
+    "existing six-regime strategy upgrade",
+    "moderate-admission-thresholds",
+    "directional-capital-parity-v1",
+    "exit-optimization-v1",
+    "directional-opportunity-preservation-v1",
+    "directional-realized-equity-sizing-v1",
+    "staged-winner-scaling-v1"
+  ],
+  "promotion_requirements": [
+    "Do not implement in the active Stage E/F/G lineage.",
+    "After final machinery certification, compose against the exact final machinery SHA.",
+    "Collect shadow scale-eligibility/outcome evidence before freezing trigger, add size, and total-position ceiling.",
+    "Freeze one deterministic lot-reduction rule for partial realization before promotion.",
+    "Run native ledger, shared sleeve, portfolio accounting, restart/replay, duplicate-event, exit-state, and execution-capacity tests.",
+    "Regenerate affected policy/runtime identities.",
+    "Run exact-SHA non-market certification before any PAPER market smoke.",
+    "Restart affected profitability cohorts because economic exposure changes."
+  ]
+}
