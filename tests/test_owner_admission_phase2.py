@@ -409,6 +409,28 @@ class GateTests(unittest.IsolatedAsyncioTestCase):
         EVIDENCE['races'].append(dict(case='accepted_drain_barrier',**got.row))
 
 
+    async def test_owner_snapshot_race_refuses_offer_without_reordering_urgent(self):
+        task,offer=await self.opened();await self.gate.before_maintenance()
+        started=threading.Event();order=[]
+        def urgent(state):
+            order.append('urgent');started.set();self.release.wait(3)
+        urgent_future=self.submit(urgent,priority=0)
+        await settled(started.is_set)
+        sequence=self.owner.sequence
+        with self.assertRaisesRegex(EvidenceUnavailable,'admission_offer_unavailable') as error:
+            self.submit(offer=offer)
+        self.gate.refused(offer,error.exception)
+        got=await task
+        self.assertEqual(got.row['outcome'],'refused')
+        self.assertIsNone(got.maintenance_future)
+        self.assertEqual(self.owner.sequence,sequence)
+        source_task=asyncio.create_task(self.source(got,fn=lambda state:order.append('source')))
+        await settled(lambda:got.source_future is not None)
+        self.release.set();await source_task;await asyncio.wrap_future(urgent_future)
+        self.assertEqual(order,['urgent','source'])
+        EVIDENCE['races'].append(dict(case='atomic_owner_snapshot_race',order=order,**got.row))
+
+
 def block_item(clock, slot, *, at=None):
     sub=Subscription('service','chain:solana','all','blocks',2)
     message=dict(method='blockNotification',params=dict(subscription=1,

@@ -48,8 +48,13 @@ class PriorityOwner:
                 self.metrics['rejected']=self.metrics.get('rejected',0)+1
                 raise EvidenceUnavailable('evidence_control_overloaded')
             accepted_at=self.clock()
-            if admit_before is not None and accepted_at>=admit_before:
-                raise EvidenceUnavailable('evidence_admission_offer_expired')
+            if admit_before is not None:
+                if accepted_at>=admit_before:
+                    raise EvidenceUnavailable('evidence_admission_offer_expired')
+                # Close the scheduling-snapshot race with a new urgent/older
+                # admission. Ordinary submissions retain their existing path.
+                if self.queue or self._checkpoint_busy or self._checkpoint_handoff is not None:
+                    raise EvidenceUnavailable('evidence_admission_offer_unavailable')
             self.sequence+=1
             future.owner_sequence=self.sequence
             future.owner_accepted_at=accepted_at

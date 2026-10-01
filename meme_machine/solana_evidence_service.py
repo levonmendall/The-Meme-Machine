@@ -819,7 +819,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             try:value=fn(state)
             finally:execution[1]=time.monotonic()
             return value,int((started-submitted)*1_000_000),int((execution[1]-started)*1_000_000)
-        future=owner.submit(timed,priority=priority,admit_before=admit_before)
+        submit_options=dict(priority=priority)
+        if admit_before is not None:submit_options['admit_before']=admit_before
+        future=owner.submit(timed,**submit_options)
         if accepted is not None:accepted(future)
         wrapped=asyncio.wrap_future(future)
         try:value,queued,executed=await asyncio.shield(wrapped)
@@ -1395,7 +1397,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         continue
                 except EvidenceUnavailable as exc:
                     admission.refused(offer,exc)
-                    if str(exc)=='evidence_admission_offer_expired':
+                    if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable'):
                         continue
                     if str(exc)!='evidence_background_yield':
                         admission.failed=True

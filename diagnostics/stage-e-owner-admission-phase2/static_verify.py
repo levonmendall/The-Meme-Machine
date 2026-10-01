@@ -16,7 +16,7 @@ def git(*args):
 def verify(output):
     subprocess.run(['git','merge-base','--is-ancestor',BASE,'HEAD'],cwd=ROOT,check=True)
     changed=git('diff','--name-only',BASE,'HEAD').decode().splitlines()
-    allowed=set(PRODUCTION)|{'tests/test_owner_admission_phase2.py',
+    allowed=set(PRODUCTION)|{'tests/test_owner_admission_phase2.py','tests/test_run373_dispatch_throughput.py',
         '.github/workflows/owner-admission-phase2.yml'}
     assert all(p in allowed or p.startswith('diagnostics/stage-e-owner-admission-phase2/')
                for p in changed),changed
@@ -30,7 +30,8 @@ def verify(output):
     assert all(git('rev-parse',BASE+':'+p)==git('rev-parse','HEAD:'+p) for p in protected)
     patch_hashes={}
     for name,paths in [('treatment',[]),('admission',list(PRODUCTION)),
-                       ('deterministic',['tests/test_owner_admission_phase2.py',
+                       ('source_fixture',['tests/test_run373_dispatch_throughput.py']),
+                       ('deterministic',['tests/test_owner_admission_phase2.py','tests/test_run373_dispatch_throughput.py',
                         'diagnostics/stage-e-owner-admission-phase2',
                         '.github/workflows/owner-admission-phase2.yml'])]:
         data=git('diff','--binary',BASE,'HEAD','--',*paths)

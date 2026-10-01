@@ -7,6 +7,7 @@ on:
       - 'meme_machine/solana_evidence_service.py'
       - 'meme_machine/solana_owner_admission.py'
       - 'tests/test_owner_admission_phase2.py'
+      - 'tests/test_run373_dispatch_throughput.py'
       - 'diagnostics/stage-e-owner-admission-phase2/verify.py'
       - 'diagnostics/stage-e-owner-admission-phase2/static_verify.py'
       - 'diagnostics/stage-e-owner-admission-phase2/HOUSEKEEPING_REFERENCE.patch'
