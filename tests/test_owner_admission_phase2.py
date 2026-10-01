@@ -578,7 +578,7 @@ class NativeGateTests(unittest.IsolatedAsyncioTestCase):
     async def test_old_fails_new_passes_binding_recovery_under_original_deadline(self):
         old=await placement(False)
         new=await placement(True)
-        EVIDENCE['placement']=dict(old=old,new=new)
+        EVIDENCE['placement'].update(old=old,new=new)
         for row in (old,new):
             self.assertAlmostEqual(row['headroom']['archive'],9.1)
             self.assertAlmostEqual(row['headroom']['retirement'],9.1)
