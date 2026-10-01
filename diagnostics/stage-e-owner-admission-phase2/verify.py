@@ -53,6 +53,7 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--prerequisite-only',action='store_true')
     parser.add_argument('--focused-only',action='store_true')
+    parser.add_argument('--focused-gates-only',action='store_true')
     args=parser.parse_args();output=args.output.resolve()
     output.mkdir(parents=True,exist_ok=False)
     summary=dict(base_sha=BASE,base_tree=git('rev-parse',BASE+'^{tree}'),
@@ -60,6 +61,8 @@ def main():
         branch=os.getenv('GITHUB_REF_NAME'),python=sys.version,sqlite=sqlite3.sqlite_version,
         platform=platform.platform(),paper_only=True,material_executions=0,stage_e='RED',
         stage_f='NOT_STARTED',housekeeping_carried=False)
+    from static_verify import verify
+    summary['static']=verify(output)
     summary['prerequisite_pass']=prerequisite(output)
     if not summary['prerequisite_pass']:
         summary['result']='M1_INTEGRATION_CONFLICT'
@@ -75,9 +78,36 @@ sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)
 """
         summary['matrix']=command(output,'matrix',[sys.executable,'-c',code,str(output/'MATRIX.json')])
         summary['result']='FOCUSED_GREEN' if summary['matrix']['exit_code']==0 else 'FOCUSED_BLOCKED'
+        if not args.focused_only and summary['matrix']['exit_code']==0:
+            affected=[
+                'tests.test_production_maintenance_arbiter',
+                'tests.test_solana_evidence_service_runtime',
+                'tests.test_stagee24_maintenance_integrity',
+                'tests.test_solana_checkpoint_owner','tests.test_checkpoint_handoff',
+                'tests.test_archive_pipeline','tests.test_solana_evidence_retention',
+                'tests.test_retention_outcomes','tests.test_run381_retention_progress',
+                'tests.test_run381_archive_scheduling','tests.test_run381_maintenance_overlap',
+                'tests.test_run372_large_frame_runtime','tests.test_run373_dispatch_throughput',
+                'tests.test_run376_dispatch_pressure','tests.test_run379_transport_backpressure',
+                'tests.test_run380_atomic_frame','tests.test_stagee19_maintenance_batch_fairness']
+            summary['affected']=command(output,'affected',[sys.executable,'-m','unittest',*affected,'-v'])
+            summary['m1_focused']=command(output,'m1-focused',[sys.executable,'-m','unittest',
+                'tests.test_m1_maintenance_completion','-v'])
+            summary['resource']=command(output,'resource',[sys.executable,'-m','tests.resource_check'])
+            green=all(summary[key]['exit_code']==0 for key in ('affected','m1_focused','resource'))
+            summary['result']='FOCUSED_GATES_GREEN' if green else 'FOCUSED_GATES_BLOCKED'
+            if not args.focused_gates_only and green:
+                summary['deterministic']=command(output,'deterministic',[sys.executable,'-m',
+                    'unittest','discover','-v'])
+                summary['result']='DETERMINISTIC_GREEN' if summary['deterministic']['exit_code']==0 else 'DETERMINISTIC_BLOCKED'
+            elif not args.focused_gates_only:
+                summary['deterministic']=dict(status='NOT_RUN_FOCUSED_GATE_BLOCKED')
     write(output,'RESULTS.json',summary)
+    hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in output.iterdir() if p.is_file()}
+    write(output,'FILE_HASHES.json',hashes)
+    print('PHASE2_FILE_HASHES '+json.dumps(hashes,sort_keys=True),flush=True)
     print('PHASE2_RESULTS '+json.dumps(summary,sort_keys=True),flush=True)
-    return 0 if summary['result'] in ('BASE_NATIVE_PREREQUISITE_GREEN','FOCUSED_GREEN') else 1
+    return 0 if summary['result'] in ('BASE_NATIVE_PREREQUISITE_GREEN','FOCUSED_GREEN','FOCUSED_GATES_GREEN','DETERMINISTIC_GREEN') else 1
 
 if __name__=='__main__':
     raise SystemExit(main())

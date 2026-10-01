@@ -226,9 +226,14 @@ class GateTests(unittest.IsolatedAsyncioTestCase):
         order=[]
         task,offer=await self.opened()
         await self.gate.before_maintenance()
-        first=self.submit(lambda state:order.append('maintenance_one'),offer=offer)
-        await asyncio.wrap_future(first)
+        first=self.owner.submit(lambda state:order.append('maintenance_one'),priority=4,
+                                admit_before=offer.row['deadline'])
+        self.futures.append(first)
+        first.result(timeout=3)
+        self.assertFalse(task.done(),'source resumed before the arranged fast completion')
+        self.gate.accepted(first,offer)
         got=await task
+        got.row['fast_completion_before_resume']=True
         second=asyncio.create_task(self.gate.before_maintenance())
         await asyncio.sleep(0)
         self.assertFalse(second.done())
@@ -339,6 +344,71 @@ class GateTests(unittest.IsolatedAsyncioTestCase):
         worker.set_result(None)
 
 
+    async def test_batching_recomputed_after_rendezvous_and_source_charge_uses_actual_frames(self):
+        import ast
+        import inspect
+        tree=ast.parse(inspect.getsource(service))
+        serve=next(n for n in tree.body if isinstance(n,ast.AsyncFunctionDef) and n.name=='serve')
+        function=next(n for n in serve.body if isinstance(n,ast.FunctionDef) and n.name=='maintenance_batch_limit')
+        pressure={'archive':True,'retention':False}
+        namespace=dict(maintenance_pressure=pressure,STREAM_COMMIT_BATCH_MAX_MESSAGES=8)
+        exec(compile(ast.Module(body=[function],type_ignores=[]),'native_batch_limit','exec'),namespace)
+        limit=namespace['maintenance_batch_limit']
+        self.assertEqual(limit(15),1)
+        self.assertEqual(limit(16),8)
+        self.assertEqual(limit(17),8)
+        task,offer=await self.opened();await self.gate.before_maintenance()
+        future=self.submit(offer=offer)
+        await asyncio.wrap_future(future)
+        # The original callback can clear a stale-positive pressure hint before
+        # source formation; the actual existing batch function is called afresh.
+        pressure['archive']=False
+        got=await task
+        self.assertEqual(limit(15),8)
+        pressure['archive']=True
+        self.assertEqual(limit(16),8)
+        await self.source(got,frames=8)
+        self.assertEqual(got.row['affected_frames'],8)
+        source=inspect.getsource(service)
+        self.assertLess(source.index('offer=await admission.rendezvous'),
+                        source.index('batch_limit=maintenance_batch_limit',source.index('offer=await admission.rendezvous')))
+        for frames,native in [(1,.02),(8,.02),(8,1.4)]:
+            charge=max(0,.165*frames-native)
+            self.assertEqual(charge,max(0,.165*frames-native))
+        EVIDENCE['races'].append(dict(case='batch_recomputation_actual_function',
+            initial_limit=1,resumed_limit=8,**got.row))
+
+
+    async def test_accepted_offer_scheduler_overshoot_is_unclamped(self):
+        task,offer=await self.opened();await self.gate.before_maintenance()
+        future=self.submit(offer=offer)
+        self.clock.advance(.125)
+        got=await task
+        self.assertEqual(got.row['outcome'],'accepted')
+        self.assertAlmostEqual(got.row['gate_wait'],.125)
+        self.assertAlmostEqual(got.row['overshoot'],.025)
+        self.assertTrue(self.gate.failed)
+        self.assertFalse(future.cancelled())
+        await self.source(got)
+        self.assertIsNone(await self.gate.rendezvous(lambda:ELIGIBLE))
+        EVIDENCE['timing'].append(dict(case='accepted_scheduler_overshoot',**got.row))
+
+    async def test_shutdown_keeps_accepted_barrier_until_source_submission(self):
+        task,offer=await self.opened();await self.gate.before_maintenance()
+        future=self.submit(offer=offer);got=await task
+        await asyncio.wrap_future(future)
+        blocked=asyncio.create_task(self.gate.before_maintenance())
+        await asyncio.sleep(0)
+        self.gate.close()
+        await asyncio.sleep(0)
+        self.assertFalse(blocked.done())
+        self.assertIs(self.gate.offer,got)
+        await self.source(got)
+        self.assertIsNone(await blocked)
+        self.assertNotIn('source_abort',got.row)
+        EVIDENCE['races'].append(dict(case='accepted_drain_barrier',**got.row))
+
+
 def block_item(clock, slot, *, at=None):
     sub=Subscription('service','chain:solana','all','blocks',2)
     message=dict(method='blockNotification',params=dict(subscription=1,
@@ -348,17 +418,21 @@ def block_item(clock, slot, *, at=None):
     return sub,message,clock.time(),len(service.canonical(message))
 
 
-async def placement(treatment, *, initial=.57):
+async def placement(treatment, *, initial=.57, frames=1):
     """Identical pre-loss native book, receipt, episodes, source service and M1.
 
     The only old/new difference is placement of the new ordinary source submit.
     Two earlier native source requests establish the common completed prefix.
     """
     clock=Clock();clock.advance(initial)
-    box={};order=[];futures=[];charge=[]
+    box={};order=[];futures=[];charge=[];source_queued=threading.Event()
     with tempfile.TemporaryDirectory() as td, patch.object(service,'time',clock):
+        class State(service.ServiceState):
+            def archive_commit_slice_and_plan(self,plan,receipt):
+                try:return super().archive_commit_slice_and_plan(plan,receipt)
+                finally:clock.advance(.025)
         def factory():
-            state=service.ServiceState(Path(td)/'db',AlchemyEndpoint.parse(ENDPOINT))
+            state=State(Path(td)/'db',AlchemyEndpoint.parse(ENDPOINT))
             state.writer.clock=clock.time
             ingest(state.writer,rows(clock,SCOPES[0],1100,start=100,tag='retired',same_slot=True))
             while state.writer.archive(clock.time()-180):pass
@@ -397,7 +471,7 @@ async def placement(treatment, *, initial=.57):
                     native_elapsed=clock.monotonic()-started
                     extra=max(0,.165*frames-native_elapsed)
                     clock.advance(extra)
-                    charge.append(dict(label=label,frames=frames,native_elapsed=native_elapsed,
+                    charge.append(dict(label=label,frames=frames,entry=started,completion=clock.monotonic(),native_elapsed=native_elapsed,
                         injected=extra,total=clock.monotonic()-started))
                 return execute
 
@@ -424,17 +498,18 @@ async def placement(treatment, *, initial=.57):
                 offer=await gate.before_maintenance()
                 clock.advance(.010)
             else:
-                source=owner.submit(source_fn(2_000_012),priority=2)
-                futures.append(source);gate.source_accepted(source,None,1)
+                source=owner.submit(source_fn(2_000_012,frames),priority=2)
+                futures.append(source);gate.source_accepted(source,None,frames)
                 await asyncio.wrap_future(source)
 
             submitted=clock.monotonic()
             def turn(state):
                 order.append('maintenance')
                 gate.entry(offer)
+                if treatment and not source_queued.wait(3):
+                    raise AssertionError('source_waited_for_maintenance_completion')
                 try:
                     result=runtime.turn(flight,submitted)
-                    clock.advance(.025)
                 except BaseException as exc:
                     gate.completed(offer,error=exc,event=runtime.ring[-1])
                     raise
@@ -447,7 +522,8 @@ async def placement(treatment, *, initial=.57):
             if treatment:
                 self_offer=await waiting
                 source=owner.submit(source_fn(2_000_012),priority=2)
-                futures.append(source);gate.source_accepted(source,self_offer,1)
+                futures.append(source);gate.source_accepted(source,self_offer,frames)
+                source_queued.set()
             result=await asyncio.wrap_future(maintenance)
             if treatment:await asyncio.wrap_future(source)
 
@@ -461,7 +537,7 @@ async def placement(treatment, *, initial=.57):
                     integrity=state.writer.db.execute('PRAGMA integrity_check').fetchone()[0],
                     transaction_open=state.writer.db.in_transaction,
                     hot=next(s.hot_eligible for s in observation.scopes if s.scope==SCOPES[0]),
-                    original_deadline=headroom['archive']+(.9 if initial==.57 else initial+.33),
+                    original_deadline=headroom['archive']+(initial+.33),
                     observation_at=observation.monotonic)
             observation=owner.submit(fresh,priority=2);futures.append(observation)
             row=await asyncio.wrap_future(observation)
@@ -524,7 +600,7 @@ class NativeGateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(row['integrity'],'ok')
 
     async def offered_native(self, *, hot=0, retired=0, worker_pending=False,
-                             fault=None, repeats=1, scopes=(SCOPES[0],)):
+                             fault=None, repeats=1, scopes=(SCOPES[0],), planning=False):
         clock=Clock();box={};futures=[];native_rows=[]
         if fault=='refusal':clock.advance(.5)
         with tempfile.TemporaryDirectory() as td,patch.object(service,'time',clock):
@@ -564,6 +640,12 @@ class NativeGateTests(unittest.IsolatedAsyncioTestCase):
                         raise AssertionError(('missing_native_pressure_hint',hint))
                     hint=PRESSURE
                 gate.publish(runtime.generation,hint)
+                if planning:
+                    prefix=owner.submit(lambda state:ingest(state.writer,
+                        rows(clock,SCOPES[0],1800,start=1000,tag='later_hot',same_slot=True)),priority=2)
+                    futures.append(prefix);gate.source_accepted(prefix,None,1)
+                    await asyncio.wrap_future(prefix)
+                    await settled(lambda:not owner._checkpoint_busy)
                 if fault=='refusal':clock.advance(.6)
                 for i in range(repeats):
                     waiting=asyncio.create_task(gate.rendezvous(lambda:replace(ELIGIBLE,
@@ -683,3 +765,153 @@ class NativeGateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(box['integrity'],'ok')
         self.assertGreater(box['counters'].get('stream_accepted_messages',0),0)
         self.assertIsNone(box['runtime'].failure)
+
+    async def test_real_eight_frame_source_charge_and_nonoverlapping_wait_accounting(self):
+        row=await placement(True,frames=8)
+        offer=row['offer'];source=row['source_charge'][-1]
+        self.assertEqual(offer['affected_frames'],8)
+        self.assertEqual(source['frames'],8)
+        self.assertAlmostEqual(source['injected'],1.300)
+        self.assertAlmostEqual(source['total'],1.320)
+        queue=source['entry']-offer['source_submit']
+        # Native maintenance execution lies in source queue wait. Gate waiting
+        # lies before source submit. Neither substitutes for source service.
+        self.assertAlmostEqual(queue,.025)
+        self.assertAlmostEqual(offer['gate_wait'],.010)
+        self.assertAlmostEqual(offer['source_completion']-offer['open'],
+            offer['gate_wait']+queue+source['native_elapsed']+source['injected'])
+        self.assertEqual(row['binding']['recovery_excess'],0)
+        EVIDENCE['placement']['eight_frames_wait_accounting']=row
+
+    async def test_gate_accepted_native_completion_interruption_preserves_m1(self):
+        from tests.test_m1_maintenance_completion import public_key, PROGRESS_SELECT
+        clock=Clock();box={};futures=[];source_queued=threading.Event()
+        with tempfile.TemporaryDirectory() as td,patch.object(service,'time',clock):
+            def factory():
+                state=service.ServiceState(Path(td)/'db',AlchemyEndpoint.parse(ENDPOINT))
+                state.writer.clock=clock.time
+                ledger=[]
+                for index in range(1,129):
+                    ledger.extend(replace(r,kind='account') for r in rows(clock,
+                        'account:'+public_key(index),1,tag='ledger'))
+                ingest(state.writer,ledger)
+                self.assertEqual(state.writer.archive(clock.time()-180),128)
+                ingest(state.writer,rows(clock,SCOPES[0],1800,tag='recovery'))
+                finalized_frontier(state,clock,SCOPES[0])
+                runtime=MaintenanceRuntime(state,monotonic=clock.monotonic,wall=clock.time)
+                flight=ArchiveFlight();result=runtime.turn(flight,clock.monotonic())
+                prepared=Future();prepared.set_result(EvidenceWriter.prepare_and_write_archive(
+                    state.writer.path,result['snapshot']))
+                flight.attach(prepared,clock.monotonic(),runtime.generation)
+                box.update(runtime=runtime,flight=flight,returned=result)
+                return state
+            owner=PriorityOwner(factory,clock=clock.monotonic);gate=None
+            try:
+                await asyncio.wrap_future(owner.ready);await settled(lambda:not owner._checkpoint_busy)
+                runtime,flight=box['runtime'],box['flight']
+                gate=OwnerAdmission(owner,clock=clock.monotonic);gate.generation=runtime.generation
+                gate.publish(runtime.generation,box['returned'])
+                waiting=asyncio.create_task(gate.rendezvous(lambda:replace(ELIGIBLE,
+                    pending_frames=1,pending_bytes=1024,inbound=0,decoded=0,
+                    ordered_ready=1,commit_age=0,head_age=0)))
+                await settled(lambda:gate.offer is not None)
+                offer=await gate.before_maintenance();submitted=clock.monotonic()
+                reads=[];urgent=[]
+                def trace(sql):
+                    if not sql.startswith(PROGRESS_SELECT):return
+                    reads.append(sql)
+                    if len(reads)==2:
+                        future=owner.submit(lambda state:state.writer.db.execute(
+                            'SELECT COUNT(*) FROM records').fetchone()[0],priority=0)
+                        urgent.append(future);futures.append(future)
+                def turn(state):
+                    gate.entry(offer)
+                    if not source_queued.wait(3):raise AssertionError('source_waited_for_completion')
+                    state.writer.db.set_trace_callback(trace)
+                    try:
+                        result=runtime.turn(flight,submitted)
+                    except BaseException as exc:
+                        gate.completed(offer,error=exc,event=runtime.ring[-1]);raise
+                    else:
+                        gate.completed(offer,result=result,event=runtime.ring[-1]);return result
+                    finally:state.writer.db.set_trace_callback(None)
+                accepted=owner.submit(turn,priority=4,admit_before=offer.row['deadline'])
+                futures.append(accepted);gate.accepted(accepted,offer)
+                got=await waiting
+                source=owner.submit(lambda state:state.source_batch((block_item(clock,3_000_000),)),priority=2)
+                futures.append(source);gate.source_accepted(source,got,1);source_queued.set()
+                with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
+                    await asyncio.wrap_future(accepted)
+                await asyncio.wrap_future(source)
+                await asyncio.gather(*(asyncio.wrap_future(f) for f in urgent))
+                self.assertEqual(len(reads),3,'exact interrupted completion and one M1 retry')
+                self.assertIsNone(runtime.arbiter.pending)
+                self.assertIsNone(runtime.failure)
+                self.assertEqual(got.row['native_completion'],'completed')
+                self.assertEqual(got.row['durable_records'][SCOPES[0]],512)
+                next_turn=owner.submit(lambda state:runtime.turn(flight,clock.monotonic()),priority=4)
+                futures.append(next_turn);await asyncio.wrap_future(next_turn)
+                self.assertIsNone(runtime.arbiter.pending)
+                self.assertIsNone(runtime.failure)
+                snapshot=owner.submit(lambda state:dict(
+                    integrity=state.writer.db.execute('PRAGMA integrity_check').fetchone()[0],
+                    transaction_open=state.writer.db.in_transaction,
+                    events=list(runtime.ring)),priority=2)
+                futures.append(snapshot);status=await asyncio.wrap_future(snapshot)
+                self.assertEqual(status['integrity'],'ok');self.assertFalse(status['transaction_open'])
+                self.assertEqual(sum(e.get('completion')=='completed' and
+                    e.get('completion_read_interrupted',False) for e in status['events']),1)
+                EVIDENCE['native'].append(dict(case='gate_m1_completion',offer=got.row,
+                    reads=len(reads),urgent_completed=all(f.done() for f in urgent),status=status))
+            finally:
+                source_queued.set()
+                if gate is not None:gate.close()
+                await asyncio.to_thread(owner.close)
+                self.assertTrue(all(f.done() for f in futures))
+
+    async def test_native_restart_preserves_episode_and_invalidates_hint_generation(self):
+        clock=Clock()
+        with tempfile.TemporaryDirectory() as td,patch.object(service,'time',clock):
+            path=Path(td)/'db'
+            def factory():
+                state=service.ServiceState(path,AlchemyEndpoint.parse(ENDPOINT))
+                state.writer.clock=clock.time
+                ingest(state.writer,rows(clock,SCOPES[0],1800,same_slot=True))
+                finalized_frontier(state,clock,SCOPES[0])
+                runtime=MaintenanceRuntime(state,monotonic=clock.monotonic,wall=clock.time)
+                runtime._demands(runtime.adapter.observe(runtime.generation))
+                return SimpleNamespace(writer=state.writer,state=state,runtime=runtime,
+                                       close=state.close)
+            owner=PriorityOwner(factory,clock=clock.monotonic)
+            await asyncio.wrap_future(owner.ready)
+            original=owner.state.runtime;episodes=dict(original.episodes);generation=original.generation
+            await asyncio.to_thread(owner.close)
+            def restart():
+                state=service.ServiceState(path,AlchemyEndpoint.parse(ENDPOINT));state.writer.clock=clock.time
+                runtime=MaintenanceRuntime(state,monotonic=clock.monotonic,wall=clock.time)
+                runtime._demands(runtime.adapter.observe(runtime.generation))
+                return SimpleNamespace(writer=state.writer,state=state,runtime=runtime,close=state.close)
+            clock.advance(.5);owner=PriorityOwner(restart,clock=clock.monotonic)
+            try:
+                await asyncio.wrap_future(owner.ready)
+                current=owner.state.runtime
+                self.assertNotEqual(current.generation,generation)
+                self.assertEqual(current.episodes,episodes)
+                gate=OwnerAdmission(owner,clock=clock.monotonic);gate.generation=current.generation
+                gate.publish(generation,PRESSURE)
+                self.assertIsNone(await gate.rendezvous(lambda:ELIGIBLE))
+                self.assertEqual(gate.counters['offers'],0)
+                gate.close()
+                EVIDENCE['native'].append(dict(case='native_restart_hint_fence',episodes=[
+                    dict(side=k[0],scope=k[1],values=v) for k,v in sorted(episodes.items())]))
+            finally:await asyncio.to_thread(owner.close)
+
+
+    async def test_planning_consumes_one_attempt_without_waiting_for_worker(self):
+        row=await self.offered_native(retired=1800,planning=True)
+        first=row['rows'][0]
+        self.assertEqual(first['result']['side'],'archive')
+        self.assertFalse(first['offer']['durable_records'])
+        self.assertEqual(first['offer']['maintenance_result'],'decision')
+        self.assertIn('source_submit',first['offer'])
+        self.assertEqual(len(row['rows']),1)

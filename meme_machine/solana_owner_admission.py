@@ -215,7 +215,10 @@ class OwnerAdmission:
         if at >= offer.row['deadline']:
             raise RuntimeError('late_owner_admission')
         offer.maintenance_future = future
-        offer.row.update(owner_acceptance=at, maintenance_sequence=future.owner_sequence)
+        offer.row.update(owner_acceptance=at, maintenance_sequence=future.owner_sequence,
+            submission_to_acceptance=at-offer.row['maintenance_submit'])
+        if 'owner_entry' in offer.row:
+            offer.row['owner_queue_wait']=offer.row['owner_entry']-at
         self._finish(offer, 'accepted')
 
     def refused(self, offer, error):
@@ -226,13 +229,16 @@ class OwnerAdmission:
     def entry(self, offer):
         if offer is not None:
             at = self.clock()
-            offer.row.update(owner_entry=at, owner_queue_wait=at-offer.row['maintenance_submit'])
+            offer.row['owner_entry']=at
+            if 'owner_acceptance' in offer.row:
+                offer.row['owner_queue_wait']=at-offer.row['owner_acceptance']
 
     def completed(self, offer, *, result=None, error=None, event=None):
         if offer is not None:
             offer.row.update(completion=self.clock(), maintenance_result=(
                 str(error)[:120] if error is not None else
                 'decision' if result and result.get('side') else 'no_decision'))
+            offer.row.update(selected_side=None,durable_progress={},durable_records={})
             if event:
                 offer.row.update(selected_side=event.get('selected'),
                     durable_progress=event.get('durable_progress', {}),
@@ -267,8 +273,10 @@ class OwnerAdmission:
 
     def close(self):
         self.closed = True
-        if self.offer is not None:
+        if self.offer is not None and self.offer.maintenance_future is None:
             self.abort(self.offer)
+        # An accepted turn retains its barrier through the source's actual
+        # submission or explicit abort, including an admitted-frame drain.
         self.wake.set()
 
     async def idle(self, stop, worker=None):

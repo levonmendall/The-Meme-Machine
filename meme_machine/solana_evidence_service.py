@@ -1364,6 +1364,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             flight=ArchiveFlight()
             while not stop.is_set():
                 offer=await admission.before_maintenance()
+                if stop.is_set():break
                 submitted=time.monotonic()
                 try:
                     def turn(state):
