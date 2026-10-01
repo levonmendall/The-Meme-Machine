@@ -3,7 +3,7 @@
   "version": "stage-e-approved-runtime-dependencies-v2",
   "websockets": {
     "files": {
-      "../../../bin/websockets": "2ddc987d4f5576336c39597b3d22bf5e33d38d298381a516d688dc80ef003b68",
+      "../../../bin/websockets": "b888ef72a346f12c9aaa324718e6b869c553e76de34b9bdc8eaa2b51a416808d",
       "websockets-17.1.dist-info/METADATA": "17c70f9c6a34a204f2a969c73e47eba77289ef2a29914208ab10ae49973e1ada",
       "websockets-17.1.dist-info/WHEEL": "326bb69b88d2da8f19ac2097b314f75406511204c9237db4f1799b47052fa5af",
       "websockets-17.1.dist-info/entry_points.txt": "0e7867e1d9b912c23864c02c1e574617a0b005766b1979d1edc9cadbe5d1ef36",

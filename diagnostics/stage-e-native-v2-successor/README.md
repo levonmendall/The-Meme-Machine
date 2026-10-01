@@ -33,3 +33,37 @@ fresh integrated binding and worker/crash execution controls remain unfinished.
 Checkpoint 2 must preserve the complete combined source assembly before validation.
 Neither WIP checkpoint earns certification credit. Exact checkpoint SHA/tree and
 changed files are recorded after publication, without circular self-identities.
+
+The complete source now includes `certification/stage_e_integration`. Its
+controller extracts the entire exact Git tree, validates the integrated input
+manifest, and predeclares the candidate SHA/tree, assembly digest, allowlist and
+static tooling bytes before execution. Tests and actual spawned production decode
+workers run under Python `-I -S` from that same read-only source. The native worker
+count, spawn context, tasks and arguments remain unchanged. The existing lifecycle
+crash literal is accepted by exact hash and routed to its reviewed child module;
+unknown subprocesses are rejected. Git fixture operations remain available without
+network commands. Children reject foreign dynamic code and record actual origins.
+An intentional SIGKILL retains startup and execution observations and explicitly
+has no final receipt. Provider attempts are written before denial in every process;
+local Unix IPC remains available. These are deterministic integration controls,
+not changes to production behavior or canonical qualification authority.
+
+Q2's plan, schema, gate map, material firewall, observer contract, workload shapes,
+thresholds, test identities and witness source remain exact. Controlled changes
+are the fresh integrated input manifest and one content-lock hash for websockets'
+unused console launcher shebang. All importable websockets bytes remain exact.
+`dependency-environment-change.json` and `controlled-input-changes.json` disclose
+those bytes. Supplemental schema/YAML tooling and its transitive dependencies are
+pinned separately; they carry no production runtime authority.
+
+After checkpoint 2, reproduce the explicit bounded run using the recorded Python
+3.12.14 environment and pinned dependency bytes:
+
+```sh
+python -B -m certification.stage_e_integration.prepare --output /tmp/stage-e-integration-new
+```
+
+The command requires a clean exact checkout; ignored executable shadows are
+rejected. Outputs and databases remain outside the reviewed assembly and repository.
+Every declared test result, Q2's separate 71-test result, child receipt, provider
+attempt and source origin is retained even when the combined deterministic gate fails.

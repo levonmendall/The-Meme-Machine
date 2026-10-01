@@ -1,0 +1,41 @@
+{
+  "certification_credit": false,
+  "controlled_q2_changes": [
+    "certification/stage_e_native_v2/dependency-lock-v2.json",
+    "certification/stage_e_native_v2/input-manifest-v2.json"
+  ],
+  "exact_housekeeping_selector": true,
+  "exact_native_housekeeping_batch": true,
+  "exact_scope_loop": true,
+  "expected_tests": 621,
+  "input_identity": {
+    "cohort_version": "native-transition-cohort-v2",
+    "contract_version": "stage-e-native-transition-contract-v2",
+    "evidence_schema": "stage-e-native-transition-evidence-v2",
+    "gate_map_hash": "0da0e7acd8ac56db20cdd0101092400983de30051c611684eab4f7267ea4ecf8",
+    "held_reader_version": "native-contract-held-reader-v2",
+    "input_manifest_hash": "da0a0ec826826ec03b4dd40aee1d18e8c7a07ccbe0e67e90a8536f0f5d77b036",
+    "plan_hash": "6c40324250e0870a9207161a0b944d58272922c90bf6fce97c57c2bb3dda16df",
+    "plan_version": "stage-e-native-transition-plan-v2",
+    "schema_version": 3
+  },
+  "label": "NON-CERTIFIED WIP checkpoint 2: combined source and reviewed worker/crash bindings",
+  "long_tests_executed": 0,
+  "m1_completion_ast_unchanged": true,
+  "passed": true,
+  "protected_bytes": [
+    "meme_machine/engine.py",
+    "meme_machine/solana_evidence_control.py",
+    "meme_machine/solana_owner_admission.py",
+    "meme_machine/solana_maintenance_arbiter.py",
+    "meme_machine/solana_maintenance_state.py",
+    "tests/test_m1_maintenance_completion.py",
+    "tests/test_owner_admission_phase2.py",
+    "tests/test_run373_dispatch_throughput.py",
+    "tests/test_run379_production_pressure.py",
+    "tests/test_run380_production_pressure.py",
+    ".github/workflows/stagee-fixed-cohort.yml",
+    "certification/maintenance_qualification_plan.json"
+  ],
+  "q2_original_denominator": 71
+}

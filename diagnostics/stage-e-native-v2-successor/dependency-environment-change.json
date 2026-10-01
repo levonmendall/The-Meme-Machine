@@ -1,0 +1,12 @@
+{
+  "canonical_authority": false,
+  "component": "ace479836690e65c091407e7da7545ad61952f31",
+  "controlled_change": {
+    "../../../bin/websockets": {
+      "after": "b888ef72a346f12c9aaa324718e6b869c553e76de34b9bdc8eaa2b51a416808d",
+      "before": "2ddc987d4f5576336c39597b3d22bf5e33d38d298381a516d688dc80ef003b68"
+    }
+  },
+  "reason": "console launcher shebang selects this isolated Python 3.12.14 venv; no console launcher executes in trials",
+  "runtime_module_bytes_unchanged": true
+}
