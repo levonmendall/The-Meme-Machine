@@ -1,0 +1,19 @@
+{
+  "source": "CI_JOB_LOG.txt",
+  "run_id": 36837057995,
+  "job_id": 110286898866,
+  "python_contract": "3.12.14",
+  "runner": "ubuntu-24.04",
+  "run_attempt": 1,
+  "dependency_file": "requirements.txt",
+  "native_environment_file": "ENVIRONMENT.json",
+  "native_environment_sha256": "9d94834c2f56a05492d61510790c8cb31c04f06a2b73d735762567f5e64a2979",
+  "native_environment_location": "Bound Actions artifact ZIP, not reserialized into this package.",
+  "log_lines": [
+    "﻿2026-10-01T08:33:35.6867164Z Current runner version: '2.337.0'",
+    "2026-10-01T08:33:35.6901503Z Image: ubuntu-24.04",
+    "2026-10-01T08:33:35.6902084Z Version: 20260920.314.1",
+    "2026-10-01T08:33:38.0495119Z   python-version: 3.12.14",
+    "2026-10-01T08:33:38.1921262Z Successfully set up CPython (3.12.14)"
+  ]
+}

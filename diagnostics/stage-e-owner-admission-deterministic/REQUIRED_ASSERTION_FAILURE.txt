@@ -1,0 +1,7 @@
+2026-10-01T08:33:48.3717348Z FAIL: test_urgent_completion_clears_decision_before_next_ordinary_admission (owner_admission_native_prerequisite.NativeCompletionPrerequisiteTests.test_urgent_completion_clears_decision_before_next_ordinary_admission)
+2026-10-01T08:33:48.3718769Z Traceback (most recent call last):
+2026-10-01T08:33:48.3725219Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/diagnostics/stage-e-owner-admission-deterministic/test_native_completion_prerequisite.py", line 200, in test_urgent_completion_clears_decision_before_next_ordinary_admission
+2026-10-01T08:33:48.3726645Z     self.assertIsNone(first_state['pending'],
+2026-10-01T08:33:48.3728051Z AssertionError: {'sequence': 1, 'side': 'archive', 'started': 0.0, 'deadline': 37.0, 'reason': 'debt_surplus', 'scopes': ('program:meteora', '__archive_receipt__'), 'deadline_by_side': (('archive', 37.0), ('retirement', 37.0)), 'need_by_side': (('archive', 41.46965811965811), ('retirement', 4.946886446886438))} is not None : M1: interrupted native completion left an accepted decision in flight
+2026-10-01T08:33:48.3729797Z Ran 1 test in 0.370s
+2026-10-01T08:33:48.3730329Z FAILED (failures=1)

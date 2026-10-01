@@ -1,0 +1,23 @@
+{
+  "status": "OWNER_ADMISSION_DETERMINISTIC_BLOCKED_BY_M1",
+  "reason": "Required native completion assertion failed; next ordinary turn refused with maintenance_decision_in_flight.",
+  "execution_commit": "fbb376c4a19267af9ba331022fe95bdb8609b299",
+  "run_id": 36837057995,
+  "implementation_stopped": true,
+  "further_deterministic_execution_authorized_by_this_package": false,
+  "m1_repair_authorized": false,
+  "material_execution_authorized": false,
+  "material_budget": {
+    "consumed": 6,
+    "unused": 0,
+    "ceiling": 6
+  },
+  "candidate_created": false,
+  "production_promoted": false,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "paper_only": true,
+  "next_action": "STOP_FOR_ASTRA",
+  "owner_admission_deterministic": "BLOCKED_BY_M1",
+  "astra_review_ready": "OWNER_ADMISSION_BLOCKED_BY_M1"
+}

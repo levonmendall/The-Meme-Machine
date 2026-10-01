@@ -1,0 +1,8 @@
+{
+  "source": "diagnostics/stage-e-fresh-causal-isolation/M1_SUMMARY.json",
+  "evidence_base": "d4068d4fa177225daf8780ee7c9765977f4b8793",
+  "completed_frames": 886,
+  "failure": "EvidenceUnavailable:maintenance_decision_in_flight",
+  "relationship": "Same refusal signature reproduced by the finite prerequisite. This does not assert reconstruction of the historical pressure run's exact interruption schedule.",
+  "material_workload_rerun": false
+}

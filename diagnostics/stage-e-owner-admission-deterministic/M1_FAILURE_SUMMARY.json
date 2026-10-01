@@ -1,0 +1,215 @@
+{
+  "selected": "archive",
+  "decision_sequence": 1,
+  "first_error": {
+    "type": "EvidenceUnavailable",
+    "message": "evidence_background_yield"
+  },
+  "next_error": {
+    "type": "EvidenceUnavailable",
+    "message": "maintenance_decision_in_flight"
+  },
+  "hot_before": 1800,
+  "hot_after": 1288,
+  "committed_archive_progress": [
+    512,
+    512
+  ],
+  "remaining_receipt_records": 488,
+  "episode_after_interruption": [
+    [
+      "program:meteora",
+      "archive",
+      1800000120,
+      1800000000,
+      1000
+    ]
+  ],
+  "episode_after_next_observation": [
+    [
+      "program:meteora",
+      "archive",
+      1800000120,
+      1800000000,
+      1000
+    ]
+  ],
+  "episode_unchanged": true,
+  "first_pending": {
+    "deadline": 37,
+    "deadline_by_side": [
+      [
+        "archive",
+        37
+      ],
+      [
+        "retirement",
+        37
+      ]
+    ],
+    "need_by_side": [
+      [
+        "archive",
+        41.46965811965811
+      ],
+      [
+        "retirement",
+        4.946886446886438
+      ]
+    ],
+    "reason": "debt_surplus",
+    "scopes": [
+      "program:meteora",
+      "__archive_receipt__"
+    ],
+    "sequence": 1,
+    "side": "archive",
+    "started": 0
+  },
+  "next_pending": {
+    "deadline": 37,
+    "deadline_by_side": [
+      [
+        "archive",
+        37
+      ],
+      [
+        "retirement",
+        37
+      ]
+    ],
+    "need_by_side": [
+      [
+        "archive",
+        41.46965811965811
+      ],
+      [
+        "retirement",
+        4.946886446886438
+      ]
+    ],
+    "reason": "debt_surplus",
+    "scopes": [
+      "program:meteora",
+      "__archive_receipt__"
+    ],
+    "sequence": 1,
+    "side": "archive",
+    "started": 0
+  },
+  "runtime_failure_after_interruption": null,
+  "runtime_failure_after_next_turn": "EvidenceUnavailable:maintenance_decision_in_flight",
+  "integrity": [
+    "ok",
+    "ok"
+  ],
+  "transaction_open": [
+    false,
+    false
+  ],
+  "accepted_future_count": 5,
+  "all_accepted_futures_done": true,
+  "owner_thread_joined": true,
+  "provider_calls": 0,
+  "events": [
+    {
+      "event": "maintenance_submit_called",
+      "monotonic": 0
+    },
+    {
+      "event": "maintenance_accepted",
+      "monotonic": 0,
+      "sequence": 1
+    },
+    {
+      "event": "maintenance_owner_entry",
+      "monotonic": 0
+    },
+    {
+      "event": "native_progress_select",
+      "monotonic": 0,
+      "ordinal": 1,
+      "sql": "SELECT scope,side,at,units,record_at,records FROM maintenance_progress ORDER BY scope,side LIMIT 523"
+    },
+    {
+      "event": "native_progress_select",
+      "monotonic": 0,
+      "ordinal": 2,
+      "sql": "SELECT scope,side,at,units,record_at,records FROM maintenance_progress ORDER BY scope,side LIMIT 523"
+    },
+    {
+      "event": "urgent_submit_called",
+      "monotonic": 0
+    },
+    {
+      "event": "urgent_accepted",
+      "monotonic": 0,
+      "sequence": 2
+    },
+    {
+      "event": "maintenance_owner_exit",
+      "interrupted": true,
+      "monotonic": 0
+    },
+    {
+      "event": "urgent_owner_entry",
+      "monotonic": 0
+    },
+    {
+      "event": "urgent_completed",
+      "monotonic": 0,
+      "records": 1928
+    },
+    {
+      "event": "snapshot_submit_called",
+      "monotonic": 0
+    },
+    {
+      "event": "snapshot_accepted",
+      "monotonic": 0,
+      "sequence": 3
+    },
+    {
+      "event": "next_maintenance_submit_called",
+      "monotonic": 0
+    },
+    {
+      "event": "next_maintenance_accepted",
+      "monotonic": 0,
+      "sequence": 4
+    },
+    {
+      "event": "final_snapshot_submit_called",
+      "monotonic": 0
+    },
+    {
+      "event": "final_snapshot_accepted",
+      "monotonic": 0,
+      "sequence": 5
+    }
+  ],
+  "owner_metrics": {
+    "background_yields": 1,
+    "nonurgent_fifo_selections": 4,
+    "priority0.completed": 1,
+    "priority0.execution_peak_us": 0,
+    "priority0.execution_total_us": 0,
+    "priority0.queue_peak_us": 0,
+    "priority0.queue_total_us": 0,
+    "priority2.completed": 2,
+    "priority2.execution_peak_us": 0,
+    "priority2.execution_total_us": 0,
+    "priority2.queue_peak_us": 0,
+    "priority2.queue_total_us": 0,
+    "priority4.completed": 2,
+    "priority4.execution_peak_us": 0,
+    "priority4.execution_total_us": 0,
+    "priority4.queue_peak_us": 0,
+    "priority4.queue_total_us": 0,
+    "queue_peak": 1,
+    "queued": 0
+  },
+  "timing_scope": "Fixture logical clock held at 0.0; this proves ordering/failure, not elapsed capacity or zero-cost wall service.",
+  "unittest_wall_seconds": 0.37,
+  "material_executions": 0
+}

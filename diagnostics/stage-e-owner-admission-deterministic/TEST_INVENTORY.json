@@ -1,0 +1,225 @@
+{
+  "executed": [
+    {
+      "test": "NativeCompletionPrerequisiteTests.test_urgent_completion_clears_decision_before_next_ordinary_admission",
+      "file": "test_native_completion_prerequisite.py",
+      "status": "FAILED_M1",
+      "run_id": 36837057995,
+      "assertion_line": 200,
+      "skipped": false,
+      "expected_failure": false
+    }
+  ],
+  "unreached": [
+    {
+      "group": "FRAME_THRESHOLDS",
+      "cases": [
+        "15 eligible",
+        "16 bypass",
+        "17 bypass",
+        "existing 1/8 batching"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "BYTE_QUEUE_LAG",
+      "cases": [
+        "64 MiB inclusive",
+        "above 64 MiB",
+        "receive-capacity wait",
+        "inbound 15/16",
+        "decoded 15/16",
+        "ordered-ready 15/16",
+        "commit age below/at/above 8.9",
+        "head age below/at/above 8.9"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "HINT_AGE",
+      "cases": [
+        "below/exactly/above 1 s",
+        "consumed epoch",
+        "stale positive",
+        "stale negative",
+        "generation mismatch"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "ACCEPTANCE_DEADLINE",
+      "cases": [
+        "before/exactly/after 100 ms deadline",
+        "timeout",
+        "scheduler overshoot",
+        "late grant rejected"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "ACCEPTANCE_RACES",
+      "cases": [
+        "waiter cancellation after actual acceptance",
+        "accepted future continues/tracked",
+        "duplicate opportunity prevented"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "FAST_COMPLETION",
+      "cases": [
+        "maintenance finishes before source wakes",
+        "second maintenance blocked",
+        "source accepted next",
+        "barrier release"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "PRESSURE_MODES",
+      "cases": [
+        "archive only",
+        "retirement only",
+        "both",
+        "unchanged native side selection"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "WORKER_READINESS",
+      "cases": [
+        "archive ready",
+        "archive worker pending",
+        "retirement ready"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "DEADLINE_STATES",
+      "cases": [
+        "comfortable",
+        "near peer threshold",
+        "already infeasible remains infeasible"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "NO_DEMAND_NO_DECISION",
+      "cases": [
+        "one false-positive observation",
+        "no same-epoch retry",
+        "source resumes"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "URGENT",
+      "cases": [
+        "before offer",
+        "during wait",
+        "after maintenance acceptance",
+        "after source submit"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "CHECKPOINT",
+      "cases": [
+        "handoff bypass",
+        "no lock held during wait"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "SOURCE_CONTINUITY",
+      "cases": [
+        "continuous source queue",
+        "one affected admission per offer",
+        "wire ordering",
+        "unchanged .165 charge",
+        "batching recomputed"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "CROSS_SCOPE_FAIRNESS",
+      "cases": [
+        "repeated archive",
+        "repeated retirement",
+        "both",
+        "multiple scopes"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "FAILURE",
+      "cases": [
+        "maintenance raises",
+        "native refusal",
+        "cooperative yield",
+        "no decision",
+        "token/barrier cleanup"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "RESTART_SHUTDOWN",
+      "cases": [
+        "accepted futures retained",
+        "no late grant after drain",
+        "generation invalidation",
+        "episodes/clocks unchanged"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "ACCOUNTING",
+      "cases": [
+        "pre-admission wait visible",
+        "queue wait separate",
+        "actual overshoot unclamped",
+        "eligible-to-completion retained",
+        "no duplicated/missing wall time"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "OLD_FAILS_NEW_PASSES",
+      "cases": [
+        "native ~9.1-second pre-loss fixture",
+        "actual maintenance acceptance first",
+        "real binding recovery excess resolved",
+        "fresh follow-up no recreation under original deadline",
+        ".165 source demand unchanged"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    },
+    {
+      "group": "ALREADY_INFEASIBLE",
+      "cases": [
+        "fresh native decision cannot repair already-lost reservation"
+      ],
+      "status": "NOT_REACHED",
+      "reason": "STOP required by assignment section 13: native interruption/completion assertion reproduced M1."
+    }
+  ],
+  "interpretation": "NOT_REACHED is an inventory status for unimplemented tests, not a unittest skip or a waived acceptance requirement."
+}

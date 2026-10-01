@@ -1,0 +1,205 @@
+{
+  "repository": "levonmendall/The-Meme-Machine",
+  "authorization": "OWNER_ADMISSION_DESIGN_APPROVED_FOR_DETERMINISTIC_IMPLEMENTATION",
+  "production_base": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "production_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "evidence_base": "0b3bca8d8cf09dfdad924d3dc68e5cc0f10e7e45",
+  "evidence_tree": "952bb04d8bd7e19487edcb1564100f166ffa08ac",
+  "prepared_commit": "38f4706a9a0ea9fe312214eeb4d5109ed0eff73d",
+  "diagnostic_branch": "diagnostics/stage-e-owner-admission-deterministic-20261001",
+  "executed_commit": "fbb376c4a19267af9ba331022fe95bdb8609b299",
+  "executed_tree": "c2d90e1dc39db8ba4ba51a20d10db45833ce71a8",
+  "gate_implemented": false,
+  "treatment_runtime_tree": null,
+  "treatment_runtime_tree_reason": "Implementation stopped at required native M1 completion prerequisite.",
+  "production_runtime_changed": false,
+  "production_blob_identities": [
+    {
+      "path": "meme_machine/solana_evidence_service.py",
+      "sha": "a54d3ed1876f138a6b2db37ef917f414173869db"
+    },
+    {
+      "path": "meme_machine/solana_evidence_control.py",
+      "sha": "90628ffdbe98e24a758c320e8965a99a75326272"
+    },
+    {
+      "path": "meme_machine/solana_maintenance_runtime.py",
+      "sha": "73a2801136483d47e84e964435d11590f3ba0cdc"
+    },
+    {
+      "path": "meme_machine/solana_maintenance_arbiter.py",
+      "sha": "337bb569ec5920497dd012c01a14c36fdea2518a"
+    },
+    {
+      "path": "meme_machine/solana_maintenance_state.py",
+      "sha": "92e7d69d4e5af4f5946aaad19ce4062563670976"
+    },
+    {
+      "path": "meme_machine/solana_evidence_plane.py",
+      "sha": "34ef169e139baebfe12f9801b12f1774c94eaa05"
+    }
+  ],
+  "executed_changed_files": [
+    {
+      "path": ".github/workflows/owner-admission-deterministic.yml",
+      "mode": "100644",
+      "git_blob_sha": "4a719c1b4a0707774a6e8e0ef068bbd9ac476d33",
+      "sha256": "f76c17d3b4f1f8c3842e18db60eb07f9e3e59454829e171167d30fa3d911f460"
+    },
+    {
+      "path": "diagnostics/stage-e-owner-admission-deterministic/SCOPE.md",
+      "mode": "100644",
+      "git_blob_sha": "a488ed4bf670385d29dcb9c97381e5ac28fccd26",
+      "sha256": "49a5aed53dc4dcf5970d8b56c4dddf4d049e2edc250a37ff503cb6e36118e26e"
+    },
+    {
+      "path": "diagnostics/stage-e-owner-admission-deterministic/check.py",
+      "mode": "100644",
+      "git_blob_sha": "975cbbf3bedefb34b299da1c46a0ed015c1b3e45",
+      "sha256": "4acfabae50011eae823230d0e2a30a557cf202cdbb91e863ccbf45e8387b5c09"
+    },
+    {
+      "path": "diagnostics/stage-e-owner-admission-deterministic/execution-request.json",
+      "mode": "100644",
+      "git_blob_sha": "523be81e179095d383db8d7c2b8dd911c718608a",
+      "sha256": "0b32c78fa9d3c21e3a21c87e83b079b2e0d1b829039f0a44b724067261ea3ee9"
+    },
+    {
+      "path": "diagnostics/stage-e-owner-admission-deterministic/test_native_completion_prerequisite.py",
+      "mode": "100644",
+      "git_blob_sha": "ec2bd54a80ecd525777426cca518b0b90a3c0173",
+      "sha256": "848d83f71a711bc771c0eb1f2b1a5c9997288c0a44d89e4c156f52803c4b45b6"
+    }
+  ],
+  "patch": {
+    "file": "diagnostic.patch",
+    "sha256": "da8d9b760e904b5125b5a73718f8d08ead400da5f3c108ff0f97d3f0360477cf",
+    "scope": "Five diagnostic additions; no source implementation.",
+    "byte_exact_native_artifact_hash_verified": true
+  },
+  "run": {
+    "id": 36837057995,
+    "job_id": 110286898866,
+    "attempt": 1,
+    "url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/36837057995",
+    "conclusion": "failure",
+    "artifact": {
+      "id": 11149208550,
+      "name": "owner-admission-native-fbb376c4a19267af9ba331022fe95bdb8609b299-36837057995-1",
+      "size_in_bytes": 13627,
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11149208550",
+      "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11149208550/zip",
+      "expired": false,
+      "created_at": "2026-10-01T08:33:49Z",
+      "expires_at": "2026-12-30T08:33:33Z",
+      "updated_at": "2026-10-01T08:33:49Z",
+      "digest": "sha256:f35b6a8851b2b1552d84eabb78748a520ab04002318d9e44459c5af89ff2ed98",
+      "workflow_run": {
+        "id": 36837057995,
+        "repository_id": 1373661451,
+        "head_repository_id": 1373661451,
+        "head_branch": "diagnostics/stage-e-owner-admission-deterministic-20261001",
+        "head_sha": "fbb376c4a19267af9ba331022fe95bdb8609b299"
+      }
+    }
+  },
+  "previous_setup_attempts": [
+    {
+      "fixture_revision": 1,
+      "sha": "d33253763b3e8778889e332e053a4170e0a8e531",
+      "run_id": 36836607168,
+      "job_id": 110285426933,
+      "result": "SETUP_ERROR",
+      "error": "AttributeError: module 'meme_machine.solana_evidence_service' has no attribute 'websockets'",
+      "native_fixture_reached": false,
+      "artifact": {
+        "id": 11149880203,
+        "name": "owner-admission-native-d33253763b3e8778889e332e053a4170e0a8e531-36836607168-1",
+        "size_in_bytes": 9653,
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11149880203",
+        "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11149880203/zip",
+        "expired": false,
+        "created_at": "2026-10-01T08:29:29Z",
+        "expires_at": "2026-12-30T08:29:19Z",
+        "updated_at": "2026-10-01T08:29:29Z",
+        "digest": "sha256:a5926d50c4df491f1f187da977178a67734b0fcee1270036f2750b65ba484e42",
+        "workflow_run": {
+          "id": 36836607168,
+          "repository_id": 1373661451,
+          "head_repository_id": 1373661451,
+          "head_branch": "diagnostics/stage-e-owner-admission-deterministic-20261001",
+          "head_sha": "d33253763b3e8778889e332e053a4170e0a8e531"
+        }
+      },
+      "log": "INITIAL_SETUP_ERROR_CI_LOG.txt"
+    },
+    {
+      "fixture_revision": 2,
+      "sha": "657b23feca0824b3b285a386ba02e8ccc1fb281e",
+      "run_id": 36836817370,
+      "job_id": 110286101421,
+      "result": "SETUP_ERROR",
+      "error": "sqlite3.IntegrityError: FOREIGN KEY constraint failed",
+      "cause": "Account fixture supplied null signatures to native NOT NULL schema.",
+      "native_fixture_reached": false,
+      "accepted_owner_requests": 0,
+      "artifact": {
+        "id": 11149153875,
+        "name": "owner-admission-native-657b23feca0824b3b285a386ba02e8ccc1fb281e-36836817370-1",
+        "size_in_bytes": 9723,
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11149153875",
+        "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11149153875/zip",
+        "expired": false,
+        "created_at": "2026-10-01T08:31:25Z",
+        "expires_at": "2026-12-30T08:31:14Z",
+        "updated_at": "2026-10-01T08:31:25Z",
+        "digest": "sha256:eda18802e24be3ed747ccd71a5f2f88c0b30347f7323f13e567f0bca0f4684a4",
+        "workflow_run": {
+          "id": 36836817370,
+          "repository_id": 1373661451,
+          "head_repository_id": 1373661451,
+          "head_branch": "diagnostics/stage-e-owner-admission-deterministic-20261001",
+          "head_sha": "657b23feca0824b3b285a386ba02e8ccc1fb281e"
+        }
+      },
+      "log": "SECOND_SETUP_ERROR_CI_LOG.txt"
+    }
+  ],
+  "results": {
+    "admission_matrix": "NOT_REACHED",
+    "assertions_weakened": false,
+    "budget": {
+      "ceiling": 6,
+      "consumed": 6,
+      "unused": 0
+    },
+    "errors": 0,
+    "expected_failures": 0,
+    "failures": 1,
+    "gate_implemented": false,
+    "material_executions": 0,
+    "paper_only": true,
+    "recovery_regression": "NOT_REACHED",
+    "skipped": 0,
+    "stage_e": "RED",
+    "stage_f": "NOT_STARTED",
+    "status": "BLOCKED_BY_M1",
+    "tests": 1
+  },
+  "housekeeping_patch": {
+    "file": "diagnostics/housekeeping-ordering/treatment.patch",
+    "git_blob_sha": "17ab2c2dfcf9bbb01487c4cd745be1d5c4365841",
+    "sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d",
+    "applied": false,
+    "relationship": "Separate previously proven repair, carried unchanged in preserved evidence."
+  },
+  "new_material_executions": 0,
+  "material_budget": {
+    "consumed": 6,
+    "unused": 0,
+    "ceiling": 6
+  },
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "paper_only": true
+}

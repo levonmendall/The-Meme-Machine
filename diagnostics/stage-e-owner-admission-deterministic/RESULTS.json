@@ -1,0 +1,21 @@
+{
+  "admission_matrix": "NOT_REACHED",
+  "assertions_weakened": false,
+  "budget": {
+    "ceiling": 6,
+    "consumed": 6,
+    "unused": 0
+  },
+  "errors": 0,
+  "expected_failures": 0,
+  "failures": 1,
+  "gate_implemented": false,
+  "material_executions": 0,
+  "paper_only": true,
+  "recovery_regression": "NOT_REACHED",
+  "skipped": 0,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "status": "BLOCKED_BY_M1",
+  "tests": 1
+}

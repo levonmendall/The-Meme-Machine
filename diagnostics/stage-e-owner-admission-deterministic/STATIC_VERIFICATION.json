@@ -1,0 +1,30 @@
+{
+  "budget": {
+    "ceiling": 6,
+    "consumed": 6,
+    "unused": 0
+  },
+  "canonical_workflows_unchanged": true,
+  "changed_files": [
+    ".github/workflows/owner-admission-deterministic.yml",
+    "diagnostics/stage-e-owner-admission-deterministic/SCOPE.md",
+    "diagnostics/stage-e-owner-admission-deterministic/check.py",
+    "diagnostics/stage-e-owner-admission-deterministic/execution-request.json",
+    "diagnostics/stage-e-owner-admission-deterministic/test_native_completion_prerequisite.py"
+  ],
+  "diagnostic_branch": "diagnostics/stage-e-owner-admission-deterministic-20261001",
+  "diagnostic_sha": "fbb376c4a19267af9ba331022fe95bdb8609b299",
+  "diagnostic_tree": "c2d90e1dc39db8ba4ba51a20d10db45833ce71a8",
+  "evidence_base": "0b3bca8d8cf09dfdad924d3dc68e5cc0f10e7e45",
+  "gate_implemented": false,
+  "housekeeping_patch_applied": false,
+  "material_executions": 0,
+  "patch_sha256": "da8d9b760e904b5125b5a73718f8d08ead400da5f3c108ff0f97d3f0360477cf",
+  "production_base": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "production_runtime_changed": false,
+  "production_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "protected_blobs_and_modes_unchanged": true,
+  "protected_evidence_files": 1218,
+  "protected_production_files": 1152,
+  "treatment_runtime_tree": null
+}
