@@ -59,6 +59,7 @@
     "actions/upload-artifact": "ea165f8d65b6e75b540449e92b4886f43607fa02"
   },
   "input_manifest": "certification/stage_e_native_v2/input-manifest-v2.json",
+  "m1_witness_version": "native-m1-completion-witness-v2q2-1",
   "plan_version": "stage-e-native-transition-plan-v2",
   "readiness_policy": "every required gate evaluated at appropriate future phase; unresolved gates block; Q2 package never certifies Stage E",
   "repository": "levonmendall/The-Meme-Machine",
@@ -140,7 +141,7 @@
       "recovery-1"
     ]
   },
-  "schema_version": 2,
+  "schema_version": 3,
   "tooling_dependencies": {
     "PyYAML": "6.0.2",
     "jsonschema": "4.23.0"

@@ -1,7 +1,850 @@
 {
+  "$defs": {
+    "m1Witness": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "additionalProperties": false,
+          "properties": {
+            "arbiter_failed": {
+              "type": "boolean"
+            },
+            "committed_records": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "hash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "identity": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "identity",
+                  "hash"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "episodes": {
+              "type": "array"
+            },
+            "hot": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "integrity": {
+              "type": "string"
+            },
+            "open_transaction": {
+              "type": "boolean"
+            },
+            "pending": {
+              "type": "boolean"
+            },
+            "pending_identity": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "generation": {
+                      "type": "string"
+                    },
+                    "sequence": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "side": {
+                      "enum": [
+                        "archive",
+                        "retirement"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "generation",
+                    "sequence",
+                    "side"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "progress": {
+              "items": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "receipt_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "receipt_remaining": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "receipt_remaining_identities": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "runtime_failure": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "pending",
+            "pending_identity",
+            "arbiter_failed",
+            "runtime_failure",
+            "hot",
+            "progress",
+            "committed_records",
+            "episodes",
+            "open_transaction",
+            "receipt_remaining",
+            "receipt_remaining_identities",
+            "receipt_hash",
+            "integrity"
+          ],
+          "type": "object"
+        },
+        "archive_receipt": {
+          "properties": {
+            "bytes": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "hash",
+            "bytes"
+          ],
+          "type": "object"
+        },
+        "before": {
+          "additionalProperties": false,
+          "properties": {
+            "arbiter_failed": {
+              "type": "boolean"
+            },
+            "committed_records": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "hash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "identity": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "identity",
+                  "hash"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "episodes": {
+              "type": "array"
+            },
+            "hot": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "integrity": {
+              "type": "string"
+            },
+            "open_transaction": {
+              "type": "boolean"
+            },
+            "pending": {
+              "type": "boolean"
+            },
+            "pending_identity": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "generation": {
+                      "type": "string"
+                    },
+                    "sequence": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "side": {
+                      "enum": [
+                        "archive",
+                        "retirement"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "generation",
+                    "sequence",
+                    "side"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "progress": {
+              "items": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "receipt_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "receipt_remaining": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "receipt_remaining_identities": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "runtime_failure": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "pending",
+            "pending_identity",
+            "arbiter_failed",
+            "runtime_failure",
+            "hot",
+            "progress",
+            "committed_records",
+            "episodes",
+            "open_transaction",
+            "receipt_remaining",
+            "receipt_remaining_identities",
+            "receipt_hash",
+            "integrity"
+          ],
+          "type": "object"
+        },
+        "bounded_completion_retry_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "completion_accounting": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "decision": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "generation": {
+                        "type": "string"
+                      },
+                      "sequence": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "side": {
+                        "enum": [
+                          "archive",
+                          "retirement"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "generation",
+                      "sequence",
+                      "side"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "exact_pending_identity": {
+                "type": "boolean"
+              },
+              "ledger": {
+                "items": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "pending_after": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "generation": {
+                        "type": "string"
+                      },
+                      "sequence": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "side": {
+                        "enum": [
+                          "archive",
+                          "retirement"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "generation",
+                      "sequence",
+                      "side"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "pending_before": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "generation": {
+                        "type": "string"
+                      },
+                      "sequence": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "side": {
+                        "enum": [
+                          "archive",
+                          "retirement"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "generation",
+                      "sequence",
+                      "side"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "progress": {
+                "additionalProperties": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              "read_ordinal": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "record_progress": {
+                "additionalProperties": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              "returned": {
+                "type": "boolean"
+              },
+              "transaction_open": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "decision",
+              "pending_before",
+              "exact_pending_identity",
+              "read_ordinal",
+              "transaction_open",
+              "progress",
+              "record_progress",
+              "ledger",
+              "returned",
+              "error",
+              "pending_after"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "completion_read_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "durable_archive_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "first_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "first_turn": {
+          "additionalProperties": false,
+          "properties": {
+            "accepted": {
+              "type": "boolean"
+            },
+            "completed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "accepted",
+            "completed"
+          ],
+          "type": "object"
+        },
+        "gates": {
+          "additionalProperties": false,
+          "properties": {
+            "accepted_future_completed": {
+              "type": "boolean"
+            },
+            "bounded_completion_retry": {
+              "type": "boolean"
+            },
+            "completion_query_interrupted": {
+              "type": "boolean"
+            },
+            "cooperative_error_nonfatal": {
+              "type": "boolean"
+            },
+            "cooperative_yield": {
+              "type": "boolean"
+            },
+            "decision_completed": {
+              "type": "boolean"
+            },
+            "durable_accounting": {
+              "type": "boolean"
+            },
+            "episode_not_rebased": {
+              "type": "boolean"
+            },
+            "integrity": {
+              "type": "boolean"
+            },
+            "native_slice_committed": {
+              "type": "boolean"
+            },
+            "next_admission_usable": {
+              "type": "boolean"
+            },
+            "no_duplicate_durable_progress": {
+              "type": "boolean"
+            },
+            "original_contract": {
+              "type": "boolean"
+            },
+            "receipt_continuation_preserved": {
+              "type": "boolean"
+            },
+            "transaction_closed": {
+              "type": "boolean"
+            },
+            "urgent_admitted": {
+              "type": "boolean"
+            },
+            "urgent_completed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "urgent_admitted",
+            "urgent_completed",
+            "accepted_future_completed",
+            "completion_query_interrupted",
+            "bounded_completion_retry",
+            "cooperative_yield",
+            "native_slice_committed",
+            "receipt_continuation_preserved",
+            "transaction_closed",
+            "integrity",
+            "cooperative_error_nonfatal",
+            "episode_not_rebased",
+            "durable_accounting",
+            "no_duplicate_durable_progress",
+            "decision_completed",
+            "next_admission_usable",
+            "original_contract"
+          ],
+          "type": "object"
+        },
+        "generation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "input_plan": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "identity": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "identity",
+              "hash"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "interruption_injected_at_read": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "interruption_injections": {
+          "items": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "interruption_observed": {
+          "type": "boolean"
+        },
+        "ledger_reads": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "ordinal": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "owner_interrupt_flag": {
+                "type": "boolean"
+              },
+              "pending": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "generation": {
+                        "type": "string"
+                      },
+                      "sequence": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "side": {
+                        "enum": [
+                          "archive",
+                          "retirement"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "generation",
+                      "sequence",
+                      "side"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "preemption_enabled": {
+                "type": "boolean"
+              },
+              "purpose": {
+                "enum": [
+                  "initial_observation",
+                  "completion_accounting"
+                ]
+              },
+              "query_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "rows": {
+                "items": {
+                  "maxItems": 6,
+                  "minItems": 6,
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              "sqlite_errorcode": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "started",
+                  "completed",
+                  "interrupted",
+                  "failed"
+                ]
+              },
+              "transaction_open": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ordinal",
+              "purpose",
+              "query_hash",
+              "limit",
+              "pending",
+              "transaction_open",
+              "preemption_enabled",
+              "status",
+              "sqlite_errorcode",
+              "owner_interrupt_flag",
+              "rows"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "material_executions": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "next_turn": {
+          "additionalProperties": false,
+          "properties": {
+            "accepted": {
+              "type": "boolean"
+            },
+            "completed": {
+              "type": "boolean"
+            },
+            "error": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "event": {
+              "type": "object"
+            },
+            "result": {
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "accepted",
+            "completed",
+            "error",
+            "result",
+            "event"
+          ],
+          "type": "object"
+        },
+        "original_thresholds": {
+          "type": "boolean"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "repair_applied": {
+          "type": "boolean"
+        },
+        "retry_read_ordinal": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "second_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "seed_records": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "urgent": {
+          "additionalProperties": false,
+          "properties": {
+            "accepted": {
+              "type": "boolean"
+            },
+            "completed": {
+              "type": "boolean"
+            },
+            "error": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "result": {
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "accepted",
+            "completed",
+            "error",
+            "result"
+          ],
+          "type": "object"
+        },
+        "witness_version": {
+          "const": "native-m1-completion-witness-v2q2-1"
+        }
+      },
+      "required": [
+        "witness_version",
+        "generation",
+        "ledger_reads",
+        "interruption_injections",
+        "completion_accounting",
+        "completion_read_count",
+        "interruption_injected_at_read",
+        "interruption_observed",
+        "bounded_completion_retry_count",
+        "retry_read_ordinal",
+        "first_turn",
+        "urgent",
+        "next_turn",
+        "first_error",
+        "second_error",
+        "before",
+        "after",
+        "seed_records",
+        "input_plan",
+        "archive_receipt",
+        "durable_archive_hash",
+        "original_thresholds",
+        "repair_applied",
+        "material_executions",
+        "gates",
+        "passed"
+      ],
+      "type": "object"
+    }
+  },
   "$id": "stage-e-native-transition-evidence-v2",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "case_id": {
+            "const": "m1-completion"
+          },
+          "payload": {
+            "minProperties": 1
+          }
+        },
+        "required": [
+          "case_id",
+          "payload"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/m1Witness"
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "assembly_after": {
       "type": [
@@ -109,7 +952,7 @@
           "const": "levonmendall/The-Meme-Machine"
         },
         "schema_version": {
-          "const": 2
+          "const": 3
         },
         "workflow_identity": {
           "properties": {

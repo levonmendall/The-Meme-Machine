@@ -6,6 +6,7 @@ before any trial. Evidence/report/assembly outputs are deliberately external.
 from pathlib import Path
 import json
 from .contract import HERE, ROOT, sha256
+from . import SCHEMA_VERSION
 
 
 def main():
@@ -19,7 +20,7 @@ def main():
         files[path.relative_to(ROOT).as_posix()]=sha256(path.read_bytes())
     for name in ('certification/__init__.py','requirements.txt'):
         path=ROOT/name;files[name]=sha256(path.read_bytes())
-    manifest=dict(version='stage-e-successor-input-manifest-v2',schema_version=2,inputs=dict(sorted(files.items())),
+    manifest=dict(version='stage-e-successor-input-manifest-v2',schema_version=SCHEMA_VERSION,inputs=dict(sorted(files.items())),
         self_hash_policy='manifest SHA-256 bound by external predeclaration; no circular self hash',
         historical_inputs='separate immutable plan.historical_inputs')
     (HERE/'input-manifest-v2.json').write_text(json.dumps(manifest,indent=2,sort_keys=True)+'\n')

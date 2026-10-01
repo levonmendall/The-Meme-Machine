@@ -116,6 +116,10 @@ def validate_raw(raw, manifest, case, *, allow_failed=False):
     elif raw['children']:
         raise ValueError('unexpected_nested_origin_probe')
     if type(raw['passed']) is not bool or not isinstance(raw['errors'],list):raise ValueError('malformed_outcome')
+    if case=='m1-completion' and raw['payload']:
+        from .m1 import validate_witness
+        if validate_witness(raw['payload']) is not raw['passed']:
+            raise ValueError('m1_contradictory_raw_outcome')
     if raw['passed'] is not True:
         if allow_failed:return False
         raise ValueError('failed_trial_preserved_not_qualified')
@@ -133,8 +137,9 @@ def validate_raw(raw, manifest, case, *, allow_failed=False):
             if r.get(k) is not True:raise ValueError('restart_requirement_missing:'+k)
         if r['episode_before']!=r['episode_after'] or r['committed_service_before']!=r['reconstructed_ledger']:
             raise ValueError('restart_episode_or_ledger_rebased')
-    if case=='m1-completion' and (payload.get('passed') is not True or not payload.get('gates') or not all(payload['gates'].values())):
-        raise ValueError('m1_native_completion_unearned')
+    if case=='m1-completion':
+        from .m1 import validate_witness
+        if validate_witness(payload) is not True:raise ValueError('m1_native_completion_unearned')
     if case=='run379-setup':
         if (payload.get('setup_elapsed_us')!=0 or payload.get('native_hot_debt')!=200
                 or payload.get('bounded_execution_transactions')!=6 or payload.get('source_continuity') is not True
