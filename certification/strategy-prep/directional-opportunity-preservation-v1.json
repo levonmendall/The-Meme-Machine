@@ -1,0 +1,149 @@
+{
+  "schema": "meme-machine-directional-opportunity-preservation-v1",
+  "paper_only": true,
+  "live_money_authority": false,
+  "prepared_at": "2026-10-01",
+  "preparation_parent": {
+    "branch": "strategy/exit-optimization-prep-20260930",
+    "commit": "540ac62504403b3d5d31b7b17b3461891af94159"
+  },
+  "objective": "Make Current-to-Survivor opportunity continuity airtight for both Pump and Pons and add durable marginal-reject/opportunity-loss instrumentation without changing admission thresholds, exits, capital, or trading authority.",
+  "stage_e_isolation": {
+    "stage_e_candidate_modified": false,
+    "stage_e_branch_modified": false,
+    "stage_e_workflow_modified": false,
+    "workflow_dispatch_authorized": false,
+    "market_run_authorized": false,
+    "activation_allowed": false,
+    "requires_explicit_post_stage_e_promotion": true,
+    "requires_exact_sha_non_market_recertification_after_composition": true
+  },
+  "policy_effect": {
+    "entry_thresholds_changed": false,
+    "exit_thresholds_changed": false,
+    "capital_targets_changed": false,
+    "safety_limits_changed": false,
+    "provider_topology_changed": false,
+    "trade_authority_changed": false
+  },
+  "families": {
+    "pump": {
+      "current": "pump-acceleration-independent-v1",
+      "survivor": "pumpswap-survivor-momentum-v1",
+      "canonical_asset_identity": "mint + verified Pump.fun->PumpSwap migration lineage"
+    },
+    "pons": {
+      "current": "pons-selective-continuation-v1",
+      "survivor": "pons-postgrad-survivor-momentum-v1",
+      "canonical_asset_identity": "token address + verified Pons graduation/Uniswap V4 market lineage"
+    }
+  },
+  "current_to_survivor_requirements": {
+    "survivor_discovery_independent_of_current_qualification": true,
+    "current_rejection_must_never_tombstone_or_suppress_survivor_interest": true,
+    "current_rejection_must_not_be_a_survivor_admission_gate": true,
+    "survivor_must_re_evaluate_its_own_fresh_point_in_time_safety_and_alpha_gates": true,
+    "only_survivor_owned_immutable_lineage_or_integrity_failures_may_permanently_disqualify": true,
+    "current_reject_receipt_must_link_to_later_survivor_candidate_when_identity_is_proven": true,
+    "link_and_survivor_interest_must_survive_restart": true,
+    "migration_or_graduation_native_evidence_remains_authoritative_for_survivor_enrollment": true,
+    "shared_sleeve_reservation_and_conflict_rules_remain_binding": true,
+    "duplicate_exposure_for_same_family_asset_forbidden": true,
+    "existing_survivor_reentry_rules_unchanged": true
+  },
+  "marginal_reject_instrumentation": {
+    "coverage": "all Pump Current and Pons Current evaluated rejections; marginality is an analytic label only and never grants entry authority",
+    "synchronous_minimum_receipt": [
+      "family",
+      "current_strategy",
+      "asset_id",
+      "decision_time",
+      "policy_hash",
+      "policy_epoch",
+      "rejection_reasons",
+      "gate_values",
+      "gate_thresholds",
+      "comparators",
+      "signed_gate_distances",
+      "hard_safety_pass",
+      "evidence_complete",
+      "freshness_generation",
+      "source_cursor",
+      "existing_executable_quote_if_already_available",
+      "existing_execution_capacity_if_already_available"
+    ],
+    "hard_safety_categories": [
+      "authoritative evidence/finality/freshness",
+      "lineage/venue/quote identity",
+      "creator/distribution safety",
+      "hard concentration safety",
+      "exit liquidity",
+      "execution capacity/stress",
+      "generation fencing"
+    ],
+    "alpha_gate_categories": [
+      "age/curve position",
+      "velocity/acceleration",
+      "buyer breadth/growth",
+      "net demand",
+      "continuation/price retention",
+      "extension/reset/base/breakout",
+      "score/ranking"
+    ],
+    "classification": [
+      "Record exact signed distance for every measurable gate, not only the first failure.",
+      "A marginal-reject label requires all applicable hard-safety/evidence/execution categories to pass.",
+      "Rank failed alpha gates by normalized distance from threshold; do not alter qualification.",
+      "Multiple alpha failures remain visible and must not be collapsed into a single reason."
+    ],
+    "outcome_windows": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "24h"
+    ],
+    "outcome_fields": [
+      "maximum_favorable_excursion_bps",
+      "maximum_adverse_excursion_bps",
+      "terminal_return_bps_if_observable",
+      "survivor_candidate_created",
+      "survivor_qualified",
+      "survivor_fill_committed",
+      "survivor_terminal_outcome"
+    ],
+    "runtime_constraints": [
+      "The decision-time reject receipt must be bounded and durable.",
+      "Outcome enrichment must use persisted/canonical evidence and must not add provider calls to the Current decision critical path.",
+      "Instrumentation has zero order, reservation, sizing, or qualification authority.",
+      "Instrumentation failure must be observable and auditable; it must not silently mutate strategy decisions."
+    ]
+  },
+  "required_proofs": [
+    "Pump Current reject -> verified migration -> Pump Survivor candidate remains discoverable and independently evaluable.",
+    "Pons Current reject -> verified graduation -> Pons Survivor candidate remains discoverable and independently evaluable.",
+    "Restart between Current rejection and Survivor enrollment preserves the linkage and does not lose Survivor eligibility.",
+    "A Current hard-safety rejection does not become a permanent Survivor rejection unless the Survivor policy independently rejects the fresh evidence or owns an immutable lineage/integrity failure.",
+    "An open/reserved Current position may coexist with Survivor observation but shared-sleeve fencing prevents duplicate family exposure.",
+    "Marginal-reject receipts preserve all gate distances and later MFE/MAE windows without changing Current or Survivor decisions.",
+    "No new provider request is introduced solely to create reject instrumentation on the Current critical path.",
+    "Existing PAPER-only, generation, freshness, capacity, concentration, creator/distribution and accounting safeguards remain unchanged."
+  ],
+  "composition_order": [
+    "existing six-regime strategy upgrade",
+    "existing moderate-admission-thresholds revision",
+    "directional-capital-parity-v1",
+    "exit-optimization-v1",
+    "directional-opportunity-preservation-v1"
+  ],
+  "promotion_requirements": [
+    "Do not compose into the active Stage E/F/G exact-candidate lineage.",
+    "After Stage E/F/G machinery is complete, implement this requirement against the exact final machinery SHA rather than patching the active certification candidate.",
+    "Regenerate affected policy/runtime identities only where implementation bytes require it; do not change strategy thresholds as part of this work.",
+    "Run deterministic Pump and Pons Current-to-Survivor continuity tests, including restart/replay and shared-sleeve conflict cases.",
+    "Run reject-telemetry schema, gate-distance, MFE/MAE, and no-decision-authority tests.",
+    "Run provider-call accounting to prove reject capture adds no decision-critical provider work.",
+    "Run exact-SHA non-market certification of the fully composed PAPER candidate before any market smoke.",
+    "Start a fresh affected-lane profitability cohort if implementation changes economic behavior; pure observation-only telemetry by itself must not be treated as an economic-policy change."
+  ]
+}
