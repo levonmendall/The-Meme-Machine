@@ -1,0 +1,127 @@
+{
+  "schema": "meme-machine-idle-capital-rotation-architecture-v1",
+  "status": "ARCHITECTURE_ONLY_NOT_ACTIVE",
+  "paper_only": true,
+  "live_money_authority": false,
+  "runtime_implementation_authorized": false,
+  "cross_sleeve_borrowing_active": false,
+  "prepared_at": "2026-10-01",
+  "preparation_parent": {
+    "branch": "strategy/reset-recovery-research-prep-20261001",
+    "commit": "617f1b4ec2d6f3e1a8c79dd19c2a5b91549ed967"
+  },
+  "objective": "Define a future bounded temporary-capital lease architecture that may improve utilization of genuinely idle sleeve capital without changing home-sleeve ownership, weakening strategy admission, or allowing double-spend.",
+  "stage_e_isolation": {
+    "stage_e_candidate_modified": false,
+    "stage_e_branch_modified": false,
+    "stage_e_workflow_modified": false,
+    "workflow_dispatch_authorized": false,
+    "market_run_authorized": false,
+    "activation_allowed": false
+  },
+  "prerequisites_before_runtime_design": [
+    "Stage E/F/G machinery lineage complete and exact final SHA known.",
+    "Genuine shared $500 PAPER portfolio epoch initialized and four lane adapters active.",
+    "Natural utilization telemetry available for all four lanes over a representative span.",
+    "Evidence that meaningful capital is persistently idle while another lane has qualified executable demand.",
+    "A separately reviewed attribution policy for borrower strategy performance versus funding-owner capital."
+  ],
+  "model": {
+    "name": "bounded_temporary_capital_lease",
+    "ownership": "Capital retains a home/funding sleeve identity; a lease temporarily grants reservation authority to a different borrower lane.",
+    "no_unrestricted_pool": true,
+    "no_re_lending": true,
+    "no_borrowing_from_open_basis": true,
+    "no_borrowing_from_reserved_capital": true,
+    "no_borrowing_against_unrealized_pnl": true,
+    "no_forced_liquidation_for_lender_recall": true,
+    "borrower_must_pass_normal_strategy_and_execution_gates": true,
+    "lease_must_be_durable_and_restart_replayable": true
+  },
+  "lease_record_required_fields": [
+    "lease_id",
+    "portfolio_epoch",
+    "funding_owner_lane",
+    "strategy_owner_lane",
+    "amount",
+    "created_at",
+    "state",
+    "source_available_capital_proof",
+    "borrower_request_identity",
+    "borrower_policy_identity",
+    "risk_ceiling_identity",
+    "attached_reservation_or_lifecycle",
+    "terminal_return_or_release_identity"
+  ],
+  "lease_state_machine": [
+    "requested",
+    "granted",
+    "attached_to_reservation",
+    "deployed",
+    "return_pending",
+    "returned",
+    "cancelled"
+  ],
+  "idle_capital_definition_requirements": [
+    "Only reconciled available capital can be considered idle.",
+    "Open basis and active reservations are never idle.",
+    "A home lane must retain a policy-defined protected reserve before any lease is granted.",
+    "Idle classification must be time-bounded and derived from canonical portfolio/lane state, not from absence of recent trades alone.",
+    "Exact idle-duration and protected-reserve thresholds remain unset until utilization evidence exists."
+  ],
+  "borrower_requirements": [
+    "A lease cannot create a qualification; borrower must already have a normal qualified opportunity.",
+    "Borrower uses its normal entry, freshness, generation, concentration, creator/distribution, turnover/depth, execution-stress and breadth controls.",
+    "Borrowed capital is an additional hard cap only; execution controls remain downsize-only.",
+    "Borrower cannot exceed a separately frozen per-lane and portfolio exposure ceiling.",
+    "One lease cannot be used for multiple unrelated lifecycle reservations."
+  ],
+  "recall_and_return_requirements": [
+    "A lender recall request may stop new deployment of uncommitted leased capital.",
+    "A lender recall does not force-close an already-open borrower position.",
+    "Deployed leased principal returns only through the borrower's normal terminal/realization accounting or another separately certified deterministic unwind rule.",
+    "Returned principal becomes available to the funding-owner sleeve only after canonical settlement/reconciliation.",
+    "Crash/restart must reconstruct lease state without freeing capital twice."
+  ],
+  "accounting_and_attribution_requirements": [
+    "The shared portfolio accountant is the sole cross-lane cash authority.",
+    "Native lane books remain strategy/lifecycle evidence and may not independently transfer capital between lanes.",
+    "Each leased dollar must retain both funding-owner and strategy-owner provenance.",
+    "Principal ownership and strategy economic contribution must never be conflated or double-counted.",
+    "Final lane profitability/drawdown attribution rules are intentionally not frozen by this architecture contract.",
+    "Portfolio-level realized P&L remains canonical and must reconcile regardless of future lane attribution choice."
+  ],
+  "parameters_intentionally_unset": {
+    "maximum_lease_bps_of_funding_sleeve": null,
+    "maximum_borrower_exposure_bps": null,
+    "maximum_portfolio_leased_bps": null,
+    "protected_reserve_bps": null,
+    "minimum_idle_seconds": null,
+    "lease_expiry_seconds": null,
+    "lender_priority": null,
+    "borrower_priority": null,
+    "profit_attribution_rule": null,
+    "loss_attribution_rule": null,
+    "status": "UTILIZATION_AND_ATTRIBUTION_EVIDENCE_REQUIRED"
+  },
+  "utilization_telemetry_required_before_parameterization": [
+    "per-lane realized equity",
+    "per-lane available/reserved/deployed capital",
+    "qualified opportunities blocked only by capital",
+    "qualified opportunities downsized by capital versus execution capacity",
+    "time capital remains available while no home-lane qualified demand exists",
+    "simultaneous demand conflicts across lanes",
+    "counterfactual portfolio return/drawdown under bounded lease candidates"
+  ],
+  "required_future_proofs": [
+    "Competing borrower requests serialize deterministically under the portfolio writer.",
+    "A lease cannot make available cash negative or allow the same principal to be reserved twice.",
+    "Restart/redelivery is idempotent across request, grant, deployment, settlement and return.",
+    "A funding-owner lane cannot reserve capital currently deployed under an active lease.",
+    "Borrower terminal loss cannot exceed the separately certified lease/position risk authority.",
+    "Recall of uncommitted capital is safe and recall of deployed capital never bypasses strategy exit rules.",
+    "Portfolio and lane provenance remain auditable across every lease event."
+  ],
+  "composition_position": "Post-E/F/G and after base prepared strategy stack; only if utilization evidence justifies promotion.",
+  "compatibility_note": "directional-realized-equity-sizing-v1 continues to require no cross-sleeve borrowing until this architecture is separately parameterized, implemented, certified, and explicitly promoted."
+}
