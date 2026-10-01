@@ -49,5 +49,6 @@
   "evidence_base_sha": "750190b2067ca2fca771b531396d8e06a9351c62",
   "execution_key": "housekeeping-ordering-20261001-v1",
   "execute": true,
-  "stop_for_astra_after_pair": true
+  "stop_for_astra_after_pair": true,
+  "safety_gate_revision": 2
 }

@@ -30,12 +30,12 @@ def main():
         path=root/(name+'.log')
         with path.open('w') as stream:
             result=subprocess.run(cmd,cwd=cwd,stdout=stream,stderr=subprocess.STDOUT,timeout=180)
-        text=path.read_text();count=re.search(r'Ran (\d+) tests in',text)
+        text=path.read_text();count=re.search(r'Ran (\d+) tests? in',text)
         records.append(dict(name=name,returncode=result.returncode,
             tests=None if count is None else int(count[1]),
             log_sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
         print('CHECK '+json.dumps(records[-1]),flush=True)
-        print('\n'.join(text.splitlines()[-8:]),flush=True)
+        print(text if result.returncode else '\n'.join(text.splitlines()[-8:]),flush=True)
         if result.returncode:
             (root/'SAFETY_GATE.json').write_text(json.dumps(dict(passed=False,
                 checks=records,material_executions=0,budget_consumed=4),indent=2)+'\n')

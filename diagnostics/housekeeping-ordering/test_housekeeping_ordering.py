@@ -337,7 +337,7 @@ class TurnTests(unittest.TestCase):
                 return 'source'
             s.writer._retention_yield_requested=yield_source
             with patch.object(r.adapter,'observe',return_value=o) as observe, \
-                 patch.object(r,'_demands',return_value=needs), \
+                 patch.object(r,'_demands',return_value=list(needs)), \
                  patch.object(s,'retention',wraps=s.retention) as retention:
                 result=r.turn(f,at)
                 observe.assert_called_once_with(r.generation)
