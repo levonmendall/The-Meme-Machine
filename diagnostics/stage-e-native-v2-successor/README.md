@@ -74,3 +74,12 @@ The command requires a clean exact checkout; ignored executable shadows are
 rejected. Outputs and databases remain outside the reviewed assembly and repository.
 Every declared test result, Q2's separate 71-test result, child receipt, provider
 attempt and source origin is retained even when the combined deterministic gate fails.
+
+Fresh validation of published commit `3c3a1b8f61071a05a52c6163ccad2c26065c073c`
+passed 621/621 declared tests, with Q2 separately passing 71/71, plus preflight,
+six bounded native cases, frozen-input integrity and the resource gate. The run
+recorded 54 bound children, zero provider attempts and one registered loopback
+fixture connection. [RECOVERY_REVIEW.md](RECOVERY_REVIEW.md) records the tested
+SHA/tree, checkpoints, scope and evidence. Stage E remains RED and all WIP,
+qualification and certification credit remains zero. The report publication
+commit is distinct from the tested source commit.

@@ -1,4 +1,5 @@
 {
+  "bound_tested_sha": "3c3a1b8f61071a05a52c6163ccad2c26065c073c",
   "certification_credit": false,
   "changes": {
     "certification/stage_e_integration/__init__.py": {
@@ -6,7 +7,7 @@
       "before": null
     },
     "certification/stage_e_integration/bootstrap.py": {
-      "after": "5a9c558fb60150b8cb5669b5381012a3a6efd20bf93ce627b408580113979a67",
+      "after": "e5ad9196ae804a25030ea1f768cd6804e9538930cf87d6e9a2f1e15c9ff829b1",
       "before": null
     },
     "certification/stage_e_integration/crash_child.py": {
@@ -14,15 +15,19 @@
       "before": null
     },
     "certification/stage_e_integration/driver.py": {
-      "after": "fb09a671147b02029fac081845957952d37bbc924d97b909e2337582ddf1850f",
+      "after": "f6eff19e9c76ae4d45f93c808b2bf7bbfb989a32e7b59d59e029515f74533249",
+      "before": null
+    },
+    "certification/stage_e_integration/generated.py": {
+      "after": "20e8754d2b0867045bf3b1df8a46b4cad92ac865fe32ea63d0f6aa21ef4243a3",
       "before": null
     },
     "certification/stage_e_integration/guard.py": {
-      "after": "70f11687cc1230fa978d3600976d6aecbbfb14876bffd106985780b3ad2026f6",
+      "after": "36d06d209a2480659adfd51f7b8242de34ef8b3d756108282edb697211cb93dc",
       "before": null
     },
     "certification/stage_e_integration/prepare.py": {
-      "after": "daf20f16573c99ef0ed1afb5e020fd59ee6c6de3e2931957a7d48b716d60f78f",
+      "after": "e68ec834e0d9ce0c49317f1e944630c7559593944d64b202e04d40d86c17575f",
       "before": null
     },
     "certification/stage_e_integration/static_verify.py": {
@@ -58,11 +63,11 @@
       "before": "bfdd81f0964dabac3b2c473bf78b71d70d29eeb9441332c583b2bbedeb20dd8a"
     },
     "meme_machine/solana_evidence_service.py": {
-      "after": "6a33a62f059b3820912809b5eeda2b3010e22bd69a0ba70d963bbe4ff826714e",
+      "after": "8a6d079b57b38f7d1b67971905d7978d6e75ee3348a72f37dcf60ab50ce4a89c",
       "before": "7ca3901852b99889dac1961e39037927c20bf2d772176761bcee3d7a6a59828b"
     },
     "meme_machine/solana_maintenance_runtime.py": {
-      "after": "ef8804bd09f4d79f9e55df4937867232ddf2ab02c5ee18e848f71100e2ba58cd",
+      "after": "178fe8ace0e60490aeede8ed0c4a34492b322a0dfc1f6cdd2960fed50d923577",
       "before": "9449108f214331d4d04bf09d49d09cec79e0de186f98fb4b4242f07752943322"
     },
     "meme_machine/solana_owner_admission.py": {
@@ -302,7 +307,7 @@
       "before": null
     },
     "tests/test_housekeeping_integration.py": {
-      "after": "69551ab21f040a31b52a69bc1216be91409a7949c1b6245900d89e6d8c55bbf0",
+      "after": "684e6530d667953aab80305b8c1f97f9fe748317ccfa065cf8b035d093201571",
       "before": null
     },
     "tests/test_legacy_raydium.py": {
@@ -626,8 +631,8 @@
       "before": null
     }
   },
-  "integrated_inputs": 245,
-  "integrated_manifest_sha256": "da0a0ec826826ec03b4dd40aee1d18e8c7a07ccbe0e67e90a8536f0f5d77b036",
+  "integrated_inputs": 246,
+  "integrated_manifest_sha256": "086e74d5bb22804ac2c524ffe18224ede8ad46c3476f3d4b364e84e5c6c7c9b0",
   "original_component_sha": "ace479836690e65c091407e7da7545ad61952f31",
   "original_inputs": 94,
   "original_manifest_sha256": "100acc0f6e86f38af542f293d90cf2174310f8e618644fa8ecb69284bb057961",

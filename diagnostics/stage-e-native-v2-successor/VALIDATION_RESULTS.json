@@ -1,0 +1,290 @@
+{
+  "actual_parent_origins": 482,
+  "allowlist_sha256": "e810250a4e4dec5ced91fadabae209216a60bca2d8f3b44c9947cc4159cd1aea",
+  "assembly_digest": "acb669db9a720eeae921cb366c6d1ac54151460e0f2d79b2d72406486f641545",
+  "canonical_stage_e": false,
+  "certification_credit": false,
+  "changed_files_from_durable_start": [
+    ".github/workflows/stagee-native-qualification-v2-reusable.yml",
+    ".github/workflows/stagee-native-qualification-v2.yml",
+    "certification/stage_e_integration/__init__.py",
+    "certification/stage_e_integration/bootstrap.py",
+    "certification/stage_e_integration/crash_child.py",
+    "certification/stage_e_integration/driver.py",
+    "certification/stage_e_integration/generated.py",
+    "certification/stage_e_integration/guard.py",
+    "certification/stage_e_integration/prepare.py",
+    "certification/stage_e_integration/static_verify.py",
+    "certification/stage_e_integration/tooling-lock.json",
+    "certification/stage_e_native_v2/GATE_MAP.md",
+    "certification/stage_e_native_v2/HISTORICAL_SKIPS.md",
+    "certification/stage_e_native_v2/__init__.py",
+    "certification/stage_e_native_v2/__main__.py",
+    "certification/stage_e_native_v2/binding.py",
+    "certification/stage_e_native_v2/bootstrap.py",
+    "certification/stage_e_native_v2/clock.py",
+    "certification/stage_e_native_v2/contract.py",
+    "certification/stage_e_native_v2/dependency-lock-v2.json",
+    "certification/stage_e_native_v2/evidence-schema-v2.json",
+    "certification/stage_e_native_v2/firewall.py",
+    "certification/stage_e_native_v2/fixtures.py",
+    "certification/stage_e_native_v2/fixtures/run373-v2.json",
+    "certification/stage_e_native_v2/fixtures/run379-template-provenance-v2.json",
+    "certification/stage_e_native_v2/fixtures/run379-templates-v2.json.gz",
+    "certification/stage_e_native_v2/fixtures/run379-v2.json",
+    "certification/stage_e_native_v2/fixtures/run380-template-provenance-v2.json",
+    "certification/stage_e_native_v2/fixtures/run380-templates-v2.json.gz",
+    "certification/stage_e_native_v2/fixtures/run380-v2.json",
+    "certification/stage_e_native_v2/gate-map-v2.json",
+    "certification/stage_e_native_v2/historical-skips-v2.json",
+    "certification/stage_e_native_v2/input-manifest-v2.json",
+    "certification/stage_e_native_v2/isolation.py",
+    "certification/stage_e_native_v2/m1.py",
+    "certification/stage_e_native_v2/material.py",
+    "certification/stage_e_native_v2/native.py",
+    "certification/stage_e_native_v2/observer-contract-v2.json",
+    "certification/stage_e_native_v2/observer.py",
+    "certification/stage_e_native_v2/plan-v2.json",
+    "certification/stage_e_native_v2/refresh_manifest.py",
+    "certification/stage_e_native_v2/restart.py",
+    "certification/stage_e_native_v2/run379.py",
+    "certification/stage_e_native_v2/runner.py",
+    "certification/stage_e_native_v2/test-classifications-v2.json",
+    "certification/stage_e_native_v2/test_driver.py",
+    "certification/stage_e_native_v2/tests/__init__.py",
+    "certification/stage_e_native_v2/tests/test_binding.py",
+    "certification/stage_e_native_v2/tests/test_clocks.py",
+    "certification/stage_e_native_v2/tests/test_contract.py",
+    "certification/stage_e_native_v2/tests/test_m1.py",
+    "certification/stage_e_native_v2/tests/test_native.py",
+    "certification/stage_e_native_v2/tests/test_workflow.py",
+    "certification/stage_e_native_v2/transport.py",
+    "certification/stage_e_native_v2/trial-definition-v2.json",
+    "certification/stage_e_native_v2/verify.py",
+    "certification/stage_e_native_v2/workflow.py",
+    "diagnostics/stage-e-native-v2-successor/README.md",
+    "diagnostics/stage-e-native-v2-successor/checkpoint-1-static.json",
+    "diagnostics/stage-e-native-v2-successor/checkpoint-2-failed-validation-manifest.json",
+    "diagnostics/stage-e-native-v2-successor/checkpoint-2-failed-validation.tar.gz",
+    "diagnostics/stage-e-native-v2-successor/checkpoint-2-static.json",
+    "diagnostics/stage-e-native-v2-successor/checkpoint-2-validation-history.json",
+    "diagnostics/stage-e-native-v2-successor/checkpoints.json",
+    "diagnostics/stage-e-native-v2-successor/component-map.json",
+    "diagnostics/stage-e-native-v2-successor/controlled-input-changes.json",
+    "diagnostics/stage-e-native-v2-successor/dependency-environment-change.json",
+    "diagnostics/stage-e-native-v2-successor/deterministic-allowlist.json",
+    "meme_machine/solana_evidence_plane.py",
+    "meme_machine/solana_evidence_service.py",
+    "meme_machine/solana_maintenance_runtime.py",
+    "tests/test_housekeeping_integration.py"
+  ],
+  "deterministic": {
+    "errors": 0,
+    "expected": 621,
+    "failures": 0,
+    "groups": {
+      "M1_native_prerequisite": {
+        "expected": 1,
+        "outcomes": {
+          "PASS": 1
+        }
+      },
+      "Q2_original_71": {
+        "expected": 71,
+        "outcomes": {
+          "PASS": 71
+        }
+      },
+      "housekeeping": {
+        "expected": 21,
+        "outcomes": {
+          "PASS": 21
+        }
+      },
+      "production_regression": {
+        "expected": 528,
+        "outcomes": {
+          "PASS": 528
+        }
+      }
+    },
+    "passed": 621,
+    "skips": 0
+  },
+  "frozen_integrity": {
+    "passed": true,
+    "tests": 6
+  },
+  "label": "NON-CERTIFIED bounded integration validation",
+  "main_changed": false,
+  "material_executions": 0,
+  "native_aggregate_origins": 191,
+  "native_aggregate_passed": true,
+  "native_cases": [
+    {
+      "case": "preflight",
+      "children": 1,
+      "errors": [],
+      "exit_code": 0,
+      "passed": true,
+      "provider_attempts": [],
+      "runtime_origins": 183
+    },
+    {
+      "case": "clock-contract",
+      "children": 1,
+      "errors": [],
+      "exit_code": 0,
+      "passed": true,
+      "provider_attempts": [],
+      "runtime_origins": 205
+    },
+    {
+      "case": "native-transitions",
+      "children": 1,
+      "errors": [],
+      "exit_code": 0,
+      "passed": true,
+      "provider_attempts": [],
+      "runtime_origins": 211
+    },
+    {
+      "case": "held-reader",
+      "children": 1,
+      "errors": [],
+      "exit_code": 0,
+      "passed": true,
+      "provider_attempts": [],
+      "runtime_origins": 211
+    },
+    {
+      "case": "generation-restart",
+      "children": 1,
+      "errors": [],
+      "exit_code": 0,
+      "passed": true,
+      "provider_attempts": [],
+      "runtime_origins": 212
+    },
+    {
+      "case": "run379-setup",
+      "children": 1,
+      "errors": [],
+      "exit_code": 0,
+      "passed": true,
+      "provider_attempts": [],
+      "runtime_origins": 210
+    },
+    {
+      "case": "m1-completion",
+      "children": 1,
+      "errors": [],
+      "exit_code": 0,
+      "passed": true,
+      "provider_attempts": [],
+      "runtime_origins": 212
+    }
+  ],
+  "next_blocking_task": "Review this exact deterministic integration; full pressure, fresh observer, prepared/canonical qualification and all 46 historical skips remain unearned and require their own authorized exact-source execution.",
+  "observer_measurements": 0,
+  "production_children": {
+    "count": 54,
+    "foreign_dynamic_origins_rejected": true,
+    "provider_attempts": [],
+    "statuses": {
+      "COMPLETE": 53,
+      "EXPECTED_SIGKILL_NO_FINAL_RECEIPT": 1
+    }
+  },
+  "python": "3.12.14",
+  "q2_original": {
+    "errors": 0,
+    "expected": 71,
+    "failures": 0,
+    "passed": 71,
+    "skips": 0
+  },
+  "qualification_credit": false,
+  "registered_loopback_connections": [
+    {
+      "family": 2,
+      "host": "127.0.0.1",
+      "port": 37865,
+      "registered_listener": true,
+      "test": "tests.test_run379_transport_backpressure.TransportBackpressureTests.test_real_protocol_queue_backpressure_drains_without_ping_disconnect"
+    }
+  ],
+  "remote_workflow_runs": 0,
+  "resource": {
+    "admitted_events_per_frame": 100,
+    "db_bytes": 1257472,
+    "decisions": 100,
+    "elapsed_seconds": 11.636,
+    "frames": 2000,
+    "gaps": 20,
+    "journal_rows": 4002,
+    "label": "synthetic bounded intake/rejection workload",
+    "limitation": "temporary filesystem; not continuous-market or physical disk durability proof",
+    "peak_rss_kib": 23248,
+    "real_provider_calls": 0,
+    "seen": 1000,
+    "submitted_events": 240000,
+    "wal_bytes": 642752
+  },
+  "schema_validation": {
+    "children": 7,
+    "parents": 7,
+    "passed": true
+  },
+  "source_bytes": 28935036,
+  "source_files": 1232,
+  "sqlite": "3.53.1",
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "static": {
+    "certification_credit": false,
+    "controlled_q2_changes": [
+      "certification/stage_e_native_v2/dependency-lock-v2.json",
+      "certification/stage_e_native_v2/input-manifest-v2.json"
+    ],
+    "exact_housekeeping_selector": true,
+    "exact_native_housekeeping_batch": true,
+    "exact_scope_loop": true,
+    "expected_tests": 621,
+    "input_identity": {
+      "cohort_version": "native-transition-cohort-v2",
+      "contract_version": "stage-e-native-transition-contract-v2",
+      "evidence_schema": "stage-e-native-transition-evidence-v2",
+      "gate_map_hash": "0da0e7acd8ac56db20cdd0101092400983de30051c611684eab4f7267ea4ecf8",
+      "held_reader_version": "native-contract-held-reader-v2",
+      "input_manifest_hash": "086e74d5bb22804ac2c524ffe18224ede8ad46c3476f3d4b364e84e5c6c7c9b0",
+      "plan_hash": "6c40324250e0870a9207161a0b944d58272922c90bf6fce97c57c2bb3dda16df",
+      "plan_version": "stage-e-native-transition-plan-v2",
+      "schema_version": 3
+    },
+    "m1_completion_ast_unchanged": true,
+    "passed": true,
+    "protected_bytes": [
+      "meme_machine/engine.py",
+      "meme_machine/solana_evidence_control.py",
+      "meme_machine/solana_owner_admission.py",
+      "meme_machine/solana_maintenance_arbiter.py",
+      "meme_machine/solana_maintenance_state.py",
+      "tests/test_m1_maintenance_completion.py",
+      "tests/test_owner_admission_phase2.py",
+      "tests/test_run373_dispatch_throughput.py",
+      "tests/test_run379_production_pressure.py",
+      "tests/test_run380_production_pressure.py",
+      ".github/workflows/stagee-fixed-cohort.yml",
+      "certification/maintenance_qualification_plan.json"
+    ],
+    "q2_original_denominator": 71
+  },
+  "static_tooling": {
+    "PyYAML": "6.0.2",
+    "jsonschema": "4.23.0"
+  },
+  "tested_sha": "3c3a1b8f61071a05a52c6163ccad2c26065c073c",
+  "tested_tree": "6b28c7945277accf50a9446dea6891865463ed7a",
+  "websockets": "17.1"
+}

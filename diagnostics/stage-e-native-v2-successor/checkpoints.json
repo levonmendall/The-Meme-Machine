@@ -89,6 +89,29 @@
       "published_to": "integration/stage-e-native-v2-successor",
       "sha": "430e6ca3a80f7f6dceb7bf03c26a99af1fc2ff7d",
       "tree": "082774aa1c1550c182f6b60a51c2f14da042bd05"
+    },
+    {
+      "certification_credit": false,
+      "changed_files": [
+        "certification/stage_e_integration/bootstrap.py",
+        "certification/stage_e_integration/driver.py",
+        "certification/stage_e_integration/generated.py",
+        "certification/stage_e_integration/guard.py",
+        "certification/stage_e_integration/prepare.py",
+        "certification/stage_e_native_v2/input-manifest-v2.json",
+        "diagnostics/stage-e-native-v2-successor/README.md",
+        "diagnostics/stage-e-native-v2-successor/checkpoint-2-failed-validation-manifest.json",
+        "diagnostics/stage-e-native-v2-successor/checkpoint-2-failed-validation.tar.gz",
+        "diagnostics/stage-e-native-v2-successor/checkpoint-2-validation-history.json",
+        "diagnostics/stage-e-native-v2-successor/checkpoints.json",
+        "meme_machine/solana_evidence_service.py",
+        "meme_machine/solana_maintenance_runtime.py",
+        "tests/test_housekeeping_integration.py"
+      ],
+      "label": "NON-CERTIFIED WIP callback and execution-control refinement",
+      "published_to": "integration/stage-e-native-v2-successor",
+      "sha": "3c3a1b8f61071a05a52c6163ccad2c26065c073c",
+      "tree": "6b28c7945277accf50a9446dea6891865463ed7a"
     }
   ],
   "local_construction_commit": {
