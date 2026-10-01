@@ -23,6 +23,7 @@ diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acce
 +            drawdown=(high_index-current_index)*10_000//high_index
 +            if drawdown >= int(policy.trailing_drawdown_bps):
 +                return "trailing_momentum_exit"
+
 diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_research/pons_selective_continuation.py
 --- a/robinhood_research/pons_selective_continuation.py
 +++ b/robinhood_research/pons_selective_continuation.py
@@ -35,19 +36,37 @@ diff --git a/robinhood_research/pons_selective_continuation.py b/robinhood_resea
 +    tail_arm_bps=10000,
 +    tail_gain_giveback_bps=4000,
 @@
--        current_index=max(1,10_000+current)
--        high_index=max(current_index,10_000+high)
--        drawdown=(high_index-current_index)*10_000//high_index
+ def pregraduation_action(
+@@
+     if partial_taken:
+         current_index=max(1,10_000+current)
+         high_index=max(current_index,10_000+high)
+         drawdown=(high_index-current_index)*10_000//high_index
 -        if drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]:
-+        current_index=max(1,10_000+current)
-+        high_index=max(current_index,10_000+high)
-+        drawdown=(high_index-current_index)*10_000//high_index
++        tail=(high >= EXIT_POLICY["tail_arm_bps"] and
++              current <= high*(10_000-EXIT_POLICY["tail_gain_giveback_bps"])//10_000)
++        ordinary=(high < EXIT_POLICY["tail_arm_bps"] and
++                  drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"])
++        if tail or ordinary:
+             return dict(
+                 action="full_exit",reason="pregraduation_runner_trailing_stop",
+                 exit_tokens=tokens,
+             )
+@@
+ def runner_action(
+@@
+     if partial_taken:
+         current_index=max(1,10_000+current)
+         high_index=max(current_index,10_000+high)
+         drawdown=(high_index-current_index)*10_000//high_index
+-        if drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]:
 +        tail=(high >= EXIT_POLICY["tail_arm_bps"] and
 +              current <= high*(10_000-EXIT_POLICY["tail_gain_giveback_bps"])//10_000)
 +        ordinary=(high < EXIT_POLICY["tail_arm_bps"] and
 +                  drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"])
 +        if tail or ordinary:
              return dict(action="full_exit",reason="runner_trailing_stop",exit_tokens=tokens)
+
 diff --git a/certification/survivor_risk.py b/certification/survivor_risk.py
 --- a/certification/survivor_risk.py
 +++ b/certification/survivor_risk.py
