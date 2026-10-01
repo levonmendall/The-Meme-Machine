@@ -1,0 +1,198 @@
+{
+  "$id": "stage-e-native-transition-evidence-v2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assembly_after": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "assembly_before": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "canonical_authority": {
+      "const": false
+    },
+    "case_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "children": {
+      "type": "array"
+    },
+    "classification": {
+      "enum": [
+        "STATIC",
+        "DETERMINISTIC_BOUNDED"
+      ]
+    },
+    "errors": {
+      "type": "array"
+    },
+    "generation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "assembly_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "assembly_recipe": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "candidate_sha": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "candidate_tree": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "cohort_version": {
+          "const": "native-transition-cohort-v2"
+        },
+        "contract_version": {
+          "const": "stage-e-native-transition-contract-v2"
+        },
+        "environment_identity": {
+          "required": [
+            "python",
+            "python_executable",
+            "python_executable_hash",
+            "sqlite",
+            "platform",
+            "stdlib",
+            "dependency_root",
+            "dependencies"
+          ],
+          "type": "object"
+        },
+        "evidence_schema": {
+          "const": "stage-e-native-transition-evidence-v2"
+        },
+        "expected_trial_matrix": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "gate_map_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "held_reader_version": {
+          "const": "native-contract-held-reader-v2"
+        },
+        "input_manifest_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "plan_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "plan_version": {
+          "const": "stage-e-native-transition-plan-v2"
+        },
+        "repository": {
+          "const": "levonmendall/The-Meme-Machine"
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "workflow_identity": {
+          "properties": {
+            "attempt": {
+              "const": 1
+            }
+          },
+          "required": [
+            "workflow_path",
+            "resolved_workflow_sha",
+            "reusable_workflow_path",
+            "reusable_workflow_sha",
+            "run_id",
+            "attempt",
+            "event",
+            "candidate_sha"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "repository",
+        "candidate_sha",
+        "candidate_tree",
+        "contract_version",
+        "cohort_version",
+        "held_reader_version",
+        "schema_version",
+        "evidence_schema",
+        "plan_version",
+        "plan_hash",
+        "input_manifest_hash",
+        "gate_map_hash",
+        "workflow_identity",
+        "environment_identity",
+        "assembly_recipe",
+        "expected_trial_matrix",
+        "assembly_digest"
+      ],
+      "type": "object"
+    },
+    "market_authority": {
+      "const": false
+    },
+    "paper_only": {
+      "const": true
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "provider_attempts": {
+      "maxItems": 0,
+      "type": "array"
+    },
+    "runtime_origins": {
+      "minItems": 1,
+      "type": "array"
+    },
+    "trial_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "identity",
+    "case_id",
+    "trial_id",
+    "classification",
+    "paper_only",
+    "canonical_authority",
+    "market_authority",
+    "passed",
+    "generation",
+    "payload",
+    "errors",
+    "provider_attempts",
+    "runtime_origins",
+    "assembly_before",
+    "assembly_after",
+    "children"
+  ],
+  "type": "object"
+}
