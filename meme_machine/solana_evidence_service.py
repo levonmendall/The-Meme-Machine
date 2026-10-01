@@ -1159,7 +1159,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                         receive_capacity_waiting,inbound.qsize(),decoded.qsize(),len(ready),
                                                         now-commit_progress,now-decoded_at,
                                                         stop.is_set() or connection_stop.is_set())
-                                                offer=await admission.rendezvous(source_state)
+                                                offer=None
                                                 try:
                                                     batch=[];batch_bytes=0;cursor=next_sequence
                                                     batch_limit=maintenance_batch_limit(pending_frames)
