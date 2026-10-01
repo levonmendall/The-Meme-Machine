@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-right-tail-capture-v1",
-  "status": "PREPARED_ONLY_NOT_ACTIVE",
+  "status": "READY_FOR_POST_STAGE_E_FINAL_SHA_INTEGRATION_NOT_ACTIVE",
   "paper_only": true,
   "live_money_authority": false,
   "prepared_at": "2026-10-01",
@@ -259,5 +259,23 @@
     "staged-winner-scaling-v1 machinery semantics",
     "right-tail-capture-v1 economic calibration",
     "reset-recovery remains separate research unless independently promoted"
-  ]
+  ],
+  "activation_readiness": {
+    "ready": true,
+    "unresolved_economic_decisions": [],
+    "final_sha_regeneration_required": true,
+    "activation_items": [
+      "right_tail_trail",
+      "current_tail_bridge",
+      "staged_winner_scaling"
+    ],
+    "pons_current_coverage": [
+      "pregraduation_action",
+      "postgraduation_runner_action"
+    ],
+    "survivor_coverage": [
+      "pump_survivor",
+      "pons_survivor"
+    ]
+  }
 }
