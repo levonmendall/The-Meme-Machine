@@ -48,6 +48,6 @@
   "astra_decision": "HOUSEKEEPING_ORDERING_REPAIR_APPROVED_FOR_TESTING",
   "evidence_base_sha": "750190b2067ca2fca771b531396d8e06a9351c62",
   "execution_key": "housekeeping-ordering-20261001-v1",
-  "execute": false,
+  "execute": true,
   "stop_for_astra_after_pair": true
 }
