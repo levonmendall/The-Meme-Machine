@@ -7,6 +7,7 @@ from pathlib import Path
 import tempfile
 import traceback
 import unittest
+import websockets
 from unittest.mock import patch
 
 from meme_machine import solana_evidence_service as service
@@ -55,7 +56,7 @@ class M1NativeCompletionTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as td, \
              patch.object(service, 'time', clock), \
-             patch.object(service.websockets, 'connect',
+             patch.object(websockets, 'connect',
                           side_effect=AssertionError('provider_access_forbidden')) as transport:
             def factory():
                 state = service.ServiceState(Path(td) / 'db',
@@ -66,7 +67,7 @@ class M1NativeCompletionTests(unittest.TestCase):
                 ledger_records = []
                 for index in range(1, 129):
                     scope = 'account:' + public_key(index)
-                    ledger_records.extend(replace(row, kind='account', signature=None)
+                    ledger_records.extend(replace(row, kind='account')
                                           for row in rows(clock, scope, 1, tag='ledger'))
                 ingest(state.writer, ledger_records)
                 archived = state.writer.archive(clock.time() - 180)
