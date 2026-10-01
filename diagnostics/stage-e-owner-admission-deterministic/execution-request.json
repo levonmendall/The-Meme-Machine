@@ -7,5 +7,6 @@
   "material_budget_consumed": 6,
   "material_budget_unused": 0,
   "pressure_workloads": false,
-  "m1_repair": false
+  "m1_repair": false,
+  "fixture_revision": 2
 }

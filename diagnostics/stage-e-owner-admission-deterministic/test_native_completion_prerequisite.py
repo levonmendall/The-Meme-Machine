@@ -8,6 +8,7 @@ from pathlib import Path
 import tempfile
 import traceback
 import unittest
+import websockets
 from unittest.mock import patch
 
 from meme_machine import solana_evidence_service as service
@@ -56,7 +57,7 @@ class NativeCompletionPrerequisiteTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as td, \
              patch.object(service, 'time', clock), \
-             patch.object(service.websockets, 'connect',
+             patch.object(websockets, 'connect',
                           side_effect=AssertionError('provider_access_forbidden')) as transport:
             def factory():
                 state = service.ServiceState(Path(td) / 'db',
