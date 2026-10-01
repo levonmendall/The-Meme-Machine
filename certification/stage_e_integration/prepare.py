@@ -56,9 +56,10 @@ def main():
         assembly=str(output / 'assembly'), assembly_digest=manifest['assembly_digest'],
         output=str(output / 'deterministic'),
         allowlist_sha256=sha256((source / 'diagnostics/stage-e-native-v2-successor/deterministic-allowlist.json').read_bytes()),
+        supplemental_allowlist_sha256=sha256((source / 'diagnostics/stage-e-integration-successor/deterministic-supplement.json').read_bytes()),
         crash_literal_sha256=sha256(literal.encode()), tooling_files=tooling_files(source),
         native_batch_limit_code_sha256=code_identity(derivative),
-        expected_tests=621, q2_original_denominator=71, attempt=1,
+        expected_tests=621, q2_original_denominator=71, expected_supplemental_tests=4, attempt=1,
         qualification_credit=False, certification_credit=False,
         material_executions=0, observer_measurements=0)
     (output / 'deterministic').mkdir()

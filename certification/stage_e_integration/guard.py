@@ -191,6 +191,11 @@ class Guard:
                 if any(a in command for a in ('clone', 'fetch', 'push', 'pull', 'ls-remote')):
                     raise PermissionError('integration_git_network_not_authorized')
                 return original_popen(args, *positional, **kwargs)
+            if command == [sys.executable, '-I', '-S', self.bootstrap, '--resource']:
+                kwargs['env'] = dict(os.environ)
+                process = original_popen(command, *positional, **kwargs)
+                self.register(process.pid, 'bounded_resource', expected_exit=0)
+                return process
             if (len(command) == 5 and command[:2] == [sys.executable, '-c'] and
                     hashlib.sha256(command[2].encode()).hexdigest() == self.declaration['crash_literal_sha256'] and
                     command[4] in ('before_commit', 'after_commit')):

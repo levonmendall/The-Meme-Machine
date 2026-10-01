@@ -1,0 +1,38 @@
+{
+  "certification_credit": false,
+  "expected_tests": 4,
+  "historical_q2_denominator": 71,
+  "original_combined_allowlist_denominator": 621,
+  "report_separately": true,
+  "operations": {
+    "resource": {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "bound": "existing resource_check: 2000 synthetic intake/rejection frames; no physical capacity claim"
+    }
+  },
+  "required_skips_policy": "FAIL",
+  "tests": {
+    "certification.stage_e_integration.successor_checks.SuccessorChecks.test_component_semantic_ast_and_frozen_identity_equivalence": {
+      "classification": "STATIC",
+      "group": "INTEGRATION_ONLY",
+      "bound": "AST and exact-byte comparisons to durable component references; strict observer contract and exact 46-skip mapping only; no workload"
+    },
+    "certification.stage_e_integration.successor_checks.SuccessorChecks.test_housekeeping_committed_prefix_lease_expiry_preserves_units_without_service": {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "group": "INTEGRATION_ONLY",
+      "bound": "one actual 2000-record native fixture, one admitted retirement prefix, explicit modeled lease expiry; no pressure measurement"
+    },
+    "certification.stage_e_integration.successor_checks.SuccessorChecks.test_housekeeping_restart_restores_committed_progress_without_duplicate_credit": {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "group": "INTEGRATION_ONLY",
+      "bound": "one actual 2000-record native fixture, one prefix, one close/reopen and one bounded retirement continuation"
+    },
+    "certification.stage_e_integration.successor_checks.SuccessorChecks.test_receipt74_old_fails_new_passes_archive_peer_feasibility": {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "group": "INTEGRATION_ONLY",
+      "bound": "two independent actual 2000-record native fixtures; one ordinary/control or integrated retirement each; native needs only; feasibility assertion without archive selection"
+    }
+  },
+  "unknown_policy": "FAIL_CLOSED_DO_NOT_RUN",
+  "version": "stage-e-integration-successor-supplement-v1"
+}

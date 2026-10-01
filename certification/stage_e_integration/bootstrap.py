@@ -119,6 +119,16 @@ def main():
             guard.child_begin('crash_before_after_commit')
             sys.argv[:] = [sys.argv[0], *sys.argv[2:]]
             crash()
+        elif len(sys.argv) > 1 and sys.argv[1] == '--resource':
+            from tests.resource_check import main as resource
+            guard.child_begin('bounded_resource')
+            code = 1
+            try:
+                resource()
+                code = 0
+                return 0
+            finally:
+                guard.child_finish(code)
         else:
             from certification.stage_e_integration.driver import main as run
             return run(guard)

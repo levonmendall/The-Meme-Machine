@@ -2,8 +2,11 @@
 from collections import Counter
 import importlib.util
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
+import threading
 import unittest
 
 from certification.stage_e_native_v2.contract import canonical, read, sha256
@@ -109,6 +112,17 @@ def main(guard):
     if sha256(allow_path.read_bytes()) != declaration['allowlist_sha256']:
         raise ValueError('allowlist_predeclaration_changed')
     allow = read(allow_path)
+    supplemental_path = guard.source / 'diagnostics/stage-e-integration-successor/deterministic-supplement.json'
+    if sha256(supplemental_path.read_bytes()) != declaration['supplemental_allowlist_sha256']:
+        raise ValueError('supplemental_allowlist_predeclaration_changed')
+    supplemental = read(supplemental_path)
+    for listing in (allow, supplemental):
+        if any(info['classification'] not in ('STATIC', 'DETERMINISTIC_BOUNDED')
+                for info in listing['tests'].values()):
+            raise PermissionError('unknown_or_material_test_classification')
+    if supplemental['operations'] != {'resource': {'classification': 'DETERMINISTIC_BOUNDED',
+            'bound': 'existing resource_check: 2000 synthetic intake/rejection frames; no physical capacity claim'}}:
+        raise PermissionError('unknown_or_material_supplemental_operation')
     spec = importlib.util.spec_from_file_location('stage_e_m1_prerequisite',
         guard.source / 'diagnostics/stage-e-owner-admission-phase2/native_completion_prerequisite.py')
     module = importlib.util.module_from_spec(spec)
@@ -120,10 +134,19 @@ def main(guard):
         raise ValueError('explicit_test_identity_or_denominator_changed')
     if set(identities) & set(allow['excluded_tests']):
         raise PermissionError('pressure_test_in_allowlist')
+    supplemental_ids = list(supplemental['tests'])
+    supplemental_loaded = [test for identity in supplemental_ids
+        for test in flatten(unittest.defaultTestLoader.loadTestsFromName(identity))]
+    if ([test.id() for test in supplemental_loaded] != supplemental_ids or
+            len(supplemental_loaded) != declaration['expected_supplemental_tests'] or
+            len(supplemental_loaded) != supplemental['expected_tests'] or
+            set(supplemental_ids) & (set(identities) | set(allow['excluded_tests']))):
+        raise ValueError('supplemental_test_identity_or_denominator_changed')
     q2 = read(guard.source / 'certification/stage_e_native_v2/test-classifications-v2.json')['tests']
     if {test for test in identities if allow['tests'][test]['group'] == 'Q2_original_71'} != set(q2):
         raise ValueError('original_q2_denominator_changed')
     (output / 'classification-before-execution.json').write_bytes(canonical(allow))
+    (output / 'supplemental-classification-before-execution.json').write_bytes(canonical(supplemental))
     row = dict(candidate_sha=declaration['candidate_sha'], candidate_tree=declaration['candidate_tree'],
         assembly_digest=declaration['assembly_digest'], predeclaration_sha256=sha256(canonical(declaration)),
         assembly_before=declaration['assembly_digest'], assembly_after=None,
@@ -134,9 +157,30 @@ def main(guard):
         with (output / 'tests.log').open('w') as log:
             result = unittest.TextTestRunner(stream=log, verbosity=2,
                 resultclass=lambda *args, **kwargs: Results(guard, *args, **kwargs)).run(unittest.TestSuite(loaded))
+        with (output / 'supplemental-tests.log').open('w') as log:
+            extra = unittest.TextTestRunner(stream=log, verbosity=2,
+                resultclass=lambda *args, **kwargs: Results(guard, *args, **kwargs)).run(unittest.TestSuite(supplemental_loaded))
+        from certification.stage_e_integration.successor_checks import WITNESSES
+        row['supplemental'] = dict(tests_run=extra.testsRun, expected=len(supplemental_ids),
+            outcomes=extra.outcomes, failures=[dict(test=t.id(), traceback=trace) for t, trace in extra.failures],
+            errors=[dict(test=t.id(), traceback=trace) for t, trace in extra.errors],
+            skips=[dict(test=t.id(), reason=reason) for t, reason in extra.skipped], witnesses=WITNESSES,
+            passed=extra.wasSuccessful() and not extra.skipped and extra.testsRun == len(supplemental_ids)
+                and set(extra.outcomes) == set(supplemental_ids)
+                and all(value == 'PASS' for value in extra.outcomes.values()))
+        resource = subprocess.run([sys.executable, '-I', '-S', guard.bootstrap, '--resource'],
+            cwd=guard.source, env=dict(os.environ), text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        (output / 'resource-process.log').write_text(resource.stdout)
+        row['resource'] = dict(passed=resource.returncode == 0, exit_code=resource.returncode,
+            result=json.loads(resource.stdout) if resource.returncode == 0 else None,
+            classification='DETERMINISTIC_BOUNDED')
         # All production pools have shut down before stopping their tracker.
         from multiprocessing.resource_tracker import _resource_tracker
         _resource_tracker._stop()
+        row['live_owner_threads'] = [dict(name=t.name, ident=t.ident)
+            for t in threading.enumerate() if t.name == 'solana-evidence-owner']
+        if row['live_owner_threads']:
+            raise ValueError('abandoned_production_owner_thread')
         row.update(tests_run=result.testsRun, outcomes=result.outcomes,
             failures=[dict(test=t.id(), traceback=trace) for t, trace in result.failures],
             test_errors=[dict(test=t.id(), traceback=trace) for t, trace in result.errors],
@@ -151,6 +195,7 @@ def main(guard):
         row['provider_attempts'] = list(guard.attempts)
         row['registered_loopback_connections'] = list(guard.loopback_connections)
         row['passed'] = (result.wasSuccessful() and not result.skipped and not guard.attempts and
+            row['supplemental']['passed'] and row['resource']['passed'] and
             result.testsRun == len(identities) and set(result.outcomes) == set(identities) and
             all(value == 'PASS' for value in result.outcomes.values()))
     except BaseException as exc:
