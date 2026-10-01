@@ -476,7 +476,7 @@ async def placement(treatment, *, initial=.57, frames=1):
                 return execute
 
             for i in range(2):
-                previous=owner.submit(source_fn(2_000_010+i,label='prefix_'+str(i)),priority=2)
+                previous=owner.submit(source_fn(2_000_001+i,label='prefix_'+str(i)),priority=2)
                 futures.append(previous);gate.source_accepted(previous,None,1)
                 await asyncio.wrap_future(previous)
             await settled(lambda:not owner._checkpoint_busy)
@@ -498,7 +498,7 @@ async def placement(treatment, *, initial=.57, frames=1):
                 offer=await gate.before_maintenance()
                 clock.advance(.010)
             else:
-                source=owner.submit(source_fn(2_000_012,frames),priority=2)
+                source=owner.submit(source_fn(2_000_003,frames),priority=2)
                 futures.append(source);gate.source_accepted(source,None,frames)
                 await asyncio.wrap_future(source)
 
@@ -521,7 +521,7 @@ async def placement(treatment, *, initial=.57, frames=1):
             futures.append(maintenance);gate.accepted(maintenance,offer)
             if treatment:
                 self_offer=await waiting
-                source=owner.submit(source_fn(2_000_012),priority=2)
+                source=owner.submit(source_fn(2_000_003,frames),priority=2)
                 futures.append(source);gate.source_accepted(source,self_offer,frames)
                 source_queued.set()
             result=await asyncio.wrap_future(maintenance)
@@ -604,8 +604,13 @@ class NativeGateTests(unittest.IsolatedAsyncioTestCase):
         clock=Clock();box={};futures=[];native_rows=[]
         if fault=='refusal':clock.advance(.5)
         with tempfile.TemporaryDirectory() as td,patch.object(service,'time',clock):
+            class State(service.ServiceState):
+                def archive_commit_slice_and_plan(self,plan,receipt):
+                    if fault=='exception':raise OSError('maintenance_fault')
+                    if fault=='yield':raise EvidenceUnavailable('evidence_background_yield')
+                    return super().archive_commit_slice_and_plan(plan,receipt)
             def factory():
-                state=service.ServiceState(Path(td)/'db',AlchemyEndpoint.parse(ENDPOINT))
+                state=State(Path(td)/'db',AlchemyEndpoint.parse(ENDPOINT))
                 state.writer.clock=clock.time
                 for scope in scopes:
                     ingest(state.writer,rows(clock,scope,retired,start=100,tag='retired',same_slot=True))
@@ -656,8 +661,6 @@ class NativeGateTests(unittest.IsolatedAsyncioTestCase):
                     def execute(state):
                         gate.entry(offer)
                         try:
-                            if fault=='exception':raise OSError('maintenance_fault')
-                            if fault=='yield':raise EvidenceUnavailable('evidence_background_yield')
                             result=runtime.turn(flight,submitted)
                         except BaseException as exc:
                             gate.completed(offer,error=exc,event=runtime.ring[-1] if runtime.ring else None)
