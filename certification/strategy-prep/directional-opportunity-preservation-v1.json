@@ -137,13 +137,29 @@
     "directional-opportunity-preservation-v1"
   ],
   "promotion_requirements": [
-    "Do not compose into the active Stage E/F/G exact-candidate lineage.",
-    "After Stage E/F/G machinery is complete, implement this requirement against the exact final machinery SHA rather than patching the active certification candidate.",
-    "Regenerate affected policy/runtime identities only where implementation bytes require it; do not change strategy thresholds as part of this work.",
-    "Run deterministic Pump and Pons Current-to-Survivor continuity tests, including restart/replay and shared-sleeve conflict cases.",
-    "Run reject-telemetry schema, gate-distance, MFE/MAE, and no-decision-authority tests.",
-    "Run provider-call accounting to prove reject capture adds no decision-critical provider work.",
+    "Do not compose into the active Stage-E exact-candidate lineage.",
+    "After Stage E is genuinely complete, implement against the exact final machinery SHA using the frozen implementation contract.",
+    "Regenerate affected runtime/policy identities only where implementation bytes require it; this layer does not change entry/exit thresholds.",
+    "Run Current-to-Survivor continuity, restart/replay, same-asset conflict, reject-receipt, MFE/MAE and provider-accounting tests.",
     "Run exact-SHA non-market certification of the fully composed PAPER candidate before any market smoke.",
-    "Start a fresh affected-lane profitability cohort if implementation changes economic behavior; pure observation-only telemetry by itself must not be treated as an economic-policy change."
-  ]
+    "Telemetry-only observation does not itself reset economics, but any implementation behavior that changes opportunity availability or economic exposure must be included in the fresh Pump/Pons cohort."
+  ],
+  "status": "READY_FOR_POST_STAGE_E_FINAL_SHA_INTEGRATION_NOT_ACTIVE",
+  "implementation_contract": "docs/DIRECTIONAL_OPPORTUNITY_PRESERVATION_V1_IMPLEMENTATION_CONTRACT.md",
+  "implementation_resolution": {
+    "canonical_opportunity_identity_frozen": true,
+    "current_reject_receipt_schema_frozen": true,
+    "survivor_discovery_independent_of_current": true,
+    "same_asset_observation_allowed_while_current_exposure_open": true,
+    "same_asset_survivor_fill_blocked_while_current_exposure_open": true,
+    "outcome_windows": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "24h"
+    ],
+    "decision_critical_research_provider_calls_allowed": false,
+    "unresolved_policy_or_behavior_decisions": []
+  }
 }
