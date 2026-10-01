@@ -1,0 +1,49 @@
+{
+  "schema": "meme-machine-pons-reset-recovery-shadow-v2",
+  "status": "FROZEN_FOR_PROSPECTIVE_SHADOW_VALIDATION",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "paper_only": true,
+  "allocation_authority": false,
+  "live_money_authority": false,
+  "supersedes_for_pons_reset": "research/public-market-7d-20261001/provisional-shadow-parameters.json",
+  "market_path": {
+    "minimum_drawdown_bps": 1000,
+    "minimum_recovery_from_trough_bps": 1250,
+    "maximum_recovery_from_trough_bps": 2000,
+    "trailing_high_lookback_observations": 9,
+    "stabilization_gap_observations": 3,
+    "additional_local_breakout_required": false,
+    "maximum_entry_above_preflush_high_bps": 500
+  },
+  "provisional_shadow_exit": {
+    "hard_stop_bps": -750,
+    "take_profit_bps": 1500,
+    "maximum_hold_seconds": 21600,
+    "note": "Sampled-price shadow exit candidate only; native point-in-time exit machinery must independently validate before any allocation."
+  },
+  "mandatory_non_price_gates": [
+    "canonical Pons graduation/venue lineage",
+    "authoritative/fresh evidence and generation",
+    "retained executable liquidity and exit depth",
+    "hard concentration safety",
+    "creator/distribution safety",
+    "selling exhaustion",
+    "independent buyer breadth/demand recovery",
+    "turnover/depth capacity",
+    "1x/2x after-cost execution stress",
+    "fill-time freshness/breadth retention",
+    "shared-sleeve conflict fencing"
+  ],
+  "no_trade_authority": true,
+  "sizing": {
+    "capital_target_bps": null,
+    "note": "No allocation or size is frozen by this research. If later promoted, sizing must use the certified shared-sleeve realized-equity authority."
+  },
+  "staged_scaling_disposition": {
+    "status": "DEPRIORITIZED_OBSERVATION_ONLY",
+    "best_price_path_observation_strength_bps": 1250,
+    "economic_add_size_bps": null,
+    "maximum_total_position_bps": null,
+    "reason": "Reset-only opportunity is stronger and scaling remains parameter-sensitive/current-edge modest."
+  }
+}

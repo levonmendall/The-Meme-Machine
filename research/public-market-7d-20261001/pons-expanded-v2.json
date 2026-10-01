@@ -1,0 +1,307 @@
+{
+  "schema": "meme-machine-pons-expanded-public-market-research-v2",
+  "status": "COMPLETE_PONS_EXPANDED_RESEARCH",
+  "paper_only": true,
+  "allocation_authority": false,
+  "live_money_authority": false,
+  "prepared_at": "2026-10-01",
+  "source_policy": {
+    "public_market_data_only": true,
+    "meme_machine_market_or_trade_data_used": false,
+    "private_provider_data_used": false,
+    "source": "CoinGecko public 7-day market charts plus current Pons V2 DEX market listing",
+    "primary_resolution_minutes_approx": 85
+  },
+  "cohorts": {
+    "established_full_history": [
+      "bundle-cat",
+      "orbio-so",
+      "zzz-2",
+      "harmonic-agent",
+      "priors-agent",
+      "novaai",
+      "manyways-inference",
+      "agent-wormhole",
+      "cerebro-2",
+      "darkwoods",
+      "robincat"
+    ],
+    "development": "2026-09-24T20:00Z through 2026-09-28T20:00Z",
+    "holdout": "2026-09-28T20:00Z through 2026-10-01T19:37Z",
+    "current_short_history": [
+      "scrooge-2",
+      "hyperdex",
+      "oyster",
+      "dots-swarm",
+      "cashed-money",
+      "commander-vrax-2"
+    ],
+    "note": "Short-history current listings were excluded from parameter selection and used only as an additional stress set."
+  },
+  "current_market_context": {
+    "pons_v2_current_coin_count_observed": 305,
+    "sample_focus": "Pons-native/meme/agent launchpad names; tokenized equities excluded",
+    "current_spread_context_pct_approx": 0.6,
+    "execution_note": "Current displayed +2/-2% depths are generally orders of magnitude larger than the initial ~$6.25 directional target on top active pairs, but this is not historical execution proof."
+  },
+  "staged_scaling": {
+    "broad_sweep": {
+      "strength_pct": [
+        3.5,
+        5,
+        7.5,
+        10,
+        12.5,
+        15
+      ],
+      "recent_high_lookback_observations": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "recent_low_lookback_observations": [
+        2,
+        3,
+        5
+      ],
+      "confirmation_bars": [
+        1,
+        2
+      ],
+      "maximum_breakout_extension_pct": [
+        5,
+        10,
+        20
+      ],
+      "forward_hours": [
+        3,
+        6,
+        12
+      ],
+      "eligible_parameterizations": 1122,
+      "robust_across_development_holdout_current": 2
+    },
+    "best_observation_candidate": {
+      "strength_pct": 12.5,
+      "high_lookback_observations": 3,
+      "low_lookback_observations": 5,
+      "confirmation_bars": 1,
+      "maximum_breakout_extension_pct": 10,
+      "forward_hours": 3,
+      "development": {
+        "events": 39,
+        "assets": 10,
+        "asset_mean_return_pct": 2.3,
+        "leave_one_asset_out_min_pct": 0.77
+      },
+      "holdout": {
+        "events": 28,
+        "assets": 9,
+        "asset_mean_return_pct": 3.67,
+        "leave_one_asset_out_min_pct": 2.01
+      },
+      "current_short_history": {
+        "events": 19,
+        "assets": 4,
+        "asset_mean_return_pct": 1.22,
+        "leave_one_asset_out_min_pct": 0.82
+      }
+    },
+    "overlap_with_reset": {
+      "established_holdout_reset_only_event_mean_pct": 5.76,
+      "established_holdout_scale_only_event_mean_pct": 2.37,
+      "current_reset_only_event_mean_pct": 5.07,
+      "current_scale_only_event_mean_pct": 1.28,
+      "interpretation": "Reset-recovery remains economically distinct and stronger; scaling-only events contribute much less."
+    },
+    "conclusion": "DEPRIORITIZE_STAGED_SCALING_KEEP_OBSERVATION_ONLY",
+    "reason": "Only 2 of 1122 eligible parameterizations survived all three samples, and current-market expected edge is modest."
+  },
+  "reset_recovery": {
+    "broad_sweep": {
+      "drawdown_pct": [
+        7.5,
+        10,
+        12.5,
+        15,
+        17.5,
+        20
+      ],
+      "recovery_pct": [
+        5,
+        7.5,
+        10,
+        12.5,
+        15
+      ],
+      "trailing_high_lookback_observations": [
+        4,
+        6,
+        9
+      ],
+      "stabilization_gap_observations": [
+        1,
+        2,
+        3
+      ],
+      "extra_breakout_lookback_observations": [
+        0,
+        2,
+        3
+      ],
+      "forward_hours": [
+        3,
+        6,
+        12
+      ],
+      "eligible_parameterizations": 2391,
+      "robust_across_development_holdout_current": 5
+    },
+    "robust_ridge": {
+      "shared_shape": {
+        "minimum_recovery_pct": 12.5,
+        "trailing_high_lookback_observations": 9,
+        "stabilization_gap_observations": 3,
+        "extra_breakout_required": false,
+        "short_continuation_hours": 3
+      },
+      "drawdown_floor_robust_range_pct": [
+        7.5,
+        20
+      ],
+      "interpretation": "Recovery confirmation and stabilization matter more than exact drawdown depth."
+    },
+    "central_candidate_before_exit_optimization": {
+      "minimum_drawdown_pct": 15,
+      "minimum_recovery_pct": 12.5,
+      "development_asset_mean_pct": 1.36,
+      "holdout_asset_mean_pct": 6.55,
+      "current_asset_mean_pct": 2.29
+    },
+    "entry_exit_sweep": {
+      "minimum_drawdown_pct": [
+        10,
+        12.5,
+        15,
+        17.5,
+        20
+      ],
+      "recovery_min_pct": [
+        10,
+        12.5,
+        15
+      ],
+      "recovery_max_pct": [
+        15,
+        20,
+        25,
+        30,
+        40,
+        "uncapped"
+      ],
+      "max_above_preflush_high_pct": [
+        0,
+        5,
+        10,
+        "uncapped"
+      ],
+      "stop_pct": [
+        -5,
+        -7.5,
+        -10,
+        -12.5
+      ],
+      "take_profit_pct": [
+        5,
+        7.5,
+        10,
+        15
+      ],
+      "max_hold_hours": [
+        3,
+        6,
+        12
+      ],
+      "eligible_parameterizations": 14928,
+      "robust_after_1pct_stress_across_all_three_samples": 7
+    },
+    "best_shadow_candidate": {
+      "minimum_drawdown_pct": 10,
+      "minimum_recovery_pct": 12.5,
+      "maximum_recovery_pct": 20,
+      "trailing_high_lookback_observations": 9,
+      "stabilization_gap_observations": 3,
+      "extra_breakout_required": false,
+      "maximum_entry_above_preflush_high_pct": 5,
+      "stop_pct": -7.5,
+      "take_profit_pct": 15,
+      "maximum_hold_hours": 6,
+      "development": {
+        "events": 26,
+        "assets": 10,
+        "asset_mean_return_pct": 2.4,
+        "after_1pct_stress_asset_mean_pct": 1.4,
+        "after_2pct_stress_asset_mean_pct": 0.4,
+        "leave_one_asset_out_min_pct": 1.61,
+        "positive_asset_fraction": 0.6,
+        "take_profit_rate": 0.23,
+        "stop_rate": 0.35
+      },
+      "holdout": {
+        "events": 16,
+        "assets": 8,
+        "asset_mean_return_pct": 2.95,
+        "after_1pct_stress_asset_mean_pct": 1.95,
+        "after_2pct_stress_asset_mean_pct": 0.95,
+        "leave_one_asset_out_min_pct": 1.23,
+        "positive_asset_fraction": 0.63,
+        "take_profit_rate": 0.31,
+        "stop_rate": 0.19
+      },
+      "current_short_history": {
+        "events": 19,
+        "assets": 4,
+        "event_weighted_mean_return_pct": 1.17,
+        "asset_mean_return_pct": 2.93,
+        "after_1pct_stress_asset_mean_pct": 1.93,
+        "after_2pct_stress_asset_mean_pct": 0.93,
+        "leave_one_asset_out_min_pct": 1.26,
+        "positive_asset_fraction": 0.75,
+        "take_profit_rate": 0.32,
+        "stop_rate": 0.53,
+        "caution": "Event-weighted current mean is only ~1.17% gross; structural/execution gates are therefore essential before allocation."
+      }
+    },
+    "overextension_result": {
+      "robust_recovery_cap": "20%",
+      "finding": "All seven robust entry/exit configurations capped recovery at 20%; 25%+ or uncapped recovery produced zero robust configurations.",
+      "interpretation": "The opportunity is recovery continuation before late overextension, not chasing an already completed rebound."
+    },
+    "hold_period_result": {
+      "robust_hold_hours": 6,
+      "finding": "All seven robust entry/exit configurations used a 6-hour max hold; 3h and 12h produced zero configurations robust after the 1% stress requirement."
+    },
+    "prior_trend_filter_result": {
+      "frozen": false,
+      "finding": "A prior-24h return floor near -20% slightly improved current stress but reduced development breadth/edge; it is not stable enough to become a gate.",
+      "telemetry_recommended": true
+    },
+    "conclusion": "PROMOTE_TO_FROZEN_PONS_RESET_RECOVERY_SHADOW_V2_NO_ALLOCATION"
+  },
+  "research_decision": {
+    "primary_pons_opportunity": "reset-recovery",
+    "staged_scaling": "observation-only; no economic parameters or add size promoted",
+    "reset_recovery": "freeze v2 shadow entry/exit shape for prospective PAPER observer validation",
+    "allocation_authority": false,
+    "active_strategy_change": false,
+    "stage_e_change": false
+  },
+  "limitations": [
+    "Public chart data is sampled rather than transaction-level OHLC/tick execution.",
+    "Current pair spread/depth does not prove historical executable price.",
+    "No buyer breadth, concentration, creator/distribution, wallet-quality or exact quote/slippage history is included.",
+    "Large parameter sweeps create selection risk; prospective shadow validation is still required.",
+    "Current-short-history cohort is small and intentionally used only as stress, not fitting data."
+  ]
+}
