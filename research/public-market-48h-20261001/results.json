@@ -1,0 +1,346 @@
+{
+  "schema": "meme-machine-public-market-48h-scaling-reset-research-v1",
+  "status": "COMPLETE_MARKET_RESEARCH_NO_PROMOTION",
+  "paper_only": true,
+  "allocation_authority": false,
+  "live_money_authority": false,
+  "research_completed_at": "2026-10-01T19:05:00Z",
+  "market_window": {
+    "approximate_start": "2026-09-29T19:04:50Z",
+    "end": "2026-10-01T19:04:50Z",
+    "development": "first 24 hours",
+    "holdout": "second 24 hours",
+    "chart_source": "CoinGecko public market data",
+    "chart_request": "7-day market chart, analysis restricted to final 48 hours",
+    "chart_resolution": "approximately 85-minute downsampled price observations",
+    "current_volume_source": "CoinGecko current 24-hour volume at research time"
+  },
+  "data_policy": {
+    "public_market_data_only": true,
+    "meme_machine_runtime_evidence_used": false,
+    "meme_machine_historical_trade_evidence_used": false,
+    "meme_machine_rejected_winner_evidence_used": false,
+    "alchemy_or_private_provider_data_used": false,
+    "internal_candidate_or_fill_data_used": false,
+    "note": "Repository strategy-prep contracts define the hypotheses being researched, but no Meme Machine market/trade/evidence records are inputs to results."
+  },
+  "sample": {
+    "total_assets": 14,
+    "pump_public_market_assets": [
+      "fartcoin",
+      "pippin",
+      "the-black-bull",
+      "stonks-park",
+      "yippee",
+      "hypurrclaw"
+    ],
+    "pons_robinhood_public_market_assets": [
+      "pons",
+      "bundle-cat",
+      "orbio-so",
+      "ubik",
+      "thinking-cat",
+      "longbow-2",
+      "mushroom-2",
+      "zzz-2"
+    ],
+    "sampling_notes": [
+      "Pump sample uses publicly listed Pump.fun ecosystem assets.",
+      "Pons/Robinhood sample uses publicly listed Robinhood/Pons-adjacent assets visible in public market/launchpad indexing.",
+      "This is a listed/survivor sample, not a census of all launches.",
+      "Public listing association is sampling context, not canonical on-chain lineage proof."
+    ]
+  },
+  "observed_48h_paths": [
+    {
+      "id": "fartcoin",
+      "family": "pump",
+      "return_pct": -2.3,
+      "max_drawdown_pct": 5.7,
+      "volume24_usd": 32185797
+    },
+    {
+      "id": "pippin",
+      "family": "pump",
+      "return_pct": 3.1,
+      "max_drawdown_pct": 4.1,
+      "volume24_usd": 1887154
+    },
+    {
+      "id": "the-black-bull",
+      "family": "pump",
+      "return_pct": 6.6,
+      "max_drawdown_pct": 8.9,
+      "volume24_usd": 3891670
+    },
+    {
+      "id": "stonks-park",
+      "family": "pump",
+      "return_pct": 34.8,
+      "max_drawdown_pct": 41.9,
+      "volume24_usd": 74828
+    },
+    {
+      "id": "yippee",
+      "family": "pump",
+      "return_pct": -28.6,
+      "max_drawdown_pct": 41.4,
+      "volume24_usd": 8677
+    },
+    {
+      "id": "hypurrclaw",
+      "family": "pump",
+      "return_pct": 15.8,
+      "max_drawdown_pct": 22.7,
+      "volume24_usd": 2187
+    },
+    {
+      "id": "pons",
+      "family": "pons",
+      "return_pct": -1.2,
+      "max_drawdown_pct": 8.3,
+      "volume24_usd": 34534141
+    },
+    {
+      "id": "bundle-cat",
+      "family": "pons",
+      "return_pct": -21.2,
+      "max_drawdown_pct": 30.4,
+      "volume24_usd": 2202979
+    },
+    {
+      "id": "orbio-so",
+      "family": "pons",
+      "return_pct": 15.1,
+      "max_drawdown_pct": 20,
+      "volume24_usd": 14107452
+    },
+    {
+      "id": "ubik",
+      "family": "pons",
+      "return_pct": 13.2,
+      "max_drawdown_pct": 18.5,
+      "volume24_usd": 2316669
+    },
+    {
+      "id": "thinking-cat",
+      "family": "pons",
+      "return_pct": 32.3,
+      "max_drawdown_pct": 10.7,
+      "volume24_usd": 1880952
+    },
+    {
+      "id": "longbow-2",
+      "family": "pons",
+      "return_pct": -26,
+      "max_drawdown_pct": 31.1,
+      "volume24_usd": 551037
+    },
+    {
+      "id": "mushroom-2",
+      "family": "pons",
+      "return_pct": -43.9,
+      "max_drawdown_pct": 45.8,
+      "volume24_usd": 1719640
+    },
+    {
+      "id": "zzz-2",
+      "family": "pons",
+      "return_pct": -11.5,
+      "max_drawdown_pct": 22.2,
+      "volume24_usd": 2753128
+    }
+  ],
+  "methodology": {
+    "staged_scaling": {
+      "purpose": "Test whether adding only after confirmed price strength has positive subsequent market-path behavior.",
+      "proxy_signal": "price exceeds recent local high after gaining at least trigger percent from the rolling roughly-six-hour low",
+      "trigger_sweep_pct": [
+        5,
+        10,
+        15,
+        20
+      ],
+      "minimum_spacing_hours": 6,
+      "forward_measurement_hours": 12,
+      "caveat": "This is a price-path proxy, not a recreation of actual Current/Survivor qualification."
+    },
+    "reset_recovery": {
+      "purpose": "Test whether a material flush followed by confirmed recovery creates positive subsequent market-path behavior.",
+      "drawdown_sweep_pct": [
+        15,
+        20,
+        25,
+        30,
+        35
+      ],
+      "recovery_sweep_pct": [
+        5,
+        10,
+        15
+      ],
+      "trailing_high_window_approx_hours": 12,
+      "trough_must_precede_trigger_by_at_least_two_observations": true,
+      "minimum_spacing_hours": 8,
+      "forward_measurement_hours": 12,
+      "caveat": "No buyer breadth, concentration, creator, executable depth or exact VWAP evidence is available in this public price-only study."
+    }
+  },
+  "staged_scaling": {
+    "development_sweep": [
+      {
+        "trigger_pct": 5,
+        "n": 15,
+        "mean_forward_return_pct": 0.9,
+        "median_forward_return_pct": -0.61,
+        "win_rate": 0.467,
+        "median_mae_pct": -3.18
+      },
+      {
+        "trigger_pct": 10,
+        "n": 5,
+        "mean_forward_return_pct": 5.07,
+        "median_forward_return_pct": 8.41,
+        "win_rate": 0.6,
+        "median_mae_pct": -4.9,
+        "pump": {
+          "n": 3,
+          "mean_forward_return_pct": 12.03,
+          "win_rate": 1
+        },
+        "pons": {
+          "n": 2,
+          "mean_forward_return_pct": -5.36,
+          "win_rate": 0
+        }
+      },
+      {
+        "trigger_pct": 15,
+        "n": 4,
+        "mean_forward_return_pct": 4.77,
+        "median_forward_return_pct": 6.48,
+        "win_rate": 0.75,
+        "median_mae_pct": -1.89
+      },
+      {
+        "trigger_pct": 20,
+        "n": 4,
+        "mean_forward_return_pct": 4.77,
+        "median_forward_return_pct": 6.48,
+        "win_rate": 0.75,
+        "median_mae_pct": -1.89
+      }
+    ],
+    "development_selected_proxy_trigger_pct": 10,
+    "holdout": {
+      "n": 9,
+      "mean_forward_return_pct": -1.75,
+      "median_forward_return_pct": 0.42,
+      "win_rate": 0.556,
+      "median_mae_pct": -4.45,
+      "pump": {
+        "n": 2,
+        "mean_forward_return_pct": -2.69,
+        "win_rate": 0.5
+      },
+      "pons": {
+        "n": 7,
+        "mean_forward_return_pct": -1.48,
+        "win_rate": 0.571
+      }
+    },
+    "robustness": [
+      "Development Pump strength was concentrated in STONKS PARK and HypurrClaw, both very low-current-volume microcaps.",
+      "The holdout Pump scale events were STONKS PARK and Yippee; both have current 24h volume below $100k.",
+      "After excluding sub-$100k-current-volume Pump assets, there are zero Pump holdout scale events.",
+      "The higher-volume Pons/Robinhood holdout scale subset remained negative on average."
+    ],
+    "conclusion": "DO_NOT_FREEZE_TRIGGER_OR_ADD_SIZE",
+    "interpretation": "Price-only evidence does not validate staged scaling across the held-out day. The feature remains a shadow/research candidate. Pump and Pons may ultimately need different scaling rules."
+  },
+  "reset_recovery": {
+    "development_selected_proxy": {
+      "drawdown_pct": 20,
+      "recovery_pct": 15,
+      "n": 2,
+      "mean_forward_return_pct": 28.21,
+      "win_rate": 1
+    },
+    "selected_proxy_independence_warning": "Both selected development occurrences came from STONKS PARK, so n=2 is not two independent assets.",
+    "holdout_selected_proxy": {
+      "n": 0
+    },
+    "looser_rule_checks": [
+      {
+        "drawdown_pct": 15,
+        "recovery_pct": 5,
+        "development": {
+          "n": 5,
+          "mean_forward_return_pct": 10.8,
+          "win_rate": 0.6
+        },
+        "holdout": {
+          "n": 2,
+          "mean_forward_return_pct": -5,
+          "win_rate": 0,
+          "assets": [
+            "longbow-2",
+            "mushroom-2"
+          ]
+        }
+      },
+      {
+        "drawdown_pct": 20,
+        "recovery_pct": 5,
+        "development": {
+          "n": 4,
+          "mean_forward_return_pct": 14.1,
+          "win_rate": 0.75
+        },
+        "holdout": {
+          "n": 1,
+          "mean_forward_return_pct": -9.6,
+          "win_rate": 0,
+          "assets": [
+            "mushroom-2"
+          ]
+        }
+      },
+      {
+        "drawdown_pct": 20,
+        "recovery_pct": 10,
+        "development": {
+          "n": 3,
+          "mean_forward_return_pct": 17.1,
+          "win_rate": 0.667
+        },
+        "holdout": {
+          "n": 0
+        }
+      }
+    ],
+    "conclusion": "THESIS_PLAUSIBLE_BUT_NO_THRESHOLD_FREEZE",
+    "interpretation": "The development day contains strong rebound paths, but the exact candidate rule did not recur in the holdout and looser rules that did recur lost money. More market observations are required before setting reset/recovery thresholds."
+  },
+  "promotion_decision": {
+    "staged_winner_scaling": "REMAIN_PREPARED_SHADOW_ONLY",
+    "reset_recovery": "REMAIN_RESEARCH_ONLY",
+    "parameter_changes_authorized": false,
+    "first_smoke_allocation_authority_from_this_research": false
+  },
+  "limitations": [
+    "Listed-asset survivor bias: newborn and failed launches are underrepresented.",
+    "Downsampled price data cannot prove intrabar stop/trigger ordering.",
+    "No point-in-time buyer clusters, concentration, creator/distribution, exact liquidity depth, exact DEX quote or slippage path.",
+    "Current 24h volume is context only and not used as a historical signal.",
+    "Pons/Robinhood public sampling is not canonical Pons lineage certification.",
+    "Event counts from repeated episodes in one asset are not independent statistical samples.",
+    "Forty-eight hours is too short for profitability certification or robust threshold optimization."
+  ],
+  "next_research_step": [
+    "Keep staged scaling trigger/add-size/total-exposure parameters unset.",
+    "Keep reset-recovery thresholds and allocation authority unset.",
+    "Repeat the same frozen market-path methodology on additional independent 24h holdouts rather than refitting each day.",
+    "Promote parameters only if positive behavior repeats across independent assets and market regimes, then validate execution/breadth/safety with the finished PAPER runtime."
+  ]
+}
