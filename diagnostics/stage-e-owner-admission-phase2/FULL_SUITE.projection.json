@@ -1,0 +1,249 @@
+{
+  "provenance": {
+    "repository": "levonmendall/The-Meme-Machine",
+    "tested_sha": "dc46550a4e37afcbd626c2ee41b9d31215e89064",
+    "tested_tree": "820a85deb72d54823b2823467c2fa5c28e951a28",
+    "workflow_run": 36888057653,
+    "job": 110456333687,
+    "source_artifact": {
+      "id": 11176020840,
+      "name": "owner-admission-phase2-dc46550a4e37afcbd626c2ee41b9d31215e89064-1",
+      "size_in_bytes": 135731,
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11176020840",
+      "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11176020840/zip",
+      "expired": false,
+      "created_at": "2026-10-01T16:01:58Z",
+      "expires_at": "2026-10-31T16:01:57Z",
+      "updated_at": "2026-10-01T16:01:58Z",
+      "digest": "sha256:0b4640fccafde3d6a02cdb1788eb16aaa32df1cd16c274571b316f95d00b09a5",
+      "workflow_run": {
+        "id": 36888057653,
+        "repository_id": 1373661451,
+        "head_repository_id": 1373661451,
+        "head_branch": "repair/stage-e-owner-admission",
+        "head_sha": "dc46550a4e37afcbd626c2ee41b9d31215e89064"
+      }
+    },
+    "status": "historical_complete_suite; temporary source-clock fixture edit withdrawn; not a full-suite receipt for the final treatment"
+  },
+  "payload": {
+    "affected": {
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "-m",
+        "unittest",
+        "tests.test_production_maintenance_arbiter",
+        "tests.test_solana_evidence_service_runtime",
+        "tests.test_stagee24_maintenance_integrity",
+        "tests.test_solana_checkpoint_owner",
+        "tests.test_checkpoint_handoff",
+        "tests.test_archive_pipeline",
+        "tests.test_solana_evidence_retention",
+        "tests.test_retention_outcomes",
+        "tests.test_run381_retention_progress",
+        "tests.test_run381_archive_scheduling",
+        "tests.test_run381_maintenance_overlap",
+        "tests.test_run372_large_frame_runtime",
+        "tests.test_run373_dispatch_throughput",
+        "tests.test_run376_dispatch_pressure",
+        "tests.test_run379_transport_backpressure",
+        "tests.test_run380_atomic_frame",
+        "tests.test_stagee19_maintenance_batch_fairness",
+        "-v"
+      ],
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 130
+    },
+    "base_sha": "b11b16fbdc4ea0312b2c6f51de37e4d68e1f2da1",
+    "base_tree": "bdc9e10bb90e659270b8b3ea995d4c74b7ebeb83",
+    "branch": "repair/stage-e-owner-admission",
+    "deterministic": {
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "-m",
+        "unittest",
+        "discover",
+        "-v"
+      ],
+      "errors": 4,
+      "exit_code": 1,
+      "failures": 4,
+      "skipped": 46,
+      "tests": 1116
+    },
+    "housekeeping_carried": false,
+    "m1_focused": {
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "-m",
+        "unittest",
+        "tests.test_m1_maintenance_completion",
+        "-v"
+      ],
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 25
+    },
+    "material_executions": 0,
+    "matrix": {
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "-c",
+        "import json,sys,unittest\nfrom tests import test_owner_admission_phase2 as module\nresult=unittest.TextTestRunner(verbosity=2,stream=sys.stdout).run(unittest.defaultTestLoader.loadTestsFromModule(module))\nwith open(sys.argv[1],'w') as handle:json.dump(module.EVIDENCE,handle,indent=2,sort_keys=True)\nprint('PHASE2_MATRIX '+json.dumps(module.EVIDENCE,sort_keys=True),flush=True)\nsys.exit(0 if result.wasSuccessful() and not result.skipped else 1)\n",
+        "/home/runner/work/The-Meme-Machine/The-Meme-Machine/owner-admission-phase2/MATRIX.json"
+      ],
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 29
+    },
+    "paper_only": true,
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "prerequisite_pass": true,
+    "python": "3.12.14 (main, Aug 13 2026, 02:47:42) [GCC 13.3.0]",
+    "resource": {
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "-m",
+        "tests.resource_check"
+      ],
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "result": "DETERMINISTIC_BLOCKED",
+    "sqlite": "3.45.1",
+    "stage_e": "RED",
+    "stage_f": "NOT_STARTED",
+    "static": {
+      "base": "b11b16fbdc4ea0312b2c6f51de37e4d68e1f2da1",
+      "base_tree": "bdc9e10bb90e659270b8b3ea995d4c74b7ebeb83",
+      "canonical_stage_e": false,
+      "changed_files": [
+        ".github/workflows/owner-admission-phase2.yml",
+        "diagnostics/stage-e-owner-admission-phase2/HOUSEKEEPING_REFERENCE.patch",
+        "diagnostics/stage-e-owner-admission-phase2/native_completion_prerequisite.py",
+        "diagnostics/stage-e-owner-admission-phase2/static_verify.py",
+        "diagnostics/stage-e-owner-admission-phase2/verify.py",
+        "meme_machine/solana_evidence_control.py",
+        "meme_machine/solana_evidence_service.py",
+        "meme_machine/solana_owner_admission.py",
+        "tests/test_owner_admission_phase2.py",
+        "tests/test_run373_dispatch_throughput.py"
+      ],
+      "housekeeping": {
+        "admission_contains_no_housekeeping_predicates": true,
+        "carried": false,
+        "compatibility": "selector and ordinary retention hook remain compatible; original pre-M1 patch context needs rebase before a combined fixture",
+        "exact_selector_sha256": "0c15692344ed50706905bed2fcd2bc56ece19e65ceeb34c274651525128db9e0",
+        "m1_completion_ast_unchanged": true,
+        "original_patch_check": "error: patch failed: meme_machine/solana_maintenance_runtime.py:260\nerror: meme_machine/solana_maintenance_runtime.py: patch does not apply\n",
+        "original_patch_check_exit": 1,
+        "reference_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d",
+        "selector_ast_valid_on_m1": true
+      },
+      "m1_runtime_blob": "44d627be0a867eba3c0394a533eaa9eecff77e07",
+      "material_executions": 0,
+      "patch_sha256": {
+        "admission": "1122a5710c2a195c8639b93c9f2c436452c495f7099ddb1b96e80b01c53850ef",
+        "deterministic": "1ad577b15f2f2b5510bb91ccf36c48ab0579b1638486c523df8412c9b2fa3ae4",
+        "source_fixture": "e0ce4be8c88b1c86c65b586efadbe55882b9a21c82f39427a7360f9f9f12c660",
+        "treatment": "f4697b60f59ffc9368eb560bb7e5bc4418931516d5d6f37f0ae42747ef619ad6"
+      },
+      "protected_blobs_unchanged": true,
+      "sha": "dc46550a4e37afcbd626c2ee41b9d31215e89064",
+      "stage_f": false,
+      "tree": "820a85deb72d54823b2823467c2fa5c28e951a28",
+      "working_tree": ""
+    },
+    "treatment_sha": "dc46550a4e37afcbd626c2ee41b9d31215e89064",
+    "treatment_tree": "820a85deb72d54823b2823467c2fa5c28e951a28"
+  },
+  "original_artifact_file_hashes": {
+    "M1_PREREQUISITE.json": "2133ac0825ee97b03462e2b1063bb339bae828b1d9115dfda4268d827cd3642a",
+    "MATRIX.json": "67ec04983160936ce5d01f3a60435de51a1d75cdb00271264f111710e740e023",
+    "RESULTS.json": "3b0c031947a0a361ba678555810f59ed0808ae83e5a73572ac72686167c71509",
+    "STATIC_VERIFICATION.json": "bcf9cdeeb034c608fee0dfcefd7a573a71093f57409cd3dddbc889c359618a8c",
+    "admission.patch": "1122a5710c2a195c8639b93c9f2c436452c495f7099ddb1b96e80b01c53850ef",
+    "affected.log": "1f8b1ce18e1d0f4cdd91fc933c11659e4bfc4f478699b122f20d4655bd113b11",
+    "deterministic.log": "f96a32937eda5625114b4d5f93f33b367f845b37b1bfa97f507f7bc3b4e1a9a7",
+    "deterministic.patch": "1ad577b15f2f2b5510bb91ccf36c48ab0579b1638486c523df8412c9b2fa3ae4",
+    "m1-focused.log": "bf48efa516f3632b29f2f212978f2433eada1538ea00699e85c8bd5b5f41be36",
+    "matrix.log": "53c95ab30d2487c4b524291120662f3e1ef5e1894800e704b228f59c14202c56",
+    "resource.log": "653ef066641ec34655a5982ae3161be2c47a63659fe9f72e775c11f6868483ae",
+    "source_fixture.patch": "e0ce4be8c88b1c86c65b586efadbe55882b9a21c82f39427a7360f9f9f12c660",
+    "treatment.patch": "f4697b60f59ffc9368eb560bb7e5bc4418931516d5d6f37f0ae42747ef619ad6"
+  },
+  "final_production_blob_binding": [
+    {
+      "path": "meme_machine/solana_owner_admission.py",
+      "full": "e6b7544038804ef942a75ed4b0e882636335942b",
+      "final": "e6b7544038804ef942a75ed4b0e882636335942b"
+    },
+    {
+      "path": "meme_machine/solana_evidence_service.py",
+      "full": "c57bef96ede618f457ff2fb89f4d57ab538ad9e8",
+      "final": "c57bef96ede618f457ff2fb89f4d57ab538ad9e8"
+    },
+    {
+      "path": "meme_machine/solana_evidence_control.py",
+      "full": "98d3446a408e27f86e4152a12459fe9d146f2e7e",
+      "final": "98d3446a408e27f86e4152a12459fe9d146f2e7e"
+    }
+  ],
+  "legacy_skips": [
+    "2026-10-01T16:01:56.8820585Z test_all_six_native_regimes_reconcile_after_snapshot_and_relocated_restore (certification.tests.test_autonomous_native_handoff.AutonomousNativeHandoff.test_all_six_native_regimes_reconcile_after_snapshot_and_relocated_restore) ... skipped 'requires prepared native lanes'",
+    "2026-10-01T16:01:56.8881795Z test_pons_completed_checkpoint_requires_verified_new_window (certification.tests.test_campaign_state.NativeCampaignWindowTests.test_pons_completed_checkpoint_requires_verified_new_window) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.8955675Z test_async_lifecycle_preserves_campaign_capital (certification.tests.test_continuity_state.ContinuityTests.test_async_lifecycle_preserves_campaign_capital) ... skipped 'prepared lane unavailable'",
+    "2026-10-01T16:01:56.8957114Z test_meteora_process_cut_restores_compact_mark_without_boundary_exit (certification.tests.test_continuity_state.ContinuityTests.test_meteora_process_cut_restores_compact_mark_without_boundary_exit) ... skipped 'prepared lane unavailable'",
+    "2026-10-01T16:01:56.8958639Z test_meteora_recovered_native_lifecycle_does_not_block_discovery (certification.tests.test_continuity_state.ContinuityTests.test_meteora_recovered_native_lifecycle_does_not_block_discovery) ... skipped 'prepared lane unavailable'",
+    "2026-10-01T16:01:56.8959967Z test_native_checkpoint_restart_matrix (certification.tests.test_continuity_state.ContinuityTests.test_native_checkpoint_restart_matrix) ... skipped 'prepared lane unavailable'",
+    "2026-10-01T16:01:56.8961219Z test_smoke_boundary_also_preserves_campaign_capital (certification.tests.test_continuity_state.ContinuityTests.test_smoke_boundary_also_preserves_campaign_capital) ... skipped 'prepared lane unavailable'",
+    "2026-10-01T16:01:56.8994691Z test_current_changing_terminal_identities_plateau_with_live_reservation_unchanged (certification.tests.test_current_sleeve_archive.CurrentSleeveArchive.test_current_changing_terminal_identities_plateau_with_live_reservation_unchanged) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9029844Z test_every_lane_preserves_causal_classes_and_required_stages_on_restart (certification.tests.test_evidence_obligations.EvidenceObligationTests.test_every_lane_preserves_causal_classes_and_required_stages_on_restart) ... skipped 'prepared exact lane sources unavailable'",
+    "2026-10-01T16:01:56.9180078Z test_meteora_restart_retains_native_core_hold_and_consecutive_counters (certification.tests.test_market_assurance.AssuranceTests.test_meteora_restart_retains_native_core_hold_and_consecutive_counters) ... skipped 'prepared exact lane sources unavailable'",
+    "2026-10-01T16:01:56.9190066Z test_completed_native_identity_churn_plateaus (certification.tests.test_meteora_terminal_archive.MeteoraTerminalArchiveTests.test_completed_native_identity_churn_plateaus) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9191726Z test_live_exit_state_survives_checkpoint_and_failed_publication (certification.tests.test_meteora_terminal_archive.MeteoraTerminalArchiveTests.test_live_exit_state_survives_checkpoint_and_failed_publication) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9193518Z test_writeoffs_cancellations_and_unresolved_inventory_remain_truthful (certification.tests.test_meteora_terminal_archive.MeteoraTerminalArchiveTests.test_writeoffs_cancellations_and_unresolved_inventory_remain_truthful) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9195497Z test_native_decisions_serialize_and_replay_without_provider_or_book (certification.tests.test_native_decision_conformance.NativeConformanceTests.test_native_decisions_serialize_and_replay_without_provider_or_book) ... skipped 'prepared lanes unavailable'",
+    "2026-10-01T16:01:56.9197100Z test_active_survivor_entry_and_runner_capture_replay (certification.tests.test_native_decision_conformance.SurvivorConformanceTests.test_active_survivor_entry_and_runner_capture_replay) ... skipped 'prepared lanes unavailable'",
+    "2026-10-01T16:01:56.9198728Z test_meteora_native_commit_acknowledgement_crash_boundaries (certification.tests.test_native_evidence_checkpoints.NativeEvidenceCheckpointTests.test_meteora_native_commit_acknowledgement_crash_boundaries) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9215541Z test_existing_ramses_position_starts_native_monitor_while_discovery_continues (certification.tests.test_normal_window_recovery.NormalWindowRecoveryTests.test_existing_ramses_position_starts_native_monitor_while_discovery_continues) ... skipped 'requires prepared native lanes'",
+    "2026-10-01T16:01:56.9223505Z test_changing_trials_capital_and_reentry_plateau (certification.tests.test_pons_terminal_archive.PonsTerminalArchive.test_changing_trials_capital_and_reentry_plateau) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9225368Z test_compaction_cuts_recover_from_preserved_predecessor_and_reject_corruption (certification.tests.test_pons_terminal_archive.PonsTerminalArchive.test_compaction_cuts_recover_from_preserved_predecessor_and_reject_corruption) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9232913Z test_previous_window_does_not_permanently_exhaust_next_window (certification.tests.test_pons_window_capacity.PonsWindowCapacityTests.test_previous_window_does_not_permanently_exhaust_next_window) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9293099Z test_native_recovered_position_uses_existing_monitor (certification.tests.test_pump_current_continuation.PumpCurrentContinuationTests.test_native_recovered_position_uses_existing_monitor) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9301178Z test_repeated_recenter_restart_and_seven_day_exit_use_native_controller (certification.tests.test_ramses_long_horizon.RamsesLongHorizonTests.test_repeated_recenter_restart_and_seven_day_exit_use_native_controller) ... skipped 'requires prepared native lanes'",
+    "2026-10-01T16:01:56.9302939Z test_active_recenter_and_unresolved_reserve_survive_rollback_and_restore (certification.tests.test_ramses_terminal_archive.RamsesTerminalArchiveTests.test_active_recenter_and_unresolved_reserve_survive_rollback_and_restore) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9308040Z test_changing_completed_positions_plateau (certification.tests.test_ramses_terminal_archive.RamsesTerminalArchiveTests.test_changing_completed_positions_plateau) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9349540Z test_changing_rolling_keys_leave_only_preserved_raw_history (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_changing_rolling_keys_leave_only_preserved_raw_history) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9351463Z test_d1_changing_identities_plateau_and_preserved_prefix_cannot_reenter (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_d1_changing_identities_plateau_and_preserved_prefix_cannot_reenter) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9355988Z skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9357090Z test_repeated_native_windows_bound_history_cache_and_projection_receipts (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_repeated_native_windows_bound_history_cache_and_projection_receipts) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9358935Z test_rolling_archive_publication_cut_rolls_back_and_corruption_blocks_seal (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_rolling_archive_publication_cut_rolls_back_and_corruption_blocks_seal) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9360786Z test_scoped_native_terminal_projections_plateau_and_live_projection_survives (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_scoped_native_terminal_projections_plateau_and_live_projection_survives) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9362587Z test_unpreserved_unprojected_and_interrupted_capsules_fail_closed (certification.tests.test_robinhood_window_archive.RobinhoodWindowArchive.test_unpreserved_unprojected_and_interrupted_capsules_fail_closed) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9410243Z test_all_four_prepared_workers_accept_exact_active_policy_identity (certification.tests.test_run379_worker_policy.PreparedWorkerStartupTests.test_all_four_prepared_workers_accept_exact_active_policy_identity) ... skipped 'Prepared lanes required; exercised by full hosted certification'",
+    "2026-10-01T16:01:56.9635116Z test_pons_captured_graduation_through_authoritative_discovery (certification.tests.test_survivor_acquisition.SurvivorAcquisitionTests.test_pons_captured_graduation_through_authoritative_discovery) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9636708Z test_pons_full_hot_set_and_discovery_keep_pace (certification.tests.test_survivor_acquisition.SurvivorAcquisitionTests.test_pons_full_hot_set_and_discovery_keep_pace) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9638306Z test_pons_shared_transport_keeps_pool_authority_and_recovers (certification.tests.test_survivor_acquisition.SurvivorAcquisitionTests.test_pons_shared_transport_keeps_pool_authority_and_recovers) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9639894Z test_pump_raw_migration_finality_and_target_market (certification.tests.test_survivor_acquisition.SurvivorAcquisitionTests.test_pump_raw_migration_finality_and_target_market) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9642933Z test_dense_native_pump_history_preserves_exact_state_at_unchanged_point_limit (certification.tests.test_survivor_archive_bounds.SurvivorArchiveTests.test_dense_native_pump_history_preserves_exact_state_at_unchanged_point_limit) ... skipped 'requires prepared native lanes'",
+    "2026-10-01T16:01:56.9649344Z test_capacity_cannot_prevent_expired_candidate_retirement (certification.tests.test_survivor_candidate_progress.SurvivorCandidateProgressTests.test_capacity_cannot_prevent_expired_candidate_retirement) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9651033Z test_pons_runtime_binds_approved_turnover_capacity (certification.tests.test_survivor_candidate_progress.SurvivorCandidateProgressTests.test_pons_runtime_binds_approved_turnover_capacity) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9652696Z test_pump_native_reconstruction_and_missing_continuity (certification.tests.test_survivor_candidate_progress.SurvivorCandidateProgressTests.test_pump_native_reconstruction_and_missing_continuity) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9654417Z test_runtime_binds_frozen_policy_minimum_age (certification.tests.test_survivor_candidate_progress.SurvivorCandidateProgressTests.test_runtime_binds_frozen_policy_minimum_age) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9711913Z test_native_survivor_startup_from_exact_preserved_snapshots (certification.tests.test_survivor_terminal_native.SurvivorTerminalNativeTests.test_native_survivor_startup_from_exact_preserved_snapshots) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9716877Z test_reserved_capital_survives_cancellation_without_inventing_settlement (certification.tests.test_terminal_reconciliation.NativeTerminalReconciliationTests.test_reserved_capital_survives_cancellation_without_inventing_settlement) ... skipped 'requires prepared native lane sources; required in full certification workflow'",
+    "2026-10-01T16:01:56.9719092Z test_restored_pons_relative_trial_paths_replay_without_journal_mutation (certification.tests.test_terminal_reconciliation.NativeTerminalReconciliationTests.test_restored_pons_relative_trial_paths_replay_without_journal_mutation) ... skipped 'requires prepared native lane sources'",
+    "2026-10-01T16:01:56.9720960Z test_open_native_controller_and_recoverable_intent_are_bound_read_only (certification.tests.test_terminal_reconciliation.RamsesDurableHandoffTests.test_open_native_controller_and_recoverable_intent_are_bound_read_only) ... skipped 'requires canonical prepared native lanes'",
+    "2026-10-01T16:01:56.9731373Z Old-policy records stay immutable; exact replay is required within a policy epoch. ... skipped 'Prepared lanes required; exercised by exact-SHA non-market certification'"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "provenance": {
+    "kind": "projection_from_github_actions_stdout",
+    "repository": "levonmendall/The-Meme-Machine",
+    "tested_sha": "4d386498b3dc848e1ba27d11dd8d61841ba426d1",
+    "tested_tree": "84903f733e634fa8dd440266c6112209edf24604",
+    "workflow_run": 36889471128,
+    "job": 110461121769,
+    "source_artifact": {
+      "id": 11175369007,
+      "name": "owner-admission-phase2-4d386498b3dc848e1ba27d11dd8d61841ba426d1-1",
+      "size_in_bytes": 98699,
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11175369007",
+      "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11175369007/zip",
+      "expired": false,
+      "created_at": "2026-10-01T16:09:47Z",
+      "expires_at": "2026-10-31T16:09:46Z",
+      "updated_at": "2026-10-01T16:09:47Z",
+      "digest": "sha256:e8a6db3d3304961ac2a8bee6e606c879cd8234a7479a523e62851e421c56b487",
+      "workflow_run": {
+        "id": 36889471128,
+        "repository_id": 1373661451,
+        "head_repository_id": 1373661451,
+        "head_branch": "repair/stage-e-owner-admission",
+        "head_sha": "4d386498b3dc848e1ba27d11dd8d61841ba426d1"
+      }
+    },
+    "note": "JSON payloads are parsed from PHASE2 markers in the complete decoded job log. Projection serialization is not the original artifact file bytes; original file SHA256 values are recorded separately."
+  },
+  "payload": {
+    "M1_PREREQUISITE.json": "d8bbe06096fe6f1d39fc329937a750a68b23a0721baf6891824c409c2920d0d8",
+    "MATRIX.json": "4ef519a1e5ff02d73d9a4546855732d41b88d3910df668d6543c398f8ef96ad2",
+    "RESULTS.json": "5ef5baa8dd08ec70a498dd1f81e7af0518322b7fa7dd6b19744d785fe9cb0c0d",
+    "STATIC_VERIFICATION.json": "7fb3049c661e30fd0ad63a9ba5ed67ed6923c5bfb8b205947944d5022580aea1",
+    "admission.patch": "1122a5710c2a195c8639b93c9f2c436452c495f7099ddb1b96e80b01c53850ef",
+    "affected.log": "22aa212e5650b7ccde2a23e349190f7a54bd9a811e1dd37ca6e000fdeb13c01d",
+    "deterministic.patch": "439efd5dfc2aedb01c98062db54c821c3677e7a75b9e6a0a1b8a72d788bf7d41",
+    "frozen-integrity.log": "ff4f86846f74313b0fc5427e178afec33470f2fae852d14ff8d6fdd1534afecc",
+    "m1-focused.log": "d9cd19a53ec196ab4373bf745d0c3b622aed9db5f7abee7873332e947436b7d6",
+    "matrix.log": "63729d2cfffe13b78d0df420be9a0b5b76f1a8d7bcc80b7fc9fdf69ad4b1934d",
+    "resource.log": "1dd2fda9476b46d5558e95e7839512af7f709ab1d472c9273f0c237b056b7b5b",
+    "source_fixture.patch": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "treatment.patch": "49f219efecb43ed5522df9d4bf1c1b1071372098bcea85d7c90ca63e9a17b70d"
+  }
+}

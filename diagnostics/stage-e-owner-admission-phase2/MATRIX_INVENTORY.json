@@ -1,0 +1,327 @@
+{
+  "tested_sha": "4d386498b3dc848e1ba27d11dd8d61841ba426d1",
+  "tested_tree": "84903f733e634fa8dd440266c6112209edf24604",
+  "tests": 29,
+  "skips": 0,
+  "boundary_rows": 32,
+  "cases": [
+    {
+      "case": 1,
+      "description": "pending_frames 15 / 16 / 17",
+      "tests": [
+        "GateTests.test_full_trigger_boundaries"
+      ],
+      "evidence": "frames_15, frames_16, frames_17",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 2,
+      "description": "pending_bytes exact / above 64 MiB",
+      "tests": [
+        "GateTests.test_full_trigger_boundaries"
+      ],
+      "evidence": "bytes_exact, bytes_above",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 3,
+      "description": "inbound / decoded / ordered-ready 15 / 16",
+      "tests": [
+        "GateTests.test_full_trigger_boundaries"
+      ],
+      "evidence": "inbound_15/16, decoded_15/16, ordered_ready_15/16",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 4,
+      "description": "commit-progress and decoded-head age below / equal / above 8.9",
+      "tests": [
+        "GateTests.test_full_trigger_boundaries"
+      ],
+      "evidence": "commit_age_below/equal/above, head_age_below/equal/above",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 5,
+      "description": "hint age below / equal / above 1 second",
+      "tests": [
+        "GateTests.test_full_trigger_boundaries"
+      ],
+      "evidence": "hint_age_0.999, hint_age_1.0, hint_age_1.001",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 6,
+      "description": "stale positive / stale negative / consumed / generation mismatch",
+      "tests": [
+        "GateTests.test_full_trigger_boundaries"
+      ],
+      "evidence": "stale_positive, stale_negative, consumed_epoch, generation_mismatch",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 7,
+      "description": "accept before / at / after 100 ms; timeout; overshoot",
+      "tests": [
+        "GateTests.test_actual_acceptance_before_deadline_resumes_without_completion",
+        "GateTests.test_exact_deadline_after_timeout_and_overshoot",
+        "GateTests.test_timeout_without_coroutine_wakeup_and_no_second_grant",
+        "GateTests.test_accepted_offer_scheduler_overshoot_is_unclamped"
+      ],
+      "evidence": "timing",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 8,
+      "description": "cancellation after actual acceptance",
+      "tests": [
+        "GateTests.test_cancellation_after_acceptance_retains_owner_future"
+      ],
+      "evidence": "cancel_after_acceptance",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 9,
+      "description": "maintenance completes before source coroutine resumes",
+      "tests": [
+        "GateTests.test_fast_completion_barrier_and_exact_fifo"
+      ],
+      "evidence": "fast_completion_fifo",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 10,
+      "description": "second maintenance resubmission blocked until source submit",
+      "tests": [
+        "GateTests.test_fast_completion_barrier_and_exact_fifo",
+        "GateTests.test_shutdown_keeps_accepted_barrier_until_source_submission"
+      ],
+      "evidence": "fast_completion_fifo, accepted_drain_barrier",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 11,
+      "description": "archive-only pressure",
+      "tests": [
+        "NativeGateTests.test_native_archive_only_pressure_comfortable_deadlines"
+      ],
+      "evidence": "native hot=1800 retired=0",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 12,
+      "description": "retirement-only pressure",
+      "tests": [
+        "NativeGateTests.test_native_retirement_only_pressure"
+      ],
+      "evidence": "native hot=0 retired=1800",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 13,
+      "description": "simultaneous archive + retirement",
+      "tests": [
+        "NativeGateTests.test_native_both_pressure_and_cross_scope_fairness"
+      ],
+      "evidence": "native hot=2500 retired=1800",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 14,
+      "description": "worker pending",
+      "tests": [
+        "NativeGateTests.test_native_worker_pending_is_not_ready_and_no_retry_until_useful",
+        "GateTests.test_idle_is_immediately_woken_without_cancelling_worker"
+      ],
+      "evidence": "native worker_pending",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 15,
+      "description": "comfortable deadlines",
+      "tests": [
+        "NativeGateTests.test_native_archive_only_pressure_comfortable_deadlines",
+        "NativeGateTests.test_native_retirement_only_pressure"
+      ],
+      "evidence": "native original deadlines",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 16,
+      "description": "near peer-reservation boundary",
+      "tests": [
+        "NativeGateTests.test_old_fails_new_passes_binding_recovery_under_original_deadline"
+      ],
+      "evidence": "placement old/new headroom 9.1",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 17,
+      "description": "already-infeasible remains infeasible",
+      "tests": [
+        "NativeGateTests.test_already_infeasible_gate_cannot_manufacture_success"
+      ],
+      "evidence": "placement already_infeasible headroom 8.935",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 18,
+      "description": "no demand / no decision",
+      "tests": [
+        "NativeGateTests.test_stale_positive_no_demand_consumes_one_observation",
+        "NativeGateTests.test_native_worker_pending_is_not_ready_and_no_retry_until_useful"
+      ],
+      "evidence": "native false-positive hint, pending worker",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 19,
+      "description": "urgent before / during / after",
+      "tests": [
+        "GateTests.test_urgent_before_during_after_admission_and_existing_fifo",
+        "GateTests.test_owner_snapshot_race_refuses_offer_without_reordering_urgent",
+        "NativeGateTests.test_gate_accepted_native_completion_interruption_preserves_m1"
+      ],
+      "evidence": "urgent_and_admitted_fifo, atomic_owner_snapshot_race, gate_m1_completion",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 20,
+      "description": "checkpoint handoff",
+      "tests": [
+        "GateTests.test_owner_runtime_and_previous_request_guards",
+        "GateTests.test_backlog_recheck_and_batch_guard_changes_during_wait"
+      ],
+      "evidence": "owner_runtime_all_guards, all_local_guards_rechecked",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 21,
+      "description": "continuous source",
+      "tests": [
+        "NativeGateTests.test_continuous_source_actual_service_retains_native_authority"
+      ],
+      "evidence": "16-turn real serve harness and native integrity",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 22,
+      "description": "batching recomputation after rendezvous",
+      "tests": [
+        "GateTests.test_batching_recomputed_after_rendezvous_and_source_charge_uses_actual_frames",
+        "GateTests.test_backlog_recheck_and_batch_guard_changes_during_wait"
+      ],
+      "evidence": "batch_recomputation_actual_function",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 23,
+      "description": "cross-scope fairness",
+      "tests": [
+        "NativeGateTests.test_native_both_pressure_and_cross_scope_fairness"
+      ],
+      "evidence": "real archive + retirement progress for all three program scopes",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 24,
+      "description": "cooperative yield",
+      "tests": [
+        "NativeGateTests.test_cooperative_yield_native_refusal_and_maintenance_exception",
+        "NativeGateTests.test_gate_accepted_native_completion_interruption_preserves_m1"
+      ],
+      "evidence": "native yield and M1 terminal events",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 25,
+      "description": "native refusal",
+      "tests": [
+        "NativeGateTests.test_cooperative_yield_native_refusal_and_maintenance_exception"
+      ],
+      "evidence": "maintenance_cannot_reserve_both_sides",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 26,
+      "description": "maintenance exception",
+      "tests": [
+        "NativeGateTests.test_cooperative_yield_native_refusal_and_maintenance_exception"
+      ],
+      "evidence": "OSError maintenance_fault",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 27,
+      "description": "restart / shutdown",
+      "tests": [
+        "NativeGateTests.test_native_restart_preserves_episode_and_invalidates_hint_generation",
+        "GateTests.test_shutdown_and_generation_invalidation_consume_open_offer",
+        "GateTests.test_shutdown_keeps_accepted_barrier_until_source_submission"
+      ],
+      "evidence": "native_restart_hint_fence, shutdown_generation, accepted_drain_barrier",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 28,
+      "description": "wait accounting",
+      "tests": [
+        "NativeGateTests.test_real_eight_frame_source_charge_and_nonoverlapping_wait_accounting",
+        "GateTests.test_accepted_offer_scheduler_overshoot_is_unclamped"
+      ],
+      "evidence": "eight_frames_wait_accounting, accepted_scheduler_overshoot",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 29,
+      "description": "exact FIFO preservation",
+      "tests": [
+        "GateTests.test_fast_completion_barrier_and_exact_fifo",
+        "GateTests.test_urgent_before_during_after_admission_and_existing_fifo",
+        "GateTests.test_owner_snapshot_race_refuses_offer_without_reordering_urgent"
+      ],
+      "evidence": "owner actual future sequences, execution order",
+      "status": "PASS",
+      "skipped": 0
+    },
+    {
+      "case": 30,
+      "description": "M1 native completion interaction",
+      "tests": [
+        "NativeGateTests.test_gate_accepted_native_completion_interruption_preserves_m1",
+        "native_completion_prerequisite.NativeCompletionPrerequisite"
+      ],
+      "evidence": "gate_m1_completion + isolated Lane-A prerequisite",
+      "status": "PASS",
+      "skipped": 0
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "provenance": {
+    "kind": "projection_from_github_actions_stdout",
+    "repository": "levonmendall/The-Meme-Machine",
+    "tested_sha": "4d386498b3dc848e1ba27d11dd8d61841ba426d1",
+    "tested_tree": "84903f733e634fa8dd440266c6112209edf24604",
+    "workflow_run": 36889471128,
+    "job": 110461121769,
+    "source_artifact": {
+      "id": 11175369007,
+      "name": "owner-admission-phase2-4d386498b3dc848e1ba27d11dd8d61841ba426d1-1",
+      "size_in_bytes": 98699,
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11175369007",
+      "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11175369007/zip",
+      "expired": false,
+      "created_at": "2026-10-01T16:09:47Z",
+      "expires_at": "2026-10-31T16:09:46Z",
+      "updated_at": "2026-10-01T16:09:47Z",
+      "digest": "sha256:e8a6db3d3304961ac2a8bee6e606c879cd8234a7479a523e62851e421c56b487",
+      "workflow_run": {
+        "id": 36889471128,
+        "repository_id": 1373661451,
+        "head_repository_id": 1373661451,
+        "head_branch": "repair/stage-e-owner-admission",
+        "head_sha": "4d386498b3dc848e1ba27d11dd8d61841ba426d1"
+      }
+    },
+    "note": "JSON payloads are parsed from PHASE2 markers in the complete decoded job log. Projection serialization is not the original artifact file bytes; original file SHA256 values are recorded separately."
+  },
+  "resource": {
+    "admitted_events_per_frame": 100,
+    "db_bytes": 1261568,
+    "decisions": 100,
+    "elapsed_seconds": 20.721,
+    "frames": 2000,
+    "gaps": 20,
+    "journal_rows": 4002,
+    "label": "synthetic bounded intake/rejection workload",
+    "limitation": "temporary filesystem; not continuous-market or physical disk durability proof",
+    "peak_rss_kib": 44844,
+    "real_provider_calls": 0,
+    "seen": 1000,
+    "submitted_events": 240000,
+    "wal_bytes": 708672
+  },
+  "resource_checks": {
+    "db_wal_below_32_mib": true,
+    "rss_below_200_mib": true,
+    "initial_cash_preserved": true,
+    "positions_empty": true
+  },
+  "native_sqlite_integrity": "ok",
+  "native_transactions_open": false,
+  "all_accepted_futures_terminal": true,
+  "source_fixture_blob": "f2102f3d5278db94a58b6e5122dcdd2009e214b1",
+  "source_fixture_sha256": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+  "full_suite_production_blobs_match_final_treatment": [
+    {
+      "path": "meme_machine/solana_owner_admission.py",
+      "full": "e6b7544038804ef942a75ed4b0e882636335942b",
+      "final": "e6b7544038804ef942a75ed4b0e882636335942b"
+    },
+    {
+      "path": "meme_machine/solana_evidence_service.py",
+      "full": "c57bef96ede618f457ff2fb89f4d57ab538ad9e8",
+      "final": "c57bef96ede618f457ff2fb89f4d57ab538ad9e8"
+    },
+    {
+      "path": "meme_machine/solana_evidence_control.py",
+      "full": "98d3446a408e27f86e4152a12459fe9d146f2e7e",
+      "final": "98d3446a408e27f86e4152a12459fe9d146f2e7e"
+    }
+  ],
+  "protected_blobs_unchanged": true,
+  "frozen_qualification_inputs_unchanged": true,
+  "material_capacity_workloads": 0,
+  "canonical_stage_e_executions": 0,
+  "stage_f_started": false
+}

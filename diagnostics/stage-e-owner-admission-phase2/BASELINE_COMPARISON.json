@@ -1,0 +1,100 @@
+{
+  "base_sha": "b11b16fbdc4ea0312b2c6f51de37e4d68e1f2da1",
+  "base_tree": "bdc9e10bb90e659270b8b3ea995d4c74b7ebeb83",
+  "base_suite": {
+    "run": 36880077764,
+    "job": 110429313362,
+    "tests": 1087,
+    "failures": 1,
+    "errors": 2,
+    "skips": 46,
+    "result": "FAILED"
+  },
+  "base_failures": [
+    {
+      "test": "tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect",
+      "error": "maintenance_clock_relationship_invalid"
+    },
+    {
+      "test": "tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds",
+      "error": "maintenance_service_deadline_exhausted"
+    },
+    {
+      "test": "tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain",
+      "initial_failure": "unresolved_gaps 3 != 0",
+      "error": "maintenance_service_deadline_exhausted"
+    }
+  ],
+  "final_focused": {
+    "command": [
+      "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+      "-m",
+      "unittest",
+      "tests.test_production_maintenance_arbiter",
+      "tests.test_solana_evidence_service_runtime",
+      "tests.test_stagee24_maintenance_integrity",
+      "tests.test_solana_checkpoint_owner",
+      "tests.test_checkpoint_handoff",
+      "tests.test_archive_pipeline",
+      "tests.test_solana_evidence_retention",
+      "tests.test_retention_outcomes",
+      "tests.test_run381_retention_progress",
+      "tests.test_run381_archive_scheduling",
+      "tests.test_run381_maintenance_overlap",
+      "tests.test_run372_large_frame_runtime",
+      "tests.test_run373_dispatch_throughput",
+      "tests.test_run376_dispatch_pressure",
+      "tests.test_run379_transport_backpressure",
+      "tests.test_run380_atomic_frame",
+      "tests.test_stagee19_maintenance_batch_fairness",
+      "-v"
+    ],
+    "errors": 0,
+    "exit_code": 1,
+    "failures": 1,
+    "skipped": 0,
+    "tests": 130
+  },
+  "final_frozen_integrity": {
+    "command": [
+      "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+      "-m",
+      "unittest",
+      "certification.tests.test_cleanup_recovery.CleanupRecoveryTests.test_frozen_original_and_combined_workload_bytes",
+      "certification.tests.test_combined_observer.OverlapObservationTests.test_original_workload_is_still_frozen",
+      "certification.tests.test_stagee24_environment.QualificationEnvironmentTests.test_new_observation_identity_and_original_workload_are_both_bound",
+      "certification.tests.test_stagee27_cohort_wiring.FixedCohortWiringTests.test_matrix_is_exactly_the_existing_frozen_cohort",
+      "certification.tests.test_stagee25_promotion.ArtifactPreflightTests.test_aggregate_label_without_environment_and_raw_trials_is_rejected",
+      "certification.tests.test_stagee25_promotion.ArtifactPreflightTests.test_raw_machinery_recomputation_rejects_a_forged_green_summary",
+      "-v"
+    ],
+    "errors": 0,
+    "exit_code": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 6
+  },
+  "final_full_suite": {
+    "status": "NOT_RUN_FINAL_FOCUSED_GATE_BLOCKED",
+    "reason": "Exact frozen Run373 fixture remains red; no green full-suite claim or contract modification."
+  },
+  "historical_full_suite": {
+    "command": [
+      "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-v"
+    ],
+    "errors": 4,
+    "exit_code": 1,
+    "failures": 4,
+    "skipped": 46,
+    "tests": 1116
+  },
+  "withdrawn_source_fixture_edit": {
+    "introduced_six_frozen_input_failures": true,
+    "restored_at": "4d386498b3dc848e1ba27d11dd8d61841ba426d1",
+    "source_fixture_patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
