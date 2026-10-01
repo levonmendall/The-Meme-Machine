@@ -1,0 +1,145 @@
+{
+  "schema": "meme-machine-pump-public-market-sensitivity-v1",
+  "status": "COMPLETE_SENSITIVITY_NO_PROMOTION",
+  "paper_only": true,
+  "allocation_authority": false,
+  "source_window": {
+    "start": "2026-09-24T19:00:00Z",
+    "end": "2026-10-01T19:15:30Z",
+    "assets": 11,
+    "cohort": [
+      "fartcoin",
+      "pippin",
+      "the-black-bull",
+      "ai-rig-complex",
+      "comedian",
+      "jelly-my-jelly",
+      "peanut-the-squirrel",
+      "alchemist-ai",
+      "troll-2",
+      "moo-deng",
+      "neet"
+    ],
+    "development": "first ~4 days",
+    "holdout": "last ~3 days"
+  },
+  "question": "Were the initial research parameters too narrow/large to fairly evaluate higher-volume Pump assets?",
+  "staged_scaling_expanded_grid": {
+    "strength_pct": [
+      2.5,
+      5,
+      7.5,
+      10,
+      12.5,
+      15
+    ],
+    "recent_high_lookback_observations": [
+      2,
+      3,
+      4
+    ],
+    "recent_low_lookback_observations": [
+      3,
+      5,
+      8
+    ],
+    "forward_hours": [
+      6,
+      12,
+      24
+    ],
+    "finding": {
+      "original_5pct_and_above": "No robust configuration had positive equal-asset means in both development and holdout. At 5%, 0/27 eligible configurations were positive in both halves; at 7.5% 0/27; at 10% 0/9.",
+      "only_robust_configuration": {
+        "strength_pct": 2.5,
+        "high_lookback_observations": 3,
+        "low_lookback_observations": 3,
+        "forward_hours": 6,
+        "development": {
+          "events": 40,
+          "assets": 10,
+          "asset_mean_return_pct": 0.09,
+          "positive_asset_fraction": 0.5
+        },
+        "holdout": {
+          "events": 30,
+          "assets": 11,
+          "asset_mean_return_pct": 1.06,
+          "positive_asset_fraction": 0.636,
+          "median_mae_pct": -1.26
+        }
+      },
+      "interpretation": "The original +5% minimum was somewhat too high for liquid Pump names, but the only surviving lower-threshold effect is approximately +1% over six hours in holdout and near-flat in development. It is too small to assume it survives exact fees, slippage, execution stress, and selection controls."
+    },
+    "conclusion": "ORIGINAL_GRID_TOO_STRONG_BUT_NO_ACTIONABLE_SCALING_EDGE_FOUND"
+  },
+  "reset_recovery_expanded_grid": {
+    "drawdown_pct": [
+      5,
+      7.5,
+      10,
+      12.5,
+      15,
+      20,
+      25
+    ],
+    "recovery_pct": [
+      3,
+      5,
+      7.5,
+      10,
+      12.5,
+      15
+    ],
+    "trailing_high_lookback_observations": [
+      6,
+      9,
+      12
+    ],
+    "trough_to_trigger_min_gap_observations": [
+      1,
+      2
+    ],
+    "forward_hours": [
+      6,
+      12,
+      24
+    ],
+    "finding": {
+      "original_15pct_floor": "Too high for the higher-volume Pump cohort; it produced essentially no repeated eligible observations.",
+      "robust_configurations": 2,
+      "total_parameterizations_with_5pct_drawdown_and_minimum_sample": 54,
+      "both_positive_at_5pct_drawdown": 2,
+      "surviving_shape": {
+        "drawdown_pct": 5,
+        "recovery_pct": 3,
+        "high_lookback_observations": 6,
+        "forward_hours": 6,
+        "development_asset_mean_return_pct_range": [
+          0.37,
+          0.63
+        ],
+        "holdout_asset_mean_return_pct_range": [
+          1.69,
+          2.05
+        ],
+        "holdout_assets": 5,
+        "holdout_positive_asset_fraction": 0.8,
+        "holdout_median_mae_pct": -0.73
+      },
+      "interpretation": "Pump's liquid-market reset opportunity, if real, appears to be a shallow short-cycle rebound rather than the 15-25% flush/recovery pattern seen in Pons. The estimated effect is small and only 2 of 54 adequately sampled 5%-drawdown parameterizations were positive in both halves, so it is not a stable strategy rule."
+    },
+    "conclusion": "ORIGINAL_RESET_GRID_TOO_NARROW_FOR_PUMP_BUT_BROADENING_DOES_NOT_VALIDATE_RESET_STRATEGY"
+  },
+  "explanation_for_pump_pons_contrast": [
+    "The original 15-35% reset grid naturally selects much more volatile assets. Higher-volume Pump.fun ecosystem names rarely generated such drawdowns at the public chart resolution, whereas Pons V2 names generated repeated deep flush/recovery cycles.",
+    "Pump microcaps produced the dramatic positive examples in the first study; removing them changed the Pump result materially.",
+    "Pons reset-recovery remains a post-graduation thesis and the Pons V2 public sample is comparatively aligned with that regime. Public Pump.fun category names are mature listed survivors and do not reproduce the newborn/late-curve Current universe.",
+    "A single universal Pump/Pons parameter set is therefore not justified."
+  ],
+  "revised_research_decision": {
+    "pump_staged_scaling": "Do not activate. Keep generic machinery; if researched again, use Pump-specific shallow/short-horizon confirmations and exact after-cost execution evidence.",
+    "pump_reset_recovery": "Do not freeze a trade threshold. Reclassify as shallow-recovery hypothesis; future shadow research should center around roughly 5-10% resets, not 15-35%, while preserving structural safety gates.",
+    "pons": "Existing provisional Pons shadow findings remain separate and are not weakened by the Pump sensitivity result."
+  }
+}
