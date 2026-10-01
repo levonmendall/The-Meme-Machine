@@ -1,0 +1,341 @@
+{
+  "schema": "meme-machine-post-stage-e-strategy-activation-v1",
+  "status": "READY_FOR_STAGE_E_GREEN_THEN_FINAL_SHA_COMPOSITION",
+  "paper_only": true,
+  "live_money_authority": false,
+  "prepared_at": "2026-10-01",
+  "authority_note": "This bundle prepares PAPER strategy activation only. It does not modify or authorize the active Stage-E candidate or any market workload.",
+  "stage_e_boundary": {
+    "required_state": "authoritative Stage E PASS",
+    "final_stage_e_sha": "FILL_FROM_AUTHORITATIVE_STAGE_E_PASS_RECEIPT",
+    "final_stage_e_tree": "FILL_FROM_AUTHORITATIVE_STAGE_E_PASS_RECEIPT",
+    "certified_stage_e_candidate_must_remain_immutable": true,
+    "create_new_post_e_candidate": true,
+    "no_market_smoke_before_new_exact_sha_non_market_certification": true,
+    "only_unresolved_inputs": [
+      "final Stage-E SHA/tree and regenerated hashes/identities mechanically derived from the final composed bytes"
+    ],
+    "unresolved_strategy_or_economic_decisions": []
+  },
+  "required_baseline_preflight": [
+    "exact final Stage-E source contains the intended six-regime Pump/Pons architecture",
+    "moderate-admission threshold revision is the intended active baseline",
+    "Pump and Pons shared-sleeve reservation authority is present",
+    "Meteora and Ramses active baseline identities match the final Stage-E receipt",
+    "PAPER-only/no-signing/no-submission authority remains intact"
+  ],
+  "activation_items": [
+    {
+      "number": 1,
+      "id": "directional_capital_parity",
+      "label": "Directional capital parity",
+      "disposition": "ACTIVATE",
+      "readiness": "READY",
+      "frozen_behavior": "Pump Current, Pump Survivor, Pons Current and Pons Survivor each request 500 bps (5%) of their family sleeve before mandatory downsizing.",
+      "parameters": {
+        "pump_current_target_bps": 500,
+        "pump_survivor_target_bps": 500,
+        "pons_current_target_bps": 500,
+        "pons_survivor_target_bps": 500
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/directional-capital-parity-v1.json",
+        "certification/strategy-prep/directional-capital-parity-v1.patch"
+      ],
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "all four directional regimes request exactly 500 bps before caps",
+        "shared Pump/Pons sleeves remain single sleeves with no new capital lane",
+        "turnover/depth/stress/breadth/available-capital checks can only downsize"
+      ]
+    },
+    {
+      "number": 2,
+      "id": "realized_equity_compounding",
+      "label": "Realized-equity compounding",
+      "disposition": "ACTIVATE",
+      "readiness": "READY",
+      "frozen_behavior": "The common 5% target compounds from immutable family-sleeve genesis capital plus durable reconciled realized P&L; unrealized P&L has zero sizing authority.",
+      "parameters": {
+        "target_bps": 500,
+        "unrealized_pnl_included": false,
+        "cross_sleeve_borrowing": false,
+        "zero_or_negative_realized_equity_allows_new_entry": false
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/directional-realized-equity-sizing-v1.json",
+        "certification/strategy-prep/directional-realized-equity-sizing-v1.patch"
+      ],
+      "supersession": "This layer is the authoritative sizing basis. Item 1 freezes the 500-bps target; item 2 replaces any fixed-genesis target calculation with realized-equity sizing.",
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "125 realized-equity units -> 6.25-unit target equivalent",
+        "durable profit increases and durable loss decreases the next target",
+        "unrealized marks and partial nonterminal P&L cannot increase target",
+        "restart/replay reconstructs identical realized equity and target"
+      ]
+    },
+    {
+      "number": 3,
+      "id": "pump_current_exits",
+      "label": "Pump Current exits",
+      "disposition": "ACTIVATE",
+      "readiness": "READY",
+      "frozen_behavior": "Pump Current uses -8% hard stop, +15% first realization selling 25%, two-confirmation demand deterioration and a 14% proportional high-water price trail below the common tail arm.",
+      "parameters": {
+        "hard_stop_bps": -800,
+        "first_profit_bps": 1500,
+        "first_sell_bps": 2500,
+        "pre_tail_price_drawdown_bps": 1400,
+        "demand_exit_confirmations": 2
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/exit-optimization-v1.json",
+        "certification/strategy-prep/exit-optimization-v1.patch",
+        "certification/strategy-prep/right-tail-capture-v1.patch"
+      ],
+      "supersession": "The exit-optimization 1400-bps value is interpreted as a proportional high-water price drawdown after right-tail composition, not a fixed return-point subtraction. Item 6 supersedes trail behavior at/above +100% high-water.",
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "hard stop exactly -800 bps",
+        "first realization exactly +1500 bps and 25% original quantity",
+        "below +100% high-water the trail uses proportional price drawdown",
+        "fixed return-point trail is absent from final composed Pump Current"
+      ]
+    },
+    {
+      "number": 4,
+      "id": "pons_current_exits",
+      "label": "Pons Current exits",
+      "disposition": "ACTIVATE",
+      "readiness": "READY",
+      "frozen_behavior": "Pons Current uses -8% hard stop, +18% first realization selling 25%, 12% normal proportional high-water trail, adverse flow only at sells >=1.20x buys, and two-confirmation soft deterioration.",
+      "parameters": {
+        "hard_stop_bps": -800,
+        "first_profit_bps": 1800,
+        "first_sell_bps": 2500,
+        "pre_tail_price_drawdown_bps": 1200,
+        "adverse_sell_buy_ratio_bps": 12000,
+        "soft_deterioration_confirmations": 2,
+        "max_total_hold_seconds": 900
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/exit-optimization-v1.json",
+        "certification/strategy-prep/exit-optimization-v1.patch",
+        "certification/strategy-prep/right-tail-capture-v1.patch"
+      ],
+      "supersession": "Item 6 supersedes normal trail behavior at/above +100% high-water. The 1.20x adverse-flow and deterioration exits remain independent safety/management exits.",
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "first realization is 25%, not legacy 33.33%",
+        "11% sell/buy excess does not trigger the immediate adverse-flow exit; 20% does at the exact boundary",
+        "both pre-graduation and post-graduation Current runner paths receive the tail overlay"
+      ]
+    },
+    {
+      "number": 5,
+      "id": "current_to_survivor_preservation",
+      "label": "Current→Survivor preservation",
+      "disposition": "ACTIVATE",
+      "readiness": "READY",
+      "frozen_behavior": "Current rejection, timeout, cancellation, close or no-fill cannot tombstone later Survivor discovery. Survivor independently reevaluates fresh evidence; same-asset observation may coexist with Current exposure but duplicate Survivor fill may not.",
+      "parameters": {
+        "outcome_windows": [
+          "5m",
+          "15m",
+          "1h",
+          "6h",
+          "24h"
+        ],
+        "new_decision_critical_provider_calls_for_reject_receipts": 0
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/directional-opportunity-preservation-v1.json",
+        "docs/DIRECTIONAL_OPPORTUNITY_PRESERVATION_V1_IMPLEMENTATION_CONTRACT.md"
+      ],
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "Pump reject -> verified migration -> Survivor observation/independent evaluation survives",
+        "Pons reject -> verified graduation -> Survivor observation/independent evaluation survives",
+        "restart between Current decision and Survivor event cannot lose linkage",
+        "Current exposure blocks only duplicate same-asset Survivor fill, not observation",
+        "reject/outcome telemetry has zero trading authority and zero new decision-critical provider calls"
+      ]
+    },
+    {
+      "number": 6,
+      "id": "common_right_tail_trail",
+      "label": "Right-tail trail",
+      "disposition": "ACTIVATE",
+      "readiness": "READY",
+      "frozen_behavior": "At +100% high-water and above, Pump Current, Pons Current, Pump Survivor and Pons Survivor use the common tail rule: exit when current accrued gain falls to 60% of peak accrued gain.",
+      "parameters": {
+        "tail_arm_high_water_return_bps": 10000,
+        "accrued_gain_giveback_bps": 4000,
+        "keep_fraction_of_peak_gain_bps": 6000
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/right-tail-capture-v1.json",
+        "certification/strategy-prep/right-tail-capture-v1.patch",
+        "docs/RIGHT_TAIL_CAPTURE_V1_IMPLEMENTATION_CONTRACT.md"
+      ],
+      "exact_examples": [
+        {
+          "peak_x": 2,
+          "exit_x": 1.6
+        },
+        {
+          "peak_x": 5,
+          "exit_x": 3.4
+        },
+        {
+          "peak_x": 10,
+          "exit_x": 6.4
+        },
+        {
+          "peak_x": 25,
+          "exit_x": 15.4
+        },
+        {
+          "peak_x": 50,
+          "exit_x": 30.4
+        }
+      ],
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "Pump Current uses common tail rule at +100% and above",
+        "Pons Current pre-graduation and post-graduation runner paths both use common tail rule",
+        "shared Survivor risk path applies common tail rule to both Pump Survivor and Pons Survivor",
+        "creator/distribution, liquidity, integrity, freshness and confirmed deterioration exits retain precedence"
+      ]
+    },
+    {
+      "number": 7,
+      "id": "current_tail_bridge",
+      "label": "Current tail bridge",
+      "disposition": "ACTIVATE",
+      "readiness": "READY",
+      "frozen_behavior": "At an ordinary Current timeout, a proven winner may continue on the same Current lifecycle rather than being forced flat, only when every frozen bridge gate passes.",
+      "parameters": {
+        "minimum_high_water_return_bps": 5000,
+        "first_realization_required": true,
+        "maximum_total_hold_seconds_from_original_open": 129600,
+        "new_entry": false,
+        "new_reservation": false,
+        "extra_capital": false,
+        "sell_rebuy": false
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/right-tail-capture-v1.json",
+        "docs/RIGHT_TAIL_CAPTURE_V1_IMPLEMENTATION_CONTRACT.md"
+      ],
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "high-water +4999 at timeout cannot enter bridge; +5000 can only if every other bridge gate passes",
+        "bridge preserves lifecycle ID, opened_at, original reference, high-water, realization and deterioration state",
+        "bridge deadline is original opened_at +129600 and survives restart",
+        "same-asset Survivor observation remains allowed and same-asset Survivor fill remains blocked until terminal reconciliation",
+        "any missing/stale safety evidence falls back to the existing Current timeout exit"
+      ]
+    },
+    {
+      "number": 8,
+      "id": "staged_winner_scaling",
+      "label": "Staged winner scaling",
+      "disposition": "ACTIVATE_WITH_RIGHT_TAIL_PACKAGE",
+      "readiness": "READY",
+      "frozen_behavior": "One and only one bounded add may occur after +100% high-water, first realization, 15-minute persistence, <=15% drawdown from high and full fresh strategy/safety/execution requalification.",
+      "parameters": {
+        "maximum_scale_events_per_lifecycle": 1,
+        "minimum_high_water_return_bps": 10000,
+        "confirmation_seconds": 900,
+        "maximum_drawdown_from_high_bps": 1500,
+        "add_target_bps_of_realized_sleeve_equity": 250,
+        "add_cap_fraction_of_original_committed_basis_bps": 5000,
+        "maximum_total_committed_basis_bps_of_realized_sleeve_equity": 750,
+        "unrealized_pnl_spendable": false
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/staged-winner-scaling-v1.json",
+        "docs/STAGED_WINNER_SCALING_V1_IMPLEMENTATION_CONTRACT.md",
+        "certification/strategy-prep/right-tail-capture-v1.json",
+        "docs/RIGHT_TAIL_CAPTURE_V1_IMPLEMENTATION_CONTRACT.md"
+      ],
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "no add before 900 seconds after first +100% crossing",
+        "no add when current drawdown exceeds 15% from high",
+        "add is min(2.5% realized sleeve equity, 50% original basis, available capital, execution/capacity caps)",
+        "duplicate scale delivery cannot produce a second add",
+        "scale cannot reset original-entry high-water, hard stop, bridge clock, deterioration or exit intent",
+        "failed incremental reservation/commit leaves original position economically unchanged"
+      ]
+    },
+    {
+      "number": 9,
+      "id": "meteora_exit_optimization",
+      "label": "Meteora exit optimization",
+      "disposition": "ACTIVATE",
+      "readiness": "READY",
+      "frozen_behavior": "Keep entry two-way balance >=20% and drift <=80%; immediate one-way adverse-flow exit becomes two-way balance <18% and drift >82%; post-core-hold economic collapse requires 3 verified 300-second segments.",
+      "parameters": {
+        "entry_min_two_way_balance_bps": 2000,
+        "entry_max_drift_bps": 8000,
+        "exit_one_way_two_way_balance_bps": 1800,
+        "exit_one_way_drift_bps": 8200,
+        "economic_collapse_confirmation_segments": 3,
+        "observation_segment_seconds": 300,
+        "core_hold_seconds": 14400
+      },
+      "implementation_artifacts": [
+        "certification/strategy-prep/exit-optimization-v1.json",
+        "certification/strategy-prep/exit-optimization-v1.patch"
+      ],
+      "unresolved_decisions": [],
+      "acceptance_proofs": [
+        "entry/exit hysteresis no longer overlaps at the old 25%/75% thresholds",
+        "2 collapse segments do not exit after core hold; 3 do",
+        "4-hour core hold, range-boundary/inventory risk exits and 24-hour maximum hold remain intact"
+      ]
+    }
+  ],
+  "composition_order": [
+    "freeze authoritative green Stage-E SHA/tree/evidence receipt",
+    "create a new post-E integration branch/candidate from that exact SHA",
+    "verify six-regime + moderate-admission baseline identities",
+    "apply/regenerate directional-capital-parity-v1 semantic delta",
+    "apply/regenerate exit-optimization-v1 semantic delta",
+    "implement directional-opportunity-preservation-v1 contract",
+    "apply/regenerate directional-realized-equity-sizing-v1 as the final sizing authority",
+    "implement staged-winner-scaling lifecycle machinery",
+    "apply right-tail-capture-v1 trail economics to Pump Current, both Pons Current runner paths and shared Survivor risk",
+    "implement same-lifecycle Current tail_bridge state and incremental scale reservation/commit/replay semantics",
+    "regenerate every affected policy hash, source manifest, implementation hash and frozen identity from final composed bytes",
+    "run deterministic activation matrix and full affected native/non-market suites",
+    "run exact-SHA non-market certification of the new composed PAPER candidate",
+    "only after that pass, authorize at most the separately permitted PAPER market smoke",
+    "restart fresh affected Pump/Pons/Meteora profitability cohorts"
+  ],
+  "supersession_rules": [
+    "Do not blindly apply preparation patches by commit order when the same source line is touched by multiple layers; regenerate a semantic final-SHA delta using this manifest as authority.",
+    "Directional capital parity freezes the 500-bps target; realized-equity compounding is the final sizing-basis authority.",
+    "Exit optimization freezes Pump/Pons ordinary exits and Meteora hysteresis; common right-tail trail supersedes only the Pump/Pons trail behavior at/above +100% high-water.",
+    "Right-tail scaling economics supersede any older staged-scaling null/research-only economic fields.",
+    "Current tail bridge extends only proven winning Current lifecycles and does not lower Survivor's existing six-hour admission minimum.",
+    "Ramses strategy is unchanged by this bundle."
+  ],
+  "final_acceptance": {
+    "activation_item_count": 9,
+    "every_item_must_be_ready": true,
+    "every_item_unresolved_decisions_must_be_empty": true,
+    "exact_final_sha_non_market_pass_required": true,
+    "market_smoke_before_exact_final_sha_pass": false,
+    "fresh_profitability_cohorts": [
+      "pump",
+      "pons",
+      "meteora"
+    ],
+    "stage_e_evidence_may_not_be_overwritten_or_reinterpreted": true,
+    "live_money_authority": false
+  }
+}
