@@ -1,0 +1,154 @@
+{
+  "provenance": "Parsed projections of exact CI job log text, GitHub artifact metadata, and runner file-hash bindings. The artifact ZIP has not been independently extracted here.",
+  "repository": "levonmendall/The-Meme-Machine",
+  "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "evidence_base_sha": "750190b2067ca2fca771b531396d8e06a9351c62",
+  "execution_sha": "c22e61a176951c364b9dc855c68adad849479afe",
+  "execution_tree": "181617da5edde878ed66ae79d7c6797534b7450b",
+  "run_id": 36818149058,
+  "job_id": 110227640326,
+  "run_attempt": 1,
+  "artifact": {
+    "id": 11142687311,
+    "name": "housekeeping-ordering-c22e61a176951c364b9dc855c68adad849479afe-36818149058-1",
+    "size_in_bytes": 1529756,
+    "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11142687311",
+    "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11142687311/zip",
+    "expired": false,
+    "created_at": "2026-10-01T05:17:38Z",
+    "expires_at": "2026-12-30T05:05:38Z",
+    "updated_at": "2026-10-01T05:17:38Z",
+    "digest": "sha256:08028f13ff03f4f78c6700aa8ede205f63eb6730da8dc0a718396e20e3028c54",
+    "workflow_run": {
+      "id": 36818149058,
+      "repository_id": 1373661451,
+      "head_repository_id": 1373661451,
+      "head_branch": "diagnostics/housekeeping-ordering-20261001",
+      "head_sha": "c22e61a176951c364b9dc855c68adad849479afe"
+    }
+  },
+  "artifact_upload_digest_matches_rest_metadata": true,
+  "job_log_file": "CI_JOB_LOG.txt",
+  "job_log_sha256": "c70eba85cb7b7476a8747d8700ea4d8c7ba00a7fc136195e567063040b08b58a",
+  "treatment_patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d",
+  "focused_tests_sha256": "fa16faf54607a45c9b835cd1f18ebf0507040d16ddc21feb93477b625c031411",
+  "safety_gate": {
+    "budget_consumed": 4,
+    "checks": [
+      {
+        "log_sha256": "7200832e0b3f154b3c2158ac9f1649714cc0bc5078141eee8a7fd05027897b71",
+        "name": "control-reproduction",
+        "returncode": 0,
+        "tests": 1
+      },
+      {
+        "log_sha256": "fbf76604478d66284fca1ff7553296d1ab97578f1b20186da095f58567c3a7a5",
+        "name": "treatment-focused",
+        "returncode": 0,
+        "tests": 54
+      },
+      {
+        "log_sha256": "56db26249183c82c847bc4a78d25d4a78ec1f056bc471b90114ec312bb31abd1",
+        "name": "resource",
+        "returncode": 0,
+        "tests": null
+      }
+    ],
+    "diagnostic_sha": "c22e61a176951c364b9dc855c68adad849479afe",
+    "material_executions": 0,
+    "passed": true,
+    "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d",
+    "tests_sha256": "fa16faf54607a45c9b835cd1f18ebf0507040d16ddc21feb93477b625c031411"
+  },
+  "material_executions": [
+    {
+      "arm": "control",
+      "completed_frames": 1214,
+      "elapsed": 338.349641528,
+      "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides",
+      "forced_wall_bound": false,
+      "hostname": "runnervmtr4k5",
+      "material_execution_number": 5,
+      "pid": 2365,
+      "request_sha256": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317",
+      "residual_process_group": false,
+      "returncode": 0,
+      "run_attempt": "1",
+      "run_id": "36818149058",
+      "runner": "GitHub Actions 1000026409",
+      "source_seconds": 327.78000000000003,
+      "stop_reason": "native_failure",
+      "utc_end": "2026-10-01T05:11:59Z",
+      "utc_start": "2026-10-01T05:06:21Z"
+    },
+    {
+      "arm": "treatment",
+      "completed_frames": 1207,
+      "elapsed": 336.55010867799996,
+      "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides",
+      "forced_wall_bound": false,
+      "hostname": "runnervmtr4k5",
+      "material_execution_number": 6,
+      "pid": 2537,
+      "request_sha256": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317",
+      "residual_process_group": false,
+      "returncode": 0,
+      "run_attempt": "1",
+      "run_id": "36818149058",
+      "runner": "GitHub Actions 1000026409",
+      "source_seconds": 325.89000000000004,
+      "stop_reason": "native_failure",
+      "utc_end": "2026-10-01T05:17:35Z",
+      "utc_start": "2026-10-01T05:11:59Z"
+    }
+  ],
+  "comparison_artifact_file_sha256": "6e2c64f3217a2792bddec3188bafb23dc6df68aa3f5f902861666f38b00ebe2f",
+  "native_turns_artifact_file_sha256": {
+    "control": "bed2bd8cbf6fe760ee05467c9ad06e78fd736e6d04fe01d1320687f7b95cd426",
+    "treatment": "ae21d652927c6430958a8df256d5ca53ad3de96f69d243339681eaeab40a96da"
+  },
+  "first_failed_test_gate": {
+    "execution_sha": "a2934b503b0ca26e7e7489048754af09f486af28",
+    "run_id": 36817981327,
+    "job_id": 110227124705,
+    "run_attempt": 1,
+    "artifact": {
+      "id": 11142301802,
+      "name": "housekeeping-ordering-a2934b503b0ca26e7e7489048754af09f486af28-36817981327-1",
+      "size_in_bytes": 159469,
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11142301802",
+      "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/11142301802/zip",
+      "expired": false,
+      "created_at": "2026-10-01T05:03:50Z",
+      "expires_at": "2026-12-30T05:03:30Z",
+      "updated_at": "2026-10-01T05:03:50Z",
+      "digest": "sha256:3d3d67c9f4c30d92c8290cb686ec04fad32a245da78690bb948c55ee674c5ca1",
+      "workflow_run": {
+        "id": 36817981327,
+        "repository_id": 1373661451,
+        "head_repository_id": 1373661451,
+        "head_branch": "diagnostics/housekeeping-ordering-20261001",
+        "head_sha": "a2934b503b0ca26e7e7489048754af09f486af28"
+      }
+    },
+    "job_log_file": "INITIAL_SAFETY_GATE_CI_LOG.txt",
+    "job_log_sha256": "f25ff6cf4b546ea95c95a6fb735a25a2aa0a0bb92fdbe49ce8a66536129326ce",
+    "material_executions": 0,
+    "issue": "Two-turn mock demands were reused; the first turn appended receipt bookkeeping, causing a duplicate demand in the second turn.",
+    "correction": "Fresh list per mocked observation; treatment.patch unchanged."
+  },
+  "budget": {
+    "ceiling": 6,
+    "consumed": 6,
+    "unused": 0
+  },
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "paper_only": true,
+  "production_promotion": false,
+  "canonical_stage_e_certification": false,
+  "successor_freeze": false,
+  "m1_repair": false,
+  "preflight_repair": false,
+  "stop_all_diagnostic_execution": true
+}

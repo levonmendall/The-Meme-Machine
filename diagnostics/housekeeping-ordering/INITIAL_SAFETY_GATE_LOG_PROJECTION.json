@@ -1,0 +1,98 @@
+{
+  "arms": {
+    "control": {
+      "unavailable": true
+    },
+    "treatment": {
+      "unavailable": true
+    }
+  },
+  "budget": {
+    "ceiling": 6,
+    "consumed": 4,
+    "unused": 2
+  },
+  "executions": [],
+  "interpretation": "inconclusive_for_paired_binding_housekeeping_effect",
+  "limitations": [
+    "One fixed-order matched pair on one hosted runner; no replication or counterbalance.",
+    "Source .165, archive .36/1000, COMMIT .006 and reduced urgent ACK controls are retained in both arms.",
+    "Scope/owner/transaction/worker spans overlap; do not sum them as independent occupancy.",
+    "Ready marker precedes Future.set_result bookkeeping; complete receipt partitions only.",
+    "Timing drops or missing summaries leave evidence incomplete; no reconstruction from aggregate counters.",
+    "Native and extra observer cost remain mixed. No strict less-than-1-percent certification is claimed.",
+    "M1 and preflight blockers remain historical and unresolved; canonical Stage E/F is not tested."
+  ],
+  "mechanism_observed": false,
+  "paper_only": true,
+  "safety_gate": {
+    "budget_consumed": 4,
+    "checks": [
+      {
+        "log_sha256": "5eeca66cd37ec5e7b59ad10e6fb3fc702e92b9b194a85abf88b95ae99a638a6a",
+        "name": "control-reproduction",
+        "returncode": 0,
+        "tests": null
+      },
+      {
+        "log_sha256": "d0b9c0b84983a872f53d25fefdc2e8402d3e0d4900d44420e967faf49428b778",
+        "name": "treatment-focused",
+        "returncode": 1,
+        "tests": 54
+      }
+    ],
+    "material_executions": 0,
+    "passed": false
+  },
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "static_verification": {
+    "ast_checks": {
+      "arbiter_and_owner_unchanged": true,
+      "housekeeping_atomic_shield_added": false,
+      "ledger_and_outcome_model_unchanged": true,
+      "native_housekeeping_ast_identical": true,
+      "native_scope_loop_ast_identical": true,
+      "native_scope_transactions_identical": true,
+      "service_and_turn_flow_identical_except_prefix_argument": true
+    },
+    "changed_paths": [
+      "meme_machine/solana_evidence_plane.py",
+      "meme_machine/solana_evidence_service.py",
+      "meme_machine/solana_maintenance_runtime.py"
+    ],
+    "diagnostic_sha": "a2934b503b0ca26e7e7489048754af09f486af28",
+    "diagnostic_tree": "415bcb1b25b9fe88f687237d85fe1b784b0706c0",
+    "evidence_base_sha": "750190b2067ca2fca771b531396d8e06a9351c62",
+    "historical_stops_preserved": true,
+    "identical_configuration_except_ordering": true,
+    "identical_harness_native_wrappers": true,
+    "identical_native_workload_wire": true,
+    "paper_only": true,
+    "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d",
+    "protected_evidence_files": 1197,
+    "protected_production_files": 1152,
+    "source_and_evidence_blobs_and_modes_unchanged": true,
+    "source_floor_both": 0.165,
+    "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "stage_e": "RED",
+    "stage_f": "NOT_STARTED",
+    "tests_sha256": "c3a004c1caae1e4344e91eb729c3b2eb1a41cb16821b9991694f58a39938cc6b",
+    "unchanged_workload_hashes": {
+      "certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+      "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3",
+      "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+      "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+      "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+      "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf",
+      "certification/pressure_diagnostics.py": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45",
+      "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f",
+      "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+      "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+      "tests/test_run373_dispatch_throughput.py": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+      "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"
+    },
+    "verified": true
+  },
+  "status": "HOUSEKEEPING_ORDERING_TEST_GATE_STOP_NO_MATERIAL_RUN"
+}

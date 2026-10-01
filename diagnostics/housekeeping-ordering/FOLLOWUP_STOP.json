@@ -1,0 +1,27 @@
+{
+  "status": "HOUSEKEEPING_ORDERING_PAIR_COMPLETE_STOP_FOR_ASTRA",
+  "stop_all_diagnostic_execution": true,
+  "executions_consumed": 6,
+  "ceiling": 6,
+  "unused": 0,
+  "material_execution_numbers": [
+    5,
+    6
+  ],
+  "pair_run_id": 36818149058,
+  "pair_job_id": 110227640326,
+  "execution_sha": "c22e61a176951c364b9dc855c68adad849479afe",
+  "artifact_id": 11142687311,
+  "retry_authorized": false,
+  "paper_only": true,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "production_promotion_approved": false,
+  "canonical_stage_e_approved": false,
+  "successor_freeze_approved": false,
+  "stage_f_approved": false,
+  "m1_repair_approved": false,
+  "preflight_repair_approved": false,
+  "preparation_overlap_retired": true,
+  "scope": "Only captured evidence has been preserved after the pair. Stop for Astra review."
+}

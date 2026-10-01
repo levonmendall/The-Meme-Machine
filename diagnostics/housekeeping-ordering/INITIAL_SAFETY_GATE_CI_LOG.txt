@@ -1,0 +1,707 @@
+﻿2026-10-01T05:03:33.2340527Z Current runner version: '2.337.0'
+2026-10-01T05:03:33.2379375Z ##[group]Runner Image Provisioner
+2026-10-01T05:03:33.2380801Z Hosted Compute Agent
+2026-10-01T05:03:33.2382198Z Version: 20260901.588
+2026-10-01T05:03:33.2383244Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-01T05:03:33.2384612Z Build Date: 2026-09-01T19:56:44Z
+2026-10-01T05:03:33.2385753Z Worker ID: {b5cf9c2d-f483-4505-84fc-82a43ab846c4}
+2026-10-01T05:03:33.2387106Z Azure Region: eastus
+2026-10-01T05:03:33.2388065Z ##[endgroup]
+2026-10-01T05:03:33.2390863Z ##[group]Operating System
+2026-10-01T05:03:33.2392286Z Ubuntu
+2026-10-01T05:03:33.2393199Z 24.04.5
+2026-10-01T05:03:33.2394351Z LTS
+2026-10-01T05:03:33.2395297Z ##[endgroup]
+2026-10-01T05:03:33.2396318Z ##[group]Runner Image
+2026-10-01T05:03:33.2397439Z Image: ubuntu-24.04
+2026-10-01T05:03:33.2398505Z Version: 20260927.320.1
+2026-10-01T05:03:33.2400684Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-01T05:03:33.2403949Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+2026-10-01T05:03:33.2405802Z ##[endgroup]
+2026-10-01T05:03:33.2408021Z ##[group]GITHUB_TOKEN Permissions
+2026-10-01T05:03:33.2411710Z Contents: read
+2026-10-01T05:03:33.2412904Z Metadata: read
+2026-10-01T05:03:33.2413909Z ##[endgroup]
+2026-10-01T05:03:33.2417118Z Secret source: Actions
+2026-10-01T05:03:33.2418769Z Cache mode: write
+2026-10-01T05:03:33.2420061Z Prepare workflow directory
+2026-10-01T05:03:33.3029963Z Prepare all required actions
+2026-10-01T05:03:33.3104578Z Getting action download info
+2026-10-01T05:03:33.4742424Z Download action repository 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-10-01T05:03:33.5969287Z Download action repository 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-01T05:03:33.6741041Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-01T05:03:33.8966113Z Complete job name: matched-pair
+2026-10-01T05:03:33.9776445Z ##[group]Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+2026-10-01T05:03:33.9777541Z with:
+2026-10-01T05:03:33.9778028Z   ref: a2934b503b0ca26e7e7489048754af09f486af28
+2026-10-01T05:03:33.9778617Z   fetch-depth: 0
+2026-10-01T05:03:33.9779080Z   persist-credentials: false
+2026-10-01T05:03:33.9779631Z   repository: levonmendall/The-Meme-Machine
+2026-10-01T05:03:33.9784144Z   token: ***
+2026-10-01T05:03:33.9784581Z   ssh-strict: true
+2026-10-01T05:03:33.9785015Z   ssh-user: git
+2026-10-01T05:03:33.9785434Z   clean: true
+2026-10-01T05:03:33.9785888Z   sparse-checkout-cone-mode: true
+2026-10-01T05:03:33.9786418Z   fetch-tags: false
+2026-10-01T05:03:33.9786866Z   show-progress: true
+2026-10-01T05:03:33.9787313Z   lfs: false
+2026-10-01T05:03:33.9787785Z   submodules: false
+2026-10-01T05:03:33.9788246Z   set-safe-directory: true
+2026-10-01T05:03:33.9789042Z env:
+2026-10-01T05:03:33.9789455Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:03:33.9789910Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:03:33.9790402Z ##[endgroup]
+2026-10-01T05:03:34.0834924Z Syncing repository: levonmendall/The-Meme-Machine
+2026-10-01T05:03:34.0837695Z ##[group]Getting Git version info
+2026-10-01T05:03:34.0838997Z Working directory is '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+2026-10-01T05:03:34.0840878Z [command]/usr/bin/git version
+2026-10-01T05:03:34.0886766Z git version 2.55.0
+2026-10-01T05:03:34.0910736Z ##[endgroup]
+2026-10-01T05:03:34.0929440Z Temporarily overriding HOME='/home/runner/work/_temp/fc7b2d57-407c-4a45-b3d5-27b3848ca399' before making global git config changes
+2026-10-01T05:03:34.0936460Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-01T05:03:34.0938438Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T05:03:34.1004681Z Deleting the contents of '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+2026-10-01T05:03:34.1009102Z ##[group]Initializing the repository
+2026-10-01T05:03:34.1016501Z [command]/usr/bin/git init /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T05:03:34.1138497Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-01T05:03:34.1142179Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-01T05:03:34.1145146Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-01T05:03:34.1146921Z hint: call:
+2026-10-01T05:03:34.1147690Z hint:
+2026-10-01T05:03:34.1148626Z hint: 	git config --global init.defaultBranch <name>
+2026-10-01T05:03:34.1149710Z hint:
+2026-10-01T05:03:34.1150736Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-01T05:03:34.1152939Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-01T05:03:34.1154475Z hint:
+2026-10-01T05:03:34.1155164Z hint: 	git branch -m <name>
+2026-10-01T05:03:34.1155831Z hint:
+2026-10-01T05:03:34.1156669Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-01T05:03:34.1158174Z Initialized empty Git repository in /home/runner/work/The-Meme-Machine/The-Meme-Machine/.git/
+2026-10-01T05:03:34.1160701Z [command]/usr/bin/git remote add origin https://github.com/levonmendall/The-Meme-Machine
+2026-10-01T05:03:34.1211289Z ##[endgroup]
+2026-10-01T05:03:34.1213204Z ##[group]Disabling automatic garbage collection
+2026-10-01T05:03:34.1216869Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-01T05:03:34.1252618Z ##[endgroup]
+2026-10-01T05:03:34.1253524Z ##[group]Setting up auth
+2026-10-01T05:03:34.1261775Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T05:03:34.1298062Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T05:03:34.1707722Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T05:03:34.1751764Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T05:03:34.2015320Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-01T05:03:34.2071192Z ##[endgroup]
+2026-10-01T05:03:34.2072890Z ##[group]Fetching the repository
+2026-10-01T05:03:34.2084548Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-10-01T05:03:35.0856776Z From https://github.com/levonmendall/The-Meme-Machine
+2026-10-01T05:03:35.0869617Z  * [new branch]        analysis/run377-preserved-evidence-20260926 -> origin/analysis/run377-preserved-evidence-20260926
+2026-10-01T05:03:35.0874425Z  * [new branch]        analysis/run379-preserved-evidence-20260926 -> origin/analysis/run379-preserved-evidence-20260926
+2026-10-01T05:03:35.0877114Z  * [new branch]        analysis/run380-preserved-evidence-20260926 -> origin/analysis/run380-preserved-evidence-20260926
+2026-10-01T05:03:35.0879005Z  * [new branch]        analysis/run381-preserved-evidence-20260927 -> origin/analysis/run381-preserved-evidence-20260927
+2026-10-01T05:03:35.0880598Z  * [new branch]        analysis/run381-sqlite-lifetime-20260927 -> origin/analysis/run381-sqlite-lifetime-20260927
+2026-10-01T05:03:35.0884131Z  * [new branch]        analysis/stage-e-causal-isolation-phase0-20260930-paper -> origin/analysis/stage-e-causal-isolation-phase0-20260930-paper
+2026-10-01T05:03:35.0888379Z  * [new branch]        architecture/certify-changes-preflight-runs-20260925 -> origin/architecture/certify-changes-preflight-runs-20260925
+2026-10-01T05:03:35.0892414Z  * [new branch]        architecture/robinhood-evidence-plane-20260925 -> origin/architecture/robinhood-evidence-plane-20260925
+2026-10-01T05:03:35.0896771Z  * [new branch]        archive/one-hour-repair-campaign-b145417c-20260923 -> origin/archive/one-hour-repair-campaign-b145417c-20260923
+2026-10-01T05:03:35.0900214Z  * [new branch]        audit/coverage-evidence-35935431384 -> origin/audit/coverage-evidence-35935431384
+2026-10-01T05:03:35.0903732Z  * [new branch]        audit/coverage-successor-handoff-20260924 -> origin/audit/coverage-successor-handoff-20260924
+2026-10-01T05:03:35.0906576Z  * [new branch]        audit/missed-winner-market-replay -> origin/audit/missed-winner-market-replay
+2026-10-01T05:03:35.0909016Z  * [new branch]        cert/active-next-run-v12-20260924 -> origin/cert/active-next-run-v12-20260924
+2026-10-01T05:03:35.0911913Z  * [new branch]        cert/all-market-certification-20260923 -> origin/cert/all-market-certification-20260923
+2026-10-01T05:03:35.0915177Z  * [new branch]        cert/autonomous-paper-control-66898d4 -> origin/cert/autonomous-paper-control-66898d4
+2026-10-01T05:03:35.0917667Z  * [new branch]        cert/autonomous-paper-control-d63caf3 -> origin/cert/autonomous-paper-control-d63caf3
+2026-10-01T05:03:35.0919248Z  * [new branch]        cert/autonomous-paper-final-4e52b4d -> origin/cert/autonomous-paper-final-4e52b4d
+2026-10-01T05:03:35.0920780Z  * [new branch]        cert/autonomous-paper-final-4f6c155 -> origin/cert/autonomous-paper-final-4f6c155
+2026-10-01T05:03:35.0922624Z  * [new branch]        cert/autonomous-paper-final-518e857 -> origin/cert/autonomous-paper-final-518e857
+2026-10-01T05:03:35.0924150Z  * [new branch]        cert/autonomous-paper-final-72cbb01 -> origin/cert/autonomous-paper-final-72cbb01
+2026-10-01T05:03:35.0925692Z  * [new branch]        cert/autonomous-paper-final-a60326b -> origin/cert/autonomous-paper-final-a60326b
+2026-10-01T05:03:35.0928315Z  * [new branch]        cert/autonomous-paper-final-aa50bf8 -> origin/cert/autonomous-paper-final-aa50bf8
+2026-10-01T05:03:35.0929934Z  * [new branch]        cert/autonomous-paper-final-b408dec -> origin/cert/autonomous-paper-final-b408dec
+2026-10-01T05:03:35.0931970Z  * [new branch]        cert/autonomous-paper-final-df7b376 -> origin/cert/autonomous-paper-final-df7b376
+2026-10-01T05:03:35.0933657Z  * [new branch]        cert/autonomous-paper-machinery-20260927 -> origin/cert/autonomous-paper-machinery-20260927
+2026-10-01T05:03:35.0935313Z  * [new branch]        cert/cancel-combined-preflight-20260920 -> origin/cert/cancel-combined-preflight-20260920
+2026-10-01T05:03:35.0936808Z  * [new branch]        cert/cancel-four-hour-20260920 -> origin/cert/cancel-four-hour-20260920
+2026-10-01T05:03:35.0938127Z  * [new branch]        cert/cancel-superseded-20260920 -> origin/cert/cancel-superseded-20260920
+2026-10-01T05:03:35.0939537Z  * [new branch]        cert/cohort-state-2c3ac1d49dc0 -> origin/cert/cohort-state-2c3ac1d49dc0
+2026-10-01T05:03:35.0940967Z  * [new branch]        cert/cohort-state-513baef4b555 -> origin/cert/cohort-state-513baef4b555
+2026-10-01T05:03:35.0942714Z  * [new branch]        cert/cohort-state-59078c3dec08 -> origin/cert/cohort-state-59078c3dec08
+2026-10-01T05:03:35.0945132Z  * [new branch]        cert/cohort-state-95f602943ed4 -> origin/cert/cohort-state-95f602943ed4
+2026-10-01T05:03:35.0947618Z  * [new branch]        cert/cohort-state-d4c12afcd902 -> origin/cert/cohort-state-d4c12afcd902
+2026-10-01T05:03:35.0950248Z  * [new branch]        cert/dlmm-machinery-proof-current -> origin/cert/dlmm-machinery-proof-current
+2026-10-01T05:03:35.0953225Z  * [new branch]        cert/execution-certification-v1 -> origin/cert/execution-certification-v1
+2026-10-01T05:03:35.0955649Z  * [new branch]        cert/four-lane-capacity-v2 -> origin/cert/four-lane-capacity-v2
+2026-10-01T05:03:35.0958168Z  * [new branch]        cert/four-lane-dlmm-profitability-v1 -> origin/cert/four-lane-dlmm-profitability-v1
+2026-10-01T05:03:35.0960903Z  * [new branch]        cert/four-lane-run-records -> origin/cert/four-lane-run-records
+2026-10-01T05:03:35.0963698Z  * [new branch]        cert/four-lane-sustained-v1 -> origin/cert/four-lane-sustained-v1
+2026-10-01T05:03:35.0966072Z  * [new branch]        cert/hourly-launch-evidence-35493891947 -> origin/cert/hourly-launch-evidence-35493891947
+2026-10-01T05:03:35.0968496Z  * [new branch]        cert/meteora-execution-cert-v1 -> origin/cert/meteora-execution-cert-v1
+2026-10-01T05:03:35.0971047Z  * [new branch]        cert/meteora-machinery-proof-v2 -> origin/cert/meteora-machinery-proof-v2
+2026-10-01T05:03:35.0973987Z  * [new branch]        cert/moderate-admission-thresholds-v1-20260926 -> origin/cert/moderate-admission-thresholds-v1-20260926
+2026-10-01T05:03:35.0975777Z  * [new branch]        cert/non-market-e2e-20260922 -> origin/cert/non-market-e2e-20260922
+2026-10-01T05:03:35.0977095Z  * [new branch]        cert/one-hour-repair-campaign -> origin/cert/one-hour-repair-campaign
+2026-10-01T05:03:35.0978371Z  * [new branch]        cert/pons-execution-cert-v1 -> origin/cert/pons-execution-cert-v1
+2026-10-01T05:03:35.0979928Z  * [new branch]        cert/pons-opportunity-preservation-v2-20260925 -> origin/cert/pons-opportunity-preservation-v2-20260925
+2026-10-01T05:03:35.0988447Z  * [new branch]        cert/profit-protection-v2-four-lane-20260923 -> origin/cert/profit-protection-v2-four-lane-20260923
+2026-10-01T05:03:35.0990411Z  * [new branch]        cert/profitability-persistence-edge-current-v1 -> origin/cert/profitability-persistence-edge-current-v1
+2026-10-01T05:03:35.0992919Z  * [new branch]        cert/profitability-persistence-edge-current-v1-compose -> origin/cert/profitability-persistence-edge-current-v1-compose
+2026-10-01T05:03:35.0994894Z  * [new branch]        cert/profitability-persistence-edge-v1 -> origin/cert/profitability-persistence-edge-v1
+2026-10-01T05:03:35.0996736Z  * [new branch]        cert/profitability-persistence-edge-v1-compose -> origin/cert/profitability-persistence-edge-v1-compose
+2026-10-01T05:03:35.0998791Z  * [new branch]        cert/profitability-portfolio-autonomy-current-v1 -> origin/cert/profitability-portfolio-autonomy-current-v1
+2026-10-01T05:03:35.1001231Z  * [new branch]        cert/profitability-portfolio-autonomy-final-v1 -> origin/cert/profitability-portfolio-autonomy-final-v1
+2026-10-01T05:03:35.1003766Z  * [new branch]        cert/profitability-portfolio-autonomy-v1 -> origin/cert/profitability-portfolio-autonomy-v1
+2026-10-01T05:03:35.1005574Z  * [new branch]        cert/profitability-v1-current -> origin/cert/profitability-v1-current
+2026-10-01T05:03:35.1007034Z  * [new branch]        cert/prospective-market-v1 -> origin/cert/prospective-market-v1
+2026-10-01T05:03:35.1008772Z  * [new branch]        cert/pump-execution-cert-v1 -> origin/cert/pump-execution-cert-v1
+2026-10-01T05:03:35.1010254Z  * [new branch]        cert/ramses-execution-cert-v1 -> origin/cert/ramses-execution-cert-v1
+2026-10-01T05:03:35.1012131Z  * [new branch]        cert/ramses-machinery-proof-v2 -> origin/cert/ramses-machinery-proof-v2
+2026-10-01T05:03:35.1014025Z  * [new branch]        cert/single-campaign-004fe011b4412e6d -> origin/cert/single-campaign-004fe011b4412e6d
+2026-10-01T05:03:35.1016147Z  * [new branch]        cert/single-campaign-120002d402a7d838 -> origin/cert/single-campaign-120002d402a7d838
+2026-10-01T05:03:35.1018209Z  * [new branch]        cert/single-campaign-16ffe821fbb298da -> origin/cert/single-campaign-16ffe821fbb298da
+2026-10-01T05:03:35.1021736Z  * [new branch]        cert/single-campaign-298f9012c4a1d0a8 -> origin/cert/single-campaign-298f9012c4a1d0a8
+2026-10-01T05:03:35.1025115Z  * [new branch]        cert/single-campaign-2fbf4cef086b296f -> origin/cert/single-campaign-2fbf4cef086b296f
+2026-10-01T05:03:35.1028441Z  * [new branch]        cert/single-campaign-318a483fb097df0d -> origin/cert/single-campaign-318a483fb097df0d
+2026-10-01T05:03:35.1032342Z  * [new branch]        cert/single-campaign-3d20ec8b1604ecc8 -> origin/cert/single-campaign-3d20ec8b1604ecc8
+2026-10-01T05:03:35.1035338Z  * [new branch]        cert/single-campaign-3d80885094112b95 -> origin/cert/single-campaign-3d80885094112b95
+2026-10-01T05:03:35.1038520Z  * [new branch]        cert/single-campaign-3e5c47d8091b321c -> origin/cert/single-campaign-3e5c47d8091b321c
+2026-10-01T05:03:35.1041872Z  * [new branch]        cert/single-campaign-52e4f159fbe325bf -> origin/cert/single-campaign-52e4f159fbe325bf
+2026-10-01T05:03:35.1043692Z  * [new branch]        cert/single-campaign-5595941feb9921b7 -> origin/cert/single-campaign-5595941feb9921b7
+2026-10-01T05:03:35.1045480Z  * [new branch]        cert/single-campaign-6682fd49a1a743fe -> origin/cert/single-campaign-6682fd49a1a743fe
+2026-10-01T05:03:35.1047304Z  * [new branch]        cert/single-campaign-6d8a18efe2f5abe0 -> origin/cert/single-campaign-6d8a18efe2f5abe0
+2026-10-01T05:03:35.1049170Z  * [new branch]        cert/single-campaign-7ae753830f26155a -> origin/cert/single-campaign-7ae753830f26155a
+2026-10-01T05:03:35.1051763Z  * [new branch]        cert/single-campaign-7b7e6ef978e77e03 -> origin/cert/single-campaign-7b7e6ef978e77e03
+2026-10-01T05:03:35.1054152Z  * [new branch]        cert/single-campaign-8c3af7eeff6ef235 -> origin/cert/single-campaign-8c3af7eeff6ef235
+2026-10-01T05:03:35.1056040Z  * [new branch]        cert/single-campaign-af9d23141e561767 -> origin/cert/single-campaign-af9d23141e561767
+2026-10-01T05:03:35.1057870Z  * [new branch]        cert/single-campaign-c34336216bf3fac9 -> origin/cert/single-campaign-c34336216bf3fac9
+2026-10-01T05:03:35.1059962Z  * [new branch]        cert/single-campaign-continuation-06ce910be36e94e7 -> origin/cert/single-campaign-continuation-06ce910be36e94e7
+2026-10-01T05:03:35.1062423Z  * [new branch]        cert/single-campaign-d2e25fc450f968cf -> origin/cert/single-campaign-d2e25fc450f968cf
+2026-10-01T05:03:35.1064291Z  * [new branch]        cert/single-campaign-d94e983d3a8ff02b -> origin/cert/single-campaign-d94e983d3a8ff02b
+2026-10-01T05:03:35.1066466Z  * [new branch]        cert/single-campaign-de96686205d33ad7 -> origin/cert/single-campaign-de96686205d33ad7
+2026-10-01T05:03:35.1069491Z  * [new branch]        cert/single-campaign-ee3d321d0445aff6 -> origin/cert/single-campaign-ee3d321d0445aff6
+2026-10-01T05:03:35.1073408Z  * [new branch]        cert/single-campaign-f1038ba98e853c28 -> origin/cert/single-campaign-f1038ba98e853c28
+2026-10-01T05:03:35.1076930Z  * [new branch]        cert/single-market-510872d8-20260927 -> origin/cert/single-market-510872d8-20260927
+2026-10-01T05:03:35.1080282Z  * [new branch]        cert/single-market-ee6523fb-20260926 -> origin/cert/single-market-ee6523fb-20260926
+2026-10-01T05:03:35.1084233Z  * [new branch]        cert/single-market-evidence-planes-20260925 -> origin/cert/single-market-evidence-planes-20260925
+2026-10-01T05:03:35.1087959Z  * [new branch]        cert/single-market-evidence-planes-v1-20260925 -> origin/cert/single-market-evidence-planes-v1-20260925
+2026-10-01T05:03:35.1092409Z  * [new branch]        cert/single-market-evidence-reconstruction-20260924 -> origin/cert/single-market-evidence-reconstruction-20260924
+2026-10-01T05:03:35.1095079Z  * [new branch]        cert/single-market-latest-policies-350e9c-20260926 -> origin/cert/single-market-latest-policies-350e9c-20260926
+2026-10-01T05:03:35.1098198Z  * [new branch]        cert/single-market-run367-repaired-v1-20260924 -> origin/cert/single-market-run367-repaired-v1-20260924
+2026-10-01T05:03:35.1103023Z  * [new branch]        cert/single-market-run369-repairs-20260925 -> origin/cert/single-market-run369-repairs-20260925
+2026-10-01T05:03:35.1108490Z  * [new branch]        cert/single-market-run371-all-repairs-20260925 -> origin/cert/single-market-run371-all-repairs-20260925
+2026-10-01T05:03:35.1114220Z  * [new branch]        cert/single-market-run372-run371-repairs-20260926 -> origin/cert/single-market-run372-run371-repairs-20260926
+2026-10-01T05:03:35.1118701Z  * [new branch]        cert/single-market-run373-run372-large-frame-repair-20260926 -> origin/cert/single-market-run373-run372-large-frame-repair-20260926
+2026-10-01T05:03:35.1123645Z  * [new branch]        cert/single-market-run374-run373-dispatch-repair-20260926 -> origin/cert/single-market-run374-run373-dispatch-repair-20260926
+2026-10-01T05:03:35.1128546Z  * [new branch]        cert/single-market-run375-run374-publisher-repair-20260926 -> origin/cert/single-market-run375-run374-publisher-repair-20260926
+2026-10-01T05:03:35.1133292Z  * [new branch]        cert/single-market-run376-run375-runtime-repair-20260926 -> origin/cert/single-market-run376-run375-runtime-repair-20260926
+2026-10-01T05:03:35.1137186Z  * [new branch]        cert/single-market-run376-six-regime-48e46b-20260926 -> origin/cert/single-market-run376-six-regime-48e46b-20260926
+2026-10-01T05:03:35.1140775Z  * [new branch]        cert/single-market-run377-repairs-1e50d476-20260926 -> origin/cert/single-market-run377-repairs-1e50d476-20260926
+2026-10-01T05:03:35.1144119Z  * [new branch]        cert/single-market-runtime-v2-20260926 -> origin/cert/single-market-runtime-v2-20260926
+2026-10-01T05:03:35.1146932Z  * [new branch]        cert/single-market-v10-one-market-20260924 -> origin/cert/single-market-v10-one-market-20260924
+2026-10-01T05:03:35.1149835Z  * [new branch]        cert/single-market-v10-postrun-20260924 -> origin/cert/single-market-v10-postrun-20260924
+2026-10-01T05:03:35.1153157Z  * [new branch]        cert/single-market-v10-provider-pressure-20260924 -> origin/cert/single-market-v10-provider-pressure-20260924
+2026-10-01T05:03:35.1157024Z  * [new branch]        cert/single-market-v10-provider-pressure-one-market-20260924 -> origin/cert/single-market-v10-provider-pressure-one-market-20260924
+2026-10-01T05:03:35.1160612Z  * [new branch]        cert/single-market-v10-smoke-tail-20260924 -> origin/cert/single-market-v10-smoke-tail-20260924
+2026-10-01T05:03:35.1163724Z  * [new branch]        cert/single-market-v11-ramses-v4-20260924 -> origin/cert/single-market-v11-ramses-v4-20260924
+2026-10-01T05:03:35.1166843Z  * [new branch]        cert/single-market-v11-ramses-viability-v4-20260924 -> origin/cert/single-market-v11-ramses-viability-v4-20260924
+2026-10-01T05:03:35.1169890Z  * [new branch]        cert/single-market-v12-combined-20260924 -> origin/cert/single-market-v12-combined-20260924
+2026-10-01T05:03:35.1173047Z  * [new branch]        cert/single-market-v12-pump-ramses-20260924 -> origin/cert/single-market-v12-pump-ramses-20260924
+2026-10-01T05:03:35.1175868Z  * [new branch]        cert/single-market-v12-pump-ramses-20260925 -> origin/cert/single-market-v12-pump-ramses-20260925
+2026-10-01T05:03:35.1178574Z  * [new branch]        cert/single-market-v8-monitored-20260924 -> origin/cert/single-market-v8-monitored-20260924
+2026-10-01T05:03:35.1181279Z  * [new branch]        cert/single-market-v8-monitored-v2-20260924 -> origin/cert/single-market-v8-monitored-v2-20260924
+2026-10-01T05:03:35.1184182Z  * [new branch]        cert/single-market-v9-monitored-20260924 -> origin/cert/single-market-v9-monitored-20260924
+2026-10-01T05:03:35.1258058Z  * [new branch]        cert/solana-consumer-scheduling -> origin/cert/solana-consumer-scheduling
+2026-10-01T05:03:35.1261888Z  * [new branch]        cert/solana-scheduling-verification -> origin/cert/solana-scheduling-verification
+2026-10-01T05:03:35.1266524Z  * [new branch]        cert/source-pump-profit-protection-v2-20260923 -> origin/cert/source-pump-profit-protection-v2-20260923
+2026-10-01T05:03:35.1270609Z  * [new branch]        cert/tmp-pons-overlay-v1 -> origin/cert/tmp-pons-overlay-v1
+2026-10-01T05:03:35.1274532Z  * [new branch]        cert/v10-one-market-authorization-20260924 -> origin/cert/v10-one-market-authorization-20260924
+2026-10-01T05:03:35.1277833Z  * [new branch]        cert/v10-provider-pressure-one-market-20260924 -> origin/cert/v10-provider-pressure-one-market-20260924
+2026-10-01T05:03:35.1280971Z  * [new branch]        certification/four-lane-repair-integration-20260920 -> origin/certification/four-lane-repair-integration-20260920
+2026-10-01T05:03:35.1284534Z  * [new branch]        diag/meme-machine-api-key-chain-binding-20260923 -> origin/diag/meme-machine-api-key-chain-binding-20260923
+2026-10-01T05:03:35.1287167Z  * [new branch]        diag/ramses-public-state-20260922 -> origin/diag/ramses-public-state-20260922
+2026-10-01T05:03:35.1289975Z  * [new branch]        diag/robinhood-alchemy-availability-20260923 -> origin/diag/robinhood-alchemy-availability-20260923
+2026-10-01T05:03:35.1293119Z  * [new branch]        diag/robinhood-alchemy-edge-sample-20260923 -> origin/diag/robinhood-alchemy-edge-sample-20260923
+2026-10-01T05:03:35.1295933Z  * [new branch]        diagnostic/autonomous-paper-socket-a60326b -> origin/diagnostic/autonomous-paper-socket-a60326b
+2026-10-01T05:03:35.1298599Z  * [new branch]        diagnostic/e27-receipt-timing-20260929 -> origin/diagnostic/e27-receipt-timing-20260929
+2026-10-01T05:03:35.1301223Z  * [new branch]        diagnostic/meteora-one-side-compose-20260924 -> origin/diagnostic/meteora-one-side-compose-20260924
+2026-10-01T05:03:35.1304257Z  * [new branch]        diagnostics/bounded-archive-overlap-20260930 -> origin/diagnostics/bounded-archive-overlap-20260930
+2026-10-01T05:03:35.1307031Z  * [new branch]        diagnostics/housekeeping-ordering-20261001 -> origin/diagnostics/housekeeping-ordering-20261001
+2026-10-01T05:03:35.1309731Z  * [new branch]        diagnostics/source-owner-ablation-20260930 -> origin/diagnostics/source-owner-ablation-20260930
+2026-10-01T05:03:35.1312666Z  * [new branch]        diagnostics/stage-e-fresh-causal-isolation -> origin/diagnostics/stage-e-fresh-causal-isolation
+2026-10-01T05:03:35.1315749Z  * [new branch]        diagnostics/stage-e-housekeeping-attribution-20261001 -> origin/diagnostics/stage-e-housekeeping-attribution-20261001
+2026-10-01T05:03:35.1319299Z  * [new branch]        diagnostics/stage-e-owner-scheduling-attribution-20260930 -> origin/diagnostics/stage-e-owner-scheduling-attribution-20260930
+2026-10-01T05:03:35.1322674Z  * [new branch]        feat/dashboard-runtime-integration-prep -> origin/feat/dashboard-runtime-integration-prep
+2026-10-01T05:03:35.1325122Z  * [new branch]        feat/market-native-active-discovery -> origin/feat/market-native-active-discovery
+2026-10-01T05:03:35.1327407Z  * [new branch]        feat/meteora-dlmm-paper-foundation -> origin/feat/meteora-dlmm-paper-foundation
+2026-10-01T05:03:35.1329932Z  * [new branch]        feat/pons-selective-continuation-v1 -> origin/feat/pons-selective-continuation-v1
+2026-10-01T05:03:35.1332590Z  * [new branch]        feat/post-graduation-pumpswap-raydium -> origin/feat/post-graduation-pumpswap-raydium
+2026-10-01T05:03:35.1335133Z  * [new branch]        feat/pump-acceleration-independent-v1 -> origin/feat/pump-acceleration-independent-v1
+2026-10-01T05:03:35.1337429Z  * [new branch]        feat/pump-alpha-v1-independent -> origin/feat/pump-alpha-v1-independent
+2026-10-01T05:03:35.1339423Z  * [new branch]        feat/pump-directional-paper -> origin/feat/pump-directional-paper
+2026-10-01T05:03:35.1341924Z  * [new branch]        feat/ramses-all-pool-connected-lifecycle -> origin/feat/ramses-all-pool-connected-lifecycle
+2026-10-01T05:03:35.1344246Z  * [new branch]        feat/ramses-all-pool-universe -> origin/feat/ramses-all-pool-universe
+2026-10-01T05:03:35.1346547Z  * [new branch]        feat/ramses-automatic-cost-evidence-20m -> origin/feat/ramses-automatic-cost-evidence-20m
+2026-10-01T05:03:35.1348944Z  * [new branch]        feat/ramses-extended-market-test -> origin/feat/ramses-extended-market-test
+2026-10-01T05:03:35.1350861Z  * [new branch]        feat/ramses-fee-pulse-v1 -> origin/feat/ramses-fee-pulse-v1
+2026-10-01T05:03:35.1353069Z  * [new branch]        feat/read-only-portfolio-dashboard -> origin/feat/read-only-portfolio-dashboard
+2026-10-01T05:03:35.1355547Z  * [new branch]        feat/robinhood-multisource-observability -> origin/feat/robinhood-multisource-observability
+2026-10-01T05:03:35.1358012Z  * [new branch]        feat/robinhood-research-foundation -> origin/feat/robinhood-research-foundation
+2026-10-01T05:03:35.1360232Z  * [new branch]        feat/shared-portfolio-accounting -> origin/feat/shared-portfolio-accounting
+2026-10-01T05:03:35.1362844Z  * [new branch]        feat/shared-portfolio-lane-integration -> origin/feat/shared-portfolio-lane-integration
+2026-10-01T05:03:35.1365197Z  * [new branch]        fix/ramses-dlmm-rate-limit -> origin/fix/ramses-dlmm-rate-limit
+2026-10-01T05:03:35.1367430Z  * [new branch]        fix/ramses-exact-horizon-inventory-cache -> origin/fix/ramses-exact-horizon-inventory-cache
+2026-10-01T05:03:35.1369991Z  * [new branch]        fix/ramses-finality-cadence-20m-rerun -> origin/fix/ramses-finality-cadence-20m-rerun
+2026-10-01T05:03:35.1373134Z  * [new branch]        fix/ramses-finalized-frontier-driven-discovery -> origin/fix/ramses-finalized-frontier-driven-discovery
+2026-10-01T05:03:35.1375531Z  * [new branch]        fix/ramses-prestate-handoff -> origin/fix/ramses-prestate-handoff
+2026-10-01T05:03:35.1377675Z  * [new branch]        fix/ramses-qualifier-history-handoff -> origin/fix/ramses-qualifier-history-handoff
+2026-10-01T05:03:35.1379943Z  * [new branch]        fix/ramses-target-coverage-windows -> origin/fix/ramses-target-coverage-windows
+2026-10-01T05:03:35.1382480Z  * [new branch]        fix/robinhood-discovery-dlmm-fallback -> origin/fix/robinhood-discovery-dlmm-fallback
+2026-10-01T05:03:35.1384936Z  * [new branch]        fix/robinhood-primary-fallback-pacing -> origin/fix/robinhood-primary-fallback-pacing
+2026-10-01T05:03:35.1387582Z  * [new branch]        fix/robinhood-provider-endpoint-isolation-v2 -> origin/fix/robinhood-provider-endpoint-isolation-v2
+2026-10-01T05:03:35.1390225Z  * [new branch]        fix/robinhood-provider-role-isolation -> origin/fix/robinhood-provider-role-isolation
+2026-10-01T05:03:35.1392695Z  * [new branch]        fix/robinhood-sequencer-compression -> origin/fix/robinhood-sequencer-compression
+2026-10-01T05:03:35.1395200Z  * [new branch]        fix/robinhood-sequencer-nonmessage-envelope -> origin/fix/robinhood-sequencer-nonmessage-envelope
+2026-10-01T05:03:35.1397765Z  * [new branch]        fix/robinhood-sequencer-start-cursor -> origin/fix/robinhood-sequencer-start-cursor
+2026-10-01T05:03:35.1400128Z  * [new branch]        fix/robinhood-shared-primary-capacity -> origin/fix/robinhood-shared-primary-capacity
+2026-10-01T05:03:35.1402603Z  * [new branch]        launch/autonomous-paper-v1 -> origin/launch/autonomous-paper-v1
+2026-10-01T05:03:35.1404864Z  * [new branch]        launch/certified-runtime-authority-v2 -> origin/launch/certified-runtime-authority-v2
+2026-10-01T05:03:35.1407521Z  * [new branch]        launch/evidence-reconstruction-single-20260924 -> origin/launch/evidence-reconstruction-single-20260924
+2026-10-01T05:03:35.1409441Z  * [new branch]        main       -> origin/main
+2026-10-01T05:03:35.1411787Z  * [new branch]        ops/cancel-obsolete-pump-source-diagnostic-20260923 -> origin/ops/cancel-obsolete-pump-source-diagnostic-20260923
+2026-10-01T05:03:35.1414393Z  * [new branch]        ops/cancel-pons-study-20260926 -> origin/ops/cancel-pons-study-20260926
+2026-10-01T05:03:35.1416680Z  * [new branch]        ops/manual-close-meteora-36043064083-20260924 -> origin/ops/manual-close-meteora-36043064083-20260924
+2026-10-01T05:03:35.1419176Z  * [new branch]        ops/resume-meteora-36043064083-20260924 -> origin/ops/resume-meteora-36043064083-20260924
+2026-10-01T05:03:35.1421267Z  * [new branch]        perf/meme-solana-public-4rps -> origin/perf/meme-solana-public-4rps
+2026-10-01T05:03:35.1423639Z  * [new branch]        perf/robinhood-pons-batched-discovery-auth -> origin/perf/robinhood-pons-batched-discovery-auth
+2026-10-01T05:03:35.1426122Z  * [new branch]        perf/robinhood-pons-batched-followup -> origin/perf/robinhood-pons-batched-followup
+2026-10-01T05:03:35.1428323Z  * [new branch]        proof/market-native-active-paper -> origin/proof/market-native-active-paper
+2026-10-01T05:03:35.1430555Z  * [new branch]        proof/natural-continuation-v1-pumpswap -> origin/proof/natural-continuation-v1-pumpswap
+2026-10-01T05:03:35.1432891Z  * [new branch]        publication/exact-8723600-20260929 -> origin/publication/exact-8723600-20260929
+2026-10-01T05:03:35.1434923Z  * [new branch]        publication/exact-ce42573-20260929 -> origin/publication/exact-ce42573-20260929
+2026-10-01T05:03:35.1436993Z  * [new branch]        reconcile/pump-pumpswap-ci -> origin/reconcile/pump-pumpswap-ci
+2026-10-01T05:03:35.1438933Z  * [new branch]        recovery/e24-source-import-20260928 -> origin/recovery/e24-source-import-20260928
+2026-10-01T05:03:35.1441146Z  * [new branch]        recovery/e25-native-republish-20260928 -> origin/recovery/e25-native-republish-20260928
+2026-10-01T05:03:35.1443867Z  * [new branch]        recovery/publish-exact-514ed2c-20260929 -> origin/recovery/publish-exact-514ed2c-20260929
+2026-10-01T05:03:35.1446237Z  * [new branch]        recovery/publish-exact-8723600-20260929 -> origin/recovery/publish-exact-8723600-20260929
+2026-10-01T05:03:35.1448588Z  * [new branch]        recovery/publish-exact-ce42573-20260929 -> origin/recovery/publish-exact-ce42573-20260929
+2026-10-01T05:03:35.1451207Z  * [new branch]        recovery/qualify-publish-exact-dc08f906-20260929 -> origin/recovery/qualify-publish-exact-dc08f906-20260929
+2026-10-01T05:03:35.1454308Z  * [new branch]        recovery/stagee25-github-native-publication-20260928 -> origin/recovery/stagee25-github-native-publication-20260928
+2026-10-01T05:03:35.1457268Z  * [new branch]        refactor/robinhood-solana-style-rpc-governance -> origin/refactor/robinhood-solana-style-rpc-governance
+2026-10-01T05:03:35.1459628Z  * [new branch]        release/portfolio-dashboard-v1 -> origin/release/portfolio-dashboard-v1
+2026-10-01T05:03:35.1462193Z  * [new branch]        repair/alchemy-scarce-onfinality-removal-20260922 -> origin/repair/alchemy-scarce-onfinality-removal-20260922
+2026-10-01T05:03:35.1465145Z  * [new branch]        repair/attempt13-maintenance-contention-20260928 -> origin/repair/attempt13-maintenance-contention-20260928
+2026-10-01T05:03:35.1467879Z  * [new branch]        repair/attempt13-retention-density-20260928 -> origin/repair/attempt13-retention-density-20260928
+2026-10-01T05:03:35.1470496Z  * [new branch]        repair/attempt14-archive-throughput-20260928 -> origin/repair/attempt14-archive-throughput-20260928
+2026-10-01T05:03:35.1473173Z  * [new branch]        repair/autonomous-paper-runtime-20260927 -> origin/repair/autonomous-paper-runtime-20260927
+2026-10-01T05:03:35.1476029Z  * [new branch]        repair/capability-probe-transient-retry-20260923 -> origin/repair/capability-probe-transient-retry-20260923
+2026-10-01T05:03:35.1478969Z  * [new branch]        repair/dlmm-durable-state-certification-20260920 -> origin/repair/dlmm-durable-state-certification-20260920
+2026-10-01T05:03:35.1481676Z  * [new branch]        repair/dlmm-final-replay-20260924 -> origin/repair/dlmm-final-replay-20260924
+2026-10-01T05:03:35.1484037Z  * [new branch]        repair/dlmm-json-checkpoint-certification -> origin/repair/dlmm-json-checkpoint-certification
+2026-10-01T05:03:35.1486344Z  * [new branch]        repair/e23-overlap-witness-20260928 -> origin/repair/e23-overlap-witness-20260928
+2026-10-01T05:03:35.1488585Z  * [new branch]        repair/e24-maintenance-lifecycle-20260928 -> origin/repair/e24-maintenance-lifecycle-20260928
+2026-10-01T05:03:35.1491235Z  * [new branch]        repair/evidence-completion-bottlenecks-20260921 -> origin/repair/evidence-completion-bottlenecks-20260921
+2026-10-01T05:03:35.1494143Z  * [new branch]        repair/evidence-reconstruction-20260924 -> origin/repair/evidence-reconstruction-20260924
+2026-10-01T05:03:35.1496471Z  * [new branch]        repair/final-alchemy-scarcity-20260922 -> origin/repair/final-alchemy-scarcity-20260922
+2026-10-01T05:03:35.1498554Z  * [new branch]        repair/four-lane-acquisition -> origin/repair/four-lane-acquisition
+2026-10-01T05:03:35.1500350Z  * [new branch]        repair/four-lane-observability -> origin/repair/four-lane-observability
+2026-10-01T05:03:35.1502927Z  * [new branch]        repair/four-lane-strategy-scope-efficiency-20260922 -> origin/repair/four-lane-strategy-scope-efficiency-20260922
+2026-10-01T05:03:35.1505402Z  * [new branch]        repair/frozen-campaign-handoff -> origin/repair/frozen-campaign-handoff
+2026-10-01T05:03:35.1507599Z  * [new branch]        repair/lifecycle-clock-decoupling-20260923 -> origin/repair/lifecycle-clock-decoupling-20260923
+2026-10-01T05:03:35.1510274Z  * [new branch]        repair/market-scope-efficiency-20260922 -> origin/repair/market-scope-efficiency-20260922
+2026-10-01T05:03:35.1512998Z  * [new branch]        repair/market-scope-efficiency-current-20260923 -> origin/repair/market-scope-efficiency-current-20260923
+2026-10-01T05:03:35.1515872Z  * [new branch]        repair/market-scope-efficiency-current-v2-20260923 -> origin/repair/market-scope-efficiency-current-v2-20260923
+2026-10-01T05:03:35.1518681Z  * [new branch]        repair/market-scope-efficiency-final-20260923 -> origin/repair/market-scope-efficiency-final-20260923
+2026-10-01T05:03:35.1521322Z  * [new branch]        repair/meme-solana-public-primary-failover -> origin/repair/meme-solana-public-primary-failover
+2026-10-01T05:03:35.1524520Z  * [new branch]        repair/meteora-alchemy-authoritative-evidence-20260922 -> origin/repair/meteora-alchemy-authoritative-evidence-20260922
+2026-10-01T05:03:35.1527382Z  * [new branch]        repair/meteora-alchemy-only-no-onfinality -> origin/repair/meteora-alchemy-only-no-onfinality
+2026-10-01T05:03:35.1529645Z  * [new branch]        repair/meteora-consumer-scheduling -> origin/repair/meteora-consumer-scheduling
+2026-10-01T05:03:35.1532062Z  * [new branch]        repair/meteora-continuous-campaign -> origin/repair/meteora-continuous-campaign
+2026-10-01T05:03:35.1534307Z  * [new branch]        repair/meteora-durable-paper-lifecycle -> origin/repair/meteora-durable-paper-lifecycle
+2026-10-01T05:03:35.1536496Z  * [new branch]        repair/meteora-hydration-deadline -> origin/repair/meteora-hydration-deadline
+2026-10-01T05:03:35.1538863Z  * [new branch]        repair/meteora-legacy-one-side-replay-20260924 -> origin/repair/meteora-legacy-one-side-replay-20260924
+2026-10-01T05:03:35.1541680Z  * [new branch]        repair/meteora-legacy-one-side-source-20260924 -> origin/repair/meteora-legacy-one-side-source-20260924
+2026-10-01T05:03:35.1544371Z  * [new branch]        repair/meteora-one-side-replay-source-20260924 -> origin/repair/meteora-one-side-replay-source-20260924
+2026-10-01T05:03:35.1547388Z  * [new branch]        repair/meteora-post-entry-lifecycle-exit-20260922 -> origin/repair/meteora-post-entry-lifecycle-exit-20260922
+2026-10-01T05:03:35.1550306Z  * [new branch]        repair/meteora-reconstruction-completion-20260922 -> origin/repair/meteora-reconstruction-completion-20260922
+2026-10-01T05:03:35.1553198Z  * [new branch]        repair/meteora-strategy2-continuity-20260922 -> origin/repair/meteora-strategy2-continuity-20260922
+2026-10-01T05:03:35.1555909Z  * [new branch]        repair/moderate-thresholds-certification-20260926 -> origin/repair/moderate-thresholds-certification-20260926
+2026-10-01T05:03:35.1558325Z  * [new branch]        repair/pons-429-backpressure-20m -> origin/repair/pons-429-backpressure-20m
+2026-10-01T05:03:35.1560628Z  * [new branch]        repair/pons-alchemy-scarcity-public-discovery -> origin/repair/pons-alchemy-scarcity-public-discovery
+2026-10-01T05:03:35.1563422Z  * [new branch]        repair/pons-cohort-capital-certification -> origin/repair/pons-cohort-capital-certification
+2026-10-01T05:03:35.1565798Z  * [new branch]        repair/pons-combined-evidence-batching -> origin/repair/pons-combined-evidence-batching
+2026-10-01T05:03:35.1568279Z  * [new branch]        repair/pons-concurrent-certification-20260920 -> origin/repair/pons-concurrent-certification-20260920
+2026-10-01T05:03:35.1570546Z  * [new branch]        repair/pons-continuous-campaign -> origin/repair/pons-continuous-campaign
+2026-10-01T05:03:35.1573240Z  * [new branch]        repair/pons-entry-confirmation-ordering-20260925 -> origin/repair/pons-entry-confirmation-ordering-20260925
+2026-10-01T05:03:35.1575820Z  * [new branch]        repair/pons-partial-accounting-timeline -> origin/repair/pons-partial-accounting-timeline
+2026-10-01T05:03:35.1578223Z  * [new branch]        repair/pons-provider-session-recovery-20m -> origin/repair/pons-provider-session-recovery-20m
+2026-10-01T05:03:35.1581000Z  * [new branch]        repair/pons-sequencer-session-recovery-20260922 -> origin/repair/pons-sequencer-session-recovery-20260922
+2026-10-01T05:03:35.1583485Z  * [new branch]        repair/pons-unfilled-reservation -> origin/repair/pons-unfilled-reservation
+2026-10-01T05:03:35.1585938Z  * [new branch]        repair/pump-alchemy-authoritative-evidence-20260922 -> origin/repair/pump-alchemy-authoritative-evidence-20260922
+2026-10-01T05:03:35.1588566Z  * [new branch]        repair/pump-alchemy-only-no-onfinality -> origin/repair/pump-alchemy-only-no-onfinality
+2026-10-01T05:03:35.1590649Z  * [new branch]        repair/pump-continuous-campaign -> origin/repair/pump-continuous-campaign
+2026-10-01T05:03:35.1592943Z  * [new branch]        repair/pump-decision-window-bootstrap-20m -> origin/repair/pump-decision-window-bootstrap-20m
+2026-10-01T05:03:35.1595444Z  * [new branch]        repair/pump-finalized-log-authority-20260924 -> origin/repair/pump-finalized-log-authority-20260924
+2026-10-01T05:03:35.1597700Z  * [new branch]        repair/pump-hydration-deadline -> origin/repair/pump-hydration-deadline
+2026-10-01T05:03:35.1600116Z  * [new branch]        repair/pump-paper-accounting-certification-20260920 -> origin/repair/pump-paper-accounting-certification-20260920
+2026-10-01T05:03:35.1603033Z  * [new branch]        repair/pump-tape-dedup-trajectory-gates -> origin/repair/pump-tape-dedup-trajectory-gates
+2026-10-01T05:03:35.1605246Z  * [new branch]        repair/pump-transaction-pressure -> origin/repair/pump-transaction-pressure
+2026-10-01T05:03:35.1607660Z  * [new branch]        repair/ramses-alchemy-scarcity-public-observation -> origin/repair/ramses-alchemy-scarcity-public-observation
+2026-10-01T05:03:35.1610331Z  * [new branch]        repair/ramses-capital-reservation-replay -> origin/repair/ramses-capital-reservation-replay
+2026-10-01T05:03:35.1613023Z  * [new branch]        repair/ramses-concurrent-certification-20260920 -> origin/repair/ramses-concurrent-certification-20260920
+2026-10-01T05:03:35.1615382Z  * [new branch]        repair/ramses-continuous-campaign -> origin/repair/ramses-continuous-campaign
+2026-10-01T05:03:35.1617800Z  * [new branch]        repair/ramses-cost-route-completion-20260921 -> origin/repair/ramses-cost-route-completion-20260921
+2026-10-01T05:03:35.1620439Z  * [new branch]        repair/ramses-deferred-capital-initialization -> origin/repair/ramses-deferred-capital-initialization
+2026-10-01T05:03:35.1623828Z  * [new branch]        repair/ramses-economic-census-429-v1-20260923 -> origin/repair/ramses-economic-census-429-v1-20260923
+2026-10-01T05:03:35.1626196Z  * [new branch]        repair/ramses-factory-enumeration-20m -> origin/repair/ramses-factory-enumeration-20m
+2026-10-01T05:03:35.1628843Z  * [new branch]        repair/ramses-finalized-frontier-monotonicity-20260922 -> origin/repair/ramses-finalized-frontier-monotonicity-20260922
+2026-10-01T05:03:35.1631755Z  * [new branch]        repair/ramses-public-factory-call-20260922 -> origin/repair/ramses-public-factory-call-20260922
+2026-10-01T05:03:35.1634135Z  * [new branch]        repair/ramses-v3-authority-lock-20260923 -> origin/repair/ramses-v3-authority-lock-20260923
+2026-10-01T05:03:35.1636197Z  * [new branch]        repair/robinhood-cu-efficiency -> origin/repair/robinhood-cu-efficiency
+2026-10-01T05:03:35.1638245Z  * [new branch]        repair/robinhood-public-rpc-403-20260922 -> origin/repair/robinhood-public-rpc-403-20260922
+2026-10-01T05:03:35.1640436Z  * [new branch]        repair/run367-composed-fixes-20260924 -> origin/repair/run367-composed-fixes-20260924
+2026-10-01T05:03:35.1643075Z  * [new branch]        repair/run367-pons-sequencer-liveness-20260924 -> origin/repair/run367-pons-sequencer-liveness-20260924
+2026-10-01T05:03:35.1645480Z  * [new branch]        repair/run369-pons-accounting-20260925 -> origin/repair/run369-pons-accounting-20260925
+2026-10-01T05:03:35.1647617Z  * [new branch]        repair/run369-solana-runtime-20260925 -> origin/repair/run369-solana-runtime-20260925
+2026-10-01T05:03:35.1650186Z  * [new branch]        repair/run370-solana-evidence-capacity-20260925 -> origin/repair/run370-solana-evidence-capacity-20260925
+2026-10-01T05:03:35.1652789Z  * [new branch]        repair/run371-infra-continuity-20260926 -> origin/repair/run371-infra-continuity-20260926
+2026-10-01T05:03:35.1655072Z  * [new branch]        repair/run372-solana-large-frame-20260926 -> origin/repair/run372-solana-large-frame-20260926
+2026-10-01T05:03:35.1657617Z  * [new branch]        repair/run373-solana-dispatch-throughput-20260926 -> origin/repair/run373-solana-dispatch-throughput-20260926
+2026-10-01T05:03:35.1660225Z  * [new branch]        repair/run374-live-status-publisher-20260926 -> origin/repair/run374-live-status-publisher-20260926
+2026-10-01T05:03:35.1662792Z  * [new branch]        repair/run375-runtime-capacity-wal-20260926 -> origin/repair/run375-runtime-capacity-wal-20260926
+2026-10-01T05:03:35.1665091Z  * [new branch]        repair/run375-runtime-repairs-20260926 -> origin/repair/run375-runtime-repairs-20260926
+2026-10-01T05:03:35.1667396Z  * [new branch]        repair/run376-six-regime-machinery-20260926 -> origin/repair/run376-six-regime-machinery-20260926
+2026-10-01T05:03:35.1669762Z  * [new branch]        repair/run377-runtime-six-regime-20260926 -> origin/repair/run377-runtime-six-regime-20260926
+2026-10-01T05:03:35.1671972Z  * [new branch]        repair/solana-alchemy-efficiency -> origin/repair/solana-alchemy-efficiency
+2026-10-01T05:03:35.1673928Z  * [new branch]        repair/solana-broker-atomic-claims -> origin/repair/solana-broker-atomic-claims
+2026-10-01T05:03:35.1675927Z  * [new branch]        repair/solana-broker-global-pacing -> origin/repair/solana-broker-global-pacing
+2026-10-01T05:03:35.1677818Z  * [new branch]        repair/solana-broker-sync-dlmm -> origin/repair/solana-broker-sync-dlmm
+2026-10-01T05:03:35.1679699Z  * [new branch]        repair/solana-consumer-scheduling -> origin/repair/solana-consumer-scheduling
+2026-10-01T05:03:35.1682019Z  * [new branch]        repair/solana-dlmm-broker-expiry-sync -> origin/repair/solana-dlmm-broker-expiry-sync
+2026-10-01T05:03:35.1684208Z  * [new branch]        repair/solana-dlmm-gap-finalize -> origin/repair/solana-dlmm-gap-finalize
+2026-10-01T05:03:35.1686346Z  * [new branch]        repair/solana-dlmm-trigger-censoring-20m -> origin/repair/solana-dlmm-trigger-censoring-20m
+2026-10-01T05:03:35.1688625Z  * [new branch]        repair/solana-evidence-broker-finalize -> origin/repair/solana-evidence-broker-finalize
+2026-10-01T05:03:35.1690653Z  * [new branch]        repair/solana-evidence-final-v2 -> origin/repair/solana-evidence-final-v2
+2026-10-01T05:03:35.1693107Z  * [new branch]        repair/solana-evidence-plane-v1-20260925 -> origin/repair/solana-evidence-plane-v1-20260925
+2026-10-01T05:03:35.1695303Z  * [new branch]        repair/solana-evidence-queue-expiry -> origin/repair/solana-evidence-queue-expiry
+2026-10-01T05:03:35.1697313Z  * [new branch]        repair/solana-global-pacing-dlmm -> origin/repair/solana-global-pacing-dlmm
+2026-10-01T05:03:35.1699381Z  * [new branch]        repair/solana-provider-error-telemetry -> origin/repair/solana-provider-error-telemetry
+2026-10-01T05:03:35.1701707Z  * [new branch]        repair/solana-pumpswap-address-stream -> origin/repair/solana-pumpswap-address-stream
+2026-10-01T05:03:35.1703961Z  * [new branch]        repair/solana-stream-first-evidence-dlmm -> origin/repair/solana-stream-first-evidence-dlmm
+2026-10-01T05:03:35.1706275Z  * [new branch]        repair/solana-stream-first-evidence-pump -> origin/repair/solana-stream-first-evidence-pump
+2026-10-01T05:03:35.1708997Z  * [new branch]        repair/stagee-attempt16-maintenance-throughput-20260928 -> origin/repair/stagee-attempt16-maintenance-throughput-20260928
+2026-10-01T05:03:35.1711882Z  * [new branch]        repair/stagee16-archive-throughput-20260928 -> origin/repair/stagee16-archive-throughput-20260928
+2026-10-01T05:03:35.1714510Z  * [new branch]        repair/stagee17-archive-throughput-20260928 -> origin/repair/stagee17-archive-throughput-20260928
+2026-10-01T05:03:35.1717131Z  * [new branch]        repair/stagee18-retention-fairness-20260928 -> origin/repair/stagee18-retention-fairness-20260928
+2026-10-01T05:03:35.1719769Z  * [new branch]        repair/stagee19-batch-maintenance-fairness-20260928 -> origin/repair/stagee19-batch-maintenance-fairness-20260928
+2026-10-01T05:03:35.1722625Z  * [new branch]        repair/stagee19-retention-rowid-20260928 -> origin/repair/stagee19-retention-rowid-20260928
+2026-10-01T05:03:35.1725001Z  * [new branch]        repair/stagee20-compose-current-cert-20260928 -> origin/repair/stagee20-compose-current-cert-20260928
+2026-10-01T05:03:35.1727592Z  * [new branch]        repair/stagee22-retention-service-grant-20260928 -> origin/repair/stagee22-retention-service-grant-20260928
+2026-10-01T05:03:35.1730166Z  * [new branch]        repair/stagee23-maintenance-outcomes-20260928 -> origin/repair/stagee23-maintenance-outcomes-20260928
+2026-10-01T05:03:35.1732697Z  * [new branch]        repair/stagee25-promotion-wiring-20260928 -> origin/repair/stagee25-promotion-wiring-20260928
+2026-10-01T05:03:35.1735208Z  * [new branch]        repair/stagee26-eligible-hot-measurement-20260928 -> origin/repair/stagee26-eligible-hot-measurement-20260928
+2026-10-01T05:03:35.1737900Z  * [new branch]        repair/stagee27-archive-ready-allocation-20260928 -> origin/repair/stagee27-archive-ready-allocation-20260928
+2026-10-01T05:03:35.1740263Z  * [new branch]        repair/strategy-prospect-admission -> origin/repair/strategy-prospect-admission
+2026-10-01T05:03:35.1742448Z  * [new branch]        repair/target-market-coverage-20260924 -> origin/repair/target-market-coverage-20260924
+2026-10-01T05:03:35.1745002Z  * [new branch]        repair/v10-postrun-provider-pressure-20260924 -> origin/repair/v10-postrun-provider-pressure-20260924
+2026-10-01T05:03:35.1747228Z  * [new branch]        repair/v10-postrun-repairs-20260924 -> origin/repair/v10-postrun-repairs-20260924
+2026-10-01T05:03:35.1749042Z  * [new branch]        repair/v10-smoke-tail-20260924 -> origin/repair/v10-smoke-tail-20260924
+2026-10-01T05:03:35.1751343Z  * [new branch]        repair/v9-launch-guard-reauthorization-20260924 -> origin/repair/v9-launch-guard-reauthorization-20260924
+2026-10-01T05:03:35.1754399Z  * [new branch]        repair/v9-meteora-handoff-position-continuation-20260924 -> origin/repair/v9-meteora-handoff-position-continuation-20260924
+2026-10-01T05:03:35.1757326Z  * [new branch]        repair/v9-position-continuation-dispatch-20260924 -> origin/repair/v9-position-continuation-dispatch-20260924
+2026-10-01T05:03:35.1759972Z  * [new branch]        report/evidence-reconstruction-single-20260924 -> origin/report/evidence-reconstruction-single-20260924
+2026-10-01T05:03:35.1762566Z  * [new branch]        research/dlmm-add-liquidity2-support -> origin/research/dlmm-add-liquidity2-support
+2026-10-01T05:03:35.1764842Z  * [new branch]        research/dlmm-alchemy-pacing-per-pool-budget -> origin/research/dlmm-alchemy-pacing-per-pool-budget
+2026-10-01T05:03:35.1766947Z  * [new branch]        research/dlmm-alchemy-routing -> origin/research/dlmm-alchemy-routing
+2026-10-01T05:03:35.1769036Z  * [new branch]        research/dlmm-blank-slate-market-evidence-v1 -> origin/research/dlmm-blank-slate-market-evidence-v1
+2026-10-01T05:03:35.1771319Z  * [new branch]        research/dlmm-capital-case-ranking-v1 -> origin/research/dlmm-capital-case-ranking-v1
+2026-10-01T05:03:35.1773484Z  * [new branch]        research/dlmm-capital-efficiency-v1 -> origin/research/dlmm-capital-efficiency-v1
+2026-10-01T05:03:35.1775510Z  * [new branch]        research/dlmm-claim-event-association -> origin/research/dlmm-claim-event-association
+2026-10-01T05:03:35.1777664Z  * [new branch]        research/dlmm-claim-fee2-reconstruction -> origin/research/dlmm-claim-fee2-reconstruction
+2026-10-01T05:03:35.1779751Z  * [new branch]        research/dlmm-economic-strategy-v1 -> origin/research/dlmm-economic-strategy-v1
+2026-10-01T05:03:35.1781889Z  * [new branch]        research/dlmm-existing-alchemy-secret -> origin/research/dlmm-existing-alchemy-secret
+2026-10-01T05:03:35.1784345Z  * [new branch]        research/dlmm-expanded-observation-universe -> origin/research/dlmm-expanded-observation-universe
+2026-10-01T05:03:35.1786530Z  * [new branch]        research/dlmm-host-fee-route-scope -> origin/research/dlmm-host-fee-route-scope
+2026-10-01T05:03:35.1788601Z  * [new branch]        research/dlmm-host-fee-shape-diagnostic -> origin/research/dlmm-host-fee-shape-diagnostic
+2026-10-01T05:03:35.1790813Z  * [new branch]        research/dlmm-host-fee-terminal-fallback -> origin/research/dlmm-host-fee-terminal-fallback
+2026-10-01T05:03:35.1793256Z  * [new branch]        research/dlmm-host-fee-transfer-attribution -> origin/research/dlmm-host-fee-transfer-attribution
+2026-10-01T05:03:35.1795769Z  * [new branch]        research/dlmm-perpspad-external-effect-transfer -> origin/research/dlmm-perpspad-external-effect-transfer
+2026-10-01T05:03:35.1798290Z  * [new branch]        research/dlmm-perpspad-single-tx-isolation -> origin/research/dlmm-perpspad-single-tx-isolation
+2026-10-01T05:03:35.1800467Z  * [new branch]        research/dlmm-point-in-time-replay -> origin/research/dlmm-point-in-time-replay
+2026-10-01T05:03:35.1803067Z  * [new branch]        research/dlmm-profitability-density-preflight -> origin/research/dlmm-profitability-density-preflight
+2026-10-01T05:03:35.1805725Z  * [new branch]        research/dlmm-profitability-density-preflight-v2 -> origin/research/dlmm-profitability-density-preflight-v2
+2026-10-01T05:03:35.1808299Z  * [new branch]        research/dlmm-profitable-operator-discovery -> origin/research/dlmm-profitable-operator-discovery
+2026-10-01T05:03:35.1810499Z  * [new branch]        research/dlmm-protocol-coverage-v2 -> origin/research/dlmm-protocol-coverage-v2
+2026-10-01T05:03:35.1813752Z  * [new branch]        research/dlmm-small-pool-profitability -> origin/research/dlmm-small-pool-profitability
+2026-10-01T05:03:35.1815931Z  * [new branch]        research/dlmm-solana-roi-alchemy -> origin/research/dlmm-solana-roi-alchemy
+2026-10-01T05:03:35.1817970Z  * [new branch]        research/dlmm-top-roi-wallet-evaluation -> origin/research/dlmm-top-roi-wallet-evaluation
+2026-10-01T05:03:35.1820331Z  * [new branch]        research/dlmm-wallet-derived-discovery -> origin/research/dlmm-wallet-derived-discovery
+2026-10-01T05:03:35.1822411Z  * [new branch]        research/fomo-100-event-study -> origin/research/fomo-100-event-study
+2026-10-01T05:03:35.1824196Z  * [new branch]        research/fomo-active-trader-skill -> origin/research/fomo-active-trader-skill
+2026-10-01T05:03:35.1826022Z  * [new branch]        research/fomo-market-edge-pilot -> origin/research/fomo-market-edge-pilot
+2026-10-01T05:03:35.1827958Z  * [new branch]        research/fomo-offline-intelligence-v1 -> origin/research/fomo-offline-intelligence-v1
+2026-10-01T05:03:35.1830067Z  * [new branch]        research/fomo-prospective-market-test -> origin/research/fomo-prospective-market-test
+2026-10-01T05:03:35.1832086Z  * [new branch]        research/fomo-shadow-scaffold -> origin/research/fomo-shadow-scaffold
+2026-10-01T05:03:35.1834090Z  * [new branch]        research/fomo-top-wallet-lifecycle-study -> origin/research/fomo-top-wallet-lifecycle-study
+2026-10-01T05:03:35.1836294Z  * [new branch]        research/fomo-wallet-alpha-event-study -> origin/research/fomo-wallet-alpha-event-study
+2026-10-01T05:03:35.1838272Z  * [new branch]        research/fomoapi-key-validation -> origin/research/fomoapi-key-validation
+2026-10-01T05:03:35.1840118Z  * [new branch]        research/fomoscan-three-way-check -> origin/research/fomoscan-three-way-check
+2026-10-01T05:03:35.1842429Z  * [new branch]        research/four-lane-shadow-registration -> origin/research/four-lane-shadow-registration
+2026-10-01T05:03:35.1844518Z  * [new branch]        research/hansem-fomoscan-validation -> origin/research/hansem-fomoscan-validation
+2026-10-01T05:03:35.1846550Z  * [new branch]        research/market-native-natural-sample -> origin/research/market-native-natural-sample
+2026-10-01T05:03:35.1848783Z  * [new branch]        research/market-native-opportunity-outcomes -> origin/research/market-native-opportunity-outcomes
+2026-10-01T05:03:35.1851137Z  * [new branch]        research/market-native-prioritizer -> origin/research/market-native-prioritizer
+2026-10-01T05:03:35.1853092Z  * [new branch]        research/market-native-shadow -> origin/research/market-native-shadow
+2026-10-01T05:03:35.1855129Z  * [new branch]        research/meme-continuation-expected-value-v1 -> origin/research/meme-continuation-expected-value-v1
+2026-10-01T05:03:35.1857617Z  * [new branch]        research/pons-postgrad-breakout-study-20260926 -> origin/research/pons-postgrad-breakout-study-20260926
+2026-10-01T05:03:35.1860193Z  * [new branch]        research/pons-postgrad-shadow-outcomes-20260926 -> origin/research/pons-postgrad-shadow-outcomes-20260926
+2026-10-01T05:03:35.1862766Z  * [new branch]        research/ramses-branch-b-certification-v1 -> origin/research/ramses-branch-b-certification-v1
+2026-10-01T05:03:35.1865992Z  * [new branch]        research/ramses-dlmm-historical-market-v1 -> origin/research/ramses-dlmm-historical-market-v1
+2026-10-01T05:03:35.1868344Z  * [new branch]        research/ramses-exact-replay-efficiency-v1 -> origin/research/ramses-exact-replay-efficiency-v1
+2026-10-01T05:03:35.1870612Z  * [new branch]        research/ramses-exact-replay-sharded-v1 -> origin/research/ramses-exact-replay-sharded-v1
+2026-10-01T05:03:35.1872808Z  * [new branch]        research/ramses-fee-attribution-v1 -> origin/research/ramses-fee-attribution-v1
+2026-10-01T05:03:35.1875391Z  * [new branch]        research/ramses-profitable-operator-reverse-engineering-v1 -> origin/research/ramses-profitable-operator-reverse-engineering-v1
+2026-10-01T05:03:35.1878204Z  * [new branch]        research/ramses-public-lp-skill-v1 -> origin/research/ramses-public-lp-skill-v1
+2026-10-01T05:03:35.1881328Z  * [new branch]        research/ramses-quiet-escalation-v1 -> origin/research/ramses-quiet-escalation-v1
+2026-10-01T05:03:35.1885058Z  * [new branch]        research/ramses-quiet-expansion-v1 -> origin/research/ramses-quiet-expansion-v1
+2026-10-01T05:03:35.1887634Z  * [new branch]        research/ramses-quiet-subsegments-v1 -> origin/research/ramses-quiet-subsegments-v1
+2026-10-01T05:03:35.1889840Z  * [new branch]        research/ramses-strategy-finalization-v2 -> origin/research/ramses-strategy-finalization-v2
+2026-10-01T05:03:35.1893142Z  * [new branch]        research/ramses-terminal-state-counterfactual-v1 -> origin/research/ramses-terminal-state-counterfactual-v1
+2026-10-01T05:03:35.1895488Z  * [new branch]        research/solana-dlmm-independent-v1 -> origin/research/solana-dlmm-independent-v1
+2026-10-01T05:03:35.1897544Z  * [new branch]        research/solana-skilled-wallet-alpha -> origin/research/solana-skilled-wallet-alpha
+2026-10-01T05:03:35.1899678Z  * [new branch]        research/solana-skilled-wallet-alpha-24h -> origin/research/solana-skilled-wallet-alpha-24h
+2026-10-01T05:03:35.1902243Z  * [new branch]        review/attempt14-retention-density-20260928 -> origin/review/attempt14-retention-density-20260928
+2026-10-01T05:03:35.1904592Z  * [new branch]        review/autonomous-paper-evidence-a60326b -> origin/review/autonomous-paper-evidence-a60326b
+2026-10-01T05:03:35.1906971Z  * [new branch]        review/evidence-reconstruction-single-20260924 -> origin/review/evidence-reconstruction-single-20260924
+2026-10-01T05:03:35.1909189Z  * [new branch]        review/stagee-coordinated-20260928 -> origin/review/stagee-coordinated-20260928
+2026-10-01T05:03:35.1911311Z  * [new branch]        review/stagee16-archive-throughput-20260928 -> origin/review/stagee16-archive-throughput-20260928
+2026-10-01T05:03:35.1913943Z  * [new branch]        review/stagee17-archive-throughput-20260928 -> origin/review/stagee17-archive-throughput-20260928
+2026-10-01T05:03:35.1916283Z  * [new branch]        review/stagee18-retention-fairness-20260928 -> origin/review/stagee18-retention-fairness-20260928
+2026-10-01T05:03:35.1918627Z  * [new branch]        review/stagee19-all-scopes-pressure-20260928 -> origin/review/stagee19-all-scopes-pressure-20260928
+2026-10-01T05:03:35.1921090Z  * [new branch]        review/stagee19-retention-rowid-20260928 -> origin/review/stagee19-retention-rowid-20260928
+2026-10-01T05:03:35.1923619Z  * [new branch]        review/stagee20-compose-20260928 -> origin/review/stagee20-compose-20260928
+2026-10-01T05:03:35.1925611Z  * [new branch]        review/stagee20-source-identity-20260928 -> origin/review/stagee20-source-identity-20260928
+2026-10-01T05:03:35.1927944Z  * [new branch]        review/stagee23-maintenance-semantics-20260928 -> origin/review/stagee23-maintenance-semantics-20260928
+2026-10-01T05:03:35.1930460Z  * [new branch]        state/autonomous-launch-00265f09d14a5849010ad007 -> origin/state/autonomous-launch-00265f09d14a5849010ad007
+2026-10-01T05:03:35.1933141Z  * [new branch]        state/autonomous-launch-00f93d80a08ba2024eeabf10 -> origin/state/autonomous-launch-00f93d80a08ba2024eeabf10
+2026-10-01T05:03:35.1935698Z  * [new branch]        state/autonomous-launch-03a4af83a5116c80c1292151 -> origin/state/autonomous-launch-03a4af83a5116c80c1292151
+2026-10-01T05:03:35.1938223Z  * [new branch]        state/autonomous-launch-2410907f22606897629d8df6 -> origin/state/autonomous-launch-2410907f22606897629d8df6
+2026-10-01T05:03:35.1940794Z  * [new branch]        state/autonomous-launch-3d866b01be76ba6ae09e8b2a -> origin/state/autonomous-launch-3d866b01be76ba6ae09e8b2a
+2026-10-01T05:03:35.1943462Z  * [new branch]        state/autonomous-launch-48370b6d0746a4c58b6f578f -> origin/state/autonomous-launch-48370b6d0746a4c58b6f578f
+2026-10-01T05:03:35.1946023Z  * [new branch]        state/autonomous-launch-4f05a3a3b9e19732f4f64ef2 -> origin/state/autonomous-launch-4f05a3a3b9e19732f4f64ef2
+2026-10-01T05:03:35.1948575Z  * [new branch]        state/autonomous-launch-51429576c048c7770d068d1d -> origin/state/autonomous-launch-51429576c048c7770d068d1d
+2026-10-01T05:03:35.1951122Z  * [new branch]        state/autonomous-launch-5a4f6f6d001ccdf4a2f2669f -> origin/state/autonomous-launch-5a4f6f6d001ccdf4a2f2669f
+2026-10-01T05:03:35.1954095Z  * [new branch]        state/autonomous-launch-5b4fc3c614287d7f712b7c0b -> origin/state/autonomous-launch-5b4fc3c614287d7f712b7c0b
+2026-10-01T05:03:35.1956688Z  * [new branch]        state/autonomous-launch-6df6eb8a4016b311f6c8c2b9 -> origin/state/autonomous-launch-6df6eb8a4016b311f6c8c2b9
+2026-10-01T05:03:35.1959254Z  * [new branch]        state/autonomous-launch-d2679c420933378bf40c394c -> origin/state/autonomous-launch-d2679c420933378bf40c394c
+2026-10-01T05:03:35.1962119Z  * [new branch]        state/autonomous-launch-dc95ce22cddbf1ca7c4478c5 -> origin/state/autonomous-launch-dc95ce22cddbf1ca7c4478c5
+2026-10-01T05:03:35.1964744Z  * [new branch]        state/autonomous-launch-f32caad9a683fadae75fe14b -> origin/state/autonomous-launch-f32caad9a683fadae75fe14b
+2026-10-01T05:03:35.1967322Z  * [new branch]        state/autonomous-paper-1ef43ce521823a314bfa1a70 -> origin/state/autonomous-paper-1ef43ce521823a314bfa1a70
+2026-10-01T05:03:35.1969873Z  * [new branch]        state/autonomous-paper-4f2524a14f8f9e048a1aa784 -> origin/state/autonomous-paper-4f2524a14f8f9e048a1aa784
+2026-10-01T05:03:35.1972703Z  * [new branch]        state/autonomous-paper-b1b0c8c3cf4b660bdec590cd -> origin/state/autonomous-paper-b1b0c8c3cf4b660bdec590cd
+2026-10-01T05:03:35.1975274Z  * [new branch]        state/autonomous-paper-bcca3595dd2cd91299d72016 -> origin/state/autonomous-paper-bcca3595dd2cd91299d72016
+2026-10-01T05:03:35.1977828Z  * [new branch]        state/autonomous-paper-db5b0cb5fe55c1c7f061cd8c -> origin/state/autonomous-paper-db5b0cb5fe55c1c7f061cd8c
+2026-10-01T05:03:35.1980257Z  * [new branch]        strategy/counterfactual-replay-v1-20260924 -> origin/strategy/counterfactual-replay-v1-20260924
+2026-10-01T05:03:35.1982884Z  * [new branch]        strategy/directional-capital-parity-prep-20260930 -> origin/strategy/directional-capital-parity-prep-20260930
+2026-10-01T05:03:35.1985359Z  * [new branch]        strategy/exit-optimization-prep-20260930 -> origin/strategy/exit-optimization-prep-20260930
+2026-10-01T05:03:35.1987672Z  * [new branch]        strategy/meteora-core-hold-v2-20260923 -> origin/strategy/meteora-core-hold-v2-20260923
+2026-10-01T05:03:35.1989973Z  * [new branch]        strategy/meteora-fee-density-profitability-v1 -> origin/strategy/meteora-fee-density-profitability-v1
+2026-10-01T05:03:35.1992591Z  * [new branch]        strategy/meteora-fee-density-v1-runtime -> origin/strategy/meteora-fee-density-v1-runtime
+2026-10-01T05:03:35.1994956Z  * [new branch]        strategy/moderate-admission-thresholds-20260926 -> origin/strategy/moderate-admission-thresholds-20260926
+2026-10-01T05:03:35.1997642Z  * [new branch]        strategy/pons-opportunity-preservation-v2-20260925 -> origin/strategy/pons-opportunity-preservation-v2-20260925
+2026-10-01T05:03:35.2000428Z  * [new branch]        strategy/pons-postgrad-survivor-momentum-v1-20260926 -> origin/strategy/pons-postgrad-survivor-momentum-v1-20260926
+2026-10-01T05:03:35.2003131Z  * [new branch]        strategy/pons-profit-protection-v2-20260923 -> origin/strategy/pons-profit-protection-v2-20260923
+2026-10-01T05:03:35.2005716Z  * [new branch]        strategy/pons-profitability-persistence-current-v1 -> origin/strategy/pons-profitability-persistence-current-v1
+2026-10-01T05:03:35.2007969Z  * [new branch]        strategy/pons-profitability-v1 -> origin/strategy/pons-profitability-v1
+2026-10-01T05:03:35.2010120Z  * [new branch]        strategy/pump-counterfactual-replay-v1-20260924 -> origin/strategy/pump-counterfactual-replay-v1-20260924
+2026-10-01T05:03:35.2012762Z  * [new branch]        strategy/pump-pons-six-regime-upgrade-20260926 -> origin/strategy/pump-pons-six-regime-upgrade-20260926
+2026-10-01T05:03:35.2015197Z  * [new branch]        strategy/pump-profit-protection-v2-20260923 -> origin/strategy/pump-profit-protection-v2-20260923
+2026-10-01T05:03:35.2017257Z  * [new branch]        strategy/pump-profitability-v1 -> origin/strategy/pump-profitability-v1
+2026-10-01T05:03:35.2019257Z  * [new branch]        strategy/pump-ramses-v4-composed-20260924 -> origin/strategy/pump-ramses-v4-composed-20260924
+2026-10-01T05:03:35.2021843Z  * [new branch]        strategy/ramses-active-wide-maker-v3-runtime -> origin/strategy/ramses-active-wide-maker-v3-runtime
+2026-10-01T05:03:35.2024281Z  * [new branch]        strategy/ramses-active-wide-maker-v4-runtime -> origin/strategy/ramses-active-wide-maker-v4-runtime
+2026-10-01T05:03:35.2026302Z  * [new branch]        strategy/ramses-quiet-mint-v2 -> origin/strategy/ramses-quiet-mint-v2
+2026-10-01T05:03:35.2028157Z  * [new branch]        strategy/ramses-viability-v4-20260924 -> origin/strategy/ramses-viability-v4-20260924
+2026-10-01T05:03:35.2030345Z  * [new branch]        strategy/ramses-viability-v4-source-20260924 -> origin/strategy/ramses-viability-v4-source-20260924
+2026-10-01T05:03:35.2033037Z  * [new branch]        tmp/meteora-overlay-canonicalize-20260922 -> origin/tmp/meteora-overlay-canonicalize-20260922
+2026-10-01T05:03:35.2035573Z  * [new branch]        tmp/nonmarket-meteora-alchemy-primary-fix-20260922 -> origin/tmp/nonmarket-meteora-alchemy-primary-fix-20260922
+2026-10-01T05:03:35.2038066Z  * [new branch]        transport/stagee-exact-objects-20260930 -> origin/transport/stagee-exact-objects-20260930
+2026-10-01T05:03:35.2041285Z [command]/usr/bin/git rev-parse --verify --quiet a2934b503b0ca26e7e7489048754af09f486af28^{object}
+2026-10-01T05:03:35.2042907Z a2934b503b0ca26e7e7489048754af09f486af28
+2026-10-01T05:03:35.2044668Z ##[endgroup]
+2026-10-01T05:03:35.2045528Z ##[group]Determining the checkout info
+2026-10-01T05:03:35.2046543Z ##[endgroup]
+2026-10-01T05:03:35.2047091Z [command]/usr/bin/git sparse-checkout disable
+2026-10-01T05:03:35.2048874Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-01T05:03:35.2051016Z ##[group]Checking out the ref
+2026-10-01T05:03:35.2052363Z [command]/usr/bin/git checkout --progress --force a2934b503b0ca26e7e7489048754af09f486af28
+2026-10-01T05:03:35.2245622Z Note: switching to 'a2934b503b0ca26e7e7489048754af09f486af28'.
+2026-10-01T05:03:35.2247861Z 
+2026-10-01T05:03:35.2249198Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-01T05:03:35.2253308Z changes and commit them, and you can discard any commits you make in this
+2026-10-01T05:03:35.2256491Z state without impacting any branches by switching back to a branch.
+2026-10-01T05:03:35.2257969Z 
+2026-10-01T05:03:35.2258950Z If you want to create a new branch to retain commits you create, you may
+2026-10-01T05:03:35.2261574Z do so (now or later) by using -c with the switch command. Example:
+2026-10-01T05:03:35.2263070Z 
+2026-10-01T05:03:35.2263541Z   git switch -c <new-branch-name>
+2026-10-01T05:03:35.2264444Z 
+2026-10-01T05:03:35.2264864Z Or undo this operation with:
+2026-10-01T05:03:35.2265552Z 
+2026-10-01T05:03:35.2265820Z   git switch -
+2026-10-01T05:03:35.2266121Z 
+2026-10-01T05:03:35.2266685Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-01T05:03:35.2267558Z 
+2026-10-01T05:03:35.2268619Z HEAD is now at a2934b50 [runtime-v2-promotion] Arm focused housekeeping safety gate and one final matched .165 pair
+2026-10-01T05:03:35.2272626Z ##[endgroup]
+2026-10-01T05:03:35.2320914Z [command]/usr/bin/git log -1 --format=%H
+2026-10-01T05:03:35.2350350Z a2934b503b0ca26e7e7489048754af09f486af28
+2026-10-01T05:03:35.2360165Z ##[group]Removing auth
+2026-10-01T05:03:35.2364471Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T05:03:35.2399924Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T05:03:35.2631037Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T05:03:35.2660812Z http.https://github.com/.extraheader
+2026-10-01T05:03:35.2668830Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-01T05:03:35.2709079Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T05:03:35.2939517Z ##[endgroup]
+2026-10-01T05:03:35.3253600Z ##[group]Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+2026-10-01T05:03:35.3254701Z with:
+2026-10-01T05:03:35.3255166Z   python-version: 3.12.14
+2026-10-01T05:03:35.3255743Z   check-latest: false
+2026-10-01T05:03:35.3263529Z   token: ***
+2026-10-01T05:03:35.3264044Z   update-environment: true
+2026-10-01T05:03:35.3264665Z   allow-prereleases: false
+2026-10-01T05:03:35.3265280Z   freethreaded: false
+2026-10-01T05:03:35.3265789Z env:
+2026-10-01T05:03:35.3266235Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:03:35.3266782Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:03:35.3267300Z ##[endgroup]
+2026-10-01T05:03:35.4666582Z ##[group]Installed versions
+2026-10-01T05:03:35.4708315Z (node:2325) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-01T05:03:35.4713337Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-01T05:03:35.4715271Z Successfully set up CPython (3.12.14)
+2026-10-01T05:03:35.4718037Z ##[endgroup]
+2026-10-01T05:03:35.4943318Z ##[group]Run python -m pip install --disable-pip-version-check -r requirements.txt
+2026-10-01T05:03:35.4945050Z [36;1mpython -m pip install --disable-pip-version-check -r requirements.txt[0m
+2026-10-01T05:03:35.5244324Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:03:35.5245217Z env:
+2026-10-01T05:03:35.5245853Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:03:35.5246594Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:03:35.5247565Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:35.5249159Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:03:35.5250751Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:35.5252204Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:35.5253711Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:35.5254931Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:03:35.5255945Z ##[endgroup]
+2026-10-01T05:03:36.3817090Z Collecting websockets==17.1 (from -r requirements.txt (line 1))
+2026-10-01T05:03:36.4306296Z   Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+2026-10-01T05:03:36.4391871Z Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (224 kB)
+2026-10-01T05:03:36.4989377Z Installing collected packages: websockets
+2026-10-01T05:03:36.6254546Z Successfully installed websockets-17.1
+2026-10-01T05:03:36.6925627Z ##[group]Run python -m py_compile diagnostics/housekeeping-ordering/harness.py diagnostics/housekeeping-ordering/prepare.py diagnostics/housekeeping-ordering/check.py diagnostics/housekeeping-ordering/pair.py diagnostics/housekeeping-ordering/analyze.py diagnostics/housekeeping-ordering/test_housekeeping_ordering.py
+2026-10-01T05:03:36.6929647Z [36;1mpython -m py_compile diagnostics/housekeeping-ordering/harness.py diagnostics/housekeeping-ordering/prepare.py diagnostics/housekeeping-ordering/check.py diagnostics/housekeeping-ordering/pair.py diagnostics/housekeeping-ordering/analyze.py diagnostics/housekeeping-ordering/test_housekeeping_ordering.py[0m
+2026-10-01T05:03:36.6932728Z [36;1mpython diagnostics/housekeeping-ordering/prepare.py --root "$RUNNER_TEMP/housekeeping-ordering"[0m
+2026-10-01T05:03:36.7004317Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:03:36.7005305Z env:
+2026-10-01T05:03:36.7006222Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:03:36.7007145Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:03:36.7008203Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:36.7009441Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:03:36.7010683Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:36.7012283Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:36.7013479Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:36.7014653Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:03:36.7015719Z ##[endgroup]
+2026-10-01T05:03:36.8913575Z Preparing worktree (detached HEAD 750190b2)
+2026-10-01T05:03:37.0169422Z Preparing worktree (detached HEAD 750190b2)
+2026-10-01T05:03:37.9396196Z diagnostic arithmetic selfcheck passed
+2026-10-01T05:03:38.2110130Z STATIC_VERIFIED {"ast_checks": {"arbiter_and_owner_unchanged": true, "housekeeping_atomic_shield_added": false, "ledger_and_outcome_model_unchanged": true, "native_housekeeping_ast_identical": true, "native_scope_loop_ast_identical": true, "native_scope_transactions_identical": true, "service_and_turn_flow_identical_except_prefix_argument": true}, "changed_paths": ["meme_machine/solana_evidence_plane.py", "meme_machine/solana_evidence_service.py", "meme_machine/solana_maintenance_runtime.py"], "diagnostic_sha": "a2934b503b0ca26e7e7489048754af09f486af28", "diagnostic_tree": "415bcb1b25b9fe88f687237d85fe1b784b0706c0", "evidence_base_sha": "750190b2067ca2fca771b531396d8e06a9351c62", "historical_stops_preserved": true, "identical_configuration_except_ordering": true, "identical_harness_native_wrappers": true, "identical_native_workload_wire": true, "paper_only": true, "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d", "protected_evidence_files": 1197, "protected_production_files": 1152, "source_and_evidence_blobs_and_modes_unchanged": true, "source_floor_both": 0.165, "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f", "stage_e": "RED", "stage_f": "NOT_STARTED", "tests_sha256": "c3a004c1caae1e4344e91eb729c3b2eb1a41cb16821b9991694f58a39938cc6b", "unchanged_workload_hashes": {"certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3", "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3", "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af", "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a", "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa", "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf", "certification/pressure_diagnostics.py": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45", "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f", "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd", "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376", "tests/test_run373_dispatch_throughput.py": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2", "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"}, "verified": true}
+2026-10-01T05:03:38.2422502Z ##[group]Run python diagnostics/housekeeping-ordering/check.py --root "$RUNNER_TEMP/housekeeping-ordering"
+2026-10-01T05:03:38.2423429Z [36;1mpython diagnostics/housekeeping-ordering/check.py --root "$RUNNER_TEMP/housekeeping-ordering"[0m
+2026-10-01T05:03:38.2489706Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:03:38.2490003Z env:
+2026-10-01T05:03:38.2490234Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:03:38.2490502Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:03:38.2490866Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:38.2491563Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:03:38.2492127Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:38.2492619Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:38.2493131Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:38.2493637Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:03:38.2494094Z ##[endgroup]
+2026-10-01T05:03:38.9083365Z CHECK {"name": "control-reproduction", "returncode": 0, "tests": null, "log_sha256": "5eeca66cd37ec5e7b59ad10e6fb3fc702e92b9b194a85abf88b95ae99a638a6a"}
+2026-10-01T05:03:38.9087152Z test_control_reproduces_768_retirements_and_no_housekeeping (tests.test_housekeeping_ordering.PrefixTests.test_control_reproduces_768_retirements_and_no_housekeeping) ... ok
+2026-10-01T05:03:38.9088662Z 
+2026-10-01T05:03:38.9089026Z ----------------------------------------------------------------------
+2026-10-01T05:03:38.9089817Z Ran 1 test in 0.361s
+2026-10-01T05:03:38.9090119Z 
+2026-10-01T05:03:38.9090316Z OK
+2026-10-01T05:03:49.0964718Z CHECK {"name": "treatment-focused", "returncode": 1, "tests": 54, "log_sha256": "d0b9c0b84983a872f53d25fefdc2e8402d3e0d4900d44420e967faf49428b778"}
+2026-10-01T05:03:49.0975003Z   File "/home/runner/work/_temp/housekeeping-ordering/worktrees/treatment/meme_machine/solana_maintenance_arbiter.py", line 164, in choose
+2026-10-01T05:03:49.1004454Z ##[error]    raise EvidenceUnavailable('maintenance_demand_invalid')
+2026-10-01T05:03:49.1015726Z meme_machine.solana_evidence_plane.EvidenceUnavailable: maintenance_demand_invalid
+2026-10-01T05:03:49.1016330Z 
+2026-10-01T05:03:49.1016599Z ----------------------------------------------------------------------
+2026-10-01T05:03:49.1017165Z Ran 54 tests in 9.907s
+2026-10-01T05:03:49.1017407Z 
+2026-10-01T05:03:49.1017572Z FAILED (errors=1)
+2026-10-01T05:03:49.1058945Z ##[error]Process completed with exit code 1.
+2026-10-01T05:03:49.1110689Z ##[group]Run python diagnostics/housekeeping-ordering/analyze.py --root "$RUNNER_TEMP/housekeeping-ordering"
+2026-10-01T05:03:49.1111901Z [36;1mpython diagnostics/housekeeping-ordering/analyze.py --root "$RUNNER_TEMP/housekeeping-ordering"[0m
+2026-10-01T05:03:49.1177969Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:03:49.1178458Z env:
+2026-10-01T05:03:49.1178704Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:03:49.1178985Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:03:49.1179340Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:49.1179894Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:03:49.1180454Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:49.1180962Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:49.1182018Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:49.1182557Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:03:49.1183026Z ##[endgroup]
+2026-10-01T05:03:49.2079776Z HOUSEKEEPING_COMPARISON {"arms": {"control": {"unavailable": true}, "treatment": {"unavailable": true}}, "budget": {"ceiling": 6, "consumed": 4, "unused": 2}, "executions": [], "interpretation": "inconclusive_for_paired_binding_housekeeping_effect", "limitations": ["One fixed-order matched pair on one hosted runner; no replication or counterbalance.", "Source .165, archive .36/1000, COMMIT .006 and reduced urgent ACK controls are retained in both arms.", "Scope/owner/transaction/worker spans overlap; do not sum them as independent occupancy.", "Ready marker precedes Future.set_result bookkeeping; complete receipt partitions only.", "Timing drops or missing summaries leave evidence incomplete; no reconstruction from aggregate counters.", "Native and extra observer cost remain mixed. No strict less-than-1-percent certification is claimed.", "M1 and preflight blockers remain historical and unresolved; canonical Stage E/F is not tested."], "mechanism_observed": false, "paper_only": true, "safety_gate": {"budget_consumed": 4, "checks": [{"log_sha256": "5eeca66cd37ec5e7b59ad10e6fb3fc702e92b9b194a85abf88b95ae99a638a6a", "name": "control-reproduction", "returncode": 0, "tests": null}, {"log_sha256": "d0b9c0b84983a872f53d25fefdc2e8402d3e0d4900d44420e967faf49428b778", "name": "treatment-focused", "returncode": 1, "tests": 54}], "material_executions": 0, "passed": false}, "stage_e": "RED", "stage_f": "NOT_STARTED", "static_verification": {"ast_checks": {"arbiter_and_owner_unchanged": true, "housekeeping_atomic_shield_added": false, "ledger_and_outcome_model_unchanged": true, "native_housekeeping_ast_identical": true, "native_scope_loop_ast_identical": true, "native_scope_transactions_identical": true, "service_and_turn_flow_identical_except_prefix_argument": true}, "changed_paths": ["meme_machine/solana_evidence_plane.py", "meme_machine/solana_evidence_service.py", "meme_machine/solana_maintenance_runtime.py"], "diagnostic_sha": "a2934b503b0ca26e7e7489048754af09f486af28", "diagnostic_tree": "415bcb1b25b9fe88f687237d85fe1b784b0706c0", "evidence_base_sha": "750190b2067ca2fca771b531396d8e06a9351c62", "historical_stops_preserved": true, "identical_configuration_except_ordering": true, "identical_harness_native_wrappers": true, "identical_native_workload_wire": true, "paper_only": true, "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d", "protected_evidence_files": 1197, "protected_production_files": 1152, "source_and_evidence_blobs_and_modes_unchanged": true, "source_floor_both": 0.165, "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f", "stage_e": "RED", "stage_f": "NOT_STARTED", "tests_sha256": "c3a004c1caae1e4344e91eb729c3b2eb1a41cb16821b9991694f58a39938cc6b", "unchanged_workload_hashes": {"certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3", "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3", "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af", "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a", "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa", "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf", "certification/pressure_diagnostics.py": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45", "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f", "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd", "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376", "tests/test_run373_dispatch_throughput.py": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2", "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"}, "verified": true}, "status": "HOUSEKEEPING_ORDERING_TEST_GATE_STOP_NO_MATERIAL_RUN"}
+2026-10-01T05:03:49.3844735Z HOUSEKEEPING_EVIDENCE_HASHES {"COMPARISON.json": "699c350fc10a4602d0f3098cb33b4bc297b29d81343855bd841df084d9a59546", "FOLLOWUP_STOP.json": "19b611762660d63ec024e6560c0ecba0ddc4c327648301838171a1f7134e2350", "SAFETY_GATE.json": "1b0fdd7b9971c9924841a3471c0d815568694bf185712e1a9cca56f4dd81e16e", "SCOPE.md": "3646fdce19a9a68ce4689b3c9c5278b00da9f36f42b9f7908e779cd39aacec6e", "STATIC_VERIFICATION.json": "3452c07d3c13c0bc66739108865f3eb0a6237af30ed77d37b77457a9fa8f7f2f", "SUMMARY.md": "715e7b0d408050bcd941e1c5bbc4eced3783921a083709d7edb9dc2424ab303f", "analyze.py": "532f26b0acfe3b65e802572a545cbd22e836fbc47b7766a7d814c4813a673af3", "check.py": "3f84297720df8525eed93698f8097c106c484a861b8af29ea26474d95a3b946a", "checkout-manifests.json": "6530abfa86c3197b7758ed71316e3572639053211bb99aef5c44f39b055cbd3a", "control-reproduction.log": "5eeca66cd37ec5e7b59ad10e6fb3fc702e92b9b194a85abf88b95ae99a638a6a", "environment.json": "149ade0535649240b01621ee5b2e601c49e1927ab4564c7b911a58718e74d7ed", "execution-request.json": "4953d85e7bec6ef56cbb360ccee22df500018157cd2c31cdc1865bdff0dad882", "harness.py": "caa547cd814d32cd90be214f64b5b044af573d387722844e4a3cf707c5f2a67f", "pair.py": "51735921fed110509f8d57343cd72fac5e378af5ffa7f59b1c6ccfc43051d3b5", "prepare.py": "2e53212835445ae71927fe86b34bdfb3754ddfa629b7796c458d081c5de2cf3e", "test_housekeeping_ordering.py": "c3a004c1caae1e4344e91eb729c3b2eb1a41cb16821b9991694f58a39938cc6b", "treatment-focused.log": "d0b9c0b84983a872f53d25fefdc2e8402d3e0d4900d44420e967faf49428b778", "treatment.patch": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d", "workflow.yml": "66ef53a01b50f76616bef6ad4072e828f5455a28a7e2e5e2e2cba2013c1de6a7"}
+2026-10-01T05:03:49.4022411Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-01T05:03:49.4022894Z with:
+2026-10-01T05:03:49.4023321Z   name: housekeeping-ordering-a2934b503b0ca26e7e7489048754af09f486af28-36817981327-1
+2026-10-01T05:03:49.4024355Z   path: /home/runner/work/_temp/housekeeping-ordering/
+!/home/runner/work/_temp/housekeeping-ordering/**/runtime/**
+!/home/runner/work/_temp/housekeeping-ordering/worktrees/**
+
+2026-10-01T05:03:49.4025192Z   if-no-files-found: error
+2026-10-01T05:03:49.4025472Z   retention-days: 90
+2026-10-01T05:03:49.4025711Z   compression-level: 6
+2026-10-01T05:03:49.4025956Z   overwrite: false
+2026-10-01T05:03:49.4026195Z   include-hidden-files: false
+2026-10-01T05:03:49.4026454Z env:
+2026-10-01T05:03:49.4026654Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:03:49.4026885Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:03:49.4027165Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:49.4027633Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:03:49.4028072Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:49.4028468Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:49.4028864Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:03:49.4029283Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:03:49.4029628Z ##[endgroup]
+2026-10-01T05:03:49.5809222Z (node:2425) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-01T05:03:49.5811737Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-01T05:03:49.8498156Z With the provided path, there will be 20 files uploaded
+2026-10-01T05:03:49.8505627Z Artifact name is valid!
+2026-10-01T05:03:49.8506399Z Root directory input is valid!
+2026-10-01T05:03:50.0627166Z Beginning upload of artifact content to blob storage
+2026-10-01T05:03:50.1155020Z (node:2425) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-01T05:03:50.1514847Z Uploaded bytes 159469
+2026-10-01T05:03:50.1674819Z Finished uploading artifact content to blob storage!
+2026-10-01T05:03:50.1676524Z SHA256 digest of uploaded artifact zip is 3d3d67c9f4c30d92c8290cb686ec04fad32a245da78690bb948c55ee674c5ca1
+2026-10-01T05:03:50.1678417Z Finalizing artifact upload
+2026-10-01T05:03:50.4424189Z Artifact housekeeping-ordering-a2934b503b0ca26e7e7489048754af09f486af28-36817981327-1.zip successfully finalized. Artifact ID 11142301802
+2026-10-01T05:03:50.4427315Z Artifact housekeeping-ordering-a2934b503b0ca26e7e7489048754af09f486af28-36817981327-1 has been successfully uploaded! Final size is 159469 bytes. Artifact ID is 11142301802
+2026-10-01T05:03:50.4432673Z Artifact download URL: https://github.com/levonmendall/The-Meme-Machine/actions/runs/36817981327/artifacts/11142301802
+2026-10-01T05:03:50.4639001Z Post job cleanup.
+2026-10-01T05:03:50.5566902Z [command]/usr/bin/git version
+2026-10-01T05:03:50.5614293Z git version 2.55.0
+2026-10-01T05:03:50.5657991Z Temporarily overriding HOME='/home/runner/work/_temp/d8daaeb0-126a-4d1e-bd4f-3649882150cb' before making global git config changes
+2026-10-01T05:03:50.5659742Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-01T05:03:50.5664759Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T05:03:50.5708989Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T05:03:50.5747932Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T05:03:50.6030909Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T05:03:50.6063633Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T05:03:50.6629927Z Cleaning up orphan processes
+2026-10-01T05:03:50.7058735Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683, actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

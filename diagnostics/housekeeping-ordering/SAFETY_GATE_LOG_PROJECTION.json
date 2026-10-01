@@ -1,0 +1,28 @@
+{
+  "budget_consumed": 4,
+  "checks": [
+    {
+      "log_sha256": "7200832e0b3f154b3c2158ac9f1649714cc0bc5078141eee8a7fd05027897b71",
+      "name": "control-reproduction",
+      "returncode": 0,
+      "tests": 1
+    },
+    {
+      "log_sha256": "fbf76604478d66284fca1ff7553296d1ab97578f1b20186da095f58567c3a7a5",
+      "name": "treatment-focused",
+      "returncode": 0,
+      "tests": 54
+    },
+    {
+      "log_sha256": "56db26249183c82c847bc4a78d25d4a78ec1f056bc471b90114ec312bb31abd1",
+      "name": "resource",
+      "returncode": 0,
+      "tests": null
+    }
+  ],
+  "diagnostic_sha": "c22e61a176951c364b9dc855c68adad849479afe",
+  "material_executions": 0,
+  "passed": true,
+  "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d",
+  "tests_sha256": "fa16faf54607a45c9b835cd1f18ebf0507040d16ddc21feb93477b625c031411"
+}

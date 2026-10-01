@@ -1,0 +1,731 @@
+﻿2026-10-01T05:05:42.0114140Z Current runner version: '2.337.0'
+2026-10-01T05:05:42.0141940Z ##[group]Runner Image Provisioner
+2026-10-01T05:05:42.0142890Z Hosted Compute Agent
+2026-10-01T05:05:42.0143511Z Version: 20260828.587
+2026-10-01T05:05:42.0144158Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-10-01T05:05:42.0144947Z Build Date: 2026-08-28T16:44:25Z
+2026-10-01T05:05:42.0145660Z Worker ID: {71d1e4f2-5186-4c0f-a320-0a8a6ec559f0}
+2026-10-01T05:05:42.0146439Z Azure Region: westus
+2026-10-01T05:05:42.0147232Z ##[endgroup]
+2026-10-01T05:05:42.0148918Z ##[group]Operating System
+2026-10-01T05:05:42.0149690Z Ubuntu
+2026-10-01T05:05:42.0150233Z 24.04.5
+2026-10-01T05:05:42.0150734Z LTS
+2026-10-01T05:05:42.0151307Z ##[endgroup]
+2026-10-01T05:05:42.0151855Z ##[group]Runner Image
+2026-10-01T05:05:42.0152837Z Image: ubuntu-24.04
+2026-10-01T05:05:42.0153486Z Version: 20260920.314.1
+2026-10-01T05:05:42.0154794Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260920.314/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-01T05:05:42.0156428Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260920.314
+2026-10-01T05:05:42.0157686Z ##[endgroup]
+2026-10-01T05:05:42.0158853Z ##[group]GITHUB_TOKEN Permissions
+2026-10-01T05:05:42.0161086Z Contents: read
+2026-10-01T05:05:42.0161705Z Metadata: read
+2026-10-01T05:05:42.0162253Z ##[endgroup]
+2026-10-01T05:05:42.0164427Z Secret source: Actions
+2026-10-01T05:05:42.0165414Z Cache mode: write
+2026-10-01T05:05:42.0166243Z Prepare workflow directory
+2026-10-01T05:05:42.0632263Z Prepare all required actions
+2026-10-01T05:05:42.0680832Z Getting action download info
+2026-10-01T05:05:42.4591055Z Download action repository 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-10-01T05:05:42.5639702Z Download action repository 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-01T05:05:42.6417438Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-01T05:05:42.8537850Z Complete job name: matched-pair
+2026-10-01T05:05:42.9308684Z ##[group]Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+2026-10-01T05:05:42.9309789Z with:
+2026-10-01T05:05:42.9310263Z   ref: c22e61a176951c364b9dc855c68adad849479afe
+2026-10-01T05:05:42.9310856Z   fetch-depth: 0
+2026-10-01T05:05:42.9311304Z   persist-credentials: false
+2026-10-01T05:05:42.9311837Z   repository: levonmendall/The-Meme-Machine
+2026-10-01T05:05:42.9315698Z   token: ***
+2026-10-01T05:05:42.9316113Z   ssh-strict: true
+2026-10-01T05:05:42.9316540Z   ssh-user: git
+2026-10-01T05:05:42.9317151Z   clean: true
+2026-10-01T05:05:42.9317589Z   sparse-checkout-cone-mode: true
+2026-10-01T05:05:42.9318107Z   fetch-tags: false
+2026-10-01T05:05:42.9318540Z   show-progress: true
+2026-10-01T05:05:42.9318978Z   lfs: false
+2026-10-01T05:05:42.9319383Z   submodules: false
+2026-10-01T05:05:42.9319828Z   set-safe-directory: true
+2026-10-01T05:05:42.9320560Z env:
+2026-10-01T05:05:42.9320974Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:05:42.9321429Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:05:42.9321893Z ##[endgroup]
+2026-10-01T05:05:43.0386014Z Syncing repository: levonmendall/The-Meme-Machine
+2026-10-01T05:05:43.0389014Z ##[group]Getting Git version info
+2026-10-01T05:05:43.0390450Z Working directory is '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+2026-10-01T05:05:43.0392223Z [command]/usr/bin/git version
+2026-10-01T05:05:43.0475469Z git version 2.55.0
+2026-10-01T05:05:43.0500350Z ##[endgroup]
+2026-10-01T05:05:43.0515070Z Temporarily overriding HOME='/home/runner/work/_temp/f1713cf4-9617-489d-b973-6d0013040502' before making global git config changes
+2026-10-01T05:05:43.0517620Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-01T05:05:43.0521874Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T05:05:43.0579867Z Deleting the contents of '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+2026-10-01T05:05:43.0584075Z ##[group]Initializing the repository
+2026-10-01T05:05:43.0589858Z [command]/usr/bin/git init /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T05:05:43.0727997Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-01T05:05:43.0730153Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-01T05:05:43.0738341Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-01T05:05:43.0739973Z hint: call:
+2026-10-01T05:05:43.0740828Z hint:
+2026-10-01T05:05:43.0741906Z hint: 	git config --global init.defaultBranch <name>
+2026-10-01T05:05:43.0743291Z hint:
+2026-10-01T05:05:43.0744858Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-01T05:05:43.0746728Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-01T05:05:43.0748578Z hint:
+2026-10-01T05:05:43.0749597Z hint: 	git branch -m <name>
+2026-10-01T05:05:43.0750568Z hint:
+2026-10-01T05:05:43.0751759Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-01T05:05:43.0753876Z Initialized empty Git repository in /home/runner/work/The-Meme-Machine/The-Meme-Machine/.git/
+2026-10-01T05:05:43.0757635Z [command]/usr/bin/git remote add origin https://github.com/levonmendall/The-Meme-Machine
+2026-10-01T05:05:43.0838505Z ##[endgroup]
+2026-10-01T05:05:43.0840664Z ##[group]Disabling automatic garbage collection
+2026-10-01T05:05:43.0843621Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-01T05:05:43.0914472Z ##[endgroup]
+2026-10-01T05:05:43.0916182Z ##[group]Setting up auth
+2026-10-01T05:05:43.0920699Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T05:05:43.0954831Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T05:05:43.1449067Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T05:05:43.1486374Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T05:05:43.1703480Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-01T05:05:43.1745722Z ##[endgroup]
+2026-10-01T05:05:43.1747526Z ##[group]Fetching the repository
+2026-10-01T05:05:43.1757607Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-10-01T05:05:44.4742832Z From https://github.com/levonmendall/The-Meme-Machine
+2026-10-01T05:05:44.4747617Z  * [new branch]        analysis/run377-preserved-evidence-20260926 -> origin/analysis/run377-preserved-evidence-20260926
+2026-10-01T05:05:44.4752529Z  * [new branch]        analysis/run379-preserved-evidence-20260926 -> origin/analysis/run379-preserved-evidence-20260926
+2026-10-01T05:05:44.4756379Z  * [new branch]        analysis/run380-preserved-evidence-20260926 -> origin/analysis/run380-preserved-evidence-20260926
+2026-10-01T05:05:44.4760951Z  * [new branch]        analysis/run381-preserved-evidence-20260927 -> origin/analysis/run381-preserved-evidence-20260927
+2026-10-01T05:05:44.4765907Z  * [new branch]        analysis/run381-sqlite-lifetime-20260927 -> origin/analysis/run381-sqlite-lifetime-20260927
+2026-10-01T05:05:44.4771998Z  * [new branch]        analysis/stage-e-causal-isolation-phase0-20260930-paper -> origin/analysis/stage-e-causal-isolation-phase0-20260930-paper
+2026-10-01T05:05:44.4779792Z  * [new branch]        architecture/certify-changes-preflight-runs-20260925 -> origin/architecture/certify-changes-preflight-runs-20260925
+2026-10-01T05:05:44.4786087Z  * [new branch]        architecture/robinhood-evidence-plane-20260925 -> origin/architecture/robinhood-evidence-plane-20260925
+2026-10-01T05:05:44.4792328Z  * [new branch]        archive/one-hour-repair-campaign-b145417c-20260923 -> origin/archive/one-hour-repair-campaign-b145417c-20260923
+2026-10-01T05:05:44.4796349Z  * [new branch]        audit/coverage-evidence-35935431384 -> origin/audit/coverage-evidence-35935431384
+2026-10-01T05:05:44.4801240Z  * [new branch]        audit/coverage-successor-handoff-20260924 -> origin/audit/coverage-successor-handoff-20260924
+2026-10-01T05:05:44.4805324Z  * [new branch]        audit/missed-winner-market-replay -> origin/audit/missed-winner-market-replay
+2026-10-01T05:05:44.4809345Z  * [new branch]        cert/active-next-run-v12-20260924 -> origin/cert/active-next-run-v12-20260924
+2026-10-01T05:05:44.4813288Z  * [new branch]        cert/all-market-certification-20260923 -> origin/cert/all-market-certification-20260923
+2026-10-01T05:05:44.4818065Z  * [new branch]        cert/autonomous-paper-control-66898d4 -> origin/cert/autonomous-paper-control-66898d4
+2026-10-01T05:05:44.4822772Z  * [new branch]        cert/autonomous-paper-control-d63caf3 -> origin/cert/autonomous-paper-control-d63caf3
+2026-10-01T05:05:44.4826537Z  * [new branch]        cert/autonomous-paper-final-4e52b4d -> origin/cert/autonomous-paper-final-4e52b4d
+2026-10-01T05:05:44.4830255Z  * [new branch]        cert/autonomous-paper-final-4f6c155 -> origin/cert/autonomous-paper-final-4f6c155
+2026-10-01T05:05:44.4833267Z  * [new branch]        cert/autonomous-paper-final-518e857 -> origin/cert/autonomous-paper-final-518e857
+2026-10-01T05:05:44.4836482Z  * [new branch]        cert/autonomous-paper-final-72cbb01 -> origin/cert/autonomous-paper-final-72cbb01
+2026-10-01T05:05:44.4840119Z  * [new branch]        cert/autonomous-paper-final-a60326b -> origin/cert/autonomous-paper-final-a60326b
+2026-10-01T05:05:44.4843449Z  * [new branch]        cert/autonomous-paper-final-aa50bf8 -> origin/cert/autonomous-paper-final-aa50bf8
+2026-10-01T05:05:44.4847036Z  * [new branch]        cert/autonomous-paper-final-b408dec -> origin/cert/autonomous-paper-final-b408dec
+2026-10-01T05:05:44.4850622Z  * [new branch]        cert/autonomous-paper-final-df7b376 -> origin/cert/autonomous-paper-final-df7b376
+2026-10-01T05:05:44.4854161Z  * [new branch]        cert/autonomous-paper-machinery-20260927 -> origin/cert/autonomous-paper-machinery-20260927
+2026-10-01T05:05:44.4857996Z  * [new branch]        cert/cancel-combined-preflight-20260920 -> origin/cert/cancel-combined-preflight-20260920
+2026-10-01T05:05:44.4861200Z  * [new branch]        cert/cancel-four-hour-20260920 -> origin/cert/cancel-four-hour-20260920
+2026-10-01T05:05:44.4864173Z  * [new branch]        cert/cancel-superseded-20260920 -> origin/cert/cancel-superseded-20260920
+2026-10-01T05:05:44.4867495Z  * [new branch]        cert/cohort-state-2c3ac1d49dc0 -> origin/cert/cohort-state-2c3ac1d49dc0
+2026-10-01T05:05:44.4870484Z  * [new branch]        cert/cohort-state-513baef4b555 -> origin/cert/cohort-state-513baef4b555
+2026-10-01T05:05:44.4873394Z  * [new branch]        cert/cohort-state-59078c3dec08 -> origin/cert/cohort-state-59078c3dec08
+2026-10-01T05:05:44.4876356Z  * [new branch]        cert/cohort-state-95f602943ed4 -> origin/cert/cohort-state-95f602943ed4
+2026-10-01T05:05:44.4879807Z  * [new branch]        cert/cohort-state-d4c12afcd902 -> origin/cert/cohort-state-d4c12afcd902
+2026-10-01T05:05:44.4882998Z  * [new branch]        cert/dlmm-machinery-proof-current -> origin/cert/dlmm-machinery-proof-current
+2026-10-01T05:05:44.4886527Z  * [new branch]        cert/execution-certification-v1 -> origin/cert/execution-certification-v1
+2026-10-01T05:05:44.4889762Z  * [new branch]        cert/four-lane-capacity-v2 -> origin/cert/four-lane-capacity-v2
+2026-10-01T05:05:44.4893585Z  * [new branch]        cert/four-lane-dlmm-profitability-v1 -> origin/cert/four-lane-dlmm-profitability-v1
+2026-10-01T05:05:44.4897529Z  * [new branch]        cert/four-lane-run-records -> origin/cert/four-lane-run-records
+2026-10-01T05:05:44.4900684Z  * [new branch]        cert/four-lane-sustained-v1 -> origin/cert/four-lane-sustained-v1
+2026-10-01T05:05:44.4903993Z  * [new branch]        cert/hourly-launch-evidence-35493891947 -> origin/cert/hourly-launch-evidence-35493891947
+2026-10-01T05:05:44.4907591Z  * [new branch]        cert/meteora-execution-cert-v1 -> origin/cert/meteora-execution-cert-v1
+2026-10-01T05:05:44.4910584Z  * [new branch]        cert/meteora-machinery-proof-v2 -> origin/cert/meteora-machinery-proof-v2
+2026-10-01T05:05:44.4914070Z  * [new branch]        cert/moderate-admission-thresholds-v1-20260926 -> origin/cert/moderate-admission-thresholds-v1-20260926
+2026-10-01T05:05:44.4917440Z  * [new branch]        cert/non-market-e2e-20260922 -> origin/cert/non-market-e2e-20260922
+2026-10-01T05:05:44.4920113Z  * [new branch]        cert/one-hour-repair-campaign -> origin/cert/one-hour-repair-campaign
+2026-10-01T05:05:44.4922762Z  * [new branch]        cert/pons-execution-cert-v1 -> origin/cert/pons-execution-cert-v1
+2026-10-01T05:05:44.4926424Z  * [new branch]        cert/pons-opportunity-preservation-v2-20260925 -> origin/cert/pons-opportunity-preservation-v2-20260925
+2026-10-01T05:05:44.4931492Z  * [new branch]        cert/profit-protection-v2-four-lane-20260923 -> origin/cert/profit-protection-v2-four-lane-20260923
+2026-10-01T05:05:44.4937856Z  * [new branch]        cert/profitability-persistence-edge-current-v1 -> origin/cert/profitability-persistence-edge-current-v1
+2026-10-01T05:05:44.4943023Z  * [new branch]        cert/profitability-persistence-edge-current-v1-compose -> origin/cert/profitability-persistence-edge-current-v1-compose
+2026-10-01T05:05:44.4947416Z  * [new branch]        cert/profitability-persistence-edge-v1 -> origin/cert/profitability-persistence-edge-v1
+2026-10-01T05:05:44.4951176Z  * [new branch]        cert/profitability-persistence-edge-v1-compose -> origin/cert/profitability-persistence-edge-v1-compose
+2026-10-01T05:05:44.4955221Z  * [new branch]        cert/profitability-portfolio-autonomy-current-v1 -> origin/cert/profitability-portfolio-autonomy-current-v1
+2026-10-01T05:05:44.4961899Z  * [new branch]        cert/profitability-portfolio-autonomy-final-v1 -> origin/cert/profitability-portfolio-autonomy-final-v1
+2026-10-01T05:05:44.4967188Z  * [new branch]        cert/profitability-portfolio-autonomy-v1 -> origin/cert/profitability-portfolio-autonomy-v1
+2026-10-01T05:05:44.4970436Z  * [new branch]        cert/profitability-v1-current -> origin/cert/profitability-v1-current
+2026-10-01T05:05:44.4973179Z  * [new branch]        cert/prospective-market-v1 -> origin/cert/prospective-market-v1
+2026-10-01T05:05:44.4975821Z  * [new branch]        cert/pump-execution-cert-v1 -> origin/cert/pump-execution-cert-v1
+2026-10-01T05:05:44.4978686Z  * [new branch]        cert/ramses-execution-cert-v1 -> origin/cert/ramses-execution-cert-v1
+2026-10-01T05:05:44.4981371Z  * [new branch]        cert/ramses-machinery-proof-v2 -> origin/cert/ramses-machinery-proof-v2
+2026-10-01T05:05:44.4984296Z  * [new branch]        cert/single-campaign-004fe011b4412e6d -> origin/cert/single-campaign-004fe011b4412e6d
+2026-10-01T05:05:44.4987799Z  * [new branch]        cert/single-campaign-120002d402a7d838 -> origin/cert/single-campaign-120002d402a7d838
+2026-10-01T05:05:44.4991015Z  * [new branch]        cert/single-campaign-16ffe821fbb298da -> origin/cert/single-campaign-16ffe821fbb298da
+2026-10-01T05:05:44.4994171Z  * [new branch]        cert/single-campaign-298f9012c4a1d0a8 -> origin/cert/single-campaign-298f9012c4a1d0a8
+2026-10-01T05:05:44.4997595Z  * [new branch]        cert/single-campaign-2fbf4cef086b296f -> origin/cert/single-campaign-2fbf4cef086b296f
+2026-10-01T05:05:44.5000843Z  * [new branch]        cert/single-campaign-318a483fb097df0d -> origin/cert/single-campaign-318a483fb097df0d
+2026-10-01T05:05:44.5004010Z  * [new branch]        cert/single-campaign-3d20ec8b1604ecc8 -> origin/cert/single-campaign-3d20ec8b1604ecc8
+2026-10-01T05:05:44.5007388Z  * [new branch]        cert/single-campaign-3d80885094112b95 -> origin/cert/single-campaign-3d80885094112b95
+2026-10-01T05:05:44.5010863Z  * [new branch]        cert/single-campaign-3e5c47d8091b321c -> origin/cert/single-campaign-3e5c47d8091b321c
+2026-10-01T05:05:44.5014088Z  * [new branch]        cert/single-campaign-52e4f159fbe325bf -> origin/cert/single-campaign-52e4f159fbe325bf
+2026-10-01T05:05:44.5017502Z  * [new branch]        cert/single-campaign-5595941feb9921b7 -> origin/cert/single-campaign-5595941feb9921b7
+2026-10-01T05:05:44.5020680Z  * [new branch]        cert/single-campaign-6682fd49a1a743fe -> origin/cert/single-campaign-6682fd49a1a743fe
+2026-10-01T05:05:44.5023840Z  * [new branch]        cert/single-campaign-6d8a18efe2f5abe0 -> origin/cert/single-campaign-6d8a18efe2f5abe0
+2026-10-01T05:05:44.5027213Z  * [new branch]        cert/single-campaign-7ae753830f26155a -> origin/cert/single-campaign-7ae753830f26155a
+2026-10-01T05:05:44.5030401Z  * [new branch]        cert/single-campaign-7b7e6ef978e77e03 -> origin/cert/single-campaign-7b7e6ef978e77e03
+2026-10-01T05:05:44.5033600Z  * [new branch]        cert/single-campaign-8c3af7eeff6ef235 -> origin/cert/single-campaign-8c3af7eeff6ef235
+2026-10-01T05:05:44.5037029Z  * [new branch]        cert/single-campaign-af9d23141e561767 -> origin/cert/single-campaign-af9d23141e561767
+2026-10-01T05:05:44.5040217Z  * [new branch]        cert/single-campaign-c34336216bf3fac9 -> origin/cert/single-campaign-c34336216bf3fac9
+2026-10-01T05:05:44.5043784Z  * [new branch]        cert/single-campaign-continuation-06ce910be36e94e7 -> origin/cert/single-campaign-continuation-06ce910be36e94e7
+2026-10-01T05:05:44.5047583Z  * [new branch]        cert/single-campaign-d2e25fc450f968cf -> origin/cert/single-campaign-d2e25fc450f968cf
+2026-10-01T05:05:44.5050724Z  * [new branch]        cert/single-campaign-d94e983d3a8ff02b -> origin/cert/single-campaign-d94e983d3a8ff02b
+2026-10-01T05:05:44.5053785Z  * [new branch]        cert/single-campaign-de96686205d33ad7 -> origin/cert/single-campaign-de96686205d33ad7
+2026-10-01T05:05:44.5056958Z  * [new branch]        cert/single-campaign-ee3d321d0445aff6 -> origin/cert/single-campaign-ee3d321d0445aff6
+2026-10-01T05:05:44.5060320Z  * [new branch]        cert/single-campaign-f1038ba98e853c28 -> origin/cert/single-campaign-f1038ba98e853c28
+2026-10-01T05:05:44.5063314Z  * [new branch]        cert/single-market-510872d8-20260927 -> origin/cert/single-market-510872d8-20260927
+2026-10-01T05:05:44.5066204Z  * [new branch]        cert/single-market-ee6523fb-20260926 -> origin/cert/single-market-ee6523fb-20260926
+2026-10-01T05:05:44.5069535Z  * [new branch]        cert/single-market-evidence-planes-20260925 -> origin/cert/single-market-evidence-planes-20260925
+2026-10-01T05:05:44.5073060Z  * [new branch]        cert/single-market-evidence-planes-v1-20260925 -> origin/cert/single-market-evidence-planes-v1-20260925
+2026-10-01T05:05:44.5077635Z  * [new branch]        cert/single-market-evidence-reconstruction-20260924 -> origin/cert/single-market-evidence-reconstruction-20260924
+2026-10-01T05:05:44.5081591Z  * [new branch]        cert/single-market-latest-policies-350e9c-20260926 -> origin/cert/single-market-latest-policies-350e9c-20260926
+2026-10-01T05:05:44.5085295Z  * [new branch]        cert/single-market-run367-repaired-v1-20260924 -> origin/cert/single-market-run367-repaired-v1-20260924
+2026-10-01T05:05:44.5088942Z  * [new branch]        cert/single-market-run369-repairs-20260925 -> origin/cert/single-market-run369-repairs-20260925
+2026-10-01T05:05:44.5092385Z  * [new branch]        cert/single-market-run371-all-repairs-20260925 -> origin/cert/single-market-run371-all-repairs-20260925
+2026-10-01T05:05:44.5096053Z  * [new branch]        cert/single-market-run372-run371-repairs-20260926 -> origin/cert/single-market-run372-run371-repairs-20260926
+2026-10-01T05:05:44.5100406Z  * [new branch]        cert/single-market-run373-run372-large-frame-repair-20260926 -> origin/cert/single-market-run373-run372-large-frame-repair-20260926
+2026-10-01T05:05:44.5104764Z  * [new branch]        cert/single-market-run374-run373-dispatch-repair-20260926 -> origin/cert/single-market-run374-run373-dispatch-repair-20260926
+2026-10-01T05:05:44.5109472Z  * [new branch]        cert/single-market-run375-run374-publisher-repair-20260926 -> origin/cert/single-market-run375-run374-publisher-repair-20260926
+2026-10-01T05:05:44.5113733Z  * [new branch]        cert/single-market-run376-run375-runtime-repair-20260926 -> origin/cert/single-market-run376-run375-runtime-repair-20260926
+2026-10-01T05:05:44.5117886Z  * [new branch]        cert/single-market-run376-six-regime-48e46b-20260926 -> origin/cert/single-market-run376-six-regime-48e46b-20260926
+2026-10-01T05:05:44.5121739Z  * [new branch]        cert/single-market-run377-repairs-1e50d476-20260926 -> origin/cert/single-market-run377-repairs-1e50d476-20260926
+2026-10-01T05:05:44.5125148Z  * [new branch]        cert/single-market-runtime-v2-20260926 -> origin/cert/single-market-runtime-v2-20260926
+2026-10-01T05:05:44.5128371Z  * [new branch]        cert/single-market-v10-one-market-20260924 -> origin/cert/single-market-v10-one-market-20260924
+2026-10-01T05:05:44.5131530Z  * [new branch]        cert/single-market-v10-postrun-20260924 -> origin/cert/single-market-v10-postrun-20260924
+2026-10-01T05:05:44.5134946Z  * [new branch]        cert/single-market-v10-provider-pressure-20260924 -> origin/cert/single-market-v10-provider-pressure-20260924
+2026-10-01T05:05:44.5139280Z  * [new branch]        cert/single-market-v10-provider-pressure-one-market-20260924 -> origin/cert/single-market-v10-provider-pressure-one-market-20260924
+2026-10-01T05:05:44.5143102Z  * [new branch]        cert/single-market-v10-smoke-tail-20260924 -> origin/cert/single-market-v10-smoke-tail-20260924
+2026-10-01T05:05:44.5146265Z  * [new branch]        cert/single-market-v11-ramses-v4-20260924 -> origin/cert/single-market-v11-ramses-v4-20260924
+2026-10-01T05:05:44.5149817Z  * [new branch]        cert/single-market-v11-ramses-viability-v4-20260924 -> origin/cert/single-market-v11-ramses-viability-v4-20260924
+2026-10-01T05:05:44.5153218Z  * [new branch]        cert/single-market-v12-combined-20260924 -> origin/cert/single-market-v12-combined-20260924
+2026-10-01T05:05:44.5156491Z  * [new branch]        cert/single-market-v12-pump-ramses-20260924 -> origin/cert/single-market-v12-pump-ramses-20260924
+2026-10-01T05:05:44.5159895Z  * [new branch]        cert/single-market-v12-pump-ramses-20260925 -> origin/cert/single-market-v12-pump-ramses-20260925
+2026-10-01T05:05:44.5163041Z  * [new branch]        cert/single-market-v8-monitored-20260924 -> origin/cert/single-market-v8-monitored-20260924
+2026-10-01T05:05:44.5166167Z  * [new branch]        cert/single-market-v8-monitored-v2-20260924 -> origin/cert/single-market-v8-monitored-v2-20260924
+2026-10-01T05:05:44.5169495Z  * [new branch]        cert/single-market-v9-monitored-20260924 -> origin/cert/single-market-v9-monitored-20260924
+2026-10-01T05:05:44.5172253Z  * [new branch]        cert/solana-consumer-scheduling -> origin/cert/solana-consumer-scheduling
+2026-10-01T05:05:44.5245504Z  * [new branch]        cert/solana-scheduling-verification -> origin/cert/solana-scheduling-verification
+2026-10-01T05:05:44.5250842Z  * [new branch]        cert/source-pump-profit-protection-v2-20260923 -> origin/cert/source-pump-profit-protection-v2-20260923
+2026-10-01T05:05:44.5255616Z  * [new branch]        cert/tmp-pons-overlay-v1 -> origin/cert/tmp-pons-overlay-v1
+2026-10-01T05:05:44.5260383Z  * [new branch]        cert/v10-one-market-authorization-20260924 -> origin/cert/v10-one-market-authorization-20260924
+2026-10-01T05:05:44.5264554Z  * [new branch]        cert/v10-provider-pressure-one-market-20260924 -> origin/cert/v10-provider-pressure-one-market-20260924
+2026-10-01T05:05:44.5268510Z  * [new branch]        certification/four-lane-repair-integration-20260920 -> origin/certification/four-lane-repair-integration-20260920
+2026-10-01T05:05:44.5272183Z  * [new branch]        diag/meme-machine-api-key-chain-binding-20260923 -> origin/diag/meme-machine-api-key-chain-binding-20260923
+2026-10-01T05:05:44.5275252Z  * [new branch]        diag/ramses-public-state-20260922 -> origin/diag/ramses-public-state-20260922
+2026-10-01T05:05:44.5278754Z  * [new branch]        diag/robinhood-alchemy-availability-20260923 -> origin/diag/robinhood-alchemy-availability-20260923
+2026-10-01T05:05:44.5281983Z  * [new branch]        diag/robinhood-alchemy-edge-sample-20260923 -> origin/diag/robinhood-alchemy-edge-sample-20260923
+2026-10-01T05:05:44.5285128Z  * [new branch]        diagnostic/autonomous-paper-socket-a60326b -> origin/diagnostic/autonomous-paper-socket-a60326b
+2026-10-01T05:05:44.5288391Z  * [new branch]        diagnostic/e27-receipt-timing-20260929 -> origin/diagnostic/e27-receipt-timing-20260929
+2026-10-01T05:05:44.5291425Z  * [new branch]        diagnostic/meteora-one-side-compose-20260924 -> origin/diagnostic/meteora-one-side-compose-20260924
+2026-10-01T05:05:44.5294632Z  * [new branch]        diagnostics/bounded-archive-overlap-20260930 -> origin/diagnostics/bounded-archive-overlap-20260930
+2026-10-01T05:05:44.5298086Z  * [new branch]        diagnostics/housekeeping-ordering-20261001 -> origin/diagnostics/housekeeping-ordering-20261001
+2026-10-01T05:05:44.5301259Z  * [new branch]        diagnostics/source-owner-ablation-20260930 -> origin/diagnostics/source-owner-ablation-20260930
+2026-10-01T05:05:44.5304351Z  * [new branch]        diagnostics/stage-e-fresh-causal-isolation -> origin/diagnostics/stage-e-fresh-causal-isolation
+2026-10-01T05:05:44.5308031Z  * [new branch]        diagnostics/stage-e-housekeeping-attribution-20261001 -> origin/diagnostics/stage-e-housekeeping-attribution-20261001
+2026-10-01T05:05:44.5311957Z  * [new branch]        diagnostics/stage-e-owner-scheduling-attribution-20260930 -> origin/diagnostics/stage-e-owner-scheduling-attribution-20260930
+2026-10-01T05:05:44.5315468Z  * [new branch]        feat/dashboard-runtime-integration-prep -> origin/feat/dashboard-runtime-integration-prep
+2026-10-01T05:05:44.5318524Z  * [new branch]        feat/market-native-active-discovery -> origin/feat/market-native-active-discovery
+2026-10-01T05:05:44.5321235Z  * [new branch]        feat/meteora-dlmm-paper-foundation -> origin/feat/meteora-dlmm-paper-foundation
+2026-10-01T05:05:44.5324115Z  * [new branch]        feat/pons-selective-continuation-v1 -> origin/feat/pons-selective-continuation-v1
+2026-10-01T05:05:44.5327209Z  * [new branch]        feat/post-graduation-pumpswap-raydium -> origin/feat/post-graduation-pumpswap-raydium
+2026-10-01T05:05:44.5330089Z  * [new branch]        feat/pump-acceleration-independent-v1 -> origin/feat/pump-acceleration-independent-v1
+2026-10-01T05:05:44.5332706Z  * [new branch]        feat/pump-alpha-v1-independent -> origin/feat/pump-alpha-v1-independent
+2026-10-01T05:05:44.5335001Z  * [new branch]        feat/pump-directional-paper -> origin/feat/pump-directional-paper
+2026-10-01T05:05:44.5337949Z  * [new branch]        feat/ramses-all-pool-connected-lifecycle -> origin/feat/ramses-all-pool-connected-lifecycle
+2026-10-01T05:05:44.5340644Z  * [new branch]        feat/ramses-all-pool-universe -> origin/feat/ramses-all-pool-universe
+2026-10-01T05:05:44.5343274Z  * [new branch]        feat/ramses-automatic-cost-evidence-20m -> origin/feat/ramses-automatic-cost-evidence-20m
+2026-10-01T05:05:44.5345978Z  * [new branch]        feat/ramses-extended-market-test -> origin/feat/ramses-extended-market-test
+2026-10-01T05:05:44.5348669Z  * [new branch]        feat/ramses-fee-pulse-v1 -> origin/feat/ramses-fee-pulse-v1
+2026-10-01T05:05:44.5351010Z  * [new branch]        feat/read-only-portfolio-dashboard -> origin/feat/read-only-portfolio-dashboard
+2026-10-01T05:05:44.5353832Z  * [new branch]        feat/robinhood-multisource-observability -> origin/feat/robinhood-multisource-observability
+2026-10-01T05:05:44.5356641Z  * [new branch]        feat/robinhood-research-foundation -> origin/feat/robinhood-research-foundation
+2026-10-01T05:05:44.5359465Z  * [new branch]        feat/shared-portfolio-accounting -> origin/feat/shared-portfolio-accounting
+2026-10-01T05:05:44.5362162Z  * [new branch]        feat/shared-portfolio-lane-integration -> origin/feat/shared-portfolio-lane-integration
+2026-10-01T05:05:44.5364846Z  * [new branch]        fix/ramses-dlmm-rate-limit -> origin/fix/ramses-dlmm-rate-limit
+2026-10-01T05:05:44.5367729Z  * [new branch]        fix/ramses-exact-horizon-inventory-cache -> origin/fix/ramses-exact-horizon-inventory-cache
+2026-10-01T05:05:44.5370602Z  * [new branch]        fix/ramses-finality-cadence-20m-rerun -> origin/fix/ramses-finality-cadence-20m-rerun
+2026-10-01T05:05:44.5373679Z  * [new branch]        fix/ramses-finalized-frontier-driven-discovery -> origin/fix/ramses-finalized-frontier-driven-discovery
+2026-10-01T05:05:44.5376458Z  * [new branch]        fix/ramses-prestate-handoff -> origin/fix/ramses-prestate-handoff
+2026-10-01T05:05:44.5379259Z  * [new branch]        fix/ramses-qualifier-history-handoff -> origin/fix/ramses-qualifier-history-handoff
+2026-10-01T05:05:44.5381928Z  * [new branch]        fix/ramses-target-coverage-windows -> origin/fix/ramses-target-coverage-windows
+2026-10-01T05:05:44.5384616Z  * [new branch]        fix/robinhood-discovery-dlmm-fallback -> origin/fix/robinhood-discovery-dlmm-fallback
+2026-10-01T05:05:44.5387713Z  * [new branch]        fix/robinhood-primary-fallback-pacing -> origin/fix/robinhood-primary-fallback-pacing
+2026-10-01T05:05:44.5390770Z  * [new branch]        fix/robinhood-provider-endpoint-isolation-v2 -> origin/fix/robinhood-provider-endpoint-isolation-v2
+2026-10-01T05:05:44.5393791Z  * [new branch]        fix/robinhood-provider-role-isolation -> origin/fix/robinhood-provider-role-isolation
+2026-10-01T05:05:44.5396562Z  * [new branch]        fix/robinhood-sequencer-compression -> origin/fix/robinhood-sequencer-compression
+2026-10-01T05:05:44.5399726Z  * [new branch]        fix/robinhood-sequencer-nonmessage-envelope -> origin/fix/robinhood-sequencer-nonmessage-envelope
+2026-10-01T05:05:44.5402668Z  * [new branch]        fix/robinhood-sequencer-start-cursor -> origin/fix/robinhood-sequencer-start-cursor
+2026-10-01T05:05:44.5405463Z  * [new branch]        fix/robinhood-shared-primary-capacity -> origin/fix/robinhood-shared-primary-capacity
+2026-10-01T05:05:44.5408261Z  * [new branch]        launch/autonomous-paper-v1 -> origin/launch/autonomous-paper-v1
+2026-10-01T05:05:44.5410937Z  * [new branch]        launch/certified-runtime-authority-v2 -> origin/launch/certified-runtime-authority-v2
+2026-10-01T05:05:44.5414028Z  * [new branch]        launch/evidence-reconstruction-single-20260924 -> origin/launch/evidence-reconstruction-single-20260924
+2026-10-01T05:05:44.5416397Z  * [new branch]        main       -> origin/main
+2026-10-01T05:05:44.5419172Z  * [new branch]        ops/cancel-obsolete-pump-source-diagnostic-20260923 -> origin/ops/cancel-obsolete-pump-source-diagnostic-20260923
+2026-10-01T05:05:44.5422247Z  * [new branch]        ops/cancel-pons-study-20260926 -> origin/ops/cancel-pons-study-20260926
+2026-10-01T05:05:44.5425001Z  * [new branch]        ops/manual-close-meteora-36043064083-20260924 -> origin/ops/manual-close-meteora-36043064083-20260924
+2026-10-01T05:05:44.5428271Z  * [new branch]        ops/resume-meteora-36043064083-20260924 -> origin/ops/resume-meteora-36043064083-20260924
+2026-10-01T05:05:44.5430869Z  * [new branch]        perf/meme-solana-public-4rps -> origin/perf/meme-solana-public-4rps
+2026-10-01T05:05:44.5433600Z  * [new branch]        perf/robinhood-pons-batched-discovery-auth -> origin/perf/robinhood-pons-batched-discovery-auth
+2026-10-01T05:05:44.5436579Z  * [new branch]        perf/robinhood-pons-batched-followup -> origin/perf/robinhood-pons-batched-followup
+2026-10-01T05:05:44.5439506Z  * [new branch]        proof/market-native-active-paper -> origin/proof/market-native-active-paper
+2026-10-01T05:05:44.5442209Z  * [new branch]        proof/natural-continuation-v1-pumpswap -> origin/proof/natural-continuation-v1-pumpswap
+2026-10-01T05:05:44.5444898Z  * [new branch]        publication/exact-8723600-20260929 -> origin/publication/exact-8723600-20260929
+2026-10-01T05:05:44.5447560Z  * [new branch]        publication/exact-ce42573-20260929 -> origin/publication/exact-ce42573-20260929
+2026-10-01T05:05:44.5450130Z  * [new branch]        reconcile/pump-pumpswap-ci -> origin/reconcile/pump-pumpswap-ci
+2026-10-01T05:05:44.5452524Z  * [new branch]        recovery/e24-source-import-20260928 -> origin/recovery/e24-source-import-20260928
+2026-10-01T05:05:44.5455191Z  * [new branch]        recovery/e25-native-republish-20260928 -> origin/recovery/e25-native-republish-20260928
+2026-10-01T05:05:44.5458130Z  * [new branch]        recovery/publish-exact-514ed2c-20260929 -> origin/recovery/publish-exact-514ed2c-20260929
+2026-10-01T05:05:44.5460953Z  * [new branch]        recovery/publish-exact-8723600-20260929 -> origin/recovery/publish-exact-8723600-20260929
+2026-10-01T05:05:44.5463767Z  * [new branch]        recovery/publish-exact-ce42573-20260929 -> origin/recovery/publish-exact-ce42573-20260929
+2026-10-01T05:05:44.5467112Z  * [new branch]        recovery/qualify-publish-exact-dc08f906-20260929 -> origin/recovery/qualify-publish-exact-dc08f906-20260929
+2026-10-01T05:05:44.5470668Z  * [new branch]        recovery/stagee25-github-native-publication-20260928 -> origin/recovery/stagee25-github-native-publication-20260928
+2026-10-01T05:05:44.5474169Z  * [new branch]        refactor/robinhood-solana-style-rpc-governance -> origin/refactor/robinhood-solana-style-rpc-governance
+2026-10-01T05:05:44.5477130Z  * [new branch]        release/portfolio-dashboard-v1 -> origin/release/portfolio-dashboard-v1
+2026-10-01T05:05:44.5480084Z  * [new branch]        repair/alchemy-scarce-onfinality-removal-20260922 -> origin/repair/alchemy-scarce-onfinality-removal-20260922
+2026-10-01T05:05:44.5483516Z  * [new branch]        repair/attempt13-maintenance-contention-20260928 -> origin/repair/attempt13-maintenance-contention-20260928
+2026-10-01T05:05:44.5486886Z  * [new branch]        repair/attempt13-retention-density-20260928 -> origin/repair/attempt13-retention-density-20260928
+2026-10-01T05:05:44.5490032Z  * [new branch]        repair/attempt14-archive-throughput-20260928 -> origin/repair/attempt14-archive-throughput-20260928
+2026-10-01T05:05:44.5493097Z  * [new branch]        repair/autonomous-paper-runtime-20260927 -> origin/repair/autonomous-paper-runtime-20260927
+2026-10-01T05:05:44.5496465Z  * [new branch]        repair/capability-probe-transient-retry-20260923 -> origin/repair/capability-probe-transient-retry-20260923
+2026-10-01T05:05:44.5500028Z  * [new branch]        repair/dlmm-durable-state-certification-20260920 -> origin/repair/dlmm-durable-state-certification-20260920
+2026-10-01T05:05:44.5502953Z  * [new branch]        repair/dlmm-final-replay-20260924 -> origin/repair/dlmm-final-replay-20260924
+2026-10-01T05:05:44.5505698Z  * [new branch]        repair/dlmm-json-checkpoint-certification -> origin/repair/dlmm-json-checkpoint-certification
+2026-10-01T05:05:44.5508800Z  * [new branch]        repair/e23-overlap-witness-20260928 -> origin/repair/e23-overlap-witness-20260928
+2026-10-01T05:05:44.5511589Z  * [new branch]        repair/e24-maintenance-lifecycle-20260928 -> origin/repair/e24-maintenance-lifecycle-20260928
+2026-10-01T05:05:44.5514728Z  * [new branch]        repair/evidence-completion-bottlenecks-20260921 -> origin/repair/evidence-completion-bottlenecks-20260921
+2026-10-01T05:05:44.5517988Z  * [new branch]        repair/evidence-reconstruction-20260924 -> origin/repair/evidence-reconstruction-20260924
+2026-10-01T05:05:44.5520817Z  * [new branch]        repair/final-alchemy-scarcity-20260922 -> origin/repair/final-alchemy-scarcity-20260922
+2026-10-01T05:05:44.5523326Z  * [new branch]        repair/four-lane-acquisition -> origin/repair/four-lane-acquisition
+2026-10-01T05:05:44.5525585Z  * [new branch]        repair/four-lane-observability -> origin/repair/four-lane-observability
+2026-10-01T05:05:44.5528664Z  * [new branch]        repair/four-lane-strategy-scope-efficiency-20260922 -> origin/repair/four-lane-strategy-scope-efficiency-20260922
+2026-10-01T05:05:44.5531599Z  * [new branch]        repair/frozen-campaign-handoff -> origin/repair/frozen-campaign-handoff
+2026-10-01T05:05:44.5534272Z  * [new branch]        repair/lifecycle-clock-decoupling-20260923 -> origin/repair/lifecycle-clock-decoupling-20260923
+2026-10-01T05:05:44.5537784Z  * [new branch]        repair/market-scope-efficiency-20260922 -> origin/repair/market-scope-efficiency-20260922
+2026-10-01T05:05:44.5540897Z  * [new branch]        repair/market-scope-efficiency-current-20260923 -> origin/repair/market-scope-efficiency-current-20260923
+2026-10-01T05:05:44.5544245Z  * [new branch]        repair/market-scope-efficiency-current-v2-20260923 -> origin/repair/market-scope-efficiency-current-v2-20260923
+2026-10-01T05:05:44.5547831Z  * [new branch]        repair/market-scope-efficiency-final-20260923 -> origin/repair/market-scope-efficiency-final-20260923
+2026-10-01T05:05:44.5550936Z  * [new branch]        repair/meme-solana-public-primary-failover -> origin/repair/meme-solana-public-primary-failover
+2026-10-01T05:05:44.5554319Z  * [new branch]        repair/meteora-alchemy-authoritative-evidence-20260922 -> origin/repair/meteora-alchemy-authoritative-evidence-20260922
+2026-10-01T05:05:44.5557829Z  * [new branch]        repair/meteora-alchemy-only-no-onfinality -> origin/repair/meteora-alchemy-only-no-onfinality
+2026-10-01T05:05:44.5560613Z  * [new branch]        repair/meteora-consumer-scheduling -> origin/repair/meteora-consumer-scheduling
+2026-10-01T05:05:44.5563171Z  * [new branch]        repair/meteora-continuous-campaign -> origin/repair/meteora-continuous-campaign
+2026-10-01T05:05:44.5565849Z  * [new branch]        repair/meteora-durable-paper-lifecycle -> origin/repair/meteora-durable-paper-lifecycle
+2026-10-01T05:05:44.5568614Z  * [new branch]        repair/meteora-hydration-deadline -> origin/repair/meteora-hydration-deadline
+2026-10-01T05:05:44.5571446Z  * [new branch]        repair/meteora-legacy-one-side-replay-20260924 -> origin/repair/meteora-legacy-one-side-replay-20260924
+2026-10-01T05:05:44.5574630Z  * [new branch]        repair/meteora-legacy-one-side-source-20260924 -> origin/repair/meteora-legacy-one-side-source-20260924
+2026-10-01T05:05:44.5577921Z  * [new branch]        repair/meteora-one-side-replay-source-20260924 -> origin/repair/meteora-one-side-replay-source-20260924
+2026-10-01T05:05:44.5581394Z  * [new branch]        repair/meteora-post-entry-lifecycle-exit-20260922 -> origin/repair/meteora-post-entry-lifecycle-exit-20260922
+2026-10-01T05:05:44.5584811Z  * [new branch]        repair/meteora-reconstruction-completion-20260922 -> origin/repair/meteora-reconstruction-completion-20260922
+2026-10-01T05:05:44.5588353Z  * [new branch]        repair/meteora-strategy2-continuity-20260922 -> origin/repair/meteora-strategy2-continuity-20260922
+2026-10-01T05:05:44.5591623Z  * [new branch]        repair/moderate-thresholds-certification-20260926 -> origin/repair/moderate-thresholds-certification-20260926
+2026-10-01T05:05:44.5594531Z  * [new branch]        repair/pons-429-backpressure-20m -> origin/repair/pons-429-backpressure-20m
+2026-10-01T05:05:44.5597447Z  * [new branch]        repair/pons-alchemy-scarcity-public-discovery -> origin/repair/pons-alchemy-scarcity-public-discovery
+2026-10-01T05:05:44.5600504Z  * [new branch]        repair/pons-cohort-capital-certification -> origin/repair/pons-cohort-capital-certification
+2026-10-01T05:05:44.5603344Z  * [new branch]        repair/pons-combined-evidence-batching -> origin/repair/pons-combined-evidence-batching
+2026-10-01T05:05:44.5606320Z  * [new branch]        repair/pons-concurrent-certification-20260920 -> origin/repair/pons-concurrent-certification-20260920
+2026-10-01T05:05:44.5609205Z  * [new branch]        repair/pons-continuous-campaign -> origin/repair/pons-continuous-campaign
+2026-10-01T05:05:44.5612065Z  * [new branch]        repair/pons-entry-confirmation-ordering-20260925 -> origin/repair/pons-entry-confirmation-ordering-20260925
+2026-10-01T05:05:44.5615144Z  * [new branch]        repair/pons-partial-accounting-timeline -> origin/repair/pons-partial-accounting-timeline
+2026-10-01T05:05:44.5618151Z  * [new branch]        repair/pons-provider-session-recovery-20m -> origin/repair/pons-provider-session-recovery-20m
+2026-10-01T05:05:44.5621427Z  * [new branch]        repair/pons-sequencer-session-recovery-20260922 -> origin/repair/pons-sequencer-session-recovery-20260922
+2026-10-01T05:05:44.5624251Z  * [new branch]        repair/pons-unfilled-reservation -> origin/repair/pons-unfilled-reservation
+2026-10-01T05:05:44.5627497Z  * [new branch]        repair/pump-alchemy-authoritative-evidence-20260922 -> origin/repair/pump-alchemy-authoritative-evidence-20260922
+2026-10-01T05:05:44.5630673Z  * [new branch]        repair/pump-alchemy-only-no-onfinality -> origin/repair/pump-alchemy-only-no-onfinality
+2026-10-01T05:05:44.5633240Z  * [new branch]        repair/pump-continuous-campaign -> origin/repair/pump-continuous-campaign
+2026-10-01T05:05:44.5635904Z  * [new branch]        repair/pump-decision-window-bootstrap-20m -> origin/repair/pump-decision-window-bootstrap-20m
+2026-10-01T05:05:44.5639082Z  * [new branch]        repair/pump-finalized-log-authority-20260924 -> origin/repair/pump-finalized-log-authority-20260924
+2026-10-01T05:05:44.5641768Z  * [new branch]        repair/pump-hydration-deadline -> origin/repair/pump-hydration-deadline
+2026-10-01T05:05:44.5644667Z  * [new branch]        repair/pump-paper-accounting-certification-20260920 -> origin/repair/pump-paper-accounting-certification-20260920
+2026-10-01T05:05:44.5647937Z  * [new branch]        repair/pump-tape-dedup-trajectory-gates -> origin/repair/pump-tape-dedup-trajectory-gates
+2026-10-01T05:05:44.5650589Z  * [new branch]        repair/pump-transaction-pressure -> origin/repair/pump-transaction-pressure
+2026-10-01T05:05:44.5653494Z  * [new branch]        repair/ramses-alchemy-scarcity-public-observation -> origin/repair/ramses-alchemy-scarcity-public-observation
+2026-10-01T05:05:44.5656633Z  * [new branch]        repair/ramses-capital-reservation-replay -> origin/repair/ramses-capital-reservation-replay
+2026-10-01T05:05:44.5659799Z  * [new branch]        repair/ramses-concurrent-certification-20260920 -> origin/repair/ramses-concurrent-certification-20260920
+2026-10-01T05:05:44.5663085Z  * [new branch]        repair/ramses-continuous-campaign -> origin/repair/ramses-continuous-campaign
+2026-10-01T05:05:44.5666027Z  * [new branch]        repair/ramses-cost-route-completion-20260921 -> origin/repair/ramses-cost-route-completion-20260921
+2026-10-01T05:05:44.5669829Z  * [new branch]        repair/ramses-deferred-capital-initialization -> origin/repair/ramses-deferred-capital-initialization
+2026-10-01T05:05:44.5673462Z  * [new branch]        repair/ramses-economic-census-429-v1-20260923 -> origin/repair/ramses-economic-census-429-v1-20260923
+2026-10-01T05:05:44.5676376Z  * [new branch]        repair/ramses-factory-enumeration-20m -> origin/repair/ramses-factory-enumeration-20m
+2026-10-01T05:05:44.5679683Z  * [new branch]        repair/ramses-finalized-frontier-monotonicity-20260922 -> origin/repair/ramses-finalized-frontier-monotonicity-20260922
+2026-10-01T05:05:44.5682931Z  * [new branch]        repair/ramses-public-factory-call-20260922 -> origin/repair/ramses-public-factory-call-20260922
+2026-10-01T05:05:44.5685799Z  * [new branch]        repair/ramses-v3-authority-lock-20260923 -> origin/repair/ramses-v3-authority-lock-20260923
+2026-10-01T05:05:44.5688445Z  * [new branch]        repair/robinhood-cu-efficiency -> origin/repair/robinhood-cu-efficiency
+2026-10-01T05:05:44.5690953Z  * [new branch]        repair/robinhood-public-rpc-403-20260922 -> origin/repair/robinhood-public-rpc-403-20260922
+2026-10-01T05:05:44.5693638Z  * [new branch]        repair/run367-composed-fixes-20260924 -> origin/repair/run367-composed-fixes-20260924
+2026-10-01T05:05:44.5696487Z  * [new branch]        repair/run367-pons-sequencer-liveness-20260924 -> origin/repair/run367-pons-sequencer-liveness-20260924
+2026-10-01T05:05:44.5699454Z  * [new branch]        repair/run369-pons-accounting-20260925 -> origin/repair/run369-pons-accounting-20260925
+2026-10-01T05:05:44.5702073Z  * [new branch]        repair/run369-solana-runtime-20260925 -> origin/repair/run369-solana-runtime-20260925
+2026-10-01T05:05:44.5705160Z  * [new branch]        repair/run370-solana-evidence-capacity-20260925 -> origin/repair/run370-solana-evidence-capacity-20260925
+2026-10-01T05:05:44.5708411Z  * [new branch]        repair/run371-infra-continuity-20260926 -> origin/repair/run371-infra-continuity-20260926
+2026-10-01T05:05:44.5711182Z  * [new branch]        repair/run372-solana-large-frame-20260926 -> origin/repair/run372-solana-large-frame-20260926
+2026-10-01T05:05:44.5714218Z  * [new branch]        repair/run373-solana-dispatch-throughput-20260926 -> origin/repair/run373-solana-dispatch-throughput-20260926
+2026-10-01T05:05:44.5717462Z  * [new branch]        repair/run374-live-status-publisher-20260926 -> origin/repair/run374-live-status-publisher-20260926
+2026-10-01T05:05:44.5720397Z  * [new branch]        repair/run375-runtime-capacity-wal-20260926 -> origin/repair/run375-runtime-capacity-wal-20260926
+2026-10-01T05:05:44.5723158Z  * [new branch]        repair/run375-runtime-repairs-20260926 -> origin/repair/run375-runtime-repairs-20260926
+2026-10-01T05:05:44.5725946Z  * [new branch]        repair/run376-six-regime-machinery-20260926 -> origin/repair/run376-six-regime-machinery-20260926
+2026-10-01T05:05:44.5728910Z  * [new branch]        repair/run377-runtime-six-regime-20260926 -> origin/repair/run377-runtime-six-regime-20260926
+2026-10-01T05:05:44.5731472Z  * [new branch]        repair/solana-alchemy-efficiency -> origin/repair/solana-alchemy-efficiency
+2026-10-01T05:05:44.5733868Z  * [new branch]        repair/solana-broker-atomic-claims -> origin/repair/solana-broker-atomic-claims
+2026-10-01T05:05:44.5736362Z  * [new branch]        repair/solana-broker-global-pacing -> origin/repair/solana-broker-global-pacing
+2026-10-01T05:05:44.5738851Z  * [new branch]        repair/solana-broker-sync-dlmm -> origin/repair/solana-broker-sync-dlmm
+2026-10-01T05:05:44.5741160Z  * [new branch]        repair/solana-consumer-scheduling -> origin/repair/solana-consumer-scheduling
+2026-10-01T05:05:44.5743690Z  * [new branch]        repair/solana-dlmm-broker-expiry-sync -> origin/repair/solana-dlmm-broker-expiry-sync
+2026-10-01T05:05:44.5746357Z  * [new branch]        repair/solana-dlmm-gap-finalize -> origin/repair/solana-dlmm-gap-finalize
+2026-10-01T05:05:44.5749268Z  * [new branch]        repair/solana-dlmm-trigger-censoring-20m -> origin/repair/solana-dlmm-trigger-censoring-20m
+2026-10-01T05:05:44.5752017Z  * [new branch]        repair/solana-evidence-broker-finalize -> origin/repair/solana-evidence-broker-finalize
+2026-10-01T05:05:44.5754515Z  * [new branch]        repair/solana-evidence-final-v2 -> origin/repair/solana-evidence-final-v2
+2026-10-01T05:05:44.5757190Z  * [new branch]        repair/solana-evidence-plane-v1-20260925 -> origin/repair/solana-evidence-plane-v1-20260925
+2026-10-01T05:05:44.5759856Z  * [new branch]        repair/solana-evidence-queue-expiry -> origin/repair/solana-evidence-queue-expiry
+2026-10-01T05:05:44.5762294Z  * [new branch]        repair/solana-global-pacing-dlmm -> origin/repair/solana-global-pacing-dlmm
+2026-10-01T05:05:44.5764830Z  * [new branch]        repair/solana-provider-error-telemetry -> origin/repair/solana-provider-error-telemetry
+2026-10-01T05:05:44.5767672Z  * [new branch]        repair/solana-pumpswap-address-stream -> origin/repair/solana-pumpswap-address-stream
+2026-10-01T05:05:44.5770651Z  * [new branch]        repair/solana-stream-first-evidence-dlmm -> origin/repair/solana-stream-first-evidence-dlmm
+2026-10-01T05:05:44.5773478Z  * [new branch]        repair/solana-stream-first-evidence-pump -> origin/repair/solana-stream-first-evidence-pump
+2026-10-01T05:05:44.5776686Z  * [new branch]        repair/stagee-attempt16-maintenance-throughput-20260928 -> origin/repair/stagee-attempt16-maintenance-throughput-20260928
+2026-10-01T05:05:44.5780141Z  * [new branch]        repair/stagee16-archive-throughput-20260928 -> origin/repair/stagee16-archive-throughput-20260928
+2026-10-01T05:05:44.5783042Z  * [new branch]        repair/stagee17-archive-throughput-20260928 -> origin/repair/stagee17-archive-throughput-20260928
+2026-10-01T05:05:44.5786150Z  * [new branch]        repair/stagee18-retention-fairness-20260928 -> origin/repair/stagee18-retention-fairness-20260928
+2026-10-01T05:05:44.5789637Z  * [new branch]        repair/stagee19-batch-maintenance-fairness-20260928 -> origin/repair/stagee19-batch-maintenance-fairness-20260928
+2026-10-01T05:05:44.5792704Z  * [new branch]        repair/stagee19-retention-rowid-20260928 -> origin/repair/stagee19-retention-rowid-20260928
+2026-10-01T05:05:44.5795585Z  * [new branch]        repair/stagee20-compose-current-cert-20260928 -> origin/repair/stagee20-compose-current-cert-20260928
+2026-10-01T05:05:44.5798822Z  * [new branch]        repair/stagee22-retention-service-grant-20260928 -> origin/repair/stagee22-retention-service-grant-20260928
+2026-10-01T05:05:44.5801930Z  * [new branch]        repair/stagee23-maintenance-outcomes-20260928 -> origin/repair/stagee23-maintenance-outcomes-20260928
+2026-10-01T05:05:44.5804835Z  * [new branch]        repair/stagee25-promotion-wiring-20260928 -> origin/repair/stagee25-promotion-wiring-20260928
+2026-10-01T05:05:44.5807994Z  * [new branch]        repair/stagee26-eligible-hot-measurement-20260928 -> origin/repair/stagee26-eligible-hot-measurement-20260928
+2026-10-01T05:05:44.5811242Z  * [new branch]        repair/stagee27-archive-ready-allocation-20260928 -> origin/repair/stagee27-archive-ready-allocation-20260928
+2026-10-01T05:05:44.5814095Z  * [new branch]        repair/strategy-prospect-admission -> origin/repair/strategy-prospect-admission
+2026-10-01T05:05:44.5816658Z  * [new branch]        repair/target-market-coverage-20260924 -> origin/repair/target-market-coverage-20260924
+2026-10-01T05:05:44.5819612Z  * [new branch]        repair/v10-postrun-provider-pressure-20260924 -> origin/repair/v10-postrun-provider-pressure-20260924
+2026-10-01T05:05:44.5822325Z  * [new branch]        repair/v10-postrun-repairs-20260924 -> origin/repair/v10-postrun-repairs-20260924
+2026-10-01T05:05:44.5824631Z  * [new branch]        repair/v10-smoke-tail-20260924 -> origin/repair/v10-smoke-tail-20260924
+2026-10-01T05:05:44.5827714Z  * [new branch]        repair/v9-launch-guard-reauthorization-20260924 -> origin/repair/v9-launch-guard-reauthorization-20260924
+2026-10-01T05:05:44.5831193Z  * [new branch]        repair/v9-meteora-handoff-position-continuation-20260924 -> origin/repair/v9-meteora-handoff-position-continuation-20260924
+2026-10-01T05:05:44.5834678Z  * [new branch]        repair/v9-position-continuation-dispatch-20260924 -> origin/repair/v9-position-continuation-dispatch-20260924
+2026-10-01T05:05:44.5838051Z  * [new branch]        report/evidence-reconstruction-single-20260924 -> origin/report/evidence-reconstruction-single-20260924
+2026-10-01T05:05:44.5840876Z  * [new branch]        research/dlmm-add-liquidity2-support -> origin/research/dlmm-add-liquidity2-support
+2026-10-01T05:05:44.5843635Z  * [new branch]        research/dlmm-alchemy-pacing-per-pool-budget -> origin/research/dlmm-alchemy-pacing-per-pool-budget
+2026-10-01T05:05:44.5846203Z  * [new branch]        research/dlmm-alchemy-routing -> origin/research/dlmm-alchemy-routing
+2026-10-01T05:05:44.5848935Z  * [new branch]        research/dlmm-blank-slate-market-evidence-v1 -> origin/research/dlmm-blank-slate-market-evidence-v1
+2026-10-01T05:05:44.5851714Z  * [new branch]        research/dlmm-capital-case-ranking-v1 -> origin/research/dlmm-capital-case-ranking-v1
+2026-10-01T05:05:44.5854289Z  * [new branch]        research/dlmm-capital-efficiency-v1 -> origin/research/dlmm-capital-efficiency-v1
+2026-10-01T05:05:44.5856954Z  * [new branch]        research/dlmm-claim-event-association -> origin/research/dlmm-claim-event-association
+2026-10-01T05:05:44.5859662Z  * [new branch]        research/dlmm-claim-fee2-reconstruction -> origin/research/dlmm-claim-fee2-reconstruction
+2026-10-01T05:05:44.5862250Z  * [new branch]        research/dlmm-economic-strategy-v1 -> origin/research/dlmm-economic-strategy-v1
+2026-10-01T05:05:44.5864769Z  * [new branch]        research/dlmm-existing-alchemy-secret -> origin/research/dlmm-existing-alchemy-secret
+2026-10-01T05:05:44.5868018Z  * [new branch]        research/dlmm-expanded-observation-universe -> origin/research/dlmm-expanded-observation-universe
+2026-10-01T05:05:44.5870721Z  * [new branch]        research/dlmm-host-fee-route-scope -> origin/research/dlmm-host-fee-route-scope
+2026-10-01T05:05:44.5873298Z  * [new branch]        research/dlmm-host-fee-shape-diagnostic -> origin/research/dlmm-host-fee-shape-diagnostic
+2026-10-01T05:05:44.5876015Z  * [new branch]        research/dlmm-host-fee-terminal-fallback -> origin/research/dlmm-host-fee-terminal-fallback
+2026-10-01T05:05:44.5879007Z  * [new branch]        research/dlmm-host-fee-transfer-attribution -> origin/research/dlmm-host-fee-transfer-attribution
+2026-10-01T05:05:44.5882050Z  * [new branch]        research/dlmm-perpspad-external-effect-transfer -> origin/research/dlmm-perpspad-external-effect-transfer
+2026-10-01T05:05:44.5885061Z  * [new branch]        research/dlmm-perpspad-single-tx-isolation -> origin/research/dlmm-perpspad-single-tx-isolation
+2026-10-01T05:05:44.5887821Z  * [new branch]        research/dlmm-point-in-time-replay -> origin/research/dlmm-point-in-time-replay
+2026-10-01T05:05:44.5890605Z  * [new branch]        research/dlmm-profitability-density-preflight -> origin/research/dlmm-profitability-density-preflight
+2026-10-01T05:05:44.5893777Z  * [new branch]        research/dlmm-profitability-density-preflight-v2 -> origin/research/dlmm-profitability-density-preflight-v2
+2026-10-01T05:05:44.5896979Z  * [new branch]        research/dlmm-profitable-operator-discovery -> origin/research/dlmm-profitable-operator-discovery
+2026-10-01T05:05:44.5899681Z  * [new branch]        research/dlmm-protocol-coverage-v2 -> origin/research/dlmm-protocol-coverage-v2
+2026-10-01T05:05:44.5902233Z  * [new branch]        research/dlmm-small-pool-profitability -> origin/research/dlmm-small-pool-profitability
+2026-10-01T05:05:44.5904712Z  * [new branch]        research/dlmm-solana-roi-alchemy -> origin/research/dlmm-solana-roi-alchemy
+2026-10-01T05:05:44.5907535Z  * [new branch]        research/dlmm-top-roi-wallet-evaluation -> origin/research/dlmm-top-roi-wallet-evaluation
+2026-10-01T05:05:44.5910422Z  * [new branch]        research/dlmm-wallet-derived-discovery -> origin/research/dlmm-wallet-derived-discovery
+2026-10-01T05:05:44.5912853Z  * [new branch]        research/fomo-100-event-study -> origin/research/fomo-100-event-study
+2026-10-01T05:05:44.5915108Z  * [new branch]        research/fomo-active-trader-skill -> origin/research/fomo-active-trader-skill
+2026-10-01T05:05:44.5917571Z  * [new branch]        research/fomo-market-edge-pilot -> origin/research/fomo-market-edge-pilot
+2026-10-01T05:05:44.5920013Z  * [new branch]        research/fomo-offline-intelligence-v1 -> origin/research/fomo-offline-intelligence-v1
+2026-10-01T05:05:44.5922605Z  * [new branch]        research/fomo-prospective-market-test -> origin/research/fomo-prospective-market-test
+2026-10-01T05:05:44.5924981Z  * [new branch]        research/fomo-shadow-scaffold -> origin/research/fomo-shadow-scaffold
+2026-10-01T05:05:44.5927585Z  * [new branch]        research/fomo-top-wallet-lifecycle-study -> origin/research/fomo-top-wallet-lifecycle-study
+2026-10-01T05:05:44.5930281Z  * [new branch]        research/fomo-wallet-alpha-event-study -> origin/research/fomo-wallet-alpha-event-study
+2026-10-01T05:05:44.5932730Z  * [new branch]        research/fomoapi-key-validation -> origin/research/fomoapi-key-validation
+2026-10-01T05:05:44.5935039Z  * [new branch]        research/fomoscan-three-way-check -> origin/research/fomoscan-three-way-check
+2026-10-01T05:05:44.5937696Z  * [new branch]        research/four-lane-shadow-registration -> origin/research/four-lane-shadow-registration
+2026-10-01T05:05:44.5940269Z  * [new branch]        research/hansem-fomoscan-validation -> origin/research/hansem-fomoscan-validation
+2026-10-01T05:05:44.5942806Z  * [new branch]        research/market-native-natural-sample -> origin/research/market-native-natural-sample
+2026-10-01T05:05:44.5945555Z  * [new branch]        research/market-native-opportunity-outcomes -> origin/research/market-native-opportunity-outcomes
+2026-10-01T05:05:44.5948748Z  * [new branch]        research/market-native-prioritizer -> origin/research/market-native-prioritizer
+2026-10-01T05:05:44.5951056Z  * [new branch]        research/market-native-shadow -> origin/research/market-native-shadow
+2026-10-01T05:05:44.5953611Z  * [new branch]        research/meme-continuation-expected-value-v1 -> origin/research/meme-continuation-expected-value-v1
+2026-10-01T05:05:44.5956635Z  * [new branch]        research/pons-postgrad-breakout-study-20260926 -> origin/research/pons-postgrad-breakout-study-20260926
+2026-10-01T05:05:44.5959858Z  * [new branch]        research/pons-postgrad-shadow-outcomes-20260926 -> origin/research/pons-postgrad-shadow-outcomes-20260926
+2026-10-01T05:05:44.5962809Z  * [new branch]        research/ramses-branch-b-certification-v1 -> origin/research/ramses-branch-b-certification-v1
+2026-10-01T05:05:44.5965572Z  * [new branch]        research/ramses-dlmm-historical-market-v1 -> origin/research/ramses-dlmm-historical-market-v1
+2026-10-01T05:05:44.5968539Z  * [new branch]        research/ramses-exact-replay-efficiency-v1 -> origin/research/ramses-exact-replay-efficiency-v1
+2026-10-01T05:05:44.5971303Z  * [new branch]        research/ramses-exact-replay-sharded-v1 -> origin/research/ramses-exact-replay-sharded-v1
+2026-10-01T05:05:44.5973847Z  * [new branch]        research/ramses-fee-attribution-v1 -> origin/research/ramses-fee-attribution-v1
+2026-10-01T05:05:44.5977078Z  * [new branch]        research/ramses-profitable-operator-reverse-engineering-v1 -> origin/research/ramses-profitable-operator-reverse-engineering-v1
+2026-10-01T05:05:44.5980211Z  * [new branch]        research/ramses-public-lp-skill-v1 -> origin/research/ramses-public-lp-skill-v1
+2026-10-01T05:05:44.5982667Z  * [new branch]        research/ramses-quiet-escalation-v1 -> origin/research/ramses-quiet-escalation-v1
+2026-10-01T05:05:44.5985097Z  * [new branch]        research/ramses-quiet-expansion-v1 -> origin/research/ramses-quiet-expansion-v1
+2026-10-01T05:05:44.5987998Z  * [new branch]        research/ramses-quiet-subsegments-v1 -> origin/research/ramses-quiet-subsegments-v1
+2026-10-01T05:05:44.5990703Z  * [new branch]        research/ramses-strategy-finalization-v2 -> origin/research/ramses-strategy-finalization-v2
+2026-10-01T05:05:44.5993675Z  * [new branch]        research/ramses-terminal-state-counterfactual-v1 -> origin/research/ramses-terminal-state-counterfactual-v1
+2026-10-01T05:05:44.5996496Z  * [new branch]        research/solana-dlmm-independent-v1 -> origin/research/solana-dlmm-independent-v1
+2026-10-01T05:05:44.5999173Z  * [new branch]        research/solana-skilled-wallet-alpha -> origin/research/solana-skilled-wallet-alpha
+2026-10-01T05:05:44.6001793Z  * [new branch]        research/solana-skilled-wallet-alpha-24h -> origin/research/solana-skilled-wallet-alpha-24h
+2026-10-01T05:05:44.6004579Z  * [new branch]        review/attempt14-retention-density-20260928 -> origin/review/attempt14-retention-density-20260928
+2026-10-01T05:05:44.6007534Z  * [new branch]        review/autonomous-paper-evidence-a60326b -> origin/review/autonomous-paper-evidence-a60326b
+2026-10-01T05:05:44.6010463Z  * [new branch]        review/evidence-reconstruction-single-20260924 -> origin/review/evidence-reconstruction-single-20260924
+2026-10-01T05:05:44.6013191Z  * [new branch]        review/stagee-coordinated-20260928 -> origin/review/stagee-coordinated-20260928
+2026-10-01T05:05:44.6015820Z  * [new branch]        review/stagee16-archive-throughput-20260928 -> origin/review/stagee16-archive-throughput-20260928
+2026-10-01T05:05:44.6018813Z  * [new branch]        review/stagee17-archive-throughput-20260928 -> origin/review/stagee17-archive-throughput-20260928
+2026-10-01T05:05:44.6021673Z  * [new branch]        review/stagee18-retention-fairness-20260928 -> origin/review/stagee18-retention-fairness-20260928
+2026-10-01T05:05:44.6024571Z  * [new branch]        review/stagee19-all-scopes-pressure-20260928 -> origin/review/stagee19-all-scopes-pressure-20260928
+2026-10-01T05:05:44.6027837Z  * [new branch]        review/stagee19-retention-rowid-20260928 -> origin/review/stagee19-retention-rowid-20260928
+2026-10-01T05:05:44.6030339Z  * [new branch]        review/stagee20-compose-20260928 -> origin/review/stagee20-compose-20260928
+2026-10-01T05:05:44.6032805Z  * [new branch]        review/stagee20-source-identity-20260928 -> origin/review/stagee20-source-identity-20260928
+2026-10-01T05:05:44.6035685Z  * [new branch]        review/stagee23-maintenance-semantics-20260928 -> origin/review/stagee23-maintenance-semantics-20260928
+2026-10-01T05:05:44.6038954Z  * [new branch]        state/autonomous-launch-00265f09d14a5849010ad007 -> origin/state/autonomous-launch-00265f09d14a5849010ad007
+2026-10-01T05:05:44.6042076Z  * [new branch]        state/autonomous-launch-00f93d80a08ba2024eeabf10 -> origin/state/autonomous-launch-00f93d80a08ba2024eeabf10
+2026-10-01T05:05:44.6045187Z  * [new branch]        state/autonomous-launch-03a4af83a5116c80c1292151 -> origin/state/autonomous-launch-03a4af83a5116c80c1292151
+2026-10-01T05:05:44.6048449Z  * [new branch]        state/autonomous-launch-2410907f22606897629d8df6 -> origin/state/autonomous-launch-2410907f22606897629d8df6
+2026-10-01T05:05:44.6051591Z  * [new branch]        state/autonomous-launch-3d866b01be76ba6ae09e8b2a -> origin/state/autonomous-launch-3d866b01be76ba6ae09e8b2a
+2026-10-01T05:05:44.6054728Z  * [new branch]        state/autonomous-launch-48370b6d0746a4c58b6f578f -> origin/state/autonomous-launch-48370b6d0746a4c58b6f578f
+2026-10-01T05:05:44.6057967Z  * [new branch]        state/autonomous-launch-4f05a3a3b9e19732f4f64ef2 -> origin/state/autonomous-launch-4f05a3a3b9e19732f4f64ef2
+2026-10-01T05:05:44.6061122Z  * [new branch]        state/autonomous-launch-51429576c048c7770d068d1d -> origin/state/autonomous-launch-51429576c048c7770d068d1d
+2026-10-01T05:05:44.6064236Z  * [new branch]        state/autonomous-launch-5a4f6f6d001ccdf4a2f2669f -> origin/state/autonomous-launch-5a4f6f6d001ccdf4a2f2669f
+2026-10-01T05:05:44.6067813Z  * [new branch]        state/autonomous-launch-5b4fc3c614287d7f712b7c0b -> origin/state/autonomous-launch-5b4fc3c614287d7f712b7c0b
+2026-10-01T05:05:44.6070991Z  * [new branch]        state/autonomous-launch-6df6eb8a4016b311f6c8c2b9 -> origin/state/autonomous-launch-6df6eb8a4016b311f6c8c2b9
+2026-10-01T05:05:44.6074289Z  * [new branch]        state/autonomous-launch-d2679c420933378bf40c394c -> origin/state/autonomous-launch-d2679c420933378bf40c394c
+2026-10-01T05:05:44.6077659Z  * [new branch]        state/autonomous-launch-dc95ce22cddbf1ca7c4478c5 -> origin/state/autonomous-launch-dc95ce22cddbf1ca7c4478c5
+2026-10-01T05:05:44.6080831Z  * [new branch]        state/autonomous-launch-f32caad9a683fadae75fe14b -> origin/state/autonomous-launch-f32caad9a683fadae75fe14b
+2026-10-01T05:05:44.6085347Z  * [new branch]        state/autonomous-paper-1ef43ce521823a314bfa1a70 -> origin/state/autonomous-paper-1ef43ce521823a314bfa1a70
+2026-10-01T05:05:44.6088928Z  * [new branch]        state/autonomous-paper-4f2524a14f8f9e048a1aa784 -> origin/state/autonomous-paper-4f2524a14f8f9e048a1aa784
+2026-10-01T05:05:44.6092242Z  * [new branch]        state/autonomous-paper-b1b0c8c3cf4b660bdec590cd -> origin/state/autonomous-paper-b1b0c8c3cf4b660bdec590cd
+2026-10-01T05:05:44.6095436Z  * [new branch]        state/autonomous-paper-bcca3595dd2cd91299d72016 -> origin/state/autonomous-paper-bcca3595dd2cd91299d72016
+2026-10-01T05:05:44.6099146Z  * [new branch]        state/autonomous-paper-db5b0cb5fe55c1c7f061cd8c -> origin/state/autonomous-paper-db5b0cb5fe55c1c7f061cd8c
+2026-10-01T05:05:44.6103681Z  * [new branch]        strategy/counterfactual-replay-v1-20260924 -> origin/strategy/counterfactual-replay-v1-20260924
+2026-10-01T05:05:44.6109155Z  * [new branch]        strategy/directional-capital-parity-prep-20260930 -> origin/strategy/directional-capital-parity-prep-20260930
+2026-10-01T05:05:44.6114514Z  * [new branch]        strategy/exit-optimization-prep-20260930 -> origin/strategy/exit-optimization-prep-20260930
+2026-10-01T05:05:44.6119567Z  * [new branch]        strategy/meteora-core-hold-v2-20260923 -> origin/strategy/meteora-core-hold-v2-20260923
+2026-10-01T05:05:44.6124394Z  * [new branch]        strategy/meteora-fee-density-profitability-v1 -> origin/strategy/meteora-fee-density-profitability-v1
+2026-10-01T05:05:44.6127606Z  * [new branch]        strategy/meteora-fee-density-v1-runtime -> origin/strategy/meteora-fee-density-v1-runtime
+2026-10-01T05:05:44.6130535Z  * [new branch]        strategy/moderate-admission-thresholds-20260926 -> origin/strategy/moderate-admission-thresholds-20260926
+2026-10-01T05:05:44.6134516Z  * [new branch]        strategy/pons-opportunity-preservation-v2-20260925 -> origin/strategy/pons-opportunity-preservation-v2-20260925
+2026-10-01T05:05:44.6138632Z  * [new branch]        strategy/pons-postgrad-survivor-momentum-v1-20260926 -> origin/strategy/pons-postgrad-survivor-momentum-v1-20260926
+2026-10-01T05:05:44.6141800Z  * [new branch]        strategy/pons-profit-protection-v2-20260923 -> origin/strategy/pons-profit-protection-v2-20260923
+2026-10-01T05:05:44.6144926Z  * [new branch]        strategy/pons-profitability-persistence-current-v1 -> origin/strategy/pons-profitability-persistence-current-v1
+2026-10-01T05:05:44.6148049Z  * [new branch]        strategy/pons-profitability-v1 -> origin/strategy/pons-profitability-v1
+2026-10-01T05:05:44.6150814Z  * [new branch]        strategy/pump-counterfactual-replay-v1-20260924 -> origin/strategy/pump-counterfactual-replay-v1-20260924
+2026-10-01T05:05:44.6155809Z  * [new branch]        strategy/pump-pons-six-regime-upgrade-20260926 -> origin/strategy/pump-pons-six-regime-upgrade-20260926
+2026-10-01T05:05:44.6161525Z  * [new branch]        strategy/pump-profit-protection-v2-20260923 -> origin/strategy/pump-profit-protection-v2-20260923
+2026-10-01T05:05:44.6166151Z  * [new branch]        strategy/pump-profitability-v1 -> origin/strategy/pump-profitability-v1
+2026-10-01T05:05:44.6171037Z  * [new branch]        strategy/pump-ramses-v4-composed-20260924 -> origin/strategy/pump-ramses-v4-composed-20260924
+2026-10-01T05:05:44.6174265Z  * [new branch]        strategy/ramses-active-wide-maker-v3-runtime -> origin/strategy/ramses-active-wide-maker-v3-runtime
+2026-10-01T05:05:44.6177521Z  * [new branch]        strategy/ramses-active-wide-maker-v4-runtime -> origin/strategy/ramses-active-wide-maker-v4-runtime
+2026-10-01T05:05:44.6180772Z  * [new branch]        strategy/ramses-quiet-mint-v2 -> origin/strategy/ramses-quiet-mint-v2
+2026-10-01T05:05:44.6183747Z  * [new branch]        strategy/ramses-viability-v4-20260924 -> origin/strategy/ramses-viability-v4-20260924
+2026-10-01T05:05:44.6186451Z  * [new branch]        strategy/ramses-viability-v4-source-20260924 -> origin/strategy/ramses-viability-v4-source-20260924
+2026-10-01T05:05:44.6189651Z  * [new branch]        tmp/meteora-overlay-canonicalize-20260922 -> origin/tmp/meteora-overlay-canonicalize-20260922
+2026-10-01T05:05:44.6193932Z  * [new branch]        tmp/nonmarket-meteora-alchemy-primary-fix-20260922 -> origin/tmp/nonmarket-meteora-alchemy-primary-fix-20260922
+2026-10-01T05:05:44.6199641Z  * [new branch]        transport/stagee-exact-objects-20260930 -> origin/transport/stagee-exact-objects-20260930
+2026-10-01T05:05:44.6206407Z [command]/usr/bin/git rev-parse --verify --quiet c22e61a176951c364b9dc855c68adad849479afe^{object}
+2026-10-01T05:05:44.6209906Z c22e61a176951c364b9dc855c68adad849479afe
+2026-10-01T05:05:44.6214608Z ##[endgroup]
+2026-10-01T05:05:44.6217258Z ##[group]Determining the checkout info
+2026-10-01T05:05:44.6219431Z ##[endgroup]
+2026-10-01T05:05:44.6220551Z [command]/usr/bin/git sparse-checkout disable
+2026-10-01T05:05:44.6223113Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-01T05:05:44.6226691Z ##[group]Checking out the ref
+2026-10-01T05:05:44.6229045Z [command]/usr/bin/git checkout --progress --force c22e61a176951c364b9dc855c68adad849479afe
+2026-10-01T05:05:44.6230921Z Note: switching to 'c22e61a176951c364b9dc855c68adad849479afe'.
+2026-10-01T05:05:44.6232087Z 
+2026-10-01T05:05:44.6232786Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-01T05:05:44.6234528Z changes and commit them, and you can discard any commits you make in this
+2026-10-01T05:05:44.6236365Z state without impacting any branches by switching back to a branch.
+2026-10-01T05:05:44.6238461Z 
+2026-10-01T05:05:44.6239787Z If you want to create a new branch to retain commits you create, you may
+2026-10-01T05:05:44.6242810Z do so (now or later) by using -c with the switch command. Example:
+2026-10-01T05:05:44.6244535Z 
+2026-10-01T05:05:44.6245306Z   git switch -c <new-branch-name>
+2026-10-01T05:05:44.6246549Z 
+2026-10-01T05:05:44.6247528Z Or undo this operation with:
+2026-10-01T05:05:44.6248633Z 
+2026-10-01T05:05:44.6249265Z   git switch -
+2026-10-01T05:05:44.6250072Z 
+2026-10-01T05:05:44.6251374Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-01T05:05:44.6253316Z 
+2026-10-01T05:05:44.6255293Z HEAD is now at c22e61a1 [runtime-v2-promotion] Correct fresh-demand test fixture before final pair
+2026-10-01T05:05:44.6259180Z ##[endgroup]
+2026-10-01T05:05:44.6261162Z [command]/usr/bin/git log -1 --format=%H
+2026-10-01T05:05:44.6262296Z c22e61a176951c364b9dc855c68adad849479afe
+2026-10-01T05:05:44.6265970Z ##[group]Removing auth
+2026-10-01T05:05:44.6267714Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T05:05:44.6271880Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T05:05:44.6477762Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T05:05:44.6509380Z http.https://github.com/.extraheader
+2026-10-01T05:05:44.6519799Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-01T05:05:44.6556789Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T05:05:44.6775659Z ##[endgroup]
+2026-10-01T05:05:44.7107599Z ##[group]Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+2026-10-01T05:05:44.7109094Z with:
+2026-10-01T05:05:44.7109896Z   python-version: 3.12.14
+2026-10-01T05:05:44.7110823Z   check-latest: false
+2026-10-01T05:05:44.7118972Z   token: ***
+2026-10-01T05:05:44.7119842Z   update-environment: true
+2026-10-01T05:05:44.7120805Z   allow-prereleases: false
+2026-10-01T05:05:44.7121756Z   freethreaded: false
+2026-10-01T05:05:44.7122606Z env:
+2026-10-01T05:05:44.7123382Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:05:44.7124261Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:05:44.7125134Z ##[endgroup]
+2026-10-01T05:05:44.8486665Z ##[group]Installed versions
+2026-10-01T05:05:44.8533222Z (node:2258) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-01T05:05:44.8538095Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-01T05:05:44.8541349Z Successfully set up CPython (3.12.14)
+2026-10-01T05:05:44.8543490Z ##[endgroup]
+2026-10-01T05:05:44.8740606Z ##[group]Run python -m pip install --disable-pip-version-check -r requirements.txt
+2026-10-01T05:05:44.8744179Z [36;1mpython -m pip install --disable-pip-version-check -r requirements.txt[0m
+2026-10-01T05:05:44.9124662Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:05:44.9125760Z env:
+2026-10-01T05:05:44.9126627Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:05:44.9127810Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:05:44.9129001Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:44.9130731Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:05:44.9132332Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:44.9133784Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:44.9135539Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:44.9137162Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:05:44.9138442Z ##[endgroup]
+2026-10-01T05:05:46.0864800Z Collecting websockets==17.1 (from -r requirements.txt (line 1))
+2026-10-01T05:05:46.1615238Z   Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+2026-10-01T05:05:46.1792574Z Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (224 kB)
+2026-10-01T05:05:46.2625683Z Installing collected packages: websockets
+2026-10-01T05:05:46.3848988Z Successfully installed websockets-17.1
+2026-10-01T05:05:46.4365631Z ##[group]Run python -m py_compile diagnostics/housekeeping-ordering/harness.py diagnostics/housekeeping-ordering/prepare.py diagnostics/housekeeping-ordering/check.py diagnostics/housekeeping-ordering/pair.py diagnostics/housekeeping-ordering/analyze.py diagnostics/housekeeping-ordering/test_housekeeping_ordering.py
+2026-10-01T05:05:46.4368269Z [36;1mpython -m py_compile diagnostics/housekeeping-ordering/harness.py diagnostics/housekeeping-ordering/prepare.py diagnostics/housekeeping-ordering/check.py diagnostics/housekeeping-ordering/pair.py diagnostics/housekeeping-ordering/analyze.py diagnostics/housekeeping-ordering/test_housekeeping_ordering.py[0m
+2026-10-01T05:05:46.4369824Z [36;1mpython diagnostics/housekeeping-ordering/prepare.py --root "$RUNNER_TEMP/housekeeping-ordering"[0m
+2026-10-01T05:05:46.4437746Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:05:46.4438055Z env:
+2026-10-01T05:05:46.4438304Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:05:46.4438601Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:05:46.4438993Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:46.4439493Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:05:46.4439979Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:46.4440444Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:46.4440872Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:46.4441320Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:05:46.4441723Z ##[endgroup]
+2026-10-01T05:05:46.6219444Z Preparing worktree (detached HEAD 750190b2)
+2026-10-01T05:05:46.7433894Z Preparing worktree (detached HEAD 750190b2)
+2026-10-01T05:05:47.6390670Z diagnostic arithmetic selfcheck passed
+2026-10-01T05:05:47.8990631Z STATIC_VERIFIED {"ast_checks": {"arbiter_and_owner_unchanged": true, "housekeeping_atomic_shield_added": false, "ledger_and_outcome_model_unchanged": true, "native_housekeeping_ast_identical": true, "native_scope_loop_ast_identical": true, "native_scope_transactions_identical": true, "service_and_turn_flow_identical_except_prefix_argument": true}, "changed_paths": ["meme_machine/solana_evidence_plane.py", "meme_machine/solana_evidence_service.py", "meme_machine/solana_maintenance_runtime.py"], "diagnostic_sha": "c22e61a176951c364b9dc855c68adad849479afe", "diagnostic_tree": "181617da5edde878ed66ae79d7c6797534b7450b", "evidence_base_sha": "750190b2067ca2fca771b531396d8e06a9351c62", "historical_stops_preserved": true, "identical_configuration_except_ordering": true, "identical_harness_native_wrappers": true, "identical_native_workload_wire": true, "paper_only": true, "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d", "protected_evidence_files": 1197, "protected_production_files": 1152, "source_and_evidence_blobs_and_modes_unchanged": true, "source_floor_both": 0.165, "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f", "stage_e": "RED", "stage_f": "NOT_STARTED", "tests_sha256": "fa16faf54607a45c9b835cd1f18ebf0507040d16ddc21feb93477b625c031411", "unchanged_workload_hashes": {"certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3", "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3", "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af", "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a", "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa", "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf", "certification/pressure_diagnostics.py": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45", "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f", "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd", "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376", "tests/test_run373_dispatch_throughput.py": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2", "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"}, "verified": true}
+2026-10-01T05:05:47.9272056Z ##[group]Run python diagnostics/housekeeping-ordering/check.py --root "$RUNNER_TEMP/housekeeping-ordering"
+2026-10-01T05:05:47.9272885Z [36;1mpython diagnostics/housekeeping-ordering/check.py --root "$RUNNER_TEMP/housekeeping-ordering"[0m
+2026-10-01T05:05:47.9336694Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:05:47.9337254Z env:
+2026-10-01T05:05:47.9337481Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:05:47.9337741Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:05:47.9338092Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:47.9338629Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:05:47.9339132Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:47.9339580Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:47.9340016Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:05:47.9340466Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:05:47.9340865Z ##[endgroup]
+2026-10-01T05:05:48.5927744Z CHECK {"name": "control-reproduction", "returncode": 0, "tests": 1, "log_sha256": "7200832e0b3f154b3c2158ac9f1649714cc0bc5078141eee8a7fd05027897b71"}
+2026-10-01T05:05:48.5930102Z test_control_reproduces_768_retirements_and_no_housekeeping (tests.test_housekeeping_ordering.PrefixTests.test_control_reproduces_768_retirements_and_no_housekeeping) ... ok
+2026-10-01T05:05:48.5931322Z 
+2026-10-01T05:05:48.5931615Z ----------------------------------------------------------------------
+2026-10-01T05:05:48.5932206Z Ran 1 test in 0.383s
+2026-10-01T05:05:48.5932436Z 
+2026-10-01T05:05:48.5932687Z OK
+2026-10-01T05:05:58.9818310Z CHECK {"name": "treatment-focused", "returncode": 0, "tests": 54, "log_sha256": "fbf76604478d66284fca1ff7553296d1ab97578f1b20186da095f58567c3a7a5"}
+2026-10-01T05:05:58.9820838Z test_scoped_progress_cannot_renew_housekeeping_obligation (tests.test_production_maintenance_arbiter.AdapterCorrectionsTests.test_scoped_progress_cannot_renew_housekeeping_obligation) ... ok
+2026-10-01T05:05:58.9823863Z test_observed_empty_ends_old_housekeeping_obligation (tests.test_production_maintenance_arbiter.HousekeepingRestartTests.test_observed_empty_ends_old_housekeeping_obligation) ... ok
+2026-10-01T05:05:58.9827597Z test_restart_does_not_gift_unserviced_housekeeping_a_new_deadline (tests.test_production_maintenance_arbiter.HousekeepingRestartTests.test_restart_does_not_gift_unserviced_housekeeping_a_new_deadline) ... ok
+2026-10-01T05:05:58.9829447Z 
+2026-10-01T05:05:58.9829867Z ----------------------------------------------------------------------
+2026-10-01T05:05:58.9830738Z Ran 54 tests in 10.098s
+2026-10-01T05:05:58.9830985Z 
+2026-10-01T05:05:58.9831124Z OK
+2026-10-01T05:06:20.9400792Z CHECK {"name": "resource", "returncode": 0, "tests": null, "log_sha256": "56db26249183c82c847bc4a78d25d4a78ec1f056bc471b90114ec312bb31abd1"}
+2026-10-01T05:06:20.9404899Z {"admitted_events_per_frame": 100, "db_bytes": 1261568, "decisions": 100, "elapsed_seconds": 21.83, "frames": 2000, "gaps": 20, "journal_rows": 4002, "label": "synthetic bounded intake/rejection workload", "limitation": "temporary filesystem; not continuous-market or physical disk durability proof", "peak_rss_kib": 27392, "real_provider_calls": 0, "seen": 1000, "submitted_events": 240000, "wal_bytes": 708672}
+2026-10-01T05:06:20.9411940Z SAFETY_TESTS_PASSED {"budget_consumed": 4, "checks": [{"log_sha256": "7200832e0b3f154b3c2158ac9f1649714cc0bc5078141eee8a7fd05027897b71", "name": "control-reproduction", "returncode": 0, "tests": 1}, {"log_sha256": "fbf76604478d66284fca1ff7553296d1ab97578f1b20186da095f58567c3a7a5", "name": "treatment-focused", "returncode": 0, "tests": 54}, {"log_sha256": "56db26249183c82c847bc4a78d25d4a78ec1f056bc471b90114ec312bb31abd1", "name": "resource", "returncode": 0, "tests": null}], "diagnostic_sha": "c22e61a176951c364b9dc855c68adad849479afe", "material_executions": 0, "passed": true, "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d", "tests_sha256": "fa16faf54607a45c9b835cd1f18ebf0507040d16ddc21feb93477b625c031411"}
+2026-10-01T05:06:20.9520935Z ##[group]Run python diagnostics/housekeeping-ordering/pair.py --root "$RUNNER_TEMP/housekeeping-ordering"
+2026-10-01T05:06:20.9521735Z [36;1mpython diagnostics/housekeeping-ordering/pair.py --root "$RUNNER_TEMP/housekeeping-ordering"[0m
+2026-10-01T05:06:20.9586026Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:06:20.9586284Z env:
+2026-10-01T05:06:20.9586487Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:06:20.9586722Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:06:20.9587252Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:06:20.9587703Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:06:20.9588158Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:06:20.9588587Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:06:20.9588993Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:06:20.9589401Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:06:20.9589773Z ##[endgroup]
+2026-10-01T05:06:21.0055503Z ARM_START {"material_execution_number": 5, "arm": "control", "utc_start": "2026-10-01T05:06:21Z", "request_sha256": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317", "runner": "GitHub Actions 1000026409", "hostname": "runnervmtr4k5", "run_id": "36818149058", "run_attempt": "1"}
+2026-10-01T05:11:59.3562541Z ARM_END {"material_execution_number": 5, "arm": "control", "utc_start": "2026-10-01T05:06:21Z", "request_sha256": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317", "runner": "GitHub Actions 1000026409", "hostname": "runnervmtr4k5", "run_id": "36818149058", "run_attempt": "1", "pid": 2365, "returncode": 0, "elapsed": 338.349641528, "forced_wall_bound": false, "residual_process_group": false, "utc_end": "2026-10-01T05:11:59Z", "completed_frames": 1214, "source_seconds": 327.78000000000003, "stop_reason": "native_failure", "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides"}
+2026-10-01T05:11:59.3568594Z ARM_START {"material_execution_number": 6, "arm": "treatment", "utc_start": "2026-10-01T05:11:59Z", "request_sha256": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317", "runner": "GitHub Actions 1000026409", "hostname": "runnervmtr4k5", "run_id": "36818149058", "run_attempt": "1"}
+2026-10-01T05:17:35.9069722Z ARM_END {"material_execution_number": 6, "arm": "treatment", "utc_start": "2026-10-01T05:11:59Z", "request_sha256": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317", "runner": "GitHub Actions 1000026409", "hostname": "runnervmtr4k5", "run_id": "36818149058", "run_attempt": "1", "pid": 2537, "returncode": 0, "elapsed": 336.55010867799996, "forced_wall_bound": false, "residual_process_group": false, "utc_end": "2026-10-01T05:17:35Z", "completed_frames": 1207, "source_seconds": 325.89000000000004, "stop_reason": "native_failure", "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides"}
+2026-10-01T05:17:35.9170489Z ##[group]Run python diagnostics/housekeeping-ordering/analyze.py --root "$RUNNER_TEMP/housekeeping-ordering"
+2026-10-01T05:17:35.9171388Z [36;1mpython diagnostics/housekeeping-ordering/analyze.py --root "$RUNNER_TEMP/housekeeping-ordering"[0m
+2026-10-01T05:17:35.9233983Z shell: /usr/bin/bash -e {0}
+2026-10-01T05:17:35.9234244Z env:
+2026-10-01T05:17:35.9234445Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:17:35.9234682Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:17:35.9234979Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:17:35.9235446Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:17:35.9235908Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:17:35.9236315Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:17:35.9236721Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:17:35.9237536Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:17:35.9237937Z ##[endgroup]
+2026-10-01T05:17:36.0787788Z HOUSEKEEPING_ARM_RESULT {"all_archive_timing": {"archive_floor_wait_actual": {"count": 153, "mean": 0.03353112083006916, "median": 0.01965561100001878, "peak": 0.12036831299997175, "total": 5.130261487000581}, "callback_to_ready_mark": {"count": 153, "mean": 2.842516993309741e-05, "median": 2.7832000000671542e-05, "peak": 5.454199998666809e-05, "total": 0.004349050999763904}, "commit_slice_service": {"count": 153, "mean": 0.06421906732679528, "median": 0.06118554699997958, "peak": 0.18481417200001715, "total": 9.825517300999678}, "dispatch": {"count": 153, "mean": 0.01778051764052189, "median": 0.007279807000031724, "peak": 0.34573259100000087, "total": 2.720419198999849}, "final_commit_to_receipt_consumed": {"count": 153, "mean": 0.033475721313728515, "median": 0.02983398800000714, "peak": 0.20556684799998948, "total": 5.1217853610004624}, "inter_slice_gaps": {"count": 153, "mean": 0.2972861500980379, "median": 0.17896309700000756, "peak": 4.078569805999962, "total": 45.4847809649998}, "preparation_native": {"count": 153, "mean": 0.3011260166993451, "median": 0.32631732900000543, "peak": 0.4271102910000195, "total": 46.07228055499979}, "ready_receipt_to_first_commit": {"count": 153, "mean": 0.19304780754902065, "median": 0.15732541699998137, "peak": 1.543752153000014, "total": 29.53631455500016}, "receipt_consumed_to_successor_submit": {"count": 153, "mean": 0.038875943091503745, "median": 0.0010839890000511332, "peak": 1.3753778619999935, "total": 5.948019293000073}, "return_transport": {"count": 153, "mean": 0.005573788784312525, "median": 0.002648053000029904, "peak": 0.10480516000001217, "total": 0.8527896839998164}}, "arm": "control", "completed_frames": 1214, "diagnostic_overhead_fraction": 0.002651353297110082, "eligible_serviced": 2, "eligible_turns": 25, "eligible_unserviced": 23, "environment_differences": {}, "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "first_window_episodes": 24, "first_window_open_or_late": 5, "incomplete_archive_flights": 1, "integrity": [["ok"]], "mature_archive_timing": {"archive_floor_wait_actual": {"count": 88, "mean": 0.0400292375227322, "median": 0.03047968900003184, "peak": 0.11964078600004768, "total": 3.5225729020004337}, "callback_to_ready_mark": {"count": 88, "mean": 2.815522726962172e-05, "median": 2.7706499992063982e-05, "peak": 5.454199998666809e-05, "total": 0.0024776599997267112}, "commit_slice_service": {"count": 88, "mean": 0.06817846164772655, "median": 0.06392220700001872, "peak": 0.18481417200001715, "total": 5.999704624999936}, "dispatch": {"count": 88, "mean": 0.024739638034089687, "median": 0.007392526999979054, "peak": 0.34573259100000087, "total": 2.1770881469998926}, "final_commit_to_receipt_consumed": {"count": 88, "mean": 0.03847527073863817, "median": 0.02690822200000298, "peak": 0.20556684799998948, "total": 3.385823825000159}, "inter_slice_gaps": {"count": 88, "mean": 0.3573614283636324, "median": 0.18023181949999412, "peak": 4.078569805999962, "total": 31.447805695999648}, "preparation_native": {"count": 88, "mean": 0.3018215950795451, "median": 0.32042310200000657, "peak": 0.4271102910000195, "total": 26.560300366999968}, "ready_receipt_to_first_commit": {"count": 88, "mean": 0.1991663653409135, "median": 0.15296218550000162, "peak": 1.035444343999984, "total": 17.52664015000039}, "receipt_consumed_to_successor_submit": {"count": 88, "mean": 0.04259452086363715, "median": 0.001069672500022989, "peak": 1.1763963049999688, "total": 3.7483178360000693}, "return_transport": {"count": 88, "mean": 0.004751643784088474, "median": 0.002610645000004297, "peak": 0.028401035000001684, "total": 0.41814465299978565}}, "native_terminal": {"at": 400.096096816, "committed_frame": 1212, "deadlines": {"archive": 406.02132654190063, "retirement": 409.76632356643677}, "durable_progress": null, "durable_records": null, "error": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "execution": 0.08098161000003756, "feasible": [], "needs": [{"binding": "recovery", "records": 3200, "recovery_deadline": 406.02132654190063, "recovery_excess": 2200, "recovery_headroom": 5.9252297259006355, "safety_deadline": 450.02132654190063, "safety_headroom": 49.925229725900635, "scope": "program:meteora", "service_deadline": 444.584036918, "service_headroom": 44.48794010199998, "side": "archive", "units": 3200}, {"binding": "service", "records": 3840, "recovery_deadline": 486.02132654190063, "recovery_excess": 2840, "recovery_headroom": 85.92522972590064, "safety_deadline": 442.02132654190063, "safety_headroom": 41.925229725900635, "scope": "program:meteora", "service_deadline": 441.718053181, "service_headroom": 41.62195636500002, "side": "retirement", "units": 3845}, {"binding": "recovery", "records": 1275, "recovery_deadline": 412.02132654190063, "recovery_excess": 275, "recovery_headroom": 11.925229725900635, "safety_deadline": 450.02132654190063, "safety_headroom": 49.925229725900635, "scope": "program:pump", "service_deadline": 444.808883465, "service_headroom": 44.71278664900001, "side": "archive", "units": 1275}, {"binding": "service", "records": 969, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 445.02132654190063, "safety_headroom": 44.925229725900635, "scope": "program:pump", "service_deadline": 437.8381345272064, "service_headroom": 37.74203771120642, "side": "retirement", "units": 974}, {"binding": "recovery", "records": 2125, "recovery_deadline": 406.02132654190063, "recovery_excess": 1125, "recovery_headroom": 5.9252297259006355, "safety_deadline": 450.02132654190063, "safety_headroom": 49.925229725900635, "scope": "program:pumpswap", "service_deadline": 444.808883465, "service_headroom": 44.71278664900001, "side": "archive", "units": 2125}, {"binding": "safety", "records": 4912, "recovery_deadline": 491.02132654190063, "recovery_excess": 3912, "recovery_headroom": 90.92522972590064, "safety_deadline": 434.02132654190063, "safety_headroom": 33.925229725900635, "scope": "program:pumpswap", "service_deadline": 440.894352745, "service_headroom": 40.79825592899999, "side": "retirement", "units": 4917}, {"binding": "safety", "records": 0, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 409.76632356643677, "safety_headroom": 9.670226750436768, "scope": "__housekeeping__", "service_deadline": 412.778289326, "service_headroom": 12.682192509999993, "side": "retirement", "units": 2}], "owner_delay": 0.2051203469999905, "pending_after_turn": null, "ready": {"archive": false, "retirement": true}, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "selected": null, "source_coordinate": 327.24, "worker_age": 0.2862062099999889}, "obligation_groups": {"archive:program:meteora": {"interpretation": "native_latched_obligations_recorded", "latched": 4, "late": 0, "open": 1, "recovered": 3}, "archive:program:pump": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 1, "recovered": 0}, "archive:program:pumpswap": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 1, "recovered": 0}, "retirement:program:meteora": {"interpretation": "native_latched_obligations_recorded", "latched": 12, "late": 0, "open": 1, "recovered": 11}, "retirement:program:pump": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 0, "recovered": 1}, "retirement:program:pumpswap": {"interpretation": "native_latched_obligations_recorded", "latched": 5, "late": 0, "open": 1, "recovered": 4}}, "observer_errors": [], "prefix_completed": false, "prefix_housekeeping_units": 0, "prefix_source_returns": 0, "prefix_turns": 0, "recorded_timing_drops": 0, "rule_violations": [], "source_seconds": 327.78000000000003, "stop_reason": "native_failure"}
+2026-10-01T05:17:36.1586135Z HOUSEKEEPING_ARM_RESULT {"all_archive_timing": {"archive_floor_wait_actual": {"count": 134, "mean": 0.030768392223879164, "median": 0.020610321999981807, "peak": 0.1240447040000845, "total": 4.122964557999808}, "callback_to_ready_mark": {"count": 134, "mean": 2.9703007462456353e-05, "median": 2.8111999995417136e-05, "peak": 6.584300001577503e-05, "total": 0.003980202999969151}, "commit_slice_service": {"count": 134, "mean": 0.07071690263432574, "median": 0.06044732049997492, "peak": 0.34739580699999806, "total": 9.47606495299965}, "dispatch": {"count": 134, "mean": 0.01837363162686914, "median": 0.007926028499923632, "peak": 0.28468063700006496, "total": 2.462066638000465}, "final_commit_to_receipt_consumed": {"count": 134, "mean": 0.04098610431343593, "median": 0.027815315500049564, "peak": 0.3491214549999313, "total": 5.4921379780004145}, "inter_slice_gaps": {"count": 134, "mean": 0.3245538566119447, "median": 0.19866162700003542, "peak": 1.07359170299992, "total": 43.49021678600059}, "preparation_native": {"count": 134, "mean": 0.32475139288806076, "median": 0.33765071800002033, "peak": 0.47672313999999005, "total": 43.51668664700014}, "ready_receipt_to_first_commit": {"count": 134, "mean": 0.2259858849402958, "median": 0.1710131930000216, "peak": 1.2292065400000638, "total": 30.282108581999637}, "receipt_consumed_to_successor_submit": {"count": 134, "mean": 0.04198306141044393, "median": 0.0011895349999804239, "peak": 1.6636546830000043, "total": 5.625730228999487}, "return_transport": {"count": 134, "mean": 0.007304160977610794, "median": 0.0027496519999772318, "peak": 0.22577543800002786, "total": 0.9787575709998464}}, "arm": "treatment", "completed_frames": 1207, "diagnostic_overhead_fraction": 0.0031355877874208104, "eligible_serviced": 2, "eligible_turns": 2, "eligible_unserviced": 0, "environment_differences": {}, "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "first_window_episodes": 20, "first_window_open_or_late": 5, "incomplete_archive_flights": 1, "integrity": [["ok"]], "mature_archive_timing": {"archive_floor_wait_actual": {"count": 84, "mean": 0.03530560824999692, "median": 0.02311824200000956, "peak": 0.1240447040000845, "total": 2.9656710929997416}, "callback_to_ready_mark": {"count": 84, "mean": 2.9958083331393937e-05, "median": 2.8102500039040024e-05, "peak": 6.584300001577503e-05, "total": 0.0025164789998370907}, "commit_slice_service": {"count": 84, "mean": 0.06741484925000155, "median": 0.0600842090000242, "peak": 0.15972077800006446, "total": 5.66284733700013}, "dispatch": {"count": 84, "mean": 0.024191745202386983, "median": 0.007894147000001794, "peak": 0.28468063700006496, "total": 2.0321065970005066}, "final_commit_to_receipt_consumed": {"count": 84, "mean": 0.046556801107152795, "median": 0.033332031000043116, "peak": 0.3491214549999313, "total": 3.9107712930008347}, "inter_slice_gaps": {"count": 84, "mean": 0.34317564608333095, "median": 0.19866162700003542, "peak": 1.07359170299992, "total": 28.8267542709998}, "preparation_native": {"count": 84, "mean": 0.3186968344999998, "median": 0.33401346400000875, "peak": 0.4037422300000344, "total": 26.770534097999985}, "ready_receipt_to_first_commit": {"count": 84, "mean": 0.24390492338095204, "median": 0.18986176900000373, "peak": 1.2292065400000638, "total": 20.48801356399997}, "receipt_consumed_to_successor_submit": {"count": 84, "mean": 0.05016934780951352, "median": 0.001192483500005892, "peak": 1.6636546830000043, "total": 4.214225215999136}, "return_transport": {"count": 84, "mean": 0.007844154226190659, "median": 0.0026413240000238147, "peak": 0.22577543800002786, "total": 0.6589089550000153}}, "native_terminal": {"at": 736.090446944, "committed_frame": 1205, "deadlines": {"archive": 742.0213260650635, "retirement": 741.6553220748901}, "durable_progress": null, "durable_records": null, "error": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "execution": 0.002449126999977125, "feasible": [], "needs": [{"binding": "recovery", "records": 7464, "recovery_deadline": 742.0213260650635, "recovery_excess": 6464, "recovery_headroom": 5.930879121063526, "safety_deadline": 778.0213260650635, "safety_headroom": 41.930879121063526, "scope": "program:meteora", "service_deadline": 777.930960889, "service_headroom": 41.840513945, "side": "archive", "units": 7464}, {"binding": "recovery", "records": 2688, "recovery_deadline": 745.0213260650635, "recovery_excess": 1688, "recovery_headroom": 8.930879121063526, "safety_deadline": 772.0213260650635, "safety_headroom": 35.930879121063526, "scope": "program:meteora", "service_deadline": 776.401653537, "service_headroom": 40.311206593000065, "side": "retirement", "units": 2693}, {"binding": "recovery", "records": 3009, "recovery_deadline": 752.0213260650635, "recovery_excess": 2009, "recovery_headroom": 15.930879121063526, "safety_deadline": 778.0213260650635, "safety_headroom": 41.930879121063526, "scope": "program:pump", "service_deadline": 777.930960889, "service_headroom": 41.840513945, "side": "archive", "units": 3009}, {"binding": "service", "records": 204, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 777.0213260650635, "safety_headroom": 40.930879121063526, "scope": "program:pump", "service_deadline": 774.1417555809021, "service_headroom": 38.05130863690215, "side": "retirement", "units": 209}, {"binding": "recovery", "records": 5015, "recovery_deadline": 743.0213260650635, "recovery_excess": 4015, "recovery_headroom": 6.930879121063526, "safety_deadline": 778.0213260650635, "safety_headroom": 41.930879121063526, "scope": "program:pumpswap", "service_deadline": 777.930960889, "service_headroom": 41.840513945, "side": "archive", "units": 5015}, {"binding": "safety", "records": 6033, "recovery_deadline": 775.0213260650635, "recovery_excess": 5033, "recovery_headroom": 38.930879121063526, "safety_deadline": 758.0213260650635, "safety_headroom": 21.930879121063526, "scope": "program:pumpswap", "service_deadline": 777.174491624, "service_headroom": 41.084044680000034, "side": "retirement", "units": 6038}, {"binding": "safety", "records": 0, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 741.6553220748901, "safety_headroom": 5.5648751308901865, "scope": "__housekeeping__", "service_deadline": 744.666841289, "service_headroom": 8.57639434500004, "side": "retirement", "units": 2}, {"binding": "service", "records": 0, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 792.934627505, "safety_headroom": 56.84418056100003, "scope": "__archive_receipt__", "service_deadline": 778.807859941, "service_headroom": 42.717412997, "side": "archive", "units": 1}], "owner_delay": 0.117418511999972, "pending_after_turn": null, "ready": {"archive": true, "retirement": true}, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "selected": null, "source_coordinate": 325.35, "worker_age": 3.156001567999965}, "obligation_groups": {"archive:program:meteora": {"interpretation": "native_latched_obligations_recorded", "latched": 10, "late": 0, "open": 1, "recovered": 9}, "archive:program:pump": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 1, "recovered": 0}, "archive:program:pumpswap": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 1, "recovered": 0}, "retirement:program:meteora": {"interpretation": "native_latched_obligations_recorded", "latched": 3, "late": 0, "open": 1, "recovered": 2}, "retirement:program:pump": {"interpretation": "native_latched_obligations_recorded", "latched": 2, "late": 0, "open": 0, "recovered": 2}, "retirement:program:pumpswap": {"interpretation": "native_latched_obligations_recorded", "latched": 3, "late": 0, "open": 1, "recovered": 2}}, "observer_errors": [], "prefix_completed": false, "prefix_housekeeping_units": 1782, "prefix_source_returns": 2, "prefix_turns": 2, "recorded_timing_drops": 0, "rule_violations": [], "source_seconds": 325.89000000000004, "stop_reason": "native_failure"}
+2026-10-01T05:17:36.1679705Z HOUSEKEEPING_COMPARISON {"arms": {"control": {"all_archive_timing": {"archive_floor_wait_actual": {"count": 153, "mean": 0.03353112083006916, "median": 0.01965561100001878, "peak": 0.12036831299997175, "total": 5.130261487000581}, "callback_to_ready_mark": {"count": 153, "mean": 2.842516993309741e-05, "median": 2.7832000000671542e-05, "peak": 5.454199998666809e-05, "total": 0.004349050999763904}, "commit_slice_service": {"count": 153, "mean": 0.06421906732679528, "median": 0.06118554699997958, "peak": 0.18481417200001715, "total": 9.825517300999678}, "dispatch": {"count": 153, "mean": 0.01778051764052189, "median": 0.007279807000031724, "peak": 0.34573259100000087, "total": 2.720419198999849}, "final_commit_to_receipt_consumed": {"count": 153, "mean": 0.033475721313728515, "median": 0.02983398800000714, "peak": 0.20556684799998948, "total": 5.1217853610004624}, "inter_slice_gaps": {"count": 153, "mean": 0.2972861500980379, "median": 0.17896309700000756, "peak": 4.078569805999962, "total": 45.4847809649998}, "preparation_native": {"count": 153, "mean": 0.3011260166993451, "median": 0.32631732900000543, "peak": 0.4271102910000195, "total": 46.07228055499979}, "ready_receipt_to_first_commit": {"count": 153, "mean": 0.19304780754902065, "median": 0.15732541699998137, "peak": 1.543752153000014, "total": 29.53631455500016}, "receipt_consumed_to_successor_submit": {"count": 153, "mean": 0.038875943091503745, "median": 0.0010839890000511332, "peak": 1.3753778619999935, "total": 5.948019293000073}, "return_transport": {"count": 153, "mean": 0.005573788784312525, "median": 0.002648053000029904, "peak": 0.10480516000001217, "total": 0.8527896839998164}}, "completed_frames": 1214, "diagnostic_overhead_fraction": 0.002651353297110082, "eligible_serviced": 2, "eligible_turns": 25, "eligible_unserviced": 23, "environment_differences": {}, "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "first_window_episodes": 24, "first_window_open_or_late": 5, "incomplete_archive_flights": 1, "integrity": [["ok"]], "mature_archive_timing": {"archive_floor_wait_actual": {"count": 88, "mean": 0.0400292375227322, "median": 0.03047968900003184, "peak": 0.11964078600004768, "total": 3.5225729020004337}, "callback_to_ready_mark": {"count": 88, "mean": 2.815522726962172e-05, "median": 2.7706499992063982e-05, "peak": 5.454199998666809e-05, "total": 0.0024776599997267112}, "commit_slice_service": {"count": 88, "mean": 0.06817846164772655, "median": 0.06392220700001872, "peak": 0.18481417200001715, "total": 5.999704624999936}, "dispatch": {"count": 88, "mean": 0.024739638034089687, "median": 0.007392526999979054, "peak": 0.34573259100000087, "total": 2.1770881469998926}, "final_commit_to_receipt_consumed": {"count": 88, "mean": 0.03847527073863817, "median": 0.02690822200000298, "peak": 0.20556684799998948, "total": 3.385823825000159}, "inter_slice_gaps": {"count": 88, "mean": 0.3573614283636324, "median": 0.18023181949999412, "peak": 4.078569805999962, "total": 31.447805695999648}, "preparation_native": {"count": 88, "mean": 0.3018215950795451, "median": 0.32042310200000657, "peak": 0.4271102910000195, "total": 26.560300366999968}, "ready_receipt_to_first_commit": {"count": 88, "mean": 0.1991663653409135, "median": 0.15296218550000162, "peak": 1.035444343999984, "total": 17.52664015000039}, "receipt_consumed_to_successor_submit": {"count": 88, "mean": 0.04259452086363715, "median": 0.001069672500022989, "peak": 1.1763963049999688, "total": 3.7483178360000693}, "return_transport": {"count": 88, "mean": 0.004751643784088474, "median": 0.002610645000004297, "peak": 0.028401035000001684, "total": 0.41814465299978565}}, "native_terminal": {"at": 400.096096816, "committed_frame": 1212, "deadlines": {"archive": 406.02132654190063, "retirement": 409.76632356643677}, "durable_progress": null, "durable_records": null, "error": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "execution": 0.08098161000003756, "feasible": [], "needs": [{"binding": "recovery", "records": 3200, "recovery_deadline": 406.02132654190063, "recovery_excess": 2200, "recovery_headroom": 5.9252297259006355, "safety_deadline": 450.02132654190063, "safety_headroom": 49.925229725900635, "scope": "program:meteora", "service_deadline": 444.584036918, "service_headroom": 44.48794010199998, "side": "archive", "units": 3200}, {"binding": "service", "records": 3840, "recovery_deadline": 486.02132654190063, "recovery_excess": 2840, "recovery_headroom": 85.92522972590064, "safety_deadline": 442.02132654190063, "safety_headroom": 41.925229725900635, "scope": "program:meteora", "service_deadline": 441.718053181, "service_headroom": 41.62195636500002, "side": "retirement", "units": 3845}, {"binding": "recovery", "records": 1275, "recovery_deadline": 412.02132654190063, "recovery_excess": 275, "recovery_headroom": 11.925229725900635, "safety_deadline": 450.02132654190063, "safety_headroom": 49.925229725900635, "scope": "program:pump", "service_deadline": 444.808883465, "service_headroom": 44.71278664900001, "side": "archive", "units": 1275}, {"binding": "service", "records": 969, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 445.02132654190063, "safety_headroom": 44.925229725900635, "scope": "program:pump", "service_deadline": 437.8381345272064, "service_headroom": 37.74203771120642, "side": "retirement", "units": 974}, {"binding": "recovery", "records": 2125, "recovery_deadline": 406.02132654190063, "recovery_excess": 1125, "recovery_headroom": 5.9252297259006355, "safety_deadline": 450.02132654190063, "safety_headroom": 49.925229725900635, "scope": "program:pumpswap", "service_deadline": 444.808883465, "service_headroom": 44.71278664900001, "side": "archive", "units": 2125}, {"binding": "safety", "records": 4912, "recovery_deadline": 491.02132654190063, "recovery_excess": 3912, "recovery_headroom": 90.92522972590064, "safety_deadline": 434.02132654190063, "safety_headroom": 33.925229725900635, "scope": "program:pumpswap", "service_deadline": 440.894352745, "service_headroom": 40.79825592899999, "side": "retirement", "units": 4917}, {"binding": "safety", "records": 0, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 409.76632356643677, "safety_headroom": 9.670226750436768, "scope": "__housekeeping__", "service_deadline": 412.778289326, "service_headroom": 12.682192509999993, "side": "retirement", "units": 2}], "owner_delay": 0.2051203469999905, "pending_after_turn": null, "ready": {"archive": false, "retirement": true}, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "selected": null, "source_coordinate": 327.24, "worker_age": 0.2862062099999889}, "obligation_groups": {"archive:program:meteora": {"interpretation": "native_latched_obligations_recorded", "latched": 4, "late": 0, "open": 1, "recovered": 3}, "archive:program:pump": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 1, "recovered": 0}, "archive:program:pumpswap": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 1, "recovered": 0}, "retirement:program:meteora": {"interpretation": "native_latched_obligations_recorded", "latched": 12, "late": 0, "open": 1, "recovered": 11}, "retirement:program:pump": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 0, "recovered": 1}, "retirement:program:pumpswap": {"interpretation": "native_latched_obligations_recorded", "latched": 5, "late": 0, "open": 1, "recovered": 4}}, "observer_errors": [], "prefix_completed": false, "prefix_housekeeping_units": 0, "prefix_source_returns": 0, "prefix_turns": 0, "recorded_timing_drops": 0, "rule_violations": [], "source_seconds": 327.78000000000003, "stop_reason": "native_failure"}, "treatment": {"all_archive_timing": {"archive_floor_wait_actual": {"count": 134, "mean": 0.030768392223879164, "median": 0.020610321999981807, "peak": 0.1240447040000845, "total": 4.122964557999808}, "callback_to_ready_mark": {"count": 134, "mean": 2.9703007462456353e-05, "median": 2.8111999995417136e-05, "peak": 6.584300001577503e-05, "total": 0.003980202999969151}, "commit_slice_service": {"count": 134, "mean": 0.07071690263432574, "median": 0.06044732049997492, "peak": 0.34739580699999806, "total": 9.47606495299965}, "dispatch": {"count": 134, "mean": 0.01837363162686914, "median": 0.007926028499923632, "peak": 0.28468063700006496, "total": 2.462066638000465}, "final_commit_to_receipt_consumed": {"count": 134, "mean": 0.04098610431343593, "median": 0.027815315500049564, "peak": 0.3491214549999313, "total": 5.4921379780004145}, "inter_slice_gaps": {"count": 134, "mean": 0.3245538566119447, "median": 0.19866162700003542, "peak": 1.07359170299992, "total": 43.49021678600059}, "preparation_native": {"count": 134, "mean": 0.32475139288806076, "median": 0.33765071800002033, "peak": 0.47672313999999005, "total": 43.51668664700014}, "ready_receipt_to_first_commit": {"count": 134, "mean": 0.2259858849402958, "median": 0.1710131930000216, "peak": 1.2292065400000638, "total": 30.282108581999637}, "receipt_consumed_to_successor_submit": {"count": 134, "mean": 0.04198306141044393, "median": 0.0011895349999804239, "peak": 1.6636546830000043, "total": 5.625730228999487}, "return_transport": {"count": 134, "mean": 0.007304160977610794, "median": 0.0027496519999772318, "peak": 0.22577543800002786, "total": 0.9787575709998464}}, "completed_frames": 1207, "diagnostic_overhead_fraction": 0.0031355877874208104, "eligible_serviced": 2, "eligible_turns": 2, "eligible_unserviced": 0, "environment_differences": {}, "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "first_window_episodes": 20, "first_window_open_or_late": 5, "incomplete_archive_flights": 1, "integrity": [["ok"]], "mature_archive_timing": {"archive_floor_wait_actual": {"count": 84, "mean": 0.03530560824999692, "median": 0.02311824200000956, "peak": 0.1240447040000845, "total": 2.9656710929997416}, "callback_to_ready_mark": {"count": 84, "mean": 2.9958083331393937e-05, "median": 2.8102500039040024e-05, "peak": 6.584300001577503e-05, "total": 0.0025164789998370907}, "commit_slice_service": {"count": 84, "mean": 0.06741484925000155, "median": 0.0600842090000242, "peak": 0.15972077800006446, "total": 5.66284733700013}, "dispatch": {"count": 84, "mean": 0.024191745202386983, "median": 0.007894147000001794, "peak": 0.28468063700006496, "total": 2.0321065970005066}, "final_commit_to_receipt_consumed": {"count": 84, "mean": 0.046556801107152795, "median": 0.033332031000043116, "peak": 0.3491214549999313, "total": 3.9107712930008347}, "inter_slice_gaps": {"count": 84, "mean": 0.34317564608333095, "median": 0.19866162700003542, "peak": 1.07359170299992, "total": 28.8267542709998}, "preparation_native": {"count": 84, "mean": 0.3186968344999998, "median": 0.33401346400000875, "peak": 0.4037422300000344, "total": 26.770534097999985}, "ready_receipt_to_first_commit": {"count": 84, "mean": 0.24390492338095204, "median": 0.18986176900000373, "peak": 1.2292065400000638, "total": 20.48801356399997}, "receipt_consumed_to_successor_submit": {"count": 84, "mean": 0.05016934780951352, "median": 0.001192483500005892, "peak": 1.6636546830000043, "total": 4.214225215999136}, "return_transport": {"count": 84, "mean": 0.007844154226190659, "median": 0.0026413240000238147, "peak": 0.22577543800002786, "total": 0.6589089550000153}}, "native_terminal": {"at": 736.090446944, "committed_frame": 1205, "deadlines": {"archive": 742.0213260650635, "retirement": 741.6553220748901}, "durable_progress": null, "durable_records": null, "error": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "execution": 0.002449126999977125, "feasible": [], "needs": [{"binding": "recovery", "records": 7464, "recovery_deadline": 742.0213260650635, "recovery_excess": 6464, "recovery_headroom": 5.930879121063526, "safety_deadline": 778.0213260650635, "safety_headroom": 41.930879121063526, "scope": "program:meteora", "service_deadline": 777.930960889, "service_headroom": 41.840513945, "side": "archive", "units": 7464}, {"binding": "recovery", "records": 2688, "recovery_deadline": 745.0213260650635, "recovery_excess": 1688, "recovery_headroom": 8.930879121063526, "safety_deadline": 772.0213260650635, "safety_headroom": 35.930879121063526, "scope": "program:meteora", "service_deadline": 776.401653537, "service_headroom": 40.311206593000065, "side": "retirement", "units": 2693}, {"binding": "recovery", "records": 3009, "recovery_deadline": 752.0213260650635, "recovery_excess": 2009, "recovery_headroom": 15.930879121063526, "safety_deadline": 778.0213260650635, "safety_headroom": 41.930879121063526, "scope": "program:pump", "service_deadline": 777.930960889, "service_headroom": 41.840513945, "side": "archive", "units": 3009}, {"binding": "service", "records": 204, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 777.0213260650635, "safety_headroom": 40.930879121063526, "scope": "program:pump", "service_deadline": 774.1417555809021, "service_headroom": 38.05130863690215, "side": "retirement", "units": 209}, {"binding": "recovery", "records": 5015, "recovery_deadline": 743.0213260650635, "recovery_excess": 4015, "recovery_headroom": 6.930879121063526, "safety_deadline": 778.0213260650635, "safety_headroom": 41.930879121063526, "scope": "program:pumpswap", "service_deadline": 777.930960889, "service_headroom": 41.840513945, "side": "archive", "units": 5015}, {"binding": "safety", "records": 6033, "recovery_deadline": 775.0213260650635, "recovery_excess": 5033, "recovery_headroom": 38.930879121063526, "safety_deadline": 758.0213260650635, "safety_headroom": 21.930879121063526, "scope": "program:pumpswap", "service_deadline": 777.174491624, "service_headroom": 41.084044680000034, "side": "retirement", "units": 6038}, {"binding": "safety", "records": 0, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 741.6553220748901, "safety_headroom": 5.5648751308901865, "scope": "__housekeeping__", "service_deadline": 744.666841289, "service_headroom": 8.57639434500004, "side": "retirement", "units": 2}, {"binding": "service", "records": 0, "recovery_deadline": null, "recovery_excess": 0, "recovery_headroom": null, "safety_deadline": 792.934627505, "safety_headroom": 56.84418056100003, "scope": "__archive_receipt__", "service_deadline": 778.807859941, "service_headroom": 42.717412997, "side": "archive", "units": 1}], "owner_delay": 0.117418511999972, "pending_after_turn": null, "ready": {"archive": true, "retirement": true}, "reservations": {"clock_error": 3.0, "execution": 3.0, "owner": 3.0, "worker": 15.0}, "selected": null, "source_coordinate": 325.35, "worker_age": 3.156001567999965}, "obligation_groups": {"archive:program:meteora": {"interpretation": "native_latched_obligations_recorded", "latched": 10, "late": 0, "open": 1, "recovered": 9}, "archive:program:pump": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 1, "recovered": 0}, "archive:program:pumpswap": {"interpretation": "native_latched_obligations_recorded", "latched": 1, "late": 0, "open": 1, "recovered": 0}, "retirement:program:meteora": {"interpretation": "native_latched_obligations_recorded", "latched": 3, "late": 0, "open": 1, "recovered": 2}, "retirement:program:pump": {"interpretation": "native_latched_obligations_recorded", "latched": 2, "late": 0, "open": 0, "recovered": 2}, "retirement:program:pumpswap": {"interpretation": "native_latched_obligations_recorded", "latched": 3, "late": 0, "open": 1, "recovered": 2}}, "observer_errors": [], "prefix_completed": false, "prefix_housekeeping_units": 1782, "prefix_source_returns": 2, "prefix_turns": 2, "recorded_timing_drops": 0, "rule_violations": [], "source_seconds": 325.89000000000004, "stop_reason": "native_failure"}}, "budget": {"ceiling": 6, "consumed": 6, "unused": 0}, "executions": [{"arm": "control", "completed_frames": 1214, "elapsed": 338.349641528, "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "forced_wall_bound": false, "hostname": "runnervmtr4k5", "material_execution_number": 5, "pid": 2365, "request_sha256": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317", "residual_process_group": false, "returncode": 0, "run_attempt": "1", "run_id": "36818149058", "runner": "GitHub Actions 1000026409", "source_seconds": 327.78000000000003, "stop_reason": "native_failure", "utc_end": "2026-10-01T05:11:59Z", "utc_start": "2026-10-01T05:06:21Z"}, {"arm": "treatment", "completed_frames": 1207, "elapsed": 336.55010867799996, "failure": "EvidenceUnavailable:maintenance_cannot_reserve_both_sides", "forced_wall_bound": false, "hostname": "runnervmtr4k5", "material_execution_number": 6, "pid": 2537, "request_sha256": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317", "residual_process_group": false, "returncode": 0, "run_attempt": "1", "run_id": "36818149058", "runner": "GitHub Actions 1000026409", "source_seconds": 325.89000000000004, "stop_reason": "native_failure", "utc_end": "2026-10-01T05:17:35Z", "utc_start": "2026-10-01T05:11:59Z"}], "interpretation": "ordering_service_observed_without_complete_prefix_recovery", "limitations": ["One fixed-order matched pair on one hosted runner; no replication or counterbalance.", "Source .165, archive .36/1000, COMMIT .006 and reduced urgent ACK controls are retained in both arms.", "Scope/owner/transaction/worker spans overlap; do not sum them as independent occupancy.", "Ready marker precedes Future.set_result bookkeeping; complete receipt partitions only.", "Timing drops or missing summaries leave evidence incomplete; no reconstruction from aggregate counters.", "Native and extra observer cost remain mixed. No strict less-than-1-percent certification is claimed.", "M1 and preflight blockers remain historical and unresolved; canonical Stage E/F is not tested."], "mechanism_observed": true, "paper_only": true, "safety_gate": {"budget_consumed": 4, "checks": [{"log_sha256": "7200832e0b3f154b3c2158ac9f1649714cc0bc5078141eee8a7fd05027897b71", "name": "control-reproduction", "returncode": 0, "tests": 1}, {"log_sha256": "fbf76604478d66284fca1ff7553296d1ab97578f1b20186da095f58567c3a7a5", "name": "treatment-focused", "returncode": 0, "tests": 54}, {"log_sha256": "56db26249183c82c847bc4a78d25d4a78ec1f056bc471b90114ec312bb31abd1", "name": "resource", "returncode": 0, "tests": null}], "diagnostic_sha": "c22e61a176951c364b9dc855c68adad849479afe", "material_executions": 0, "passed": true, "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d", "tests_sha256": "fa16faf54607a45c9b835cd1f18ebf0507040d16ddc21feb93477b625c031411"}, "stage_e": "RED", "stage_f": "NOT_STARTED", "static_verification": {"ast_checks": {"arbiter_and_owner_unchanged": true, "housekeeping_atomic_shield_added": false, "ledger_and_outcome_model_unchanged": true, "native_housekeeping_ast_identical": true, "native_scope_loop_ast_identical": true, "native_scope_transactions_identical": true, "service_and_turn_flow_identical_except_prefix_argument": true}, "changed_paths": ["meme_machine/solana_evidence_plane.py", "meme_machine/solana_evidence_service.py", "meme_machine/solana_maintenance_runtime.py"], "diagnostic_sha": "c22e61a176951c364b9dc855c68adad849479afe", "diagnostic_tree": "181617da5edde878ed66ae79d7c6797534b7450b", "evidence_base_sha": "750190b2067ca2fca771b531396d8e06a9351c62", "historical_stops_preserved": true, "identical_configuration_except_ordering": true, "identical_harness_native_wrappers": true, "identical_native_workload_wire": true, "paper_only": true, "patch_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d", "protected_evidence_files": 1197, "protected_production_files": 1152, "source_and_evidence_blobs_and_modes_unchanged": true, "source_floor_both": 0.165, "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f", "stage_e": "RED", "stage_f": "NOT_STARTED", "tests_sha256": "fa16faf54607a45c9b835cd1f18ebf0507040d16ddc21feb93477b625c031411", "unchanged_workload_hashes": {"certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3", "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3", "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af", "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a", "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa", "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf", "certification/pressure_diagnostics.py": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45", "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f", "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd", "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376", "tests/test_run373_dispatch_throughput.py": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2", "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"}, "verified": true}, "status": "HOUSEKEEPING_ORDERING_PAIR_STOP_FOR_ASTRA"}
+2026-10-01T05:17:36.3723797Z HOUSEKEEPING_EVIDENCE_HASHES {"COMPARISON.json": "6e2c64f3217a2792bddec3188bafb23dc6df68aa3f5f902861666f38b00ebe2f", "FOLLOWUP_STOP.json": "a4c6c2727bb70846791de40005d01edac095b352a0d7e4df6b0a6d77a8927ef6", "SAFETY_GATE.json": "81d227972b38a5b74e487bfe9c507a149c9baa17915618d4f3a1dfbbc000c54c", "SCOPE.md": "3646fdce19a9a68ce4689b3c9c5278b00da9f36f42b9f7908e779cd39aacec6e", "STATIC_VERIFICATION.json": "0bfbbb3ba254b2b02e460ad0beb6578144178f0fc1b249081e34acbba310c0e2", "SUMMARY.md": "84ed0c002c7068fe9cd2a378dc5604147440b1e468b4d16059e89e344f8324f2", "analyze.py": "532f26b0acfe3b65e802572a545cbd22e836fbc47b7766a7d814c4813a673af3", "check.py": "f21d2e741a6efeec2cfe86feec87ee583e5cb22f1ef7fb847747495ff20d111c", "checkout-manifests.json": "6530abfa86c3197b7758ed71316e3572639053211bb99aef5c44f39b055cbd3a", "control-analysis.json": "0edfec8f78afa503796880c0b634fd40e1960857256f0d35ddeecbe54faf0b6c", "control-reproduction.log": "7200832e0b3f154b3c2158ac9f1649714cc0bc5078141eee8a7fd05027897b71", "control.log": "8aa6b0c8cf379940c83ba4995282908638877772d70f048617b9ade4844df3fe", "control/archive-cycle-decomposition.json": "fff5c37591ca14dbc153cc927244dde060c46fce7e7b17ba64d9e04349fe19f8", "control/archive-cycles.json": "efa4fb32e251f9a6dd3ef83a37c94dee09139ef9a50d6efa7550fd68fa8bed9f", "control/archive-hashes.json": "17fa5147dabb4d7a0f7e1be8131347e43099e535926603350d70991e16e007f1", "control/capacity-timeline.json": "886dd649bdafb123c625975bd7ab1e8cf685f342f6e739955ba230df8586feb9", "control/configuration.json": "fda97536800b6cb4730dcb8c87862d0631b30dfe9fbccfae6bd148c0e28af157", "control/environment.json": "34645262993be9059fd32f1ba4e08fb19afe9a5a6b1e65cb42e50ce73e9ca6a7", "control/episode-events.json": "185e66ec5736c12526347224a2c1adcc72a4a03850bf8d10c9b280347743c0e2", "control/failure-stack.json": "e2660c1ca47e11c915d391a67d853bf53b07137bd4bfd2d5aaab1208bf8564de", "control/final-snapshot.json": "33677d0ca7124eaa9c90de72ec10713bd1ab5c224e8871432db949e7af308bc0", "control/housekeeping-ordering-evidence.json": "b03f7273e4751abca406eeb39dfbc756fdc4b18bd59c61efab5e8cb058d37ff9", "control/identity.json": "1ec1facdb793beed82a8028cfd4b032f8db5573d9e93a0d12197b8fa2c00341a", "control/interaction.json": "0ceed5e8f0cce19adf1cddb2a338659e6978fd52074e979fdb86f071c214f38a", "control/native-health.json": "55041d9b348f96853873e79d9cc90826d01d3c144a9e25956b7a45df46538d7c", "control/native-turns.json": "bed2bd8cbf6fe760ee05467c9ad06e78fd736e6d04fe01d1320687f7b95cd426", "control/source-batches.json": "f3ec63f6ceaca0c7b2b1a9f92f9f677ade0f15753c17d27ad9fd2d5f7a8377f6", "control/summary.json": "539383c139e096df88f846b484790d2efce82fbd227eb02e92de3d6ce445a7dc", "control/terminal-ring.json": "71a36f7adbdb6d8d8d6c6670bcafc12f7c969e08a091ec7ed1314db3e6ba9ff5", "control/timeline.jsonl": "01c1b17d74a7edd4bd2ed5836d093db7620afc6552ab2fc02c07bed101740398", "environment.json": "9e384241e35a979551b8cad843f1d8467c1f503a5b1142d79533f6b203fc9c1c", "execution-ledger.jsonl": "a26a712ac0af1252153571f5320e93813fb978ee37d6696386e86ad483b61889", "execution-request.json": "09905b4baa1fe004ac3986e1edc8ee2c5ac8bb05c12d0a0ec2ded159d8cd7317", "harness.py": "caa547cd814d32cd90be214f64b5b044af573d387722844e4a3cf707c5f2a67f", "pair-executions.json": "14dd5384f04111e89197cc0cd90cb58c8e01c2dc61c6ca79bd6a19866c9bb6b9", "pair.py": "51735921fed110509f8d57343cd72fac5e378af5ffa7f59b1c6ccfc43051d3b5", "prepare.py": "2e53212835445ae71927fe86b34bdfb3754ddfa629b7796c458d081c5de2cf3e", "resource.log": "56db26249183c82c847bc4a78d25d4a78ec1f056bc471b90114ec312bb31abd1", "test_housekeeping_ordering.py": "fa16faf54607a45c9b835cd1f18ebf0507040d16ddc21feb93477b625c031411", "treatment-analysis.json": "33a3506e99bb5b3eb9bf861a2d9f79d7c1b7f02d12fd4edba1c25a1d523eb471", "treatment-focused.log": "fbf76604478d66284fca1ff7553296d1ab97578f1b20186da095f58567c3a7a5", "treatment.log": "0dedb2f14ac1d1b8d1a42e90494842ce7f1fc0b587ef73f253c0b257e0a00e76", "treatment.patch": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d", "treatment/archive-cycle-decomposition.json": "f6e4591d4edc14058ed61595527e9f3853ba256040ee7c44f31212c0e45588b6", "treatment/archive-cycles.json": "97ae51f9ecd6ac5b34a79ccca329a76328d3c416ddb2d5ba8efa420cca11e1a2", "treatment/archive-hashes.json": "7fa777002d10d9abb8d4edefbdf3f357eb2288ab0b34e607d229b125d452f62a", "treatment/capacity-timeline.json": "8705ec0fa52f692c6b28939510c82ac5fbb57164e12d6c505e298bbea460d48a", "treatment/configuration.json": "e67852489501b89c541d18c0caea385b6d35ef476ed1e6676dd45ff2454cbf04", "treatment/environment.json": "e2193a241e39de00f2ee898c10e14ef0a1c098ab61854278c5cf22e7cab25f1c", "treatment/episode-events.json": "c3b63293053f6ede1f9aa04cefd938aceadca88fca8c77b2399d9d04b8f65db9", "treatment/failure-stack.json": "bde6abaa5e323776fe4c87c9569c06a49148080bdb346c921775fee81816d533", "treatment/final-snapshot.json": "08f5609900698659b9b92eb6e99feb83c79f1eb224708c5de4ab8a858be124ff", "treatment/housekeeping-ordering-evidence.json": "98672637205efebc5039c34ae564498cca30f0b448075c7ac866a688608b1b64", "treatment/identity.json": "c233b7307077bd8f2754d618acbbda3a2e15d203d186c7e397592fc1a2267653", "treatment/interaction.json": "c513a7deaaa6e8e2b03b568d92baf1cd785a972e4adfb719ecbb4c355d427803", "treatment/native-health.json": "84239eccbc93dce4c38a45beea9a42f73616e4c09c4c2cfee690482940801698", "treatment/native-turns.json": "ae21d652927c6430958a8df256d5ca53ad3de96f69d243339681eaeab40a96da", "treatment/source-batches.json": "131df072e8fbaf693dad0cc13ba1c61d42c59263d88510d5ebb3016f83d0f678", "treatment/summary.json": "849ff4ff1b1a105e79835b987fc2ffbb485385648c694b614716e5648c683615", "treatment/terminal-ring.json": "b0acf89c49f0c8890cdc18629e58f226e9e4b54ad968f1258f32d1826ab9f894", "treatment/timeline.jsonl": "c428cd0d531ba0a7d93feffca948f7ca1224702ce5073d5fa498b342ea2f3988", "workflow.yml": "66ef53a01b50f76616bef6ad4072e828f5455a28a7e2e5e2e2cba2013c1de6a7"}
+2026-10-01T05:17:36.3974652Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-01T05:17:36.3975073Z with:
+2026-10-01T05:17:36.3975618Z   name: housekeeping-ordering-c22e61a176951c364b9dc855c68adad849479afe-36818149058-1
+2026-10-01T05:17:36.3976541Z   path: /home/runner/work/_temp/housekeeping-ordering/
+!/home/runner/work/_temp/housekeeping-ordering/**/runtime/**
+!/home/runner/work/_temp/housekeeping-ordering/worktrees/**
+
+2026-10-01T05:17:36.3977596Z   if-no-files-found: error
+2026-10-01T05:17:36.3977838Z   retention-days: 90
+2026-10-01T05:17:36.3978051Z   compression-level: 6
+2026-10-01T05:17:36.3978261Z   overwrite: false
+2026-10-01T05:17:36.3978472Z   include-hidden-files: false
+2026-10-01T05:17:36.3978701Z env:
+2026-10-01T05:17:36.3978886Z   PYTHONUNBUFFERED: 1
+2026-10-01T05:17:36.3979097Z   MM_REAL_IPC_TESTS: 1
+2026-10-01T05:17:36.3979368Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:17:36.3979823Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-01T05:17:36.3980248Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:17:36.3980624Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:17:36.3981005Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-01T05:17:36.3981384Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-01T05:17:36.3981705Z ##[endgroup]
+2026-10-01T05:17:36.5793083Z (node:2624) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-01T05:17:36.5794398Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-01T05:17:36.8804089Z With the provided path, there will be 63 files uploaded
+2026-10-01T05:17:36.8810545Z Artifact name is valid!
+2026-10-01T05:17:36.8811277Z Root directory input is valid!
+2026-10-01T05:17:37.2922045Z Beginning upload of artifact content to blob storage
+2026-10-01T05:17:37.5815283Z (node:2624) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-01T05:17:38.2595343Z Uploaded bytes 1529756
+2026-10-01T05:17:38.3357597Z Finished uploading artifact content to blob storage!
+2026-10-01T05:17:38.3358774Z SHA256 digest of uploaded artifact zip is 08028f13ff03f4f78c6700aa8ede205f63eb6730da8dc0a718396e20e3028c54
+2026-10-01T05:17:38.3360263Z Finalizing artifact upload
+2026-10-01T05:17:38.6131642Z Artifact housekeeping-ordering-c22e61a176951c364b9dc855c68adad849479afe-36818149058-1.zip successfully finalized. Artifact ID 11142687311
+2026-10-01T05:17:38.6134526Z Artifact housekeeping-ordering-c22e61a176951c364b9dc855c68adad849479afe-36818149058-1 has been successfully uploaded! Final size is 1529756 bytes. Artifact ID is 11142687311
+2026-10-01T05:17:38.6140351Z Artifact download URL: https://github.com/levonmendall/The-Meme-Machine/actions/runs/36818149058/artifacts/11142687311
+2026-10-01T05:17:38.6335280Z Post job cleanup.
+2026-10-01T05:17:38.7564945Z (node:2636) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-01T05:17:38.7682081Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-01T05:17:38.7782649Z Post job cleanup.
+2026-10-01T05:17:38.8800364Z [command]/usr/bin/git version
+2026-10-01T05:17:38.8852023Z git version 2.55.0
+2026-10-01T05:17:38.8898513Z Temporarily overriding HOME='/home/runner/work/_temp/aeb7a339-ba9b-440e-8531-d27db56eb908' before making global git config changes
+2026-10-01T05:17:38.8900136Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-01T05:17:38.8905001Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-10-01T05:17:38.8957216Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-01T05:17:38.9007849Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-01T05:17:38.9272289Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-01T05:17:38.9309809Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-01T05:17:38.9723287Z Cleaning up orphan processes
+2026-10-01T05:17:39.0190768Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683, actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
