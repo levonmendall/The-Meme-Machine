@@ -40,8 +40,8 @@
       "max_total_hold_seconds": 900
     },
     "meteora": {
-      "entry_min_two_way_balance": 0.20,
-      "entry_max_drift_ratio": 0.80,
+      "entry_min_two_way_balance": 0.2,
+      "entry_max_drift_ratio": 0.8,
       "exit_one_way_two_way_balance_before": 0.25,
       "exit_one_way_two_way_balance_after": 0.18,
       "exit_one_way_drift_ratio_before": 0.75,
@@ -76,5 +76,21 @@
     "Run shared-sleeve/accounting and restart replay tests to prove exit changes do not alter capital identity.",
     "Run exact-SHA non-market certification before any market smoke.",
     "Begin a fresh affected-lane profitability cohort because exit economics changed."
-  ]
+  ],
+  "status": "READY_FOR_POST_STAGE_E_FINAL_SHA_INTEGRATION_NOT_ACTIVE",
+  "activation_readiness": {
+    "ready": true,
+    "unresolved_economic_decisions": [],
+    "final_sha_regeneration_required": true,
+    "activation_items": [
+      "pump_current_exits",
+      "pons_current_exits",
+      "meteora_exit_optimization"
+    ],
+    "supersession": {
+      "pump_current_trail": "14% proportional high-water price trail below +100%; right-tail-capture-v1 supersedes trail behavior at/above +100%",
+      "pons_current_trail": "12% proportional high-water price trail below +100%; right-tail-capture-v1 supersedes trail behavior at/above +100%",
+      "other_exit_parameters": "unchanged by right-tail-capture-v1"
+    }
+  }
 }
