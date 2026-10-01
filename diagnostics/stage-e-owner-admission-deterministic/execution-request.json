@@ -1,0 +1,11 @@
+{
+  "authorization": "OWNER_ADMISSION_DESIGN_APPROVED_FOR_DETERMINISTIC_IMPLEMENTATION",
+  "kind": "native_completion_prerequisite_only",
+  "diagnostic_branch": "diagnostics/stage-e-owner-admission-deterministic-20261001",
+  "production_base": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "material_executions": 0,
+  "material_budget_consumed": 6,
+  "material_budget_unused": 0,
+  "pressure_workloads": false,
+  "m1_repair": false
+}
