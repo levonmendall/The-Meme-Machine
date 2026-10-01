@@ -1,0 +1,37 @@
+{
+  "schema": "meme-machine-pump-compression-breakout-shadow-v1",
+  "status": "FROZEN_FOR_PROSPECTIVE_SHADOW_VALIDATION",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "paper_only": true,
+  "allocation_authority": false,
+  "live_money_authority": false,
+  "strategy_relationship": "candidate fast Pump Survivor/post-migration subregime",
+  "market_path": {
+    "base_lookback_observations": 5,
+    "maximum_base_range_bps": 500,
+    "breakout_min_bps": 250,
+    "breakout_max_bps": 750
+  },
+  "provisional_shadow_exit": {
+    "hard_stop_bps": -250,
+    "take_profit_bps": 1000,
+    "maximum_hold_seconds": 21600
+  },
+  "mandatory_non_price_gates": [
+    "canonical Pump.fun to PumpSwap lineage / venue identity",
+    "fresh/finalized evidence and current generation",
+    "retained executable liquidity and exit depth",
+    "creator/distribution safety",
+    "hard concentration safety",
+    "independent buyer breadth and demand",
+    "turnover/depth capacity",
+    "1x/2x after-cost execution stress",
+    "fill-time freshness/breadth retention",
+    "shared Pump sleeve conflict fencing"
+  ],
+  "sizing": {
+    "capital_target_bps": null,
+    "note": "No allocation size is frozen. Any later promotion must use certified shared-sleeve realized-equity sizing and remain downsize-only."
+  },
+  "no_trade_authority": true
+}

@@ -1,0 +1,184 @@
+{
+  "schema": "meme-machine-pump-expanded-public-market-research-v2",
+  "status": "COMPLETE_PUMP_EXPANDED_RESEARCH",
+  "paper_only": true,
+  "allocation_authority": false,
+  "live_money_authority": false,
+  "prepared_at": "2026-10-01",
+  "source_policy": {
+    "public_market_data_only": true,
+    "meme_machine_market_or_trade_data_used": false,
+    "private_provider_data_used": false,
+    "source": "CoinGecko Pump.fun Ecosystem public 7-day charts",
+    "note": "CoinGecko defines the category as tokens launched via pump.fun."
+  },
+  "cohorts": {
+    "established_full_history": [
+      "fartcoin",
+      "ai-rig-complex",
+      "comedian",
+      "the-black-bull",
+      "jelly-my-jelly",
+      "peanut-the-squirrel",
+      "alchemist-ai",
+      "troll-2",
+      "moo-deng",
+      "neet",
+      "zerebro",
+      "fartboy",
+      "pippin",
+      "goatseus-maximus",
+      "griffain"
+    ],
+    "development": "approximately 2026-09-24T20:00Z through 2026-09-28T20:00Z",
+    "holdout": "approximately 2026-09-28T20:00Z through 2026-10-01T20:00Z",
+    "recent_breakout_stress": [
+      "codec-flow",
+      "apeonfone",
+      "otc",
+      "fwog",
+      "alon",
+      "baton-3",
+      "npcs",
+      "parasite"
+    ],
+    "stress_note": "Recent-breakout set chosen from current Pump.fun category/high-momentum names and excluded from established parameter fitting."
+  },
+  "hypotheses_tested": {
+    "simple_strength_continuation": {
+      "tested_parameterizations": 1512,
+      "robust_in_established_development_and_holdout": 1,
+      "current_stress_result": "failed",
+      "conclusion": "NOT_PRIMARY_OPPORTUNITY"
+    },
+    "deep_or_shallow_reset_recovery": {
+      "tested_parameterizations": 3888,
+      "robust_in_established_development_and_holdout": 0,
+      "conclusion": "NO_PRICE_ONLY_RESET_RECOVERY_EDGE_IN_OBSERVED_PUMP_SAMPLE"
+    },
+    "impulse_pullback_reclaim": {
+      "tested_parameterizations": 7128,
+      "robust_in_established_development_and_holdout": 0,
+      "conclusion": "NO_STABLE_PRICE_ONLY_EDGE"
+    },
+    "compression_breakout": {
+      "tested_parameterizations": 840,
+      "robust_in_established_development_and_holdout": 6,
+      "recent_breakout_stress_survived": true,
+      "conclusion": "PRIMARY_PUMP_RESEARCH_OPPORTUNITY"
+    }
+  },
+  "compression_breakout": {
+    "structural_ridge": {
+      "base_lookback_observations": [
+        3,
+        5
+      ],
+      "preferred_central_lookback_observations": 5,
+      "maximum_base_range_pct": 5,
+      "breakout_min_pct": 2.5,
+      "breakout_max_pct": 7.5,
+      "interpretation": "Tight base/compression followed by an early breakout; not a deep-flush recovery thesis."
+    },
+    "entry_exit_sweep": {
+      "eligible_parameterizations": 9360,
+      "robust_established_parameterizations": 60,
+      "robust_hold_period_result": "All established robust configurations used 6-hour max hold.",
+      "common_stop_pct": -2.5,
+      "take_profit_neighborhood_pct": [
+        5,
+        10
+      ],
+      "recent_regime_warning": "+15% targets looked excellent only in the recent-breakout cohort and failed development back-checks."
+    },
+    "balanced_shadow_candidate": {
+      "base_lookback_observations": 5,
+      "maximum_base_range_pct": 5,
+      "breakout_min_pct": 2.5,
+      "breakout_max_pct": 7.5,
+      "hard_stop_pct": -2.5,
+      "take_profit_pct": 10,
+      "maximum_hold_hours": 6,
+      "development": {
+        "events": 13,
+        "assets": 8,
+        "event_mean_return_pct": 1.42,
+        "asset_mean_return_pct": 1.36,
+        "after_0_75pct_stress_asset_mean_pct": 0.61,
+        "after_1pct_stress_asset_mean_pct": 0.36,
+        "leave_one_asset_out_min_pct": 0.13,
+        "positive_asset_fraction": 0.63,
+        "take_profit_rate": 0.08,
+        "stop_rate": 0.31
+      },
+      "holdout": {
+        "events": 12,
+        "assets": 8,
+        "event_mean_return_pct": 1,
+        "asset_mean_return_pct": 1.15,
+        "after_0_75pct_stress_asset_mean_pct": 0.4,
+        "after_1pct_stress_asset_mean_pct": 0.15,
+        "leave_one_asset_out_min_pct": 0.65,
+        "positive_asset_fraction": 0.63,
+        "take_profit_rate": 0,
+        "stop_rate": 0.25
+      },
+      "recent_breakout_stress": {
+        "events": 15,
+        "assets": 5,
+        "event_mean_return_pct": 1.33,
+        "asset_mean_return_pct": 2.43,
+        "after_0_75pct_stress_asset_mean_pct": 1.68,
+        "after_1pct_stress_asset_mean_pct": 1.43,
+        "leave_one_asset_out_min_pct": 0.53,
+        "positive_asset_fraction": 0.8,
+        "take_profit_rate": 0.13,
+        "stop_rate": 0.4,
+        "by_asset_mean_pct": {
+          "codec-flow": -2.5,
+          "apeonfone": 10,
+          "otc": 1.67,
+          "fwog": 1.33,
+          "alon": 1.62
+        }
+      }
+    },
+    "interpretation": [
+      "The opportunity survives established development, established holdout, and a separate recent-breakout Pump.fun cohort.",
+      "The edge is substantially thinner than Pons reset-recovery and only modestly positive after a 1% stress haircut in established samples.",
+      "The strongest recent-regime +15% target configurations did not survive the established development sample, so they are rejected as regime-chasing.",
+      "The balanced candidate is not driven by baton or the largest recent breakout; baton did not qualify under the selected balanced shape."
+    ],
+    "likely_strategy_relationship": "This resembles a fast, narrow Pump Survivor/post-migration compression-breakout subregime more than Pump Current late-curve acceleration."
+  },
+  "comparison_to_pons": {
+    "pons_primary": "reset-recovery",
+    "pons_after_1pct_stress_asset_mean_pct": {
+      "development": 1.4,
+      "holdout": 1.95,
+      "current": 1.93
+    },
+    "pump_after_1pct_stress_asset_mean_pct": {
+      "development": 0.36,
+      "holdout": 0.15,
+      "current": 1.43
+    },
+    "conclusion": "Pump opportunity exists but has a materially thinner margin and higher execution-cost sensitivity than the retained Pons reset-recovery strategy."
+  },
+  "research_decision": {
+    "primary_pump_opportunity": "compression-breakout",
+    "disposition": "FREEZE_FOR_PROSPECTIVE_SHADOW_VALIDATION_ONLY",
+    "reset_recovery": "deprioritize for Pump",
+    "generic_staged_scaling": "deprioritize for Pump",
+    "allocation_authority": false,
+    "active_strategy_change": false,
+    "stage_e_change": false
+  },
+  "limitations": [
+    "Public listed Pump.fun assets are closer to post-migration/Survivor markets than to the Pump Current bonding-curve universe.",
+    "Approx. 85-minute sampled price data cannot prove intrabar stop/target ordering.",
+    "No exact PumpSwap quote, slippage, fee, depth, buyer breadth, concentration, creator/distribution or wallet-quality evidence.",
+    "The established edge becomes small after a 1% stress haircut; exact PAPER execution validation is mandatory.",
+    "This result supports a shadow subregime, not profitability certification."
+  ]
+}
