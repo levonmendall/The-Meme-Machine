@@ -1,0 +1,7 @@
+{
+  "capacity_consumed": 0,
+  "capacity_ceiling": 2,
+  "historical_consumed": 6,
+  "historical_ceiling": 6,
+  "no_retry": true
+}

@@ -1,0 +1,8 @@
+{
+  "predeclaration_commit": "729d0151568cec6dbcb93b5ff177d996ae9e3584",
+  "predeclaration_json_sha256": "f205a7892db04bff87c4cb30776e18d1491445032c6fcb7c3176ebedb28bc9d3",
+  "independent_remote_readback": true,
+  "readback_transport": "Connected GitHub fetch_file, independent of gh Git Data publication",
+  "exact_remote_bytes_match": true,
+  "capacity_budget_consumed_before_execution": 0
+}
