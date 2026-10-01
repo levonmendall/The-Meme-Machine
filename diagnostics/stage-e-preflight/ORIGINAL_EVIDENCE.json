@@ -1,0 +1,66 @@
+{
+  "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "validation_sha": "7234dcc545b7372c2f177bbe3ef938db5f2454e6",
+  "validation_run": 36756490388,
+  "inspection_sha": "edd373f5bc479d08ced1d7987d14ff15ec3d6e32",
+  "inspection_run": 36757513975,
+  "unit": {
+    "binding": {
+      "id": 11116354967,
+      "run_id": 36756490388,
+      "head_sha": "7234dcc545b7372c2f177bbe3ef938db5f2454e6",
+      "zip_sha256": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457"
+    },
+    "manifest_verified": true,
+    "tests_run": 1062,
+    "failures": [
+      "ERROR: test_dense_commits_controls_and_retention_all_progress_with_original_bounds (tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds)",
+      "ERROR: test_sustained_source_clock_candidate_progress_and_durable_drain (tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain)",
+      "FAIL: test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect (tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect)"
+    ],
+    "footer": [
+      "Ran 1062 tests in 208.514s",
+      "FAILED (failures=1, errors=2, skipped=46)"
+    ],
+    "unittest_sha256": "afd19c3842af1c00ff5e35f35917d6511e1ceeb67257235469d88e324a4181a0",
+    "passes": 1013
+  },
+  "resource": {
+    "admitted_events_per_frame": 100,
+    "db_bytes": 1261568,
+    "decisions": 100,
+    "elapsed_seconds": 17.039,
+    "frames": 2000,
+    "gaps": 20,
+    "journal_rows": 4002,
+    "label": "synthetic bounded intake/rejection workload",
+    "limitation": "temporary filesystem; not continuous-market or physical disk durability proof",
+    "peak_rss_kib": 26376,
+    "real_provider_calls": 0,
+    "seen": 1000,
+    "submitted_events": 240000,
+    "wal_bytes": 708672
+  },
+  "environment": {
+    "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "runner_os": "Linux",
+    "python": "3.12.14",
+    "sqlite": "3.45.1",
+    "websockets": "17.1",
+    "cpu_count": 4,
+    "affinity_count": 4,
+    "memory": "MemTotal:       16373444 kB\nMemFree:        12633508 kB\nMemAvailable:   14956440 kB\nBuffers:           89528 kB\nCached:          2488512 kB\nSwapCached:            0 kB\nActive:           750452 kB\nInactive:        2104588 kB\nActive(anon):     330592 kB\nInactive(anon):        0 kB\nActive(file):     419860 kB\nInactive(file):  2104588 kB\nUnevictable:       46760 kB\nMlocked:           43688 kB\nSwapTotal:       3145724 kB\nSwapFree:        3145724 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:            937368 kB\nWriteback:             0 kB\nAnonPages:        317544 kB\nMapped:           320148 kB\nShmem:             44628 kB\nKReclaimable:     120024 kB\nSlab:             199012 kB\nSReclaimable:     120024 kB\nSUnreclaim:        78988 kB\nKernelStack:        4196 kB\nPageTables:         6320 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    11332444 kB\nCommitted_AS:    1990000 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:       39620 kB\nVmallocChunk:          0 kB\nPercpu:             2192 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:     81920 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nCmaTotal:              0 kB\nCmaFree:               0 kB\nUnaccepted:            0 kB\nBalloon:               0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      126080 kB\nDirectMap2M:     4063232 kB\nDirectMap1G:    14680064 kB\n",
+    "cpu_quota": null,
+    "expected": {
+      "python": "3.12.14",
+      "websockets": "17.1",
+      "sqlite": "3.45.1"
+    },
+    "differences": {},
+    "run_id": "36756490388",
+    "run_attempt": "1"
+  },
+  "limitation": "Full unchanged-base discovery is not green: 1 failure, 2 errors, 46 skips. The fresh diagnostic does not modify production or certification tests. Older pressure fixtures are not evidence for fresh canonical event-time behavior.",
+  "material_variants_consumed_before_baseline": 0,
+  "base_tree": "68736cf664169dee665762019800bf87ca0f1f67"
+}
