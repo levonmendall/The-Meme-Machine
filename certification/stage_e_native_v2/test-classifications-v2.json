@@ -46,6 +46,7 @@
     "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_interruption_on_read_one_rejected": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_interruption_on_read_three_rejected": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_next_admission_unusable_rejected": "DETERMINISTIC_BOUNDED",
+    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_next_turn_receipt_progress_requires_new_committed_records": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_no_real_interruption_rejected": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_pending_clear_without_legitimate_accounting_rejected": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_receipt_continuation_lost_rejected": "DETERMINISTIC_BOUNDED",

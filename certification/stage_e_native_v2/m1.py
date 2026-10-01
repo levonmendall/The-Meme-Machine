@@ -132,15 +132,21 @@ def witness_gates(payload):
     plan = {r['identity']:r['hash'] for r in payload['input_plan']}
     committed = {r['identity']:r['hash'] for r in before['committed_records']}
     remaining = before['receipt_remaining_identities']
+    continued = {r['identity']:r['hash'] for r in after['committed_records']}
+    remaining_after = after['receipt_remaining_identities']
+    continuation_count = len(continued)-len(committed)
     durable = (len(plan) == 1000 and len(payload['input_plan']) == 1000
         and len(committed) == len(before['committed_records']) == 512
         and all(plan.get(k) == v for k, v in committed.items())
         and before['hot'] == 1288 and before['progress'] == [512, 512]
         and before['receipt_hash'] == payload['archive_receipt']['hash'] == payload['durable_archive_hash'])
-    receipt = (before['receipt_remaining'] == after['receipt_remaining'] == 488
-        and len(remaining) == len(set(remaining)) == 488 and set(remaining) == set(plan)-set(committed)
-        and after['receipt_remaining_identities'] == remaining
-        and after['receipt_hash'] == before['receipt_hash'])
+    receipt = (before['receipt_remaining'] == 488 and len(remaining) == len(set(remaining)) == 488
+        and set(remaining) == set(plan)-set(committed)
+        and 0 <= continuation_count <= 488 and set(committed) <= set(continued)
+        and all(plan.get(k) == v for k, v in continued.items())
+        and after['receipt_remaining'] == len(remaining_after) == len(set(remaining_after)) == 488-continuation_count
+        and set(remaining_after) == set(plan)-set(continued)
+        and after['receipt_hash'] == (before['receipt_hash'] if remaining_after else None))
     completed = (interruption and one_retry and accounted and before['pending'] is False
         and before['pending_identity'] is None and before['arbiter_failed'] is False)
     next_turn = payload['next_turn']
@@ -149,6 +155,7 @@ def witness_gates(payload):
         and next_turn['event']['sequence'] is not None and pending is not None
         and next_turn['event']['sequence'] > pending['sequence']
         and next_turn['event']['generation'] == payload['generation']
+        and next_turn['event'].get('completion') == 'completed'
         and after['pending'] is False and after['pending_identity'] is None
         and after['arbiter_failed'] is False and after['runtime_failure'] is None)
     return dict(urgent_admitted=payload['urgent']['accepted'] is True,
@@ -162,8 +169,12 @@ def witness_gates(payload):
         integrity=before['integrity'] == after['integrity'] == 'ok',
         cooperative_error_nonfatal=before['runtime_failure'] is None,
         episode_not_rebased=before['episodes'] == after['episodes'],
-        durable_accounting=accounted, no_duplicate_durable_progress=after['progress'] == [512, 512]
-            and after['committed_records'] == before['committed_records'],
+        durable_accounting=accounted, no_duplicate_durable_progress=0 <= continuation_count <= 488
+            and len(continued) == len(after['committed_records'])
+            and after['progress'] == [512+continuation_count, 512+continuation_count]
+            and after['hot'] == 1288-continuation_count
+            and next_turn['event'].get('durable_records', {}).get(SCOPE, 0) == continuation_count
+            and (continuation_count == 0 or next_turn['event'].get('selected') == 'archive'),
         decision_completed=completed, next_admission_usable=next_usable,
         original_contract=payload['original_thresholds'] is True and payload['repair_applied'] is False
             and payload['material_executions'] == 0 and payload['seed_records'] == 1928)

@@ -38,11 +38,14 @@ def approved_sequence():
     call=dict(decision=decision,pending_before=decision,exact_pending_identity=True,read_ordinal=3,
         transaction_open=False,progress={SCOPE:512},record_progress={SCOPE:512},ledger=[512,512],
         returned=True,error=None,pending_after=None)
+    after=copy.deepcopy(before)
+    after.update(hot=800,progress=[1000,1000],committed_records=plan,receipt_remaining=0,
+        receipt_remaining_identities=[],receipt_hash=None)
     return seal(dict(witness_version=WITNESS_VERSION,generation=generation,ledger_reads=reads,
-        interruption_injections=[2],completion_accounting=[call],before=before,after=copy.deepcopy(before),
+        interruption_injections=[2],completion_accounting=[call],before=before,after=after,
         first_turn=dict(accepted=True,completed=True),urgent=dict(accepted=True,completed=True,error=None,result=1928),
         next_turn=dict(accepted=True,completed=True,error=None,result=dict(side='retirement'),
-            event=dict(sequence=2,generation=generation)),first_error='EvidenceUnavailable:evidence_background_yield',
+            event=dict(sequence=2,generation=generation,selected='archive',completion='completed',durable_records={SCOPE:488})),first_error='EvidenceUnavailable:evidence_background_yield',
         second_error=None,seed_records=1928,input_plan=plan,archive_receipt=receipt,
         durable_archive_hash=receipt['hash'],original_thresholds=True,repair_applied=False,material_executions=0))
 
@@ -117,6 +120,14 @@ class M1WitnessTests(unittest.TestCase):
         p=approved_sequence();p['after']['progress']=[1024,1024];self.reject(p)
         p=approved_sequence();p['completion_accounting'][0]['record_progress'][SCOPE]=1024;self.reject(p)
 
+    def test_next_turn_receipt_progress_requires_new_committed_records(self):
+        p=approved_sequence()
+        self.assertTrue(validate_witness(p))
+        self.assertEqual(p['before']['progress'],[512,512])
+        self.assertEqual(p['after']['progress'],[1000,1000])
+        self.assertEqual(p['after']['receipt_remaining'],0)
+        p['next_turn']['event']['durable_records'][SCOPE]=512;self.reject(p)
+
     def test_urgent_request_never_completes_rejected(self):
         p=approved_sequence();p['urgent']['completed']=False;self.reject(p)
 
@@ -148,6 +159,7 @@ class M1WitnessTests(unittest.TestCase):
         p=approved_sequence();p['ledger_reads'].pop();p['completion_accounting']=[]
         decision=p['ledger_reads'][1]['pending']
         p['before'].update(pending=True,pending_identity=decision)
+        p['after']=copy.deepcopy(p['before'])
         p['after'].update(pending=True,pending_identity=decision,arbiter_failed=True,
             runtime_failure='EvidenceUnavailable:maintenance_decision_in_flight')
         p['second_error']='EvidenceUnavailable:maintenance_decision_in_flight'
