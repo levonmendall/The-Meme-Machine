@@ -1,0 +1,119 @@
+{
+  "schema": "meme-machine-right-tail-market-evidence-v1",
+  "as_of": "2026-10-01",
+  "paper_only": true,
+  "authority": "external market research only; no Meme Machine trade outcomes used for calibration",
+  "purpose": "Calibrate high-multiple runner survival, Current-to-Survivor exposure continuity, and bounded staged scaling.",
+  "evidence": [
+    {
+      "family": "pump",
+      "source": "Belphor CTO time-to-peak",
+      "url": "https://www.belphor.com/data/cto-hold-time",
+      "sample": 12,
+      "window": "60 days; 36h post-alert price window; only takeovers that rose at least 10%",
+      "observations": {
+        "median_time_to_peak": "7h10m",
+        "q1_time_to_peak": "52m",
+        "share_peak_after_24h": 0.33,
+        "late_24_36h_median_peak_x": 8.82,
+        "mcap_15k_50k_median_time_to_peak": "17h12m",
+        "mcap_15k_50k_median_peak_x": 6.64
+      },
+      "limitation": "Small, CTO-specific selected sample; useful for timing shape, not a population-wide Pump return estimate."
+    },
+    {
+      "family": "pump",
+      "source": "Belphor CTO entry timing",
+      "url": "https://www.belphor.com/data/cto-entry-timing",
+      "sample": 19,
+      "window": "45 days; minute snapshots for 36h after alert",
+      "observations": {
+        "first_hour_held_within_15pct_share": 0.63,
+        "held_within_15pct_reached_50pct": 0.58,
+        "held_within_15pct_reached_100pct": 0.33,
+        "dipped_more_than_15pct_share": 0.37,
+        "dipped_more_than_15pct_reached_50pct": 0.43,
+        "dipped_more_than_15pct_reached_100pct": 0.43
+      },
+      "limitation": "Small sample; the source explicitly states the record does not statistically separate delayed/confirmed entry from alert entry."
+    },
+    {
+      "family": "pump",
+      "source": "Belphor migration outcomes",
+      "url": "https://www.belphor.com/data/migration-outcomes",
+      "sample": 8050,
+      "window": "2026-08-25 through 2026-10-01; later price reading at least six hours after migration",
+      "observations": {
+        "down_80pct_or_more": 0.92,
+        "reached_plus_50pct": 0.15,
+        "reached_plus_200pct": 0.041,
+        "above_migration_price_at_last_read": 0.058
+      },
+      "implication": "Do not convert the bridge into blind post-migration holding or lower Survivor age for every migration. Continuity is reserved for already-proven Current winners with fresh structural safety."
+    },
+    {
+      "family": "pons",
+      "source": "RobinSwap top movers 2026-09-13",
+      "url": "https://www.robinswap.trade/news/top-10-robinhood-chain-tokens-2026-09-13/",
+      "observations": {
+        "pons_top_movers": [
+          {
+            "token": "BANGERCAT",
+            "gain_24h_pct": 3448,
+            "pool_age_h": 24
+          },
+          {
+            "token": "NOESIS",
+            "gain_24h_pct": 2656,
+            "pool_age_h": 21
+          },
+          {
+            "token": "Milk Frog",
+            "gain_24h_pct": 2423,
+            "pool_age_h": 7
+          },
+          {
+            "token": "SWARM",
+            "gain_24h_pct": 1147,
+            "pool_age_h": 23
+          }
+        ]
+      },
+      "implication": "Pons right-tail moves can be materially developed by the existing six-hour Survivor threshold and can continue into 20h+ ages."
+    },
+    {
+      "family": "pons",
+      "source": "DEX Screener Milk Frog snapshot",
+      "url": "https://dexscreener.com/robinhood/0xbc18d0b1d039107fc74ea97c333da6323b87723d",
+      "captured_snapshot": {
+        "pool_age": "7h54m",
+        "price_change_1h_pct": -42.46,
+        "price_change_6h_pct": -58.04,
+        "price_change_24h_pct": 1126,
+        "liquidity_usd": 56000,
+        "volume_24h_usd": 4400000
+      },
+      "limitation": "Rolling-window returns do not reconstruct exact peak-to-trough sequencing. They do directly demonstrate extreme intermediate volatility while the asset was still a large 24h winner."
+    },
+    {
+      "family": "robinhood_context",
+      "source": "BigPump Artificial Doge snapshot",
+      "url": "https://bigpump.ai/blog/robinhood-chain-hot-tokens-2026-09-18",
+      "observations": {
+        "token": "AD",
+        "age_h": 7,
+        "change_1h_pct": -8.88,
+        "change_6h_pct": 242.04,
+        "change_24h_pct": 20456.84
+      },
+      "limitation": "Robinhood-chain context, not used as proof that every extreme move belongs to the Pons strategy universe."
+    }
+  ],
+  "calibration_conclusions": [
+    "Fixed-clock exits are incompatible with the observed Pump right tail because a material share of measured winners peak many hours after Current horizons.",
+    "Blind early post-migration extension is rejected: the broad migration population has very high failure incidence.",
+    "A same-lifecycle bridge should be conditional on an already-proven Current winner and fresh structural safety, avoiding sell/rebuy and duplicate exposure.",
+    "High-multiple price trails must scale with accrued gain; fixed return-point giveback becomes mechanically too tight at large multiples.",
+    "Scaling is an optional amplifier after winner proof. Base-runner retention must not depend on a scale event."
+  ]
+}
