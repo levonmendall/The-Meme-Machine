@@ -27,11 +27,17 @@
   "strategy_class": "existing_position_lifecycle_extension",
   "economic_parameters": {
     "initial_entry_target": "inherits directional-realized-equity-sizing-v1 (5% target before downsizing)",
-    "scale_trigger_bps": null,
-    "scale_target_bps": null,
-    "maximum_total_position_bps": null,
-    "parameter_status": "RESEARCH_AND_CALIBRATION_REQUIRED_BEFORE_PROMOTION",
-    "note": "No add percentage, trigger, or total-position ceiling is frozen by this staging layer."
+    "scale_trigger_bps": 10000,
+    "scale_target_bps": 250,
+    "maximum_total_position_bps": 750,
+    "maximum_scale_events_per_lifecycle": 1,
+    "confirmation_seconds_after_first_trigger_crossing": 900,
+    "maximum_drawdown_from_high_bps_during_confirmation": 1500,
+    "add_cap_fraction_of_original_committed_basis_bps": 5000,
+    "parameter_status": "CALIBRATED_BY_RIGHT_TAIL_CAPTURE_V1_PREP",
+    "calibration_contract": "certification/strategy-prep/right-tail-capture-v1.json",
+    "calibration_evidence": "certification/strategy-prep/right-tail-market-evidence-20261001.json",
+    "note": "One bounded add after +100% high-water, first realization, persistence, fresh requalification and all existing execution/safety gates. No second add is authorized."
   },
   "hard_requirements": {
     "original_position_must_be_open_and_natively_reconciled": true,
@@ -97,8 +103,8 @@
   "promotion_requirements": [
     "Do not implement in the active Stage E/F/G lineage.",
     "After final machinery certification, compose against the exact final machinery SHA.",
-    "Collect shadow scale-eligibility/outcome evidence before freezing trigger, add size, and total-position ceiling.",
-    "Freeze one deterministic lot-reduction rule for partial realization before promotion.",
+    "Use right-tail-capture-v1 as the frozen initial economic calibration; collect prospective shadow/market evidence after composition and treat any later parameter change as a new policy/cohort.",
+    "First realization must precede scale; no new post-add partial is introduced in v1. Any future post-add partial requires a separately frozen deterministic pro-rata lot rule or certified successor.",
     "Run native ledger, shared sleeve, portfolio accounting, restart/replay, duplicate-event, exit-state, and execution-capacity tests.",
     "Regenerate affected policy/runtime identities.",
     "Run exact-SHA non-market certification before any PAPER market smoke.",
