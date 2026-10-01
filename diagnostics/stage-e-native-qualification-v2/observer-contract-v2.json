@@ -1,0 +1,28 @@
+{
+  "acceptance": "ratio < 0.01",
+  "baseline": "same exact source/workload with qualification observation disabled",
+  "estimator": "sum(observed-baseline)/sum(baseline)",
+  "measured": false,
+  "metric": "paired elapsed monotonic nanoseconds for complete equal-workload trials",
+  "repetition_policy": {
+    "no_retry": true,
+    "order": [
+      "baseline-observed",
+      "observed-baseline",
+      "baseline-observed"
+    ],
+    "pairs": 3,
+    "retain_invalid_pairs": true
+  },
+  "validity_conditions": [
+    "fresh exact S/T/plan/assembly/environment",
+    "identical inputs/delays/frames/worker limits",
+    "all applicable observer costs included",
+    "no overlapping cost double count",
+    "no cached historical measurement",
+    "positive baseline",
+    "every pair valid"
+  ],
+  "version": "native-observer-paired-measurement-v2",
+  "workload_identity": "native-full-cohort-pressure-v2"
+}

@@ -1,0 +1,1 @@
+{"classification":"DETERMINISTIC_BOUNDED","id":"held-reader","limit":"1002 records maximum for restart; <=3x8 transactions for transition; fixed finite schedule"}

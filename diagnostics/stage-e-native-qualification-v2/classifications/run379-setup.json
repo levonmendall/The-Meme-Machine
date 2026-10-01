@@ -1,0 +1,1 @@
+{"classification":"DETERMINISTIC_BOUNDED","id":"run379-setup","limit":"100 historical bounded frames with only 2 transactions each, then 3x2 live; no dense/full-shape execution"}

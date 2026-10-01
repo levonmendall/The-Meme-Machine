@@ -1,0 +1,1 @@
+{"classification":"DETERMINISTIC_BOUNDED","id":"native-transitions","limit":"1002 records maximum for restart; <=3x8 transactions for transition; fixed finite schedule"}

@@ -1,0 +1,1104 @@
+{
+  "gates": [
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "exact_source_offline-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "exact source offline",
+      "old_gate": "exact_source_offline",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "exact source offline",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "native_crash_matrix-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "native crash matrix",
+      "old_gate": "native_crash_matrix",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "native crash matrix",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "restart_safety-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "restart safety",
+      "old_gate": "restart_safety",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "restart safety",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "integrated_current_policy-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "integrated current policy",
+      "old_gate": "integrated_current_policy",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "integrated current policy",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "historical_exposure_resolution-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "historical exposure resolution",
+      "old_gate": "historical_exposure_resolution",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "historical exposure resolution",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "historical_registry_released-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "historical registry released",
+      "old_gate": "historical_registry_released",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "historical registry released",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "resource_bounds-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "resource bounds",
+      "old_gate": "resource_bounds",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "resource bounds",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "mature_solana_pressure-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "mature solana pressure",
+      "old_gate": "mature_solana_pressure",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "mature solana pressure",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "combined_mature_solana_pressure-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "combined mature solana pressure",
+      "old_gate": "combined_mature_solana_pressure",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "combined mature solana pressure",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "joined_eight_day_system-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "joined eight day system",
+      "old_gate": "joined_eight_day_system",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "joined eight day system",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "exact_integration_identity-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "exact integration identity",
+      "old_gate": "exact_integration_identity",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "exact integration identity",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "six_regime_integration-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "six regime integration",
+      "old_gate": "six_regime_integration",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "six regime integration",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "preserved_production_adapter_contracts-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "preserved production adapter contracts",
+      "old_gate": "preserved_production_adapter_contracts",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "preserved production adapter contracts",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "bounded_preserved_validation-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "bounded preserved validation",
+      "old_gate": "bounded_preserved_validation",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/final_acceptance.py",
+          "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+        }
+      ],
+      "old_purpose": "bounded preserved validation",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "cohort-complete-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "all combined-1/2/3 and recovery-1; all attempts retained",
+      "old_gate": "cohort-complete",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "all combined-1/2/3 and recovery-1; all attempts retained",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "source-shape-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "2223 frames x3 and 4445 recovery at .27s",
+      "old_gate": "source-shape",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "2223 frames x3 and 4445 recovery at .27s",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "pressure-profile-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "owner .165/frame; archive .36/thousand; commit .006; original seeds",
+      "old_gate": "pressure-profile",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "owner .165/frame; archive .36/thousand; commit .006; original seeds",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "burst-schedule-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "216/378 source seconds; frame 800/1400 pauses 8s",
+      "old_gate": "burst-schedule",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "216/378 source seconds; frame 800/1400 pauses 8s",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "recovery-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "120 source seconds; envelope1000; decline256; trend256",
+      "old_gate": "recovery",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "120 source seconds; envelope1000; decline256; trend256",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "fixed-old-cohort-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "frozen cutoff cohort clears during source advance",
+      "old_gate": "fixed-old-cohort",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "frozen cutoff cohort clears during source advance",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "debt-tails-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "30 advancing samples; >=3 each burst window; >=10 tail halves",
+      "old_gate": "debt-tails",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "30 advancing samples; >=3 each burst window; >=10 tail halves",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "frame-byte-bounds-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "dispatch peak16..64; bytes<=96MiB; commit2..8; bytes<=16MiB",
+      "old_gate": "frame-byte-bounds",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "dispatch peak16..64; bytes<=96MiB; commit2..8; bytes<=16MiB",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "candidate-progress-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "candidate checks>1; archive records verified>0",
+      "old_gate": "candidate-progress",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "candidate checks>1; archive records verified>0",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "urgent-source-fairness-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "10 urgent acks; zero urgent errors; source order; all 3 scopes progress",
+      "old_gate": "urgent-source-fairness",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "10 urgent acks; zero urgent errors; source order; all 3 scopes progress",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "Establish snapshot read before writer commit; native blocking and finish after release.",
+      "execution_disposition": "held-reader",
+      "new_gate": "checkpoint-completion-v2",
+      "new_input_identity": {
+        "case": "held-reader",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "Establish snapshot read before writer commit; native blocking and finish after release.",
+      "old_gate": "checkpoint-completion",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "real held-reader blocking; native completion after release",
+      "required": true
+    },
+    {
+      "classification": "RETAINED",
+      "equivalence_or_strength": "Exact immutable predecessor semantics retained; fresh same-SHA assembled evidence required.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "integrity-resources-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "zero corruption; db/wal/rss/filesystem bounds; hot<2GiB",
+      "old_gate": "integrity-resources",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "zero corruption; db/wal/rss/filesystem bounds; hot<2GiB",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "Count attempted access before network; reject any attempt.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "provider-isolation-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "Count attempted access before network; reject any attempt.",
+      "old_gate": "provider-isolation",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/cleanup_recovery.py",
+          "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "zero provider calls including attempted calls",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "hot eligibility and archived-pending debt for all scopes with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "joint-lifecycle-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "hot eligibility and archived-pending debt for all scopes with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "old_gate": "joint-lifecycle",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/lifecycle_capacity.py",
+          "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "hot eligibility and archived-pending debt for all scopes",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "actual committed native hot-to-archive service with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "execution_disposition": "native-transitions",
+      "new_gate": "native-archive-v2",
+      "new_input_identity": {
+        "case": "native-transitions",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "actual committed native hot-to-archive service with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "old_gate": "native-archive",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/lifecycle_capacity.py",
+          "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "actual committed native hot-to-archive service",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "committed native retirement and maintenance ledger; same transaction floor allowed with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "execution_disposition": "native-transitions",
+      "new_gate": "native-retirement-v2",
+      "new_input_identity": {
+        "case": "native-transitions",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "committed native retirement and maintenance ledger; same transaction floor allowed with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "old_gate": "native-retirement",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/lifecycle_capacity.py",
+          "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "committed native retirement and maintenance ledger; same transaction floor allowed",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "hot and retained strictly <240; source lag<45 with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "residence-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "hot and retained strictly <240; source lag<45 with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "old_gate": "residence",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/lifecycle_capacity.py",
+          "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "hot and retained strictly <240; source lag<45",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "fresh exact-candidate raw paired measurements, strict <.01 with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "execution_disposition": "future-canonical",
+      "new_gate": "observer-v2",
+      "new_input_identity": {
+        "case": "future-canonical",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "fresh exact-candidate raw paired measurements, strict <.01 with v2 commit/origin/clock binding; equality and stale evidence fail.",
+      "old_gate": "observer",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/lifecycle_capacity.py",
+          "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/stagee24_qualification_plan.json",
+          "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+        }
+      ],
+      "old_purpose": "fresh exact-candidate raw paired measurements, strict <.01",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "New immutable clock declaration, coherent preconstructed native economics, original full workload retained; genuinely stale events fail.",
+      "execution_disposition": "run373-full",
+      "new_gate": "run373-v2",
+      "new_input_identity": {
+        "case": "run373-full",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "New immutable clock declaration, coherent preconstructed native economics, original full workload retained; genuinely stale events fail.",
+      "old_gate": "run373",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "tests/test_run373_dispatch_throughput.py",
+          "sha256": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2"
+        }
+      ],
+      "old_purpose": "Original Run373 full workload, original resource, source and safety requirements.",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "New immutable clock declaration, coherent preconstructed native economics, original full workload retained; genuinely stale events fail.",
+      "execution_disposition": "run379-full",
+      "new_gate": "run379-v2",
+      "new_input_identity": {
+        "case": "run379-full",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "New immutable clock declaration, coherent preconstructed native economics, original full workload retained; genuinely stale events fail.",
+      "old_gate": "run379",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "tests/test_run379_production_pressure.py",
+          "sha256": "fe04430c7ae2f176e2568d0e136db1de7dee6edcd5f147ebf1e3ad1ecdebe2c5"
+        }
+      ],
+      "old_purpose": "Original Run379 full workload, original resource, source and safety requirements.",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "New immutable clock declaration, coherent preconstructed native economics, original full workload retained; genuinely stale events fail.",
+      "execution_disposition": "run380-full",
+      "new_gate": "run380-v2",
+      "new_input_identity": {
+        "case": "run380-full",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "New immutable clock declaration, coherent preconstructed native economics, original full workload retained; genuinely stale events fail.",
+      "old_gate": "run380",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "tests/test_run380_production_pressure.py",
+          "sha256": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"
+        }
+      ],
+      "old_purpose": "Original Run380 full workload, original resource, source and safety requirements.",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "all 4 exact composed lanes; original overlays/policies; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "execution_disposition": "prepared-assembly",
+      "new_gate": "prepared-source-v2",
+      "new_input_identity": {
+        "case": "prepared-assembly",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "all 4 exact composed lanes; original overlays/policies; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "old_gate": "prepared-source",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/build_consistency.py",
+          "sha256": "233d0a40b06c49d1d12ca4a6d1e39334c98872f4728e248c07e19645cbb02f90"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": ".github/workflows/stagee-fixed-cohort.yml",
+          "sha256": "496747352957e9ae5e87a46e665c26892a0298278fdb5a8d27d54af8e04a3e4d"
+        }
+      ],
+      "old_purpose": "all 4 exact composed lanes; original overlays/policies",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "all actual modules and tests from prepared assemblies; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "execution_disposition": "prepared-assembly",
+      "new_gate": "prepared-import-collection-v2",
+      "new_input_identity": {
+        "case": "prepared-assembly",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "all actual modules and tests from prepared assemblies; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "old_gate": "prepared-import-collection",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/build_consistency.py",
+          "sha256": "233d0a40b06c49d1d12ca4a6d1e39334c98872f4728e248c07e19645cbb02f90"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": ".github/workflows/stagee-fixed-cohort.yml",
+          "sha256": "496747352957e9ae5e87a46e665c26892a0298278fdb5a8d27d54af8e04a3e4d"
+        }
+      ],
+      "old_purpose": "all actual modules and tests from prepared assemblies",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "original policies and protocol hashes unchanged; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "execution_disposition": "prepared-assembly",
+      "new_gate": "protocol-freeze-v2",
+      "new_input_identity": {
+        "case": "prepared-assembly",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "original policies and protocol hashes unchanged; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "old_gate": "protocol-freeze",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/build_consistency.py",
+          "sha256": "233d0a40b06c49d1d12ca4a6d1e39334c98872f4728e248c07e19645cbb02f90"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": ".github/workflows/stagee-fixed-cohort.yml",
+          "sha256": "496747352957e9ae5e87a46e665c26892a0298278fdb5a8d27d54af8e04a3e4d"
+        }
+      ],
+      "old_purpose": "original policies and protocol hashes unchanged",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "S2!=S rejected even equal trees; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "execution_disposition": "preflight",
+      "new_gate": "same-sha-v2",
+      "new_input_identity": {
+        "case": "preflight",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "S2!=S rejected even equal trees; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "old_gate": "same-sha",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/build_consistency.py",
+          "sha256": "233d0a40b06c49d1d12ca4a6d1e39334c98872f4728e248c07e19645cbb02f90"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": ".github/workflows/stagee-fixed-cohort.yml",
+          "sha256": "496747352957e9ae5e87a46e665c26892a0298278fdb5a8d27d54af8e04a3e4d"
+        }
+      ],
+      "old_purpose": "S2!=S rejected even equal trees",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "exact raw artifact IDs/digests/run/attempt; reread after fetch; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "execution_disposition": "prepared-assembly",
+      "new_gate": "artifact-provenance-v2",
+      "new_input_identity": {
+        "case": "prepared-assembly",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "exact raw artifact IDs/digests/run/attempt; reread after fetch; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "old_gate": "artifact-provenance",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/build_consistency.py",
+          "sha256": "233d0a40b06c49d1d12ca4a6d1e39334c98872f4728e248c07e19645cbb02f90"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": ".github/workflows/stagee-fixed-cohort.yml",
+          "sha256": "496747352957e9ae5e87a46e665c26892a0298278fdb5a8d27d54af8e04a3e4d"
+        }
+      ],
+      "old_purpose": "exact raw artifact IDs/digests/run/attempt; reread after fetch",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "workflow and reusable resolve to exact candidate S; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "execution_disposition": "preflight",
+      "new_gate": "workflow-identity-v2",
+      "new_input_identity": {
+        "case": "preflight",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "workflow and reusable resolve to exact candidate S; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "old_gate": "workflow-identity",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/build_consistency.py",
+          "sha256": "233d0a40b06c49d1d12ca4a6d1e39334c98872f4728e248c07e19645cbb02f90"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": ".github/workflows/stagee-fixed-cohort.yml",
+          "sha256": "496747352957e9ae5e87a46e665c26892a0298278fdb5a8d27d54af8e04a3e4d"
+        }
+      ],
+      "old_purpose": "workflow and reusable resolve to exact candidate S",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "same assembly preflight and native trials; child/local dynamic origins checked; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "execution_disposition": "preflight",
+      "new_gate": "assembly-origin-v2",
+      "new_input_identity": {
+        "case": "preflight",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "same assembly preflight and native trials; child/local dynamic origins checked; complete immutable assembly manifest, in-process origins and before/after integrity required.",
+      "old_gate": "assembly-origin",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "certification/build_consistency.py",
+          "sha256": "233d0a40b06c49d1d12ca4a6d1e39334c98872f4728e248c07e19645cbb02f90"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": ".github/workflows/stagee-fixed-cohort.yml",
+          "sha256": "496747352957e9ae5e87a46e665c26892a0298278fdb5a8d27d54af8e04a3e4d"
+        }
+      ],
+      "old_purpose": "same assembly preflight and native trials; child/local dynamic origins checked",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "Native generation rejection plus raw cross-generation/artifact checks.",
+      "execution_disposition": "generation-restart",
+      "new_gate": "generation-fencing-v2",
+      "new_input_identity": {
+        "case": "generation-restart",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "Native generation rejection plus raw cross-generation/artifact checks.",
+      "old_gate": "generation-fencing",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "meme_machine/solana_maintenance_runtime.py",
+          "sha256": "9449108f214331d4d04bf09d49d09cec79e0de186f98fb4b4242f07752943322"
+        }
+      ],
+      "old_purpose": "stale worker/receipt/decisions rejected",
+      "required": true
+    },
+    {
+      "classification": "REPLACED_BY_STRONGER",
+      "equivalence_or_strength": "Finite native receipt/retirement continuation and M1 completion regression must pass on eventual exact candidate.",
+      "execution_disposition": "m1-completion",
+      "new_gate": "restart-accounting-v2",
+      "new_input_identity": {
+        "case": "m1-completion",
+        "contract": "stage-e-native-transition-contract-v2",
+        "plan": "stage-e-native-transition-plan-v2"
+      },
+      "new_purpose": "Finite native receipt/retirement continuation and M1 completion regression must pass on eventual exact candidate.",
+      "old_gate": "restart-accounting",
+      "old_input_identity": [
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "meme_machine/solana_maintenance_runtime.py",
+          "sha256": "9449108f214331d4d04bf09d49d09cec79e0de186f98fb4b4242f07752943322"
+        },
+        {
+          "commit": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+          "path": "meme_machine/solana_maintenance_state.py",
+          "sha256": "c3f0639eefd0a688846a822cbd7f700720aa27936c8e4c6becdd9be3d894068b"
+        }
+      ],
+      "old_purpose": "committed service, ledger and latched episodes survive restart",
+      "required": true
+    }
+  ],
+  "predecessor": "reachable e26 and production source; inaccessible native v1 not reconstructed",
+  "version": "stage-e-predecessor-successor-gate-map-v2"
+}

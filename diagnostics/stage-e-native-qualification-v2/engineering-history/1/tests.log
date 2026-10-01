@@ -1,0 +1,102 @@
+test_wrong_assembly_missing_and_drifted_content_rejected (certification.stage_e_native_v2.tests.test_binding.AssemblyIntegrityTests.test_wrong_assembly_missing_and_drifted_content_rejected) ... ok
+test_clean_exact_sha_accepted (certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_clean_exact_sha_accepted) ... ok
+test_dirty_tracked_and_staged_bytes_rejected (certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_dirty_tracked_and_staged_bytes_rejected) ... ok
+test_equal_tree_different_commit_is_rejected (certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_equal_tree_different_commit_is_rejected) ... ok
+test_foreign_local_package_and_pth_rejected (certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_foreign_local_package_and_pth_rejected) ... ok
+test_foreign_sha_and_foreign_tree_rejected (certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_foreign_sha_and_foreign_tree_rejected) ... ok
+test_ignored_module_shadow_rejected (certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_ignored_module_shadow_rejected) ... ok
+test_untracked_module_shadow_rejected (certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_untracked_module_shadow_rejected) ... ok
+test_attempted_provider_call_counts_as_failure (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_attempted_provider_call_counts_as_failure) ... ok
+test_failed_attempt_is_preserved_and_cannot_be_a_pass (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_failed_attempt_is_preserved_and_cannot_be_a_pass) ... ok
+test_missing_duplicate_wrong_attempt_and_replaced_artifact_rejected (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_missing_duplicate_wrong_attempt_and_replaced_artifact_rejected) ... ok
+test_missing_identity_and_contradictory_success_rejected (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_missing_identity_and_contradictory_success_rejected) ... ok
+test_raw_identity_mutations_rejected (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_raw_identity_mutations_rejected) ... ok
+test_remote_workflow_api_identity_and_replacement_checks (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_remote_workflow_api_identity_and_replacement_checks) ... ok
+test_same_sha_raw_different_assembly_and_runtime_origin_rejected (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_same_sha_raw_different_assembly_and_runtime_origin_rejected) ... ok
+test_schema_rejects_duplicate_json_keys_and_nonfinite_numbers (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_schema_rejects_duplicate_json_keys_and_nonfinite_numbers) ... ok
+test_wrong_workflow_reusable_sha_event_and_attempt_rejected (certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_wrong_workflow_reusable_sha_event_and_attempt_rejected) ... ok
+test_clock_setup_is_nonaging_and_schedule_is_explicit (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_clock_setup_is_nonaging_and_schedule_is_explicit) ... ok
+test_coherent_wall_monotonic_and_unchanged_three_second_contract (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_coherent_wall_monotonic_and_unchanged_three_second_contract) ... ok
+test_fresh_source_cannot_disguise_stale_economic_events (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_fresh_source_cannot_disguise_stale_economic_events) ... ok
+test_full_shapes_and_original_limits_declared_without_execution (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_full_shapes_and_original_limits_declared_without_execution) ... ok
+test_greater_than_three_second_incoherence_rejected_natively (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_greater_than_three_second_incoherence_rejected_natively) ... ok
+test_non_clock_economic_fields_unchanged_and_native_events_coherent (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_non_clock_economic_fields_unchanged_and_native_events_coherent) ... ok
+test_recovery_rebase_replacement_episode_and_origin_refresh_rejected (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_recovery_rebase_replacement_episode_and_origin_refresh_rejected) ... ok
+test_run373_and_run380_bounded_decoding_proof (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_run373_and_run380_bounded_decoding_proof) ... ok
+test_source_advance_with_frozen_economic_aging_rejected (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_source_advance_with_frozen_economic_aging_rejected) ... ok
+test_stale_timestamp_and_equal_240_rejected (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_stale_timestamp_and_equal_240_rejected) ... ok
+test_timestamp_refresh_that_extends_eligibility_rejected (certification.stage_e_native_v2.tests.test_clocks.ClockTests.test_timestamp_refresh_that_extends_eligibility_rejected) ... ok
+test_all_46_historical_skips_are_explicit_and_never_count_as_passes (certification.stage_e_native_v2.tests.test_contract.ContractTests.test_all_46_historical_skips_are_explicit_and_never_count_as_passes) ... ok
+test_every_predecessor_requirement_has_a_named_required_successor (certification.stage_e_native_v2.tests.test_contract.ContractTests.test_every_predecessor_requirement_has_a_named_required_successor) ... ok
+test_firewall_denies_full_shapes_observer_and_unknown_cases (certification.stage_e_native_v2.tests.test_contract.ContractTests.test_firewall_denies_full_shapes_observer_and_unknown_cases) ... ok
+test_historical_plans_and_pinned_inputs_stay_exact (certification.stage_e_native_v2.tests.test_contract.ContractTests.test_historical_plans_and_pinned_inputs_stay_exact) ... ok
+test_plan_and_all_input_hashes_validate (certification.stage_e_native_v2.tests.test_contract.ContractTests.test_plan_and_all_input_hashes_validate) ... ok
+test_unknown_test_classification_blocks_before_any_execution (certification.stage_e_native_v2.tests.test_contract.ContractTests.test_unknown_test_classification_blocks_before_any_execution) ... ok
+test_missing_denominator_bad_estimator_and_invalid_pair_rejected (certification.stage_e_native_v2.tests.test_contract.ObserverTests.test_missing_denominator_bad_estimator_and_invalid_pair_rejected) ... ok
+test_nan_infinity_missing_components_and_malformed_raw_pairs_rejected (certification.stage_e_native_v2.tests.test_contract.ObserverTests.test_nan_infinity_missing_components_and_malformed_raw_pairs_rejected) ... ok
+test_strict_less_than_one_percent_only (certification.stage_e_native_v2.tests.test_contract.ObserverTests.test_strict_less_than_one_percent_only) ... ok
+test_wrong_candidate_assembly_plan_or_workload_rejected (certification.stage_e_native_v2.tests.test_contract.ObserverTests.test_wrong_candidate_assembly_plan_or_workload_rejected) ... ok
+test_actual_committed_archive_retirement_and_native_lane_selection (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_actual_committed_archive_retirement_and_native_lane_selection) ... FAIL
+test_attempts_rollback_and_cross_generation_never_qualify (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_attempts_rollback_and_cross_generation_never_qualify) ... FAIL
+test_held_snapshot_is_read_before_writer_commit_and_checkpoint_finishes_after_release (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_held_snapshot_is_read_before_writer_commit_and_checkpoint_finishes_after_release) ... ERROR
+test_native_rollbacks_do_not_earn_archive_or_progress_ledger_credit (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_native_rollbacks_do_not_earn_archive_or_progress_ledger_credit) ... ok
+test_restart_recovers_native_ledger_receipt_retirement_and_original_episode (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_restart_recovers_native_ledger_receipt_retirement_and_original_episode) ... ok
+test_stale_decision_worker_and_receipt_rejected_by_production (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_stale_decision_worker_and_receipt_rejected_by_production) ... ok
+test_evidence_json_schema_is_valid_under_available_tooling (certification.stage_e_native_v2.tests.test_workflow.WorkflowTests.test_evidence_json_schema_is_valid_under_available_tooling) ... ok
+test_missing_candidate_forwarding_wrong_matrix_and_moving_action_rejected (certification.stage_e_native_v2.tests.test_workflow.WorkflowTests.test_missing_candidate_forwarding_wrong_matrix_and_moving_action_rejected) ... ok
+test_yaml_static_inputs_matrix_aggregation_and_immutable_actions (certification.stage_e_native_v2.tests.test_workflow.WorkflowTests.test_yaml_static_inputs_matrix_aggregation_and_immutable_actions) ... ok
+
+======================================================================
+ERROR: test_held_snapshot_is_read_before_writer_commit_and_checkpoint_finishes_after_release (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_held_snapshot_is_read_before_writer_commit_and_checkpoint_finishes_after_release)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/The-Meme-Machine/certification/stage_e_native_v2/tests/test_native.py", line 22, in test_held_snapshot_is_read_before_writer_commit_and_checkpoint_finishes_after_release
+    proof=transitions(td,held=True)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/The-Meme-Machine/certification/stage_e_native_v2/native.py", line 161, in transitions
+    established_hash = sha256(canonical([list(r) for r in established]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/The-Meme-Machine/certification/stage_e_native_v2/contract.py", line 17, in canonical
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/json/encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/json/encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type bytes is not JSON serializable
+
+======================================================================
+FAIL: test_actual_committed_archive_retirement_and_native_lane_selection (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_actual_committed_archive_retirement_and_native_lane_selection)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/The-Meme-Machine/certification/stage_e_native_v2/tests/test_native.py", line 15, in test_actual_committed_archive_retirement_and_native_lane_selection
+    proof=transitions(td)
+          ^^^^^^^^^^^^^^^
+  File "/workspace/The-Meme-Machine/certification/stage_e_native_v2/native.py", line 179, in transitions
+    assert retired_ids == set(ids) and outcome.retired_records >= len(ids) and outcome.committed_slices > 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+======================================================================
+FAIL: test_attempts_rollback_and_cross_generation_never_qualify (certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_attempts_rollback_and_cross_generation_never_qualify)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/The-Meme-Machine/certification/stage_e_native_v2/tests/test_native.py", line 27, in test_attempts_rollback_and_cross_generation_never_qualify
+    proof=transitions(td)
+          ^^^^^^^^^^^^^^^
+  File "/workspace/The-Meme-Machine/certification/stage_e_native_v2/native.py", line 179, in transitions
+    assert retired_ids == set(ids) and outcome.retired_records >= len(ids) and outcome.committed_slices > 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+----------------------------------------------------------------------
+Ran 47 tests in 0.703s
+
+FAILED (failures=2, errors=1)
