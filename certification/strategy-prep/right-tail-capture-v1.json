@@ -1,0 +1,263 @@
+{
+  "schema": "meme-machine-right-tail-capture-v1",
+  "status": "PREPARED_ONLY_NOT_ACTIVE",
+  "paper_only": true,
+  "live_money_authority": false,
+  "prepared_at": "2026-10-01",
+  "preparation_parent": {
+    "branch": "strategy/reset-recovery-research-prep-20261001"
+  },
+  "objective": "Preserve convexity in already-qualified Pump/Pons winners by replacing Pump Current's fixed return-point trail, carrying proven Current runners across the pre-Survivor time gap on the same lifecycle, and freezing one bounded add-to-winner stage from external market evidence.",
+  "stage_e_isolation": {
+    "stage_e_candidate_modified": false,
+    "stage_e_branch_modified": false,
+    "stage_e_workflow_modified": false,
+    "workflow_dispatch_authorized": false,
+    "market_run_authorized": false,
+    "activation_allowed": false,
+    "requires_explicit_post_stage_e_promotion": true,
+    "requires_exact_sha_non_market_recertification_after_composition": true
+  },
+  "evidence_file": "certification/strategy-prep/right-tail-market-evidence-20261001.json",
+  "common_tail_mode": {
+    "reference_basis": "original entry reference price / original lifecycle high-water; scale-in basis must not reset or dilute tail high-water",
+    "arm_high_water_return_bps": 10000,
+    "accrued_gain_giveback_bps": 4000,
+    "trigger_formula": "once high_water_return_bps >= 10000, full price-trail exit when current_return_bps <= floor(high_water_return_bps * 6000 / 10000)",
+    "implication_examples": [
+      {
+        "peak_x": 2,
+        "trail_exit_x": 1.6,
+        "peak_to_exit_price_drawdown_bps": 2000
+      },
+      {
+        "peak_x": 5,
+        "trail_exit_x": 3.4,
+        "peak_to_exit_price_drawdown_bps": 3200
+      },
+      {
+        "peak_x": 10,
+        "trail_exit_x": 6.4,
+        "peak_to_exit_price_drawdown_bps": 3600
+      },
+      {
+        "peak_x": 25,
+        "trail_exit_x": 15.4,
+        "peak_to_exit_price_drawdown_bps": 3840
+      },
+      {
+        "peak_x": 50,
+        "trail_exit_x": 30.4,
+        "peak_to_exit_price_drawdown_bps": 3920
+      }
+    ],
+    "unchanged_precedence": [
+      "creator/distribution safety exits",
+      "invalid or missing executable exit liquidity",
+      "hard lineage/integrity failure",
+      "generation/freshness fencing",
+      "persistent confirmed demand deterioration",
+      "irreversible full-exit intent"
+    ],
+    "note": "The 40% accrued-gain giveback is a bounded tail compromise. It is not intended to survive every extreme retracement; later independent Survivor/reset-recovery re-entry remains available."
+  },
+  "regime_trails": {
+    "pump_current": {
+      "fixed_return_point_trail_removed": true,
+      "before_tail_arm": {
+        "type": "proportional_high_water_price_drawdown",
+        "drawdown_bps": 1400,
+        "formula": "(high_index-current_index)*10000//high_index >= 1400, where index=10000+return_bps"
+      },
+      "at_or_after_tail_arm": "common_tail_mode",
+      "hard_stop_bps": -800,
+      "first_profit_bps": 1500,
+      "first_profit_sell_bps": 2500,
+      "demand_exit_confirmations": 2
+    },
+    "pons_current": {
+      "before_tail_arm": {
+        "type": "proportional_high_water_price_drawdown",
+        "drawdown_bps": 1200
+      },
+      "at_or_after_tail_arm": "common_tail_mode",
+      "hard_stop_bps": -800,
+      "first_profit_bps": 1800,
+      "first_profit_sell_bps": 2500,
+      "adverse_sell_buy_ratio_bps": 12000,
+      "soft_deterioration_confirmations": 2
+    },
+    "pump_survivor": {
+      "before_tail_arm": "retain existing 20% trail, tightening to 15% at +60%",
+      "at_or_after_tail_arm": "common_tail_mode",
+      "hard_stop_bps": -1200,
+      "first_profit_bps": 2500,
+      "first_profit_sell_bps": 2500,
+      "maximum_hold_seconds": 259200
+    },
+    "pons_survivor": {
+      "before_tail_arm": "retain existing 12% trail, tightening to 10% at +40%",
+      "at_or_after_tail_arm": "common_tail_mode",
+      "hard_stop_bps": -1000,
+      "first_profit_bps": 2000,
+      "first_profit_sell_bps": 2500,
+      "maximum_hold_seconds": 259200
+    }
+  },
+  "current_tail_bridge": {
+    "strategy_identity": "same Current lifecycle; lifecycle state only, not a new lane or independent entry strategy",
+    "families": [
+      "pump",
+      "pons"
+    ],
+    "transition_point": "normal Current thesis/max-hold timeout, only if every bridge gate passes; otherwise existing timeout exit remains",
+    "bridge_gates": {
+      "first_realization_committed": true,
+      "minimum_high_water_return_bps": 5000,
+      "current_after_cost_return_positive": true,
+      "fresh_generation_state_required": true,
+      "fresh_executable_exit_quote_required": true,
+      "canonical_lineage_and_venue_required": true,
+      "creator_distribution_safe_required": true,
+      "hard_concentration_safe_required": true,
+      "executable_exit_liquidity_required": true,
+      "no_persistent_confirmed_demand_failure": true,
+      "no_irreversible_exit_intent": true
+    },
+    "maximum_total_hold_seconds_from_original_open": 129600,
+    "trail_management": "use regime pre-arm trail until +100% high-water, then common_tail_mode",
+    "allocation_semantics": {
+      "new_entry": false,
+      "new_reservation": false,
+      "extra_capital": false,
+      "sell_rebuy_handoff": false,
+      "original_opened_at_preserved": true,
+      "original_high_water_preserved": true,
+      "realization_state_preserved": true,
+      "stop_and_deterioration_state_preserved": true
+    },
+    "survivor_interaction": {
+      "existing_six_hour_survivor_minimum_unchanged": true,
+      "survivor_observation_may_continue": true,
+      "survivor_fill_for_same_family_asset_while_bridge_open": false,
+      "after_bridge_terminal_survivor_may_independently_qualify_under_existing_rules": true,
+      "current_reject_or_exit_never_tombstones_survivor": true
+    }
+  },
+  "staged_winner_scaling": {
+    "maximum_scale_events_per_lifecycle": 1,
+    "trigger": {
+      "minimum_high_water_return_bps": 10000,
+      "first_realization_committed": true,
+      "minimum_seconds_since_first_crossing_trigger": 900,
+      "maximum_current_drawdown_from_high_bps": 1500,
+      "current_after_cost_return_positive": true,
+      "fresh_policy_requalification_required": true,
+      "fresh_independent_demand_confirmation_required": true,
+      "all_existing_freshness_generation_capacity_stress_breadth_concentration_creator_checks_required": true
+    },
+    "add_size": {
+      "target_bps_of_realized_sleeve_equity": 250,
+      "cap_as_fraction_of_original_committed_basis_bps": 5000,
+      "formula": "min(2.5% of reconciled realized sleeve equity, 50% of original committed basis, currently available sleeve capital, turnover/depth/stress/breadth caps)",
+      "maximum_original_plus_added_committed_basis_bps_of_realized_sleeve_equity": 750,
+      "unrealized_pnl_spendable": false,
+      "partial_nonterminal_profit_enlarges_sizing_basis": false
+    },
+    "risk_semantics": {
+      "same_lifecycle": true,
+      "no_average_down": true,
+      "original_entry_reference_controls_tail_high_water": true,
+      "high_water_reset": false,
+      "hard_stop_widening": false,
+      "bridge_clock_reset": false,
+      "failed_add_leaves_original_position_unchanged": true,
+      "scale_after_exit_intent": false,
+      "deterministic_lot_rule": "first realization must already be committed before scaling; any future post-add partial extension must reduce lots pro-rata by quantity"
+    },
+    "research_only_paths_disabled": [
+      "second scale event",
+      "scale solely because price rose",
+      "unconfirmed reset/reclaim scale",
+      "scale from unrealized capital"
+    ]
+  },
+  "calibration_sanity_checks": {
+    "full_target_initial_position_bps_of_sleeve": 500,
+    "portfolio_sleeve_weight": 0.25,
+    "no_scale_tail_capture_examples_pump_current": [
+      {
+        "observed_peak_x": 2,
+        "tail_exit_x": 1.6,
+        "approx_total_portfolio_nav_gain_pct": 0.61
+      },
+      {
+        "observed_peak_x": 5,
+        "tail_exit_x": 3.4,
+        "approx_total_portfolio_nav_gain_pct": 2.3
+      },
+      {
+        "observed_peak_x": 10,
+        "tail_exit_x": 6.4,
+        "approx_total_portfolio_nav_gain_pct": 5.11
+      },
+      {
+        "observed_peak_x": 25,
+        "tail_exit_x": 15.4,
+        "approx_total_portfolio_nav_gain_pct": 13.55
+      },
+      {
+        "observed_peak_x": 50,
+        "tail_exit_x": 30.4,
+        "approx_total_portfolio_nav_gain_pct": 27.61
+      }
+    ],
+    "with_one_full_250bps_scale_at_2x_pump_current": [
+      {
+        "observed_peak_x": 2,
+        "approx_total_portfolio_nav_gain_pct": 0.48
+      },
+      {
+        "observed_peak_x": 5,
+        "approx_total_portfolio_nav_gain_pct": 2.73
+      },
+      {
+        "observed_peak_x": 10,
+        "approx_total_portfolio_nav_gain_pct": 6.48
+      },
+      {
+        "observed_peak_x": 25,
+        "approx_total_portfolio_nav_gain_pct": 17.73
+      },
+      {
+        "observed_peak_x": 50,
+        "approx_total_portfolio_nav_gain_pct": 36.48
+      }
+    ],
+    "assumptions": "Full 5% sleeve initial fill, sleeve is 25% of portfolio, 25% first realization at Pump Current +15%, no costs/slippage beyond strategy return representation, scale fills at 2x, terminal tail exit follows the 40% accrued-gain giveback. These are deterministic structural checks, not forecasts."
+  },
+  "required_proofs_before_promotion": [
+    "Pump Current no longer contains a fixed return-point runner trail; below +100% it uses proportional high-water price drawdown and above +100% common tail mode.",
+    "Exact boundary tests at 2x, 5x, 10x, 25x and 50x reproduce the frozen tail thresholds.",
+    "Current timeout enters tail_bridge only when every bridge gate passes; an ordinary/non-tail Current position still exits on its original timeout.",
+    "Bridge uses the same native lifecycle and sleeve reservation with no sell/rebuy, no new capital and no reset of high-water/risk state.",
+    "Restart/replay reconstructs bridge state, original high-water, first-realization state, deterioration state and bridge deadline identically.",
+    "Survivor observation can proceed while bridge exposure is open but same-asset Survivor allocation is rejected by the shared-sleeve conflict fence.",
+    "One scale event can occur only after +100% high-water, first realization, 15-minute persistence and fresh full safety/execution requalification.",
+    "Scale amount is downsize-only and never exceeds 250 bps of realized sleeve equity, 50% of original committed basis, available capital or existing execution-capacity limits.",
+    "Scale cannot reset original-entry high-water, stop state, bridge age or exit intent.",
+    "Exact-SHA deterministic and non-market certification passes after composition.",
+    "Affected Pump/Pons profitability cohorts restart because exit duration and economic exposure change."
+  ],
+  "composition_order": [
+    "certified final machinery",
+    "six-regime strategy + moderate-admission thresholds",
+    "directional-capital-parity-v1",
+    "exit-optimization-v1",
+    "directional-opportunity-preservation-v1",
+    "directional-realized-equity-sizing-v1",
+    "staged-winner-scaling-v1 machinery semantics",
+    "right-tail-capture-v1 economic calibration",
+    "reset-recovery remains separate research unless independently promoted"
+  ]
+}
