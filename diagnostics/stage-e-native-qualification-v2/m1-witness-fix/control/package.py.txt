@@ -1,0 +1,113 @@
+import gzip,io,json,shutil,subprocess,tarfile,zipfile
+from pathlib import Path
+ROOT=Path('/workspace/The-Meme-Machine');OUT=Path('/tmp/m1-fix-authoritative')
+D=ROOT/'diagnostics/stage-e-native-qualification-v2';P=D/'m1-witness-fix';P.mkdir()
+S='ace479836690e65c091407e7da7545ad61952f31';OLD='7a73165efdb82309c9025a4a86c26f3c6417c7f1';PUB='cda218bffbaaf650b7eca9c8fc2d7ba0e3124bc2';BASE='dc08f9064cf5e37b63f383f52aa709d0afc1723f'
+def git(*args):return subprocess.check_output(['git',*args],cwd=ROOT)
+def h(data):import hashlib;return hashlib.sha256(data).hexdigest()
+def canonical(value):return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
+def read(path):return json.loads(Path(path).read_bytes())
+def write(name,data):p=P/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
+def js(name,data):write(name,canonical(data))
+def compressed(name,data):write(name,gzip.compress(data,mtime=0))
+for n in ('predeclaration.json','candidate-identity.json','same-tree-different-commit-rejection.json','native-results.json','schema-validation.json','approved-m1-compatibility.json'):
+ write(n,(OUT/n).read_bytes())
+compressed('assembly-manifest.json.gz',(OUT/'assembly/assembly.json').read_bytes())
+m=read(OUT/'assembly/assembly.json');compressed('source-manifest.json.gz',canonical(m['files']))
+compressed('supplemental-predeclaration.json.gz',(OUT/'supplemental-predeclaration.json').read_bytes())
+for n in ('classification-before-execution.json','test-results.json','tests.log'):
+ write('tests/'+n,(OUT/'tests'/n).read_bytes())
+compressed('tests/source-binding.json.gz',(OUT/'tests/source-binding.json').read_bytes())
+provenance={};inventory={}
+for case in ('preflight','m1-completion'):
+ data=(OUT/case/'raw-trial-v2.json').read_bytes();compressed('raw/'+case+'.json.gz',data)
+ raw=json.loads(data);provenance[case]=dict(raw_sha256=h(data),gzip_sha256=h((P/'raw'/f'{case}.json.gz').read_bytes()),trial_id=raw['trial_id'])
+ inventory[case]=dict(trial_id=raw['trial_id'],sha256=h(data),candidate_sha=S,assembly_digest=m['assembly_digest'],run_id=m['identity']['workflow_identity']['run_id'],attempt=1,generation=raw['generation'])
+ write('logs/'+case+'.log',(OUT/case/'process.log').read_bytes())
+for n in (OUT/'m1-completion/m1.sqlite.archive').glob('*.jsonl.gz'):
+ write('native-archives/'+n.name,n.read_bytes())
+js('raw-artifact-provenance.json',provenance);js('artifact-inventory.json',inventory)
+changed=git('diff','--name-only',PUB,S).decode().splitlines();assert len(changed)==9 and all(n.startswith('certification/stage_e_native_v2/') for n in changed)
+js('CHANGED_FILES.json',dict(base_package=PUB,candidate=S,changed_files=changed,runtime_files_changed=[],a2_changed=False,housekeeping_changed=False))
+write('witness.diff',git('diff',OLD,S,'--','certification/stage_e_native_v2/m1.py'))
+write('implementation.diff',git('diff',PUB,S,'--','certification/stage_e_native_v2'))
+old_manifest=json.loads(git('show',OLD+':certification/stage_e_native_v2/input-manifest-v2.json'))
+new_manifest=read(ROOT/'certification/stage_e_native_v2/input-manifest-v2.json')
+controlled=[dict(path=n,old_sha256=old_manifest['inputs'].get(n),new_sha256=new_manifest['inputs'].get(n)) for n in sorted(set(old_manifest['inputs'])|set(new_manifest['inputs'])) if old_manifest['inputs'].get(n)!=new_manifest['inputs'].get(n)]
+byte_identities={}
+for kind,n in [('plan','plan-v2.json'),('input_manifest','input-manifest-v2.json'),('schema','evidence-schema-v2.json'),('gate_map','gate-map-v2.json')]:
+ name='certification/stage_e_native_v2/'+n
+ byte_identities[kind]=dict(old_sha256=h(git('show',OLD+':'+name)),new_sha256=h(git('show',S+':'+name)))
+js('controlled-input-hash-changes.json',dict(old_candidate=OLD,new_candidate=S,old_schema_version=2,new_schema_version=3,
+ witness_version='native-m1-completion-witness-v2q2-1',byte_identities=byte_identities,controlled_changes=controlled,
+ old_input_count=len(old_manifest['inputs']),new_input_count=len(new_manifest['inputs']),unreported_controlled_changes=[]))
+oldfiles=git('ls-tree','-r','--name-only',PUB,'--','diagnostics/stage-e-native-qualification-v2').decode().splitlines()
+preserved={}
+for n in oldfiles:
+ data=git('show',PUB+':'+n);assert (ROOT/n).read_bytes()==data
+ preserved[n]=dict(sha256=h(data),git_blob=git('rev-parse',PUB+':'+n).decode().strip(),bytes=len(data))
+js('original-package-preservation.json',dict(package_sha=PUB,package_tree=git('rev-parse',PUB+'^{tree}').decode().strip(),
+ old_candidate_sha=OLD,old_candidate_tree=git('rev-parse',OLD+'^{tree}').decode().strip(),
+ preserved_file_count=len(preserved),files=preserved,all_original_bytes_unchanged=True))
+# Protected scopes and frozen inputs are verified against the authorized production base.
+protected={}
+for prefix in ('meme_machine','tests','.github'):
+ for n in git('ls-tree','-r','--name-only',BASE,'--',prefix).decode().splitlines():
+  before=git('rev-parse',BASE+':'+n).decode().strip();after=git('rev-parse',S+':'+n).decode().strip();assert before==after,n
+  protected[n]=before
+for n in ('certification/stage_e_native_v2/gate-map-v2.json','certification/stage_e_native_v2/trial-definition-v2.json','certification/stage_e_native_v2/firewall.py','certification/stage_e_native_v2/observer-contract-v2.json','certification/stage_e_native_v2/native.py','certification/stage_e_native_v2/restart.py','certification/stage_e_native_v2/run379.py'):
+ assert git('rev-parse',OLD+':'+n)==git('rev-parse',S+':'+n),n
+for n in git('ls-tree','-r','--name-only',OLD,'--','certification/stage_e_native_v2/fixtures').decode().splitlines():
+ assert git('rev-parse',OLD+':'+n)==git('rev-parse',S+':'+n),n
+js('scope-integrity.json',dict(passed=True,base=BASE,candidate=S,runtime_repair_embedded=False,
+ protected_file_count=len(protected),protected_blob_manifest_sha256=h(canonical(protected)),
+ all_runtime_tests_workflows_equal_production_base=True,frozen_workloads_unchanged=True,
+ gate_map_semantics_unchanged=True,thresholds_unchanged=True,material_firewall_unchanged=True))
+compressed('protected-source-blobs.json.gz',canonical(protected))
+# Exact existing reference artifact, including its original overall failure.
+a=Path('/workspace/attachments/e097d000-04f5-4a9b-a16c-1918065d32e9/a2-exact-4d386498.zip')
+write('a2-reference/a2-exact-4d386498.zip',a.read_bytes())
+with zipfile.ZipFile(a) as z:
+ for n in ('FILE_HASHES.json','M1_PREREQUISITE.json','MATRIX.json','RESULTS.json','STATIC_VERIFICATION.json','m1-focused.log'):
+  if n=='MATRIX.json':compressed('a2-reference/'+n+'.gz',z.read(n))
+  else:write('a2-reference/'+n,z.read(n))
+source_refs={}
+for n in ('tests/test_owner_admission_phase2.py','diagnostics/stage-e-owner-admission-phase2/native_completion_prerequisite.py'):
+ data=git('show','4d386498b3dc848e1ba27d11dd8d61841ba426d1:'+n)
+ # Read-only source receipts are text artifacts; they are never imported.
+ write('a2-reference/source/'+Path(n).name+'.txt',data)
+ source_refs[n]=dict(sha256=h(data),git_blob=git('rev-parse','4d386498b3dc848e1ba27d11dd8d61841ba426d1:'+n).decode().strip())
+js('a2-reference/source-bindings.json',dict(sha='4d386498b3dc848e1ba27d11dd8d61841ba426d1',tree='84903f733e634fa8dd440266c6112209edf24604',files=source_refs,execution='not imported or rerun'))
+# Retain the preceding bound correction attempt separately; never lend its credit to S.
+first=Path('/tmp/m1-fix-first-attempt');items={}
+for n in ('predeclaration.json','candidate-identity.json','same-tree-different-commit-rejection.json','native-results.json','schema-validation.json'):
+ items[n]=(first/n).read_bytes()
+items['assembly-manifest.json.gz']=gzip.compress((first/'assembly/assembly.json').read_bytes(),mtime=0)
+items['supplemental-predeclaration.json.gz']=gzip.compress((first/'supplemental-predeclaration.json').read_bytes(),mtime=0)
+for n in ('test-results.json','tests.log','classification-before-execution.json'):
+ items['tests/'+n]=(first/'tests'/n).read_bytes()
+items['tests/source-binding.json.gz']=gzip.compress((first/'tests/source-binding.json').read_bytes(),mtime=0)
+for case in ('preflight','m1-completion'):
+ items['raw/'+case+'.json.gz']=gzip.compress((first/case/'raw-trial-v2.json').read_bytes(),mtime=0)
+ items['logs/'+case+'.log']=(first/case/'process.log').read_bytes()
+for n in (first/'control').glob('*.py'):items['control/'+n.name+'.txt']=n.read_bytes()
+for n in (first/'m1-completion/m1.sqlite.archive').glob('*.jsonl.gz'):items['native-archives/'+n.name]=n.read_bytes()
+buf=io.BytesIO()
+with tarfile.open(fileobj=buf,mode='w') as t:
+ for name,data in sorted(items.items()):
+  info=tarfile.TarInfo(name);info.size=len(data);info.mtime=0;info.mode=0o644;t.addfile(info,io.BytesIO(data))
+compressed('first-correction-6f72bcf7-evidence.tar.gz',buf.getvalue())
+js('first-correction-history.json',dict(candidate_sha='6f72bcf7c86d7ebb17a0cb40c13eac3a3c3555fd',
+ candidate_tree='f4a3ad9cf0c3e4577967ce0a5eeba714ec5bf4a3',assembly_digest=read(first/'candidate-identity.json')['assembly_digest'],
+ disposition='SUPERSEDED: post-turn receipt check incorrectly excluded legitimate 488-record continuation',
+ native_trials_per_case=1,native_m1_result='NEGATIVE_UNREPAIRED_BASE',supplemental_tests=70,
+ archive_sha256=h((P/'first-correction-6f72bcf7-evidence.tar.gz').read_bytes()),
+ files={n:h(data) for n,data in sorted(items.items())},qualification_credit_reused=False))
+for n in (OUT/'control').glob('*.py'):write('control/'+n.name+'.txt',n.read_bytes())
+classes=read(OUT/'tests/classification-before-execution.json')
+js('not-executed.json',dict(paper_only=True,stage_e='RED',stage_f='NOT STARTED',integration_authorized=False,
+ candidate_sha=S,material_executions=0,observer_measurements=0,
+ full_run373=False,full_run379=False,full_run380=False,combined_capacity=False,fixed_cohort=False,canonical_stage_e=False,stage_f_execution=False,
+ native_trial_cases_run=['preflight','m1-completion'],full_q2_matrix_rerun=False,
+ non_m1_native_trial_credit_reused=False,scope='71 classified unit tests plus exact negative M1; existing A2 reference evidence'))
+print(json.dumps(dict(package_files=len(list(P.rglob('*'))),controlled_changes=len(controlled),old_preserved_files=len(preserved),protected_files=len(protected),identities=byte_identities),indent=2))

@@ -1,0 +1,73 @@
+import json,sys,zipfile,subprocess
+from pathlib import Path
+OUT=Path('/tmp/m1-fix-authoritative');A=OUT/'assembly';ROOT=Path('/workspace/The-Meme-Machine')
+sys.path.insert(0,str(A/'source'))
+from certification.stage_e_native_v2.contract import canonical,read,sha256
+from certification.stage_e_native_v2.binding import verify_assembly
+from certification.stage_e_native_v2.tests.test_m1 import approved_sequence
+from certification.stage_e_native_v2.m1 import validate_witness
+m=read(A/'assembly.json');verify_assembly(A,m['assembly_digest'])
+pre=read(OUT/'predeclaration.json')
+archive=Path('/workspace/attachments/e097d000-04f5-4a9b-a16c-1918065d32e9/a2-exact-4d386498.zip')
+assert sha256(archive.read_bytes())==pre['a2_zip_sha256']
+with zipfile.ZipFile(archive) as z:
+ hashes=json.loads(z.read('FILE_HASHES.json'))
+ assert all(sha256(z.read(n))==digest for n,digest in hashes.items())
+ p=json.loads(z.read('M1_PREREQUISITE.json'));matrix=json.loads(z.read('MATRIX.json'))
+ static=json.loads(z.read('STATIC_VERIFICATION.json'));results=json.loads(z.read('RESULTS.json'))
+ assert static['sha']==p['tested_sha']==pre['a2_sha'] and static['tree']==pre['a2_tree']
+ assert static['base']==p['base']==pre['approved_m1_sha'] and static['base_tree']==pre['approved_m1_tree']
+ assert static['protected_blobs_unchanged'] is True
+ assert results['matrix']['tests']==29 and results['matrix']['failures']==results['matrix']['errors']==results['matrix']['skipped']==0
+ assert results['m1_focused']['tests']==25 and results['m1_focused']['exit_code']==0
+ assert p['tests']==1 and p['failures']==p['errors']==p['skipped']==0
+ row=next(x for x in matrix['native'] if x.get('case')=='gate_m1_completion')
+ assert row['reads']==3 and row['urgent_completed'] is True
+ ordinals=[e['ordinal'] for e in p['trace_events'] if e['event']=='native_progress_select'];assert ordinals==[1,2,3]
+ events=[e['event'] for e in p['trace_events']]
+ read2=next(i for i,e in enumerate(p['trace_events']) if e.get('ordinal')==2)
+ read3=next(i for i,e in enumerate(p['trace_events']) if e.get('ordinal')==3)
+ assert read2<events.index('urgent_accepted')<read3
+ assert events.count('urgent_accepted')==events.count('urgent_completed')==1
+ first=p['after_interruption'];after=p['after_next_turn']
+ assert first['archive_progress']==[512,512] and after['archive_progress']==[1000,1000]
+ assert first['hot']==1288 and after['hot']==800
+ assert first['receipt_remaining']==488 and after['receipt_remaining']==0
+ assert first['pending'] is after['pending'] is None and p['next_error'] is None
+ assert p['first_error']['message']=='evidence_background_yield' and p['urgent_result']==1928
+ assert first['integrity']==after['integrity']=='ok' and first['transaction_open'] is after['transaction_open'] is False
+ assert first['runtime_failure'] is after['runtime_failure'] is None
+ interrupted=[e for e in first['events'] if e.get('completion_read_interrupted')]
+ assert len(interrupted)==1 and interrupted[0]['completion']=='completed' and interrupted[0]['completion_pending'] is False
+ assert interrupted[0]['durable_records']=={'program:meteora':512}
+ assert first['episodes']==after['episodes'] and p['all_accepted_futures_done'] is True
+ fixture=approved_sequence();assert validate_witness(fixture) is True
+ assert fixture['completion_read_count']==len(ordinals) and fixture['bounded_completion_retry_count']==1 and fixture['retry_read_ordinal']==3
+ assert fixture['before']['progress']==first['archive_progress'] and fixture['after']['progress']==after['archive_progress']
+ assert fixture['before']['receipt_remaining']==first['receipt_remaining'] and fixture['after']['receipt_remaining']==after['receipt_remaining']
+ assert fixture['before']['pending'] is fixture['after']['pending'] is False
+ proof=dict(passed=True,mode=pre['compatibility_mode'],qualification_candidate_sha=m['identity']['candidate_sha'],
+  qualification_candidate_tree=m['identity']['candidate_tree'],qualification_assembly_digest=m['assembly_digest'],
+  approved_m1_sha=pre['approved_m1_sha'],approved_m1_tree=pre['approved_m1_tree'],
+  a2_sha=pre['a2_sha'],a2_tree=pre['a2_tree'],a2_run_id=pre['a2_run_id'],a2_attempt=1,a2_artifact_id=pre['a2_artifact_id'],
+  a2_zip_sha256=pre['a2_zip_sha256'],artifact_file_hashes=hashes,
+  actual_interruption_injected_at_read=2,actual_read_ordinals=ordinals,actual_completion_read_count=3,
+  actual_bounded_completion_retry_count=1,actual_retry_read_ordinal=3,
+  actual_urgent_acceptances=1,actual_urgent_completions=1,actual_interrupted_completion_events=1,
+  actual_decision_completed=True,actual_next_admission_usable=True,
+  first_turn_durable_records=512,next_turn_new_durable_records=488,after_next_turn_total_records=1000,
+  first_turn_receipt_remaining=488,after_next_turn_receipt_remaining=0,
+  projected_unit_contract_accepted=True,standalone_q2_native_qualification=False,
+  cross_source_execution=False,assembly_overlays=[],same_sha_rules_changed=False,
+  a2_matrix_tests=29,a2_m1_runtime_tests=25,a2_prerequisite_tests=1,
+  a2_workflow_conclusion='failure',a2_overall_result=results['result'],
+  a2_affected_source_checks=results['affected'],material_executions=0,observer_measurements=0,paper_only=True)
+protected=['meme_machine/solana_maintenance_runtime.py','meme_machine/solana_maintenance_arbiter.py','meme_machine/solana_maintenance_state.py','meme_machine/solana_evidence_plane.py','tests/test_m1_maintenance_completion.py']
+proof['m1_reference_blob_bindings']={}
+for n in protected:
+ values={label:subprocess.check_output(['git','rev-parse',sha+':'+n],cwd=ROOT,text=True).strip() for label,sha in [('m1',pre['approved_m1_sha']),('a2',pre['a2_sha'])]}
+ assert values['m1']==values['a2'];proof['m1_reference_blob_bindings'][n]=values
+assert proof['m1_reference_blob_bindings']['meme_machine/solana_maintenance_runtime.py']['m1']==static['m1_runtime_blob']
+verify_assembly(A,m['assembly_digest'])
+(OUT/'approved-m1-compatibility.json').write_bytes(canonical(proof))
+print(json.dumps({k:proof[k] for k in ('passed','mode','actual_read_ordinals','actual_bounded_completion_retry_count','first_turn_durable_records','next_turn_new_durable_records','standalone_q2_native_qualification')}))

@@ -1,0 +1,41 @@
+{
+  "base": "b11b16fbdc4ea0312b2c6f51de37e4d68e1f2da1",
+  "base_tree": "bdc9e10bb90e659270b8b3ea995d4c74b7ebeb83",
+  "canonical_stage_e": false,
+  "changed_files": [
+    ".github/workflows/owner-admission-phase2.yml",
+    "diagnostics/stage-e-owner-admission-phase2/HOUSEKEEPING_REFERENCE.patch",
+    "diagnostics/stage-e-owner-admission-phase2/native_completion_prerequisite.py",
+    "diagnostics/stage-e-owner-admission-phase2/static_verify.py",
+    "diagnostics/stage-e-owner-admission-phase2/verify.py",
+    "meme_machine/solana_evidence_control.py",
+    "meme_machine/solana_evidence_service.py",
+    "meme_machine/solana_owner_admission.py",
+    "tests/test_owner_admission_phase2.py"
+  ],
+  "frozen_qualification_inputs_unchanged": true,
+  "housekeeping": {
+    "admission_contains_no_housekeeping_predicates": true,
+    "carried": false,
+    "compatibility": "selector and ordinary retention hook remain compatible; original pre-M1 patch context needs rebase before a combined fixture",
+    "exact_selector_sha256": "0c15692344ed50706905bed2fcd2bc56ece19e65ceeb34c274651525128db9e0",
+    "m1_completion_ast_unchanged": true,
+    "original_patch_check": "error: patch failed: meme_machine/solana_maintenance_runtime.py:260\nerror: meme_machine/solana_maintenance_runtime.py: patch does not apply\n",
+    "original_patch_check_exit": 1,
+    "reference_sha256": "f4d3b0399dcfbe43b968ef0a901be73efe187f1a3ecdc79b16f5defb177f6f2d",
+    "selector_ast_valid_on_m1": true
+  },
+  "m1_runtime_blob": "44d627be0a867eba3c0394a533eaa9eecff77e07",
+  "material_executions": 0,
+  "patch_sha256": {
+    "admission": "1122a5710c2a195c8639b93c9f2c436452c495f7099ddb1b96e80b01c53850ef",
+    "deterministic": "439efd5dfc2aedb01c98062db54c821c3677e7a75b9e6a0a1b8a72d788bf7d41",
+    "source_fixture": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "treatment": "49f219efecb43ed5522df9d4bf1c1b1071372098bcea85d7c90ca63e9a17b70d"
+  },
+  "protected_blobs_unchanged": true,
+  "sha": "4d386498b3dc848e1ba27d11dd8d61841ba426d1",
+  "stage_f": false,
+  "tree": "84903f733e634fa8dd440266c6112209edf24604",
+  "working_tree": ""
+}

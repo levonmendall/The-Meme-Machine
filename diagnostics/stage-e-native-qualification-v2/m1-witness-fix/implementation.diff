@@ -1,0 +1,1606 @@
+diff --git a/certification/stage_e_native_v2/__init__.py b/certification/stage_e_native_v2/__init__.py
+index 5a7ee69d..20f866c8 100644
+--- a/certification/stage_e_native_v2/__init__.py
++++ b/certification/stage_e_native_v2/__init__.py
+@@ -3,7 +3,7 @@ CONTRACT = 'stage-e-native-transition-contract-v2'
+ COHORT = 'native-transition-cohort-v2'
+ HELD_READER = 'native-contract-held-reader-v2'
+ SCHEMA = 'stage-e-native-transition-evidence-v2'
+-SCHEMA_VERSION = 2
++SCHEMA_VERSION = 3
+ PLAN = 'stage-e-native-transition-plan-v2'
+ REPOSITORY = 'levonmendall/The-Meme-Machine'
+ BASE = 'dc08f9064cf5e37b63f383f52aa709d0afc1723f'
+diff --git a/certification/stage_e_native_v2/evidence-schema-v2.json b/certification/stage_e_native_v2/evidence-schema-v2.json
+index 198342d9..3263b36e 100644
+--- a/certification/stage_e_native_v2/evidence-schema-v2.json
++++ b/certification/stage_e_native_v2/evidence-schema-v2.json
+@@ -1,7 +1,850 @@
+ {
++  "$defs": {
++    "m1Witness": {
++      "additionalProperties": false,
++      "properties": {
++        "after": {
++          "additionalProperties": false,
++          "properties": {
++            "arbiter_failed": {
++              "type": "boolean"
++            },
++            "committed_records": {
++              "items": {
++                "additionalProperties": false,
++                "properties": {
++                  "hash": {
++                    "pattern": "^[0-9a-f]{64}$",
++                    "type": "string"
++                  },
++                  "identity": {
++                    "type": "string"
++                  }
++                },
++                "required": [
++                  "identity",
++                  "hash"
++                ],
++                "type": "object"
++              },
++              "type": "array"
++            },
++            "episodes": {
++              "type": "array"
++            },
++            "hot": {
++              "minimum": 0,
++              "type": "integer"
++            },
++            "integrity": {
++              "type": "string"
++            },
++            "open_transaction": {
++              "type": "boolean"
++            },
++            "pending": {
++              "type": "boolean"
++            },
++            "pending_identity": {
++              "anyOf": [
++                {
++                  "type": "null"
++                },
++                {
++                  "additionalProperties": false,
++                  "properties": {
++                    "generation": {
++                      "type": "string"
++                    },
++                    "sequence": {
++                      "minimum": 0,
++                      "type": "integer"
++                    },
++                    "side": {
++                      "enum": [
++                        "archive",
++                        "retirement"
++                      ]
++                    }
++                  },
++                  "required": [
++                    "generation",
++                    "sequence",
++                    "side"
++                  ],
++                  "type": "object"
++                }
++              ]
++            },
++            "progress": {
++              "items": {
++                "minimum": 0,
++                "type": "integer"
++              },
++              "maxItems": 2,
++              "minItems": 2,
++              "type": [
++                "array",
++                "null"
++              ]
++            },
++            "receipt_hash": {
++              "type": [
++                "string",
++                "null"
++              ]
++            },
++            "receipt_remaining": {
++              "minimum": 0,
++              "type": "integer"
++            },
++            "receipt_remaining_identities": {
++              "items": {
++                "type": "string"
++              },
++              "type": "array",
++              "uniqueItems": true
++            },
++            "runtime_failure": {
++              "type": [
++                "string",
++                "null"
++              ]
++            }
++          },
++          "required": [
++            "pending",
++            "pending_identity",
++            "arbiter_failed",
++            "runtime_failure",
++            "hot",
++            "progress",
++            "committed_records",
++            "episodes",
++            "open_transaction",
++            "receipt_remaining",
++            "receipt_remaining_identities",
++            "receipt_hash",
++            "integrity"
++          ],
++          "type": "object"
++        },
++        "archive_receipt": {
++          "properties": {
++            "bytes": {
++              "minimum": 0,
++              "type": "integer"
++            },
++            "hash": {
++              "pattern": "^[0-9a-f]{64}$",
++              "type": "string"
++            },
++            "name": {
++              "type": "string"
++            }
++          },
++          "required": [
++            "name",
++            "hash",
++            "bytes"
++          ],
++          "type": "object"
++        },
++        "before": {
++          "additionalProperties": false,
++          "properties": {
++            "arbiter_failed": {
++              "type": "boolean"
++            },
++            "committed_records": {
++              "items": {
++                "additionalProperties": false,
++                "properties": {
++                  "hash": {
++                    "pattern": "^[0-9a-f]{64}$",
++                    "type": "string"
++                  },
++                  "identity": {
++                    "type": "string"
++                  }
++                },
++                "required": [
++                  "identity",
++                  "hash"
++                ],
++                "type": "object"
++              },
++              "type": "array"
++            },
++            "episodes": {
++              "type": "array"
++            },
++            "hot": {
++              "minimum": 0,
++              "type": "integer"
++            },
++            "integrity": {
++              "type": "string"
++            },
++            "open_transaction": {
++              "type": "boolean"
++            },
++            "pending": {
++              "type": "boolean"
++            },
++            "pending_identity": {
++              "anyOf": [
++                {
++                  "type": "null"
++                },
++                {
++                  "additionalProperties": false,
++                  "properties": {
++                    "generation": {
++                      "type": "string"
++                    },
++                    "sequence": {
++                      "minimum": 0,
++                      "type": "integer"
++                    },
++                    "side": {
++                      "enum": [
++                        "archive",
++                        "retirement"
++                      ]
++                    }
++                  },
++                  "required": [
++                    "generation",
++                    "sequence",
++                    "side"
++                  ],
++                  "type": "object"
++                }
++              ]
++            },
++            "progress": {
++              "items": {
++                "minimum": 0,
++                "type": "integer"
++              },
++              "maxItems": 2,
++              "minItems": 2,
++              "type": [
++                "array",
++                "null"
++              ]
++            },
++            "receipt_hash": {
++              "type": [
++                "string",
++                "null"
++              ]
++            },
++            "receipt_remaining": {
++              "minimum": 0,
++              "type": "integer"
++            },
++            "receipt_remaining_identities": {
++              "items": {
++                "type": "string"
++              },
++              "type": "array",
++              "uniqueItems": true
++            },
++            "runtime_failure": {
++              "type": [
++                "string",
++                "null"
++              ]
++            }
++          },
++          "required": [
++            "pending",
++            "pending_identity",
++            "arbiter_failed",
++            "runtime_failure",
++            "hot",
++            "progress",
++            "committed_records",
++            "episodes",
++            "open_transaction",
++            "receipt_remaining",
++            "receipt_remaining_identities",
++            "receipt_hash",
++            "integrity"
++          ],
++          "type": "object"
++        },
++        "bounded_completion_retry_count": {
++          "minimum": 0,
++          "type": "integer"
++        },
++        "completion_accounting": {
++          "items": {
++            "additionalProperties": false,
++            "properties": {
++              "decision": {
++                "anyOf": [
++                  {
++                    "type": "null"
++                  },
++                  {
++                    "additionalProperties": false,
++                    "properties": {
++                      "generation": {
++                        "type": "string"
++                      },
++                      "sequence": {
++                        "minimum": 0,
++                        "type": "integer"
++                      },
++                      "side": {
++                        "enum": [
++                          "archive",
++                          "retirement"
++                        ]
++                      }
++                    },
++                    "required": [
++                      "generation",
++                      "sequence",
++                      "side"
++                    ],
++                    "type": "object"
++                  }
++                ]
++              },
++              "error": {
++                "type": [
++                  "string",
++                  "null"
++                ]
++              },
++              "exact_pending_identity": {
++                "type": "boolean"
++              },
++              "ledger": {
++                "items": {
++                  "minimum": 0,
++                  "type": "integer"
++                },
++                "maxItems": 2,
++                "minItems": 2,
++                "type": "array"
++              },
++              "pending_after": {
++                "anyOf": [
++                  {
++                    "type": "null"
++                  },
++                  {
++                    "additionalProperties": false,
++                    "properties": {
++                      "generation": {
++                        "type": "string"
++                      },
++                      "sequence": {
++                        "minimum": 0,
++                        "type": "integer"
++                      },
++                      "side": {
++                        "enum": [
++                          "archive",
++                          "retirement"
++                        ]
++                      }
++                    },
++                    "required": [
++                      "generation",
++                      "sequence",
++                      "side"
++                    ],
++                    "type": "object"
++                  }
++                ]
++              },
++              "pending_before": {
++                "anyOf": [
++                  {
++                    "type": "null"
++                  },
++                  {
++                    "additionalProperties": false,
++                    "properties": {
++                      "generation": {
++                        "type": "string"
++                      },
++                      "sequence": {
++                        "minimum": 0,
++                        "type": "integer"
++                      },
++                      "side": {
++                        "enum": [
++                          "archive",
++                          "retirement"
++                        ]
++                      }
++                    },
++                    "required": [
++                      "generation",
++                      "sequence",
++                      "side"
++                    ],
++                    "type": "object"
++                  }
++                ]
++              },
++              "progress": {
++                "additionalProperties": {
++                  "minimum": 0,
++                  "type": "integer"
++                },
++                "type": "object"
++              },
++              "read_ordinal": {
++                "minimum": 0,
++                "type": "integer"
++              },
++              "record_progress": {
++                "additionalProperties": {
++                  "minimum": 0,
++                  "type": "integer"
++                },
++                "type": "object"
++              },
++              "returned": {
++                "type": "boolean"
++              },
++              "transaction_open": {
++                "type": "boolean"
++              }
++            },
++            "required": [
++              "decision",
++              "pending_before",
++              "exact_pending_identity",
++              "read_ordinal",
++              "transaction_open",
++              "progress",
++              "record_progress",
++              "ledger",
++              "returned",
++              "error",
++              "pending_after"
++            ],
++            "type": "object"
++          },
++          "type": "array"
++        },
++        "completion_read_count": {
++          "minimum": 0,
++          "type": "integer"
++        },
++        "durable_archive_hash": {
++          "pattern": "^[0-9a-f]{64}$",
++          "type": "string"
++        },
++        "first_error": {
++          "type": [
++            "string",
++            "null"
++          ]
++        },
++        "first_turn": {
++          "additionalProperties": false,
++          "properties": {
++            "accepted": {
++              "type": "boolean"
++            },
++            "completed": {
++              "type": "boolean"
++            }
++          },
++          "required": [
++            "accepted",
++            "completed"
++          ],
++          "type": "object"
++        },
++        "gates": {
++          "additionalProperties": false,
++          "properties": {
++            "accepted_future_completed": {
++              "type": "boolean"
++            },
++            "bounded_completion_retry": {
++              "type": "boolean"
++            },
++            "completion_query_interrupted": {
++              "type": "boolean"
++            },
++            "cooperative_error_nonfatal": {
++              "type": "boolean"
++            },
++            "cooperative_yield": {
++              "type": "boolean"
++            },
++            "decision_completed": {
++              "type": "boolean"
++            },
++            "durable_accounting": {
++              "type": "boolean"
++            },
++            "episode_not_rebased": {
++              "type": "boolean"
++            },
++            "integrity": {
++              "type": "boolean"
++            },
++            "native_slice_committed": {
++              "type": "boolean"
++            },
++            "next_admission_usable": {
++              "type": "boolean"
++            },
++            "no_duplicate_durable_progress": {
++              "type": "boolean"
++            },
++            "original_contract": {
++              "type": "boolean"
++            },
++            "receipt_continuation_preserved": {
++              "type": "boolean"
++            },
++            "transaction_closed": {
++              "type": "boolean"
++            },
++            "urgent_admitted": {
++              "type": "boolean"
++            },
++            "urgent_completed": {
++              "type": "boolean"
++            }
++          },
++          "required": [
++            "urgent_admitted",
++            "urgent_completed",
++            "accepted_future_completed",
++            "completion_query_interrupted",
++            "bounded_completion_retry",
++            "cooperative_yield",
++            "native_slice_committed",
++            "receipt_continuation_preserved",
++            "transaction_closed",
++            "integrity",
++            "cooperative_error_nonfatal",
++            "episode_not_rebased",
++            "durable_accounting",
++            "no_duplicate_durable_progress",
++            "decision_completed",
++            "next_admission_usable",
++            "original_contract"
++          ],
++          "type": "object"
++        },
++        "generation": {
++          "minLength": 1,
++          "type": "string"
++        },
++        "input_plan": {
++          "items": {
++            "additionalProperties": false,
++            "properties": {
++              "hash": {
++                "pattern": "^[0-9a-f]{64}$",
++                "type": "string"
++              },
++              "identity": {
++                "type": "string"
++              }
++            },
++            "required": [
++              "identity",
++              "hash"
++            ],
++            "type": "object"
++          },
++          "type": "array"
++        },
++        "interruption_injected_at_read": {
++          "minimum": 0,
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
++        "interruption_injections": {
++          "items": {
++            "minimum": 1,
++            "type": "integer"
++          },
++          "type": "array"
++        },
++        "interruption_observed": {
++          "type": "boolean"
++        },
++        "ledger_reads": {
++          "items": {
++            "additionalProperties": false,
++            "properties": {
++              "limit": {
++                "minimum": 0,
++                "type": "integer"
++              },
++              "ordinal": {
++                "minimum": 1,
++                "type": "integer"
++              },
++              "owner_interrupt_flag": {
++                "type": "boolean"
++              },
++              "pending": {
++                "anyOf": [
++                  {
++                    "type": "null"
++                  },
++                  {
++                    "additionalProperties": false,
++                    "properties": {
++                      "generation": {
++                        "type": "string"
++                      },
++                      "sequence": {
++                        "minimum": 0,
++                        "type": "integer"
++                      },
++                      "side": {
++                        "enum": [
++                          "archive",
++                          "retirement"
++                        ]
++                      }
++                    },
++                    "required": [
++                      "generation",
++                      "sequence",
++                      "side"
++                    ],
++                    "type": "object"
++                  }
++                ]
++              },
++              "preemption_enabled": {
++                "type": "boolean"
++              },
++              "purpose": {
++                "enum": [
++                  "initial_observation",
++                  "completion_accounting"
++                ]
++              },
++              "query_hash": {
++                "pattern": "^[0-9a-f]{64}$",
++                "type": "string"
++              },
++              "rows": {
++                "items": {
++                  "maxItems": 6,
++                  "minItems": 6,
++                  "type": "array"
++                },
++                "type": "array"
++              },
++              "sqlite_errorcode": {
++                "minimum": 0,
++                "type": [
++                  "integer",
++                  "null"
++                ]
++              },
++              "status": {
++                "enum": [
++                  "started",
++                  "completed",
++                  "interrupted",
++                  "failed"
++                ]
++              },
++              "transaction_open": {
++                "type": "boolean"
++              }
++            },
++            "required": [
++              "ordinal",
++              "purpose",
++              "query_hash",
++              "limit",
++              "pending",
++              "transaction_open",
++              "preemption_enabled",
++              "status",
++              "sqlite_errorcode",
++              "owner_interrupt_flag",
++              "rows"
++            ],
++            "type": "object"
++          },
++          "type": "array"
++        },
++        "material_executions": {
++          "minimum": 0,
++          "type": "integer"
++        },
++        "next_turn": {
++          "additionalProperties": false,
++          "properties": {
++            "accepted": {
++              "type": "boolean"
++            },
++            "completed": {
++              "type": "boolean"
++            },
++            "error": {
++              "type": [
++                "string",
++                "null"
++              ]
++            },
++            "event": {
++              "type": "object"
++            },
++            "result": {
++              "type": [
++                "object",
++                "null"
++              ]
++            }
++          },
++          "required": [
++            "accepted",
++            "completed",
++            "error",
++            "result",
++            "event"
++          ],
++          "type": "object"
++        },
++        "original_thresholds": {
++          "type": "boolean"
++        },
++        "passed": {
++          "type": "boolean"
++        },
++        "repair_applied": {
++          "type": "boolean"
++        },
++        "retry_read_ordinal": {
++          "minimum": 0,
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
++        "second_error": {
++          "type": [
++            "string",
++            "null"
++          ]
++        },
++        "seed_records": {
++          "minimum": 0,
++          "type": "integer"
++        },
++        "urgent": {
++          "additionalProperties": false,
++          "properties": {
++            "accepted": {
++              "type": "boolean"
++            },
++            "completed": {
++              "type": "boolean"
++            },
++            "error": {
++              "type": [
++                "string",
++                "null"
++              ]
++            },
++            "result": {
++              "minimum": 0,
++              "type": [
++                "integer",
++                "null"
++              ]
++            }
++          },
++          "required": [
++            "accepted",
++            "completed",
++            "error",
++            "result"
++          ],
++          "type": "object"
++        },
++        "witness_version": {
++          "const": "native-m1-completion-witness-v2q2-1"
++        }
++      },
++      "required": [
++        "witness_version",
++        "generation",
++        "ledger_reads",
++        "interruption_injections",
++        "completion_accounting",
++        "completion_read_count",
++        "interruption_injected_at_read",
++        "interruption_observed",
++        "bounded_completion_retry_count",
++        "retry_read_ordinal",
++        "first_turn",
++        "urgent",
++        "next_turn",
++        "first_error",
++        "second_error",
++        "before",
++        "after",
++        "seed_records",
++        "input_plan",
++        "archive_receipt",
++        "durable_archive_hash",
++        "original_thresholds",
++        "repair_applied",
++        "material_executions",
++        "gates",
++        "passed"
++      ],
++      "type": "object"
++    }
++  },
+   "$id": "stage-e-native-transition-evidence-v2",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "additionalProperties": false,
++  "allOf": [
++    {
++      "if": {
++        "properties": {
++          "case_id": {
++            "const": "m1-completion"
++          },
++          "payload": {
++            "minProperties": 1
++          }
++        },
++        "required": [
++          "case_id",
++          "payload"
++        ]
++      },
++      "then": {
++        "properties": {
++          "payload": {
++            "$ref": "#/$defs/m1Witness"
++          }
++        }
++      }
++    }
++  ],
+   "properties": {
+     "assembly_after": {
+       "type": [
+@@ -109,7 +952,7 @@
+           "const": "levonmendall/The-Meme-Machine"
+         },
+         "schema_version": {
+-          "const": 2
++          "const": 3
+         },
+         "workflow_identity": {
+           "properties": {
+diff --git a/certification/stage_e_native_v2/input-manifest-v2.json b/certification/stage_e_native_v2/input-manifest-v2.json
+index dd0ac9ca..144cc0ea 100644
+--- a/certification/stage_e_native_v2/input-manifest-v2.json
++++ b/certification/stage_e_native_v2/input-manifest-v2.json
+@@ -6,14 +6,14 @@
+     "certification/__init__.py": "a5408743cdc8864e8f14f4bfadb1447f45b25fca8153ea1237355654daaf04a1",
+     "certification/stage_e_native_v2/GATE_MAP.md": "76ed9e689c91323125f5e8112a3f2960a9fd45caf286a6b2fef0ce1aa2e13b45",
+     "certification/stage_e_native_v2/HISTORICAL_SKIPS.md": "d5887220f90f649334d8f521ce09c622e4754c3512955a49c899aeb396a6246e",
+-    "certification/stage_e_native_v2/__init__.py": "b5b3ea54efacc66e0fa23fe93013308ec38f5747a679751d384abed626279129",
++    "certification/stage_e_native_v2/__init__.py": "9f4953992969174fc882c351890a794bcd960bb9b17a9fe3135549942fcbcbe6",
+     "certification/stage_e_native_v2/__main__.py": "70e618f1dbfd38a2f50814a893f73f35e9ad3cc9d50b9babb3509051dd9a131f",
+     "certification/stage_e_native_v2/binding.py": "b924d13a229d5ce52ff6b32cd4dc691b775daba4dcc2924f18d07301db087445",
+     "certification/stage_e_native_v2/bootstrap.py": "ee3cabf911ae09fcef432f9021e2717d762403505b7b2567dcea7d221fcfa6f9",
+     "certification/stage_e_native_v2/clock.py": "ffe36af4d7b18662e78929fbf8f9854a0441a1e613b5ae55a75ed9ee48a64b58",
+     "certification/stage_e_native_v2/contract.py": "82ed13b8c4f417666739f3280f462787eba2568baf99e913d7a266c444d0380c",
+     "certification/stage_e_native_v2/dependency-lock-v2.json": "4aee4aeb38543dd64fb7defb0b1ba64739da75216bcb0c29f19b3cd380c660c7",
+-    "certification/stage_e_native_v2/evidence-schema-v2.json": "8e9a90276422fea2ae0c1a2caf570fa00b5d69b9352e90560b868b7efd3daa45",
++    "certification/stage_e_native_v2/evidence-schema-v2.json": "203d50fe6b81f298c854c42dd6a7f54a2318f956106243783daa1a19a2b3ab87",
+     "certification/stage_e_native_v2/firewall.py": "2bde5240fd015a175e510487da47afba822a16f1e9ee04028a137014019fc51d",
+     "certification/stage_e_native_v2/fixtures.py": "0faddec8928925b61e663a50337161eb52e6a229d5fa9c3e113bada1b53440f2",
+     "certification/stage_e_native_v2/fixtures/run373-v2.json": "542580d149b711d2e386e365f8cccbd9f269b29e66559751b57bf255fcf9294e",
+@@ -26,27 +26,28 @@
+     "certification/stage_e_native_v2/gate-map-v2.json": "0da0e7acd8ac56db20cdd0101092400983de30051c611684eab4f7267ea4ecf8",
+     "certification/stage_e_native_v2/historical-skips-v2.json": "e19e342efcf68ec35a835b50a62dd69aa6f75b6e1b55bf9e08257fd8e424b3e9",
+     "certification/stage_e_native_v2/isolation.py": "4f464e6eb5d8c1a3387fde6885c40812bd49e7ddfa0456dc8dac09adc62b4d44",
+-    "certification/stage_e_native_v2/m1.py": "ce57f1681c6d299bb0a1792fc009eb4be278c853cd9c998f5f0dafd328fa33a6",
++    "certification/stage_e_native_v2/m1.py": "2f138b201e69b56f95e57549135d3d3281f3fdb3f5597cbf655440e86d0e1b8f",
+     "certification/stage_e_native_v2/material.py": "ee0731768f8b690270ea3a621383ce9659d8aa513112a47c32ea98675f8ec5d6",
+     "certification/stage_e_native_v2/native.py": "168c52a80813e5783e7727fddfeb717ba91f58ef4ce6671e55198d25a7a4e379",
+     "certification/stage_e_native_v2/observer-contract-v2.json": "9695ef0d1f039cc688d6a7b34d1d8e8e00a4d3df43a6b7cf14c9cb6c0eaf3e84",
+     "certification/stage_e_native_v2/observer.py": "e4025ae23ffab42078d792a6c904d2dc3c1581d69c91d7d018914d7f54769354",
+-    "certification/stage_e_native_v2/plan-v2.json": "e4dad6d059e8860cb7e0304235486874b3fc35a982d60267bcbdbe6fafb0fb8e",
+-    "certification/stage_e_native_v2/refresh_manifest.py": "2efcab8021d269ef4cd7734e37adebfde8f6c32f64488107d99a86e11cd53ace",
++    "certification/stage_e_native_v2/plan-v2.json": "6c40324250e0870a9207161a0b944d58272922c90bf6fce97c57c2bb3dda16df",
++    "certification/stage_e_native_v2/refresh_manifest.py": "a39c0c886f6ad96d4217b728677a0ff9cbb4afa40ff98e3eebcb7df9a1d8fc52",
+     "certification/stage_e_native_v2/restart.py": "bab094c916562240f5469696e1b8d59cbdf23f3fb778ce1e747c4a566ebe07c1",
+     "certification/stage_e_native_v2/run379.py": "5f90b55adcdd52f800670d3d9b75967514f0ae2260850af760bdee8305065391",
+     "certification/stage_e_native_v2/runner.py": "7f3ec0974e321b22091ab17017768c643ef88e8e634ee936ce8eb04628e1150f",
+-    "certification/stage_e_native_v2/test-classifications-v2.json": "c51f928073ba7dd6f58b968e464734c2b51b21e36c6f75a12db779f11ca28d49",
++    "certification/stage_e_native_v2/test-classifications-v2.json": "91e3ef67cfdc7560492d6545be02fdded190d2fb0731f8a0eca6a069368748f0",
+     "certification/stage_e_native_v2/test_driver.py": "47b695ec43d337ac6078e7fb86c362fed026e597dfc39836f8f58842bc528e6a",
+     "certification/stage_e_native_v2/tests/__init__.py": "d1e98397b819909c3235ddf5a55a67983871fc42a8e82803421aa72a79c2a9a1",
+     "certification/stage_e_native_v2/tests/test_binding.py": "27163c711577c5c8dfc0851482bd4eeff630b7da3bb8b0135ce1a05f37cb9b7a",
+     "certification/stage_e_native_v2/tests/test_clocks.py": "4dd0e2b4addfe79203c6fe3872c43010fa1815257cc470b4e8228bb39b1c5bdc",
+     "certification/stage_e_native_v2/tests/test_contract.py": "f47596ac4e67392686bae646b295c75b07ca4884123209bff1ee2cf235700748",
++    "certification/stage_e_native_v2/tests/test_m1.py": "9195fdddf8100e57e517fcba56bed3ddc1542367db420a9f3316581ce6b111be",
+     "certification/stage_e_native_v2/tests/test_native.py": "aad4be4101213d3f31e80f08158b2df01843e60abf85479a5e8bc2f825c35ea8",
+     "certification/stage_e_native_v2/tests/test_workflow.py": "e52770db55da32b90c9fea9c25fe1dc949ec0056e6933ec7f2a32e1e04441d3b",
+     "certification/stage_e_native_v2/transport.py": "653e745b200dbcf21c0c6311e3162c9d2413597a73e64885fb0f14996fdd42ef",
+     "certification/stage_e_native_v2/trial-definition-v2.json": "ea8a36f496f41d6eb57b8130ccd54442d18dd24e0dd8f73f77e55abb6293c381",
+-    "certification/stage_e_native_v2/verify.py": "82006008a624eeb5ece34ac6c20592e504a048cdb8d2d2d9f505dd42733a72ef",
++    "certification/stage_e_native_v2/verify.py": "710664a1a3fe4074d267a49b002a9a222947c1115c482beebabfbbb80c702cea",
+     "certification/stage_e_native_v2/workflow.py": "9f8c0e935ea61498fff6490d955995ef8a5569db70c2807af6520ff3b5bdc24f",
+     "meme_machine/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "meme_machine/__main__.py": "163954d90d2ef66588d9d4baed71102ff170209668057ae45c0aac797491f00b",
+@@ -95,7 +96,7 @@
+     "meme_machine/wallets.py": "20f15bd0e359bd494a670dcc7cc2df8ee4d24d8d52654613d35b2f240793edb7",
+     "requirements.txt": "395a0cbc832e51c019afbfdd5a797220af835591acac81147268f424927b7720"
+   },
+-  "schema_version": 2,
++  "schema_version": 3,
+   "self_hash_policy": "manifest SHA-256 bound by external predeclaration; no circular self hash",
+   "version": "stage-e-successor-input-manifest-v2"
+ }
+diff --git a/certification/stage_e_native_v2/m1.py b/certification/stage_e_native_v2/m1.py
+index 8236b7ef..aedb9dcb 100644
+--- a/certification/stage_e_native_v2/m1.py
++++ b/certification/stage_e_native_v2/m1.py
+@@ -1,19 +1,200 @@
+-"""M1 regression contract: committed native service must complete its decision.
+-
+-Reference design: durable d3325376, finite native completion prerequisite. This
+-is a new qualification entrypoint, not imported branch-specific repair or proof.
+-The current production base must earn the assertions; failure stays a failure.
+-"""
+-from concurrent.futures import Future
++"""Finite M1 witness; observations never repair or credit the native runtime."""
++from contextlib import closing
++import json
+ from pathlib import Path
+-import threading
++import sqlite3
++import sys
+ from unittest.mock import patch
+ 
+ from .clock import DeterministicClock
++from .contract import sha256
+ from .fixtures import b58
+-from .native import native_state, empty_frame, snapshot
++from .native import empty_frame
+ from .restart import records
+ 
++WITNESS_VERSION = 'native-m1-completion-witness-v2q2-1'
++PROGRESS_SELECT = 'SELECT scope,side,at,units,record_at,records FROM maintenance_progress ORDER BY scope,side LIMIT '
++SCOPE = 'program:meteora'
++
++
++def decision_identity(decision, generation):
++    if decision is None:
++        return None
++    return dict(generation=generation, sequence=decision.sequence, side=decision.side)
++
++
++class LedgerReads:
++    """Transparent SQL observation, including errors raised while fetching rows.
++
++    All SQL, cursors, handlers and exceptions are forwarded unchanged. The
++    completion purpose is identified by the actual native caller's code object,
++    independently of the ordinal. Only the first owner turn uses this observer.
++    """
++    def __init__(self, connection, runtime):
++        self.connection = connection
++        self.runtime = runtime
++        self.reads = []
++        self.preemption_enabled = True
++
++    def __getattr__(self, name):
++        return getattr(self.connection, name)
++
++    def set_progress_handler(self, handler, steps):
++        self.preemption_enabled = handler is not None and steps > 0
++        return self.connection.set_progress_handler(handler, steps)
++
++    def execute(self, sql, parameters=()):
++        if not sql.startswith(PROGRESS_SELECT):
++            return self.connection.execute(sql, parameters)
++        caller = sys._getframe(1).f_code
++        row = dict(ordinal=len(self.reads)+1,
++            purpose='completion_accounting' if caller is self.runtime._native_progress.__func__.__code__ else 'initial_observation',
++            query_hash=sha256(sql.encode()), limit=parameters[0],
++            pending=decision_identity(self.runtime.arbiter.pending, self.runtime.generation),
++            transaction_open=self.connection.in_transaction,
++            preemption_enabled=self.preemption_enabled, status='started',
++            sqlite_errorcode=None, owner_interrupt_flag=False, rows=[])
++        self.reads.append(row)
++        try:
++            cursor = self.connection.execute(sql, parameters)
++        except BaseException as exc:
++            self.failed(row, exc)
++            raise
++        observer = self
++
++        class Cursor:
++            def fetchall(self):
++                try:
++                    result = cursor.fetchall()
++                except BaseException as exc:
++                    observer.failed(row, exc)
++                    raise
++                row.update(status='completed', rows=[list(r) for r in result])
++                return result
++
++            def __getattr__(self, name):
++                return getattr(cursor, name)
++
++        return Cursor()
++
++    def failed(self, row, exc):
++        code = getattr(exc, 'sqlite_errorcode', None)
++        flag = getattr(self.runtime.writer, '_background_sql_interrupted', False)
++        row.update(status='interrupted' if isinstance(exc, sqlite3.OperationalError) and code == sqlite3.SQLITE_INTERRUPT else 'failed',
++            sqlite_errorcode=code, owner_interrupt_flag=flag)
++
++
++def evidence_fields(payload):
++    reads = payload['ledger_reads']
++    interrupted = [r for r in reads if r['status'] == 'interrupted']
++    retries = [r for r in reads if r['purpose'] == 'completion_accounting' and r['ordinal'] > 2]
++    return dict(completion_read_count=len(reads),
++        interruption_injected_at_read=payload['interruption_injections'][0] if len(payload['interruption_injections']) == 1 else None,
++        interruption_observed=len(interrupted) == 1 and interrupted[0]['ordinal'] == 2
++            and interrupted[0]['purpose'] == 'completion_accounting'
++            and interrupted[0]['sqlite_errorcode'] == sqlite3.SQLITE_INTERRUPT
++            and interrupted[0]['owner_interrupt_flag'] is True,
++        bounded_completion_retry_count=len(retries),
++        retry_read_ordinal=retries[0]['ordinal'] if len(retries) == 1 else None)
++
++
++def witness_gates(payload):
++    """Recompute success from SQL, accounting, durable state and owner evidence."""
++    from meme_machine.solana_maintenance_state import MAX_SCOPES
++    reads = payload['ledger_reads']; fields = evidence_fields(payload)
++    before, after = payload['before'], payload['after']
++    pending = reads[1]['pending'] if len(reads) > 1 else None
++    calls = payload['completion_accounting']
++    retry = reads[2] if len(reads) == 3 else {}
++    row_sequence = [r['ordinal'] for r in reads] == list(range(1, len(reads)+1))
++    interruption = (row_sequence and fields['interruption_injected_at_read'] == 2
++        and fields['interruption_observed'] and reads[0]['purpose'] == 'initial_observation'
++        and reads[0]['status'] == 'completed' and reads[0]['pending'] is None
++        and pending is not None and pending['generation'] == payload['generation'] and pending['side'] == 'archive'
++        and all(r['limit'] == MAX_SCOPES*2+3 and r['transaction_open'] is False
++            and r['query_hash'] == sha256((PROGRESS_SELECT+'?').encode()) for r in reads))
++    one_retry = (fields['completion_read_count'] == 3 and fields['bounded_completion_retry_count'] == 1
++        and fields['retry_read_ordinal'] == 3 and retry.get('purpose') == 'completion_accounting'
++        and retry.get('status') == 'completed' and retry.get('pending') == pending
++        and retry.get('preemption_enabled') is False and payload['interruption_injections'] == [2])
++    scope_rows = [r for r in retry.get('rows', []) if r[:2] == [SCOPE, 'archive']]
++    original_rows = [r for r in reads[0]['rows'] if r[:2] == [SCOPE, 'archive']] if reads else []
++    delta = (scope_rows[0][3]- (original_rows[0][3] if original_rows else 0),
++             scope_rows[0][5]- (original_rows[0][5] if original_rows else 0)) if len(scope_rows) == 1 else None
++    accounted = (len(calls) == 1 and calls[0]['decision'] == pending
++        and calls[0]['pending_before'] == pending and calls[0]['exact_pending_identity'] is True
++        and calls[0]['read_ordinal'] == 3 and calls[0]['transaction_open'] is False
++        and calls[0]['returned'] is True and calls[0]['error'] is None and calls[0]['pending_after'] is None
++        and calls[0]['ledger'] == [512, 512] and delta == (512, 512)
++        and calls[0]['progress'].get(SCOPE) == 512 and calls[0]['record_progress'].get(SCOPE) == 512
++        and sum(calls[0]['record_progress'].values()) == 512
++        and all(v == 0 for k, v in calls[0]['progress'].items() if k != SCOPE))
++    plan = {r['identity']:r['hash'] for r in payload['input_plan']}
++    committed = {r['identity']:r['hash'] for r in before['committed_records']}
++    remaining = before['receipt_remaining_identities']
++    continued = {r['identity']:r['hash'] for r in after['committed_records']}
++    remaining_after = after['receipt_remaining_identities']
++    continuation_count = len(continued)-len(committed)
++    durable = (len(plan) == 1000 and len(payload['input_plan']) == 1000
++        and len(committed) == len(before['committed_records']) == 512
++        and all(plan.get(k) == v for k, v in committed.items())
++        and before['hot'] == 1288 and before['progress'] == [512, 512]
++        and before['receipt_hash'] == payload['archive_receipt']['hash'] == payload['durable_archive_hash'])
++    receipt = (before['receipt_remaining'] == 488 and len(remaining) == len(set(remaining)) == 488
++        and set(remaining) == set(plan)-set(committed)
++        and 0 <= continuation_count <= 488 and set(committed) <= set(continued)
++        and all(plan.get(k) == v for k, v in continued.items())
++        and after['receipt_remaining'] == len(remaining_after) == len(set(remaining_after)) == 488-continuation_count
++        and set(remaining_after) == set(plan)-set(continued)
++        and after['receipt_hash'] == (before['receipt_hash'] if remaining_after else None))
++    completed = (interruption and one_retry and accounted and before['pending'] is False
++        and before['pending_identity'] is None and before['arbiter_failed'] is False)
++    next_turn = payload['next_turn']
++    next_usable = (next_turn['accepted'] is True and next_turn['completed'] is True
++        and next_turn['error'] is None and payload['second_error'] is None and isinstance(next_turn['result'], dict)
++        and next_turn['event']['sequence'] is not None and pending is not None
++        and next_turn['event']['sequence'] > pending['sequence']
++        and next_turn['event']['generation'] == payload['generation']
++        and next_turn['event'].get('completion') == 'completed'
++        and after['pending'] is False and after['pending_identity'] is None
++        and after['arbiter_failed'] is False and after['runtime_failure'] is None)
++    return dict(urgent_admitted=payload['urgent']['accepted'] is True,
++        urgent_completed=payload['urgent']['completed'] is True and payload['urgent']['error'] is None
++            and payload['urgent']['result'] == 1928,
++        accepted_future_completed=payload['first_turn']['accepted'] is True and payload['first_turn']['completed'] is True,
++        completion_query_interrupted=interruption, bounded_completion_retry=one_retry,
++        cooperative_yield=payload['first_error'] == 'EvidenceUnavailable:evidence_background_yield',
++        native_slice_committed=durable, receipt_continuation_preserved=receipt,
++        transaction_closed=before['open_transaction'] is False and after['open_transaction'] is False,
++        integrity=before['integrity'] == after['integrity'] == 'ok',
++        cooperative_error_nonfatal=before['runtime_failure'] is None,
++        episode_not_rebased=before['episodes'] == after['episodes'],
++        durable_accounting=accounted, no_duplicate_durable_progress=0 <= continuation_count <= 488
++            and len(continued) == len(after['committed_records'])
++            and after['progress'] == [512+continuation_count, 512+continuation_count]
++            and after['hot'] == 1288-continuation_count
++            and next_turn['event'].get('durable_records', {}).get(SCOPE, 0) == continuation_count
++            and (continuation_count == 0 or next_turn['event'].get('selected') == 'archive'),
++        decision_completed=completed, next_admission_usable=next_usable,
++        original_contract=payload['original_thresholds'] is True and payload['repair_applied'] is False
++            and payload['material_executions'] == 0 and payload['seed_records'] == 1928)
++
++
++def validate_witness(payload):
++    try:
++        if payload['witness_version'] != WITNESS_VERSION:
++            raise ValueError('m1_witness_version')
++        if any(payload[k] != v or type(payload[k]) is not type(v) for k, v in evidence_fields(payload).items()):
++            raise ValueError('m1_read_evidence_contradiction')
++        gates = witness_gates(payload)
++        if payload['gates'] != gates or any(type(v) is not bool for v in payload['gates'].values()):
++            raise ValueError('m1_fabricated_gate')
++        if payload['passed'] is not all(gates.values()):
++            raise ValueError('m1_fabricated_outcome')
++        return payload['passed']
++    except (KeyError, TypeError, IndexError, AttributeError) as exc:
++        raise ValueError('m1_witness_evidence_missing_or_malformed') from exc
++
+ 
+ def qualify(output):
+     from meme_machine import solana_evidence_service as service
+@@ -22,68 +203,107 @@ def qualify(output):
+     from meme_machine.solana_maintenance_runtime import ArchiveFlight, MaintenanceRuntime
+     from meme_machine.solana_provider_config import AlchemyEndpoint
+     from .native import ENDPOINT
+-    clock=DeterministicClock();clock.begin();box={};events=[];accepted=[]
++    clock=DeterministicClock();clock.begin();box={};accepted=[];injections=[];accounting=[]
+     path=Path(output)/'m1.sqlite'
+     def seed():
+         state=service.ServiceState(path,AlchemyEndpoint.parse(ENDPOINT));state.writer.clock=clock.time
+         for i in range(1,129):
+             state.writer.ingest(records(clock,'account:'+b58(i.to_bytes(32,'big')),1,'m1-ledger',account=True))
+         assert state.writer.archive(clock.time()-180)==128
+-        rows=records(clock,'program:meteora',1800,'m1-recovery')
++        rows=records(clock,SCOPE,1800,'m1-recovery')
+         state.writer.ingest(rows[:1000]);state.writer.ingest(rows[1000:])
+-        sub=next(s for s in service.program_subscriptions() if s.scope=='program:meteora')
+-        state.fence.block(sub,__import__('json').loads(empty_frame(10000,int(clock.time()))),clock.time())
++        sub=next(s for s in service.program_subscriptions() if s.scope==SCOPE)
++        state.fence.block(sub,json.loads(empty_frame(10000,int(clock.time()))),clock.time())
+         runtime=MaintenanceRuntime(state,monotonic=clock.monotonic,wall=clock.time)
+         plan,receipt=EvidenceWriter.prepare_and_write_archive(path,state.archive_plan())
+         assert len(plan)==1000
+         flight=ArchiveFlight(pending=(plan,receipt),submitted=clock.monotonic(),generation=runtime.generation)
+-        box.update(state=state,runtime=runtime,flight=flight)
++        archive=path.parent/(path.name+'.archive')/receipt['name']
++        box.update(state=state,runtime=runtime,flight=flight,receipt=receipt,
++            input_plan=[dict(identity=row['identity'],hash=row['hash']) for row in plan],
++            archive_hash=sha256(archive.read_bytes()))
+         return state
+-    def error(future):
+-        try:future.result(20)
+-        except BaseException as exc:return type(exc).__name__+':'+str(exc)
+-        return None
++    def outcome(future):
++        try:
++            return None, future.result(20)
++        except BaseException as exc:
++            return type(exc).__name__+':'+str(exc), None
+     def submit(owner,fn,priority):
+         future=owner.submit(fn,priority=priority);accepted.append(future);return future
+     def observe(state):
+         r=box['runtime'];f=box['flight']
+-        return dict(pending=r.arbiter.pending is not None,runtime_failure=r.failure,
+-            arbiter_failed=r.arbiter.failed,hot=state.writer.db.execute(
+-                "SELECT COUNT(*) FROM records WHERE scope='program:meteora' AND body IS NOT NULL").fetchone()[0],
+-            progress=state.writer.db.execute("SELECT units,records FROM maintenance_progress WHERE scope='program:meteora' AND side='archive'").fetchone(),
+-            episodes=state.writer.db.execute('SELECT * FROM maintenance_episodes ORDER BY scope,side').fetchall(),
+-            open_transaction=state.writer.db.in_transaction,receipt_remaining=len(f.pending[0]) if f.pending else 0,
+-            integrity=state.writer.db.execute('PRAGMA integrity_check').fetchone()[0])
++        # An independent read-only connection proves committed SQLite effects.
++        with closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True)) as db:
++            progress=db.execute("SELECT units,records FROM maintenance_progress WHERE scope=? AND side='archive'",(SCOPE,)).fetchone()
++            return dict(pending=r.arbiter.pending is not None,
++                pending_identity=decision_identity(r.arbiter.pending,r.generation),runtime_failure=r.failure,
++                arbiter_failed=r.arbiter.failed,hot=db.execute(
++                    "SELECT COUNT(*) FROM records WHERE scope=? AND body IS NOT NULL",(SCOPE,)).fetchone()[0],
++                progress=list(progress) if progress else None,
++                committed_records=[dict(identity=i,hash=h) for i,h in db.execute(
++                    "SELECT identity,hash FROM records WHERE scope=? AND body IS NULL AND archive=? ORDER BY identity",(SCOPE,box['receipt']['name']))],
++                episodes=[list(row) for row in db.execute('SELECT * FROM maintenance_episodes ORDER BY scope,side')],
++                open_transaction=state.writer.db.in_transaction,receipt_remaining=len(f.pending[0]) if f.pending else 0,
++                receipt_remaining_identities=[row['identity'] for row in f.pending[0]] if f.pending else [],
++                receipt_hash=f.pending[1]['hash'] if f.pending else None,
++                integrity=db.execute('PRAGMA integrity_check').fetchone()[0])
+     with patch.object(service,'time',clock):
+         owner=PriorityOwner(seed,clock=clock.monotonic)
+         try:
+-            owner.ready.result(20);r=box['runtime'];f=box['flight'];reads=[0]
+-            def trace(sql):
+-                if sql.startswith('SELECT scope,side,at,units,record_at,records FROM maintenance_progress ORDER BY scope,side LIMIT '):
+-                    reads[0]+=1
+-                    if reads[0]==2:
+-                        box['urgent']=submit(owner,lambda state:state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
++            owner.ready.result(20);r=box['runtime'];f=box['flight']
+             def turn(state):
+-                state.writer.db.set_trace_callback(trace)
+-                try:return r.turn(f,clock.monotonic())
+-                finally:state.writer.db.set_trace_callback(None)
+-            first=submit(owner,turn,4);first_error=error(first)
+-            if 'urgent' in box:box['urgent'].result(10)
++                connection=state.writer.db;observer=LedgerReads(connection,r)
++                original_complete=r.arbiter.complete
++                def complete(decision, now, progress, *, record_progress=None):
++                    row=dict(decision=decision_identity(decision,r.generation),
++                        pending_before=decision_identity(r.arbiter.pending,r.generation),
++                        exact_pending_identity=decision is r.arbiter.pending,read_ordinal=len(observer.reads),
++                        transaction_open=connection.in_transaction,progress=dict(progress),
++                        record_progress=dict(record_progress or {}),ledger=list(connection.execute(
++                            "SELECT units,records FROM maintenance_progress WHERE scope=? AND side='archive'",(SCOPE,)).fetchone()),
++                        returned=False,error=None,pending_after=None)
++                    accounting.append(row)
++                    try:
++                        result=original_complete(decision,now,progress,record_progress=record_progress)
++                        row['returned']=True
++                        return result
++                    except BaseException as exc:
++                        row['error']=type(exc).__name__+':'+str(exc)
++                        raise
++                    finally:
++                        row['pending_after']=decision_identity(r.arbiter.pending,r.generation)
++                def trace(sql):
++                    if sql.startswith(PROGRESS_SELECT) and len(observer.reads)==2:
++                        injections.append(observer.reads[-1]['ordinal'])
++                        box['urgent']=submit(owner,lambda state:state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
++                state.writer.db=observer
++                connection.set_trace_callback(trace)
++                try:
++                    with patch.object(r.arbiter,'complete',complete):
++                        return r.turn(f,clock.monotonic())
++                finally:
++                    connection.set_trace_callback(None);state.writer.db=connection
++                    box['reads']=observer.reads
++            first=submit(owner,turn,4);first_error,_=outcome(first)
++            urgent_error,urgent_result=outcome(box['urgent']) if 'urgent' in box else (None,None)
+             before=submit(owner,observe,2).result(10)
+-            second=submit(owner,lambda state:r.turn(f,clock.monotonic()),4);second_error=error(second)
++            second=submit(owner,lambda state:r.turn(f,clock.monotonic()),4);second_error,second_result=outcome(second)
+             after=submit(owner,observe,2).result(10)
+-            gates=dict(urgent_admitted='urgent' in box and box['urgent'].done(),
+-                accepted_future_completed=first.done(),completion_query_interrupted=reads[0]==2,
+-                cooperative_yield=first_error is not None and first_error.endswith(':evidence_background_yield'),
+-                native_slice_committed=before['hot']==1288 and before['progress']==(512,512),
+-                receipt_continuation_preserved=before['receipt_remaining']==488,
+-                transaction_closed=before['open_transaction'] is False,
+-                integrity=before['integrity']=='ok',cooperative_error_nonfatal=before['runtime_failure'] is None,
+-                episode_not_rebased=before['episodes']==after['episodes'],
+-                decision_completed=before['pending'] is False,next_admission_usable=second_error is None)
+-            return dict(passed=all(gates.values()),gates=gates,first_error=first_error,second_error=second_error,
+-                before=before,after=after,generation=r.generation,seed_records=1928,
++            payload=dict(witness_version=WITNESS_VERSION,ledger_reads=box['reads'],
++                interruption_injections=injections,completion_accounting=accounting,
++                first_turn=dict(accepted=first in accepted,completed=first.done()),
++                urgent=dict(accepted='urgent' in box and box['urgent'] in accepted,
++                    completed='urgent' in box and box['urgent'].done(),error=urgent_error,result=urgent_result),
++                next_turn=dict(accepted=second in accepted,completed=second.done(),error=second_error,
++                    result=second_result,event=dict(r.ring[-1])),
++                first_error=first_error,second_error=second_error,before=before,after=after,
++                generation=r.generation,seed_records=1928,input_plan=box['input_plan'],
++                archive_receipt=box['receipt'],durable_archive_hash=box['archive_hash'],
+                 original_thresholds=True,repair_applied=False,material_executions=0)
++            payload.update(evidence_fields(payload));payload['gates']=witness_gates(payload)
++            payload['passed']=all(payload['gates'].values())
++            validate_witness(payload)
++            return payload
+         finally:
+             owner.close()
+             assert all(f.done() for f in accepted) and not owner.thread.is_alive()
+diff --git a/certification/stage_e_native_v2/plan-v2.json b/certification/stage_e_native_v2/plan-v2.json
+index 505954c2..ca0f0c18 100644
+--- a/certification/stage_e_native_v2/plan-v2.json
++++ b/certification/stage_e_native_v2/plan-v2.json
+@@ -59,6 +59,7 @@
+     "actions/upload-artifact": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+   },
+   "input_manifest": "certification/stage_e_native_v2/input-manifest-v2.json",
++  "m1_witness_version": "native-m1-completion-witness-v2q2-1",
+   "plan_version": "stage-e-native-transition-plan-v2",
+   "readiness_policy": "every required gate evaluated at appropriate future phase; unresolved gates block; Q2 package never certifies Stage E",
+   "repository": "levonmendall/The-Meme-Machine",
+@@ -140,7 +141,7 @@
+       "recovery-1"
+     ]
+   },
+-  "schema_version": 2,
++  "schema_version": 3,
+   "tooling_dependencies": {
+     "PyYAML": "6.0.2",
+     "jsonschema": "4.23.0"
+diff --git a/certification/stage_e_native_v2/refresh_manifest.py b/certification/stage_e_native_v2/refresh_manifest.py
+index 0222fd61..60d0a3a2 100644
+--- a/certification/stage_e_native_v2/refresh_manifest.py
++++ b/certification/stage_e_native_v2/refresh_manifest.py
+@@ -6,6 +6,7 @@ before any trial. Evidence/report/assembly outputs are deliberately external.
+ from pathlib import Path
+ import json
+ from .contract import HERE, ROOT, sha256
++from . import SCHEMA_VERSION
+ 
+ 
+ def main():
+@@ -19,7 +20,7 @@ def main():
+         files[path.relative_to(ROOT).as_posix()]=sha256(path.read_bytes())
+     for name in ('certification/__init__.py','requirements.txt'):
+         path=ROOT/name;files[name]=sha256(path.read_bytes())
+-    manifest=dict(version='stage-e-successor-input-manifest-v2',schema_version=2,inputs=dict(sorted(files.items())),
++    manifest=dict(version='stage-e-successor-input-manifest-v2',schema_version=SCHEMA_VERSION,inputs=dict(sorted(files.items())),
+         self_hash_policy='manifest SHA-256 bound by external predeclaration; no circular self hash',
+         historical_inputs='separate immutable plan.historical_inputs')
+     (HERE/'input-manifest-v2.json').write_text(json.dumps(manifest,indent=2,sort_keys=True)+'\n')
+diff --git a/certification/stage_e_native_v2/test-classifications-v2.json b/certification/stage_e_native_v2/test-classifications-v2.json
+index b6edf133..c17f0415 100644
+--- a/certification/stage_e_native_v2/test-classifications-v2.json
++++ b/certification/stage_e_native_v2/test-classifications-v2.json
+@@ -39,6 +39,27 @@
+     "certification.stage_e_native_v2.tests.test_contract.ObserverTests.test_nan_infinity_missing_components_and_malformed_raw_pairs_rejected": "STATIC",
+     "certification.stage_e_native_v2.tests.test_contract.ObserverTests.test_strict_less_than_one_percent_only": "STATIC",
+     "certification.stage_e_native_v2.tests.test_contract.ObserverTests.test_wrong_candidate_assembly_plan_or_workload_rejected": "STATIC",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_aggregation_preserves_negative_and_rejects_fabricated_success": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_approved_read_two_interruption_and_exactly_one_retry_accepted": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_fabricated_decision_completed_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_fabricated_next_admission_usable_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_interruption_on_read_one_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_interruption_on_read_three_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_next_admission_unusable_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_next_turn_receipt_progress_requires_new_committed_records": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_no_real_interruption_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_pending_clear_without_legitimate_accounting_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_receipt_continuation_lost_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_repaired_sequence_without_retry_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_retry_does_not_inject_second_urgent_request": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_retry_duplicate_durable_progress_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_retry_with_pending_decision_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_schema_requires_ordinal_retry_and_accounting_evidence": "STATIC",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_three_final_reads_without_read_two_injection_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_two_or_more_retries_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_unrepaired_negative_keeps_read_two_and_zero_retry": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_urgent_request_never_completes_rejected": "DETERMINISTIC_BOUNDED",
++    "certification.stage_e_native_v2.tests.test_m1.M1WitnessTests.test_wrong_sqlite_error_or_nonaccounting_read_rejected": "DETERMINISTIC_BOUNDED",
+     "certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_actual_committed_archive_retirement_and_native_lane_selection": "DETERMINISTIC_BOUNDED",
+     "certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_attempts_rollback_and_cross_generation_never_qualify": "DETERMINISTIC_BOUNDED",
+     "certification.stage_e_native_v2.tests.test_native.NativeWitnessTests.test_held_snapshot_is_read_before_writer_commit_and_checkpoint_finishes_after_release": "DETERMINISTIC_BOUNDED",
+diff --git a/certification/stage_e_native_v2/tests/test_m1.py b/certification/stage_e_native_v2/tests/test_m1.py
+new file mode 100644
+index 00000000..92d7c529
+--- /dev/null
++++ b/certification/stage_e_native_v2/tests/test_m1.py
+@@ -0,0 +1,197 @@
++"""Witness parser fixtures carry no native or exact-assembly qualification credit."""
++import copy
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++
++from certification.stage_e_native_v2.contract import HERE, canonical, read, sha256
++from certification.stage_e_native_v2.m1 import (WITNESS_VERSION, SCOPE, PROGRESS_SELECT,
++    evidence_fields, witness_gates, validate_witness)
++from certification.stage_e_native_v2.tests.test_binding import raw_fixture
++from certification.stage_e_native_v2.verify import aggregate, validate_raw
++
++
++def seal(payload):
++    payload.update(evidence_fields(payload))
++    payload['gates'] = witness_gates(payload)
++    payload['passed'] = all(payload['gates'].values())
++    return payload
++
++
++def approved_sequence():
++    """Read 2 interrupts; exactly one accounting retry reads the durable 512."""
++    from meme_machine.solana_maintenance_state import MAX_SCOPES
++    generation='parser-fixture-generation'
++    decision=dict(generation=generation,sequence=1,side='archive')
++    plan=[dict(identity=str(i),hash=sha256(str(i).encode())) for i in range(1000)]
++    receipt=dict(name='f'*64+'.jsonl.gz',hash='f'*64,bytes=100)
++    before=dict(pending=False,pending_identity=None,arbiter_failed=False,runtime_failure=None,
++        hot=1288,progress=[512,512],committed_records=plan[:512],episodes=[['original',120]],
++        open_transaction=False,receipt_remaining=488,receipt_remaining_identities=[r['identity'] for r in plan[512:]],
++        receipt_hash=receipt['hash'],integrity='ok')
++    reads=[dict(ordinal=i,purpose='initial_observation' if i==1 else 'completion_accounting',
++        query_hash=sha256((PROGRESS_SELECT+'?').encode()),limit=MAX_SCOPES*2+3,
++        pending=None if i==1 else decision,transaction_open=False,preemption_enabled=i!=3,
++        status='interrupted' if i==2 else 'completed',sqlite_errorcode=9 if i==2 else None,
++        owner_interrupt_flag=i==2,rows=[[SCOPE,'archive',1800000000,512,1800000000,512]] if i==3 else []) for i in (1,2,3)]
++    call=dict(decision=decision,pending_before=decision,exact_pending_identity=True,read_ordinal=3,
++        transaction_open=False,progress={SCOPE:512},record_progress={SCOPE:512},ledger=[512,512],
++        returned=True,error=None,pending_after=None)
++    after=copy.deepcopy(before)
++    after.update(hot=800,progress=[1000,1000],committed_records=plan,receipt_remaining=0,
++        receipt_remaining_identities=[],receipt_hash=None)
++    return seal(dict(witness_version=WITNESS_VERSION,generation=generation,ledger_reads=reads,
++        interruption_injections=[2],completion_accounting=[call],before=before,after=after,
++        first_turn=dict(accepted=True,completed=True),urgent=dict(accepted=True,completed=True,error=None,result=1928),
++        next_turn=dict(accepted=True,completed=True,error=None,result=dict(side='retirement'),
++            event=dict(sequence=2,generation=generation,selected='archive',completion='completed',durable_records={SCOPE:488})),first_error='EvidenceUnavailable:evidence_background_yield',
++        second_error=None,seed_records=1928,input_plan=plan,archive_receipt=receipt,
++        durable_archive_hash=receipt['hash'],original_thresholds=True,repair_applied=False,material_executions=0))
++
++
++def raw_m1(payload):
++    raw,manifest=raw_fixture()
++    manifest['identity']['expected_trial_matrix']=['m1-completion']
++    raw['identity']['expected_trial_matrix']=['m1-completion']
++    raw['children'][0]['identity']['expected_trial_matrix']=['m1-completion']
++    raw.update(case_id='m1-completion',trial_id='m1-completion:parser-fixture',
++        classification='DETERMINISTIC_BOUNDED',payload=payload,generation=payload['generation'],passed=payload['passed'])
++    return raw,manifest
++
++
++class M1WitnessTests(unittest.TestCase):
++    def reject(self,payload):
++        seal(payload)
++        self.assertFalse(validate_witness(payload))
++        raw,manifest=raw_m1(payload)
++        self.assertFalse(validate_raw(raw,manifest,'m1-completion',allow_failed=True))
++        # Merely asserting success cannot override any independently derived gate.
++        payload['passed']=True;payload['gates']={k:True for k in payload['gates']};raw['passed']=True
++        with self.assertRaisesRegex(ValueError,'m1_'):
++            validate_raw(raw,manifest,'m1-completion',allow_failed=True)
++
++    def test_approved_read_two_interruption_and_exactly_one_retry_accepted(self):
++        payload=approved_sequence()
++        self.assertTrue(validate_witness(payload))
++        self.assertEqual((payload['interruption_injected_at_read'],payload['completion_read_count'],
++            payload['bounded_completion_retry_count'],payload['retry_read_ordinal']),(2,3,1,3))
++        raw,manifest=raw_m1(payload)
++        self.assertTrue(validate_raw(raw,manifest,'m1-completion'))
++
++    def test_interruption_on_read_one_rejected(self):
++        p=approved_sequence();p['interruption_injections']=[1]
++        p['ledger_reads'][0].update(status='interrupted',sqlite_errorcode=9,owner_interrupt_flag=True)
++        p['ledger_reads'][1].update(status='completed',sqlite_errorcode=None,owner_interrupt_flag=False)
++        self.reject(p)
++
++    def test_interruption_on_read_three_rejected(self):
++        p=approved_sequence();p['interruption_injections']=[3]
++        p['ledger_reads'][1].update(status='completed',sqlite_errorcode=None,owner_interrupt_flag=False)
++        p['ledger_reads'][2].update(status='interrupted',sqlite_errorcode=9,owner_interrupt_flag=True)
++        self.reject(p)
++
++    def test_no_real_interruption_rejected(self):
++        p=approved_sequence();p['ledger_reads'][1].update(status='completed',sqlite_errorcode=None,owner_interrupt_flag=False)
++        self.reject(p)
++
++    def test_repaired_sequence_without_retry_rejected(self):
++        p=approved_sequence();p['ledger_reads'].pop();self.reject(p)
++
++    def test_two_or_more_retries_rejected(self):
++        for extra in (1,2):
++            with self.subTest(extra=extra):
++                p=approved_sequence()
++                for i in range(extra):
++                    row=copy.deepcopy(p['ledger_reads'][2]);row['ordinal']=4+i;p['ledger_reads'].append(row)
++                self.reject(p)
++
++    def test_three_final_reads_without_read_two_injection_rejected(self):
++        p=approved_sequence();p['interruption_injections']=[];self.reject(p)
++
++    def test_retry_with_pending_decision_rejected(self):
++        p=approved_sequence();p['before'].update(pending=True,pending_identity=p['ledger_reads'][1]['pending'])
++        self.reject(p)
++
++    def test_pending_clear_without_legitimate_accounting_rejected(self):
++        p=approved_sequence();p['completion_accounting']=[];self.reject(p)
++
++    def test_retry_duplicate_durable_progress_rejected(self):
++        p=approved_sequence();p['after']['progress']=[1024,1024];self.reject(p)
++        p=approved_sequence();p['completion_accounting'][0]['record_progress'][SCOPE]=1024;self.reject(p)
++
++    def test_next_turn_receipt_progress_requires_new_committed_records(self):
++        p=approved_sequence()
++        self.assertTrue(validate_witness(p))
++        self.assertEqual(p['before']['progress'],[512,512])
++        self.assertEqual(p['after']['progress'],[1000,1000])
++        self.assertEqual(p['after']['receipt_remaining'],0)
++        p['next_turn']['event']['durable_records'][SCOPE]=512;self.reject(p)
++
++    def test_urgent_request_never_completes_rejected(self):
++        p=approved_sequence();p['urgent']['completed']=False;self.reject(p)
++
++    def test_receipt_continuation_lost_rejected(self):
++        p=approved_sequence();p['before']['receipt_remaining_identities'].pop();self.reject(p)
++
++    def test_next_admission_unusable_rejected(self):
++        p=approved_sequence();p['next_turn'].update(error='EvidenceUnavailable:maintenance_decision_in_flight',result=None)
++        self.reject(p)
++
++    def test_fabricated_decision_completed_rejected(self):
++        p=approved_sequence();p['completion_accounting'][0]['returned']=False
++        p['gates']['decision_completed']=True
++        with self.assertRaisesRegex(ValueError,'m1_fabricated_gate'):validate_witness(p)
++
++    def test_fabricated_next_admission_usable_rejected(self):
++        p=approved_sequence();p['next_turn']['completed']=False
++        p['gates']['next_admission_usable']=True
++        with self.assertRaisesRegex(ValueError,'m1_fabricated_gate'):validate_witness(p)
++
++    def test_retry_does_not_inject_second_urgent_request(self):
++        p=approved_sequence();p['interruption_injections']=[2,3];self.reject(p)
++
++    def test_wrong_sqlite_error_or_nonaccounting_read_rejected(self):
++        for field,value in [('sqlite_errorcode',1),('owner_interrupt_flag',False),('purpose','initial_observation')]:
++            p=approved_sequence();p['ledger_reads'][1][field]=value;self.reject(p)
++
++    def test_unrepaired_negative_keeps_read_two_and_zero_retry(self):
++        p=approved_sequence();p['ledger_reads'].pop();p['completion_accounting']=[]
++        decision=p['ledger_reads'][1]['pending']
++        p['before'].update(pending=True,pending_identity=decision)
++        p['after']=copy.deepcopy(p['before'])
++        p['after'].update(pending=True,pending_identity=decision,arbiter_failed=True,
++            runtime_failure='EvidenceUnavailable:maintenance_decision_in_flight')
++        p['second_error']='EvidenceUnavailable:maintenance_decision_in_flight'
++        p['next_turn'].update(error=p['second_error'],result=None,event=dict(sequence=None,generation=p['generation']))
++        seal(p);self.assertFalse(validate_witness(p))
++        self.assertTrue(p['interruption_observed']);self.assertEqual(p['completion_read_count'],2)
++        self.assertEqual(p['bounded_completion_retry_count'],0)
++        self.assertTrue(p['gates']['native_slice_committed']);self.assertFalse(p['gates']['decision_completed'])
++        self.assertFalse(p['gates']['next_admission_usable'])
++
++    def test_aggregation_preserves_negative_and_rejects_fabricated_success(self):
++        p=approved_sequence();p['completion_accounting']=[];seal(p)
++        raw,manifest=raw_m1(p)
++        with tempfile.TemporaryDirectory() as td,patch('certification.stage_e_native_v2.verify.verify_assembly',return_value=manifest):
++            path=Path(td)/'raw.json';path.write_bytes(canonical(raw))
++            inv={'m1-completion':dict(trial_id=raw['trial_id'],sha256=sha256(path.read_bytes()),candidate_sha='a'*40,
++                assembly_digest='0'*64,run_id='fixture-run',attempt=1,generation=p['generation'])}
++            result=aggregate(td,'0'*64,[str(path)],inv,Path(td)/'aggregate.json')
++            self.assertFalse(result['passed']);self.assertEqual(result['failed_trials'],['m1-completion'])
++            p['passed']=True;p['gates']={k:True for k in p['gates']};raw['passed']=True
++            path.write_bytes(canonical(raw));inv['m1-completion']['sha256']=sha256(path.read_bytes())
++            with self.assertRaisesRegex(ValueError,'m1_fabricated_gate'):
++                aggregate(td,'0'*64,[str(path)],inv,Path(td)/'fabricated.json')
++
++    def test_schema_requires_ordinal_retry_and_accounting_evidence(self):
++        from jsonschema import Draft202012Validator
++        schema=read(HERE/'evidence-schema-v2.json')['$defs']['m1Witness']
++        validator=Draft202012Validator(schema);p=approved_sequence();validator.validate(p)
++        for field in ('ledger_reads','interruption_injected_at_read','interruption_observed',
++                      'bounded_completion_retry_count','retry_read_ordinal','completion_accounting'):
++            bad=copy.deepcopy(p);bad.pop(field)
++            self.assertTrue(list(validator.iter_errors(bad)),field)
++
++
++if __name__=='__main__':unittest.main()
+diff --git a/certification/stage_e_native_v2/verify.py b/certification/stage_e_native_v2/verify.py
+index 3d8f379f..d78fe609 100644
+--- a/certification/stage_e_native_v2/verify.py
++++ b/certification/stage_e_native_v2/verify.py
+@@ -116,6 +116,10 @@ def validate_raw(raw, manifest, case, *, allow_failed=False):
+     elif raw['children']:
+         raise ValueError('unexpected_nested_origin_probe')
+     if type(raw['passed']) is not bool or not isinstance(raw['errors'],list):raise ValueError('malformed_outcome')
++    if case=='m1-completion' and raw['payload']:
++        from .m1 import validate_witness
++        if validate_witness(raw['payload']) is not raw['passed']:
++            raise ValueError('m1_contradictory_raw_outcome')
+     if raw['passed'] is not True:
+         if allow_failed:return False
+         raise ValueError('failed_trial_preserved_not_qualified')
+@@ -133,8 +137,9 @@ def validate_raw(raw, manifest, case, *, allow_failed=False):
+             if r.get(k) is not True:raise ValueError('restart_requirement_missing:'+k)
+         if r['episode_before']!=r['episode_after'] or r['committed_service_before']!=r['reconstructed_ledger']:
+             raise ValueError('restart_episode_or_ledger_rebased')
+-    if case=='m1-completion' and (payload.get('passed') is not True or not payload.get('gates') or not all(payload['gates'].values())):
+-        raise ValueError('m1_native_completion_unearned')
++    if case=='m1-completion':
++        from .m1 import validate_witness
++        if validate_witness(payload) is not True:raise ValueError('m1_native_completion_unearned')
+     if case=='run379-setup':
+         if (payload.get('setup_elapsed_us')!=0 or payload.get('native_hot_debt')!=200
+                 or payload.get('bounded_execution_transactions')!=6 or payload.get('source_continuity') is not True

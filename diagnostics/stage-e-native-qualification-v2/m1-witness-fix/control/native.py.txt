@@ -1,0 +1,31 @@
+import json,sys
+from pathlib import Path
+OUT=Path('/tmp/m1-fix-authoritative');A=OUT/'assembly';sys.path.insert(0,str(A/'source'))
+from certification.stage_e_native_v2.binding import launch,verify_assembly
+from certification.stage_e_native_v2.contract import canonical,read,sha256
+from certification.stage_e_native_v2.verify import validate_raw
+m=read(A/'assembly.json');d=m['assembly_digest'];results={}
+for case in ('preflight','m1-completion'):
+ result=launch(A,d,case,OUT/case)
+ raw=read(OUT/case/'raw-trial-v2.json')
+ valid=validate_raw(raw,m,case,allow_failed=True)
+ if case=='preflight':assert result.returncode==0 and valid is True
+ else:
+  p=raw['payload'];assert raw['errors']==[] and result.returncode==1 and valid is False
+  assert p['interruption_injected_at_read']==2 and p['interruption_observed'] is True
+  assert p['completion_read_count']==2 and p['bounded_completion_retry_count']==0 and p['retry_read_ordinal'] is None
+  assert p['before']['progress']==p['after']['progress']==[512,512]
+  assert p['before']['pending'] is p['after']['pending'] is True
+  assert p['before']['pending_identity']==p['after']['pending_identity']==p['ledger_reads'][1]['pending']
+  assert p['completion_accounting']==[] and p['before']['receipt_remaining']==p['after']['receipt_remaining']==488
+  assert p['gates']['decision_completed'] is p['gates']['next_admission_usable'] is False
+  assert p['first_error']=='EvidenceUnavailable:evidence_background_yield'
+  assert p['second_error']=='EvidenceUnavailable:maintenance_decision_in_flight'
+  assert p['urgent']['accepted'] is p['urgent']['completed'] is True and p['urgent']['error'] is None
+  assert p['before']['integrity']==p['after']['integrity']=='ok'
+ results[case]=dict(returncode=result.returncode,validated=valid,expected_negative=case=='m1-completion',
+  trial_id=raw['trial_id'],generation=raw['generation'],raw_sha256=sha256((OUT/case/'raw-trial-v2.json').read_bytes()),
+  parent_origin_count=len(raw['runtime_origins']),child_origin_count=len(raw['children'][0]['runtime_origins']),
+  candidate_sha=raw['identity']['candidate_sha'],assembly_digest=d)
+verify_assembly(A,d)
+(OUT/'native-results.json').write_bytes(canonical(results));print(json.dumps(results,indent=2))

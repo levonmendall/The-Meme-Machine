@@ -1,0 +1,59 @@
+import contextlib,importlib.metadata,io,json,sys
+from pathlib import Path
+OUT=Path('/tmp/m1-fix-authoritative');A=OUT/'assembly';sys.path.insert(0,str(A/'source'))
+from certification.stage_e_native_v2.binding import verify_assembly
+from certification.stage_e_native_v2.contract import canonical,read,sha256
+m=read(A/'assembly.json');d=m['assembly_digest'];verify_assembly(A,d)
+e=m['identity']['environment_identity'];tooling={};versions={}
+for name in ('jsonschema','jsonschema-specifications','referencing','rpds-py','attrs','typing-extensions','PyYAML'):
+ dist=importlib.metadata.distribution(name);versions[name]=dist.version
+ for item in dist.files or []:
+  path=Path(dist.locate_file(item)).resolve()
+  if path.is_file() and path.suffix!='.pyc':tooling[str(path)]=sha256(path.read_bytes())
+assert versions['jsonschema']=='4.23.0' and versions['PyYAML']=='6.0.2'
+controller=Path(__file__).resolve();controller_hash=sha256(controller.read_bytes())
+(OUT/'supplemental-predeclaration.json').write_bytes(canonical(dict(identity=m['identity'],assembly_digest=d,
+ controller_path=str(controller),controller_sha256=controller_hash,tooling_versions=versions,tooling_files=tooling,
+ test_classifications=read(A/'source/certification/stage_e_native_v2/test-classifications-v2.json'),
+ qualification_authority=False,canonical_authority=False,material_executions=0,observer_measurements=0)))
+from certification.stage_e_native_v2 import test_driver
+sys.argv=['supplemental','--output',str(OUT/'tests')]
+log=io.StringIO()
+with contextlib.redirect_stdout(log):rc=test_driver.main()
+(OUT/'tests'/'controller.log').write_text(log.getvalue())
+assert rc==0
+row=read(OUT/'tests'/'test-results.json');assert row['passed'] and row['tests_run']==71 and row['skipped']==[]
+# Schema validation uses pinned tooling outside the canonical runtime assembly.
+from jsonschema import Draft202012Validator
+schema=read(A/'source/certification/stage_e_native_v2/evidence-schema-v2.json')
+Draft202012Validator.check_schema(schema);v=Draft202012Validator(schema)
+validated=[]
+for case in ('preflight','m1-completion'):
+ raw=read(OUT/case/'raw-trial-v2.json');v.validate(raw);v.validate(raw['children'][0]);validated.extend([case,case+':origin-child'])
+(OUT/'schema-validation.json').write_bytes(canonical(dict(schema_version=3,
+ schema_sha256=sha256((A/'source/certification/stage_e_native_v2/evidence-schema-v2.json').read_bytes()),
+ validated=validated,passed=True,tooling_versions=versions)))
+origins=[]
+for name,module in sorted(sys.modules.items()):
+ raw=getattr(module,'__file__',None)
+ if not raw:continue
+ path=Path(raw).resolve();actual=sha256(path.read_bytes())
+ if path.is_relative_to(A/'source'):
+  expected=m['files'][path.relative_to(A/'source').as_posix()]['sha256'];category='assembled'
+ elif str(path) in e['dependencies']['websockets']['files']:
+  expected=e['dependencies']['websockets']['files'][str(path)];category='approved_runtime_dependency'
+ elif str(path) in e['stdlib_files']:
+  expected=e['stdlib_files'][str(path)];category='standard_library'
+ elif str(path) in tooling:
+  expected=tooling[str(path)];category='supplemental_tooling'
+ elif path==controller:
+  expected=controller_hash;category='supplemental_controller'
+ else:raise ValueError('unexpected_supplemental_origin:'+name+':'+str(path))
+ assert actual==expected,(name,str(path))
+ origins.append(dict(module=name,origin=str(path),sha256=actual,category=category))
+verify_assembly(A,d)
+(OUT/'tests'/'source-binding.json').write_bytes(canonical(dict(candidate_sha=m['identity']['candidate_sha'],
+ candidate_tree=m['identity']['candidate_tree'],assembly_digest=d,assembly_before=d,assembly_after=d,
+ origins=origins,controller_sha256=controller_hash,supplemental_predeclaration_sha256=sha256((OUT/'supplemental-predeclaration.json').read_bytes()),
+ qualification_authority=False,canonical_authority=False,passed=True)))
+print(json.dumps(dict(tests_run=row['tests_run'],passed=row['passed'],module_origins=len(origins),schema_validated=validated)))
