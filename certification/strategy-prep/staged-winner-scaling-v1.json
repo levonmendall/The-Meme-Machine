@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-staged-winner-scaling-v1",
-  "status": "PREPARED_ONLY_NOT_ACTIVE",
+  "status": "READY_FOR_POST_STAGE_E_FINAL_SHA_INTEGRATION_NOT_ACTIVE",
   "paper_only": true,
   "live_money_authority": false,
   "prepared_at": "2026-10-01",
@@ -117,5 +117,12 @@
     "maximum_scale_events_per_lifecycle": 1,
     "final_sha_regeneration_required": true,
     "unresolved_economic_decisions": []
+  },
+  "activation_readiness": {
+    "ready": true,
+    "unresolved_economic_decisions": [],
+    "final_sha_regeneration_required": true,
+    "activation_item": "staged_winner_scaling",
+    "calibration_authority": "right-tail-capture-v1"
   }
 }
