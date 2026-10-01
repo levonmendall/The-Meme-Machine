@@ -47,7 +47,7 @@ def main():
         kind='native_completion_prerequisite_only', diagnostic_branch=BRANCH,
         production_base=BASE, material_executions=0,
         material_budget_consumed=6, material_budget_unused=0,
-        pressure_workloads=False, m1_repair=False, fixture_revision=2)
+        pressure_workloads=False, m1_repair=False, fixture_revision=3)
     patch = subprocess.check_output(['git', 'diff', '--binary', EVIDENCE_BASE, head], cwd=ROOT)
     (args.output / 'diagnostic.patch').write_bytes(patch)
     static = dict(
