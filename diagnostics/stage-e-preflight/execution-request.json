@@ -1,7 +1,8 @@
 {
-  "mode": "corrected",
+  "mode": "halted",
   "base_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
-  "expected_parent": "54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340",
+  "expected_parent": "e0d9e708d3cef108138b67a3add7ebc96f589172",
+  "paper_only": true,
   "full_preflight_authorized": false,
-  "paper_only": true
+  "reason": "Frozen qualification workload input conflict. No further execution."
 }

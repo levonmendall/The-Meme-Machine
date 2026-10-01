@@ -19,7 +19,7 @@ async def local_server(*args,path,**kwargs):
     return FakeIPC()
 
 
-def block_frame(slot,*,padding_bytes,relevant_transactions=80,block_time=1790438999):
+def block_frame(slot,*,padding_bytes,relevant_transactions=80):
     txs=[
         dict(
             transaction=dict(
@@ -45,7 +45,7 @@ def block_frame(slot,*,padding_bytes,relevant_transactions=80,block_time=1790438
                 parentSlot=slot-1,
                 blockhash='h'+str(slot),
                 previousBlockhash='h'+str(slot-1),
-                blockTime=block_time,
+                blockTime=1790438999,
                 transactions=txs,
             ),
         ))),
@@ -53,12 +53,11 @@ def block_frame(slot,*,padding_bytes,relevant_transactions=80,block_time=1790438
 
 
 class SustainedSocket:
-    def __init__(self,*,frames,interval,padding_bytes,relevant_transactions=80,source_clock=None):
+    def __init__(self,*,frames,interval,padding_bytes,relevant_transactions=80):
         self.queue=asyncio.Queue();self.subs={}
         self.remaining=frames;self.interval=interval
         self.padding_bytes=padding_bytes;self.relevant_transactions=relevant_transactions
         self.next_slot=1000;self.recv_count=0;self.next_emit=None
-        self.source_clock=source_clock
 
     async def __aenter__(self):return self
     async def __aexit__(self,*args):pass
@@ -80,7 +79,6 @@ class SustainedSocket:
             raw=block_frame(
                 slot,padding_bytes=self.padding_bytes,
                 relevant_transactions=self.relevant_transactions,
-                block_time=int(self.source_clock())-1 if self.source_clock else 1790438999,
             )
         else:
             raw=await self.queue.get()
@@ -138,10 +136,12 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
         frames=14
         socket=SustainedSocket(
             frames=frames,interval=.75,padding_bytes=10*1024*1024,
-            relevant_transactions=80,source_clock=time.time,
+            relevant_transactions=80,
         )
         stop=asyncio.Event()
         with tempfile.TemporaryDirectory() as temp,patch(
+            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
+        ),patch(
             'websockets.asyncio.client.connect',return_value=socket
         ),patch(
             'asyncio.start_unix_server',side_effect=local_server
@@ -193,7 +193,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                     service.STREAM_DISPATCH_MAX_BYTES,
                 )
                 self.assertTrue(reader.covered(
-                    SWAP_SCOPE,1000,1000+frames-2,as_of=time.time()
+                    SWAP_SCOPE,1000,1000+frames-2,as_of=1790439000
                 ))
                 reader.close()
             finally:

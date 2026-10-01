@@ -1,0 +1,43 @@
+{
+  "digest_algorithm": "SHA-256 over complete UTF-8 source content; implementation verified against SHA-256('abc') and both original manifest pins",
+  "base_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "candidate_sha": "e0d9e708d3cef108138b67a3add7ebc96f589172",
+  "files": [
+    {
+      "path": "tests/test_run373_dispatch_throughput.py",
+      "original_git_blob": "f2102f3d5278db94a58b6e5122dcdd2009e214b1",
+      "original_sha256": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+      "candidate_git_blob": "ffc198c87774857c36ca20fa03d034ad6aa46e4e",
+      "candidate_sha256": "b2b0049b729a7dc0493db8e9a618f457a05a98a3beed713418bc29faa6d7b4c8",
+      "expected_frozen_sha256": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+      "candidate_violates_pin": true
+    },
+    {
+      "path": "tests/test_run379_production_pressure.py",
+      "original_git_blob": "dedb19b1a32d2e3cdf529d40f1514fb8295d8c44",
+      "original_sha256": "fe04430c7ae2f176e2568d0e136db1de7dee6edcd5f147ebf1e3ad1ecdebe2c5",
+      "candidate_git_blob": "a78bb0602f6765b361f88fa8c4ecac069d0a1181",
+      "candidate_sha256": "3ecdab43900c1a5b30757df8c38e4e904dcd03dcee9e43a333bd732c47bcd652",
+      "expected_frozen_sha256": null,
+      "candidate_violates_pin": false
+    },
+    {
+      "path": "tests/test_run380_production_pressure.py",
+      "original_git_blob": "ed56fdb406662857026fae82c6a0afaeb394e22b",
+      "original_sha256": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47",
+      "candidate_git_blob": "b7998183eab49984101dee0f3a57f1f8a3170fb7",
+      "candidate_sha256": "87a8b4f63672afc501abdfed38266966f30a46f28350c97001ef0b3e352ec94e",
+      "expected_frozen_sha256": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47",
+      "candidate_violates_pin": true
+    }
+  ],
+  "cleanup_recovery_frozen_inputs_candidate": false,
+  "qualification_frozen_inputs_candidate": false,
+  "evaluation": "Deterministic evaluation of unchanged SHA-256 equality predicates, not execution of the preflight suite.",
+  "protected_contracts": [
+    "certification/cleanup_recovery_plan.json unchanged_inputs",
+    "certification/stagee24_qualification_plan.json unchanged_inputs"
+  ],
+  "required_assertion": "certification/tests/test_stagee27_cohort_wiring.py:19 self.assertTrue(frozen_inputs())",
+  "disposition": "STOP; restore original test blobs; preserve candidate patch only; do not edit pins, skip assertion, or alter qualification wiring."
+}

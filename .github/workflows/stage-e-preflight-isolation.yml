@@ -13,7 +13,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   focused:
-    if: contains(github.event.head_commit.message, '[lane-c-preflight]') && github.run_attempt == 1
+    # Lane C stopped: frozen qualification input conflict. Retained for evidence only.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:

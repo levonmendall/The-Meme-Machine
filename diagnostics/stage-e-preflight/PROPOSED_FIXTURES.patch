@@ -1,0 +1,239 @@
+diff --git a/tests/evidence_fixture_clock.py b/tests/evidence_fixture_clock.py
+new file mode 100644
+--- /dev/null
++++ b/tests/evidence_fixture_clock.py
+@@ -0,0 +1,55 @@
++"""Translate only known event timestamp bytes in explicitly synthetic replay frames."""
++import base64
++import struct
++
++from meme_machine.solana_program_decoders import (
++    MIGRATION_DISC, PUMPSWAP_BUY_EVENT, PUMPSWAP_SELL_EVENT,
++)
++
++PUMP_TRADE = bytes([189,219,127,211,78,230,97,238])
++PUMP_CREATE = bytes([27,114,169,77,222,235,99,118])
++
++
++def event_clock_offset(raw):
++    disc = raw[:8]
++    if disc == PUMP_TRADE:
++        return 89
++    if disc in (PUMPSWAP_BUY_EVENT, PUMPSWAP_SELL_EVENT):
++        return 8
++    if disc == MIGRATION_DISC:
++        return 128
++    if disc == PUMP_CREATE:
++        offset = 8
++        for _ in range(3):
++            size = struct.unpack_from('<I', raw, offset)[0]
++            offset += 4 + size
++        return offset + 128
++    return None
++
++
++def event_clock_patches(transactions):
++    patches = {}
++    for tx in transactions:
++        for line in tx['meta'].get('logMessages') or []:
++            if not line.startswith('Program data: '):
++                continue
++            raw = base64.b64decode(line[14:], validate=True)
++            offset = event_clock_offset(raw)
++            if offset is None:
++                continue
++            # Base64 groups contain three bytes. Preserve both neighboring bytes;
++            # replace only the signed 64-bit clock inside complete groups.
++            lo, hi = offset // 3 * 3, (offset + 10) // 3 * 3
++            chunk = raw[lo:hi]
++            if len(chunk) != hi - lo:
++                raise ValueError('fixture_event_clock_layout')
++            patches[base64.b64encode(chunk)] = (chunk, offset - lo)
++    return tuple((token, chunk, offset) for token, (chunk, offset) in patches.items())
++
++
++def rebase_event_clocks(frame, patches, at):
++    for token, original, offset in patches:
++        chunk = bytearray(original)
++        struct.pack_into('<q', chunk, offset, at)
++        frame = frame.replace(token, base64.b64encode(chunk))
++    return frame
+diff --git a/tests/test_run373_dispatch_throughput.py b/tests/test_run373_dispatch_throughput.py
+--- a/tests/test_run373_dispatch_throughput.py
++++ b/tests/test_run373_dispatch_throughput.py
+@@ -19,7 +19,7 @@ async def local_server(*args,path,**kwargs):
+     return FakeIPC()
+ 
+ 
+-def block_frame(slot,*,padding_bytes,relevant_transactions=80):
++def block_frame(slot,*,padding_bytes,relevant_transactions=80,block_time=1790438999):
+     txs=[
+         dict(
+             transaction=dict(
+@@ -45,19 +45,20 @@ def block_frame(slot,*,padding_bytes,relevant_transactions=80):
+                 parentSlot=slot-1,
+                 blockhash='h'+str(slot),
+                 previousBlockhash='h'+str(slot-1),
+-                blockTime=1790438999,
++                blockTime=block_time,
+                 transactions=txs,
+             ),
+         ))),
+     ),separators=(',',':'))
+ 
+ 
+ class SustainedSocket:
+-    def __init__(self,*,frames,interval,padding_bytes,relevant_transactions=80):
++    def __init__(self,*,frames,interval,padding_bytes,relevant_transactions=80,source_clock=None):
+         self.queue=asyncio.Queue();self.subs={}
+         self.remaining=frames;self.interval=interval
+         self.padding_bytes=padding_bytes;self.relevant_transactions=relevant_transactions
+         self.next_slot=1000;self.recv_count=0;self.next_emit=None
++        self.source_clock=source_clock
+ 
+     async def __aenter__(self):return self
+     async def __aexit__(self,*args):pass
+@@ -79,6 +80,7 @@ async def recv(self,decode=None):
+             raw=block_frame(
+                 slot,padding_bytes=self.padding_bytes,
+                 relevant_transactions=self.relevant_transactions,
++                block_time=int(self.source_clock())-1 if self.source_clock else 1790438999,
+             )
+         else:
+             raw=await self.queue.get()
+@@ -136,12 +138,10 @@ async def test_sustains_run373_shaped_large_frame_rate_without_capacity_disconne
+         frames=14
+         socket=SustainedSocket(
+             frames=frames,interval=.75,padding_bytes=10*1024*1024,
+-            relevant_transactions=80,
++            relevant_transactions=80,source_clock=time.time,
+         )
+         stop=asyncio.Event()
+         with tempfile.TemporaryDirectory() as temp,patch(
+-            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
+-        ),patch(
+             'websockets.asyncio.client.connect',return_value=socket
+         ),patch(
+             'asyncio.start_unix_server',side_effect=local_server
+@@ -193,7 +193,7 @@ async def test_sustains_run373_shaped_large_frame_rate_without_capacity_disconne
+                     service.STREAM_DISPATCH_MAX_BYTES,
+                 )
+                 self.assertTrue(reader.covered(
+-                    SWAP_SCOPE,1000,1000+frames-2,as_of=1790439000
++                    SWAP_SCOPE,1000,1000+frames-2,as_of=time.time()
+                 ))
+                 reader.close()
+             finally:
+diff --git a/tests/test_run379_production_pressure.py b/tests/test_run379_production_pressure.py
+--- a/tests/test_run379_production_pressure.py
++++ b/tests/test_run379_production_pressure.py
+@@ -10,6 +10,7 @@
+ from tests.evidence_ipc_harness import ipc_transport
+ 
+ 
++
+ class RetainedSocket:
+  def __init__(self):
+   path=Path(__import__('certification').__file__).parent/'tests/fixtures/run379-production-transactions.json.gz'
+@@ -21,14 +22,12 @@ async def __aenter__(self):return self
+  async def __aexit__(self,*args):pass
+  async def send(self,raw):
+   request=json.loads(raw);await self.acks.put(json.dumps(dict(id=request['id'],result=request['id'])))
+- def frame(self,number):
++ def frame(self,number,*,at=None):
+   slot=1000+number;txs=[]
+   for i in range(160):
+    tx=deepcopy(self.templates[i%len(self.templates)])
+    tx['transaction']['signatures']=['run379:%d:%d'%(slot,i)];txs.append(tx)
+-  # Age the prefix to exercise the unchanged 180-second retention policy without
+-  # a three-minute test sleep. The fresh tail proves candidate-local progression.
+-  at=int(time.time())-(240 if number<100 else 1)
++  if at is None:at=int(time.time())-1
+   return json.dumps(dict(method='blockNotification',params=dict(subscription=1,result=dict(value=dict(
+    slot=slot,err=None,block=dict(parentSlot=slot-1,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),
+     blockTime=at,transactions=txs))))),separators=(',',':')).encode()
+@@ -39,7 +38,7 @@ async def recv(self,decode=None):
+   self.next_emit+=.05;await asyncio.sleep(max(0,self.next_emit-time.monotonic()))
+   # Provider-side JSON construction isn't service CPU. Prepare the retained
+   # payload once, then rewrite only fixed-width fixture identities and clocks.
+-  slot=1000+self.sent;at=int(time.time())-(240 if self.sent<100 else 1)
++  slot=1000+self.sent;at=int(time.time())-1
+   raw=self.template.replace(b'run379:1000:',('run379:'+str(slot)+':').encode())
+   for old,new in ((b'"slot":1000,',f'"slot":{slot},'.encode()),
+                   (b'"parentSlot":999,',f'"parentSlot":{slot-1},'.encode()),
+@@ -49,11 +48,31 @@ async def recv(self,decode=None):
+    raw=raw.replace(old,new)
+   self.sent+=1;return raw
+ 
++ def seed_aged_prefix(self,state):
++  # Existing debt and current source authority are separate coordinates. Preserve
++  # the original 100 x 160 aged bodies, inside the unchanged residence window;
++  # the complete 120-frame live workload still uses fresh finalized clocks.
++  old_at=int(time.time())-181
++  targets=[s for s in service.program_subscriptions() if s.evidence_class!='logs']
++  for number in range(-101,-1):
++   message=json.loads(self.frame(number,at=old_at))
++   for target in targets:state.fence.block(target,message,float(old_at),include_logs=True)
++  # Native validation seals an empty finalized child at slot 999 and publishes
++  # current source authority before the live slot 1000 links to that child.
++  message=json.loads(self.frame(-1));message['params']['result']['value']['block']['transactions']=[]
++  for target in targets:state.fence.block(target,message,time.time(),include_logs=True)
++  self.aged_records=state.writer.db.execute(
++   "SELECT COUNT(*) FROM records WHERE scope='program:meteora' AND market_time=?",(old_at,)).fetchone()[0]
++  if self.aged_records!=100*160:raise AssertionError('aged_prefix_workload_changed')
++
+ 
+ class ProductionPressureTests(unittest.IsolatedAsyncioTestCase):
+  async def test_dense_commits_controls_and_retention_all_progress_with_original_bounds(self):
+   wire=RetainedSocket();stop=asyncio.Event()
+-  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('websockets.asyncio.client.connect',return_value=wire):
++  native_init=service.ServiceState.__init__
++  def seeded_init(state,path,config):
++   native_init(state,path,config);wire.seed_aged_prefix(state)
++  with tempfile.TemporaryDirectory() as td,ipc_transport(),patch('websockets.asyncio.client.connect',return_value=wire),patch.object(service.ServiceState,'__init__',seeded_init):
+    path=Path(td)/'db';runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+    def observe():
+     if not database_ready(path):return {}
+@@ -76,6 +95,7 @@ def controls():
+      if n>=wire.frames:break
+      await asyncio.sleep(.05)
+     self.assertEqual(n,wire.frames)
++    self.assertEqual(wire.aged_records,100*160)
+     if control is not None:await control
+     self.assertTrue(archived_before_finish,'retention starved behind continuous commits')
+     reader=EvidenceReader(path)
+diff --git a/tests/test_run380_production_pressure.py b/tests/test_run380_production_pressure.py
+--- a/tests/test_run380_production_pressure.py
++++ b/tests/test_run380_production_pressure.py
+@@ -1,6 +1,6 @@
+ """Run 380 production bodies, fixed source clock, actual ordered SQLite pipeline.
+ 
+-Reconstructed envelopes and failed-transaction filler are explicitly synthetic.
++Reconstructed envelopes, translated event clocks and failed-transaction filler are explicitly synthetic.
+ Every source deadline is fixed before recv; backpressure cannot refresh its age.
+ """
+ import asyncio,copy,gzip,json,sqlite3,tempfile,time,unittest
+@@ -9,6 +9,7 @@
+ import meme_machine.solana_evidence_service as service
+ from tests.test_run373_dispatch_throughput import database_ready
+ from tests.evidence_ipc_harness import ipc_transport
++from tests.evidence_fixture_clock import event_clock_patches,rebase_event_clocks
+ class Wire:
+  def __init__(self):
+   self.templates=json.loads(gzip.decompress((Path(__import__('certification').__file__).parent/'tests/fixtures/run380-production-templates.json.gz').read_bytes()))['templates']
+@@ -18,6 +19,7 @@ def __init__(self):
+     t=copy.deepcopy(self.templates[kind if kind!='empty' else 'pumpswap'][i%len(self.templates[kind if kind!='empty' else 'pumpswap'])]);t['transaction']['signatures']=['run380:1000:'+str(len(txs))]
+     if kind=='empty':t['meta']['err']={'InstructionError':[0,{'Custom':1}]}
+     txs.append(t)
++  self.event_clocks=event_clock_patches(txs)
+   self.template=json.dumps(dict(method='blockNotification',params=dict(subscription=1,result=dict(value=dict(slot=1000,err=None,block=dict(parentSlot=999,blockhash='h1000',previousBlockhash='h999',blockTime=1000000000,transactions=txs))))),separators=(',',':')).encode()
+   self.sent=0;self.frames=240;self.acks=asyncio.Queue();self.start=None
+  async def __aenter__(self):return self
+@@ -31,6 +33,7 @@ async def recv(self,decode=None):
+   due=self.start+self.sent*.27;await asyncio.sleep(max(0,due-time.time()));slot=1000+self.sent
+   raw=self.template.replace(b'run380:1000:',('run380:'+str(slot)+':').encode())
+   for old,new in [(b'"slot":1000,',f'"slot":{slot},'.encode()),(b'"parentSlot":999,',f'"parentSlot":{slot-1},'.encode()),(b'"blockhash":"h1000"',f'"blockhash":"h{slot}"'.encode()),(b'"previousBlockhash":"h999"',f'"previousBlockhash":"h{slot-1}"'.encode()),(b'"blockTime":1000000000,',f'"blockTime":{int(due)},'.encode())]:raw=raw.replace(old,new)
++  raw=rebase_event_clocks(raw,self.event_clocks,int(due))
+   self.sent+=1;return raw
+ 
+ class SourceClockPressureTests(unittest.IsolatedAsyncioTestCase):

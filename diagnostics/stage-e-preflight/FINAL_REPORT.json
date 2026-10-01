@@ -1,0 +1,501 @@
+{
+  "status": "PREFLIGHT_BLOCKED",
+  "reason": "CROSS_LANE_CONFLICT",
+  "paper_only": true,
+  "base_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "base_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "branch": "repair/stage-e-preflight",
+  "stop": "Frozen Stage-E qualification/workload input conflict; do not modify pins or qualification wiring. All three original tests restored. Candidate corrections are evidence only.",
+  "classifications": [
+    {
+      "case": "run379",
+      "primary": "C",
+      "secondary": "B",
+      "original_cause": "Live blocks and their durable finalized source frontier are artificially aged by 240 seconds. Both residence and first-service deadlines are already expired; debt >1000 also starts recovery from an obsolete source coordinate.",
+      "observed_original_state": "Native observation hot=1440, source_time=1790863175; wall=1790863416.2409189; safety_deadline=46.74746608734131<now=51.010864828; recovery_deadline=-73.25253391265869. Pending null; housekeeping 0.",
+      "proposed_fixture_change": "Keep the original 16000-body aged backlog as preexisting unpinned native records at age 181; use a natively validated fresh empty block to establish the source frontier; retain all 120 live frames, cadence .05, 160 bodies/frame and all acceptance assertions.",
+      "outcome": "Candidate still errors; aged preloading consumed about 53 seconds and exhausted the original 45-second service deadline. No accepted repair."
+    },
+    {
+      "case": "run380",
+      "primary": "C",
+      "secondary": "B",
+      "original_cause": "Fixed fresh synthetic block envelopes surround historical Pump/PumpSwap encoded economic event timestamps. The authoritative decoder retains event time; maintenance correctly refuses expired records.",
+      "observed_original_state": "Native first nonempty observation: Pump hot=204 and PumpSwap hot=340 with oldest=1790464453; finalized source=1790863418 and wall=1790863419.164949; safety deadline=-398675.25253391266. Pending null; housekeeping 0.",
+      "proposed_fixture_change": "Translate only known signed 64-bit event-clock bytes to the same int(due) coordinate fixed before recv/backpressure; retain all other event bytes, fixture gzip blobs, frame counts, cadence, lag/coverage/drain/control and bounds.",
+      "outcome": "Candidate focused case passes, but required fixture file is a frozen workload input. No accepted repair."
+    },
+    {
+      "case": "run373",
+      "primary": "D",
+      "secondary": "C",
+      "original_cause": "Frozen wall time disagrees with advancing monotonic time beyond the unchanged 3-second clock lease.",
+      "observed_original_state": "wall=anchor_wall=1790439000; monotonic=57.323668057; anchor_monotonic=54.128584317. Deterministic ClockModel rejects after 3.001 seconds.",
+      "proposed_fixture_change": "Use real advancing wall time and generated finalized block timestamps; keep the 14 x 10MiB frames at .75 seconds, 80 relevant transactions, continuity and all bounds. Other SustainedSocket callers keep their existing default clock.",
+      "outcome": "Candidate focused case passes, but required fixture file is a frozen workload input. No accepted repair."
+    }
+  ],
+  "original_evidence": {
+    "source_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "validation_sha": "7234dcc545b7372c2f177bbe3ef938db5f2454e6",
+    "validation_run": 36756490388,
+    "inspection_sha": "edd373f5bc479d08ced1d7987d14ff15ec3d6e32",
+    "inspection_run": 36757513975,
+    "unit": {
+      "binding": {
+        "id": 11116354967,
+        "run_id": 36756490388,
+        "head_sha": "7234dcc545b7372c2f177bbe3ef938db5f2454e6",
+        "zip_sha256": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457"
+      },
+      "manifest_verified": true,
+      "tests_run": 1062,
+      "failures": [
+        "ERROR: test_dense_commits_controls_and_retention_all_progress_with_original_bounds (tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds)",
+        "ERROR: test_sustained_source_clock_candidate_progress_and_durable_drain (tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain)",
+        "FAIL: test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect (tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect)"
+      ],
+      "footer": [
+        "Ran 1062 tests in 208.514s",
+        "FAILED (failures=1, errors=2, skipped=46)"
+      ],
+      "unittest_sha256": "afd19c3842af1c00ff5e35f35917d6511e1ceeb67257235469d88e324a4181a0",
+      "passes": 1013
+    },
+    "resource": {
+      "admitted_events_per_frame": 100,
+      "db_bytes": 1261568,
+      "decisions": 100,
+      "elapsed_seconds": 17.039,
+      "frames": 2000,
+      "gaps": 20,
+      "journal_rows": 4002,
+      "label": "synthetic bounded intake/rejection workload",
+      "limitation": "temporary filesystem; not continuous-market or physical disk durability proof",
+      "peak_rss_kib": 26376,
+      "real_provider_calls": 0,
+      "seen": 1000,
+      "submitted_events": 240000,
+      "wal_bytes": 708672
+    },
+    "environment": {
+      "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+      "runner_os": "Linux",
+      "python": "3.12.14",
+      "sqlite": "3.45.1",
+      "websockets": "17.1",
+      "cpu_count": 4,
+      "affinity_count": 4,
+      "memory": "MemTotal:       16373444 kB\nMemFree:        12633508 kB\nMemAvailable:   14956440 kB\nBuffers:           89528 kB\nCached:          2488512 kB\nSwapCached:            0 kB\nActive:           750452 kB\nInactive:        2104588 kB\nActive(anon):     330592 kB\nInactive(anon):        0 kB\nActive(file):     419860 kB\nInactive(file):  2104588 kB\nUnevictable:       46760 kB\nMlocked:           43688 kB\nSwapTotal:       3145724 kB\nSwapFree:        3145724 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:            937368 kB\nWriteback:             0 kB\nAnonPages:        317544 kB\nMapped:           320148 kB\nShmem:             44628 kB\nKReclaimable:     120024 kB\nSlab:             199012 kB\nSReclaimable:     120024 kB\nSUnreclaim:        78988 kB\nKernelStack:        4196 kB\nPageTables:         6320 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    11332444 kB\nCommitted_AS:    1990000 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:       39620 kB\nVmallocChunk:          0 kB\nPercpu:             2192 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:     81920 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nCmaTotal:              0 kB\nCmaFree:               0 kB\nUnaccepted:            0 kB\nBalloon:               0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      126080 kB\nDirectMap2M:     4063232 kB\nDirectMap1G:    14680064 kB\n",
+      "cpu_quota": null,
+      "expected": {
+        "python": "3.12.14",
+        "websockets": "17.1",
+        "sqlite": "3.45.1"
+      },
+      "differences": {},
+      "run_id": "36756490388",
+      "run_attempt": "1"
+    },
+    "limitation": "Full unchanged-base discovery is not green: 1 failure, 2 errors, 46 skips. The fresh diagnostic does not modify production or certification tests. Older pressure fixtures are not evidence for fresh canonical event-time behavior.",
+    "material_variants_consumed_before_baseline": 0,
+    "base_tree": "68736cf664169dee665762019800bf87ca0f1f67"
+  },
+  "original_focused": {
+    "sha": "54ddc75f40c6b2424e6d7ddaa02dfa70dcb7a340",
+    "tree": "938df84aff26d3502bcaeb70559e5f3f2d6c2d7f",
+    "run": 36873350412,
+    "job": 110406426566,
+    "artifact": 11167657807,
+    "artifact_zip_sha256": "fd05083744e45c299b03ee097185f05ec4a578defbba788e0a79e5eaedfff141",
+    "seconds": 8.993,
+    "result": {
+      "error_cases": [
+        "tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds",
+        "tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain"
+      ],
+      "errors": 2,
+      "failure_cases": [
+        "tests.test_run373_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect"
+      ],
+      "failures": 1,
+      "observability": "Post-error numeric state only; original methods, bounds and assertions unchanged.",
+      "passes": 0,
+      "skip_cases": [],
+      "skips": 0,
+      "tests": 3
+    },
+    "artifact_file_hashes": {
+      "contract-probe.json": "3a5f37adc5011915f78f17fb326a4c650d31c9d8903cb570a1ae31c199e579ea",
+      "environment.json": "b8e3981cad28a8d578b5782031589f3fb091b943d461f974a2997a69c98be838",
+      "focused-summary.json": "828f4a0e6a9467630649b5036fa3e4eb336db590a64e4b131ef10ac9ebf4f7d5",
+      "focused.log": "f7e9f93852a0f3f08b3dbafe18acd14d4fae63f22019e26df80c54b646a3f756",
+      "identity.json": "de635273c8f56df30d2745e03dc4fcb0c99b159c4471d13f35286de2c1d0158f",
+      "original-preflight.zip": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457",
+      "original-skips.json": "ddf28f723a85fadcf31fcd7b650e14676d5f61389e0ec0f92adf4581f31595a5",
+      "original-unittest.log": "afd19c3842af1c00ff5e35f35917d6511e1ceeb67257235469d88e324a4181a0"
+    }
+  },
+  "candidate_focused": {
+    "sha": "e0d9e708d3cef108138b67a3add7ebc96f589172",
+    "tree": "7b20191208a8f8bfe11e891a71f3cabb968814b9",
+    "run": 36875738792,
+    "job": 110414575130,
+    "artifact": 11169925781,
+    "artifact_zip_sha256": "bfa5360c5fb2285198c00cc94224646a0469bb95bfb45de0881928df07cecdc9",
+    "seconds": 134.607,
+    "result": {
+      "error_cases": [
+        "tests.test_run379_production_pressure.ProductionPressureTests.test_dense_commits_controls_and_retention_all_progress_with_original_bounds"
+      ],
+      "errors": 1,
+      "failure_cases": [],
+      "failures": 0,
+      "observability": "Post-error numeric state only; original methods, bounds and assertions unchanged.",
+      "passes": 2,
+      "skip_cases": [],
+      "skips": 0,
+      "tests": 3
+    },
+    "artifact_file_hashes": {
+      "contract-probe.json": "3a5f37adc5011915f78f17fb326a4c650d31c9d8903cb570a1ae31c199e579ea",
+      "environment.json": "b8e3981cad28a8d578b5782031589f3fb091b943d461f974a2997a69c98be838",
+      "fixture-clock-probe.json": "efbf74f2091fb84bcec6f7a52f36ea0d1d4fb29b85c29301856ee3e52caae476",
+      "focused-summary.json": "98e7b30368c351659a0b67da6980f3f358550384e196c6ee51a7299616c905c8",
+      "focused.log": "03a2d7ccb0e5ef6807c50f03226d2bea7ac937f905715670300b7ee5446259e5",
+      "identity.json": "1f088980beff0d9c9426f2341ec8543ab0e70488d0bd70c37a5e820f4536abbb",
+      "original-preflight.zip": "f64223a28818a0c0ee69e1451df623b8550bb1afd28c6c94b368802d090ae457",
+      "original-skips.json": "ddf28f723a85fadcf31fcd7b650e14676d5f61389e0ec0f92adf4581f31595a5",
+      "original-unittest.log": "afd19c3842af1c00ff5e35f35917d6511e1ceeb67257235469d88e324a4181a0"
+    },
+    "fixture_clock_native_probe": {
+      "all_other_bytes_unchanged": true,
+      "clock_assigned_before_receive_backpressure": true,
+      "decoded_events": 136,
+      "fixed_frame_cadence": 0.27,
+      "frames": 240,
+      "native_decoder_economic_parity": true,
+      "retained_gzip_sha256": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+      "transactions": 512,
+      "translated_log_timestamps": 408
+    },
+    "run379_error_arbiter_state": {
+      "error": "EvidenceUnavailable:maintenance_service_deadline_exhausted",
+      "leases": {
+        "clock_error": 3,
+        "execution": 3,
+        "owner": 3,
+        "worker": 15
+      },
+      "needs": [
+        {
+          "records": 16000,
+          "recovery_deadline": 204.2817418575287,
+          "recovery_excess": 15000,
+          "safety_deadline": 90.28174185752869,
+          "scope": "program:meteora",
+          "side": "archive",
+          "units": 16000
+        },
+        {
+          "records": 0,
+          "recovery_deadline": null,
+          "recovery_excess": 0,
+          "safety_deadline": 130.87029218673706,
+          "scope": "program:meteora",
+          "side": "retirement",
+          "units": 1
+        },
+        {
+          "records": 0,
+          "recovery_deadline": null,
+          "recovery_excess": 0,
+          "safety_deadline": 133.871717837,
+          "scope": "program:pump",
+          "side": "archive",
+          "units": 0
+        },
+        {
+          "records": 0,
+          "recovery_deadline": null,
+          "recovery_excess": 0,
+          "safety_deadline": 130.87029218673706,
+          "scope": "program:pump",
+          "side": "retirement",
+          "units": 3
+        },
+        {
+          "records": 0,
+          "recovery_deadline": null,
+          "recovery_excess": 0,
+          "safety_deadline": 133.871717837,
+          "scope": "program:pumpswap",
+          "side": "archive",
+          "units": 0
+        },
+        {
+          "records": 0,
+          "recovery_deadline": null,
+          "recovery_excess": 0,
+          "safety_deadline": 130.87029218673706,
+          "scope": "program:pumpswap",
+          "side": "retirement",
+          "units": 5
+        },
+        {
+          "records": 0,
+          "recovery_deadline": null,
+          "recovery_excess": 0,
+          "safety_deadline": 133.871717837,
+          "scope": "__housekeeping__",
+          "side": "retirement",
+          "units": 0
+        }
+      ],
+      "now": 88.873029969,
+      "origins": [
+        [
+          "archive",
+          "program:meteora",
+          30.281741857528687
+        ],
+        [
+          "retirement",
+          "program:meteora",
+          85.87029218673706
+        ],
+        [
+          "retirement",
+          "program:pump",
+          85.87029218673706
+        ],
+        [
+          "retirement",
+          "program:pumpswap",
+          85.87029218673706
+        ]
+      ],
+      "pending": null,
+      "ready": {
+        "archive": true,
+        "retirement": true
+      }
+    },
+    "run379_error_runtime_state": {
+      "anchor_monotonic": 88.862052264,
+      "anchor_wall": 1790864572.5803103,
+      "error": "EvidenceUnavailable:maintenance_service_deadline_exhausted",
+      "monotonic": 88.873180283,
+      "nonrecord_since": [
+        [
+          "retirement",
+          "program:meteora",
+          1790864572.5885503
+        ],
+        [
+          "retirement",
+          "program:pump",
+          1790864572.5885503
+        ],
+        [
+          "retirement",
+          "program:pumpswap",
+          1790864572.5885503
+        ]
+      ],
+      "observation": {
+        "elapsed": 0.0014254860000022518,
+        "generation": "711bc2175b1c4a6386aaba79b3f80ea0",
+        "housekeeping": 0,
+        "monotonic": 88.871717837,
+        "recent_progress": [],
+        "scopes": [
+          {
+            "account_floor": null,
+            "archived_pending": 0,
+            "blocked_retirement_oldest": null,
+            "continuity": 0,
+            "floor": 899,
+            "floor_changed": true,
+            "gaps": 0,
+            "hot_eligible": 16000,
+            "hot_oldest": 1790864337,
+            "pins": 0,
+            "retirement_eligible": 0,
+            "retirement_oldest": null,
+            "scope": "program:meteora",
+            "source_time": 1790864571
+          },
+          {
+            "account_floor": null,
+            "archived_pending": 0,
+            "blocked_retirement_oldest": null,
+            "continuity": 2,
+            "floor": 998,
+            "floor_changed": true,
+            "gaps": 0,
+            "hot_eligible": 0,
+            "hot_oldest": null,
+            "pins": 0,
+            "retirement_eligible": 0,
+            "retirement_oldest": null,
+            "scope": "program:pump",
+            "source_time": 1790864571
+          },
+          {
+            "account_floor": null,
+            "archived_pending": 0,
+            "blocked_retirement_oldest": null,
+            "continuity": 4,
+            "floor": 998,
+            "floor_changed": true,
+            "gaps": 0,
+            "hot_eligible": 0,
+            "hot_oldest": null,
+            "pins": 0,
+            "retirement_eligible": 0,
+            "retirement_oldest": null,
+            "scope": "program:pumpswap",
+            "source_time": 1790864571
+          }
+        ],
+        "vm_steps": 3100,
+        "wall": 1790864572.5885503
+      },
+      "ring": [
+        {
+          "at": 88.866489461,
+          "error": "OperationalError:interrupted",
+          "execution": 0.0031099370000049475,
+          "generation": "711bc2175b1c4a6386aaba79b3f80ea0",
+          "owner_delay": 0.0000837500000017144,
+          "reason": "cooperative_yield",
+          "selected": null,
+          "sequence": null
+        },
+        {
+          "at": 88.87028493,
+          "error": "EvidenceUnavailable:maintenance_service_deadline_exhausted",
+          "execution": 0.002879219000007538,
+          "generation": "711bc2175b1c4a6386aaba79b3f80ea0",
+          "owner_delay": 0.0001655309999932797,
+          "reason": "fail_closed",
+          "selected": null,
+          "sequence": null
+        }
+      ],
+      "wall": 1790864572.5914383
+    },
+    "acceptance": "Rejected as active changes. Run379 not resolved; Run373 and Run380 corrections violate frozen input contract.",
+    "patches": "PROPOSED_FIXTURES.patch",
+    "raw_job_log": "CANDIDATE_JOB_LOG.txt"
+  },
+  "conflict": {
+    "digest_algorithm": "SHA-256 over complete UTF-8 source content; implementation verified against SHA-256('abc') and both original manifest pins",
+    "base_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "candidate_sha": "e0d9e708d3cef108138b67a3add7ebc96f589172",
+    "files": [
+      {
+        "path": "tests/test_run373_dispatch_throughput.py",
+        "original_git_blob": "f2102f3d5278db94a58b6e5122dcdd2009e214b1",
+        "original_sha256": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+        "candidate_git_blob": "ffc198c87774857c36ca20fa03d034ad6aa46e4e",
+        "candidate_sha256": "b2b0049b729a7dc0493db8e9a618f457a05a98a3beed713418bc29faa6d7b4c8",
+        "expected_frozen_sha256": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+        "candidate_violates_pin": true
+      },
+      {
+        "path": "tests/test_run379_production_pressure.py",
+        "original_git_blob": "dedb19b1a32d2e3cdf529d40f1514fb8295d8c44",
+        "original_sha256": "fe04430c7ae2f176e2568d0e136db1de7dee6edcd5f147ebf1e3ad1ecdebe2c5",
+        "candidate_git_blob": "a78bb0602f6765b361f88fa8c4ecac069d0a1181",
+        "candidate_sha256": "3ecdab43900c1a5b30757df8c38e4e904dcd03dcee9e43a333bd732c47bcd652",
+        "expected_frozen_sha256": null,
+        "candidate_violates_pin": false
+      },
+      {
+        "path": "tests/test_run380_production_pressure.py",
+        "original_git_blob": "ed56fdb406662857026fae82c6a0afaeb394e22b",
+        "original_sha256": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47",
+        "candidate_git_blob": "b7998183eab49984101dee0f3a57f1f8a3170fb7",
+        "candidate_sha256": "87a8b4f63672afc501abdfed38266966f30a46f28350c97001ef0b3e352ec94e",
+        "expected_frozen_sha256": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47",
+        "candidate_violates_pin": true
+      }
+    ],
+    "cleanup_recovery_frozen_inputs_candidate": false,
+    "qualification_frozen_inputs_candidate": false,
+    "evaluation": "Deterministic evaluation of unchanged SHA-256 equality predicates, not execution of the preflight suite.",
+    "protected_contracts": [
+      "certification/cleanup_recovery_plan.json unchanged_inputs",
+      "certification/stagee24_qualification_plan.json unchanged_inputs"
+    ],
+    "required_assertion": "certification/tests/test_stagee27_cohort_wiring.py:19 self.assertTrue(frozen_inputs())",
+    "disposition": "STOP; restore original test blobs; preserve candidate patch only; do not edit pins, skip assertion, or alter qualification wiring."
+  },
+  "skip_disposition": {
+    "total": 46,
+    "reasons": {
+      "requires prepared native lanes": 4,
+      "requires canonical prepared native lanes": 29,
+      "prepared lane unavailable": 5,
+      "prepared exact lane sources unavailable": 2,
+      "prepared lanes unavailable": 2,
+      "Prepared lanes required; exercised by full hosted certification": 1,
+      "requires prepared native lane sources; required in full certification workflow": 1,
+      "requires prepared native lane sources": 1,
+      "Prepared lanes required; exercised by exact-SHA non-market certification": 1
+    },
+    "platform_conditional": 0,
+    "prepared_native_integration_conditional": 46,
+    "optional_provider_integrations": 0,
+    "focused_skips": 0,
+    "qualification_coverage": "These root discovery skips provide no prepared-native integration proof. Modules explicitly require that coverage in full prepared certification; this lane did not run it or claim qualification."
+  },
+  "new_full_preflight": {
+    "executions": 0,
+    "tests": null,
+    "passes": null,
+    "failures": null,
+    "errors": null,
+    "skips": null,
+    "disposition": "Not reached: all three original cases were not legitimately resolved within this lane."
+  },
+  "attempt_accounting": {
+    "focused_executions": 2,
+    "workflow_bootstrap_failures": 1,
+    "evidence_parser_failures": 1,
+    "full_preflight_executions": 0,
+    "retries_until_green": 0
+  },
+  "active_patch_scope": {
+    "original_base_files": 1152,
+    "original_files_to_restore_or_preserve": "All original base Git blobs and file modes identical; verified against complete final Git tree.",
+    "tests_restored": [
+      {
+        "path": "tests/test_run373_dispatch_throughput.py",
+        "blob": "f2102f3d5278db94a58b6e5122dcdd2009e214b1",
+        "sha256": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2"
+      },
+      {
+        "path": "tests/test_run379_production_pressure.py",
+        "blob": "dedb19b1a32d2e3cdf529d40f1514fb8295d8c44",
+        "sha256": "fe04430c7ae2f176e2568d0e136db1de7dee6edcd5f147ebf1e3ad1ecdebe2c5"
+      },
+      {
+        "path": "tests/test_run380_production_pressure.py",
+        "blob": "ed56fdb406662857026fae82c6a0afaeb394e22b",
+        "sha256": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"
+      }
+    ],
+    "helper_removed": "tests/evidence_fixture_clock.py",
+    "isolated_workflow": "Disabled at job level; no canonical workflow change.",
+    "diagnostic_request_mode": "halted",
+    "accepted_test_repairs": 0,
+    "accepted_production_repairs": 0
+  },
+  "no_merge": true,
+  "no_stage_e": true,
+  "no_stage_f": true,
+  "evidence_note": "Stored JSON summaries are normalized records. Artifact-file hashes identify the original CI artifacts. Original ZIP/log digests were verified in both focused runs; raw failed outputs are retained."
+}

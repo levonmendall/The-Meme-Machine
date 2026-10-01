@@ -1,0 +1,19 @@
+{
+  "total": 46,
+  "reasons": {
+    "requires prepared native lanes": 4,
+    "requires canonical prepared native lanes": 29,
+    "prepared lane unavailable": 5,
+    "prepared exact lane sources unavailable": 2,
+    "prepared lanes unavailable": 2,
+    "Prepared lanes required; exercised by full hosted certification": 1,
+    "requires prepared native lane sources; required in full certification workflow": 1,
+    "requires prepared native lane sources": 1,
+    "Prepared lanes required; exercised by exact-SHA non-market certification": 1
+  },
+  "platform_conditional": 0,
+  "prepared_native_integration_conditional": 46,
+  "optional_provider_integrations": 0,
+  "focused_skips": 0,
+  "qualification_coverage": "These root discovery skips provide no prepared-native integration proof. Modules explicitly require that coverage in full prepared certification; this lane did not run it or claim qualification."
+}
