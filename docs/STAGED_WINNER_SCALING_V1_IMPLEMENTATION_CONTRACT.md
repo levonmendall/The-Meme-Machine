@@ -44,7 +44,7 @@ Risk replay must consume scale events without resetting:
 - last observation;
 - irreversible pending exit.
 
-The final implementation must define whether return/high-water is measured from aggregate basis, capital-weighted lots, or another exact deterministic basis. That choice must be frozen and tested before promotion.
+The v1 choice is frozen: right-tail return/high-water is measured from the **original entry reference** and cannot be reset or diluted by an added lot. Aggregate and lot-level basis remain authoritative for economic accounting, but not for resetting tail risk state.
 
 ## Current-regime integration
 
