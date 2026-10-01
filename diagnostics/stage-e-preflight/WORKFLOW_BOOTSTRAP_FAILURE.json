@@ -1,0 +1,11 @@
+{
+  "sha": "9251fba8a06334470f304a79943ea84a5c7982b2",
+  "tree": "3cd79489acffab50d1061bf3be58bd846fd67a1d",
+  "run_id": 36837449413,
+  "conclusion": "failure",
+  "jobs": 0,
+  "tests_executed": 0,
+  "full_suite_executions": 0,
+  "issue": "Workflow validation failed before job creation. Moved runner.temp from unsupported job.env context to supported step.env; capture GITHUB_ENV for subsequent steps.",
+  "canonical_ci": "All 14 jobs skipped under existing [runtime-v2-promotion] guard."
+}

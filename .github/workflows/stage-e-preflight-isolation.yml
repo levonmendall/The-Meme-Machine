@@ -19,7 +19,6 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       MM_REAL_IPC_TESTS: '1'
-      LANE_C_EVIDENCE: ${{ runner.temp }}/lane-c-preflight
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -30,6 +29,8 @@ jobs:
         with:
           python-version: '3.12.14'
       - name: Bind the unchanged production tree and first attempt
+        env:
+          LANE_C_EVIDENCE: ${{ runner.temp }}/lane-c-preflight
         run: |
           mkdir -p "$LANE_C_EVIDENCE"
           python - <<'PY'
@@ -41,12 +42,14 @@ jobs:
           assert request['mode'] == 'baseline'
           assert os.environ['GITHUB_RUN_ATTEMPT'] == '1'
           assert git('rev-parse', 'HEAD') == os.environ['GITHUB_SHA']
-          assert git('rev-parse', 'HEAD^') == base
+          assert git('rev-parse', 'HEAD^') == request['expected_parent']
           assert not git('status', '--porcelain')
           changed = git('diff', '--name-only', base, 'HEAD').splitlines()
           assert all(p.startswith('diagnostics/stage-e-preflight/') or p == '.github/workflows/stage-e-preflight-isolation.yml' for p in changed)
           row = dict(base_sha=base, base_tree=git('rev-parse', base+'^{tree}'), sha=git('rev-parse', 'HEAD'), tree=git('rev-parse', 'HEAD^{tree}'), changed=changed, mode=request['mode'], paper_only=True)
           Path(os.environ['LANE_C_EVIDENCE'], 'identity.json').write_text(json.dumps(row, indent=2)+'\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write('LANE_C_EVIDENCE='+os.environ['LANE_C_EVIDENCE']+'\n')
           print('LANE_C_IDENTITY '+json.dumps(row, sort_keys=True))
           PY
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
