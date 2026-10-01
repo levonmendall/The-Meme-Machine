@@ -1,0 +1,36 @@
+name: Owner admission native deterministic prerequisite (PAPER only)
+on:
+  push:
+    branches: [diagnostics/stage-e-owner-admission-deterministic-20261001]
+    paths: ['diagnostics/stage-e-owner-admission-deterministic/execution-request.json']
+permissions:
+  contents: read
+concurrency:
+  group: owner-admission-deterministic-only
+  cancel-in-progress: false
+jobs:
+  native-prerequisite:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Required real native interruption and completion assertion
+        run: python diagnostics/stage-e-owner-admission-deterministic/check.py --output "$RUNNER_TEMP/owner-admission-deterministic"
+      - name: Preserve exact failure or pass; no material continuation
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: owner-admission-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/owner-admission-deterministic/
+          if-no-files-found: error
+          retention-days: 90
