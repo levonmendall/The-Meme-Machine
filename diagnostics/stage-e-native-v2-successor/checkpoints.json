@@ -65,6 +65,30 @@
       "published_to": "integration/stage-e-native-v2-successor",
       "sha": "fa5d07fdeb54a5748ef19a3ce4f044672d2bf888",
       "tree": "c644d1107ef23aa98be2f9db5bf6bf91629853a1"
+    },
+    {
+      "certification_credit": false,
+      "changed_files": [
+        "certification/stage_e_integration/__init__.py",
+        "certification/stage_e_integration/bootstrap.py",
+        "certification/stage_e_integration/crash_child.py",
+        "certification/stage_e_integration/driver.py",
+        "certification/stage_e_integration/guard.py",
+        "certification/stage_e_integration/prepare.py",
+        "certification/stage_e_integration/static_verify.py",
+        "certification/stage_e_integration/tooling-lock.json",
+        "certification/stage_e_native_v2/dependency-lock-v2.json",
+        "certification/stage_e_native_v2/input-manifest-v2.json",
+        "diagnostics/stage-e-native-v2-successor/README.md",
+        "diagnostics/stage-e-native-v2-successor/checkpoint-2-static.json",
+        "diagnostics/stage-e-native-v2-successor/checkpoints.json",
+        "diagnostics/stage-e-native-v2-successor/controlled-input-changes.json",
+        "diagnostics/stage-e-native-v2-successor/dependency-environment-change.json"
+      ],
+      "label": "NON-CERTIFIED WIP checkpoint 2",
+      "published_to": "integration/stage-e-native-v2-successor",
+      "sha": "430e6ca3a80f7f6dceb7bf03c26a99af1fc2ff7d",
+      "tree": "082774aa1c1550c182f6b60a51c2f14da042bd05"
     }
   ],
   "local_construction_commit": {

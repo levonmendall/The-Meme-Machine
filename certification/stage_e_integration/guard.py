@@ -24,6 +24,9 @@ class Guard:
         self.external = external
         self.children = {}
         self.attempts = []
+        self.active_test = None
+        self.listeners = set()
+        self.loopback_connections = []
         self.child_started = False
         self.child_finished = False
         self.bootstrap = str(source / 'certification/stage_e_integration/bootstrap.py')
@@ -104,6 +107,7 @@ class Guard:
         import multiprocessing.util
         original_connect = socket.socket.connect
         original_connect_ex = socket.socket.connect_ex
+        original_listen = socket.socket.listen
         original_popen = subprocess.Popen
         original_spawn = multiprocessing.util.spawnv_passfds
         original_start = multiprocessing.process.BaseProcess.start
@@ -111,13 +115,31 @@ class Guard:
         original_kill = multiprocessing.process.BaseProcess.kill
         original_exit = os._exit
 
+        loopback_test = 'tests.test_run379_transport_backpressure.TransportBackpressureTests.test_real_protocol_queue_backpressure_drains_without_ping_disconnect'
+
+        def listen(sock, backlog=0):
+            result = original_listen(sock, backlog)
+            if self.active_test == loopback_test and sock.family in (socket.AF_INET, socket.AF_INET6):
+                address = sock.getsockname()
+                if address[0] in ('127.0.0.1', '::1'):
+                    self.listeners.add((sock.family, address[0], address[1]))
+            return result
+
+        def local(sock, address):
+            if (self.active_test == loopback_test and isinstance(address, tuple) and
+                    (sock.family, address[0], address[1]) in self.listeners):
+                self.loopback_connections.append(dict(test=self.active_test, family=int(sock.family),
+                    host=address[0], port=address[1], registered_listener=True))
+                return True
+            return False
+
         def connect(sock, address):
-            if sock.family == socket.AF_UNIX:
+            if sock.family == socket.AF_UNIX or local(sock, address):
                 return original_connect(sock, address)
             return self.attempt('socket.connect')
 
         def connect_ex(sock, address):
-            if sock.family == socket.AF_UNIX:
+            if sock.family == socket.AF_UNIX or local(sock, address):
                 return original_connect_ex(sock, address)
             return self.attempt('socket.connect_ex')
 
@@ -185,6 +207,7 @@ class Guard:
         with ExitStack() as stack:
             for obj, name, value in (
                 (socket.socket, 'connect', connect), (socket.socket, 'connect_ex', connect_ex),
+                (socket.socket, 'listen', listen),
                 (socket, 'create_connection', denied('socket.create_connection')),
                 (socket, 'getaddrinfo', denied('socket.getaddrinfo')),
                 (urllib.request, 'urlopen', denied('urllib.request.urlopen')),

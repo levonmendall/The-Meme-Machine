@@ -227,7 +227,9 @@ class PrefixTests(unittest.TestCase):
             w.db.execute("CREATE TRIGGER fail_gc BEFORE DELETE ON hot_chunks "
                          "BEGIN SELECT RAISE(ABORT,'gc_rollback'); END")
             with self.assertRaisesRegex(sqlite3.IntegrityError,'gc_rollback'):
-                s.retention(housekeeping_first=True)
+                with s.housekeeping_retention():
+                    s.retention()
+            self.assertFalse(s._housekeeping_retention)
             self.assertEqual(w.last_retention_progress.housekeeping_rows,0)
             self.assertIsNone(ledger(w))
             self.assertFalse(w.db.in_transaction)
@@ -341,7 +343,8 @@ class TurnTests(unittest.TestCase):
                  patch.object(s,'retention',wraps=s.retention) as retention:
                 result=r.turn(f,at)
                 observe.assert_called_once_with(r.generation)
-                self.assertTrue(retention.call_args.kwargs['housekeeping_first'])
+                retention.assert_called_once_with()
+            self.assertFalse(s._housekeeping_retention)
             out=result['retention_outcome']
             self.assertEqual(out.housekeeping_rows,3)
             self.assertEqual(out.retired_records,0)

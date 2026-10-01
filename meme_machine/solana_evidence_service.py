@@ -5,6 +5,7 @@ read SQLite; they cannot send records, receipts, frontiers or interval proofs.
 A receipt authenticates a block's filtered census. Its linked finalized child is
 required to seal it. Silence, root notifications and socket ACKs never seal data.
 """
+from contextlib import contextmanager
 from dataclasses import replace
 import json
 import time
@@ -746,12 +747,23 @@ class ServiceState:
         self.archive_commit(plan,receipt,retain=False)
         return self.archive_plan()
 
+    @contextmanager
+    def housekeeping_retention(self):
+        """One owner-affine eligible turn; ordinary retirement hooks stay zero-argument."""
+        previous=getattr(self,'_housekeeping_retention',False)
+        self._housekeeping_retention=True
+        try:
+            yield
+        finally:
+            self._housekeeping_retention=previous
+
     def retention(self, *, housekeeping_first=False):
         import sqlite3
         from .solana_retention_outcome import RetentionProgress
         if self.writer.db.in_transaction:
             raise EvidenceUnavailable('retention_inside_source_transaction')
         self.writer.last_retention_progress=RetentionProgress()
+        housekeeping_first=housekeeping_first or getattr(self,'_housekeeping_retention',False)
         retention_options=dict(housekeeping_first=True) if housekeeping_first else {}
         try:
             self._storage_stage('retention',lambda:self.writer.retain(

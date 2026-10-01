@@ -10,9 +10,18 @@ from certification.stage_e_native_v2.contract import canonical, read, sha256
 
 
 class Results(unittest.TextTestResult):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, guard, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.guard = guard
         self.outcomes = {}
+
+    def startTest(self, test):
+        self.guard.active_test = test.id()
+        super().startTest(test)
+
+    def stopTest(self, test):
+        self.guard.active_test = None
+        super().stopTest(test)
 
     def addSuccess(self, test):
         self.outcomes[test.id()] = 'PASS'
@@ -123,7 +132,8 @@ def main(guard):
         stage_e='RED', stage_f='NOT_STARTED', errors=[], provider_attempts=[], children=[], passed=False)
     try:
         with (output / 'tests.log').open('w') as log:
-            result = unittest.TextTestRunner(stream=log, verbosity=2, resultclass=Results).run(unittest.TestSuite(loaded))
+            result = unittest.TextTestRunner(stream=log, verbosity=2,
+                resultclass=lambda *args, **kwargs: Results(guard, *args, **kwargs)).run(unittest.TestSuite(loaded))
         # All production pools have shut down before stopping their tracker.
         from multiprocessing.resource_tracker import _resource_tracker
         _resource_tracker._stop()
@@ -139,6 +149,7 @@ def main(guard):
         guard.verify()
         row['assembly_after'] = declaration['assembly_digest']
         row['provider_attempts'] = list(guard.attempts)
+        row['registered_loopback_connections'] = list(guard.loopback_connections)
         row['passed'] = (result.wasSuccessful() and not result.skipped and not guard.attempts and
             result.testsRun == len(identities) and set(result.outcomes) == set(identities) and
             all(value == 'PASS' for value in result.outcomes.values()))

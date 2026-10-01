@@ -435,7 +435,8 @@ class MaintenanceRuntime:
                             # Native method still rechecks all pins, floors and
                             # generation-relevant evidence at mutation time.
                             if self._housekeeping_first(decision,observation,needs,ready,flight):
-                                result['retention_outcome']=self.state.retention(housekeeping_first=True)
+                                with self.state.housekeeping_retention():
+                                    result['retention_outcome']=self.state.retention()
                             else:
                                 result['retention_outcome']=self.state.retention()
                     except BaseException as exc:

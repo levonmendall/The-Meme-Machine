@@ -59,6 +59,7 @@ def install():
             return spec
 
     sys.meta_path.insert(0, Finder())
+    from certification.stage_e_integration.generated import code_identity
 
     def audit(event, args):
         if event != 'exec':
@@ -70,6 +71,12 @@ def install():
             if sys._getframe(1).f_code.co_filename in external:
                 return
             raise PermissionError('undeclared_integration_generated_code')
+        if filename == 'native_batch_limit':
+            caller = sys._getframe(1).f_code.co_filename
+            if (caller != str(source / 'tests/test_owner_admission_phase2.py') or
+                    code_identity(args[0]) != declaration['native_batch_limit_code_sha256']):
+                raise PermissionError('unreviewed_native_batch_limit_derivative')
+            return
         origin = Path(filename).resolve()
         checked(origin)
         if os.environ.get('MM_INTEGRATION_CHILD'):

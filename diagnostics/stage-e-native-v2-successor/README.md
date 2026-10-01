@@ -14,8 +14,10 @@ instruction authorizes reconstruction and these integration-branch checkpoints.
 The housekeeping helper and native three-table batch come from the exact durable
 treatment patch. Its selector is ported onto M1 without changing completion or
 cooperative-interruption accounting. Ordinary retirement still calls `retention()`
-with no arguments. Only an eligible housekeeping prefix passes
-`housekeeping_first=True`, including forwarding to the writer. No arbiter,
+with no arguments. Only an eligible housekeeping prefix enters the scoped
+housekeeping context, which forwards `housekeeping_first=True` to the writer.
+The context resets on every return or exception and preserves subclass callbacks.
+No arbiter,
 admission, deadline, lease, scope rotation or service-credit rule is changed.
 The imported housekeeping regression checks the fresh ordinary call with no kwargs.
 
@@ -45,7 +47,12 @@ unknown subprocesses are rejected. Git fixture operations remain available witho
 network commands. Children reject foreign dynamic code and record actual origins.
 An intentional SIGKILL retains startup and execution observations and explicitly
 has no final receipt. Provider attempts are written before denial in every process;
-local Unix IPC remains available. These are deterministic integration controls,
+local Unix IPC remains available. The one existing real-protocol transport test
+may connect only to a loopback listener registered by that test in its own process;
+those local connections are counted separately. The A2 AST-derived batch helper
+has an exact predeclared code identity and may execute only at its reviewed test
+call site. Tests use the assembly as their working directory; outputs remain external.
+These are deterministic integration controls,
 not changes to production behavior or canonical qualification authority.
 
 Q2's plan, schema, gate map, material firewall, observer contract, workload shapes,

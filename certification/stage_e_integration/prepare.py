@@ -10,6 +10,7 @@ import sys
 
 from certification.stage_e_native_v2.binding import assemble, execution_environment, verify_assembly
 from certification.stage_e_native_v2.contract import ROOT, canonical, identities, read, sha256
+from certification.stage_e_integration.generated import code_identity
 
 
 def tooling_files(source):
@@ -47,11 +48,16 @@ def main():
         if isinstance(n, ast.FunctionDef) and n.name == 'test_process_termination_before_after_commit')
     literal = next(n.value.value for n in ast.walk(method) if isinstance(n, ast.Assign)
         and any(isinstance(t, ast.Name) and t.id == 'code' for t in n.targets))
+    service = ast.parse((source / 'meme_machine/solana_evidence_service.py').read_text())
+    serve = next(n for n in service.body if isinstance(n, ast.AsyncFunctionDef) and n.name == 'serve')
+    limit = next(n for n in serve.body if isinstance(n, ast.FunctionDef) and n.name == 'maintenance_batch_limit')
+    derivative = compile(ast.Module(body=[limit], type_ignores=[]), 'native_batch_limit', 'exec')
     declaration = dict(candidate_sha=candidate, candidate_tree=tree,
         assembly=str(output / 'assembly'), assembly_digest=manifest['assembly_digest'],
         output=str(output / 'deterministic'),
         allowlist_sha256=sha256((source / 'diagnostics/stage-e-native-v2-successor/deterministic-allowlist.json').read_bytes()),
         crash_literal_sha256=sha256(literal.encode()), tooling_files=tooling_files(source),
+        native_batch_limit_code_sha256=code_identity(derivative),
         expected_tests=621, q2_original_denominator=71, attempt=1,
         qualification_credit=False, certification_credit=False,
         material_executions=0, observer_measurements=0)
@@ -64,7 +70,7 @@ def main():
     env = execution_environment(output / 'assembly', manifest['assembly_digest'], manifest)
     env['MM_INTEGRATION_DECLARATION'] = str(declaration_path)
     result = subprocess.run([sys.executable, '-I', '-S', str(source / 'certification/stage_e_integration/bootstrap.py')],
-        cwd=output / 'deterministic', env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        cwd=source, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (output / 'controller.log').write_text(result.stdout)
     verify_assembly(output / 'assembly', manifest['assembly_digest'])
     print(result.stdout, flush=True)
