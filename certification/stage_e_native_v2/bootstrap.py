@@ -15,6 +15,8 @@ digest = manifest.pop('assembly_digest')
 encoded = json.dumps(manifest,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
 if digest != os.environ['MM_STAGE_E_V2_DIGEST'] or hashlib.sha256(encoded).hexdigest() != digest:
     raise ValueError('bootstrap_assembly_identity')
+if manifest['identity']['candidate_sha']!=os.environ['MM_STAGE_E_V2_CANDIDATE']:
+    raise ValueError('bootstrap_foreign_candidate')
 if Path(__file__).resolve() != source/'certification/stage_e_native_v2/bootstrap.py':
     raise ValueError('bootstrap_origin')
 info = manifest['files']['certification/stage_e_native_v2/bootstrap.py']
@@ -82,5 +84,21 @@ def execution_origin_audit(event,args):
 
 
 sys.addaudithook(execution_origin_audit)
+if len(sys.argv)>1 and sys.argv[1]=='--aggregate':
+    import argparse
+    from certification.stage_e_native_v2.binding import environment_identity,origin_proof,verify_assembly
+    from certification.stage_e_native_v2.contract import read,canonical
+    from certification.stage_e_native_v2.verify import aggregate
+    parser=argparse.ArgumentParser();parser.add_argument('--inventory',required=True)
+    parser.add_argument('--output',required=True);parser.add_argument('raw_trials',nargs='+')
+    args=parser.parse_args(sys.argv[2:])
+    checked=verify_assembly(assembly,digest)
+    if environment_identity()!=checked['identity']['environment_identity']:
+        raise ValueError('aggregate_execution_environment_drifted')
+    row=aggregate(assembly,digest,args.raw_trials,read(args.inventory),args.output)
+    row['aggregation_runtime_origins']=origin_proof(checked,source,entrypoint='certification.stage_e_native_v2.verify')
+    verify_assembly(assembly,digest);row['assembly_before']=row['assembly_after']=digest
+    Path(args.output).write_bytes(canonical(row))
+    raise SystemExit(0 if row['passed'] else 1)
 from certification.stage_e_native_v2.runner import main
 raise SystemExit(main())

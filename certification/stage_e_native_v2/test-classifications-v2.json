@@ -7,6 +7,7 @@
     "certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_foreign_local_package_and_pth_rejected": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_foreign_sha_and_foreign_tree_rejected": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_ignored_module_shadow_rejected": "DETERMINISTIC_BOUNDED",
+    "certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_root_qualification_launcher_rejected_before_trial": "STATIC",
     "certification.stage_e_native_v2.tests.test_binding.CheckoutBindingTests.test_untracked_module_shadow_rejected": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_attempted_provider_call_counts_as_failure": "DETERMINISTIC_BOUNDED",
     "certification.stage_e_native_v2.tests.test_binding.EvidenceBindingTests.test_failed_attempt_is_preserved_and_cannot_be_a_pass": "DETERMINISTIC_BOUNDED",

@@ -33,8 +33,13 @@ def validate(root=ROOT):
     assert 'MM_WORKFLOW_SHA: ${{ github.workflow_sha }}' in text
     assert 'MM_WORKFLOW_REF: ${{ github.workflow_ref }}' in text
     assert 'github.run_attempt' in text and '--candidate "$MM_EXPECTED_SHA"' in text
-    assert 'assembly/source/certification/stage_e_native_v2/bootstrap.py' not in text  # launch() is the sole bootstrap adapter
-    assert '--assembly "$RUNNER_TEMP/assembly"' in text and '--digest "$MM_ASSEMBLY_DIGEST"' in text
+    assert 'python -B -m certification.stage_e_native_v2 trial' not in text
+    assert text.count('python -I -S "$RUNNER_TEMP/assembly/source/certification/stage_e_native_v2/bootstrap.py"')==3
+    assert text.count('env -i PATH="$PATH"')==3
+    assert text.count('MM_STAGE_E_V2_CANDIDATE="$MM_EXPECTED_SHA"')==3
+    assert '--digest "$MM_ASSEMBLY_DIGEST"' in text
+    assert 'path: ${{ runner.temp }}/preflight-artifact/' in text
+    assert 'cp "$RUNNER_TEMP/preflight/raw-trial-v2.json" "$RUNNER_TEMP/preflight-artifact/raw-trial-v2.json"' in text
     assert 'fail-fast: false' in text and 'if: always()' in text
     assert 'native-v2-${{ inputs.expected_sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.case }}-' in text
     assert 'qualification_preflight' in text and 'aggregate-github' in text
@@ -43,5 +48,6 @@ def validate(root=ROOT):
         assert forbidden not in text
     return dict(passed=True,classification='STATIC',workflow_hashes={str(p.relative_to(root)):sha256(p.read_bytes()) for p in (caller_path,reusable_path)},
         matrix=matrix,checks=['YAML parse','v2 input forwarding','exact candidate/workflow SHA','same assembly preflight/trial',
+            'direct assembled entrypoint with sanitized environment','flat exact preflight artifact layout',
             'complete deterministic matrix','immutable actions','unique artifacts include attempt and trial ID','aggregation even on failure'],
         dispatched=False,canonical_authority=False)

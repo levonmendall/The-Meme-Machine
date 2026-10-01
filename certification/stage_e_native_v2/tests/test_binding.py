@@ -71,6 +71,13 @@ class CheckoutBindingTests(unittest.TestCase):
     def test_ignored_module_shadow_rejected(self):
         (self.root/'ignored').mkdir();(self.root/'ignored/shadow.py').write_text('raise RuntimeError()\n')
         with self.assertRaisesRegex(ValueError,'executable_shadow'):check_checkout(self.root,self.sha,self.tree)
+    def test_root_qualification_launcher_rejected_before_trial(self):
+        from certification.stage_e_native_v2.__main__ import main
+        args=['v2','trial','--assembly',str(self.root/'assembly'),'--digest','0'*64,
+              '--candidate',self.sha,'--case','preflight','--output',str(self.root/'output')]
+        with patch('sys.argv',args),self.assertRaisesRegex(ValueError,'launcher_must_load_from_assembly'):
+            main()
+        self.assertFalse((self.root/'output').exists())
     def test_foreign_local_package_and_pth_rejected(self):
         (self.root/'foreign').mkdir();(self.root/'foreign/__init__.py').write_text('VALUE=3\n')
         with self.assertRaisesRegex(ValueError,'executable_shadow'):check_checkout(self.root,self.sha,self.tree)

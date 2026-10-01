@@ -15,9 +15,9 @@ import urllib.request
 import zipfile
 
 from . import REPOSITORY
-from .binding import verify_assembly, workflow_identity
+from .binding import verify_assembly, workflow_identity, launch_aggregate
 from .contract import HERE, canonical, read, sha256, strict_json
-from .verify import aggregate, validate_raw
+from .verify import validate_raw
 
 WORKFLOW='.github/workflows/stagee-native-qualification-v2.yml'
 REUSABLE='.github/workflows/stagee-native-qualification-v2-reusable.yml'
@@ -149,7 +149,7 @@ def aggregate_github(digest,output):
             names=z.namelist()
             if len(names)!=len(set(names)) or any(Path(n).is_absolute() or '..' in Path(n).parts for n in names):
                 raise ValueError('artifact_zip_shadow')
-            expected={'assembly.tar','raw-trial-v2.json'} if case=='preflight' else {'raw-trial-v2.json','process.log'}
+            expected={'assembly.tar','raw-trial-v2.json','process.log'} if case=='preflight' else {'raw-trial-v2.json','process.log'}
             if set(names)!=expected:raise ValueError('unexpected_artifact_content')
             payloads[case]={name:z.read(name) for name in names}
     # Byte/digest/ID inventory is immutable across reads; changes invalidate all.
@@ -171,7 +171,11 @@ def aggregate_github(digest,output):
             assembly_digest=digest,run_id=run_id,attempt=attempt,generation=raw['generation'])
     (output/'transport-bindings.json').write_bytes(canonical(selected))
     (output/'inventory.json').write_bytes(canonical(inventory))
-    row=aggregate(assembly,digest,paths,inventory,output/'aggregate.json')
+    executed=launch_aggregate(assembly,digest,paths,output/'inventory.json',output/'aggregate.json')
+    if not (output/'aggregate.json').is_file():raise ValueError('assembled_aggregator_missing_result')
+    row=read(output/'aggregate.json')
+    if executed.returncode!=(0 if row['passed'] else 1) or not row.get('aggregation_runtime_origins'):
+        raise ValueError('assembled_aggregator_execution_invalid')
     # Original trial jobs must also be terminal and successful for a green result.
     jobs=api.json(f'/actions/runs/{run_id}/attempts/{attempt}/jobs?per_page=100')['jobs']
     failures=[]

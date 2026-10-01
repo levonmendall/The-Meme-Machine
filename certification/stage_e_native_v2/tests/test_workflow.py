@@ -14,7 +14,11 @@ class WorkflowTests(unittest.TestCase):
         source=ROOT/'.github/workflows/stagee-native-qualification-v2-reusable.yml'
         for old,new in [('MM_EXPECTED_SHA: ${{ inputs.expected_sha }}','MM_EXPECTED_SHA: wrong'),
                         (', m1-completion]',']'),
-                        ('actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683','actions/checkout@main')]:
+                        ('actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683','actions/checkout@main'),
+                        ('python -I -S "$RUNNER_TEMP/assembly/source/certification/stage_e_native_v2/bootstrap.py"',
+                         'python -B -m certification.stage_e_native_v2 trial'),
+                        ('path: ${{ runner.temp }}/preflight-artifact/',
+                         'path: ${{ runner.temp }}/preflight/raw-trial-v2.json')]:
             with self.subTest(mutation=old),tempfile.TemporaryDirectory() as td:
                 root=Path(td);base=root/'.github/workflows';base.mkdir(parents=True)
                 shutil.copy(ROOT/'.github/workflows/stagee-native-qualification-v2.yml',base)

@@ -168,7 +168,7 @@ def verify_assembly(assembly, digest):
     return manifest
 
 
-def origin_proof(manifest, source):
+def origin_proof(manifest, source, *, entrypoint='certification.stage_e_native_v2.runner'):
     source = Path(source).resolve()
     env = manifest['identity']['environment_identity']
     dependency_files = env['dependencies']['websockets']['files']
@@ -193,9 +193,17 @@ def origin_proof(manifest, source):
         if actual != expected:
             raise ValueError('runtime_module_hash_mismatch:' + name)
         rows.append(dict(module=name, origin=str(path), sha256=actual, category=category))
-    if not any(r['category']=='assembled' and r['module'].endswith('.runner') for r in rows):
+    if not any(r['category']=='assembled' and r['module']==entrypoint for r in rows):
         raise ValueError('trial_entrypoint_origin_missing')
     return rows
+
+
+def execution_environment(assembly,digest,manifest):
+    env = {k:os.environ[k] for k in ('PATH','LANG','LC_ALL','TZ') if k in os.environ}
+    env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1',
+        MM_STAGE_E_V2_ASSEMBLY=str(Path(assembly).resolve()), MM_STAGE_E_V2_DIGEST=digest,
+        MM_STAGE_E_V2_CANDIDATE=manifest['identity']['candidate_sha'])
+    return env
 
 
 def launch(assembly, digest, case, output):
@@ -204,12 +212,24 @@ def launch(assembly, digest, case, output):
     if output.is_relative_to(Path(assembly).resolve()):
         raise ValueError('execution_output_inside_assembly')
     output.mkdir(parents=True, exist_ok=False)
-    env = {k:os.environ[k] for k in ('PATH','LANG','LC_ALL','TZ') if k in os.environ}
-    env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1',
-               MM_STAGE_E_V2_ASSEMBLY=str(Path(assembly).resolve()), MM_STAGE_E_V2_DIGEST=digest)
+    env = execution_environment(assembly,digest,manifest)
     args = [sys.executable, '-I', '-S', str(source/'certification/stage_e_native_v2/bootstrap.py'),
             '--case',case,'--output',str(output)]
     result = subprocess.run(args, cwd=output, env=env, text=True, capture_output=True, timeout=120)
     verify_assembly(assembly,digest)
     (output/'process.log').write_text(result.stdout+result.stderr)
+    return result
+
+
+def launch_aggregate(assembly,digest,paths,inventory,output):
+    """Root transport cannot become the executing qualification verifier."""
+    manifest=verify_assembly(assembly,digest);source=Path(assembly).resolve()/'source'
+    output=Path(output).resolve()
+    if output.is_relative_to(Path(assembly).resolve()):raise ValueError('aggregate_output_inside_assembly')
+    args=[sys.executable,'-I','-S',str(source/'certification/stage_e_native_v2/bootstrap.py'),
+        '--aggregate','--inventory',str(Path(inventory).resolve()),'--output',str(output),*map(str,paths)]
+    result=subprocess.run(args,cwd=output.parent,env=execution_environment(assembly,digest,manifest),
+        text=True,capture_output=True,timeout=120)
+    verify_assembly(assembly,digest)
+    (output.parent/'aggregate-process.log').write_text(result.stdout+result.stderr)
     return result

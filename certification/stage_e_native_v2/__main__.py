@@ -23,6 +23,9 @@ def main():
             expected_plan_hash=args.plan_hash,expected_input_hash=args.input_hash)
         print(result['assembly_digest']);return 0
     if args.operation=='trial':
+        expected_entrypoint=Path(args.assembly).resolve()/'source/certification/stage_e_native_v2/__main__.py'
+        if Path(__file__).resolve()!=expected_entrypoint:
+            raise ValueError('qualification_launcher_must_load_from_assembly')
         manifest=verify_assembly(args.assembly,args.digest)
         if manifest['identity']['candidate_sha']!=args.candidate:raise ValueError('foreign_candidate_execution')
         result=launch(args.assembly,args.digest,args.case,args.output)
