@@ -1,0 +1,150 @@
+{
+  "schema": "meme-machine-reset-recovery-research-v1",
+  "status": "RESEARCH_PREP_ONLY_NOT_ACTIVE",
+  "paper_only": true,
+  "live_money_authority": false,
+  "allocation_authority": false,
+  "prepared_at": "2026-10-01",
+  "preparation_parent": {
+    "branch": "strategy/staged-winner-scaling-prep-20261001",
+    "commit": "53687bbbf107f8250bbf93b5533516586674479b"
+  },
+  "objective": "Research a distinct post-flush recovery regime for Pump and Pons assets that remain structurally healthy after Current/Survivor momentum failure, without loosening either existing strategy.",
+  "stage_e_isolation": {
+    "stage_e_candidate_modified": false,
+    "stage_e_branch_modified": false,
+    "stage_e_workflow_modified": false,
+    "workflow_dispatch_authorized": false,
+    "market_run_authorized": false,
+    "activation_allowed": false
+  },
+  "family_scope": [
+    "pump",
+    "pons"
+  ],
+  "initial_research_universe": {
+    "pump": "verified Pump.fun lineage on canonical PumpSwap after graduation/migration, including Current rejects and Survivor non-qualifiers",
+    "pons": "verified Pons graduation lineage on canonical post-graduation market, including Current rejects and Survivor non-qualifiers",
+    "pregraduation_reset_entry_authorized": false,
+    "note": "Start with post-graduation/migration evidence where structural survival and executable liquidity can be measured cleanly."
+  },
+  "thesis": "A prior directional thesis may fail without the asset becoming structurally invalid. A sufficiently deep flush followed by selling exhaustion, liquidity/breadth retention, stabilization and fresh recovery demand may create a new independent opportunity.",
+  "strategy_independence": {
+    "not_a_current_threshold_relaxation": true,
+    "not_a_survivor_threshold_relaxation": true,
+    "independent_policy_identity_required_if_promoted": true,
+    "independent_entry_and_exit_policy_required_if_promoted": true,
+    "independent_profitability_cohort_required_if_promoted": true,
+    "may_reuse_evidence_plane_and_common_execution_primitives": true
+  },
+  "research_state_machine": [
+    "observed",
+    "flush_candidate",
+    "stabilizing",
+    "recovery_watch",
+    "shadow_qualified",
+    "shadow_invalidated",
+    "retired"
+  ],
+  "required_evidence_categories": [
+    "canonical lineage and venue identity",
+    "authoritative/finalized point-in-time evidence",
+    "pre-flush high and drawdown path",
+    "liquidity retention and executable exit depth",
+    "holder/buyer concentration trajectory",
+    "creator/distribution safety",
+    "sell-flow intensity and exhaustion trajectory",
+    "independent buyer breadth/growth/re-entry",
+    "base/stabilization duration and new-low behavior",
+    "VWAP/reference recovery",
+    "recovery/breakout structure",
+    "turnover and executable entry capacity",
+    "1x/2x after-cost execution stress",
+    "freshness and generation"
+  ],
+  "research_labels": {
+    "structural_survival": [
+      "liquidity retained",
+      "no immutable lineage/integrity failure",
+      "creator/distribution remains safe",
+      "hard concentration remains acceptable or improves"
+    ],
+    "selling_exhaustion": [
+      "sell pressure decelerates from flush peak",
+      "new lows stop expanding for a measured interval",
+      "recovery demand is not creator/linked-wallet dominated"
+    ],
+    "recovery_confirmation": [
+      "fresh independent demand returns",
+      "price recovers a policy-defined reference such as VWAP/base boundary",
+      "executable capacity remains positive after costs"
+    ]
+  },
+  "economic_parameters": {
+    "minimum_flush_bps": null,
+    "stabilization_seconds": null,
+    "maximum_new_low_tolerance": null,
+    "minimum_liquidity_retention": null,
+    "demand_recovery_thresholds": null,
+    "recovery_reference": null,
+    "entry_extension_limit": null,
+    "hard_stop_bps": null,
+    "first_profit_bps": null,
+    "trail_bps": null,
+    "maximum_hold_seconds": null,
+    "capital_target_bps": null,
+    "status": "NO_ECONOMIC_THRESHOLDS_FROZEN_UNTIL_RESEARCH_EVIDENCE"
+  },
+  "conflict_rules": [
+    "Research observation may continue while Current or Survivor has exposure, but reset-recovery allocation authority remains false.",
+    "If promoted later, one asset/family cannot hold duplicate Current, Survivor, and Reset exposure unless an explicit future shared-sleeve conflict policy authorizes it.",
+    "Existing Current/Survivor positions and irreversible exit intents always retain their native lifecycle authority.",
+    "A Current or Survivor rejection is context only; reset-recovery must qualify from its own fresh evidence."
+  ],
+  "instrumentation": {
+    "sources": [
+      "directional-opportunity-preservation marginal-reject receipts",
+      "Current-to-Survivor identity linkage",
+      "existing survivor price/demand history",
+      "persisted canonical market/evidence-plane state"
+    ],
+    "no_new_decision_critical_provider_calls": true,
+    "shadow_entry_requires_executable_quote": true,
+    "outcome_windows": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "24h",
+      "terminal_or_research_expiry"
+    ],
+    "measures": [
+      "after-cost return",
+      "maximum favorable excursion",
+      "maximum adverse excursion",
+      "time to recovery",
+      "time to invalidation",
+      "would Current/Survivor have entered later",
+      "overlap with staged-scaling opportunity",
+      "execution capacity and binding cap"
+    ]
+  },
+  "promotion_evidence_requirements": [
+    "A prospective, outcome-blind sample of natural reset candidates.",
+    "Enough executable shadow outcomes to estimate winner capture and loser admission separately.",
+    "Evidence that the regime adds incremental opportunities rather than mostly duplicating Survivor.",
+    "Positive after-cost expectancy with bounded drawdown under frozen thresholds.",
+    "No threshold search on the same sample used for final acceptance.",
+    "Exact policy identity, restart/replay, shared-sleeve and accounting certification before any PAPER allocation."
+  ],
+  "composition_order_if_eventually_promoted": [
+    "existing six-regime strategy upgrade",
+    "moderate-admission-thresholds",
+    "directional-capital-parity-v1",
+    "exit-optimization-v1",
+    "directional-opportunity-preservation-v1",
+    "directional-realized-equity-sizing-v1",
+    "staged-winner-scaling-v1",
+    "reset-recovery-v1 (only after separate evidence-based promotion)"
+  ]
+}
