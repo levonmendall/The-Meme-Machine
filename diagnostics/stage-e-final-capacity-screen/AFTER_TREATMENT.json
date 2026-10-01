@@ -1,0 +1,40 @@
+{
+  "arm": "treatment",
+  "budget_ceiling": 2,
+  "budget_consumed": 2,
+  "execution": {
+    "arm": "treatment",
+    "attempt": 1,
+    "budget_consumed": 2,
+    "budget_id": "stage-e-final-capacity-screen-20261001-v1",
+    "budget_remaining": 0,
+    "controller_interrupted": false,
+    "elapsed": 366.39482810699974,
+    "forced": false,
+    "historical_budget_consumed": 6,
+    "hostname": "bf7d12457ef8",
+    "identity": {
+      "assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659",
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7"
+    },
+    "material_start_requested": true,
+    "no_tuning_since_predeclaration": true,
+    "pid": 4258,
+    "predeclaration_sha256": "f205a7892db04bff87c4cb30776e18d1491445032c6fcb7c3176ebedb28bc9d3",
+    "residual_process_group": false,
+    "returncode": 0,
+    "run_id": "final-capacity-screen-20261001-v1",
+    "utc_end": "2026-10-01T23:46:22Z",
+    "utc_start": "2026-10-01T23:40:15Z"
+  },
+  "historical_budget_consumed": 6,
+  "raw_archive": "TREATMENT_RAW_EVIDENCE.tar.gz",
+  "raw_archive_sha256": "c2b55267634d03cd460045b019e8642d6e8585a6a0f8aa0b9a8a9f20976a59a1",
+  "raw_inventory_sha256": "335a3fb76fe6e846fcb7e44a6822e1e91b108f9fe650dd269cea018ca1ccd1e6",
+  "raw_local_directory": "/workspace/stage-e-screen-work/runs/final-capacity-screen-20261001-v1/treatment",
+  "raw_preserved": true,
+  "result_interpreted": false,
+  "retry_authorized": false,
+  "runtime_database_and_payload_archives_retained_locally": true
+}
