@@ -321,6 +321,34 @@ class MaintenanceRuntime:
         if yielded is not None and execution_error is None:
             raise yielded
 
+    def _housekeeping_first(self,decision,observation,needs,ready,flight):
+        """Use only this already-admitted turn's fresh effective deadlines."""
+        if (decision is None or decision is not self.arbiter.pending or
+                decision.side!='retirement' or observation is not self.last_observation or
+                observation.generation!=self.generation or
+                self.state.fence.session!=self.generation or
+                flight.generation!=self.generation or flight.pending is None or
+                not ready['archive'] or observation.housekeeping<=0):
+            return False
+        active=[n for n in needs if n.side=='retirement' and n.units]
+        housekeeping=[n for n in active if n.scope=='__housekeeping__']
+        if len(housekeeping)!=1:
+            return False
+        def effective(n):
+            # Exactly choose()'s safety, successful-service drought and, when
+            # active, recovery minimum. Origins were established by that choice.
+            deadline=min(n.safety_deadline,
+                         self.arbiter.origin[n.side,n.scope]+self.leases.drought)
+            if n.recovery_excess:
+                deadline=min(deadline,n.recovery_deadline)
+            return deadline
+        now=decision.started
+        peer_window=now+2*self.leases.execution+self.leases.owner
+        return (now+self.leases.execution<effective(housekeeping[0])<=peer_window and
+                all(effective(n)>peer_window for n in active
+                    if n.scope!='__housekeeping__'))
+
+
     def turn(self, flight, submitted):
         """Exactly one fresh owner-entry decision and at most one native side."""
         self.writer._check()
@@ -406,7 +434,10 @@ class MaintenanceRuntime:
                         else:
                             # Native method still rechecks all pins, floors and
                             # generation-relevant evidence at mutation time.
-                            result['retention_outcome']=self.state.retention()
+                            if self._housekeeping_first(decision,observation,needs,ready,flight):
+                                result['retention_outcome']=self.state.retention(housekeeping_first=True)
+                            else:
+                                result['retention_outcome']=self.state.retention()
                     except BaseException as exc:
                         execution_error = exc
                         event['operation_error'] = type(exc).__name__+':'+str(exc)[:120]

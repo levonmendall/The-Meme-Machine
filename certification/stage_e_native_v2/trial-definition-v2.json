@@ -1,0 +1,112 @@
+{
+  "artifact_naming": "native-v2-{S}-{run_id}-{attempt}-{case_id}-{trial_id}",
+  "attempt_policy": "first attempt only; preserve all failures, no pick-passing-retry",
+  "cases": [
+    {
+      "classification": "STATIC",
+      "id": "preflight",
+      "limit": "complete file/hash check; no workload"
+    },
+    {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "id": "clock-contract",
+      "limit": "1002 records maximum for restart; <=3x8 transactions for transition; fixed finite schedule"
+    },
+    {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "id": "native-transitions",
+      "limit": "1002 records maximum for restart; <=3x8 transactions for transition; fixed finite schedule"
+    },
+    {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "id": "held-reader",
+      "limit": "1002 records maximum for restart; <=3x8 transactions for transition; fixed finite schedule"
+    },
+    {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "id": "generation-restart",
+      "limit": "1002 records maximum for restart; <=3x8 transactions for transition; fixed finite schedule"
+    },
+    {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "id": "m1-completion",
+      "limit": "1928 records; one interruption and two owner turns; no timing/capacity claim"
+    },
+    {
+      "classification": "STATIC",
+      "id": "origin-child",
+      "limit": "imports only; no workload"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "run373-full",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "run379-full",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "run380-full",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "combined-1",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "combined-2",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "combined-3",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "recovery-1",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "observer-measurement",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "future-canonical",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "MATERIAL_PRESSURE",
+      "id": "prepared-assembly",
+      "limit": "not authorized; never execute"
+    },
+    {
+      "classification": "DETERMINISTIC_BOUNDED",
+      "id": "run379-setup",
+      "limit": "100 historical bounded frames with only 2 transactions each, then 3x2 live; no dense/full-shape execution"
+    }
+  ],
+  "deterministic_matrix": [
+    "clock-contract",
+    "run379-setup",
+    "native-transitions",
+    "held-reader",
+    "generation-restart",
+    "m1-completion"
+  ],
+  "material_matrix": [
+    "combined-1",
+    "combined-2",
+    "combined-3",
+    "recovery-1"
+  ],
+  "required_all": true,
+  "version": "native-transition-cohort-v2"
+}

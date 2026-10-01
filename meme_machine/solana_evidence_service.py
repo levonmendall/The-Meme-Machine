@@ -746,15 +746,17 @@ class ServiceState:
         self.archive_commit(plan,receipt,retain=False)
         return self.archive_plan()
 
-    def retention(self):
+    def retention(self, *, housekeeping_first=False):
         import sqlite3
         from .solana_retention_outcome import RetentionProgress
         if self.writer.db.in_transaction:
             raise EvidenceUnavailable('retention_inside_source_transaction')
         self.writer.last_retention_progress=RetentionProgress()
+        retention_options=dict(housekeeping_first=True) if housekeeping_first else {}
         try:
             self._storage_stage('retention',lambda:self.writer.retain(
-                time.time()-180,max_records=1000,archive_first=False,checkpoint=False))
+                time.time()-180,max_records=1000,archive_first=False,checkpoint=False,
+                **retention_options))
         except EvidenceUnavailable as exc:
             if str(exc)!='evidence_background_yield':raise
             self.writer.last_retention_progress.interrupted=True
