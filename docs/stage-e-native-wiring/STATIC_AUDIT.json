@@ -1,0 +1,1196 @@
+{
+  "schema": "stage-e-native-wiring-static-audit-v1",
+  "inspected_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "scope": "static_source_trace_only",
+  "static_assertions": [
+    {
+      "name": "workflow_text_has_no_tabs_or_conflict_markers",
+      "passed": true
+    },
+    {
+      "name": "canonical_wrapper_uses_local_reusable_workflow",
+      "passed": true
+    },
+    {
+      "name": "canonical_wrapper_forwards_expected_sha_and_preserved_scope",
+      "passed": true
+    },
+    {
+      "name": "canonical_branch_and_workflow_are_explicit",
+      "passed": true
+    },
+    {
+      "name": "fixed_matrix_matches_all_four_plan_trials",
+      "passed": true
+    },
+    {
+      "name": "fixed_plan_preserves_workload_and_no_retry",
+      "passed": true
+    },
+    {
+      "name": "reviewed_publication_binds_exact_plan_bytes",
+      "passed": true
+    },
+    {
+      "name": "every_declared_frozen_input_matches",
+      "passed": true
+    },
+    {
+      "name": "fixed_trials_depend_on_preflight",
+      "passed": true
+    },
+    {
+      "name": "fixed_jobs_checkout_event_sha",
+      "passed": true
+    },
+    {
+      "name": "fixed_jobs_are_first_attempt_only",
+      "passed": true
+    },
+    {
+      "name": "fixed_workload_cannot_continue_after_error",
+      "passed": true
+    },
+    {
+      "name": "preflight_records_commit_tree_parent_and_reviewed_files",
+      "passed": true
+    },
+    {
+      "name": "fixed_preflight_prepares_then_verifies_build",
+      "passed": true
+    },
+    {
+      "name": "fixed_trial_calls_predecessor_entrypoint",
+      "passed": true
+    },
+    {
+      "name": "fixed_aggregate_uses_same_predecessor_context",
+      "passed": true
+    },
+    {
+      "name": "fixed_aggregate_retains_every_raw_artifact",
+      "passed": true
+    },
+    {
+      "name": "predecessor_entrypoint_versions_plan_observer_and_acceptance",
+      "passed": true
+    },
+    {
+      "name": "raw_trial_acceptance_binds_metadata_and_result_to_same_sha",
+      "passed": true
+    },
+    {
+      "name": "promotion_reverification_uses_same_predecessor_plan_and_context",
+      "passed": true
+    },
+    {
+      "name": "promotion_requires_completed_exact_sha_first_attempt_runs",
+      "passed": true
+    },
+    {
+      "name": "promotion_orders_full_verification_after_cohort",
+      "passed": true
+    },
+    {
+      "name": "promotion_recomputes_full_acceptance_and_source_manifest",
+      "passed": true
+    },
+    {
+      "name": "promotion_rechecks_artifacts_after_read",
+      "passed": true
+    },
+    {
+      "name": "one_shot_remote_intent_precedes_exact_push_and_dispatch",
+      "passed": true
+    },
+    {
+      "name": "promotion_cas_forbids_history_loss",
+      "passed": true
+    },
+    {
+      "name": "dispatch_rejects_different_candidate_and_existing_runs",
+      "passed": true
+    },
+    {
+      "name": "canonical_run_binds_event_branch_attempt_and_reusable_shas",
+      "passed": true
+    },
+    {
+      "name": "canonical_authority_requires_terminal_raw_artifact_review",
+      "passed": true
+    },
+    {
+      "name": "complete_build_verifies_sha_sources_policy_imports_and_collections",
+      "passed": true
+    },
+    {
+      "name": "assembly_copies_and_stages_declared_integration_bytes",
+      "passed": true
+    },
+    {
+      "name": "assembly_rejects_source_shadowing_unstaged_changes_and_diff_drift",
+      "passed": true
+    },
+    {
+      "name": "promotion_checkout_hashes_committed_executable_and_configuration_blobs",
+      "passed": true
+    },
+    {
+      "name": "full_workflow_retains_broader_predecessor_gates",
+      "passed": true
+    },
+    {
+      "name": "full_acceptance_uses_predecessor_combined_reader",
+      "passed": true
+    },
+    {
+      "name": "all_four_native_diff_bindings_match_protocol",
+      "passed": true
+    },
+    {
+      "name": "frozen_environment_versions_are_exact",
+      "passed": true
+    }
+  ],
+  "assertions_passed": 37,
+  "assertions_total": 37,
+  "trace_passed": true,
+  "plan_sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e",
+  "plan_version": "e26-eligible-hot-debt-v1",
+  "frozen_inputs": [
+    {
+      "path": "certification/combined_pressure.py",
+      "expected": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+      "actual": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+      "passed": true
+    },
+    {
+      "path": "certification/run381_pressure.py",
+      "expected": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+      "actual": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+      "passed": true
+    },
+    {
+      "path": "certification/pressure_diagnostics.py",
+      "expected": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45",
+      "actual": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45",
+      "passed": true
+    },
+    {
+      "path": "tests/test_run380_production_pressure.py",
+      "expected": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47",
+      "actual": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47",
+      "passed": true
+    },
+    {
+      "path": "tests/test_run373_dispatch_throughput.py",
+      "expected": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+      "actual": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+      "passed": true
+    },
+    {
+      "path": "certification/tests/fixtures/run380-production-templates.json.gz",
+      "expected": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+      "actual": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+      "passed": true
+    },
+    {
+      "path": "certification/cleanup_recovery.py",
+      "expected": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+      "actual": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+      "passed": true
+    },
+    {
+      "path": "certification/cleanup_recovery_plan.json",
+      "expected": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3",
+      "actual": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3",
+      "passed": true
+    },
+    {
+      "path": "certification/combined_observer.py",
+      "expected": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+      "actual": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+      "passed": true
+    },
+    {
+      "path": "certification/lifecycle_capacity.py",
+      "expected": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+      "actual": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+      "passed": true
+    },
+    {
+      "path": "certification/qualification_environment.py",
+      "expected": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f",
+      "actual": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f",
+      "passed": true
+    },
+    {
+      "path": "certification/maintenance_qualification.py",
+      "expected": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf",
+      "actual": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf",
+      "passed": true
+    }
+  ],
+  "findings": [
+    {
+      "code": "REQUIRED_NATIVE_REVISION_NOT_EXPOSED",
+      "detected": true,
+      "effect": "Native implementation, plan schema, raw witness/reader verifier and deterministic tests are required."
+    },
+    {
+      "code": "PREDECESSOR_OBSERVER_ACCEPTS_EQUAL_LIMIT",
+      "detected": true,
+      "effect": "The successor needs a newly applicable strict <1% exact-candidate measurement and boundary rejection tests."
+    },
+    {
+      "code": "TRIAL_EXECUTION_NOT_BOUND_TO_PREPARED_WORKTREES",
+      "detected": true,
+      "effect": "A different preflight job prepares assemblies; no trial consumed-assembly binding is established by this command."
+    }
+  ],
+  "native_source_verified": false,
+  "future_same_sha_execution_guarantee_proved": false,
+  "qualification_wiring_ready": false,
+  "canonical_authority": false,
+  "market_authority": false,
+  "paper_only": true,
+  "inspected_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "observed_at_utc": "2026-10-01",
+  "verification_environment": "Isolated V8 JavaScript with GitHub GET tools; no local filesystem, shell, Git CLI, Python, SQLite, actionlint or YAML engine callable.",
+  "source_byte_verification": [
+    {
+      "path": ".github/stagee27/cohort-request.json",
+      "mode": "100644",
+      "blob_sha": "aed1e1d580b5272f96a2a974ceaeae29a9ac5427",
+      "git_blob_matches": true,
+      "bytes": 1652,
+      "api_bytes": 1652,
+      "sha256": "ed82986d5d1028ebe453a3f0aec1b3636e9e230a77ba26c48d12f1b878973151"
+    },
+    {
+      "path": ".github/workflows/directional-six-regime-nonmarket.yml",
+      "mode": "100644",
+      "blob_sha": "b762c1c0963030483babe6e165f0acfe02e74976",
+      "git_blob_matches": true,
+      "bytes": 662,
+      "api_bytes": 662,
+      "sha256": "8c71866dac0327acb81615aff61525eb2801c861517ed385a806eb8ddd5b45b9"
+    },
+    {
+      "path": ".github/workflows/non-market-certification.yml",
+      "mode": "100644",
+      "blob_sha": "2aee1bec59f2cd5ce0a9a9d50bf9842d62b38131",
+      "git_blob_matches": true,
+      "bytes": 15002,
+      "api_bytes": 15002,
+      "sha256": "85a0ac4876ede472afcbdf70232d8c0d8463959c75e6e733771b857fb8e0a188"
+    },
+    {
+      "path": ".github/workflows/stagee-accepted-candidate-promotion.yml",
+      "mode": "100644",
+      "blob_sha": "c89d68efdc2f516ccf3236f59de01088bff223c4",
+      "git_blob_matches": true,
+      "bytes": 5038,
+      "api_bytes": 5038,
+      "sha256": "79b43cde56f558486625e1c9f10b6ccc10a59a576ec8a24c11111b51247f3cfb"
+    },
+    {
+      "path": ".github/workflows/stagee-coordinated-review.yml",
+      "mode": "100644",
+      "blob_sha": "c7686b943a7a785912941a72e769ca99e2672db0",
+      "git_blob_matches": true,
+      "bytes": 5686,
+      "api_bytes": 5686,
+      "sha256": "c9b6e295cc6a09be375a36a96d4d14721b7d75fd38f2246107a92d104f163d98"
+    },
+    {
+      "path": ".github/workflows/stagee-fixed-cohort.yml",
+      "mode": "100644",
+      "blob_sha": "3ee8e96015b61786abf4320f2744760e99492ffd",
+      "git_blob_matches": true,
+      "bytes": 9603,
+      "api_bytes": 9603,
+      "sha256": "496747352957e9ae5e87a46e665c26892a0298278fdb5a8d27d54af8e04a3e4d"
+    },
+    {
+      "path": "certification/autonomous_control.py",
+      "mode": "100644",
+      "blob_sha": "4fcac68b157f99d7f19e998d1c197a8c8b79cc5a",
+      "git_blob_matches": true,
+      "bytes": 16796,
+      "api_bytes": 16796,
+      "sha256": "90662cce9b5e2ba7e36efe4ac35d1376677c0eb4404fb154edcf028c57b2b7d3"
+    },
+    {
+      "path": "certification/autonomous_window.py",
+      "mode": "100644",
+      "blob_sha": "beaca5aab5722e3698c49745a3be99df03953171",
+      "git_blob_matches": true,
+      "bytes": 16612,
+      "api_bytes": 16612,
+      "sha256": "0ac63d626df7b9cf19d675a736e5f0973720da0e57f13af7b8f5954f77ab66ee"
+    },
+    {
+      "path": "certification/build_consistency.py",
+      "mode": "100644",
+      "blob_sha": "aaa8dc21367d2600d5281caab9a34044811b3f49",
+      "git_blob_matches": true,
+      "bytes": 14464,
+      "api_bytes": 14464,
+      "sha256": "233d0a40b06c49d1d12ca4a6d1e39334c98872f4728e248c07e19645cbb02f90"
+    },
+    {
+      "path": "certification/cleanup_recovery.py",
+      "mode": "100644",
+      "blob_sha": "e1e8c4bf771886d8d143d785a0164a636f4390d1",
+      "git_blob_matches": true,
+      "bytes": 19958,
+      "api_bytes": 19958,
+      "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3"
+    },
+    {
+      "path": "certification/cleanup_recovery_plan.json",
+      "mode": "100644",
+      "blob_sha": "33634c28de2047cf2475f6a8ba2d5d9485f64654",
+      "git_blob_matches": true,
+      "bytes": 1591,
+      "api_bytes": 1591,
+      "sha256": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3"
+    },
+    {
+      "path": "certification/combined_observer.py",
+      "mode": "100644",
+      "blob_sha": "08f9c0ee141ef0e727597304e2bbc26f87505596",
+      "git_blob_matches": true,
+      "bytes": 6223,
+      "api_bytes": 6223,
+      "sha256": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af"
+    },
+    {
+      "path": "certification/combined_pressure.py",
+      "mode": "100644",
+      "blob_sha": "814b5316cf99803a7b4fd2acbf309dbdb68b9512",
+      "git_blob_matches": true,
+      "bytes": 11158,
+      "api_bytes": 11158,
+      "sha256": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a"
+    },
+    {
+      "path": "certification/dispatch_phase_e.py",
+      "mode": "100644",
+      "blob_sha": "91ff04f60264e1cb707bd09c8c6e85833318a4ce",
+      "git_blob_matches": true,
+      "bytes": 10231,
+      "api_bytes": 10231,
+      "sha256": "42b4308d101bade23586427df139c5aed345feae4ef2f020a2701358c59e2f8c"
+    },
+    {
+      "path": "certification/final_acceptance.py",
+      "mode": "100644",
+      "blob_sha": "988999da8c95ef3299e9154f19710e6af755ab1c",
+      "git_blob_matches": true,
+      "bytes": 9226,
+      "api_bytes": 9226,
+      "sha256": "2542f7e2df08f2a6db7052ba79c17053ede40308011c8156411a29fcb3797c65"
+    },
+    {
+      "path": "certification/lifecycle_capacity.py",
+      "mode": "100644",
+      "blob_sha": "e6eedfb9a0bc5a686a65daf2776e69d1989afb0c",
+      "git_blob_matches": true,
+      "bytes": 10165,
+      "api_bytes": 10165,
+      "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa"
+    },
+    {
+      "path": "certification/maintenance_qualification.py",
+      "mode": "100644",
+      "blob_sha": "2ff5a4cd66238780b5613791538dd4356e2d9187",
+      "git_blob_matches": true,
+      "bytes": 2266,
+      "api_bytes": 2266,
+      "sha256": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf"
+    },
+    {
+      "path": "certification/offline_tests.py",
+      "mode": "100644",
+      "blob_sha": "7feab2b75f4ecf50696256ad7081aeabbda0970e",
+      "git_blob_matches": true,
+      "bytes": 4106,
+      "api_bytes": 4106,
+      "sha256": "cd2a431fd98f6f94956651b913b661713a1e54877d85f17d7fd9193508cbffc3"
+    },
+    {
+      "path": "certification/pressure_diagnostics.py",
+      "mode": "100644",
+      "blob_sha": "2c32bfce2a9825b6482eb1c013ae8c53550ffd77",
+      "git_blob_matches": true,
+      "bytes": 6085,
+      "api_bytes": 6085,
+      "sha256": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45"
+    },
+    {
+      "path": "certification/profitability_protocol.json",
+      "mode": "100644",
+      "blob_sha": "dd51e71be95320890a3571d234d430a6b9b35bd6",
+      "git_blob_matches": true,
+      "bytes": 9933,
+      "api_bytes": 9933,
+      "sha256": "996d367d230276c3b9ab02816eeba9cfbcea4af953363a121bb4a777db99fe42"
+    },
+    {
+      "path": "certification/promote_phase_e.py",
+      "mode": "100644",
+      "blob_sha": "7131b603a3947e94fb01a654e504d075e410997b",
+      "git_blob_matches": true,
+      "bytes": 22286,
+      "api_bytes": 22286,
+      "sha256": "570147f933cc3d041384155749c3be550310741901cb8a60db0f70c61ba5d263"
+    },
+    {
+      "path": "certification/qualification_environment.py",
+      "mode": "100644",
+      "blob_sha": "b0950434c071e39874725e9ff83dfb798a9d89bb",
+      "git_blob_matches": true,
+      "bytes": 1863,
+      "api_bytes": 1863,
+      "sha256": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f"
+    },
+    {
+      "path": "certification/run.py",
+      "mode": "100644",
+      "blob_sha": "e0da2843fec95a21e6a5ddb68e3c62ddffd4748d",
+      "git_blob_matches": true,
+      "bytes": 54979,
+      "api_bytes": 54979,
+      "sha256": "6e2b254ca44b0a2c33565c406679e68b9746ae6b7dfdea10bc166e0b549e3a1e"
+    },
+    {
+      "path": "certification/run381_pressure.py",
+      "mode": "100644",
+      "blob_sha": "ea64914435a1192fe5dfc6bfb61d31f5439d3798",
+      "git_blob_matches": true,
+      "bytes": 14469,
+      "api_bytes": 14469,
+      "sha256": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd"
+    },
+    {
+      "path": "certification/single_campaign_control.py",
+      "mode": "100644",
+      "blob_sha": "1fcf9fefc3ba1e231338fbcf3468ae6534984825",
+      "git_blob_matches": true,
+      "bytes": 33791,
+      "api_bytes": 33791,
+      "sha256": "147e218446b67c860c05dd5e87740ff0c716b5964aafa5ac69b27d7b5e3382c6"
+    },
+    {
+      "path": "certification/sources.json",
+      "mode": "100644",
+      "blob_sha": "7a47b2382069c402112a3e5ed22421fc336f0d07",
+      "git_blob_matches": true,
+      "bytes": 94499,
+      "api_bytes": 94499,
+      "sha256": "9a276d75ad83f253a8f5e041d225e773531ab4766dbbf51505142c99542c9c14"
+    },
+    {
+      "path": "certification/stagee24_qualification_plan.json",
+      "mode": "100644",
+      "blob_sha": "841335d6275890e7554dfe7ed106b6c2b4cc912a",
+      "git_blob_matches": true,
+      "bytes": 2637,
+      "api_bytes": 2637,
+      "sha256": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e"
+    },
+    {
+      "path": "certification/tests/fixtures/run380-production-templates.json.gz",
+      "mode": "100644",
+      "blob_sha": "b926a69dff537bb35d9446a17ca72e1ad8a61adb",
+      "git_blob_matches": true,
+      "bytes": 98712,
+      "api_bytes": 98712,
+      "sha256": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376"
+    },
+    {
+      "path": "certification/tests/test_stagee27_cohort_wiring.py",
+      "mode": "100644",
+      "blob_sha": "bee29816e5895e53e9854fdc14dee612f8735de7",
+      "git_blob_matches": true,
+      "bytes": 3276,
+      "api_bytes": 3276,
+      "sha256": "811ab6c577e1ad0423481bda31b508d20e676388f91057936ef7befbd2a85a47"
+    },
+    {
+      "path": "tests/test_run373_dispatch_throughput.py",
+      "mode": "100644",
+      "blob_sha": "f2102f3d5278db94a58b6e5122dcdd2009e214b1",
+      "git_blob_matches": true,
+      "bytes": 15243,
+      "api_bytes": 15243,
+      "sha256": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2"
+    },
+    {
+      "path": "tests/test_run380_production_pressure.py",
+      "mode": "100644",
+      "blob_sha": "ed56fdb406662857026fae82c6a0afaeb394e22b",
+      "git_blob_matches": true,
+      "bytes": 6003,
+      "api_bytes": 6003,
+      "sha256": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"
+    }
+  ],
+  "git_tree_reconstruction": [
+    {
+      "path": "/",
+      "expected": "68736cf664169dee665762019800bf87ca0f1f67",
+      "actual": "68736cf664169dee665762019800bf87ca0f1f67",
+      "passed": true,
+      "entries": 18
+    },
+    {
+      "path": ".github",
+      "expected": "d3ae0b23c788dfe6e53992cd23b9240185c81928",
+      "actual": "d3ae0b23c788dfe6e53992cd23b9240185c81928",
+      "passed": true,
+      "entries": 5
+    },
+    {
+      "path": ".github/e23-recovery",
+      "expected": "f05add78845a28287a2845b18bb3d4e78bbb6e11",
+      "actual": "f05add78845a28287a2845b18bb3d4e78bbb6e11",
+      "passed": true,
+      "entries": 1
+    },
+    {
+      "path": ".github/edge-validation",
+      "expected": "102ebbefb0dc0df242272ffa3efcd744b08f2854",
+      "actual": "102ebbefb0dc0df242272ffa3efcd744b08f2854",
+      "passed": true,
+      "entries": 1
+    },
+    {
+      "path": ".github/live-triggers",
+      "expected": "97ac3e4b27ca65144794ad059464e5ebea414f83",
+      "actual": "97ac3e4b27ca65144794ad059464e5ebea414f83",
+      "passed": true,
+      "entries": 82
+    },
+    {
+      "path": ".github/stagee27",
+      "expected": "ec7d757fec1416a9c2fc574f06d6aa0e8a5d967f",
+      "actual": "ec7d757fec1416a9c2fc574f06d6aa0e8a5d967f",
+      "passed": true,
+      "entries": 1
+    },
+    {
+      "path": ".github/workflows",
+      "expected": "4262c02fee7d22217eaf2ad691a219fcbd6145e9",
+      "actual": "4262c02fee7d22217eaf2ad691a219fcbd6145e9",
+      "passed": true,
+      "entries": 78
+    },
+    {
+      "path": "certification",
+      "expected": "301a6b0be60c300cf0d21eff6f4cbaf7d4fa65c1",
+      "actual": "301a6b0be60c300cf0d21eff6f4cbaf7d4fa65c1",
+      "passed": true,
+      "entries": 168
+    },
+    {
+      "path": "certification/cohorts",
+      "expected": "0b6bc1bc60f8441cf3cf402c2f8185cf3eb2145a",
+      "actual": "0b6bc1bc60f8441cf3cf402c2f8185cf3eb2145a",
+      "passed": true,
+      "entries": 2
+    },
+    {
+      "path": "certification/evidence",
+      "expected": "f2814812ad66f1480be2df2c52b4ebef2977f02d",
+      "actual": "f2814812ad66f1480be2df2c52b4ebef2977f02d",
+      "passed": true,
+      "entries": 4
+    },
+    {
+      "path": "certification/notes",
+      "expected": "aa12fa48d3b0c0db31f798339b0457232edc1cf6",
+      "actual": "aa12fa48d3b0c0db31f798339b0457232edc1cf6",
+      "passed": true,
+      "entries": 12
+    },
+    {
+      "path": "certification/patches",
+      "expected": "03d6141e355623cdae29be54130fbd7c5061212f",
+      "actual": "03d6141e355623cdae29be54130fbd7c5061212f",
+      "passed": true,
+      "entries": 92
+    },
+    {
+      "path": "certification/results",
+      "expected": "719488370ea51848179f9e13f206aa0c13335a10",
+      "actual": "719488370ea51848179f9e13f206aa0c13335a10",
+      "passed": true,
+      "entries": 147
+    },
+    {
+      "path": "certification/results/alchemy-local-validation",
+      "expected": "e014433e6dfc51c27e776e128c7f11714965d030",
+      "actual": "e014433e6dfc51c27e776e128c7f11714965d030",
+      "passed": true,
+      "entries": 14
+    },
+    {
+      "path": "certification/results/autonomous-local-verification",
+      "expected": "6f8513762649202fb29ba1eb7e9cf21011e6e87e",
+      "actual": "6f8513762649202fb29ba1eb7e9cf21011e6e87e",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/deadline-repair-verification",
+      "expected": "c380c0d5ae1c308dd9070b51305d226ad3b85980",
+      "actual": "c380c0d5ae1c308dd9070b51305d226ad3b85980",
+      "passed": true,
+      "entries": 9
+    },
+    {
+      "path": "certification/results/entry-priority-verification",
+      "expected": "6bacaf29064e0a8c8c9546d71caa619c586e2d5d",
+      "actual": "6bacaf29064e0a8c8c9546d71caa619c586e2d5d",
+      "passed": true,
+      "entries": 9
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair",
+      "expected": "f18618fb95954e2e763311a443b070a07e612485",
+      "actual": "f18618fb95954e2e763311a443b070a07e612485",
+      "passed": true,
+      "entries": 19
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/authentication",
+      "expected": "3e895d0ddab82ad6b617f628e445eb1472cdf273",
+      "actual": "3e895d0ddab82ad6b617f628e445eb1472cdf273",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/candidate-authentication",
+      "expected": "b5d670f9229306c55862ed8b795a208c5f667c61",
+      "actual": "b5d670f9229306c55862ed8b795a208c5f667c61",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/capacity-and-archive",
+      "expected": "aa2ea5b01d865c186d6f85be570bccab183ffed4",
+      "actual": "aa2ea5b01d865c186d6f85be570bccab183ffed4",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/default-signature-admission",
+      "expected": "57602d9972127bf61ecbece90008fabd18bdc5e6",
+      "actual": "57602d9972127bf61ecbece90008fabd18bdc5e6",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/pons-discovery-range-batching",
+      "expected": "54e7c56210e1ccca2369566f4ce1f8a97c0c9b4d",
+      "actual": "54e7c56210e1ccca2369566f4ce1f8a97c0c9b4d",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/ramses-dynamic-events",
+      "expected": "403993772dc5adab388a1b59a839e79b57567f8f",
+      "actual": "403993772dc5adab388a1b59a839e79b57567f8f",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/shared-broker-wal-startup",
+      "expected": "ed06bdbd6d2023beace07674f053b06fc1767566",
+      "actual": "ed06bdbd6d2023beace07674f053b06fc1767566",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/stream-log-retention-observability",
+      "expected": "faf54eb90f2dca7c34a36fb8ec1ae44f3a8818ed",
+      "actual": "faf54eb90f2dca7c34a36fb8ec1ae44f3a8818ed",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/hosted-frozen-repair/stream-log-retention",
+      "expected": "dec0f8aa829fe52e598602618f12b118df72cb8d",
+      "actual": "dec0f8aa829fe52e598602618f12b118df72cb8d",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/local-retry-verification",
+      "expected": "f7c358f9e0de9efaabfed090b2030444cc329da4",
+      "actual": "f7c358f9e0de9efaabfed090b2030444cc329da4",
+      "passed": true,
+      "entries": 9
+    },
+    {
+      "path": "certification/results/run370-repair",
+      "expected": "e5aa153632985223edacc2883f8b5b9c3d46e7b2",
+      "actual": "e5aa153632985223edacc2883f8b5b9c3d46e7b2",
+      "passed": true,
+      "entries": 7
+    },
+    {
+      "path": "certification/results/solana-atomic-validation",
+      "expected": "c9f7dd03c37d29eb1900519317aa5601dd77cb66",
+      "actual": "c9f7dd03c37d29eb1900519317aa5601dd77cb66",
+      "passed": true,
+      "entries": 9
+    },
+    {
+      "path": "certification/results/solana-local-validation",
+      "expected": "235ebe7aa5b9ac713c9bf1296ed260d430d481d2",
+      "actual": "235ebe7aa5b9ac713c9bf1296ed260d430d481d2",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/solana-publisher-validation",
+      "expected": "82bf23e4814a782f4fa0d8589d19a50c591f4cca",
+      "actual": "82bf23e4814a782f4fa0d8589d19a50c591f4cca",
+      "passed": true,
+      "entries": 9
+    },
+    {
+      "path": "certification/results/solana-recovery-validation",
+      "expected": "c7b55fa4e3bc5b477f86d0777277c4a96cd433d3",
+      "actual": "c7b55fa4e3bc5b477f86d0777277c4a96cd433d3",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/solana-reservation-validation",
+      "expected": "d2e4a53f12f2b052089a0420b960aed7f00855c0",
+      "actual": "d2e4a53f12f2b052089a0420b960aed7f00855c0",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "certification/results/terminal-report-verification",
+      "expected": "bd4450203fb835a453a88828494b530a72fbac42",
+      "actual": "bd4450203fb835a453a88828494b530a72fbac42",
+      "passed": true,
+      "entries": 9
+    },
+    {
+      "path": "certification/robinhood",
+      "expected": "0fd5bc9cd9af05f1354cb01af84b34884522096b",
+      "actual": "0fd5bc9cd9af05f1354cb01af84b34884522096b",
+      "passed": true,
+      "entries": 14
+    },
+    {
+      "path": "certification/tests",
+      "expected": "18d195e1d992e6f6a1bba0487640c05488598b62",
+      "actual": "18d195e1d992e6f6a1bba0487640c05488598b62",
+      "passed": true,
+      "entries": 100
+    },
+    {
+      "path": "certification/tests/fixtures",
+      "expected": "9ddecf2219e05fb64517cc0a6afc504c12abdfd6",
+      "actual": "9ddecf2219e05fb64517cc0a6afc504c12abdfd6",
+      "passed": true,
+      "entries": 6
+    },
+    {
+      "path": "docs",
+      "expected": "32fa7fafd6c484ba9b8df8c6e2cf1fee2f9e3a39",
+      "actual": "32fa7fafd6c484ba9b8df8c6e2cf1fee2f9e3a39",
+      "passed": true,
+      "entries": 27
+    },
+    {
+      "path": "docs/coverage-repair-20260924",
+      "expected": "81972fa68e40d4ae59f339b4e1e05d321107141e",
+      "actual": "81972fa68e40d4ae59f339b4e1e05d321107141e",
+      "passed": true,
+      "entries": 5
+    },
+    {
+      "path": "docs/evidence-reconstruction-20260924",
+      "expected": "7dbcaa781fb01da02483c62e5e0102806f6bbafc",
+      "actual": "7dbcaa781fb01da02483c62e5e0102806f6bbafc",
+      "passed": true,
+      "entries": 11
+    },
+    {
+      "path": "docs/evidence",
+      "expected": "728aba3fd28989a492a038ca900cad7aaa82794b",
+      "actual": "728aba3fd28989a492a038ca900cad7aaa82794b",
+      "passed": true,
+      "entries": 2
+    },
+    {
+      "path": "docs/solana-evidence-plane",
+      "expected": "ce7bf32c8c38c2cd3698d7113cef1bf995f0bc93",
+      "actual": "ce7bf32c8c38c2cd3698d7113cef1bf995f0bc93",
+      "passed": true,
+      "entries": 4
+    },
+    {
+      "path": "docs/v10-postrun",
+      "expected": "4a36fb43ffdfb30dabd6b1b757b6480c5536741e",
+      "actual": "4a36fb43ffdfb30dabd6b1b757b6480c5536741e",
+      "passed": true,
+      "entries": 4
+    },
+    {
+      "path": "evidence",
+      "expected": "f5ed2a07a6334e0de3338e1fea4b0548edb5054a",
+      "actual": "f5ed2a07a6334e0de3338e1fea4b0548edb5054a",
+      "passed": true,
+      "entries": 7
+    },
+    {
+      "path": "meme_machine",
+      "expected": "983cc0b08f76c1841c26a9720b5b426db42081f5",
+      "actual": "983cc0b08f76c1841c26a9720b5b426db42081f5",
+      "passed": true,
+      "entries": 45
+    },
+    {
+      "path": "research",
+      "expected": "6af5e907a5b8e404802835599dffb34cc87ff9c1",
+      "actual": "6af5e907a5b8e404802835599dffb34cc87ff9c1",
+      "passed": true,
+      "entries": 3
+    },
+    {
+      "path": "tests",
+      "expected": "96ff0a96a072c095e2841eb4aaae64bc50bc6f6a",
+      "actual": "96ff0a96a072c095e2841eb4aaae64bc50bc6f6a",
+      "passed": true,
+      "entries": 120
+    },
+    {
+      "path": "tests/fixtures",
+      "expected": "ecb8351d85e01e6425d19a9c87c7e0e220128980",
+      "actual": "ecb8351d85e01e6425d19a9c87c7e0e220128980",
+      "passed": true,
+      "entries": 10
+    },
+    {
+      "path": "tests/fixtures/solana_evidence_plane",
+      "expected": "884a56e19bdfd0ee0291f3b840216aa38e10959c",
+      "actual": "884a56e19bdfd0ee0291f3b840216aa38e10959c",
+      "passed": true,
+      "entries": 8
+    }
+  ],
+  "hash_self_checks": [
+    {
+      "algorithm": "sha1",
+      "input": "",
+      "expected": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+      "passed": true
+    },
+    {
+      "algorithm": "sha1",
+      "input": "abc",
+      "expected": "a9993e364706816aba3e25717850c26c9cd0d89d",
+      "passed": true
+    },
+    {
+      "algorithm": "sha256",
+      "input": "",
+      "expected": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "passed": true
+    },
+    {
+      "algorithm": "sha256",
+      "input": "abc",
+      "expected": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "passed": true
+    },
+    {
+      "algorithm": "sha256",
+      "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+      "expected": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+      "passed": true
+    }
+  ],
+  "prepared_lane_bindings": [
+    {
+      "lane": "pump",
+      "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "source_diff_sha256": "39e7688946ef558fbdc2257af220cb2b0bd79ee7f3528db0b106f8f7696b8a0d",
+      "protocol_same": true,
+      "overlay_count": 40
+    },
+    {
+      "lane": "meteora",
+      "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "source_diff_sha256": "bd0a315eb26fe6e271b6e12e3235cefb332cc2958529506cc29c3449532c1186",
+      "protocol_same": true,
+      "overlay_count": 40
+    },
+    {
+      "lane": "pons",
+      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "source_diff_sha256": "bddf5e0b288e1e51141d5be0849c468788acb7cc20a6eb4ecefe1aecda9d96da",
+      "protocol_same": true,
+      "overlay_count": 0
+    },
+    {
+      "lane": "ramses",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "source_diff_sha256": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9",
+      "protocol_same": true,
+      "overlay_count": 0
+    }
+  ],
+  "source_search": {
+    "branches_listed": 431,
+    "branch_pages": [
+      100,
+      100,
+      100,
+      100,
+      31
+    ],
+    "relevant_ref_snapshots": [
+      {
+        "ref": "analysis/stage-e-causal-isolation-phase0-20260930-paper",
+        "sha": "5b8b749e3da8dfcb496b2ba3c1d242ab0cf7947f",
+        "entries": 1208,
+        "truncated": false
+      },
+      {
+        "ref": "diagnostics/stage-e-fresh-causal-isolation",
+        "sha": "2cc7a7c42e8f98acd57c2b606d132867d2393def",
+        "entries": 1231,
+        "truncated": false
+      },
+      {
+        "ref": "diagnostics/stage-e-owner-scheduling-attribution-20260930",
+        "sha": "ef262691f428d9e54934690077eb80b38d79ac01",
+        "entries": 1249,
+        "truncated": false
+      },
+      {
+        "ref": "diagnostics/stage-e-housekeeping-attribution-20261001",
+        "sha": "750190b2067ca2fca771b531396d8e06a9351c62",
+        "entries": 1251,
+        "truncated": false
+      },
+      {
+        "ref": "diagnostics/stage-e-owner-admission-deterministic-20261001",
+        "sha": "d33253763b3e8778889e332e053a4170e0a8e531",
+        "entries": 1280,
+        "truncated": false
+      },
+      {
+        "ref": "recovery/qualify-publish-exact-dc08f906-20260929",
+        "sha": "250b9f5f59f629f75f880c1600588453b7042993",
+        "entries": 1243,
+        "truncated": false
+      },
+      {
+        "ref": "transport/stagee-exact-objects-20260930",
+        "sha": "4be1e700b6b2293386134f709408cb9dce78ebe9",
+        "entries": 1169,
+        "truncated": false
+      },
+      {
+        "ref": "main",
+        "sha": "97bc5c5e6cb7b569d814a667ca19ceca4dd6b2c0",
+        "entries": 6,
+        "truncated": false
+      }
+    ],
+    "contract_code_search": {
+      "results": []
+    },
+    "held_reader_code_search": {
+      "results": []
+    },
+    "native_transition_commit_search": {
+      "commits": []
+    },
+    "held_reader_commit_search": {
+      "commits": []
+    },
+    "transport_payload_present": false,
+    "supplied_preserved_native_source_package": null,
+    "rejected_objects": {
+      "commit": {
+        "error": "GitHub API error 404: {\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest/git/commits#get-a-commit-object\",\"status\":\"404\"}",
+        "error_code": "NOT_FOUND",
+        "error_data": {
+          "message": "Not Found",
+          "documentation_url": "https://docs.github.com/rest/git/commits#get-a-commit-object",
+          "status": "404"
+        }
+      },
+      "tree": {
+        "error": "GitHub API error 422: {\"message\":\"Invalid object requested. SHA must identify a commit or a tree.\",\"documentation_url\":\"https://docs.github.com/rest/git/trees#get-a-tree\",\"status\":\"422\"}",
+        "error_code": "INVALID_ARGUMENT",
+        "error_data": {
+          "message": "Invalid object requested. SHA must identify a commit or a tree.",
+          "documentation_url": "https://docs.github.com/rest/git/trees#get-a-tree",
+          "status": "422"
+        }
+      }
+    },
+    "reachable_predecessor_history": {
+      "entrypoint": [
+        {
+          "sha": "cbc09686d09f117276d20a332ab5c51b215bfaaa",
+          "message": "Recreate verified E25 candidate tree for GitHub execution",
+          "parents": [
+            "0a4a8bdad1670b1f70c03ed6c861d03c303e9e84"
+          ]
+        },
+        {
+          "sha": "da8ae7243454bc1770052f2d36b2b1b8b3f7880b",
+          "message": "Repair cleanup outcome semantics and version durable overlap observations",
+          "parents": [
+            "e0816bff7efedcb4009d1db1151c25776f54a88b"
+          ]
+        }
+      ],
+      "qualification_plan": [
+        {
+          "sha": "be3f735d1bddfb0fce5f9a6416310e43eac4d945",
+          "message": "Correct E26 lifecycle observer SHA-256 binding",
+          "parents": [
+            "1dc46898d8b81ca85a5a58b1d5a4cb7f8ad2d030"
+          ]
+        },
+        {
+          "sha": "3c62c01605e7d61fa3bc9a5ba83df48033f7fead",
+          "message": "Assign new E26 eligible-hot qualification identity",
+          "parents": [
+            "c2c92a87c712f62901717485473b552e011954ee"
+          ]
+        },
+        {
+          "sha": "c2c92a87c712f62901717485473b552e011954ee",
+          "message": "Bind qualification to eligible-hot lifecycle observer v2",
+          "parents": [
+            "048a3574212d864cdc086b338e584f5ec2e96a32"
+          ]
+        },
+        {
+          "sha": "cbc09686d09f117276d20a332ab5c51b215bfaaa",
+          "message": "Recreate verified E25 candidate tree for GitHub execution",
+          "parents": [
+            "0a4a8bdad1670b1f70c03ed6c861d03c303e9e84"
+          ]
+        }
+      ],
+      "fixed_workflow": [
+        {
+          "sha": "9356068cc92f9cadbd35adead3c33b532cbd4268",
+          "message": "[runtime-v2-promotion] Complete E27 build identities, fixed-cohort wiring and HTTP204 dispatch safety\n\nPreserve E27 archive-ready scheduling and the discovered-test correction unchanged. Resolve the reproduced stale native source hash with the reviewed source/protocol refresh; wire the already-required frozen four-trial prerequisite cohort to the exact event SHA; handle the legacy adapter's successful empty HTTP204 response without a second dispatch.\n\nEvidence: focused 36523414921; build-identity reproduction and corrected build 36524401712; preserved candidate tree and 104 passing tests 36525136401. The connected publication tree exactly matches b7fea73f83b29e569b9c8ffde47ae11ecb04cf1d. No strategy, market-policy, evidence, workload, recovery threshold, transaction-bound or runtime change beyond the previously verified E27 implementation. PAPER ONLY. No market or canonical authority is granted by this commit.",
+          "parents": [
+            "fdeee2721d2bb63e0ff3234328b06936257493b1"
+          ]
+        }
+      ]
+    },
+    "limitation": "Repository searches and inspected snapshots are not a proof of absence from all repository history or external stores. Rejected object IDs are archival locators only; they are not used as ancestry."
+  },
+  "implementation_changes": {
+    "runtime_files": [],
+    "workflow_files": [],
+    "entrypoint_files": [],
+    "manifest_files": [],
+    "qualification_implementation_recreated": false,
+    "workflow_entrypoint_diff": "empty"
+  },
+  "execution": {
+    "static_audit_executed": true,
+    "static_workflow_validation_scope": "Textual call-edge/guard/identity checks and JSON/digest validation; no YAML schema or Actions runner validation.",
+    "deterministic_native_qualification_tests_executed": false,
+    "full_stage_e_capacity_profiles_executed": 0,
+    "canonical_stage_e_executed": false,
+    "stage_f_executed": false,
+    "observer_benchmark_executed": false,
+    "merge_performed": false,
+    "promotion_intent_reserved": false,
+    "dispatch_performed": false,
+    "native_build_prepared_or_verified_here": false,
+    "local_git_fsck_or_dirty_state_verified": false
+  },
+  "historical_evidence": {
+    "provenance": "User-provided historical counts; raw native qualification artifacts/source were not exposed or independently reverified here.",
+    "witness_reader_integration": "34/34",
+    "pump_native_selection": "79/79",
+    "meteora_native_selection": "79/79",
+    "pinned_deterministic_suite": "336/336",
+    "observer_measurement": "reported below 1%",
+    "accepted_for_future_candidate": false,
+    "local_4445_frame_run_is_canonical_stage_e": false
+  },
+  "successor_requirements": {
+    "exact_sha": null,
+    "exact_tree": null,
+    "native_plan_revision": "stage-e-native-transition-contract-v1",
+    "native_components": [
+      "native-transition-cohort-v1",
+      "native-contract-held-reader-v1"
+    ],
+    "fresh_raw_cohort_required": true,
+    "full_existing_gate_set_required": true,
+    "fresh_exact_candidate_strict_observer_measurement_required": true,
+    "observer_comparison": "measured_fraction < 0.01",
+    "stale_evidence_permitted": false,
+    "assembled_execution_binding_required": true,
+    "activation_authorized_by_this_package": false
+  },
+  "static_checker_mutation_tests": [
+    {
+      "mutation": "wrapper_expected_sha_removed",
+      "expected_failed_assertion": "canonical_wrapper_forwards_expected_sha_and_preserved_scope",
+      "detected": true
+    },
+    {
+      "mutation": "fixed_recovery_trial_omitted",
+      "expected_failed_assertion": "fixed_matrix_matches_all_four_plan_trials",
+      "detected": true
+    },
+    {
+      "mutation": "plan_bytes_changed",
+      "expected_failed_assertion": "reviewed_publication_binds_exact_plan_bytes",
+      "detected": true
+    },
+    {
+      "mutation": "native_input_bytes_changed",
+      "expected_failed_assertion": "every_declared_frozen_input_matches",
+      "detected": true
+    },
+    {
+      "mutation": "different_candidate_guard_removed",
+      "expected_failed_assertion": "dispatch_rejects_different_candidate_and_existing_runs",
+      "detected": true
+    },
+    {
+      "mutation": "aggregate_uses_foreign_context",
+      "expected_failed_assertion": "fixed_aggregate_uses_same_predecessor_context",
+      "detected": true
+    },
+    {
+      "mutation": "assembled_lane_diff_mismatch",
+      "expected_failed_assertion": "all_four_native_diff_bindings_match_protocol",
+      "detected": true
+    }
+  ]
+}

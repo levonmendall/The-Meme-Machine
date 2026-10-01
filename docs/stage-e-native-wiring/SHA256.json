@@ -1,0 +1,14 @@
+{
+  "schema": "stage-e-native-wiring-paper-package-v1",
+  "inspected_production_sha": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "inspected_production_tree": "68736cf664169dee665762019800bf87ca0f1f67",
+  "files": {
+    "README.md": "2f071ba59ceb09dd81d0ea519d9175f1b9d7644f83edaa6a0e00522e2597d981",
+    "STATIC_AUDIT.json": "f1545953b0d9b3559b143df9681dfbe9fcd0c1b57664d47de0fb6e5585ee59af",
+    "static_audit.mjs": "e92f891f6d9856701e724002f04c252dc692abcc58be0344107365814409f819"
+  },
+  "canonical_authority": false,
+  "market_authority": false,
+  "paper_only": true,
+  "qualification_wiring_ready": false
+}
