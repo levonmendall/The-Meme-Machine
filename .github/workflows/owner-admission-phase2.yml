@@ -28,8 +28,8 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: M1 prerequisite and finite owner admission matrix
-        run: python diagnostics/stage-e-owner-admission-phase2/verify.py --focused-gates-only --output owner-admission-phase2
+      - name: M1 prerequisite, owner admission matrix, and normal deterministic suite
+        run: python diagnostics/stage-e-owner-admission-phase2/verify.py --output owner-admission-phase2
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

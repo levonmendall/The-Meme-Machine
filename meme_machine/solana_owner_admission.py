@@ -11,6 +11,8 @@ from dataclasses import dataclass
 import math
 import time
 
+from .solana_evidence_plane import EvidenceUnavailable
+
 OFFER_SECONDS = .100
 HINT_SECONDS = 1.0
 SOURCE_AGE_SECONDS = 8.9
@@ -244,7 +246,8 @@ class OwnerAdmission:
                     durable_progress=event.get('durable_progress', {}),
                     durable_records=event.get('durable_records', {}),
                     native_completion=event.get('completion'))
-            offer.row['native_refusal'] = bool(error is not None and str(error) != 'evidence_background_yield')
+            offer.row['maintenance_error_type'] = type(error).__name__ if error is not None else None
+            offer.row['native_refusal'] = isinstance(error,EvidenceUnavailable) and str(error) != 'evidence_background_yield'
 
     def source_accepted(self, future, offer, frames):
         self.last_source = future

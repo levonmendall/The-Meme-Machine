@@ -779,7 +779,7 @@ class NativeGateTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIsNotNone(first['error'])
                 self.assertEqual(first['offer']['outcome'],'accepted')
                 self.assertIn('source_submit',first['offer'])
-                self.assertEqual(first['offer']['native_refusal'],fault!='yield')
+                self.assertEqual(first['offer']['native_refusal'],fault=='refusal')
                 if fault=='refusal':self.assertEqual(first['error'],'maintenance_cannot_reserve_both_sides')
 
     async def test_continuous_source_actual_service_retains_native_authority(self):
