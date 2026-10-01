@@ -139,13 +139,8 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
             relevant_transactions=80,
         )
         stop=asyncio.Event()
-        clock_origin=time.monotonic()
-        # Keep the fixture wall clock consistent with elapsed monotonic time.
-        # Freezing only wall time violates the native maintenance clock contract
-        # during this unchanged >10-second source/decode test.
-        fixture_wall=lambda:1790439000+(time.monotonic()-clock_origin)
         with tempfile.TemporaryDirectory() as temp,patch(
-            'meme_machine.solana_evidence_service.time.time',side_effect=fixture_wall
+            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
         ),patch(
             'websockets.asyncio.client.connect',return_value=socket
         ),patch(
@@ -198,7 +193,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                     service.STREAM_DISPATCH_MAX_BYTES,
                 )
                 self.assertTrue(reader.covered(
-                    SWAP_SCOPE,1000,1000+frames-2,as_of=time.time()
+                    SWAP_SCOPE,1000,1000+frames-2,as_of=1790439000
                 ))
                 reader.close()
             finally:

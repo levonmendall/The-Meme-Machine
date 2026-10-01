@@ -94,7 +94,10 @@ sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)
             summary['m1_focused']=command(output,'m1-focused',[sys.executable,'-m','unittest',
                 'tests.test_m1_maintenance_completion','-v'])
             summary['resource']=command(output,'resource',[sys.executable,'-m','tests.resource_check'])
-            green=all(summary[key]['exit_code']==0 for key in ('affected','m1_focused','resource'))
+            frozen_tests=["certification.tests.test_cleanup_recovery.CleanupRecoveryTests.test_frozen_original_and_combined_workload_bytes","certification.tests.test_combined_observer.OverlapObservationTests.test_original_workload_is_still_frozen","certification.tests.test_stagee24_environment.QualificationEnvironmentTests.test_new_observation_identity_and_original_workload_are_both_bound","certification.tests.test_stagee27_cohort_wiring.FixedCohortWiringTests.test_matrix_is_exactly_the_existing_frozen_cohort","certification.tests.test_stagee25_promotion.ArtifactPreflightTests.test_aggregate_label_without_environment_and_raw_trials_is_rejected","certification.tests.test_stagee25_promotion.ArtifactPreflightTests.test_raw_machinery_recomputation_rejects_a_forged_green_summary"]
+            summary['frozen_integrity']=command(output,'frozen-integrity',[sys.executable,'-m',
+                'unittest',*frozen_tests,'-v'])
+            green=all(summary[key]['exit_code']==0 for key in ('affected','m1_focused','resource','frozen_integrity'))
             summary['result']='FOCUSED_GATES_GREEN' if green else 'FOCUSED_GATES_BLOCKED'
             if not args.focused_gates_only and green:
                 summary['deterministic']=command(output,'deterministic',[sys.executable,'-m',

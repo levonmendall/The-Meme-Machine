@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 ROOT=Path(__file__).resolve().parents[2]
 BASE='b11b16fbdc4ea0312b2c6f51de37e4d68e1f2da1'
@@ -16,7 +17,7 @@ def git(*args):
 def verify(output):
     subprocess.run(['git','merge-base','--is-ancestor',BASE,'HEAD'],cwd=ROOT,check=True)
     changed=git('diff','--name-only',BASE,'HEAD').decode().splitlines()
-    allowed=set(PRODUCTION)|{'tests/test_owner_admission_phase2.py','tests/test_run373_dispatch_throughput.py',
+    allowed=set(PRODUCTION)|{'tests/test_owner_admission_phase2.py',
         '.github/workflows/owner-admission-phase2.yml'}
     assert all(p in allowed or p.startswith('diagnostics/stage-e-owner-admission-phase2/')
                for p in changed),changed
@@ -26,8 +27,12 @@ def verify(output):
         'meme_machine/solana_maintenance_state.py','meme_machine/solana_evidence_plane.py',
         'tests/test_m1_maintenance_completion.py','.github/workflows/m1-completion-deterministic.yml',
         '.github/workflows/stagee-fixed-cohort.yml','certification/maintenance_qualification_plan.json',
-        'meme_machine/engine.py']
+        'meme_machine/engine.py','tests/test_run373_dispatch_throughput.py',
+        'tests/test_run380_production_pressure.py']
     assert all(git('rev-parse',BASE+':'+p)==git('rev-parse','HEAD:'+p) for p in protected)
+    sys.path.insert(0,str(ROOT))
+    from certification.maintenance_qualification import frozen_inputs
+    assert frozen_inputs(),'frozen qualification inputs changed'
     patch_hashes={}
     for name,paths in [('treatment',[]),('admission',list(PRODUCTION)),
                        ('source_fixture',['tests/test_run373_dispatch_throughput.py']),
@@ -82,7 +87,7 @@ def verify(output):
     row=dict(base=BASE,base_tree=git('rev-parse',BASE+'^{tree}').decode().strip(),
         sha=git('rev-parse','HEAD').decode().strip(),
         tree=git('rev-parse','HEAD^{tree}').decode().strip(),changed_files=changed,
-        protected_blobs_unchanged=True,m1_runtime_blob=git('rev-parse','HEAD:'+m1).decode().strip(),
+        protected_blobs_unchanged=True,frozen_qualification_inputs_unchanged=True,m1_runtime_blob=git('rev-parse','HEAD:'+m1).decode().strip(),
         patch_sha256=patch_hashes,housekeeping=housekeeping,
         working_tree=git('status','--porcelain','--untracked-files=no').decode(),
         material_executions=0,canonical_stage_e=False,stage_f=False)
