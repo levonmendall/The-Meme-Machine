@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -35,7 +36,14 @@ def run(name, command, output, cwd=ROOT):
                             stderr=subprocess.STDOUT)
     (output / (name + '.log')).write_text(result.stdout)
     print(result.stdout, flush=True)
-    return dict(command=command, exit_code=result.returncode)
+    row = dict(command=command, exit_code=result.returncode)
+    counts = re.search(r'Ran (\d+) tests?', result.stdout)
+    if counts:
+        row['tests'] = int(counts.group(1))
+    for key in ('failures', 'errors', 'skipped'):
+        count = re.search(key + r'=(\d+)', result.stdout)
+        row[key] = int(count.group(1)) if count else 0
+    return row
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', required=True, type=Path)
@@ -52,6 +60,18 @@ def main():
         changed_files=git('diff', '--name-only', BASE, 'HEAD').splitlines(),
         paper_only=True, material_executions=0, canonical_stage_e=False,
         stage_f=False, merged=False)
+    allowed = {
+        'meme_machine/solana_maintenance_runtime.py',
+        'tests/test_m1_maintenance_completion.py',
+        'diagnostics/m1-completion/verify.py',
+        'diagnostics/m1-completion/README.md',
+        '.github/workflows/m1-completion-deterministic.yml',
+    }
+    assert set(summary['changed_files']) <= allowed, summary['changed_files']
+    summary['production_changed_files'] = [
+        path for path in summary['changed_files'] if path.startswith('meme_machine/')]
+    summary['protected_production_blobs_unchanged'] = (
+        summary['production_changed_files'] == ['meme_machine/solana_maintenance_runtime.py'])
     old_runner = """import json,os,sys,unittest
 from tests import test_m1_maintenance_completion as test
 suite=unittest.TestSuite([test.M1NativeCompletionTests('test_urgent_completion_clears_decision_before_next_ordinary_admission')])
@@ -87,8 +107,16 @@ sys.exit(0 if result.wasSuccessful() else 1)
         old_row['provider_calls'] == 0 and old_row['all_accepted_futures_done'])
     summary['old_fails_confirmed'] = old_confirmed
     if old_confirmed:
-        summary['focused'] = run('new-focused', [sys.executable, '-m', 'unittest',
-                                    FOCUSED, '-v'], output)
+        focused_runner = """import json,sys,unittest
+from tests import test_m1_maintenance_completion as test
+suite=unittest.defaultTestLoader.loadTestsFromModule(test)
+result=unittest.TextTestRunner(verbosity=2,stream=sys.stdout).run(suite)
+row=dict(test.EVIDENCE,tests=result.testsRun,failures=len(result.failures),errors=len(result.errors),skipped=len(result.skipped))
+with open(sys.argv[1],'w') as handle:json.dump(row,handle,indent=2,sort_keys=True)
+sys.exit(0 if result.wasSuccessful() else 1)
+"""
+        summary['focused'] = run('new-focused', [sys.executable, '-c', focused_runner,
+                                    str(output / 'new-focused.json')], output)
         summary['affected'] = run('affected', [sys.executable, '-m', 'unittest',
                                     *AFFECTED, '-v'], output)
         summary['deterministic'] = run('deterministic', [sys.executable, '-m',

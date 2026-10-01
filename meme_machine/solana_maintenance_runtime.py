@@ -260,6 +260,67 @@ class MaintenanceRuntime:
             progress[scope]=dr if scope in record_required else du
         return progress,records
 
+    def _cooperative(self, exc):
+        # The owner flag records a prior interrupt, not the cause of every later
+        # SQLite error. Require the actual interrupt result as well.
+        if isinstance(exc, EvidenceUnavailable):
+            return str(exc) == 'evidence_background_yield'
+        if not isinstance(exc, sqlite3.OperationalError):
+            return False
+        code = getattr(exc, 'sqlite_errorcode', None)
+        return (getattr(self.writer, '_background_sql_interrupted', False) and
+                (code == sqlite3.SQLITE_INTERRUPT or
+                 (code is None and str(exc) == 'interrupted')))
+
+    def _complete_decision(self, decision, needs, event, execution_error, execution_deadline):
+        # A failed accounting read is terminal fail-closed for this turn. Keep
+        # the exact pending identity as a tripwire when its outcome is unknown.
+        # Never clear it or credit an uncommitted/invented progress value.
+        event['completion'] = 'failed_closed'
+        if self.writer.db.in_transaction:
+            raise EvidenceUnavailable('maintenance_completion_transaction_open')
+        yielded = None
+        try:
+            progress, records = self._native_progress(self.last_progress, needs, decision.side)
+        except BaseException as exc:
+            if not self._cooperative(exc):
+                raise
+            yielded = exc
+            event['completion_read_interrupted'] = True
+            previous = getattr(self.writer, '_owner_progress_handler', None)
+            # Only retry the bounded ledger SELECT (at most 2*MAX_SCOPES+3
+            # rows), after native mutation/rollback has ended. Only this read
+            # temporarily defers SQL preemption. The unchanged generation and
+            # execution deadlines are checked before crediting service.
+            self.writer.db.set_progress_handler(None, 0)
+            try:
+                progress, records = self._native_progress(self.last_progress, needs, decision.side)
+            except BaseException as retry_error:
+                raise EvidenceUnavailable('maintenance_completion_unavailable') from retry_error
+            finally:
+                self.writer.db.set_progress_handler(previous, 1000 if previous else 0)
+        # Preserve known durable progress even when completion rejects a lease
+        # or identity. Its existence does not turn a failed decision into success.
+        event.update(durable_progress=progress, durable_records=records)
+        if self.state.fence.session != self.generation:
+            raise EvidenceUnavailable('maintenance_generation_changed')
+        now = self.monotonic()
+        if now >= execution_deadline:
+            raise EvidenceUnavailable('maintenance_execution_lease_exceeded')
+        try:
+            self.arbiter.complete(decision, now, progress, record_progress=records)
+        except BaseException as completion_error:
+            # complete() has no cooperative SQL boundary. A failure here must
+            # not reopen admission with the original decision still pending.
+            if self._cooperative(completion_error):
+                raise EvidenceUnavailable('maintenance_completion_unavailable') from completion_error
+            raise
+        event['completion'] = 'completed'
+        # A recovered reporting interrupt still yields to its accepted waiter.
+        # It must not replace a fatal error from the native operation itself.
+        if yielded is not None and execution_error is None:
+            raise yielded
+
     def turn(self, flight, submitted):
         """Exactly one fresh owner-entry decision and at most one native side."""
         self.writer._check()
@@ -322,6 +383,7 @@ class MaintenanceRuntime:
                     archive_pressure=any(n.side=='archive' and n.units for n in needs),
                     retirement_pressure=any(n.side=='retirement' and n.units for n in needs))
                 if decision is not None:
+                    execution_error = None
                     try:
                         if decision.side=='archive':
                             if flight.pending is None:
@@ -345,10 +407,13 @@ class MaintenanceRuntime:
                             # Native method still rechecks all pins, floors and
                             # generation-relevant evidence at mutation time.
                             result['retention_outcome']=self.state.retention()
+                    except BaseException as exc:
+                        execution_error = exc
+                        event['operation_error'] = type(exc).__name__+':'+str(exc)[:120]
+                        raise
                     finally:
-                        progress,records=self._native_progress(self.last_progress,needs,decision.side)
-                        self.arbiter.complete(decision,self.monotonic(),progress,record_progress=records)
-                        event.update(durable_progress=progress,durable_records=records)
+                        self._complete_decision(decision, needs, event, execution_error,
+                                                start+self.leases.execution)
             end=self.monotonic()
             if end-start>self.leases.execution:
                 raise EvidenceUnavailable('maintenance_execution_lease_exceeded')
@@ -359,7 +424,7 @@ class MaintenanceRuntime:
         except BaseException as exc:
             # Cooperative priority yields preserve an already durable receipt.
             # They are not successful service and do not invalidate native work.
-            cooperative=str(exc)=='evidence_background_yield' or (isinstance(exc,sqlite3.OperationalError) and getattr(self.writer,'_background_sql_interrupted',False))
+            cooperative=self._cooperative(exc)
             if not cooperative:
                 self.failure=type(exc).__name__+':'+str(exc)[:120]
                 self.arbiter.failed=True
@@ -368,7 +433,13 @@ class MaintenanceRuntime:
                     at=start,owner_delay=start-submitted,reason='cooperative_yield' if cooperative else 'fail_closed')
             else:event['reason']='cooperative_yield' if cooperative else 'fail_closed'
             event.update(execution=self.monotonic()-start,error=type(exc).__name__+':'+str(exc)[:120])
+            if decision is not None:
+                event['completion_pending'] = self.arbiter.pending is decision
             self._record(event)
+            if not cooperative and isinstance(exc, sqlite3.OperationalError):
+                # PriorityOwner also sees the earlier interrupt. Preserve this
+                # distinct storage failure instead of letting it become a yield.
+                raise EvidenceUnavailable('maintenance_storage_failure') from exc
             if cooperative and not isinstance(exc,EvidenceUnavailable):
                 raise EvidenceUnavailable('evidence_background_yield') from exc
             raise

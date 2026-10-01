@@ -2,6 +2,12 @@ name: M1 deterministic completion repair
 on:
   push:
     branches: [repair/stage-e-m1-completion]
+    paths:
+      - 'meme_machine/solana_maintenance_runtime.py'
+      - 'meme_machine/solana_maintenance_arbiter.py'
+      - 'tests/test_m1_maintenance_completion.py'
+      - 'diagnostics/m1-completion/verify.py'
+      - '.github/workflows/m1-completion-deterministic.yml'
 permissions:
   contents: read
 jobs:
