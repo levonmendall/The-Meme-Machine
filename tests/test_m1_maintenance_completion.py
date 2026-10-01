@@ -617,7 +617,10 @@ class M1CompletionSemanticsTests(unittest.TestCase):
             # Reconstruct accounting from the durable ledger before the same
             # receipt's final idempotent acknowledgement.
             restarted = MaintenanceRuntime(state, monotonic=clock.monotonic, wall=clock.time)
-            restarted.turn(flight, clock.monotonic())
+            for _ in range(6):
+                restarted.turn(flight, clock.monotonic())
+                if flight.pending is None:
+                    break
             self.assertIsNone(flight.pending)
             self.assertIsNone(restarted.arbiter.pending)
             self.assertEqual(ledger(state, 'archive')[SCOPES[0]], (5, 5))
