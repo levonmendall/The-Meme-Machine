@@ -1,0 +1,11 @@
+{
+  "observer_v2": "IDENTITY_OR_WORKLOAD_MISMATCH",
+  "paper_only": true,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "stop_for_astra": true,
+  "started_trials": 0,
+  "started_members": 0,
+  "unused_slots": 6,
+  "blocked_before_trial_1": true
+}

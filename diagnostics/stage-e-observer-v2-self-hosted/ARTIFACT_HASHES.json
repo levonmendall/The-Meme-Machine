@@ -1,0 +1,26 @@
+{
+  "files": {
+    "ASTRA_REVIEW_PACKAGE.md": {
+      "bytes": 3509,
+      "sha256": "0e19568b6e4336e931289abed255dea9927010c0b0a8e13c773a26ff67803ca5"
+    },
+    "GITHUB_API_EVIDENCE.json": {
+      "bytes": 1063,
+      "sha256": "1f061e1a969c4993ac6978b81931f1d0d5239a41f2262292b5daec9fa6ebc10d"
+    },
+    "RESULTS.json": {
+      "bytes": 3504,
+      "sha256": "ac08f98a334e855b9aee872c632ce5e04be82209b1f72a6da69b0e10a5487bd0"
+    },
+    "STOP_FOR_ASTRA.json": {
+      "bytes": 251,
+      "sha256": "c8aa329c30243f18a16a12e584f7ecac8025a90194bb90af6c5e99e1eeb0f88c"
+    },
+    "TARGETING_EVIDENCE.json": {
+      "bytes": 2637,
+      "sha256": "09f01f4b5c2956123b92ba9673c5e8fa7c438852fe8b57c2707c7d30f7562c91"
+    }
+  },
+  "scope": "documentary records; no execution authority",
+  "version": "observer-targeting-stop-artifact-hashes-v1"
+}
