@@ -1,0 +1,23 @@
+{
+  "benchmark_trials_completed": 0,
+  "benchmark_trials_started": 0,
+  "candidate_unchanged": true,
+  "hard_stop": true,
+  "no_retry": true,
+  "no_tuning": true,
+  "observer_v2": "IDENTITY_OR_WORKLOAD_MISMATCH",
+  "stage_e": "RED",
+  "stage_f": "NOT STARTED",
+  "unearned_future_gates": [
+    "observer green acceptance",
+    "prepared/fixed qualification-v2",
+    "33 prepared historical obligations",
+    "full material Run373/379/380",
+    "fixed cohort",
+    "final candidate freeze",
+    "canonical Stage E",
+    "13 canonical obligations",
+    "promotion",
+    "Stage F"
+  ]
+}

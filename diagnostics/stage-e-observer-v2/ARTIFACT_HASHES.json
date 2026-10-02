@@ -1,0 +1,70 @@
+{
+  "benchmark_trials_started": 0,
+  "excludes": [
+    "ARTIFACT_HASHES.json"
+  ],
+  "files": {
+    "ASTRA_REVIEW_PACKAGE.md": {
+      "bytes": 11577,
+      "sha256": "229ee84de66436509917b0606f1b31a813cb1c83f0c0ea3ce90b59a75df9a8a6"
+    },
+    "ENVIRONMENT.json": {
+      "bytes": 144631,
+      "sha256": "084e7136ef5d4f2fbf547e21a24483f16dac91075f550b1b378aad0e5bab6330"
+    },
+    "NATIVE_VERIFIER_DIAGNOSTIC.json": {
+      "bytes": 137017,
+      "sha256": "3da93b485c0b23dcd927328201971de353eb90356e228a38065dc2b9a1207d38"
+    },
+    "PLANNED_TRIALS.json": {
+      "bytes": 1576,
+      "sha256": "192b893277b823190fa13b832076a27d3511ee93fc50a8f2577e660af9e02164"
+    },
+    "PREDECLARATION.json": {
+      "bytes": 12730,
+      "sha256": "4318a1863ae435123431b37075d13d29b3c7602439bc8fab5977514f632b3073"
+    },
+    "PREDECLARATION.md": {
+      "bytes": 5602,
+      "sha256": "2c9a9b7cfe4a6728aaa2ed34b4b98296bb96340ac06e0fec0d9effbb1ee88f24"
+    },
+    "PREDECLARATION_READBACK.json": {
+      "bytes": 1041,
+      "sha256": "47080405bca6e1f833f3ecccaa8d8357dfa1e90fc7bbc57686bb233ec62e092b"
+    },
+    "RESULTS.json": {
+      "bytes": 4132,
+      "sha256": "9efea2cccae83bbf757153a5dfa1b01d20b6a8e73a6e7bbe01aa4c94217e9a3e"
+    },
+    "REVIEWED_ASSEMBLY.json": {
+      "bytes": 395255,
+      "sha256": "d60d02a32838df4658cc5943d469057ec08ece11e82301b3e85231e029c9eaa0"
+    },
+    "STATIC_BLOCKER.json": {
+      "bytes": 7983,
+      "sha256": "9b2fb2ef2c8b857779fdbec795378e68e8c21f2fc415630b868a1139bb18dd86"
+    },
+    "STATIC_IDENTITY_VALIDATION.json": {
+      "bytes": 1330,
+      "sha256": "e8768b4ae2c0e7449daf4bfcc3f7579d37ce59aaa2da343280c90a05af169c53"
+    },
+    "STATIC_MODULE_ORIGINS.json": {
+      "bytes": 32991,
+      "sha256": "ce643e501af9ec4a93fcf7e84c383132bfe89793025b4397e65b4297747f8947"
+    },
+    "STOP_FOR_ASTRA.json": {
+      "bytes": 584,
+      "sha256": "51bd78eb93b97d2d4163367caff0d49cf93770b9a40cd2f3f52f579cc20834ff"
+    },
+    "WORKLOAD_BINDING.json": {
+      "bytes": 3162,
+      "sha256": "a98075d753066c2481b051de5f3bc3688aa9f1137c5b000bb53c82fd24c334f7"
+    },
+    "inspect_candidate.py": {
+      "bytes": 11163,
+      "sha256": "25d07ce544b740eb359752d2173da9641ae9705672866cf90d2ae55885cd3a68"
+    }
+  },
+  "raw_trial_artifacts": [],
+  "version": "observer-v2-static-and-review-artifact-inventory-v1"
+}

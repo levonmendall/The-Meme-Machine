@@ -1,0 +1,22 @@
+{
+  "benchmark_trials_started": 0,
+  "predeclaration_commit": "9cf26b1d88b37b157eaa84053fd9301631ceab1c",
+  "predeclaration_status": "BLOCKED_BEFORE_TRIAL_1",
+  "readback_recorded_utc": "2026-10-02T01:54:55.741376+00:00",
+  "readback_satisfied_before_any_trial": true,
+  "receipts": [
+    {
+      "content_matches_local_bytes": true,
+      "git_blob_sha": "962b0c9cf2d6e3faa249b56025e2d5525f6817c4",
+      "path": "diagnostics/stage-e-observer-v2/PREDECLARATION.json",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/blob/9cf26b1d88b37b157eaa84053fd9301631ceab1c/diagnostics/stage-e-observer-v2/PREDECLARATION.json"
+    },
+    {
+      "content_matches_local_bytes": true,
+      "git_blob_sha": "86ebeb23a9879612a9693673d110bdd0488d8e97",
+      "path": "diagnostics/stage-e-observer-v2/PREDECLARATION.md",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/blob/9cf26b1d88b37b157eaa84053fd9301631ceab1c/diagnostics/stage-e-observer-v2/PREDECLARATION.md"
+    }
+  ],
+  "repository": "levonmendall/The-Meme-Machine"
+}

@@ -1,0 +1,113 @@
+{
+  "actual_execution_workload_bytes_hash": null,
+  "actual_trials": [],
+  "arithmetic_status": "UNAVAILABLE: no complete elapsed times; no division by zero or fabricated ratio",
+  "assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659",
+  "assembly_integrity_static": true,
+  "benchmark_trials_completed": 0,
+  "benchmark_trials_started": 0,
+  "candidate_runtime_modified": false,
+  "candidate_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "candidate_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+  "capacity_screen_timer_acceptance_credit": 0,
+  "child_origins": [],
+  "configuration_descriptor_sha256": "ed24682f4ed9ac6bccae022f4161f07c1befc9d9ee5da9a41236a4f3aa9f3a6b",
+  "denominator_ns": null,
+  "dropped_samples": 0,
+  "durable_predeclaration_readback_matches": true,
+  "environment_exact_reviewed_runtime_match": true,
+  "exact_ratio_fraction": null,
+  "executable_predeclaration_valid": false,
+  "hard_stop": "STOP FOR ASTRA",
+  "historical_acceptance_credit": 0,
+  "input_manifest_hash": "d38f0ea0978ef629f5af57bc778a5ee77e3115ed5cb4c5dd0e35280f184bb983",
+  "module_child_origin_trial_validity_earned": false,
+  "native_verifier": {
+    "accepted": false,
+    "diagnostic_result": "observer_raw_pairs_missing",
+    "formal_complete_measurement_available": false
+  },
+  "no_performance_tuning": true,
+  "no_replacements": true,
+  "no_retries": true,
+  "numerator_ns": null,
+  "observer_contract_hash": "9695ef0d1f039cc688d6a7b34d1d8e8e00a4d3df43a6b7cf14c9cb6c0eaf3e84",
+  "observer_errors": [],
+  "observer_trial_validity_earned": false,
+  "observer_v2": "IDENTITY_OR_WORKLOAD_MISMATCH",
+  "paper_only": true,
+  "phase": "STATIC_BEFORE_TRIAL_1",
+  "plan_hash": "6c40324250e0870a9207161a0b944d58272922c90bf6fce97c57c2bb3dda16df",
+  "planned_trials": [
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p1",
+      "sequence": 1,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t01-p1-baseline"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p1",
+      "sequence": 2,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t02-p1-observed"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p2",
+      "sequence": 3,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t03-p2-observed"
+    },
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p2",
+      "sequence": 4,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t04-p2-baseline"
+    },
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p3",
+      "sequence": 5,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t05-p3-baseline"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p3",
+      "sequence": 6,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t06-p3-observed"
+    }
+  ],
+  "predeclaration_commit": "9cf26b1d88b37b157eaa84053fd9301631ceab1c",
+  "provider_trial_validity_earned": false,
+  "ratio": null,
+  "raw_pairs": [],
+  "raw_pairs_status": "No executions; no measured pairs exist",
+  "reason": "Approved executable complete-cohort equal-byte source/clock binding is unbound",
+  "runtime_integrity_earned": false,
+  "stage_e": "RED",
+  "stage_f": "NOT STARTED",
+  "static_provider_attempts": 0,
+  "static_provider_calls": 0,
+  "strict_integer_comparison": null,
+  "trial_integrity": null,
+  "trial_provider_counts": null,
+  "unearned_future_gates": [
+    "observer green acceptance",
+    "prepared/fixed qualification-v2",
+    "33 prepared historical obligations",
+    "full material Run373/379/380",
+    "fixed cohort",
+    "final candidate freeze",
+    "canonical Stage E",
+    "13 canonical obligations",
+    "promotion",
+    "Stage F"
+  ],
+  "version": "exact-candidate-observer-v2-blocked-review-v1",
+  "workload_identity": "native-full-cohort-pressure-v2"
+}
