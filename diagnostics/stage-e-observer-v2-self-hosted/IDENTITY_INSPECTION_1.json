@@ -1,0 +1,71 @@
+{
+  "conclusion": "failure",
+  "id": 110745646216,
+  "inspection_only": true,
+  "labels": [
+    "self-hosted",
+    "linux",
+    "x64",
+    "meme-machine-stage-e-observer"
+  ],
+  "log_sha256": "4b3cea6827388e6defb5ea34d79fadf249ed241de9abe731c7edc250a4a260e7",
+  "name": "observer-host-identity",
+  "reason": "Identity inspector failed to decode UTF-8 BOM in non-secret .runner JSON; no workload was imported or launched.",
+  "run_id": 36977901116,
+  "runner_id": 21,
+  "runner_name": "the meme machine",
+  "started_members": 0,
+  "started_trials": 0,
+  "status": "completed",
+  "steps": [
+    {
+      "completed_at": "2026-10-02T07:18:54Z",
+      "conclusion": "success",
+      "name": "Set up job",
+      "number": 1,
+      "started_at": "2026-10-02T07:18:53Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-02T07:18:57Z",
+      "conclusion": "success",
+      "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+      "number": 2,
+      "started_at": "2026-10-02T07:18:54Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-02T07:18:57Z",
+      "conclusion": "failure",
+      "name": "Verify actual host and mounted volume before preparation",
+      "number": 3,
+      "started_at": "2026-10-02T07:18:57Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-02T07:18:57Z",
+      "conclusion": "failure",
+      "name": "Preserve host inspection only",
+      "number": 4,
+      "started_at": "2026-10-02T07:18:57Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-02T07:18:57Z",
+      "conclusion": "success",
+      "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+      "number": 8,
+      "started_at": "2026-10-02T07:18:57Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-02T07:18:57Z",
+      "conclusion": "success",
+      "name": "Complete job",
+      "number": 9,
+      "started_at": "2026-10-02T07:18:57Z",
+      "status": "completed"
+    }
+  ],
+  "workflow_commit": "3cd1aac35071d5b46d3d401f913df8733ccf3ee5"
+}

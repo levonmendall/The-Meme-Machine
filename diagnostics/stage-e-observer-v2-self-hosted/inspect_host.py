@@ -47,7 +47,7 @@ def main():
     for parent in Path(os.environ['RUNNER_TEMP']).resolve().parents:
         path = parent / '.runner'
         if path.is_file():
-            raw = json.loads(path.read_text())
+            raw = json.loads(path.read_text(encoding='utf-8-sig'))
             registration = {k: raw.get(k) for k in ('agentId','agentName','poolId','poolName','gitHubUrl','workFolder')}
             registration['path'] = str(path)
             version = command(str(parent / 'bin/Runner.Listener'), '--version')

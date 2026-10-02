@@ -8,6 +8,10 @@
       "bytes": 1063,
       "sha256": "1f061e1a969c4993ac6978b81931f1d0d5239a41f2262292b5daec9fa6ebc10d"
     },
+    "IDENTITY_INSPECTION_1.json": {
+      "bytes": 2087,
+      "sha256": "7470fb419c40f2592700d5b93396c527498869bd274a53aabbb42946f3e1cbff"
+    },
     "RESULTS.json": {
       "bytes": 3504,
       "sha256": "ac08f98a334e855b9aee872c632ce5e04be82209b1f72a6da69b0e10a5487bd0"
@@ -29,8 +33,8 @@
       "sha256": "09f01f4b5c2956123b92ba9673c5e8fa7c438852fe8b57c2707c7d30f7562c91"
     },
     "inspect_host.py": {
-      "bytes": 5854,
-      "sha256": "446c1de58e17e6a0e634ee2b8237c95129a5de2c562c1e72a23a29b12c3283d0"
+      "bytes": 5874,
+      "sha256": "b36611123f65987c35aba38052c278ecd1f6063dc79310d08725bd07663718c8"
     }
   },
   "version": "observer-pretrial-artifact-hashes-v1"
