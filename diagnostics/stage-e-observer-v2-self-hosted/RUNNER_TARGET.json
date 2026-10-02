@@ -1,0 +1,14 @@
+{
+  "version": "self-hosted-observer-target-v1",
+  "runner_name": "the meme machine",
+  "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+  "droplet_id": 605465049,
+  "routing_labels": ["self-hosted", "linux", "x64", "meme-machine-stage-e-observer"],
+  "registered_labels_user_confirmed": ["self-hosted", "Linux", "X64", "meme-machine-stage-e-observer"],
+  "unique_eligibility": "USER_CONFIRMED_ONLY_THIS_REPOSITORY_RUNNER_HAS_THE_OBSERVER_LABEL",
+  "inventory_api_status": "HTTP_403_ADMINISTRATION_READ_UNAVAILABLE",
+  "runner_version": "2.337.0",
+  "attached_volume_id": "580be5d5-be20-11f1-bb2f-3ee8be45f379",
+  "trial_slots_unused": 6,
+  "identity_probe_is_trial": false
+}

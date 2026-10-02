@@ -1,0 +1,16 @@
+{
+  "candidate_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "candidate_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+  "historical_pre_label_stop_commit": "f7b74a4b99b703873206b5615f8d787c5976fcdf",
+  "identity_workflow": ".github/workflows/non-market-certification.yml",
+  "identity_workflow_sha256": "61fd19f5e3805bacd1ed54d8694a2ab511911e8ca0cea7abc5e14eae6caba0f2",
+  "phase": "IDENTITY_INSPECTION_BEFORE_PREPARATION",
+  "runner_settings": "required observer label now present; user confirmed only this repository runner has it",
+  "started_members": 0,
+  "started_trials": 0,
+  "unused_slots": 6,
+  "user_authorized": "Proceed with the approved observer preparation",
+  "utc": "2026-10-02T07:13:59.571477+00:00",
+  "version": "observer-resume-request-v1",
+  "workflow_purpose": "identity and storage inspection only; no observer trial or qualification"
+}

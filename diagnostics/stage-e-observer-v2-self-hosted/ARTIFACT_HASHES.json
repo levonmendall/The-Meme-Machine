@@ -12,6 +12,14 @@
       "bytes": 3504,
       "sha256": "ac08f98a334e855b9aee872c632ce5e04be82209b1f72a6da69b0e10a5487bd0"
     },
+    "RESUME_REQUEST.json": {
+      "bytes": 872,
+      "sha256": "d6a7f9b19780ba8568c77f1ebc3879bab8ede3a1ca4078e83ac3d0c0d02b09c0"
+    },
+    "RUNNER_TARGET.json": {
+      "bytes": 667,
+      "sha256": "4fa8ded49ee48525dc65564d23172c60a29aa63499bdf07ed19acd96c7480348"
+    },
     "STOP_FOR_ASTRA.json": {
       "bytes": 251,
       "sha256": "c8aa329c30243f18a16a12e584f7ecac8025a90194bb90af6c5e99e1eeb0f88c"
@@ -19,8 +27,11 @@
     "TARGETING_EVIDENCE.json": {
       "bytes": 2637,
       "sha256": "09f01f4b5c2956123b92ba9673c5e8fa7c438852fe8b57c2707c7d30f7562c91"
+    },
+    "inspect_host.py": {
+      "bytes": 5854,
+      "sha256": "446c1de58e17e6a0e634ee2b8237c95129a5de2c562c1e72a23a29b12c3283d0"
     }
   },
-  "scope": "documentary records; no execution authority",
-  "version": "observer-targeting-stop-artifact-hashes-v1"
+  "version": "observer-pretrial-artifact-hashes-v1"
 }
