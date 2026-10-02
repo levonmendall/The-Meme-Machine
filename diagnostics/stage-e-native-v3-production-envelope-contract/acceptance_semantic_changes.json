@@ -1,0 +1,59 @@
+{
+  "changed_predecessor_gates": [
+    "artifact-provenance-v2",
+    "assembly-origin-v2",
+    "burst-schedule-v2",
+    "cohort-complete-v2",
+    "combined_mature_solana_pressure-v2",
+    "debt-tails-v2",
+    "fixed-old-cohort-v2",
+    "frame-byte-bounds-v2",
+    "joint-lifecycle-v2",
+    "mature_solana_pressure-v2",
+    "observer-v2",
+    "pressure-profile-v2",
+    "recovery-v2",
+    "resource_bounds-v2",
+    "urgent-source-fairness-v2",
+    "workflow-identity-v2"
+  ],
+  "changes": [
+    {
+      "change": "Exact 2 dedicated vCPU / 8 GiB capacity and observer allocation; >2 executor rejected even quota/affinity-limited",
+      "id": "S1"
+    },
+    {
+      "change": "Separate production-capacity prerequisite before observer campaign; every baseline/observed member must remain capacity-valid",
+      "id": "S2"
+    },
+    {
+      "change": "Test-only owner/archive floors and additive changed-transaction COMMIT pad excluded from A/B; real operations untouched; retained exactly in C",
+      "id": "S3"
+    },
+    {
+      "change": "Manufactured source pauses, held-reader sleeps and completed-tail delay moved to C; A/B identical fixed production-equivalent release schedule without injected interference",
+      "id": "S4"
+    },
+    {
+      "change": "Synthetic queue/batch minimum-peak and backpressure/tail coverage retained in C; A/B enforce the same upper safety bounds without requiring manufactured queue occupancy",
+      "id": "S5"
+    },
+    {
+      "change": "Original stress recovery/debt predicates retained as strict diagnostics; mandatory stress acceptance requires native fail-closed/integrity/durability/pin/restart proof if synthetic overload occurs; no production CPU inference from that overload",
+      "id": "S6"
+    },
+    {
+      "change": "Complete hashed resource/environment/external v3 harness/verifier/workflow identity binding beside unchanged candidate S/T and native origins",
+      "id": "S7"
+    },
+    {
+      "change": "Fresh v3 namespace and slots; preserve all historical v2 failure/evidence and forbid reuse of its five UNUSED slots",
+      "id": "S8"
+    }
+  ],
+  "justification": "Measured floors are expressly diagnostic normalization and absent from production. Pause/read/tail injections and minimum-peak counters are synthetic interference coverage. All such coverage is preserved explicitly, all native safety bounds stay identical, and production capacity must pass independently on the actual deployment envelope.",
+  "observer_arithmetic_order_threshold_changes": [],
+  "production_safety_limit_changes": [],
+  "strategy_economic_policy_changes": [],
+  "version": "v2-v3-acceptance-semantic-delta"
+}

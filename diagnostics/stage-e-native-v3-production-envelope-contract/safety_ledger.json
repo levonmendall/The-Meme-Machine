@@ -1,0 +1,169 @@
+{
+  "authority": [
+    {
+      "bytes": 6191,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "ca0f0c182973f3a24de8bdd441e4be8a3a35803d",
+      "mode": "100644",
+      "path": "certification/stage_e_native_v2/plan-v2.json",
+      "sha256": "6c40324250e0870a9207161a0b944d58272922c90bf6fce97c57c2bb3dda16df"
+    },
+    {
+      "bytes": 49503,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "d03da2ea2915f1e363b48d9546bfa22581bf5078",
+      "mode": "100644",
+      "path": "certification/stage_e_native_v2/gate-map-v2.json",
+      "sha256": "0da0e7acd8ac56db20cdd0101092400983de30051c611684eab4f7267ea4ecf8"
+    },
+    {
+      "bytes": 11158,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "814b5316cf99803a7b4fd2acbf309dbdb68b9512",
+      "mode": "100644",
+      "path": "certification/combined_pressure.py",
+      "sha256": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a"
+    },
+    {
+      "bytes": 6223,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "08f9c0ee141ef0e727597304e2bbc26f87505596",
+      "mode": "100644",
+      "path": "certification/combined_observer.py",
+      "sha256": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af"
+    },
+    {
+      "bytes": 10165,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "e6eedfb9a0bc5a686a65daf2776e69d1989afb0c",
+      "mode": "100644",
+      "path": "certification/lifecycle_capacity.py",
+      "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa"
+    },
+    {
+      "bytes": 102825,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "27e270b49996d6d2a1d02979c56f69888f3d5b8d",
+      "mode": "100644",
+      "path": "meme_machine/solana_evidence_service.py",
+      "sha256": "8a6d079b57b38f7d1b67971905d7978d6e75ee3348a72f37dcf60ab50ce4a89c"
+    },
+    {
+      "bytes": 58381,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "207e0df147177c7b182170b4286a9b36de7fe3e7",
+      "mode": "100644",
+      "path": "meme_machine/solana_evidence_plane.py",
+      "sha256": "d898792ba7b9bbd155dad4d4f9a401a0cd2c0c3f9053e0b164127f28fdb7d1e4"
+    },
+    {
+      "bytes": 10459,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "991f2f03e8e1da766b0d605f870d14ceff5eeef1",
+      "mode": "100644",
+      "path": "meme_machine/solana_evidence_storage.py",
+      "sha256": "4dd587fcf06559abdf9663a39a0f48c9071075a57894549dc66d9dde68d6f2c0"
+    },
+    {
+      "bytes": 13907,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "98d3446a408e27f86e4152a12459fe9d146f2e7e",
+      "mode": "100644",
+      "path": "meme_machine/solana_evidence_control.py",
+      "sha256": "6e0cc16ee3cb52e9ca5f53af8997c20c5b56cf4d300d36f35e5a03bbb9cf5ad3"
+    },
+    {
+      "bytes": 5402,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "2bb30f9eb3467d9e7914c2fe5266aa4ccf32330b",
+      "mode": "100644",
+      "path": "meme_machine/solana_archive_snapshot.py",
+      "sha256": "85bdf910f66ff658c6133df11662be9a7c147acd7f737371427ed5b16137f0ac"
+    }
+  ],
+  "before_and_after_thresholds_identical": true,
+  "changes": [],
+  "comparators": "Strict v2 successor residence <240 takes precedence over legacy <=240 helpers. Paired <1% unchanged. Separate legacy lifecycle read-wall <=1% retained explicitly.",
+  "limits": {
+    "advancing_recovery_samples_min": 30,
+    "archive_commit_slice_records": 512,
+    "archive_futures_max": 1,
+    "archive_snapshot_hard_encoded_bytes": 20971520,
+    "archive_snapshot_records_max": 1000,
+    "archive_snapshot_target_bytes": 4194304,
+    "burst_window_samples_min": 3,
+    "command_attempt_seconds": 0.5,
+    "command_seconds": 3,
+    "commit_bytes_max": 16777216,
+    "commit_messages_max": 8,
+    "commit_stall_seconds": 15,
+    "declared_member_storage_headroom_bytes": 12884901888,
+    "dispatch_bytes_max": 100663296,
+    "dispatch_frames_max": 64,
+    "extra_archive_pools": 0,
+    "gap_repair_attempts_max": 48,
+    "gap_repair_pages_max": 16,
+    "hot_age_seconds": {
+      "domain": "wall minus original market_time; first_seen only when no market_time",
+      "operator": "<",
+      "value": 240
+    },
+    "hot_db_wal_bytes": {
+      "operator": "<",
+      "value": 2147483648
+    },
+    "legacy_lifecycle_observer_wall_fraction": {
+      "operator": "<=",
+      "scope": "separate short read-only sample cost, not substitute paired measurement",
+      "value": 0.01
+    },
+    "max_command_bytes": 32768,
+    "max_command_receipts": 8192,
+    "minimum_decline_records": 256,
+    "owner_queue_capacity": 64,
+    "pipeline_slack_records": 1000,
+    "prepared_decode_bytes_max": 16777216,
+    "protocol_queue_frames": 32,
+    "qualified_observer_pair_overhead": {
+      "operator": "<",
+      "value": 0.01
+    },
+    "recovery_deadline_source_seconds": 120,
+    "retained_age_seconds": {
+      "domain": "same original age over ALL retained rows, including archived index rows",
+      "operator": "<",
+      "value": 240
+    },
+    "retention_seconds": 180,
+    "retention_slice_records_max": 256,
+    "shared_decode_archive_workers": 2,
+    "source_idle_seconds": 20,
+    "source_lag_seconds": {
+      "domain": "projected wall minus immutable finalized block time",
+      "operator": "<",
+      "value": 45
+    },
+    "source_message_bytes_max": 16777216,
+    "storage_critical_bytes": 134217728,
+    "storage_warning_bytes": 536870912,
+    "tail_half_samples_min": 10,
+    "trend_slack_records": 256,
+    "urgent_reserved": 8
+  },
+  "nonnumeric_invariants": [
+    "zero corruption; verify native archive/body hashes and lineage",
+    "zero unresolved gaps/capacity disconnects during valid production execution; explicit shutdown boundaries never represent live coverage",
+    "exact received==committed==source_frames+1 admitted drain",
+    "linked source order/finality; no receive-time freshness substitution",
+    "active candidate/open/reserved/account/gap pins survive; no forced premature deletion",
+    "only committed native archive/retirement/receipt/floor/service credit; no attempted credit",
+    "generation fencing, restart ledger and latched origin/deadline survive without reenrollment",
+    "complete held-reader snapshot identity and actual checkpoint blocking/release/completion proof",
+    "urgent priority0/1 precedence, zero urgent errors, all three scopes progress",
+    "count provider/DNS/network attempts before access; zero attempts for qualification",
+    "all previously required resource/RSS, integrated/current-policy, four-lane/six-regime, prepared-source, crash and eight-day gates remain required via full gate map",
+    "stale/missing/contradictory evidence or threshold equality fail closed"
+  ],
+  "stress_witness_lower_bounds": "dispatch_peak>=16, commit_peak>=2 and synthetic backpressure/tail counters are adversarial coverage witnesses, not production resource maxima. Retained exactly in C; A/B allow valid native single-message progress with identical safety maxima.",
+  "version": "unchanged-production-safety-ledger-v3"
+}

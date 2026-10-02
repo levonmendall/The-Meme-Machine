@@ -1,0 +1,206 @@
+{
+  "completeness": "All three run381 measured-contention injections and all combined reader/tail/pause injections are explicitly classified; real production delays/cadences are never globally zeroed.",
+  "components": [
+    {
+      "A_B": "native source_batch, floor zero",
+      "C": "exact floor retained",
+      "classification": "EXECUTOR_NORMALIZATION_TEST_ONLY",
+      "id": "owner-floor",
+      "mechanism": "MeasuredServiceState.source_batch calls native super().source_batch(items), then time.sleep(max(0,.165*len(items)-elapsed)). Batch occupancy floor, not added CPU instruction cost.",
+      "production_safety_limit": false,
+      "production_semantic": false,
+      "rationale": "Rounded up from ~.163 s/frame measured in full certificate 36293751021 to prevent fast hosted hardware hiding contention; notes explicitly state production has no artificial delays.",
+      "source": {
+        "bytes": 14469,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "first_line": 63,
+        "git_blob": "ea64914435a1192fe5dfc6bfb61d31f5439d3798",
+        "last_line": 68,
+        "mode": "100644",
+        "path": "certification/run381_pressure.py",
+        "sha256": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+        "symbol": "MeasuredServiceState"
+      },
+      "unit": "source frame",
+      "value_seconds": 0.165
+    },
+    {
+      "A_B": "native archive job on the same two spawn workers; floor zero",
+      "C": "exact floor retained",
+      "classification": "EXECUTOR_NORMALIZATION_TEST_ONLY",
+      "id": "archive-floor",
+      "mechanism": "measured_archive performs native prepare_and_write_archive first, then sleeps max(0,.36*len(result[0])/1000-elapsed). MeasuredProcessPool substitutes only that callable in the existing pool.",
+      "production_safety_limit": false,
+      "production_semantic": false,
+      "rationale": "Rounded up from ~.358 s/1000 prepare/publication wall time in certificate 36293751021; production snapshot/hash/compression/fsync work itself remains mandatory.",
+      "source": {
+        "bytes": 14469,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "first_line": 51,
+        "git_blob": "ea64914435a1192fe5dfc6bfb61d31f5439d3798",
+        "last_line": 55,
+        "mode": "100644",
+        "path": "certification/run381_pressure.py",
+        "sha256": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+        "symbol": "measured_archive"
+      },
+      "unit": "1000 actually prepared archived records",
+      "value_seconds": 0.36
+    },
+    {
+      "A_B": "no injected_commit_wait; real COMMIT/fsync and all SQLite durability remain",
+      "C": "exact additive pad retained",
+      "activation": {
+        "bytes": 14469,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "first_line": 91,
+        "git_blob": "ea64914435a1192fe5dfc6bfb61d31f5439d3798",
+        "last_line": 201,
+        "mode": "100644",
+        "path": "certification/run381_pressure.py",
+        "sha256": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+        "symbol": "run"
+      },
+      "classification": "EXECUTOR_NORMALIZATION_TEST_ONLY",
+      "id": "commit-pad",
+      "mechanism": "SQLTimings TimedConnection records total_changes on BEGIN; for SQL exactly COMMIT with changed total_changes it measures injected_commit_wait around sleep(.006), BEFORE executing the real COMMIT. Additive sleep, not a floor or fsync replacement.",
+      "production_safety_limit": false,
+      "production_semantic": false,
+      "rationale": "run381 comments compare 37.84 ms for six commits in 36297528197 with 2.82 ms in 36302144874 and round the per-commit difference upward; no source establishes a required production dwell time.",
+      "source": {
+        "bytes": 6085,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "first_line": 74,
+        "git_blob": "2c32bfce2a9825b6482eb1c013ae8c53550ffd77",
+        "last_line": 140,
+        "mode": "100644",
+        "path": "certification/pressure_diagnostics.py",
+        "sha256": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45",
+        "symbol": "SQLTimings"
+      },
+      "unit": "COMMIT for a transaction whose total_changes changed after BEGIN",
+      "value_seconds": 0.006
+    },
+    {
+      "A_B_C": "unchanged; no candidate edits",
+      "classification": "PRODUCTION_SEMANTIC",
+      "id": "real-owner-archive-commit-work",
+      "mechanism": "Native decode/source commit, pin recheck, bounded archive prepare/hash/fsynced publication, native SQLite transaction, retirement/floor publication, lifecycle/priority/durability/recovery behavior"
+    },
+    {
+      "A_B_C": "identical limits; synthetic overload must refuse/stop safely, never grant stale acceptance",
+      "classification": "PRODUCTION_SAFETY_LIMIT",
+      "id": "source-lag-and-residence-bounds",
+      "values": {
+        "hot_residence": "<240 s",
+        "retained_residence": "<240 s",
+        "retention": "180 s",
+        "source_lag": "<45 s"
+      }
+    },
+    {
+      "A_B": "extra SQL timing wrappers disabled in both arms unless identical bound common evidence is separately declared; no subtraction",
+      "C": "historical instrumentation retained",
+      "classification": "DIAGNOSTIC_INSTRUMENTATION",
+      "id": "SQLTimings-and-process-profile",
+      "mechanism": "bounded wall/thread CPU SQL/stage summaries, process/CPU/environment samples; the .1-second maximum injector input is a diagnostic configuration guard, not a production limit",
+      "source": {
+        "bytes": 6085,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "git_blob": "2c32bfce2a9825b6482eb1c013ae8c53550ffd77",
+        "mode": "100644",
+        "path": "certification/pressure_diagnostics.py",
+        "sha256": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45"
+      }
+    },
+    {
+      "A_B": "no deliberate pauses",
+      "C": "retained; source outages are separately tested safety obligations",
+      "classification": "ADVERSARIAL_TEST_ONLY",
+      "id": "source-pause-and-catchup",
+      "mechanism": "Pause before frames800/1400 for 8 real seconds; preserve original timestamps and release schedule; cancellation cannot erase pause",
+      "source": {
+        "bytes": 11158,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "first_line": 159,
+        "git_blob": "814b5316cf99803a7b4fd2acbf309dbdb68b9512",
+        "last_line": 206,
+        "mode": "100644",
+        "path": "certification/combined_pressure.py",
+        "sha256": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+        "symbol": "run"
+      }
+    },
+    {
+      "A_B": "no manufactured reader occupancy",
+      "C": "retained; checkpoint safety also retained in native held-reader bounded gate",
+      "classification": "ADVERSARIAL_TEST_ONLY",
+      "id": "held-reader-waits",
+      "mechanism": "Native SQLite read snapshot held across sleep1.25, actual native checkpoint, sleep.1; observe durable counters before rollback",
+      "source": {
+        "bytes": 6223,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "first_line": 64,
+        "git_blob": "08f9c0ee141ef0e727597304e2bbc26f87505596",
+        "last_line": 110,
+        "mode": "100644",
+        "path": "certification/combined_observer.py",
+        "sha256": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+        "symbol": "Interaction"
+      }
+    },
+    {
+      "A_B": "zero",
+      "C": "retained",
+      "classification": "ADVERSARIAL_TEST_ONLY",
+      "id": "completed-tail-delay",
+      "mechanism": "sleep.75 only after a genuinely complete PASSIVE checkpoint receipt; never falsify receipt or add owner-side work",
+      "source": {
+        "bytes": 11158,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "first_line": 67,
+        "git_blob": "814b5316cf99803a7b4fd2acbf309dbdb68b9512",
+        "last_line": 156,
+        "mode": "100644",
+        "path": "certification/combined_pressure.py",
+        "sha256": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+        "symbol": "Interaction"
+      }
+    },
+    {
+      "A_B_C": "cadence/bytes preserved; no runtime retiming",
+      "classification": "PRODUCTION_REPRESENTATIVE_INPUT_MODEL",
+      "id": "fixed-source-cadence-and-input-retiming",
+      "mechanism": ".27-second fixed input cadence and pure preconstruction of fixture event times; external immutable tape bypasses recv retimer; clocks advance at real speed after first release",
+      "source": {
+        "bytes": 14469,
+        "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "first_line": 70,
+        "git_blob": "ea64914435a1192fe5dfc6bfb61d31f5439d3798",
+        "last_line": 89,
+        "mode": "100644",
+        "path": "certification/run381_pressure.py",
+        "sha256": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+        "symbol": "Wire"
+      }
+    },
+    {
+      "A_B": "same common monitoring/control load; only qualification reads differ by arm",
+      "C": "original schedules retained",
+      "classification": "DIAGNOSTIC_INSTRUMENTATION_AND_DECLARED_CONTROL_LOAD",
+      "id": "poll-query-ack-and-log-cadence",
+      "mechanism": ".25 s common safety poll; 10 s candidate queries; 1 s urgent local ACK loop; 30 s driver reports; optional bounded diagnostics; qualification observer5 s. These are measurement/control schedules, not CPU-normalization floors."
+    }
+  ],
+  "production_import_audit": "No run381/MeasuredServiceState/MeasuredProcessPool/SQLTimings or floor-constant reference in candidate meme_machine/*.py; deterministic AST/text tests recheck this.",
+  "rationale_source": {
+    "bytes": 25108,
+    "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "git_blob": "47ce8e72723b328439529749476238c895c9afbb",
+    "mode": "100644",
+    "path": "certification/notes/run381-runtime-repair.md",
+    "sha256": "22d9a2d5f31f318a416b4eea4b23cfe250fdaa673e6535afcf64fe3c27ea0b74"
+  },
+  "source_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "version": "run381-component-classification-v3"
+}

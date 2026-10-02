@@ -1,0 +1,45 @@
+{
+  "commands": [
+    "python3 -B build_package.py",
+    "python3 -B static_validation.py",
+    "python3 -B -m unittest discover -v"
+  ],
+  "execution_authorized": false,
+  "material_generators_or_workloads_executed": false,
+  "native_pure_verifier_called_with_synthetic_arithmetic_only": true,
+  "observer_campaign_executed": false,
+  "provider_or_market_or_production_runtime_launched": false,
+  "scope": "DETERMINISTIC_UNIT_STATIC_ONLY",
+  "source_grounded_review_ready": true,
+  "source_static_result": {
+    "capacity_workload_executed": false,
+    "contract": {
+      "A_B_equal_bindings": true,
+      "all_proposed_workloads": "NOT_RUN",
+      "v2_gates_mapped": 44,
+      "v2_input_hashes_verified": 250,
+      "v3_required_gates": 47
+    },
+    "observer_campaign_executed": false,
+    "preservation": {
+      "candidate_files": 1241,
+      "changed_candidate_files": [],
+      "changed_history_files": [],
+      "consumed_source_files": 39,
+      "evidence_files": 159
+    },
+    "scope": "STATIC_ONLY",
+    "stage_e": "RED",
+    "stage_f": "NOT STARTED",
+    "synthetic_stress_executed": false
+  },
+  "stage_e": "RED",
+  "stage_f": "NOT STARTED",
+  "unit_log_sha256": "c5bf8b582e9628f44ef410c34503480e3b1132f683e308200676d5d4e0788ce5",
+  "unit_result": {
+    "errors": 0,
+    "exit_code": 0,
+    "failures": 0,
+    "tests_run": 55
+  }
+}

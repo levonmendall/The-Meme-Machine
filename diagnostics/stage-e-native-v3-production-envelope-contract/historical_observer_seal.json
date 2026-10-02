@@ -1,0 +1,50 @@
+{
+  "all_old_trial_ids_forbidden": [
+    "observer-v2-20261002-exact-7a516a6a-t01-p1-baseline",
+    "observer-v2-20261002-exact-7a516a6a-t02-p1-observed",
+    "observer-v2-20261002-exact-7a516a6a-t03-p2-observed",
+    "observer-v2-20261002-exact-7a516a6a-t04-p2-baseline",
+    "observer-v2-20261002-exact-7a516a6a-t05-p3-baseline",
+    "observer-v2-20261002-exact-7a516a6a-t06-p3-observed"
+  ],
+  "attempt": 1,
+  "complete_valid_pairs": 0,
+  "declaration_sha256": "d332bf30eaa2cf53ebe6e025e8d47fcc408981a0bc766dc4ded979ea20e17d2e",
+  "denominator_ns": null,
+  "durability_commit": "5e6faa3033334a664cbdcc490f860735fd8148f9",
+  "durability_receipt_sha256": "aa5dac007c24575f540b5a6075da440662fecb6964a9bb400cd09f0597389475",
+  "full_snapshot_manifest": "source_evidence_manifest.json",
+  "new_trials_started": 0,
+  "new_v3_slots": [],
+  "numerator_ns": null,
+  "observer_overhead_earned": false,
+  "outcome": "OBSERVER_V2: INVALID_PAIR",
+  "predeclaration_commit": "309e6f9dc11b4bb5e584937baecf4747f18d6047",
+  "proof": "Published terminal/result/ledger/stop and immutable predeclaration/durability commit bytes agree. Independent SHA-256/git-blob verification for all consumed snapshots; no writes to historical commit objects or candidate files; successor declaration must use disjoint namespace/IDs.",
+  "ratio": null,
+  "raw_artifact": {
+    "downloaded": false,
+    "id": 11233586036,
+    "sha256": "8cb1e6e7294feb2075918bd344e0f46f161e54b8afe5f088af81308c4455c6dc"
+  },
+  "raw_tar_sha256": "6dfb54fb59b94fb6542d53a1227f36f18a3410bf95c8e67686cef57cc187cd0a",
+  "replacement_trials": 0,
+  "retries": 0,
+  "reuse_allowed": false,
+  "review_commit": "dd75942dcc7498156f80808397c594a6767871e9",
+  "root_cause": "NOT_ESTABLISHED; incomplete origins_valid/tape_valid do not independently identify bad import, changed tape, synthetic cost failure or insufficient real production capacity.",
+  "started_members": 1,
+  "started_trials": 1,
+  "terminal_commit": "a4fb375b6661637eda74acf17a5ebbc09f8ae06c",
+  "terminal_result_sha256": "8960b14cc124b22361c25606e3a53528e2c14a8152fdb7eb142a82c36a641138",
+  "unused_slot_sequences_forbidden": [
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "unused_slots": 5,
+  "version": "immutable-observer-v2-seal-v3",
+  "workflow_run": 37021065563
+}

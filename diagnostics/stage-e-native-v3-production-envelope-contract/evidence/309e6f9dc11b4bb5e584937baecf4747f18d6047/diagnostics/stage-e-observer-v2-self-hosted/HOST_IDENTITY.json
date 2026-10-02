@@ -1,0 +1,116 @@
+{
+  "affinity": [
+    0,
+    1
+  ],
+  "candidate_imports": 0,
+  "cpu_count": 2,
+  "digitalocean_metadata": {
+    "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+    "id": "605465049"
+  },
+  "failures": [],
+  "findmnt": {
+    "code": 0,
+    "stderr": "",
+    "stdout": "{\n   \"filesystems\": [\n      {\n         \"source\": \"sysfs\",\n         \"target\": \"/sys\",\n         \"fstype\": \"sysfs\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"proc\",\n         \"target\": \"/proc\",\n         \"fstype\": \"proc\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"udev\",\n         \"target\": \"/dev\",\n         \"fstype\": \"devtmpfs\",\n         \"options\": \"rw,nosuid,relatime,size=4046792k,nr_inodes=1011698,mode=755,inode64\"\n      },{\n         \"source\": \"devpts\",\n         \"target\": \"/dev/pts\",\n         \"fstype\": \"devpts\",\n         \"options\": \"rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000\"\n      },{\n         \"source\": \"tmpfs\",\n         \"target\": \"/run\",\n         \"fstype\": \"tmpfs\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime,size=813252k,mode=755,inode64\"\n      },{\n         \"source\": \"/dev/vda1\",\n         \"target\": \"/\",\n         \"fstype\": \"ext4\",\n         \"options\": \"rw,relatime,discard,errors=remount-ro,commit=30\"\n      },{\n         \"source\": \"securityfs\",\n         \"target\": \"/sys/kernel/security\",\n         \"fstype\": \"securityfs\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"tmpfs\",\n         \"target\": \"/dev/shm\",\n         \"fstype\": \"tmpfs\",\n         \"options\": \"rw,nosuid,nodev,inode64\"\n      },{\n         \"source\": \"tmpfs\",\n         \"target\": \"/run/lock\",\n         \"fstype\": \"tmpfs\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime,size=5120k,inode64\"\n      },{\n         \"source\": \"cgroup2\",\n         \"target\": \"/sys/fs/cgroup\",\n         \"fstype\": \"cgroup2\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot\"\n      },{\n         \"source\": \"pstore\",\n         \"target\": \"/sys/fs/pstore\",\n         \"fstype\": \"pstore\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"bpf\",\n         \"target\": \"/sys/fs/bpf\",\n         \"fstype\": \"bpf\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime,mode=700\"\n      },{\n         \"source\": \"systemd-1\",\n         \"target\": \"/proc/sys/fs/binfmt_misc\",\n         \"fstype\": \"autofs\",\n         \"options\": \"rw,relatime,fd=32,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=2107\"\n      },{\n         \"source\": \"hugetlbfs\",\n         \"target\": \"/dev/hugepages\",\n         \"fstype\": \"hugetlbfs\",\n         \"options\": \"rw,nosuid,nodev,relatime,pagesize=2M\"\n      },{\n         \"source\": \"mqueue\",\n         \"target\": \"/dev/mqueue\",\n         \"fstype\": \"mqueue\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"debugfs\",\n         \"target\": \"/sys/kernel/debug\",\n         \"fstype\": \"debugfs\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"tracefs\",\n         \"target\": \"/sys/kernel/tracing\",\n         \"fstype\": \"tracefs\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"fusectl\",\n         \"target\": \"/sys/fs/fuse/connections\",\n         \"fstype\": \"fusectl\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"configfs\",\n         \"target\": \"/sys/kernel/config\",\n         \"fstype\": \"configfs\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"/dev/vda16\",\n         \"target\": \"/boot\",\n         \"fstype\": \"ext4\",\n         \"options\": \"rw,relatime\"\n      },{\n         \"source\": \"/dev/vda15\",\n         \"target\": \"/boot/efi\",\n         \"fstype\": \"vfat\",\n         \"options\": \"rw,relatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\"\n      },{\n         \"source\": \"binfmt_misc\",\n         \"target\": \"/proc/sys/fs/binfmt_misc\",\n         \"fstype\": \"binfmt_misc\",\n         \"options\": \"rw,nosuid,nodev,noexec,relatime\"\n      },{\n         \"source\": \"/dev/sda\",\n         \"target\": \"/mnt/volume_nyc1_1790918115030\",\n         \"fstype\": \"ext4\",\n         \"options\": \"rw,noatime,discard\"\n      }\n   ]\n}"
+  },
+  "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+  "inspection_python": "3.12.3",
+  "lsblk": {
+    "code": 0,
+    "stderr": "",
+    "stdout": "{\n   \"blockdevices\": [\n      {\n         \"name\": \"sda\",\n         \"path\": \"/dev/sda\",\n         \"size\": 53687091200,\n         \"fstype\": \"ext4\",\n         \"label\": null,\n         \"uuid\": \"0ce00d89-000b-4af1-960f-d5be400ff115\",\n         \"mountpoints\": [\n             \"/mnt/volume_nyc1_1790918115030\"\n         ]\n      },{\n         \"name\": \"vda\",\n         \"path\": \"/dev/vda\",\n         \"size\": 53687091200,\n         \"fstype\": null,\n         \"label\": null,\n         \"uuid\": null,\n         \"mountpoints\": [\n             null\n         ],\n         \"children\": [\n            {\n               \"name\": \"vda1\",\n               \"path\": \"/dev/vda1\",\n               \"size\": 52612283904,\n               \"fstype\": \"ext4\",\n               \"label\": \"cloudimg-rootfs\",\n               \"uuid\": \"1bfefdfb-34c9-46c7-854f-399d0a1dea04\",\n               \"mountpoints\": [\n                   \"/\"\n               ]\n            },{\n               \"name\": \"vda14\",\n               \"path\": \"/dev/vda14\",\n               \"size\": 4194304,\n               \"fstype\": null,\n               \"label\": null,\n               \"uuid\": null,\n               \"mountpoints\": [\n                   null\n               ]\n            },{\n               \"name\": \"vda15\",\n               \"path\": \"/dev/vda15\",\n               \"size\": 111149056,\n               \"fstype\": \"vfat\",\n               \"label\": \"UEFI\",\n               \"uuid\": \"103C-DA09\",\n               \"mountpoints\": [\n                   \"/boot/efi\"\n               ]\n            },{\n               \"name\": \"vda16\",\n               \"path\": \"/dev/vda16\",\n               \"size\": 957350400,\n               \"fstype\": \"ext4\",\n               \"label\": \"BOOT\",\n               \"uuid\": \"fb8b4264-587e-4a60-a103-a1d39552f189\",\n               \"mountpoints\": [\n                   \"/boot\"\n               ]\n            }\n         ]\n      },{\n         \"name\": \"vdb\",\n         \"path\": \"/dev/vdb\",\n         \"size\": 501760,\n         \"fstype\": \"iso9660\",\n         \"label\": \"config-2\",\n         \"uuid\": \"2026-10-02-05-10-24-00\",\n         \"mountpoints\": [\n             null\n         ]\n      }\n   ]\n}"
+  },
+  "memory": {
+    "MemAvailable": "7478500 kB",
+    "MemTotal": "8132488 kB"
+  },
+  "os_release": {
+    "BUG_REPORT_URL": "https://bugs.launchpad.net/ubuntu/",
+    "HOME_URL": "https://www.ubuntu.com/",
+    "ID": "ubuntu",
+    "ID_LIKE": "debian",
+    "LOGO": "ubuntu-logo",
+    "NAME": "Ubuntu",
+    "PRETTY_NAME": "Ubuntu 24.04.5 LTS",
+    "PRIVACY_POLICY_URL": "https://www.ubuntu.com/legal/terms-and-policies/privacy-policy",
+    "SUPPORT_URL": "https://help.ubuntu.com/",
+    "UBUNTU_CODENAME": "noble",
+    "VERSION": "24.04.5 LTS (Noble Numbat)",
+    "VERSION_CODENAME": "noble",
+    "VERSION_ID": "24.04"
+  },
+  "passed": true,
+  "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+  "registered_labels_user_confirmed": [
+    "self-hosted",
+    "Linux",
+    "X64",
+    "meme-machine-stage-e-observer"
+  ],
+  "registration": {
+    "agentId": 21,
+    "agentName": "the meme machine",
+    "gitHubUrl": "https://github.com/levonmendall/The-Meme-Machine",
+    "path": "/opt/actions-runner/.runner",
+    "poolId": 1,
+    "poolName": "Default",
+    "workFolder": "_work"
+  },
+  "root_disk": {
+    "free_bytes": 47388561408,
+    "total_bytes": 50884108288
+  },
+  "routing_labels": [
+    "self-hosted",
+    "linux",
+    "x64",
+    "meme-machine-stage-e-observer"
+  ],
+  "runner": {
+    "GITHUB_REPOSITORY": "levonmendall/The-Meme-Machine",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_RUN_ID": "37019161849",
+    "GITHUB_SHA": "e2a7b6cc8a24378a662e26f6945018cc8a531416",
+    "GITHUB_WORKFLOW_REF": "levonmendall/The-Meme-Machine/.github/workflows/non-market-certification.yml@refs/heads/diagnostics/stage-e-observer-v2-self-hosted-20261002",
+    "GITHUB_WORKFLOW_SHA": "e2a7b6cc8a24378a662e26f6945018cc8a531416",
+    "RUNNER_ARCH": "X64",
+    "RUNNER_NAME": "the meme machine",
+    "RUNNER_OS": "Linux",
+    "RUNNER_TEMP": "/opt/actions-runner/_work/_temp",
+    "RUNNER_WORKSPACE": "/opt/actions-runner/_work/The-Meme-Machine"
+  },
+  "runner_services": [
+    {
+      "code": 0,
+      "stderr": "",
+      "stdout": "Id=actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service\nActiveState=active\nUnitFileState=enabled"
+    }
+  ],
+  "runner_version": {
+    "code": 0,
+    "stderr": "",
+    "stdout": "2.337.0"
+  },
+  "started_members": 0,
+  "started_trials": 0,
+  "unique_eligibility": "USER_CONFIRMED_ONLY_THIS_REPOSITORY_RUNNER_HAS_THE_OBSERVER_LABEL",
+  "utc": "2026-10-02T14:20:28Z",
+  "version": "observer-host-identity-only-v1",
+  "volume_devices": [
+    "/dev/sda"
+  ],
+  "volume_mounts": [
+    {
+      "free_bytes": 47794286592,
+      "fstype": "ext4",
+      "options": "rw,noatime,discard",
+      "source": "/dev/sda",
+      "target": "/mnt/volume_nyc1_1790918115030",
+      "total_bytes": 53075214336,
+      "used_bytes": 2579795968
+    }
+  ],
+  "workflow_file_sha256": "7b74113418e8b9f9614ebbce368c1e7b66e5afaf30e52d92612ecd6be1da05af"
+}

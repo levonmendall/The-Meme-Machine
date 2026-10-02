@@ -1,0 +1,115 @@
+{
+  "after_verification": "preservation_verification.json",
+  "basis_not_stale_BUILD_STATUS_policy": "Exact S protocol and full candidate tree are authority; old BUILD_STATUS milestone prose does not replace current six-regime hashes.",
+  "candidate_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "candidate_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+  "changes": [],
+  "directional_sleeves": {
+    "pons": {
+      "allocation": {
+        "accounting_namespaces_separate": true,
+        "one_sleeve": true,
+        "portfolio_allocation_increased": false,
+        "priority": [
+          "positions",
+          "current",
+          "survivor"
+        ],
+        "reservation_authority": "durable_shared_sleeve_v1",
+        "same_regime_reentry": false,
+        "survivor_target_sleeve_bps": 25
+      },
+      "lane": "pons",
+      "strategies": {
+        "pons-postgrad-survivor-momentum-v1": "35ab72e24297eaab6ccef064284dee981b752d675e745d9bc924070610288c18",
+        "pons-selective-continuation-v1": "cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3"
+      }
+    },
+    "pump": {
+      "allocation": {
+        "accounting_namespaces_separate": true,
+        "one_sleeve": true,
+        "portfolio_allocation_increased": false,
+        "priority": [
+          "positions",
+          "current",
+          "survivor"
+        ],
+        "reservation_authority": "durable_shared_sleeve_v1",
+        "same_regime_reentry": false,
+        "survivor_target_sleeve_bps": 25
+      },
+      "lane": "pump",
+      "strategies": {
+        "pump-acceleration-independent-v1": "a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d",
+        "pumpswap-survivor-momentum-v1": "1294bd415313aee54e527d153f0fe368c47f0c088cc77d43edf053b985707da5"
+      }
+    }
+  },
+  "economic_acceptance_authority": "Entire unchanged profitability_protocol.json, including every lane/portfolio/autonomy requirement; synthetic throughput gives no market/economic/promotion credit.",
+  "economic_protocol": {
+    "bytes": 9933,
+    "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "git_blob": "dd51e71be95320890a3571d234d430a6b9b35bd6",
+    "mode": "100644",
+    "path": "certification/profitability_protocol.json",
+    "sha256": "996d367d230276c3b9ab02816eeba9cfbcea4af953363a121bb4a777db99fe42"
+  },
+  "entire_candidate_manifest": "candidate_integrity_before.json",
+  "frozen_lanes": {
+    "meteora": {
+      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
+      "source_diff_sha256": "bd0a315eb26fe6e271b6e12e3235cefb332cc2958529506cc29c3449532c1186",
+      "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2"
+    },
+    "pons": {
+      "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "policy_hash": "b9f3aff04336d22fac8a8a8f38c821a8fb776b8ccd891774a8d46012d9124db2",
+      "source_diff_sha256": "bddf5e0b288e1e51141d5be0849c468788acb7cc20a6eb4ecefe1aecda9d96da",
+      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "strategy_version": "pons-shared-sleeve-six-regime-v1"
+    },
+    "pump": {
+      "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "policy_hash": "0f909d1e7eb90cdbb504b4e52fec693ccaf810f87f80259be760c81361a3babc",
+      "source_diff_sha256": "39e7688946ef558fbdc2257af220cb2b0bd79ee7f3528db0b106f8f7696b8a0d",
+      "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "strategy_version": "pump-shared-sleeve-six-regime-v1"
+    },
+    "ramses": {
+      "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+      "source_diff_sha256": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "strategy_version": "ramses-active-wide-maker-v4"
+    }
+  },
+  "frozen_strategies": {
+    "meteora": {
+      "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408"
+    },
+    "pons": {
+      "pons-postgrad-survivor-momentum-v1": "35ab72e24297eaab6ccef064284dee981b752d675e745d9bc924070610288c18",
+      "pons-selective-continuation-v1": "cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3"
+    },
+    "pump": {
+      "pump-acceleration-independent-v1": "a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d",
+      "pumpswap-survivor-momentum-v1": "1294bd415313aee54e527d153f0fe368c47f0c088cc77d43edf053b985707da5"
+    },
+    "ramses": {
+      "ramses-active-wide-maker-v4": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e"
+    }
+  },
+  "proof": "Every one of 1241 tracked candidate files is hashed against the exact git tree before/after; no candidate diff, source overlay, configuration or economic policy edit. v3 files and history snapshots are outside candidate checkout.",
+  "source_manifest": {
+    "bytes": 94499,
+    "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "git_blob": "7a47b2382069c402112a3e5ed22421fc336f0d07",
+    "mode": "100644",
+    "path": "certification/sources.json",
+    "sha256": "9a276d75ad83f253a8f5e041d225e773531ab4766dbbf51505142c99542c9c14"
+  },
+  "version": "strategy-economic-conservation-proof-v3"
+}

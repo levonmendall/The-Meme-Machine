@@ -1,0 +1,49 @@
+{
+  "files": {
+    "ASTRA_REVIEW_PACKAGE.md": {
+      "bytes": 3509,
+      "sha256": "0e19568b6e4336e931289abed255dea9927010c0b0a8e13c773a26ff67803ca5"
+    },
+    "GITHUB_API_EVIDENCE.json": {
+      "bytes": 1063,
+      "sha256": "1f061e1a969c4993ac6978b81931f1d0d5239a41f2262292b5daec9fa6ebc10d"
+    },
+    "HOST_IDENTITY.json": {
+      "bytes": 10005,
+      "sha256": "8e4195dbf88e4a3b4a60951e460e48496e7ccb3a50ba71ac491dddcfc10f7b60"
+    },
+    "IDENTITY_INSPECTION_1.json": {
+      "bytes": 2087,
+      "sha256": "7470fb419c40f2592700d5b93396c527498869bd274a53aabbb42946f3e1cbff"
+    },
+    "RESULTS.json": {
+      "bytes": 3504,
+      "sha256": "ac08f98a334e855b9aee872c632ce5e04be82209b1f72a6da69b0e10a5487bd0"
+    },
+    "RESUME_REQUEST.json": {
+      "bytes": 1186,
+      "sha256": "6b8744143ba870a71910fc8c1e7bf87c2258c2372fadc280e24b218aaed98c1b"
+    },
+    "RUNNER_TARGET.json": {
+      "bytes": 667,
+      "sha256": "4fa8ded49ee48525dc65564d23172c60a29aa63499bdf07ed19acd96c7480348"
+    },
+    "STOP_FOR_ASTRA.json": {
+      "bytes": 251,
+      "sha256": "c8aa329c30243f18a16a12e584f7ecac8025a90194bb90af6c5e99e1eeb0f88c"
+    },
+    "TARGETING_EVIDENCE.json": {
+      "bytes": 2637,
+      "sha256": "09f01f4b5c2956123b92ba9673c5e8fa7c438852fe8b57c2707c7d30f7562c91"
+    },
+    "inspect_host.py": {
+      "bytes": 5874,
+      "sha256": "b36611123f65987c35aba38052c278ecd1f6063dc79310d08725bd07663718c8"
+    },
+    "prepare_assembly.py": {
+      "bytes": 4962,
+      "sha256": "2cdf82b5ae3a11dd8362a6c75d88a7ba7b571f1517346bd8090fd832eb9aa7d9"
+    }
+  },
+  "version": "observer-pretrial-artifact-hashes-v1"
+}

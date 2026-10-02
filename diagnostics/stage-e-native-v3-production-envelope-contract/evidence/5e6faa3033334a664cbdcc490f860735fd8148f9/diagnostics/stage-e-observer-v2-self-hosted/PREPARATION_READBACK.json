@@ -1,0 +1,14 @@
+{
+  "all_probe_helpers_terminated": true,
+  "all_probe_origins_bound": true,
+  "artifact_id": 11231713179,
+  "artifact_zip_sha256": "2c4667ceba9408728f755594add367f9d55ee8422fa07408569e3db65d1c60dc",
+  "job_id": 110877473415,
+  "passed": true,
+  "run_id": 37019161849,
+  "started_members": 0,
+  "started_trials": 0,
+  "unused_slots": 6,
+  "version": "preparation-artifact-readback-v1",
+  "workflow_sha": "e2a7b6cc8a24378a662e26f6945018cc8a531416"
+}

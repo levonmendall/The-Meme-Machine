@@ -1,0 +1,80 @@
+{
+  "allocated_vcpu": 2,
+  "cpu_allocation_rule": "The measured executor allocation itself has exactly two dedicated vCPU. A >2-vCPU executor with taskset/quota=2 fails. A physical hypervisor host is not the measured VM allocation.",
+  "cpu_quota": "Every effective ancestor unlimited or quota_us/period_us >= 2; complete ancestor inventory required",
+  "dedicated_vcpu": 2,
+  "effective_affinity_cpu_count": 2,
+  "evidence": {
+    "boundaries": [
+      "admission",
+      "every spawn/thread admission",
+      "continuous monitored scope",
+      "teardown"
+    ],
+    "hashing": "Canonical SHA-256 of complete environment manifest and resource timeline; every raw result binds the same frozen manifest",
+    "missing_changed_or_ambiguous": "BLOCK_OR_INVALIDATE; no inferred resource credit from CPU labels or cpu_count alone",
+    "required": [
+      "dedicated allocation capability attestation",
+      "visible CPU inventory and topology",
+      "complete effective cpusets and per-thread affinity",
+      "all ancestor quotas/cgroup paths",
+      "memory allocation, usable RAM and ancestor limits",
+      "swap/ballooning status; no substitute RAM",
+      "no competing workload evidence",
+      "storage mount/device/free/total/physical durability",
+      "runtime/dependency/tool manifests",
+      "generation and monotonic timestamps"
+    ]
+  },
+  "executor_visible_vcpu": 2,
+  "no_competing_workload": true,
+  "ram_bytes": 8589934592,
+  "ram_rule": "Exactly 8 GiB allocated to the complete executor; OS/kernel memory included in that budget. Record usable RAM and all cgroup limits. An unlimited cgroup is permitted only within the attested 8-GiB executor. No >8-GiB allocation or restrictive ancestor may earn credit.",
+  "runtime": {
+    "dependency_lock": {
+      "bytes": 6688,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "f8e9d9b374f1a177bd019cc395c1ccafeeb2daf7",
+      "mode": "100644",
+      "path": "certification/stage_e_native_v2/dependency-lock-v2.json",
+      "sha256": "21f9535843a5432641e04c280fbc108f1b63473dee2c975fc382cbd00a6ef037"
+    },
+    "freeze_before_execution": [
+      "Python executable/shared library",
+      "stdlib and extensions",
+      "websockets installed files",
+      "SQLite version/library",
+      "OS/kernel/libc",
+      "required OS tools",
+      "external harness/verifier source and bindings"
+    ],
+    "platform": "CPython 3.12 Linux x86_64; reviewed v2 dependency file lock unchanged",
+    "python": "3.12.14",
+    "tooling_dependencies": {
+      "PyYAML": "6.0.2",
+      "jsonschema": "4.23.0"
+    },
+    "websockets": "17.1"
+  },
+  "storage": {
+    "check_boundaries": [
+      "before preparation",
+      "before each member",
+      "during member",
+      "before durable archive/advance"
+    ],
+    "filesystem_requirements": "Native SQLite locking/transaction/WAL behavior, file and parent-directory fsync, durable content-addressed archive publication; no tmpfs durability substitute",
+    "insufficient_storage": "Stop, preserve failure, no next member/slot; never delete sole evidence or loosen candidate storage limits",
+    "required_free_headroom_bytes": 12884901888,
+    "total_capacity_requirement": ">= 12 GiB remaining usable headroom + immutable tape 2442975789 bytes + retained prior evidence + working DB/WAL/archive + simultaneously required publication copies; record all actual byte counts and reserve before advancing"
+  },
+  "version": "vendor-neutral-production-envelope-v3",
+  "whole_scope": [
+    "candidate owner",
+    "two shared spawn decode/archive workers",
+    "source feeder",
+    "qualification observer when enabled",
+    "resource tracker",
+    "required verifier/receipt helpers"
+  ]
+}

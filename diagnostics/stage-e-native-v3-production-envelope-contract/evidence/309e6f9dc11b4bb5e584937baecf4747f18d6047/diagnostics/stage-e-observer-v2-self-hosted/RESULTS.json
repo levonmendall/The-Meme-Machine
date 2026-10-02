@@ -1,0 +1,108 @@
+{
+  "version": "self-hosted-observer-targeting-stop-v1",
+  "recorded_utc": "2026-10-02 07:06:27 UTC",
+  "observer_v2": "IDENTITY_OR_WORKLOAD_MISMATCH",
+  "paper_only": true,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "execution_phase": "BEFORE_RUNNER_IDENTITY_AND_TRIAL_1",
+  "blocker": "The required unique observer routing label meme-machine-stage-e-observer is absent, as confirmed by the user. GitHub runner inventory access also returns HTTP 403. Safe unique targeting and actual on-job host identity are unproved.",
+  "candidate": {
+    "S": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "T": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+    "reviewed_assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659"
+  },
+  "workload_identity": "native-full-cohort-pressure-v2",
+  "candidate_immutable": true,
+  "authority": [
+    "AUTHORIZE_BOUND_EQUAL_BYTE_OBSERVER_WORKLOAD",
+    "RESUME_OBSERVER_ON_DURABLE_EXECUTOR"
+  ],
+  "targeting_requirement": "Require meme-machine-stage-e-observer in addition to self-hosted/Linux/X64 and verify the job lands on droplet 605465049 before preparation.",
+  "interpretation": "This is a targeting identity prerequisite failure, not evidence that the supplied droplet is the wrong machine or that the workload has changed.",
+  "started_trials": 0,
+  "completed_trials": 0,
+  "started_members": 0,
+  "retries": 0,
+  "replacements": 0,
+  "warmups": 0,
+  "invalid_pairs": 0,
+  "unused_slots": 6,
+  "planned_trials": [
+    {
+      "order": 1,
+      "pair": 1,
+      "mode": "baseline",
+      "status": "UNUSED",
+      "elapsed_ns": null
+    },
+    {
+      "order": 2,
+      "pair": 1,
+      "mode": "observed",
+      "status": "UNUSED",
+      "elapsed_ns": null
+    },
+    {
+      "order": 3,
+      "pair": 2,
+      "mode": "observed",
+      "status": "UNUSED",
+      "elapsed_ns": null
+    },
+    {
+      "order": 4,
+      "pair": 2,
+      "mode": "baseline",
+      "status": "UNUSED",
+      "elapsed_ns": null
+    },
+    {
+      "order": 5,
+      "pair": 3,
+      "mode": "baseline",
+      "status": "UNUSED",
+      "elapsed_ns": null
+    },
+    {
+      "order": 6,
+      "pair": 3,
+      "mode": "observed",
+      "status": "UNUSED",
+      "elapsed_ns": null
+    }
+  ],
+  "raw_pairs": [],
+  "numerator_ns": null,
+  "denominator_ns": null,
+  "ratio": null,
+  "native_verifier": {
+    "status": "NOT_RUN",
+    "reason": "No formal measurement exists."
+  },
+  "prerequisites": {
+    "fresh_job_host_identity": "BLOCKED",
+    "unique_eligibility": "BLOCKED",
+    "storage_mount_and_free_space": "NOT_INSPECTED",
+    "local_assembly_reconstruction": "NOT_STARTED",
+    "external_observer_infrastructure": "NOT_BUILT",
+    "canonical_tape": "NOT_GENERATED",
+    "fixture_equivalence": "NOT_PROVED",
+    "clock_consumer_audit": "NOT_COMPLETED",
+    "differential_call_path_proof": "NOT_COMPLETED",
+    "executable_predeclaration": "NOT_CREATED",
+    "executable_predeclaration_readback": "NOT_APPLICABLE",
+    "trial_1": "NOT_STARTED"
+  },
+  "changes_scope": "New documentary files under diagnostics/stage-e-observer-v2-self-hosted only. No workflow, candidate, historical evidence, runner settings, or benchmark runtime changed.",
+  "required_checks": {
+    "unit_tests": "NOT_RUN_DOCUMENTARY_STOP_BEFORE_HOST_IDENTITY",
+    "resource_checks": "NOT_RUN_BEFORE_HOST_IDENTITY"
+  },
+  "later_gates": {
+    "prepared_qualification": "NOT_RUN",
+    "canonical_stage_e": "NOT_RUN",
+    "stage_f": "NOT_STARTED"
+  },
+  "stop_for_astra": true
+}

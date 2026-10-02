@@ -1,0 +1,6 @@
+tree 2455a3c0510cb0bee4b93e9be9da74d8a93f90c7
+parent eb0446a2953d0e7107738268d96204994502734d
+author levonmendall <levon_mendall@yahoo.com> 1790954175 -0700
+committer levonmendall <levon_mendall@yahoo.com> 1790954175 -0700
+
+[skip ci] Seal observer INVALID_PAIR evidence after one started trial; STOP FOR ASTRA

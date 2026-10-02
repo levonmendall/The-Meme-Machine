@@ -1,0 +1,20 @@
+{
+  "artifact_id": 11228203313,
+  "artifact_zip_sha256": "c816564bdebec6454dbb3c381acb39aadae7ef50552ce5f4d3926dc0d80e7dd3",
+  "environment_sha256": "97be02fa0f99b1cadbab05fe48c2fe51109405a79e9070927950a277cb5c650c",
+  "environment_source": "ENVIRONMENT.json in verified GitHub artifact",
+  "environment_summary": {
+    "dependency_digest": "e42fd4edcc9677f87b9542c5e5e35bf8cc54314055358e3afdea49f7dcc6f117",
+    "python": "3.12.14",
+    "sqlite": "3.45.1",
+    "stdlib_digest": "b65af1b689ae68fb147668d190f62fbd5339a5590c7291c8a5371284a87ecd2c",
+    "websockets": "17.1"
+  },
+  "job_id": 110855057335,
+  "passed": true,
+  "run_id": 37012406568,
+  "started_members": 0,
+  "started_trials": 0,
+  "version": "fresh-assembly-runtime-retrieval-v1",
+  "workflow_sha": "5afd68c2d164fcbde835add1b01fa0f4e92a4398"
+}

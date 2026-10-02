@@ -1,0 +1,70 @@
+{
+  "version": "self-hosted-observer-targeting-evidence-v1",
+  "recorded_utc": "2026-10-02 07:06:27 UTC",
+  "repository": "levonmendall/The-Meme-Machine",
+  "prior_durable_handoff_commit": "d8d242a1c125cbdf9c774011039c4c1215a1d116",
+  "digitalocean_control_plane": {
+    "inspection_scope": "DigitalOcean control-plane metadata; not on-host or GitHub runner verification",
+    "id": 605465049,
+    "name": "ubuntu-gd-2vcpu-8gb-nyc1",
+    "status": "active",
+    "created_at": "2026-10-02T05:10:13Z",
+    "memory_mb": 8192,
+    "vcpus": 2,
+    "local_disk_gb": 50,
+    "region": "nyc1",
+    "image": {
+      "id": 247516813,
+      "slug": "ubuntu-24-04-x64",
+      "name": "24.04 (LTS) x64"
+    },
+    "volume_ids": [
+      "580be5d5-be20-11f1-bb2f-3ee8be45f379"
+    ]
+  },
+  "user_reported_runner": {
+    "name": "the meme machine",
+    "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+    "droplet_id": 605465049,
+    "labels": [
+      "self-hosted",
+      "Linux",
+      "X64"
+    ],
+    "required_observer_label": "meme-machine-stage-e-observer",
+    "required_label_status": "NOT_ADDED_YET"
+  },
+  "github_inventory_access": {
+    "method": "GET",
+    "endpoint": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/runners",
+    "http_status": 403,
+    "message": "Resource not accessible by integration",
+    "required_permission": "administration=read",
+    "source": "Observed GitHub HTTP response including X-Accepted-Github-Permissions"
+  },
+  "actions_since_provisioning": {
+    "created_filter": ">=2026-10-02T05:10:13Z",
+    "total_count": 0,
+    "workflow_runs": [],
+    "source": "Observed GitHub Actions runs API response; snapshot, not a global runner registry"
+  },
+  "user_followup": {
+    "text": "I’m not going to change the name. Leave it as is and I will update Astra as well",
+    "handling": "Leave runner settings as supplied; no revised Astra targeting requirement has been supplied."
+  },
+  "identity_verification": {
+    "digitalocean_host_hardware": "MATCHES_SUPPLIED_CONTROL_PLANE_DESCRIPTION",
+    "candidate_commit_tree": "MATCH",
+    "runner_registration": "USER_REPORTED_NOT_API_VERIFIED",
+    "actual_job_runner": "NOT_INSPECTED_NO_DISPATCH",
+    "actual_hostname_from_job": "NOT_INSPECTED_NO_DISPATCH",
+    "registered_labels": "USER_REPORTED",
+    "only_eligible_runner": "UNPROVED",
+    "required_unique_label": "ABSENT_USER_CONFIRMED",
+    "mounted_volume_path": "UNVERIFIED_NO_ON_HOST_EXECUTION",
+    "volume_free_space": "UNVERIFIED_NO_ON_HOST_EXECUTION",
+    "systemd_service": "USER_REPORTED_NOT_RECHECKED"
+  },
+  "workflow_dispatched": false,
+  "candidate_settings_changed": false
+}

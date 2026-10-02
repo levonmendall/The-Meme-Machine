@@ -1,0 +1,22 @@
+{
+  "capacity_workload_executed": false,
+  "contract": {
+    "A_B_equal_bindings": true,
+    "all_proposed_workloads": "NOT_RUN",
+    "v2_gates_mapped": 44,
+    "v2_input_hashes_verified": 250,
+    "v3_required_gates": 47
+  },
+  "observer_campaign_executed": false,
+  "preservation": {
+    "candidate_files": 1241,
+    "changed_candidate_files": [],
+    "changed_history_files": [],
+    "consumed_source_files": 39,
+    "evidence_files": 159
+  },
+  "scope": "STATIC_ONLY",
+  "stage_e": "RED",
+  "stage_f": "NOT STARTED",
+  "synthetic_stress_executed": false
+}

@@ -1,0 +1,347 @@
+{
+  "accepted_outcomes": [
+    "FULL_PROFILE_SAFETY_PASS",
+    "DIAGNOSTIC_OVERLOAD_WITH_NATIVE_FAIL_CLOSED_PROOF"
+  ],
+  "artificial_contention": {
+    "additional_commit_latency_seconds": 0.006,
+    "archive_seconds_per_thousand": 0.36,
+    "burst_source_seconds": [
+      216,
+      378
+    ],
+    "completed_tail_injected_delay_seconds": 0.75,
+    "held_reader_injected_sleeps_seconds": [
+      1.25,
+      0.1
+    ],
+    "owner_seconds_per_frame": 0.165,
+    "source_pause_frames": [
+      800,
+      1400
+    ],
+    "source_pause_seconds": 8
+  },
+  "candidate_local_read_schedule": "One in-flight real RuntimeEvidence check after >10 accepted frames, at most every 10 real seconds; ack then native windows across all three scopes, as original run381 candidate()",
+  "candidate_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "candidate_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+  "class_id": "C",
+  "clock": {
+    "advancement": "integer microseconds; setup frozen; explicit execution schedule only",
+    "audit_origin": {
+      "commit": "dd75942dcc7498156f80808397c594a6767871e9",
+      "path": "diagnostics/stage-e-observer-v2-self-hosted/SEMANTIC_CLOCK_AUDIT.json",
+      "sha256": "5920f4df337c391d0a33651890a83823ba59358022e41c051172fd29f6a0d909"
+    },
+    "economic_event": "immutable event bytes constructed from declared economic clock before execution",
+    "economic_now": "wall; ages advance with wall even during stalled source",
+    "execution": "After frozen setup, anchor once at first source-data release; wall=1800000000+real_elapsed_ns/1e9; monotonic=100+real_elapsed_ns/1e9; no pause/time compensation",
+    "mapping": "wall=wall_epoch+(monotonic-monotonic_epoch)",
+    "monotonic_epoch": 100,
+    "observer": "real monotonic perf_counter_ns; only future paired measurement; never modeled timing",
+    "recovery": "native latched source-origin+120; persists across restart",
+    "residence": "wall minus original event time (first_seen only when no event time)",
+    "scheduler": "OS/event-loop waits use real clocks. Immutable source/economic timestamps never change on receive.",
+    "source": "fixed finalized block timestamp; never receive-time substitution",
+    "version": "native-clock-domain-contract-v2",
+    "wall_epoch": 1800000000,
+    "wall_monotonic_error_seconds": 3
+  },
+  "cohort": [
+    {
+      "frames": 2223,
+      "id": "combined-1",
+      "initial_state": "Fresh isolated empty native DB/WAL/archive directory; no pre-existing candidate/lifecycle pins; independently frozen setup; no extra seed frames",
+      "input_binding": {
+        "decoded_canonical_sha256": "44410595c3803e983d40d4a89ba1d91dd96df2db715ce1a28d21c51e7804666b",
+        "encoded_prefix_bytes": 1221761845,
+        "encoded_prefix_sha256": "2dc21c395ac6439eec8dae5d28ef7b7cd2fd20818e4b86d3c4d9262979c44743",
+        "frames": 2223,
+        "id": "combined-1"
+      },
+      "ordered_frame_indices": [
+        0,
+        2222
+      ],
+      "source_duration_us": 600210000,
+      "transactions": 1138176
+    },
+    {
+      "frames": 2223,
+      "id": "combined-2",
+      "initial_state": "Fresh isolated empty native DB/WAL/archive directory; no pre-existing candidate/lifecycle pins; independently frozen setup; no extra seed frames",
+      "input_binding": {
+        "decoded_canonical_sha256": "44410595c3803e983d40d4a89ba1d91dd96df2db715ce1a28d21c51e7804666b",
+        "encoded_prefix_bytes": 1221761845,
+        "encoded_prefix_sha256": "2dc21c395ac6439eec8dae5d28ef7b7cd2fd20818e4b86d3c4d9262979c44743",
+        "frames": 2223,
+        "id": "combined-2"
+      },
+      "ordered_frame_indices": [
+        0,
+        2222
+      ],
+      "source_duration_us": 600210000,
+      "transactions": 1138176
+    },
+    {
+      "frames": 2223,
+      "id": "combined-3",
+      "initial_state": "Fresh isolated empty native DB/WAL/archive directory; no pre-existing candidate/lifecycle pins; independently frozen setup; no extra seed frames",
+      "input_binding": {
+        "decoded_canonical_sha256": "44410595c3803e983d40d4a89ba1d91dd96df2db715ce1a28d21c51e7804666b",
+        "encoded_prefix_bytes": 1221761845,
+        "encoded_prefix_sha256": "2dc21c395ac6439eec8dae5d28ef7b7cd2fd20818e4b86d3c4d9262979c44743",
+        "frames": 2223,
+        "id": "combined-3"
+      },
+      "ordered_frame_indices": [
+        0,
+        2222
+      ],
+      "source_duration_us": 600210000,
+      "transactions": 1138176
+    },
+    {
+      "frames": 4445,
+      "id": "recovery-1",
+      "initial_state": "Fresh isolated empty native DB/WAL/archive directory; no pre-existing candidate/lifecycle pins; independently frozen setup; no extra seed frames",
+      "input_binding": {
+        "decoded_canonical_sha256": "1cf8f1a30e7ef55d1c5c35737ba3236ef6bca62e892c944652e0e83f6f13a3db",
+        "encoded_prefix_bytes": 2442975789,
+        "encoded_prefix_sha256": "bce25229470bda363d963c441c45e3e7114794d1f3673c0ad4cc4180d39cb583",
+        "frames": 4445,
+        "id": "recovery-1"
+      },
+      "ordered_frame_indices": [
+        0,
+        4444
+      ],
+      "source_duration_us": 1200150000,
+      "transactions": 2275840
+    }
+  ],
+  "common_safety_monitoring": "Original .25-second poll of native counters, source frontier, unresolved gaps, global hot/retained minimum age and DB+WAL; common to both observer arms, never disable native health checks",
+  "exact_recovery_predicates": {
+    "assessment": {
+      "bytes": 10165,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "first_line": 119,
+      "git_blob": "e6eedfb9a0bc5a686a65daf2776e69d1989afb0c",
+      "last_line": 174,
+      "mode": "100644",
+      "path": "certification/lifecycle_capacity.py",
+      "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+      "symbol": "assessment"
+    },
+    "debt_series": {
+      "bytes": 10165,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "first_line": 82,
+      "git_blob": "e6eedfb9a0bc5a686a65daf2776e69d1989afb0c",
+      "last_line": 116,
+      "mode": "100644",
+      "path": "certification/lifecycle_capacity.py",
+      "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+      "symbol": "_recovery_series"
+    },
+    "fixed_cohort": {
+      "bytes": 19958,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "first_line": 127,
+      "git_blob": "e1e8c4bf771886d8d143d785a0164a636f4390d1",
+      "last_line": 185,
+      "mode": "100644",
+      "path": "certification/cleanup_recovery.py",
+      "sha256": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+      "symbol": "recovery_assessment"
+    }
+  },
+  "executed": false,
+  "execution_authorized": false,
+  "full_profile": "All original profile/interaction coverage, source-lag/residence/debt recovery/progress predicates remain as separately reported strict stress results. Never convert a failed original stress predicate into a passed historical result.",
+  "member_deadline": "Original native loop deadline frames*.27+120 real seconds; outer child timeout frames*.27+240 plus bounded termination cleanup as frozen v2 external trial. No grant from either deadline overriding <45/<240 safety.",
+  "native_work": "Use unmodified ServiceState.source_batch, EvidenceWriter.prepare_and_write_archive and native SQLite commits/fsync. No measured-contention class/pool/commit injector in production capacity or either observer arm.",
+  "overload": "Record every original failed predicate and raw incomplete member. Synthetic performance failure remains FAILED_DIAGNOSTIC, with no capacity credit. Mandatory stress safety can pass only with exact native proof of threshold-triggered refusal/stop, bounded workers/queues/storage, no corruption/hidden gaps/lost or duplicate committed work, durable restart/receipt/ledger continuity, no policy/trade authorization from stale data. Wrapper-only stop is not native fail-closed proof. Missing proof or any native safety violation is safety failure and keeps Stage E RED.",
+  "post_failure": "No continuation/retry/replacement; stop and join helpers, preserve DB/WAL/archive and receipts with fsynced inventory before terminal stop.",
+  "production_minimum_cpu_inference_from_artificial_delays": false,
+  "qualification_observer": "Original durable-window-v4 and joint-eligible-hot-archive-retirement-v2; no start-phase-only overlap credit",
+  "recovery_plan": {
+    "burst_source_seconds": [
+      216,
+      378
+    ],
+    "extended_frames": 4445,
+    "failed_canonical_run": 36472549044,
+    "lifecycle_revision": "joint-eligible-hot-archive-retirement-v2",
+    "market_authority": false,
+    "minimum_decline_records": 256,
+    "observation_revision": "durable-window-v4",
+    "observation_sources": {
+      "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+      "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+      "certification/maintenance_qualification.py": "572aa09f8c328179667af878baa3789a615cef247b99927466a63af7adea88cf",
+      "certification/qualification_environment.py": "d1f702b9a5e99100fb7fc5b24c6b39d60103cef6b17ab2dedd4721e8fa887a4f"
+    },
+    "observer_wall_fraction_limit": 0.01,
+    "pipeline_slack_records": 1000,
+    "predecessor": "0a4a8bdad1670b1f70c03ed6c861d03c303e9e84",
+    "rationale": "New identity; every historical rejected cohort remains rejected. Same source frames, seeds, delays, bursts, observation duration, source admission and transaction bounds. Require archive-eligible hot debt and archived-retirement debt recovery for every program scope, durable commit-window overlap, strict age <240 and bounded observation overhead; total fresh hot rows are a rolling 180-second preservation window, not debt.",
+    "recovery_deadline_source_seconds": 120,
+    "repeat_frames": 2223,
+    "requires_all_trials": true,
+    "retry_until_pass": false,
+    "sample_wall_seconds": 5,
+    "trend_slack_records": 256,
+    "trials": [
+      "combined-1",
+      "combined-2",
+      "combined-3",
+      "recovery-1"
+    ],
+    "unchanged_inputs": {
+      "certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+      "certification/cleanup_recovery_plan.json": "268849f509d1f81ae61571dcf870ea0eb46683cc742b6bd96051df49986d82f3",
+      "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+      "certification/pressure_diagnostics.py": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45",
+      "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+      "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+      "tests/test_run373_dispatch_throughput.py": "3a343488e7307fc13e10344978a55ea27ea2b6c9fdd2d532fdba522d37bff9c2",
+      "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"
+    },
+    "version": "e26-eligible-hot-debt-v1"
+  },
+  "required_stress_safety": true,
+  "resource_envelope": "production_envelope.json",
+  "resource_policy": "Default same two-vCPU envelope; separately declared larger-machine diagnostics are permitted only after authorization and earn zero production-capacity/observer credit",
+  "retirement_on_overload": "Preserve existing lifecycle/account/gap pins and recovery deadlines; do not force retirement, re-enroll episodes, change origin timestamps or remove protected evidence to satisfy age.",
+  "source_profile_refs": [
+    {
+      "bytes": 14469,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "ea64914435a1192fe5dfc6bfb61d31f5439d3798",
+      "mode": "100644",
+      "path": "certification/run381_pressure.py",
+      "sha256": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd"
+    },
+    {
+      "bytes": 6085,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "2c32bfce2a9825b6482eb1c013ae8c53550ffd77",
+      "mode": "100644",
+      "path": "certification/pressure_diagnostics.py",
+      "sha256": "e8b62d8a81a7ba58bff67afbb45940b9696fdc4d7f31370fb4d13a71fbaa3b45"
+    },
+    {
+      "bytes": 11158,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "814b5316cf99803a7b4fd2acbf309dbdb68b9512",
+      "mode": "100644",
+      "path": "certification/combined_pressure.py",
+      "sha256": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a"
+    },
+    {
+      "bytes": 6223,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "08f9c0ee141ef0e727597304e2bbc26f87505596",
+      "mode": "100644",
+      "path": "certification/combined_observer.py",
+      "sha256": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af"
+    }
+  ],
+  "source_release_schedule": "Exactly n*270000 microseconds after first release; catch up to original due times after real scheduler stalls without rebasing deadlines",
+  "tape_binding": {
+    "cadence_us": 270000,
+    "decoded_format": "MMOBSV2 NUL; repeated uint64 big-endian payload length and exact v2 JSON bytes",
+    "expected_bytes_status": "Exact hashes from frozen published tape/proof metadata; tape payload not downloaded or generated in this static task. Authorized admission must verify actual bytes against these identities.",
+    "fixture_source": {
+      "bytes": 5213,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "30b87e358056e688dab19a262c27c74bc5a57cdf",
+      "mode": "100644",
+      "path": "certification/stage_e_native_v2/fixtures.py",
+      "sha256": "0faddec8928925b61e663a50337161eb52e6a229d5fa9c3e113bada1b53440f2"
+    },
+    "format": "MMOBSV2 NUL; repeated uint64 big-endian gzip byte length and deterministic gzip member",
+    "frame_formula": "slot=1000+n; parent=slot-1; blockhash=h{slot}; previous=h{slot-1}; event/blockTime=int(1800000000+n*270000/1000000-1); native timed_transaction helpers; 512 transactions per frame; no receive-time retiming",
+    "frame_inventory_sha256": "1bc950763062dec84cde1ec59838b609c3f5634e23c184218c98871d3cfc0b5a",
+    "generator_source": {
+      "commit": "dd75942dcc7498156f80808397c594a6767871e9",
+      "frame_index_bounds": [
+        0,
+        4444
+      ],
+      "path": "diagnostics/stage-e-observer-v2-self-hosted/infra/tape.py",
+      "sha256": "6096ae743283710fae515d336b20215590e3d60f4b47547945d7f480201bc18f",
+      "symbol": "extended_frame"
+    },
+    "members": [
+      {
+        "decoded_canonical_sha256": "44410595c3803e983d40d4a89ba1d91dd96df2db715ce1a28d21c51e7804666b",
+        "encoded_prefix_bytes": 1221761845,
+        "encoded_prefix_sha256": "2dc21c395ac6439eec8dae5d28ef7b7cd2fd20818e4b86d3c4d9262979c44743",
+        "frames": 2223,
+        "id": "combined-1"
+      },
+      {
+        "decoded_canonical_sha256": "44410595c3803e983d40d4a89ba1d91dd96df2db715ce1a28d21c51e7804666b",
+        "encoded_prefix_bytes": 1221761845,
+        "encoded_prefix_sha256": "2dc21c395ac6439eec8dae5d28ef7b7cd2fd20818e4b86d3c4d9262979c44743",
+        "frames": 2223,
+        "id": "combined-2"
+      },
+      {
+        "decoded_canonical_sha256": "44410595c3803e983d40d4a89ba1d91dd96df2db715ce1a28d21c51e7804666b",
+        "encoded_prefix_bytes": 1221761845,
+        "encoded_prefix_sha256": "2dc21c395ac6439eec8dae5d28ef7b7cd2fd20818e4b86d3c4d9262979c44743",
+        "frames": 2223,
+        "id": "combined-3"
+      },
+      {
+        "decoded_canonical_sha256": "1cf8f1a30e7ef55d1c5c35737ba3236ef6bca62e892c944652e0e83f6f13a3db",
+        "encoded_prefix_bytes": 2442975789,
+        "encoded_prefix_sha256": "bce25229470bda363d963c441c45e3e7114794d1f3673c0ad4cc4180d39cb583",
+        "frames": 4445,
+        "id": "recovery-1"
+      }
+    ],
+    "monotonic_epoch": 100,
+    "native_prefix_equivalence_frames": 240,
+    "physical_bytes": 2442975789,
+    "physical_sha256": "bce25229470bda363d963c441c45e3e7114794d1f3673c0ad4cc4180d39cb583",
+    "spec": {
+      "bytes": 1957,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "10d66ffce7486ffe779cbaa5d2bd7adede5dff00",
+      "mode": "100644",
+      "path": "certification/stage_e_native_v2/fixtures/run380-v2.json",
+      "sha256": "0f5ac9bab9f75d53546742b405b7bb98721198f2af15569a3c76215818242847"
+    },
+    "template": {
+      "bytes": 98460,
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "git_blob": "909aa3f45142929375371c4d22664a28a996992a",
+      "mode": "100644",
+      "path": "certification/stage_e_native_v2/fixtures/run380-templates-v2.json.gz",
+      "sha256": "73f5a7bc8dd600ec060f3a9f907fb57b1fac9ea5bdf7d27ff9d3e8df72678ebe"
+    },
+    "transaction_mix": {
+      "failed": 256,
+      "meteora": 128,
+      "pump": 48,
+      "pumpswap": 80
+    },
+    "wall_epoch": 1800000000
+  },
+  "urgent_ack_schedule": "Existing real local-IPC acknowledgement coroutine, one-second real intervals once source >10 frames; >=10 successes and no errors for each mature member",
+  "verification": "Native current-S archive/body/hash/lineage verification, SQLite integrity, exact input receipts and admitted drain, committed source/maintenance progress and all unchanged safety predicates. External v3 only changes classified harness/performance predicates.",
+  "version": "run381-adversarial-stress-workload-v3",
+  "worker_limits": {
+    "archive_futures": 1,
+    "extra_archive_pools": 0,
+    "owner_queue_entries": 64,
+    "shared_spawn_pool": 2,
+    "urgent_reserved_entries": 8
+  },
+  "workload_identity": "run381-fullcert-36293751021-adversarial-v3"
+}

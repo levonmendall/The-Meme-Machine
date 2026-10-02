@@ -1,0 +1,23 @@
+tree 8d7e848c46a7943cc91ddc44c0e35b0aad200266
+parent eb0446a2953d0e7107738268d96204994502734d
+author github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com> 1790951818 +0000
+committer GitHub <noreply@github.com> 1790951818 +0000
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ wsFcBAABCAAQBQJqv8GKCRC1aQ7uu5UhlAAASPAQAB4riPn7+I8PZSEoSEV3b+eu
+ z7yl3JiAKul21aR7M/1637RCRfsJo69eBhwv5cNpxMk+7V2hWNP2DJsvzHE/BClS
+ VDiBvyCUW4YZlvv/AmGmXxxeO4JnVntDG8fCYDK0XZLSheLOsm1MdPe+a3/ZhzbZ
+ WYtOe/2RGIzk3t6Z+gSs9zF4oYTJ/tYilX6M5YzG8aK/qAcSW5CzYWwSmz03Dmmu
+ 2QwArZdh1QnOxzoZR/RpNF0sv4raZaBIQhzS+WoiUbGRk5ppBdGYZMGTkJ+8bqMN
+ Fi3vCmOGdPpBMaYChG40gd0qZCEw/HxyxY398cb4Puvt9fKz8nfd5iSI9Mk0dyXK
+ E0471k6J0kYfJIgi27vJ6Cswiyqqm271o7WMenF34eADs1gOKa4LGZbGMKP3t1xv
+ vIkEx7ohpgfCLf6cfWZh2uyt+5vCrNDGKjdW3XJinHvLbwOqm9RF/O8miVy3QIyK
+ P73VAtJeiMxXj+gNJYDfK1QrOikWdBZXvK+dNMD5nsnjUlUZxtrFTUI1Yar/DVuf
+ dzxZALkjL4ELAdhrW4bFY6TghxETANR89rfyxikmFvVRtgTlnBbWCs5c6BK8a4gJ
+ 8X6odIvIwcBLZ5GuNrvBmPad0I7FjklYqeQo//RLq1X5MwFuSeyhvFfkgFOqmn1o
+ ywy3ODl24tInAHO3kBDZ
+ =S8Ab
+ -----END PGP SIGNATURE-----
+ 
+
+[skip ci] Preserve observer PREDECLARATION.json

@@ -1,0 +1,17 @@
+{
+  "all_240_native_frames_equal": true,
+  "artifact_id": 11231336719,
+  "artifact_zip_sha256": "5af67c2dfa80c528ae25d165bcb95a1da74514e842442e22581d6492c674fdd4",
+  "bootstrap_passed": false,
+  "bootstrap_stop": "fresh_python_origin",
+  "invalid_pairs": 0,
+  "job_id": 110867811927,
+  "retries": 0,
+  "run_id": 37016277343,
+  "started_members": 0,
+  "started_trials": 0,
+  "suspected_cause": "Sanitized child environment omitted setup-python LD_LIBRARY_PATH, allowing the system libpython to replace the bound shared library.",
+  "tape_generation_passed": true,
+  "version": "observer-preparation-attempt-v1",
+  "workflow_sha": "24f3bcfd8507445df768c8f3f622377b9cf6ce64"
+}
