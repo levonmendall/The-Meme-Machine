@@ -1,0 +1,26 @@
+# Future executable declaration inputs — NOT AUTHORIZED / PREVIEW ONLY
+
+This package contains no execution-authorizing declaration, owner permit, allocation signature, signing key or active material workflow. `PREDECLARATION_PREVIEW.json` binds the actual review executor observation and exact executable/contract hashes while explicitly marking the future executor paths and material workflow unbound. It is rejected before tape validation or any process launch.
+
+`harness.declaration.preview()` accepts actual executor, environment, workflow, paths, allocation, storage bounds, prerequisites and independent trust-key hashes. It always returns `execution_authorized:false`, `actual_slots_reserved:false`, zero released frames and the preview disposition. The owner must review an exact future declaration and grant a separate signed permit before execution; this review does not request or grant that permission.
+
+Required future fields are enforced in `authorize()`, controller admission and child bootstrap:
+
+| Input | Binding |
+| --- | --- |
+| `executor` | Executor identity, host, boot ID and original network namespace; actual controller ancestry and all child/thread identities are captured at execution. |
+| `environment` | Actual frozen Python 3.12.14, stdlib/extensions, shared-library closure, websockets 17.1 locked files, PyYAML 6.0.2/jsonschema 4.23.0 tooling files, SQLite, OS/kernel/libc and required OS binaries; canonical manifest hash. |
+| `allocation` | Signed payload bound to the actual host/boot, validity window, exactly 2 dedicated allocated vCPU and 8 GiB RAM, visible CPU IDs, usable RAM, full ancestor inventory hash, no swap/balloon/competitor, durable mount capabilities and necessary system-process identities. |
+| `storage_bounds` | Exact tape bytes 2442975789; 12 GiB headroom; positive working/publication budgets; retained-evidence byte count; each member's positive `member_working_bytes`; ordered path/minimum-total requirements. Budgets must cover trial copies and the final complete campaign copy simultaneously. |
+| `workflow` | Exact installed `.github/workflows/stagee-native-v3-material.yml` bytes and resolved workflow commit; repository, workflow_dispatch event, actual run ID, attempt exactly 1. Actual GitHub runtime variables must match. Runner labels convey no resource admission credit. |
+| `paths` | `repository`, untouched `candidate_checkout`, verified immutable `assembly`, existing immutable `tape`, `frame_inventory`, `allocation_document`, separately trusted `allocation_public_key`, every `storage_paths` mount, fresh `campaign_registry`, nonexistent `cache_path`, durable `durable_publication_root`. Paths must fit the native UNIX socket length limit. |
+| `trust_keys` | Separately trusted `owner_public_key_sha256` and `allocation_public_key_sha256`; public key bytes are supplied independently from preserved evidence. Private keys and credentials are never preservation/publication inputs. |
+| `prerequisites.capacity` for B | Fresh A declaration path/hash and complete sealed raw A trial path, reverified for exact S/T, assembly, workload and environment. Historical observer evidence cannot satisfy this input. |
+
+The allocation signed envelope has exactly `payload` and `signature_base64`. OpenSSL SHA-256 signature verification uses the independently supplied public key with its predeclared file hash. Payload fields include `allocation`, `boot_id`, `hostname`, `valid_from_utc_ns`, `expires_utc_ns`, `usable_ram_bytes`, `ancestor_inventory_sha256`, `allocation_evidence` (path/hash capability receipts), `durable_mounts` and `system_processes` (PID/start ticks/executable SHA-256). A self-asserted `verified:true` supplies no evidence.
+
+The separate owner permit payload must equal the exact schema in `authorize()`: version `stage-e-native-v3-owner-execution-permit`; SHA-256 of the original declaration bytes; class, fresh campaign, complete workflow and executor identity; `paper_only:true`, `stage_f_authorized:false`, `provider_authorized:false`. Signatures cannot substitute for actual runtime/resource/tape checks. Declaration timing, stop/preservation rules, S/T, assembly, historical seal, exact class workload, harness and verifier must match this published implementation.
+
+The material workflow preview resides outside `.github/workflows` and its job condition is false. A future owner-reviewed installation is a distinct change, with a new frozen workflow identity and separately signed exact declaration/run binding. None is performed here. A requires one fresh capacity trial; B requires six new ordered trials after A; C requires one fresh stress trial. A consumed/invalid or interrupted namespace cannot be reopened, rerun or resumed.
+
+Read-only future verification requires the preserved complete campaign plus independently trusted public keys, the exact reviewed assembly and, for B, retained raw A evidence. The original declaration/signatures/capability files are preserved with relative receipts to support campaign relocation. Assembly and A prerequisite paths must be made available at the declared locations; missing bytes fail verification. Partial/invalid trials remain preserved for review and receive no complete-campaign acceptance.
