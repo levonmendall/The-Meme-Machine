@@ -23,7 +23,7 @@
     "stdout": "{\n   \"blockdevices\": [\n      {\n         \"name\": \"sda\",\n         \"path\": \"/dev/sda\",\n         \"size\": 53687091200,\n         \"fstype\": \"ext4\",\n         \"label\": null,\n         \"uuid\": \"0ce00d89-000b-4af1-960f-d5be400ff115\",\n         \"mountpoints\": [\n             \"/mnt/volume_nyc1_1790918115030\"\n         ]\n      },{\n         \"name\": \"vda\",\n         \"path\": \"/dev/vda\",\n         \"size\": 53687091200,\n         \"fstype\": null,\n         \"label\": null,\n         \"uuid\": null,\n         \"mountpoints\": [\n             null\n         ],\n         \"children\": [\n            {\n               \"name\": \"vda1\",\n               \"path\": \"/dev/vda1\",\n               \"size\": 52612283904,\n               \"fstype\": \"ext4\",\n               \"label\": \"cloudimg-rootfs\",\n               \"uuid\": \"1bfefdfb-34c9-46c7-854f-399d0a1dea04\",\n               \"mountpoints\": [\n                   \"/\"\n               ]\n            },{\n               \"name\": \"vda14\",\n               \"path\": \"/dev/vda14\",\n               \"size\": 4194304,\n               \"fstype\": null,\n               \"label\": null,\n               \"uuid\": null,\n               \"mountpoints\": [\n                   null\n               ]\n            },{\n               \"name\": \"vda15\",\n               \"path\": \"/dev/vda15\",\n               \"size\": 111149056,\n               \"fstype\": \"vfat\",\n               \"label\": \"UEFI\",\n               \"uuid\": \"103C-DA09\",\n               \"mountpoints\": [\n                   \"/boot/efi\"\n               ]\n            },{\n               \"name\": \"vda16\",\n               \"path\": \"/dev/vda16\",\n               \"size\": 957350400,\n               \"fstype\": \"ext4\",\n               \"label\": \"BOOT\",\n               \"uuid\": \"fb8b4264-587e-4a60-a103-a1d39552f189\",\n               \"mountpoints\": [\n                   \"/boot\"\n               ]\n            }\n         ]\n      },{\n         \"name\": \"vdb\",\n         \"path\": \"/dev/vdb\",\n         \"size\": 501760,\n         \"fstype\": \"iso9660\",\n         \"label\": \"config-2\",\n         \"uuid\": \"2026-10-02-05-10-24-00\",\n         \"mountpoints\": [\n             null\n         ]\n      }\n   ]\n}"
   },
   "memory": {
-    "MemAvailable": "7490980 kB",
+    "MemAvailable": "7520792 kB",
     "MemTotal": "8132488 kB"
   },
   "os_release": {
@@ -59,7 +59,7 @@
     "workFolder": "_work"
   },
   "root_disk": {
-    "free_bytes": 47775440896,
+    "free_bytes": 47737126912,
     "total_bytes": 50884108288
   },
   "routing_labels": [
@@ -71,10 +71,10 @@
   "runner": {
     "GITHUB_REPOSITORY": "levonmendall/The-Meme-Machine",
     "GITHUB_RUN_ATTEMPT": "1",
-    "GITHUB_RUN_ID": "36978269243",
-    "GITHUB_SHA": "2053b009a37c1e6edd9a4173b798ea4a5b87fa93",
+    "GITHUB_RUN_ID": "37012406568",
+    "GITHUB_SHA": "5afd68c2d164fcbde835add1b01fa0f4e92a4398",
     "GITHUB_WORKFLOW_REF": "levonmendall/The-Meme-Machine/.github/workflows/non-market-certification.yml@refs/heads/diagnostics/stage-e-observer-v2-self-hosted-20261002",
-    "GITHUB_WORKFLOW_SHA": "2053b009a37c1e6edd9a4173b798ea4a5b87fa93",
+    "GITHUB_WORKFLOW_SHA": "5afd68c2d164fcbde835add1b01fa0f4e92a4398",
     "RUNNER_ARCH": "X64",
     "RUNNER_NAME": "the meme machine",
     "RUNNER_OS": "Linux",
@@ -96,7 +96,7 @@
   "started_members": 0,
   "started_trials": 0,
   "unique_eligibility": "USER_CONFIRMED_ONLY_THIS_REPOSITORY_RUNNER_HAS_THE_OBSERVER_LABEL",
-  "utc": "2026-10-02T07:23:13Z",
+  "utc": "2026-10-02T13:21:14Z",
   "version": "observer-host-identity-only-v1",
   "volume_devices": [
     "/dev/sda"
@@ -112,5 +112,5 @@
       "used_bytes": 24576
     }
   ],
-  "workflow_file_sha256": "61fd19f5e3805bacd1ed54d8694a2ab511911e8ca0cea7abc5e14eae6caba0f2"
+  "workflow_file_sha256": "7d4f5c30f08676722e6d2f66ff4b47971ff5cd31d84225205dd4e7a41feb5a90"
 }

@@ -39,6 +39,10 @@ jobs:
         env:
           OBSERVER_PREPARATION_OUTPUT: ${{ runner.temp }}/stage-e-observer-host-identity-${{ github.run_id }}
         run: /workspace/stage-e-runtime/bin/python -I -B diagnostics/stage-e-observer-v2-self-hosted/prepare_assembly.py
+      - name: Generate canonical tape and complete external observer proofs without replay
+        env:
+          OBSERVER_PREPARATION_OUTPUT: ${{ runner.temp }}/stage-e-observer-host-identity-${{ github.run_id }}
+        run: /workspace/stage-e-runtime/bin/python -I -B diagnostics/stage-e-observer-v2-self-hosted/prepare_external.py
       - name: Preserve preparation evidence without starting any workload
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
