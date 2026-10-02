@@ -67,10 +67,13 @@ class Ledger:
                 require(number > 1 and type(sequence) is int and sequence == len(started)+1
                         and len(completed) == len(started) and sequence <= len(identity['trials']), 'ledger_start_order')
                 started.append(sequence)
-            elif event in ('COMPLETE_VALID','INVALID'):
+            elif event in ('COMPLETE_VALID','INVALID','DIAGNOSTIC_OVERLOAD'):
                 require(type(sequence) is int and started and sequence == started[-1]
                         and sequence not in completed, 'ledger_completion_order')
-                if event == 'COMPLETE_VALID':
+                if event == 'DIAGNOSTIC_OVERLOAD':
+                    self._overload(identity, raw['details'])
+                    terminal = True
+                elif event == 'COMPLETE_VALID':
                     completed.append(sequence)
                 else:
                     terminal = True
@@ -89,15 +92,17 @@ class Ledger:
             identity = read(self.path.parent / 'IDENTITY.json')
             starts = [r['sequence'] for r in rows if r['event'] == 'STARTED']
             done = [r['sequence'] for r in rows if r['event'] == 'COMPLETE_VALID']
-            require(not any(r['event'] in ('INVALID', 'STOPPED') for r in rows), 'terminal_campaign_no_reuse')
+            require(not any(r['event'] in ('INVALID', 'STOPPED', 'DIAGNOSTIC_OVERLOAD') for r in rows), 'terminal_campaign_no_reuse')
             if event == 'CREATED':
                 require(not rows and sequence is None, 'duplicate_campaign_create')
             elif event == 'STARTED':
                 require(type(sequence) is int and sequence == len(starts) + 1 and len(done) == len(starts)
                         and sequence <= len(identity['trials']), 'retry_replacement_or_incomplete_previous')
-            elif event in ('COMPLETE_VALID', 'INVALID'):
+            elif event in ('COMPLETE_VALID', 'INVALID', 'DIAGNOSTIC_OVERLOAD'):
                 require(type(sequence) is int and starts and sequence == starts[-1] and sequence not in done,
                         'unstarted_or_duplicate_completion')
+                if event == 'DIAGNOSTIC_OVERLOAD':
+                    self._overload(identity, details)
             elif event == 'STOPPED':
                 require(sequence is None, 'stop_sequence')
             else:
@@ -113,6 +118,16 @@ class Ledger:
             fsync_dir(self.path.parent)
             self.events()
             return row
+
+    @staticmethod
+    def _overload(identity, details):
+        proof = details.get('verification', {})
+        require(identity['kind'] == 'C' and proof.get('class_id') == 'C'
+                and proof.get('native_verified') is True and proof.get('passed') is True
+                and proof.get('safety_only') is True and proof.get('capacity_credit') is False
+                and proof.get('diagnostic_outcome') == 'FAILED_DIAGNOSTIC'
+                and proof.get('outcome') == 'DIAGNOSTIC_OVERLOAD_WITH_NATIVE_FAIL_CLOSED_PROOF',
+                'terminal_overload_requires_verified_C_safety_only')
 
 
 def fresh_campaign(kind):

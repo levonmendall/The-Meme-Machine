@@ -170,6 +170,7 @@ class TapeWire:
         return dict(version='v3-source-receipt', member=self.params['member'], kind=self.params['kind'],
             mode=self.params['mode'], tape=tape, source_frames_released=self.sent,
             first_release_real_monotonic_ns=self.first_release, immutable_semantic_wall_epoch=1800000000,
+            last_release_real_monotonic_ns=self.raw_hashes[-1]['released_real_monotonic_ns'] if self.raw_hashes else None,
             immutable_semantic_monotonic_epoch=100, cadence_us=self.params['cadence_us'],
             retiming_calls=0, raw_release_hashes=self.raw_hashes, clock_samples=self.samples,
             declaration_sha256=self.params['declaration_sha256'])

@@ -7,6 +7,21 @@ import subprocess
 import bound_runtime as bound
 from core import COHORT, INFRA, MODES, file_sha, read, require, workload
 from preserve import persist, fsync_dir
+from verify import stress_member_result
+
+OVERLOAD = 'DIAGNOSTIC_OVERLOAD_WITH_NATIVE_FAIL_CLOSED_PROOF'
+
+
+def member_acceptance(code, result, kind):
+    """Protocol admission only; independent raw verification is still required."""
+    if code != 0:
+        return False, False
+    if kind != 'C':
+        return result.get('valid') is True, False
+    classification = stress_member_result(result)
+    valid = classification['mandatory_native_safety_pass'] and all(
+        result.get(k) == v for k,v in classification.items())
+    return valid, valid and classification['outcome'] == OVERLOAD
 
 
 def runtime_command(params, entry):
@@ -82,12 +97,18 @@ def main():
                 log.flush(); os.fsync(log.fileno())
         result_path = folder/'MEMBER_RESULT.json'
         result = read(result_path) if result_path.exists() else {}
-        valid = code == 0 and (result.get('valid') is True if kind != 'C'
-                              else result.get('mandatory_native_safety_pass') is True and result.get('diagnostic_performance_pass') is True)
+        valid, terminal = member_acceptance(code, result, kind)
         members.append(dict(member=member, frames=frames, shape=shape, exit_code=code, valid=valid,
                             member_result_sha256=file_sha(result_path) if result_path.exists() else None))
         persist(output/f'MEMBER-{index}-FINISHED.json', dict(members=list(members), valid=valid))
         require(valid, 'started_member_invalid:'+member)
+        if terminal:
+            persist(output/'COHORT_RESULT.json', dict(version='v3-terminal-native-overload', kind=kind,
+                sequence=number, trial_id=params['trial_id'], mode=mode, valid=True, members=members,
+                complete_profile=False, outcome=OVERLOAD, diagnostic_outcome='FAILED_DIAGNOSTIC',
+                capacity_credit=False, terminal_member=member, no_further_members=True,
+                declaration_sha256=params['declaration_sha256']))
+            return
     persist(output/'COHORT_RESULT.json', dict(version='v3-complete-cohort', kind=kind, sequence=number,
-        trial_id=params['trial_id'], mode=mode, valid=True, members=members,
+        trial_id=params['trial_id'], mode=mode, valid=True, members=members, complete_profile=True,
         declaration_sha256=params['declaration_sha256']))

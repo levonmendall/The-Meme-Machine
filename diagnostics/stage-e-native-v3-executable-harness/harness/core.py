@@ -22,6 +22,11 @@ REAL_UTC_NS = time.time_ns
 HEADROOM = 12 * 1024**3
 RAM = 8 * 1024**3
 MAGIC = b'MMOBSV2\0'
+RESOURCE_TOLERANCE_NS = 2*10**9
+CLOCK_PAIR_TOLERANCE_NS = 10*10**6
+RESOURCE_SAMPLING = dict(cadence_ns=250000000, maximum_gap_ns=RESOURCE_TOLERANCE_NS,
+    boundary_tolerance_ns=RESOURCE_TOLERANCE_NS, lifetime_sampling_uncertainty_ns=RESOURCE_TOLERANCE_NS,
+    clock_pair_tolerance_ns=CLOCK_PAIR_TOLERANCE_NS)
 
 
 def canonical(value):

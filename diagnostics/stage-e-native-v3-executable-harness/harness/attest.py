@@ -162,7 +162,8 @@ def process_inventory():
         try:
             status = _text(path/'stat')
             rest = status[status.rfind(')')+2:].split()
-            row = dict(pid=int(path.name), ppid=int(rest[1]), state=rest[0], start_ticks=int(rest[19]))
+            row = dict(pid=int(path.name), ppid=int(rest[1]), process_group=int(rest[2]),
+                       state=rest[0], start_ticks=int(rest[19]))
             exe = path/'exe'
             if exe.exists():
                 actual = exe.resolve(strict=True)
