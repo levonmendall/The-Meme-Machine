@@ -1,53 +1,232 @@
-name: Stage E observer self-hosted preparation
-run-name: Observer preparation ${{ inputs.expected_sha }}
-on:
+name: Stage E exact-candidate observer v2
+run-name: Observer v2 on the meme machine — ${{ inputs.expected_sha }}
+'on':
   workflow_dispatch:
     inputs:
       expected_sha:
         type: string
         required: true
 permissions:
-  contents: read
+  contents: write
   actions: read
 concurrency:
   group: meme-machine-stage-e-observer
   cancel-in-progress: false
 jobs:
-  observer-host-identity:
-    if: github.run_attempt == 1
-    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+  observer:
+    if: ${{ github.run_attempt == 1 }}
+    runs-on:
+    - self-hosted
+    - linux
+    - x64
+    - meme-machine-stage-e-observer
     timeout-minutes: 720
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: ${{ inputs.expected_sha }}
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Verify actual host and mounted volume before preparation
-        env:
-          OBSERVER_EXPECTED_SHA: ${{ inputs.expected_sha }}
-          OBSERVER_IDENTITY_OUTPUT: ${{ runner.temp }}/stage-e-observer-host-identity-${{ github.run_id }}
-        run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/inspect_host.py
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.14'
-      - name: Prepare fixed-version external runtime
-        run: |
-          python -m venv /workspace/stage-e-runtime
-          /workspace/stage-e-runtime/bin/python -m pip install --disable-pip-version-check --only-binary=:all: websockets==17.1
-      - name: Reconstruct exact reviewed assembly and bind the fresh environment
-        env:
-          OBSERVER_PREPARATION_OUTPUT: ${{ runner.temp }}/stage-e-observer-host-identity-${{ github.run_id }}
-        run: /workspace/stage-e-runtime/bin/python -I -B diagnostics/stage-e-observer-v2-self-hosted/prepare_assembly.py
-      - name: Generate canonical tape and complete external observer proofs without replay
-        env:
-          OBSERVER_PREPARATION_OUTPUT: ${{ runner.temp }}/stage-e-observer-host-identity-${{ github.run_id }}
-        run: /workspace/stage-e-runtime/bin/python -I -B diagnostics/stage-e-observer-v2-self-hosted/prepare_external.py
-      - name: Preserve preparation evidence without starting any workload
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: observer-host-identity-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/stage-e-observer-host-identity-${{ github.run_id }}/
-          if-no-files-found: error
-          retention-days: 90
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: ${{ inputs.expected_sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Verify exact host and mounted volume before observer preparation
+      env:
+        OBSERVER_EXPECTED_SHA: ${{ inputs.expected_sha }}
+        OBSERVER_IDENTITY_OUTPUT: ${{ runner.temp }}/observer-final-host-${{ github.run_id }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/inspect_host.py
+    - name: Publish NEW executable declaration and read it back before Trial 1
+      id: declaration
+      env:
+        GH_OBSERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OBSERVER_EXPECTED_SHA: ${{ inputs.expected_sha }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py configure
+    - name: Preserve declaration before any measured interval
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: observer-predeclaration-${{ github.run_id }}-1
+        path: '/mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/PREDECLARATION*.json
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/READY.json
+
+          ${{ runner.temp }}/observer-final-host-${{ github.run_id }}/HOST_IDENTITY.json'
+        if-no-files-found: error
+        retention-days: 90
+    - name: Trial 1 of 6 — baseline; no warmup or retry
+      id: trial1
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py trial --sequence 1
+    - name: Preserve Trial 1 raw evidence after all measured processes stop
+      id: preserve1
+      if: ${{ always() && steps.trial1.outcome != 'skipped' }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py preserve --sequence 1
+    - name: Upload Trial 1 outside its measured interval
+      id: upload1
+      if: ${{ always() && steps.preserve1.outcome == 'success' && steps.trial1.outcome != 'skipped' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: observer-trial-1-${{ github.run_id }}-1
+        path: '/mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/TRIAL-1.tar.gz
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/INVENTORY-1.json'
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Read back Trial 1 artifact identity before advancing
+      id: durable1
+      if: ${{ always() && steps.upload1.outcome == 'success' }}
+      env:
+        GH_OBSERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OBSERVER_ARTIFACT_ID: ${{ steps.upload1.outputs.artifact-id }}
+        OBSERVER_ARTIFACT_DIGEST: ${{ steps.upload1.outputs.artifact-digest }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py durable --sequence 1
+    - name: Trial 2 of 6 — observed; no warmup or retry
+      id: trial2
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py trial --sequence 2
+    - name: Preserve Trial 2 raw evidence after all measured processes stop
+      id: preserve2
+      if: ${{ always() && steps.trial2.outcome != 'skipped' }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py preserve --sequence 2
+    - name: Upload Trial 2 outside its measured interval
+      id: upload2
+      if: ${{ always() && steps.preserve2.outcome == 'success' && steps.trial2.outcome != 'skipped' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: observer-trial-2-${{ github.run_id }}-1
+        path: '/mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/TRIAL-2.tar.gz
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/INVENTORY-2.json'
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Read back Trial 2 artifact identity before advancing
+      id: durable2
+      if: ${{ always() && steps.upload2.outcome == 'success' }}
+      env:
+        GH_OBSERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OBSERVER_ARTIFACT_ID: ${{ steps.upload2.outputs.artifact-id }}
+        OBSERVER_ARTIFACT_DIGEST: ${{ steps.upload2.outputs.artifact-digest }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py durable --sequence 2
+    - name: Trial 3 of 6 — observed; no warmup or retry
+      id: trial3
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py trial --sequence 3
+    - name: Preserve Trial 3 raw evidence after all measured processes stop
+      id: preserve3
+      if: ${{ always() && steps.trial3.outcome != 'skipped' }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py preserve --sequence 3
+    - name: Upload Trial 3 outside its measured interval
+      id: upload3
+      if: ${{ always() && steps.preserve3.outcome == 'success' && steps.trial3.outcome != 'skipped' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: observer-trial-3-${{ github.run_id }}-1
+        path: '/mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/TRIAL-3.tar.gz
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/INVENTORY-3.json'
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Read back Trial 3 artifact identity before advancing
+      id: durable3
+      if: ${{ always() && steps.upload3.outcome == 'success' }}
+      env:
+        GH_OBSERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OBSERVER_ARTIFACT_ID: ${{ steps.upload3.outputs.artifact-id }}
+        OBSERVER_ARTIFACT_DIGEST: ${{ steps.upload3.outputs.artifact-digest }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py durable --sequence 3
+    - name: Trial 4 of 6 — baseline; no warmup or retry
+      id: trial4
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py trial --sequence 4
+    - name: Preserve Trial 4 raw evidence after all measured processes stop
+      id: preserve4
+      if: ${{ always() && steps.trial4.outcome != 'skipped' }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py preserve --sequence 4
+    - name: Upload Trial 4 outside its measured interval
+      id: upload4
+      if: ${{ always() && steps.preserve4.outcome == 'success' && steps.trial4.outcome != 'skipped' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: observer-trial-4-${{ github.run_id }}-1
+        path: '/mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/TRIAL-4.tar.gz
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/INVENTORY-4.json'
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Read back Trial 4 artifact identity before advancing
+      id: durable4
+      if: ${{ always() && steps.upload4.outcome == 'success' }}
+      env:
+        GH_OBSERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OBSERVER_ARTIFACT_ID: ${{ steps.upload4.outputs.artifact-id }}
+        OBSERVER_ARTIFACT_DIGEST: ${{ steps.upload4.outputs.artifact-digest }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py durable --sequence 4
+    - name: Trial 5 of 6 — baseline; no warmup or retry
+      id: trial5
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py trial --sequence 5
+    - name: Preserve Trial 5 raw evidence after all measured processes stop
+      id: preserve5
+      if: ${{ always() && steps.trial5.outcome != 'skipped' }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py preserve --sequence 5
+    - name: Upload Trial 5 outside its measured interval
+      id: upload5
+      if: ${{ always() && steps.preserve5.outcome == 'success' && steps.trial5.outcome != 'skipped' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: observer-trial-5-${{ github.run_id }}-1
+        path: '/mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/TRIAL-5.tar.gz
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/INVENTORY-5.json'
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Read back Trial 5 artifact identity before advancing
+      id: durable5
+      if: ${{ always() && steps.upload5.outcome == 'success' }}
+      env:
+        GH_OBSERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OBSERVER_ARTIFACT_ID: ${{ steps.upload5.outputs.artifact-id }}
+        OBSERVER_ARTIFACT_DIGEST: ${{ steps.upload5.outputs.artifact-digest }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py durable --sequence 5
+    - name: Trial 6 of 6 — observed; no warmup or retry
+      id: trial6
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py trial --sequence 6
+    - name: Preserve Trial 6 raw evidence after all measured processes stop
+      id: preserve6
+      if: ${{ always() && steps.trial6.outcome != 'skipped' }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py preserve --sequence 6
+    - name: Upload Trial 6 outside its measured interval
+      id: upload6
+      if: ${{ always() && steps.preserve6.outcome == 'success' && steps.trial6.outcome != 'skipped' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: observer-trial-6-${{ github.run_id }}-1
+        path: '/mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/TRIAL-6.tar.gz
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/INVENTORY-6.json'
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Read back Trial 6 artifact identity before advancing
+      id: durable6
+      if: ${{ always() && steps.upload6.outcome == 'success' }}
+      env:
+        GH_OBSERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OBSERVER_ARTIFACT_ID: ${{ steps.upload6.outputs.artifact-id }}
+        OBSERVER_ARTIFACT_DIGEST: ${{ steps.upload6.outputs.artifact-digest }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py durable --sequence 6
+    - name: Apply native observer.verify and STOP FOR ASTRA
+      if: ${{ always() }}
+      env:
+        GH_OBSERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/launch_control.py finalize
+    - name: Preserve terminal observer result and ledger
+      if: ${{ always() }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: observer-final-${{ github.run_id }}-1
+        path: '/mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/*.json
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/t*/DURABLE.json
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/t*/MEASUREMENT.json
+
+          /mnt/volume_nyc1_1790918115030/ov2/r${{ github.run_id }}/t*/INTERRUPTION.json'
+        if-no-files-found: error
+        retention-days: 90
