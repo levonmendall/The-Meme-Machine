@@ -1,0 +1,266 @@
+{
+  "acceptance": {
+    "denominator": "sum(baseline_ns)",
+    "native_verifier": "certification.stage_e_native_v2.observer.verify",
+    "numerator": "sum(observed_ns-baseline_ns)",
+    "ratio": "numerator_ns/denominator_ns without rounding",
+    "strict_integer_comparison": "numerator_ns*100 < denominator_ns"
+  },
+  "actual_cryptographic_frame_input_hash": null,
+  "actual_frame_input_hash_status": "UNBOUND; trials prohibited until approved complete equal-byte driver/clock binding is identified",
+  "assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659",
+  "assembly_files": 1241,
+  "assembly_recipe": "exact-git-tree-v2;generated=[];overlays=[];outputs=external",
+  "astra_decision": "AUTHORIZE_EXACT_CANDIDATE_OBSERVER",
+  "baseline_mode": "same exact source/workload with qualification observation disabled",
+  "benchmark_driver_sha256": null,
+  "benchmark_driver_status": "No approved executable equal-byte driver bound",
+  "branch": "diagnostics/stage-e-observer-v2-20261002",
+  "candidate_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "candidate_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+  "declared_utc": "2026-10-02T01:51:24.036194+00:00",
+  "driver_source_hashes": {
+    "certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+    "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+    "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+    "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+    "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+    "certification/stage_e_native_v2/clock.py": "ffe36af4d7b18662e78929fbf8f9854a0441a1e613b5ae55a75ed9ee48a64b58",
+    "certification/stage_e_native_v2/fixtures.py": "0faddec8928925b61e663a50337161eb52e6a229d5fa9c3e113bada1b53440f2",
+    "certification/stage_e_native_v2/fixtures/run380-v2.json": "0f5ac9bab9f75d53546742b405b7bb98721198f2af15569a3c76215818242847",
+    "certification/stage_e_native_v2/material.py": "ee0731768f8b690270ea3a621383ce9659d8aa513112a47c32ea98675f8ec5d6",
+    "certification/stage_e_native_v2/runner.py": "7f3ec0974e321b22091ab17017768c643ef88e8e634ee936ce8eb04628e1150f",
+    "certification/stagee24_qualification_plan.json": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e",
+    "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+    "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"
+  },
+  "durable_status": "BLOCKED_BEFORE_TRIAL_1",
+  "environment": {
+    "exact_reviewed_runtime_environment_match": true,
+    "file": "ENVIRONMENT.json",
+    "sha256": "084e7136ef5d4f2fbf547e21a24483f16dac91075f550b1b378aad0e5bab6330"
+  },
+  "exact_six_trial_order": [
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p1",
+      "sequence": 1,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t01-p1-baseline"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p1",
+      "sequence": 2,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t02-p1-observed"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p2",
+      "sequence": 3,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t03-p2-observed"
+    },
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p2",
+      "sequence": 4,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t04-p2-baseline"
+    },
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p3",
+      "sequence": 5,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t05-p3-baseline"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p3",
+      "sequence": 6,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t06-p3-observed"
+    }
+  ],
+  "executable_predeclaration_valid": false,
+  "execution_key": "observer-v2-20261002-exact-7a516a6a",
+  "execution_runner": {
+    "actual_benchmark_runner": null,
+    "kind": "same managed runner, sequential local isolated Python processes intended",
+    "python": "/workspace/stage-e-runtime/bin/python",
+    "python_flags": [
+      "-I",
+      "-S",
+      "-B"
+    ],
+    "status": "NOT IMPLEMENTED: workload semantic binding unresolved"
+  },
+  "external_diagnostics_harness": {
+    "included_in_candidate_qualification_identity": false,
+    "path": "inspect_candidate.py",
+    "role": "static assembly/environment/origin/workload preflight only; does not execute Wire.recv or a pressure runtime",
+    "sha256": "25d07ce544b740eb359752d2173da9641ae9705672866cf90d2ae55885cd3a68"
+  },
+  "hard_stop": "STOP FOR ASTRA; no retries, tuning, prepared qualification, full material Run373/379/380, fixed cohort, candidate freeze, canonical Stage E, promotion, or Stage F",
+  "input_manifest_hash": "d38f0ea0978ef629f5af57bc778a5ee77e3115ed5cb4c5dd0e35280f184bb983",
+  "invalidation_conditions": [
+    "crash",
+    "disconnect",
+    "interruption",
+    "wrong S/T/assembly or module/child origin",
+    "wrong or unbound workload/input bytes/configuration",
+    "lost evidence",
+    "incomplete cohort",
+    "environment drift",
+    "provider/network attempt",
+    "observer errors/dropped evidence",
+    "baseline_ns <= 0",
+    "observed_ns < baseline_ns",
+    "nonidentical pair workload"
+  ],
+  "mode_implementation_status": "UNBOUND; cannot claim baseline/observed executable equivalence",
+  "no_replacement": true,
+  "no_retry": true,
+  "observed_mode": "same complete equal-byte workload with qualification observation enabled",
+  "observer_contract": {
+    "acceptance": "ratio < 0.01",
+    "baseline": "same exact source/workload with qualification observation disabled",
+    "estimator": "sum(observed-baseline)/sum(baseline)",
+    "measured": false,
+    "metric": "paired elapsed monotonic nanoseconds for complete equal-workload trials",
+    "repetition_policy": {
+      "no_retry": true,
+      "order": [
+        "baseline-observed",
+        "observed-baseline",
+        "baseline-observed"
+      ],
+      "pairs": 3,
+      "retain_invalid_pairs": true
+    },
+    "validity_conditions": [
+      "fresh exact S/T/plan/assembly/environment",
+      "identical inputs/delays/frames/worker limits",
+      "all applicable observer costs included",
+      "no overlapping cost double count",
+      "no cached historical measurement",
+      "positive baseline",
+      "every pair valid"
+    ],
+    "version": "native-observer-paired-measurement-v2",
+    "workload_identity": "native-full-cohort-pressure-v2"
+  },
+  "observer_contract_hash": "9695ef0d1f039cc688d6a7b34d1d8e8e00a4d3df43a6b7cf14c9cb6c0eaf3e84",
+  "output_artifact_policy": {
+    "immediately_preserve_completed_or_failed_trial_before_next": true,
+    "no_false_trial_or_measurement_artifacts": true,
+    "no_final_capacity_screen_timer_credit": true,
+    "no_historical_acceptance_credit": true,
+    "no_runtime_databases_or_credentials_in_git": true,
+    "outputs_outside_assembly": true,
+    "path": "diagnostics/stage-e-observer-v2/",
+    "retained_raw_files_and_hash_inventories": true
+  },
+  "paper_only": true,
+  "plan_hash": "6c40324250e0870a9207161a0b944d58272922c90bf6fce97c57c2bb3dda16df",
+  "pre_trial_gate": {
+    "benchmark_trials_started": 0,
+    "blocker": "STATIC_BLOCKER.json",
+    "clarification": "Identify the approved complete-cohort equal-byte driver/clock binding; do not change immutable candidate/runtime/workload/clocks",
+    "passed": false
+  },
+  "repetition_policy": {
+    "no_retry": true,
+    "order": [
+      "baseline-observed",
+      "observed-baseline",
+      "baseline-observed"
+    ],
+    "pairs": 3,
+    "retain_invalid_pairs": true
+  },
+  "repository": "levonmendall/The-Meme-Machine",
+  "reviewed_assembly_manifest_sha256": "d60d02a32838df4658cc5943d469057ec08ece11e82301b3e85231e029c9eaa0",
+  "stage_e": "RED",
+  "stage_f": "NOT STARTED",
+  "timing": {
+    "all_observer_work_inside": true,
+    "boundaries_status": "INTENDED ONLY; no timer used for benchmark measurement",
+    "clock": "time.perf_counter_ns()",
+    "end": "After all four full workloads, native teardown, observer joins, required serialization/persistence, and all child/helper termination",
+    "identical_boundaries_required": true,
+    "no_internal_overlapping_timer_double_count": true,
+    "no_subtraction": true,
+    "start": "Before isolated trial process startup, runtime/observer initialization, complete cohort input setup, and any observer helper startup"
+  },
+  "version": "exact-candidate-observer-v2-predeclaration-blocked-v1",
+  "workload": {
+    "actual_frame_tape_sha256": null,
+    "additional_commit_latency_seconds": 0.006,
+    "approved_v2_clock_domains": {
+      "advancement": "integer microseconds; setup frozen; explicit execution schedule only",
+      "economic_event": "immutable event bytes constructed from declared economic clock before execution",
+      "economic_now": "wall; ages advance with wall even during stalled source",
+      "mapping": "wall=wall_epoch+(monotonic-monotonic_epoch)",
+      "monotonic_epoch": 100,
+      "observer": "real monotonic perf_counter_ns; only future paired measurement; never modeled timing",
+      "recovery": "native latched source-origin+120; persists across restart",
+      "residence": "wall minus original event time (first_seen only when no event time)",
+      "source": "fixed finalized block timestamp; never receive-time substitution",
+      "version": "native-clock-domain-contract-v2",
+      "wall_epoch": 1800000000,
+      "wall_monotonic_error_seconds": 3
+    },
+    "archive_seconds_per_thousand": 0.36,
+    "cadence_us": 270000,
+    "executable_equal_byte_driver": null,
+    "frame_tape_status": "UNBOUND: no approved executable clock/source adapter identified",
+    "owner_seconds_per_frame": 0.165,
+    "pause_frames": [
+      800,
+      1400
+    ],
+    "pause_seconds": 8,
+    "retained_plan_cohort": [
+      {
+        "frames": 2223,
+        "id": "combined-1"
+      },
+      {
+        "frames": 2223,
+        "id": "combined-2"
+      },
+      {
+        "frames": 2223,
+        "id": "combined-3"
+      },
+      {
+        "frames": 4445,
+        "id": "recovery-1"
+      }
+    ],
+    "sample_wall_seconds": 5,
+    "source_hashes": {
+      "certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+      "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+      "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+      "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+      "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+      "certification/stage_e_native_v2/clock.py": "ffe36af4d7b18662e78929fbf8f9854a0441a1e613b5ae55a75ed9ee48a64b58",
+      "certification/stage_e_native_v2/fixtures.py": "0faddec8928925b61e663a50337161eb52e6a229d5fa9c3e113bada1b53440f2",
+      "certification/stage_e_native_v2/fixtures/run380-v2.json": "0f5ac9bab9f75d53546742b405b7bb98721198f2af15569a3c76215818242847",
+      "certification/stage_e_native_v2/material.py": "ee0731768f8b690270ea3a621383ce9659d8aa513112a47c32ea98675f8ec5d6",
+      "certification/stage_e_native_v2/runner.py": "7f3ec0974e321b22091ab17017768c643ef88e8e634ee936ce8eb04628e1150f",
+      "certification/stagee24_qualification_plan.json": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e",
+      "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+      "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"
+    },
+    "workload_identity": "native-full-cohort-pressure-v2"
+  },
+  "workload_descriptor_sha256": "ed24682f4ed9ac6bccae022f4161f07c1befc9d9ee5da9a41236a4f3aa9f3a6b",
+  "workload_hash": "a98075d753066c2481b051de5f3bc3688aa9f1137c5b000bb53c82fd24c334f7",
+  "workload_hash_kind": "SHA256 of blocked workload/configuration descriptor; not an execution-input tape hash",
+  "workload_identity": "native-full-cohort-pressure-v2"
+}

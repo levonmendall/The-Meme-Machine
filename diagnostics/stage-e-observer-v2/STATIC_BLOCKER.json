@@ -1,0 +1,73 @@
+{
+  "actual_workload_bytes_sha256": null,
+  "benchmark_trial_executions": 0,
+  "benchmark_trials_started": 0,
+  "classification": "IDENTITY_OR_WORKLOAD_MISMATCH",
+  "explanation": [
+    "The observer workload identity appears only in the observer contract; no executable mapping is declared.",
+    "The retained full cohort is combined-1/2/3 at 2223 frames and recovery-1 at 4445 frames.",
+    "Retained Wire fixes due=start+n*.27 within each run, but start is the current real wall time; blockTime and embedded event timestamps therefore differ between sequential arms.",
+    "Caching those bytes for the next arm retains older finalized/economic timestamps, conflicting with the unchanged <45 second source-lag and <240 second age bounds.",
+    "The v2 pure fixture builder uses the declared fixed epoch, but its Run380 fixture has 240 frames and rejects indices >=240. It is a separate material fixture, not a complete retained-cohort driver.",
+    "An external wrapper is authorized, but selecting a new full-cohort source/clock adapter without an approved binding would change the workload or clocks that the request holds immutable."
+  ],
+  "native_fixed_clock_statements": [
+    {
+      "line": 92,
+      "text": "\"\"\"Build before clock.begin(); bounded cases have their own distinct identity.\"\"\""
+    },
+    {
+      "line": 94,
+      "text": "if type(number) is not int or not 0 <= number < s['frames']:"
+    },
+    {
+      "line": 97,
+      "text": "due = s['clock']['wall_epoch'] + number * s['cadence_us'] / 1_000_000"
+    },
+    {
+      "line": 98,
+      "text": "at = int(due - (s['prefix_age_seconds'] if historical_seed else 1))"
+    }
+  ],
+  "native_run380_declared_frames": 240,
+  "no_acceptance_credit": true,
+  "no_pressure_runtime_or_Wire_recv_called": true,
+  "phase": "STATIC_BEFORE_TRIAL_1",
+  "retained_embedded_event_retiming": [
+    {
+      "line": 76,
+      "text": "at=int(clock[1]);cache={}"
+    },
+    {
+      "line": 87,
+      "text": "if offset is not None:struct.pack_into('<q',raw,offset,at)"
+    },
+    {
+      "line": 89,
+      "text": "return re.sub(rb'Program data: ([A-Za-z0-9+/=]+)',retime,message)"
+    }
+  ],
+  "retained_wire_clock_statements": [
+    {
+      "line": 30,
+      "text": "if self.start is None:self.start=time.time()"
+    },
+    {
+      "line": 31,
+      "text": "due=self.start+self.sent*.27;await asyncio.sleep(max(0,due-time.time()));slot=1000+self.sent"
+    },
+    {
+      "line": 33,
+      "text": "for old,new in [(b'\"slot\":1000,',f'\"slot\":{slot},'.encode()),(b'\"parentSlot\":999,',f'\"parentSlot\":{slot-1},'.encode()),(b'\"blockhash\":\"h1000\"',f'\"blockhash\":\"h{slot}\"'.encode()),(b'\"previousBlockhash\":\"h999\"',f'\"previousBlockhash\":\"h{slot-1}\"'.encode()),(b'\"blockTime\":1000000000,',f'\"blockTime\":{int(due)},'.encode())]:raw=raw.replace(old,new)"
+    }
+  ],
+  "retained_wire_recv_ast": "AsyncFunctionDef(name='recv', args=arguments(posonlyargs=[], args=[arg(arg='self'), arg(arg='decode')], kwonlyargs=[], kw_defaults=[], defaults=[Constant(value=None)]), body=[If(test=UnaryOp(op=Not(), operand=Call(func=Attribute(value=Attribute(value=Name(id='self', ctx=Load()), attr='acks', ctx=Load()), attr='empty', ctx=Load()), args=[], keywords=[])), body=[Return(value=Await(value=Call(func=Attribute(value=Attribute(value=Name(id='self', ctx=Load()), attr='acks', ctx=Load()), attr='get', ctx=Load()), args=[], keywords=[])))], orelse=[]), If(test=Compare(left=Attribute(value=Name(id='self', ctx=Load()), attr='sent', ctx=Load()), ops=[GtE()], comparators=[Attribute(value=Name(id='self', ctx=Load()), attr='frames', ctx=Load())]), body=[Return(value=Await(value=Call(func=Attribute(value=Attribute(value=Name(id='self', ctx=Load()), attr='acks', ctx=Load()), attr='get', ctx=Load()), args=[], keywords=[])))], orelse=[]), If(test=Compare(left=Attribute(value=Name(id='self', ctx=Load()), attr='start', ctx=Load()), ops=[Is()], comparators=[Constant(value=None)]), body=[Assign(targets=[Attribute(value=Name(id='self', ctx=Load()), attr='start', ctx=Store())], value=Call(func=Attribute(value=Name(id='time', ctx=Load()), attr='time', ctx=Load()), args=[], keywords=[]))], orelse=[]), Assign(targets=[Name(id='due', ctx=Store())], value=BinOp(left=Attribute(value=Name(id='self', ctx=Load()), attr='start', ctx=Load()), op=Add(), right=BinOp(left=Attribute(value=Name(id='self', ctx=Load()), attr='sent', ctx=Load()), op=Mult(), right=Constant(value=0.27)))), Expr(value=Await(value=Call(func=Attribute(value=Name(id='asyncio', ctx=Load()), attr='sleep', ctx=Load()), args=[Call(func=Name(id='max', ctx=Load()), args=[Constant(value=0), BinOp(left=Name(id='due', ctx=Load()), op=Sub(), right=Call(func=Attribute(value=Name(id='time', ctx=Load()), attr='time', ctx=Load()), args=[], keywords=[]))], keywords=[])], keywords=[]))), Assign(targets=[Name(id='slot', ctx=Store())], value=BinOp(left=Constant(value=1000), op=Add(), right=Attribute(value=Name(id='self', ctx=Load()), attr='sent', ctx=Load()))), Assign(targets=[Name(id='raw', ctx=Store())], value=Call(func=Attribute(value=Attribute(value=Name(id='self', ctx=Load()), attr='template', ctx=Load()), attr='replace', ctx=Load()), args=[Constant(value=b'run380:1000:'), Call(func=Attribute(value=BinOp(left=BinOp(left=Constant(value='run380:'), op=Add(), right=Call(func=Name(id='str', ctx=Load()), args=[Name(id='slot', ctx=Load())], keywords=[])), op=Add(), right=Constant(value=':')), attr='encode', ctx=Load()), args=[], keywords=[])], keywords=[])), For(target=Tuple(elts=[Name(id='old', ctx=Store()), Name(id='new', ctx=Store())], ctx=Store()), iter=List(elts=[Tuple(elts=[Constant(value=b'\"slot\":1000,'), Call(func=Attribute(value=JoinedStr(values=[Constant(value='\"slot\":'), FormattedValue(value=Name(id='slot', ctx=Load()), conversion=-1), Constant(value=',')]), attr='encode', ctx=Load()), args=[], keywords=[])], ctx=Load()), Tuple(elts=[Constant(value=b'\"parentSlot\":999,'), Call(func=Attribute(value=JoinedStr(values=[Constant(value='\"parentSlot\":'), FormattedValue(value=BinOp(left=Name(id='slot', ctx=Load()), op=Sub(), right=Constant(value=1)), conversion=-1), Constant(value=',')]), attr='encode', ctx=Load()), args=[], keywords=[])], ctx=Load()), Tuple(elts=[Constant(value=b'\"blockhash\":\"h1000\"'), Call(func=Attribute(value=JoinedStr(values=[Constant(value='\"blockhash\":\"h'), FormattedValue(value=Name(id='slot', ctx=Load()), conversion=-1), Constant(value='\"')]), attr='encode', ctx=Load()), args=[], keywords=[])], ctx=Load()), Tuple(elts=[Constant(value=b'\"previousBlockhash\":\"h999\"'), Call(func=Attribute(value=JoinedStr(values=[Constant(value='\"previousBlockhash\":\"h'), FormattedValue(value=BinOp(left=Name(id='slot', ctx=Load()), op=Sub(), right=Constant(value=1)), conversion=-1), Constant(value='\"')]), attr='encode', ctx=Load()), args=[], keywords=[])], ctx=Load()), Tuple(elts=[Constant(value=b'\"blockTime\":1000000000,'), Call(func=Attribute(value=JoinedStr(values=[Constant(value='\"blockTime\":'), FormattedValue(value=Call(func=Name(id='int', ctx=Load()), args=[Name(id='due', ctx=Load())], keywords=[]), conversion=-1), Constant(value=',')]), attr='encode', ctx=Load()), args=[], keywords=[])], ctx=Load())], ctx=Load()), body=[Assign(targets=[Name(id='raw', ctx=Store())], value=Call(func=Attribute(value=Name(id='raw', ctx=Load()), attr='replace', ctx=Load()), args=[Name(id='old', ctx=Load()), Name(id='new', ctx=Load())], keywords=[]))], orelse=[]), AugAssign(target=Attribute(value=Name(id='self', ctx=Load()), attr='sent', ctx=Store()), op=Add(), value=Constant(value=1)), Return(value=Name(id='raw', ctx=Load()))], decorator_list=[], type_params=[])",
+  "workload_descriptor_sha256": "ed24682f4ed9ac6bccae022f4161f07c1befc9d9ee5da9a41236a4f3aa9f3a6b",
+  "workload_identity_occurrences": [
+    {
+      "line": 27,
+      "path": "certification/stage_e_native_v2/observer-contract-v2.json",
+      "text": "\"workload_identity\": \"native-full-cohort-pressure-v2\""
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "actual_frame_tape_sha256": null,
+  "additional_commit_latency_seconds": 0.006,
+  "approved_v2_clock_domains": {
+    "advancement": "integer microseconds; setup frozen; explicit execution schedule only",
+    "economic_event": "immutable event bytes constructed from declared economic clock before execution",
+    "economic_now": "wall; ages advance with wall even during stalled source",
+    "mapping": "wall=wall_epoch+(monotonic-monotonic_epoch)",
+    "monotonic_epoch": 100,
+    "observer": "real monotonic perf_counter_ns; only future paired measurement; never modeled timing",
+    "recovery": "native latched source-origin+120; persists across restart",
+    "residence": "wall minus original event time (first_seen only when no event time)",
+    "source": "fixed finalized block timestamp; never receive-time substitution",
+    "version": "native-clock-domain-contract-v2",
+    "wall_epoch": 1800000000,
+    "wall_monotonic_error_seconds": 3
+  },
+  "archive_seconds_per_thousand": 0.36,
+  "cadence_us": 270000,
+  "executable_equal_byte_driver": null,
+  "frame_tape_status": "UNBOUND: no approved executable clock/source adapter identified",
+  "owner_seconds_per_frame": 0.165,
+  "pause_frames": [
+    800,
+    1400
+  ],
+  "pause_seconds": 8,
+  "retained_plan_cohort": [
+    {
+      "frames": 2223,
+      "id": "combined-1"
+    },
+    {
+      "frames": 2223,
+      "id": "combined-2"
+    },
+    {
+      "frames": 2223,
+      "id": "combined-3"
+    },
+    {
+      "frames": 4445,
+      "id": "recovery-1"
+    }
+  ],
+  "sample_wall_seconds": 5,
+  "source_hashes": {
+    "certification/cleanup_recovery.py": "66973e89103ba0d21e5207a9113794d8ed167c8ac71840d949df0112de556ec3",
+    "certification/combined_observer.py": "bcbbcf46a123fccbc3268e745d3d0b8ca505ae73710d4ac262b9789c330b28af",
+    "certification/combined_pressure.py": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a",
+    "certification/lifecycle_capacity.py": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa",
+    "certification/run381_pressure.py": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd",
+    "certification/stage_e_native_v2/clock.py": "ffe36af4d7b18662e78929fbf8f9854a0441a1e613b5ae55a75ed9ee48a64b58",
+    "certification/stage_e_native_v2/fixtures.py": "0faddec8928925b61e663a50337161eb52e6a229d5fa9c3e113bada1b53440f2",
+    "certification/stage_e_native_v2/fixtures/run380-v2.json": "0f5ac9bab9f75d53546742b405b7bb98721198f2af15569a3c76215818242847",
+    "certification/stage_e_native_v2/material.py": "ee0731768f8b690270ea3a621383ce9659d8aa513112a47c32ea98675f8ec5d6",
+    "certification/stage_e_native_v2/runner.py": "7f3ec0974e321b22091ab17017768c643ef88e8e634ee936ce8eb04628e1150f",
+    "certification/stagee24_qualification_plan.json": "b7ff1c305e6df7eeab2b20b57e6f1e9211a2642dadc893208012d3042858696e",
+    "certification/tests/fixtures/run380-production-templates.json.gz": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+    "tests/test_run380_production_pressure.py": "08e8fd7a43b1b0fa4cdcdb469b2e837e99e89d5338f724bc1bd21a4647419b47"
+  },
+  "workload_identity": "native-full-cohort-pressure-v2"
+}

@@ -1,0 +1,54 @@
+{
+  "benchmark_trials_started": 0,
+  "denominator_ns": null,
+  "execution_order": [
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p1",
+      "sequence": 1,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t01-p1-baseline"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p1",
+      "sequence": 2,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t02-p1-observed"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p2",
+      "sequence": 3,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t03-p2-observed"
+    },
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p2",
+      "sequence": 4,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t04-p2-baseline"
+    },
+    {
+      "mode": "baseline",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p3",
+      "sequence": 5,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t05-p3-baseline"
+    },
+    {
+      "mode": "observed",
+      "pair_id": "observer-v2-20261002-exact-7a516a6a-p3",
+      "sequence": 6,
+      "status": "NOT_STARTED",
+      "trial_id": "observer-v2-20261002-exact-7a516a6a-t06-p3-observed"
+    }
+  ],
+  "numerator_ns": null,
+  "ratio": null,
+  "raw_pairs": [],
+  "raw_trials": [],
+  "status": "BLOCKED_BEFORE_TRIAL_1",
+  "strict_integer_comparison": null
+}
