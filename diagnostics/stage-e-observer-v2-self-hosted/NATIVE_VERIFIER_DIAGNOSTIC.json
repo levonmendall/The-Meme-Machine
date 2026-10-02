@@ -1,0 +1,20 @@
+{
+  "assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659",
+  "called": true,
+  "candidate_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "context": "Pure portable verification of durable incomplete observer records; no pressure replay, workload member, warmup, qualification or measurement was run.",
+  "denominator_ns": null,
+  "formal_complete_measurement": false,
+  "invalid_pairs": 1,
+  "native_verifier": "certification.stage_e_native_v2.observer.verify",
+  "numerator_ns": null,
+  "passed": false,
+  "ratio": null,
+  "raw_pairs": [],
+  "reason": "observer_raw_pairs_missing",
+  "retries": 0,
+  "source_sha256": "e4025ae23ffab42078d792a6c904d2dc3c1581d69c91d7d018914d7f54769354",
+  "started_members": 1,
+  "started_trials": 1,
+  "version": "native-incomplete-pair-rejection-diagnostic-v1"
+}

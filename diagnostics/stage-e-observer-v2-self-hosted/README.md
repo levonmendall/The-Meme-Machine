@@ -53,3 +53,10 @@ workflow/run identity, environment, assembly, infrastructure, audit and tape
 hashes is published on a separate evidence branch and read back exactly. The
 native observer.verify() decides the completed paired measurement. Every terminal
 outcome ends with STOP FOR ASTRA.
+
+Actual observer run 37021065563 is terminal: OBSERVER_V2: INVALID_PAIR.
+Trial 1 baseline failed before the complete cohort; one trial and one member
+started, five slots remain UNUSED, with zero retries or replacements. The raw
+archive and its published readback receipt are preserved. See
+ASTRA_REVIEW_PACKAGE.md, RESULTS.json, LEDGER.json and EXECUTION_READBACK.json.
+No further execution is authorized by this result. STOP FOR ASTRA.
