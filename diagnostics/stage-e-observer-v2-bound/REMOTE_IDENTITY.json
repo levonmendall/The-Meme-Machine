@@ -1,0 +1,220 @@
+{
+  "version": "remote-only-identity-inspection-v1",
+  "candidate": {
+    "S": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "T": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+    "assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659"
+  },
+  "evidence_scope": "GitHub immutable-reference reads only; no local assembly was reconstructed or executed.",
+  "candidate_commit_tree": {
+    "sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "node_id": "C_kwDOUeBpC9oAKDdhNTE2YTZhOTJiZTkzNDc2NjFhYzBlN2Y1NjA5NzFjMTcxYTA5MzE",
+    "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/7a516a6a92be9347661ac0e7f560971c171a0931",
+    "html_url": "https://github.com/levonmendall/The-Meme-Machine/commit/7a516a6a92be9347661ac0e7f560971c171a0931",
+    "author": {
+      "name": "levonmendall",
+      "email": "levon_mendall@yahoo.com",
+      "date": "2026-10-01T22:05:40Z"
+    },
+    "committer": {
+      "name": "levonmendall",
+      "email": "levon_mendall@yahoo.com",
+      "date": "2026-10-01T22:05:40Z"
+    },
+    "tree": {
+      "sha": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/trees/9da7d1e1625ba04c1437c63606c90f5e293bdba7"
+    },
+    "message": "[skip ci] Integration successor: complete reviewed composition and bounded proof controls",
+    "parents": [
+      {
+        "sha": "5082e3c9c6db6c8798563ba21bb226b14ca16f5f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/5082e3c9c6db6c8798563ba21bb226b14ca16f5f",
+        "html_url": "https://github.com/levonmendall/The-Meme-Machine/commit/5082e3c9c6db6c8798563ba21bb226b14ca16f5f"
+      }
+    ],
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "plan_input_observer_hashes": [
+    {
+      "label": "plan",
+      "git_blob_sha": "ca0f0c182973f3a24de8bdd441e4be8a3a35803d",
+      "sha256": "6c40324250e0870a9207161a0b944d58272922c90bf6fce97c57c2bb3dda16df",
+      "remote_only": true
+    },
+    {
+      "label": "input",
+      "git_blob_sha": "f0b712c7ad8febb8b8ff18b84c223bf6aa044f2b",
+      "sha256": "d38f0ea0978ef629f5af57bc778a5ee77e3115ed5cb4c5dd0e35280f184bb983",
+      "remote_only": true
+    },
+    {
+      "label": "observer",
+      "git_blob_sha": "7a39f7f4c31574b9ec461c5509ec7b6d880054af",
+      "sha256": "9695ef0d1f039cc688d6a7b34d1d8e8e00a4d3df43a6b7cf14c9cb6c0eaf3e84",
+      "remote_only": true
+    }
+  ],
+  "reviewed_manifest": {
+    "commit": "31fc23e57291b717b83bc34f300f533329b6d627",
+    "path": "diagnostics/stage-e-observer-v2/REVIEWED_ASSEMBLY.json",
+    "blob_sha": "93d8c3777c377db5c692f6bd2da7a7cde83d6e43",
+    "sha256": "d60d02a32838df4658cc5943d469057ec08ece11e82301b3e85231e029c9eaa0",
+    "reported_file_count": 1241,
+    "reported_assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659"
+  },
+  "historical_files": [
+    {
+      "path": "diagnostics/stage-e-observer-v2/ARTIFACT_HASHES.json",
+      "blob_sha": "9a2a1c51d9dfc630b5708ac42a0e3516923e518d",
+      "byte_length": 2345
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/ASTRA_REVIEW_PACKAGE.md",
+      "blob_sha": "0a453322d2866cb9378de95925e7d2fce45c7306",
+      "byte_length": 11577
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/ENVIRONMENT.json",
+      "blob_sha": "c708424dedf112cd6eb83f3204ae22492e5f446d",
+      "byte_length": 144631
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/NATIVE_VERIFIER_DIAGNOSTIC.json",
+      "blob_sha": "aa55afbf550faa004654ffba129efac8f0f09d9f",
+      "byte_length": 137017
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/PLANNED_TRIALS.json",
+      "blob_sha": "dae38f7d9ded161adfb718ad050f20344bb8fdae",
+      "byte_length": 1576
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/PREDECLARATION.json",
+      "blob_sha": "962b0c9cf2d6e3faa249b56025e2d5525f6817c4",
+      "byte_length": 12730
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/PREDECLARATION.md",
+      "blob_sha": "86ebeb23a9879612a9693673d110bdd0488d8e97",
+      "byte_length": 5602
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/PREDECLARATION_READBACK.json",
+      "blob_sha": "c61a8ec72465e79063fd61b7ba0d5d905f0381a0",
+      "byte_length": 1041
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/RESULTS.json",
+      "blob_sha": "12f0f682bc3adb8b7b27582589c1052d8f6a4991",
+      "byte_length": 4132
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/REVIEWED_ASSEMBLY.json",
+      "blob_sha": "93d8c3777c377db5c692f6bd2da7a7cde83d6e43",
+      "byte_length": 395255
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/STATIC_BLOCKER.json",
+      "blob_sha": "2c3c72285132ffb5008853a1838e89d9540fa8fe",
+      "byte_length": 7983
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/STATIC_IDENTITY_VALIDATION.json",
+      "blob_sha": "8f6b420ebdac5ac4c56debba07e0bc4c37cb85fa",
+      "byte_length": 1330
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/STATIC_MODULE_ORIGINS.json",
+      "blob_sha": "cb29d95a482f25d8f63d2312e94d4ac1d5474ead",
+      "byte_length": 32991
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/STOP_FOR_ASTRA.json",
+      "blob_sha": "21a18bbd7ab2d5f84f2f7c10b48aef4d776e1c76",
+      "byte_length": 584
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/WORKLOAD_BINDING.json",
+      "blob_sha": "a17f4e53bf81221495932fe07061e20952527586",
+      "byte_length": 3162
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2/inspect_candidate.py",
+      "blob_sha": "9eca8a288fda3c16d00d8604a92af34409c53686",
+      "byte_length": 11163
+    }
+  ],
+  "historical_predeclaration": [
+    {
+      "commit": "9cf26b1d88b37b157eaa84053fd9301631ceab1c",
+      "path": "diagnostics/stage-e-observer-v2/PREDECLARATION.md",
+      "blob_sha": "86ebeb23a9879612a9693673d110bdd0488d8e97",
+      "sha256": "2c9a9b7cfe4a6728aaa2ed34b4b98296bb96340ac06e0fec0d9effbb1ee88f24",
+      "execution_authority": false
+    },
+    {
+      "commit": "9cf26b1d88b37b157eaa84053fd9301631ceab1c",
+      "path": "diagnostics/stage-e-observer-v2/PREDECLARATION.json",
+      "blob_sha": "962b0c9cf2d6e3faa249b56025e2d5525f6817c4",
+      "sha256": "4318a1863ae435123431b37075d13d29b3c7602439bc8fab5977514f632b3073",
+      "execution_authority": false
+    }
+  ],
+  "inspected_sources": [
+    {
+      "path": "certification/run381_pressure.py",
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "blob_sha": "ea64914435a1192fe5dfc6bfb61d31f5439d3798",
+      "sha256": "fa1372179022c1561644d2e3932c8f7e218d49ebfe02400e568824b1359323cd"
+    },
+    {
+      "path": "certification/combined_pressure.py",
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "blob_sha": "814b5316cf99803a7b4fd2acbf309dbdb68b9512",
+      "sha256": "8f7dd4a5d5b3538a34cc034ebeaa37ef10eabdcd44f3cbd420532fa28fd0803a"
+    },
+    {
+      "path": "certification/lifecycle_capacity.py",
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "blob_sha": "e6eedfb9a0bc5a686a65daf2776e69d1989afb0c",
+      "sha256": "71dd2e13bc428f1b589c4eb62ecdce1a7e54bda18e7e5228024597b816ea71aa"
+    },
+    {
+      "path": "meme_machine/solana_evidence_service.py",
+      "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "blob_sha": "27e270b49996d6d2a1d02979c56f69888f3d5b8d",
+      "sha256": "8a6d079b57b38f7d1b67971905d7978d6e75ee3348a72f37dcf60ab50ce4a89c"
+    }
+  ],
+  "static_findings": [
+    {
+      "module": "certification.stage_e_native_v2.fixtures",
+      "finding": "Pure build_frame rejects frame index >=240 for run380; external extension requires exhaustive native-range equivalence before full generation.",
+      "proof_status": "INSPECTION_ONLY_NOT_EQUIVALENCE"
+    },
+    {
+      "module": "meme_machine.solana_evidence_service",
+      "function": "serve",
+      "lines": [
+        823,
+        824,
+        825
+      ],
+      "finding": "Two decode workers use spawn and execute a probe before source release; child bootstrap must install projection before imports and share the member anchor.",
+      "proof_status": "INSPECTION_ONLY_NOT_CLOCK_AUDIT"
+    },
+    {
+      "module": "certification.combined_pressure",
+      "finding": "Source pause state retains a monotonic deadline through recv cancellation.",
+      "proof_status": "INSPECTION_ONLY_NOT_EXECUTION"
+    }
+  ],
+  "completed_clock_consumer_audit": false
+}

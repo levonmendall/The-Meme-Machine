@@ -1,0 +1,24 @@
+{
+  "version": "sha256-utf8-artifact-inventory-v1",
+  "excludes": [
+    "diagnostics/stage-e-observer-v2-bound/ARTIFACT_HASHES.json"
+  ],
+  "artifacts": [
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/ASTRA_REVIEW_PACKAGE.md",
+      "sha256": "b0f438ab2ec6a25e981af165381b385a3fdee6ebd61087ab59f3d8a20befda7e"
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/RESULTS.json",
+      "sha256": "d77a249e53753613d422020f5f26149a01ee6c1659c641f3eada876ac22d71bf"
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/RUNNER_STATUS.json",
+      "sha256": "f501c5a09cde8aec16dff20098ba86cc3d3dec43060b0491bb2241233ceed239"
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/REMOTE_IDENTITY.json",
+      "sha256": "0b5d55470b7599d890d0a823d0310337319a3148a203034c18543a45246b38af"
+    }
+  ]
+}

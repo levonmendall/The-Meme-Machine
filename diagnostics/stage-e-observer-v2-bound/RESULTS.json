@@ -1,0 +1,301 @@
+{
+  "version": "bound-equal-byte-observer-interruption-v1",
+  "observer_v2": "EXECUTION_INTERRUPTED",
+  "paper_only": true,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "execution_phase": "BEFORE_TRIAL_1",
+  "blocker": "Managed runner remains pending/offline; no filesystem, shell, or Python execution tools are available. Native-range equivalence, tape generation, clock-consumer audit, environment binding, and executable infrastructure cannot be completed in this attempt.",
+  "platform_startup_failure_reported": false,
+  "candidate": {
+    "S": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "T": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+    "assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659"
+  },
+  "workload_identity": "native-full-cohort-pressure-v2",
+  "authorization": "AUTHORIZE_BOUND_EQUAL_BYTE_OBSERVER_WORKLOAD",
+  "historical_blocked_package_commit": "31fc23e57291b717b83bc34f300f533329b6d627",
+  "historical_blocked_predeclaration_commit": "9cf26b1d88b37b157eaa84053fd9301631ceab1c",
+  "execution_predeclaration": {
+    "status": "NOT_CREATED",
+    "commit": null,
+    "readback": null,
+    "execution_allowed": false,
+    "reason": "The required actual execution hashes and environment identity are unavailable. An incomplete descriptor was not represented as an execution ticket."
+  },
+  "started_trials": 0,
+  "completed_trials": 0,
+  "started_members": 0,
+  "warmups": 0,
+  "retries": 0,
+  "replacements": 0,
+  "planned_trials": [
+    {
+      "order": 1,
+      "trial_id": "observer-v2-bound-20261002-7a516a6a-t01-p1-baseline",
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p1",
+      "mode": "baseline",
+      "status": "NOT_STARTED",
+      "utc_start": null,
+      "utc_end": null,
+      "elapsed_ns": null,
+      "member_results": [],
+      "provider_attempts": null,
+      "observer_state": null,
+      "integrity": null,
+      "module_origins": null,
+      "child_origins": null,
+      "exit_status": null
+    },
+    {
+      "order": 2,
+      "trial_id": "observer-v2-bound-20261002-7a516a6a-t02-p1-observed",
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p1",
+      "mode": "observed",
+      "status": "NOT_STARTED",
+      "utc_start": null,
+      "utc_end": null,
+      "elapsed_ns": null,
+      "member_results": [],
+      "provider_attempts": null,
+      "observer_state": null,
+      "integrity": null,
+      "module_origins": null,
+      "child_origins": null,
+      "exit_status": null
+    },
+    {
+      "order": 3,
+      "trial_id": "observer-v2-bound-20261002-7a516a6a-t03-p2-observed",
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p2",
+      "mode": "observed",
+      "status": "NOT_STARTED",
+      "utc_start": null,
+      "utc_end": null,
+      "elapsed_ns": null,
+      "member_results": [],
+      "provider_attempts": null,
+      "observer_state": null,
+      "integrity": null,
+      "module_origins": null,
+      "child_origins": null,
+      "exit_status": null
+    },
+    {
+      "order": 4,
+      "trial_id": "observer-v2-bound-20261002-7a516a6a-t04-p2-baseline",
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p2",
+      "mode": "baseline",
+      "status": "NOT_STARTED",
+      "utc_start": null,
+      "utc_end": null,
+      "elapsed_ns": null,
+      "member_results": [],
+      "provider_attempts": null,
+      "observer_state": null,
+      "integrity": null,
+      "module_origins": null,
+      "child_origins": null,
+      "exit_status": null
+    },
+    {
+      "order": 5,
+      "trial_id": "observer-v2-bound-20261002-7a516a6a-t05-p3-baseline",
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p3",
+      "mode": "baseline",
+      "status": "NOT_STARTED",
+      "utc_start": null,
+      "utc_end": null,
+      "elapsed_ns": null,
+      "member_results": [],
+      "provider_attempts": null,
+      "observer_state": null,
+      "integrity": null,
+      "module_origins": null,
+      "child_origins": null,
+      "exit_status": null
+    },
+    {
+      "order": 6,
+      "trial_id": "observer-v2-bound-20261002-7a516a6a-t06-p3-observed",
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p3",
+      "mode": "observed",
+      "status": "NOT_STARTED",
+      "utc_start": null,
+      "utc_end": null,
+      "elapsed_ns": null,
+      "member_results": [],
+      "provider_attempts": null,
+      "observer_state": null,
+      "integrity": null,
+      "module_origins": null,
+      "child_origins": null,
+      "exit_status": null
+    }
+  ],
+  "raw_pairs": [],
+  "planned_pairs": [
+    {
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p1",
+      "baseline_ns": null,
+      "observed_ns": null,
+      "valid": null,
+      "same_workload_hash": "native-full-cohort-pressure-v2",
+      "cryptographic_workload_hash": null,
+      "status": "NOT_MEASURED"
+    },
+    {
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p2",
+      "baseline_ns": null,
+      "observed_ns": null,
+      "valid": null,
+      "same_workload_hash": "native-full-cohort-pressure-v2",
+      "cryptographic_workload_hash": null,
+      "status": "NOT_MEASURED"
+    },
+    {
+      "pair_id": "observer-v2-bound-20261002-7a516a6a-p3",
+      "baseline_ns": null,
+      "observed_ns": null,
+      "valid": null,
+      "same_workload_hash": "native-full-cohort-pressure-v2",
+      "cryptographic_workload_hash": null,
+      "status": "NOT_MEASURED"
+    }
+  ],
+  "numerator_ns": null,
+  "denominator_ns": null,
+  "ratio": null,
+  "strict_integer_comparator": null,
+  "native_verifier": {
+    "status": "NOT_RUN",
+    "result": null,
+    "reason": "No formal measurement exists."
+  },
+  "external_infrastructure": {
+    "tape_generator": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "tape_reader": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "clock_bootstrap": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "child_bootstrap": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "workload_adapter": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "observer_adapter": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "supervisor": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "measurement_serializer": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "configuration": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "origin_guard": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    },
+    "executable_driver": {
+      "status": "NOT_BUILT",
+      "sha256": null
+    }
+  },
+  "byte_equivalence_proof": {
+    "status": "NOT_RUN",
+    "compared_frames": 0,
+    "sha256": null
+  },
+  "full_tapes": {
+    "status": "NOT_GENERATED",
+    "members": [
+      {
+        "member": "combined-1",
+        "required_frame_count": 2223,
+        "actual_frame_count": null,
+        "byte_count": null,
+        "sha256": null
+      },
+      {
+        "member": "combined-2",
+        "required_frame_count": 2223,
+        "actual_frame_count": null,
+        "byte_count": null,
+        "sha256": null
+      },
+      {
+        "member": "combined-3",
+        "required_frame_count": 2223,
+        "actual_frame_count": null,
+        "byte_count": null,
+        "sha256": null
+      },
+      {
+        "member": "recovery-1",
+        "required_frame_count": 4445,
+        "actual_frame_count": null,
+        "byte_count": null,
+        "sha256": null
+      }
+    ],
+    "total_workload_sha256": null
+  },
+  "workload_manifest": {
+    "status": "NOT_CREATED",
+    "sha256": null
+  },
+  "clock_consumer_inventory": {
+    "status": "INCOMPLETE_NOT_PUBLISHED",
+    "sha256": null
+  },
+  "differential_call_path_report": {
+    "status": "NOT_CREATED",
+    "sha256": null
+  },
+  "environment_identity": {
+    "status": "UNBOUND",
+    "hostname": null,
+    "cpu": null,
+    "affinity": null,
+    "quota": null,
+    "memory": null,
+    "filesystem": null,
+    "python": null,
+    "sqlite": null,
+    "websockets": null,
+    "dependencies": null
+  },
+  "assembly_verification": {
+    "remote_candidate_commit_tree": "MATCH",
+    "remote_plan_input_observer_hashes": "MATCH",
+    "remote_reviewed_manifest_references": "MATCH",
+    "local_file_membership": "NOT_CHECKED",
+    "local_file_hashes": "NOT_CHECKED",
+    "native_assembly_verifier": "NOT_RUN",
+    "candidate_imports": 0,
+    "child_imports": 0
+  },
+  "required_checks": {
+    "unittest_discover": "NOT_RUN_NO_EXECUTOR",
+    "resource_checks": "NOT_RUN_NO_EXECUTOR"
+  },
+  "future_gates": "Observer acceptance, prepared/fixed qualification-v2, fixed cohort, candidate freeze, canonical Stage E, promotion, and Stage F remain unearned.",
+  "stop_for_astra": true
+}
