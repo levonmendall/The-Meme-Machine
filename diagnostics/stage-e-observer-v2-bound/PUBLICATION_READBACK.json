@@ -1,0 +1,58 @@
+{
+  "version": "interruption-package-github-readback-v1",
+  "readback_timestamp_utc": "2026-10-02 02:37:27 UTC",
+  "repository": "levonmendall/The-Meme-Machine",
+  "package_commit": "3acf3b35f21429475df43dcd9da50551286d16c8",
+  "artifact_readback": [
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/ASTRA_REVIEW_PACKAGE.md",
+      "git_blob_sha": "485407c6e026038e0bfd075b49bccb625c54c90a",
+      "sha256": "b0f438ab2ec6a25e981af165381b385a3fdee6ebd61087ab59f3d8a20befda7e",
+      "exact_utf8_content_match": true,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/blob/3acf3b35f21429475df43dcd9da50551286d16c8/diagnostics/stage-e-observer-v2-bound/ASTRA_REVIEW_PACKAGE.md"
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/RESULTS.json",
+      "git_blob_sha": "40bf4901958bbeebec162b44d826cd027e5ef07a",
+      "sha256": "d77a249e53753613d422020f5f26149a01ee6c1659c641f3eada876ac22d71bf",
+      "exact_utf8_content_match": true,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/blob/3acf3b35f21429475df43dcd9da50551286d16c8/diagnostics/stage-e-observer-v2-bound/RESULTS.json"
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/RUNNER_STATUS.json",
+      "git_blob_sha": "b37ac9d71085f1bf49fe80dce5e6595e11c3a454",
+      "sha256": "f501c5a09cde8aec16dff20098ba86cc3d3dec43060b0491bb2241233ceed239",
+      "exact_utf8_content_match": true,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/blob/3acf3b35f21429475df43dcd9da50551286d16c8/diagnostics/stage-e-observer-v2-bound/RUNNER_STATUS.json"
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/REMOTE_IDENTITY.json",
+      "git_blob_sha": "72565d2a22d3749e4bdcf3460bf5dca6a55776c7",
+      "sha256": "0b5d55470b7599d890d0a823d0310337319a3148a203034c18543a45246b38af",
+      "exact_utf8_content_match": true,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/blob/3acf3b35f21429475df43dcd9da50551286d16c8/diagnostics/stage-e-observer-v2-bound/REMOTE_IDENTITY.json"
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/ARTIFACT_HASHES.json",
+      "git_blob_sha": "da873d1e3714255d9b211b54fbc1d3cd54fa9828",
+      "sha256": "7b540e6d0bebfdfbaf4b1453722a7cb5679966c54f23bb2ee4a5650116c89f14",
+      "exact_utf8_content_match": true,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/blob/3acf3b35f21429475df43dcd9da50551286d16c8/diagnostics/stage-e-observer-v2-bound/ARTIFACT_HASHES.json"
+    }
+  ],
+  "exact_content_and_sha256_match": true,
+  "compare_base": "31fc23e57291b717b83bc34f300f533329b6d627",
+  "changed_paths": [
+    "diagnostics/stage-e-observer-v2-bound/ARTIFACT_HASHES.json",
+    "diagnostics/stage-e-observer-v2-bound/ASTRA_REVIEW_PACKAGE.md",
+    "diagnostics/stage-e-observer-v2-bound/REMOTE_IDENTITY.json",
+    "diagnostics/stage-e-observer-v2-bound/RESULTS.json",
+    "diagnostics/stage-e-observer-v2-bound/RUNNER_STATUS.json"
+  ],
+  "candidate_runtime_qualification_paths_changed": [],
+  "historical_package_blob_preservation_verified": true,
+  "historical_files_checked": 16,
+  "execution_predeclaration": false,
+  "trial_execution_authority": false,
+  "note": "This receipt validates the initial interruption package at the immutable package_commit. Its own publication and the updated review text are a subsequent diagnostic commit. This is not executable predeclaration readback."
+}

@@ -6,7 +6,7 @@
   "artifacts": [
     {
       "path": "diagnostics/stage-e-observer-v2-bound/ASTRA_REVIEW_PACKAGE.md",
-      "sha256": "b0f438ab2ec6a25e981af165381b385a3fdee6ebd61087ab59f3d8a20befda7e"
+      "sha256": "75daac6400efda7101a4d287dbd20b982870c1dd777a75309e50336ac818d97a"
     },
     {
       "path": "diagnostics/stage-e-observer-v2-bound/RESULTS.json",
@@ -19,6 +19,10 @@
     {
       "path": "diagnostics/stage-e-observer-v2-bound/REMOTE_IDENTITY.json",
       "sha256": "0b5d55470b7599d890d0a823d0310337319a3148a203034c18543a45246b38af"
+    },
+    {
+      "path": "diagnostics/stage-e-observer-v2-bound/PUBLICATION_READBACK.json",
+      "sha256": "36d459941fd7713fb5cd59828375abb664a8b5d4ca1c4da9aff330216c4637ea"
     }
   ]
 }

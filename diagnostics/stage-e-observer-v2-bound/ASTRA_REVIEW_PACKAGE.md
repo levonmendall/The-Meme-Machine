@@ -100,10 +100,16 @@ Observer strict `<1%` acceptance remains unearned.
 ## Raw artifacts and validation
 
 `ARTIFACT_HASHES.json` SHA-256 indexes this package, `RESULTS.json`,
-`RUNNER_STATUS.json`, and `REMOTE_IDENTITY.json`; it excludes itself.
+`RUNNER_STATUS.json`, `REMOTE_IDENTITY.json`, and `PUBLICATION_READBACK.json`;
+it excludes itself.
 These are remote inspection and interruption artifacts, not native trial artifacts.
-Publication readback will compare exact UTF-8 content and SHA-256 at the published
-commit. This is package readback, not an executable predeclaration readback.
+The initial five-file package at `3acf3b35f21429475df43dcd9da50551286d16c8` was read back from GitHub:
+all exact UTF-8 contents and SHA-256 values matched. The comparison with the
+historical package commit changed only the five new diagnostic files. All 16
+historical-package file/blob identities were unchanged. `PUBLICATION_READBACK.json`
+records that check; this subsequent diagnostic revision adds the receipt and updates
+this text and the hash inventory. This is package readback, not an executable
+predeclaration readback.
 
 Required unit/resource checks could not run without an executor. No test or CI
 success is claimed. No runtime DB, raw private evidence, credentials, or secrets
