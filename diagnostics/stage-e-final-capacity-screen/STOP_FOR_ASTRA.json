@@ -1,0 +1,33 @@
+{
+  "status": "STOP_FOR_ASTRA",
+  "CAPACITY_SCREEN": "INCONCLUSIVE_CONTROL_DID_NOT_REPRODUCE",
+  "paper_only": true,
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "historical_budget": {
+    "consumed": 6,
+    "ceiling": 6,
+    "unchanged": true
+  },
+  "new_capacity_budget": {
+    "consumed": 2,
+    "ceiling": 2,
+    "remaining": 0
+  },
+  "executed_arms": [
+    "control",
+    "treatment"
+  ],
+  "attempts": [
+    1,
+    1
+  ],
+  "third_arm_authorized": false,
+  "retry_authorized": false,
+  "replacement_run_authorized": false,
+  "observer_benchmark_executed": false,
+  "canonical_stage_e_executed": false,
+  "fixed_cohort_executed": false,
+  "promotion_or_freeze_authorized": false,
+  "further_material_execution_authorized": false
+}

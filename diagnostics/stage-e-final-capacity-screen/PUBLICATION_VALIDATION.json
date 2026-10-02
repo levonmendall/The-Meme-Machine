@@ -1,0 +1,27 @@
+{
+  "all_pass": true,
+  "checks": {
+    "classification_matches_fixed_control_reproduction_failure": true,
+    "control_exact_patch_sha256": true,
+    "control_published_archive_members_match_raw_digests": true,
+    "control_raw_archive_sha256": true,
+    "control_record_accounting_and_debt_transfer_reported_separately": true,
+    "control_reported_core_matches_preserved_raw": true,
+    "control_runtime_database_not_in_git_archive": true,
+    "control_source_complete_current_run": true,
+    "correct_control_reproduction_failure": true,
+    "declared_driver_and_support_hashes_unchanged": true,
+    "exactly_two_started_material_arm_directories": true,
+    "final_diagnostic_scripts_parse_without_execution": true,
+    "source_runtime_and_qualification_bytes_on_publication_branch_unchanged": true,
+    "treatment_current_assembly_exact": true,
+    "treatment_net_debt_reduction_not_falsely_credited": true,
+    "treatment_published_archive_members_match_raw_digests": true,
+    "treatment_raw_archive_sha256": true,
+    "treatment_record_accounting_and_debt_transfer_reported_separately": true,
+    "treatment_reported_core_matches_preserved_raw": true,
+    "treatment_runtime_database_not_in_git_archive": true,
+    "treatment_source_complete_current_run": true
+  },
+  "material_executions_in_validation": 0
+}
