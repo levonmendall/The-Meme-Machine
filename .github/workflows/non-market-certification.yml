@@ -1,5 +1,5 @@
-name: Stage E observer self-hosted identity only
-run-name: Observer host identity ${{ inputs.expected_sha }}
+name: Stage E observer self-hosted preparation
+run-name: Observer preparation ${{ inputs.expected_sha }}
 on:
   workflow_dispatch:
     inputs:
@@ -21,14 +21,25 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ inputs.expected_sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
       - name: Verify actual host and mounted volume before preparation
         env:
           OBSERVER_EXPECTED_SHA: ${{ inputs.expected_sha }}
           OBSERVER_IDENTITY_OUTPUT: ${{ runner.temp }}/stage-e-observer-host-identity-${{ github.run_id }}
         run: python3 -I -B diagnostics/stage-e-observer-v2-self-hosted/inspect_host.py
-      - name: Preserve host inspection only
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Prepare fixed-version external runtime
+        run: |
+          python -m venv /workspace/stage-e-runtime
+          /workspace/stage-e-runtime/bin/python -m pip install --disable-pip-version-check --only-binary=:all: websockets==17.1
+      - name: Reconstruct exact reviewed assembly and bind the fresh environment
+        env:
+          OBSERVER_PREPARATION_OUTPUT: ${{ runner.temp }}/stage-e-observer-host-identity-${{ github.run_id }}
+        run: /workspace/stage-e-runtime/bin/python -I -B diagnostics/stage-e-observer-v2-self-hosted/prepare_assembly.py
+      - name: Preserve preparation evidence without starting any workload
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
