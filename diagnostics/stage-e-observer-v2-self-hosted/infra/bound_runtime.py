@@ -161,7 +161,7 @@ def receipt(phase):
 
 def fork_initializer():
     global ROLE
-    ROLE='archive-fork'
+    ROLE='audit-fork' if ROLE=='audit-parent' else 'archive-fork'
     receipt('initialized')
     multiprocessing.util.Finalize(None,receipt,args=('terminated',),exitpriority=0)
 
@@ -174,7 +174,17 @@ def initialize(role,*,project=True):
     PARAMS=read(params)
     environment=PARAMS['environment']
     if sys.version_info[:3]!=(3,12,14) or file_sha(sys.executable)!=environment['python_executable_hash']:
+        persist(Path(PARAMS['output'])/'PYTHON_IDENTITY_BLOCKER.json',dict(actual_python=list(sys.version_info[:3]),
+            actual_executable=sys.executable,actual_executable_sha256=file_sha(sys.executable),
+            expected_executable_sha256=environment['python_executable_hash']))
         raise ValueError('fresh_python_origin')
+    shared=PARAMS['os_tools']['python_shared_library']
+    mapped={line.rsplit(None,1)[-1] for line in Path('/proc/self/maps').read_text().splitlines() if '/' in line}
+    if str(Path(shared['path']).resolve()) not in mapped or file_sha(shared['path'])!=shared['sha256']:
+        raise ValueError('fresh_python_shared_library_origin')
+    if os.cpu_count()!=environment['cpu_count'] or sorted(os.sched_getaffinity(0))!=environment['affinity']:
+        raise ValueError('fresh_cpu_affinity')
+    if socket.gethostname()!=environment['hostname']:raise ValueError('fresh_host_identity')
     manifest=read(BASE/'assembly/assembly.json')
     digest=manifest.pop('assembly_digest')
     if digest!=ASSEMBLY or sha(__import__('core').canonical(manifest))!=ASSEMBLY:

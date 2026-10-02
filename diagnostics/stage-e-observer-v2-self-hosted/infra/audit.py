@@ -59,11 +59,12 @@ def differential_proof():
     return dict(passed=True,common_checkpoint_traces=traces,qualification_calls=optional,
         lifecycle_creation_gate=ast.unparse(observed_creation[0].test),
         baseline_lifecycle_threads=0,observed_lifecycle_interval_seconds=5,
-        same_worker_limits=dict(decoder_spawn=2,archive_fork=1),same_cohort=COHORT,
+        same_worker_limits=dict(shared_decoder_and_archive_spawn_pool=2,extra_archive_workers=0),same_cohort=COHORT,
         same_pressure=dict(owner_seconds_per_frame=.165,archive_seconds_per_thousand=.36,
             additional_commit_latency_seconds=.006,cadence_us=270000,pause_frames=[800,1400],pause_seconds=8),
         common_driver='unchanged run381_pressure.run; SQLTimings and pressure monitoring are part of the same pressure driver in both modes',
-        observed_only=['eligible/read_current/observe_window within held snapshot',
+        observed_only=['native qualification revision and source-completion observation bookkeeping',
+            'eligible/read_current/observe_window within held snapshot',
             'native LifecycleObserver recovery thread/read-only snapshots/JSONL persistence',
             'native pure recovery assessment and observed evidence serialization'],
         measured_boundaries='Before isolated trial process startup through all four member processes, observer joins, native teardown, receipts, persistence and helper termination',
@@ -72,6 +73,18 @@ def differential_proof():
 
 def semantic_audit():
     source=BASE/'assembly/source'
+    service_tree=ast.parse((source/'meme_machine/solana_evidence_service.py').read_bytes())
+    pools=[n for n in ast.walk(service_tree) if isinstance(n,ast.Call)
+        and isinstance(n.func,ast.Name) and n.func.id=='ProcessPoolExecutor']
+    assert len(pools)==1
+    assert ast.unparse(pools[0])=="ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS, mp_context=multiprocessing.get_context('spawn'))"
+    worker_counts=[n for n in ast.walk(service_tree) if isinstance(n,ast.Assign)
+        and any(isinstance(t,ast.Name) and t.id=='STREAM_DECODE_WORKERS' for t in n.targets)]
+    assert len(worker_counts)==1 and ast.literal_eval(worker_counts[0].value)==2
+    archive_submissions=[n for n in ast.walk(service_tree) if isinstance(n,ast.Call)
+        and ast.unparse(n.func)=='decoder_pool.submit' and n.args
+        and ast.unparse(n.args[0])=='EvidenceWriter.prepare_and_write_archive']
+    assert len(archive_submissions)==1
     selected=list((source/'meme_machine').glob('*.py'))
     selected += [source/name for name in [
         'certification/run381_pressure.py','certification/combined_pressure.py',
@@ -111,14 +124,15 @@ def semantic_audit():
             elif resolved.startswith('datetime.'):
                 consumers.append(dict(file=name,line=n.lineno,consumer=resolved,domain='pure input timestamp parsing'))
     return dict(version='semantic-clock-and-bootstrap-audit-v1',passed=True,
-        source_files=files,consumers=consumers,
+        source_files=files,consumers=consumers,actual_pool_expression=ast.unparse(pools[0]),
+        actual_pool_workers=2,archive_uses_same_pool=True,extra_workload_pools=0,
         setup='Semantic wall 1800000000 and monotonic 100 remain frozen until first source-data release, independently for each member.',
         activation='Shared mmap anchor stores real monotonic_ns exactly once immediately before first data return; subscription ACKs do not activate.',
         projection='Integer nanoseconds from real monotonic_ns; both semantic domains share the same immutable anchor.',
         headroom='All post-release decompression, observer overhead, real sleeps, pauses, scheduler delays, backpressure and maintenance consume aging/deadline headroom.',
         economic_timestamps='Immutable v2 fixture event and block bytes; no receive-time, trial-specific, or pause retiming.',
         scheduler='BaseEventLoop.time, all standard-library time module bindings and clock aliases, including late imports, use captured real functions. Candidate consumers receive the projected functions before import. OS sleeps remain real.',
-        children='Decoder spawn and resource tracker enter external isolated bootstrap before candidate imports or native probes. Archive fork inherits the projected clock and origin guard; initializer and finalizer persist receipts.',
+        children='The exact S service shares two spawn workers between decoder and archive jobs. Both workers and the resource tracker enter the external isolated bootstrap before candidate imports or native probes. No extra archive pool is created. The separate pure fork probe proves inheritance capability and is not a workload worker.',
         cache='-I -S -B plus a verified non-existing -X pycache_prefix; finder compiles approved source bytes and rejects sourceless/cached origins.',
         network='Kernel network namespace without interfaces; Python audit blocks and counts IP connection/bind/send and DNS attempts, preserves Unix IPC.',
         qualification_reads='Native eligible/read_current/observe_window and LifecycleObserver use read-only operations; they never supply workload authority.',

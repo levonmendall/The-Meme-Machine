@@ -56,6 +56,10 @@ def configure():
     prep=read(BASE/'PREPARATION.json');env=read(BASE/'fresh-environment.json')
     if not prep['passed'] or prep['started_trials']!=0:raise ValueError('preparation_gate')
     if prep['infrastructure_path']!=str(INFRA):raise ValueError('infrastructure_path')
+    for name,checksum in prep['proof_hashes'].items():
+        path=Path(prep['proof_path'])/name
+        if file_sha(path)!=checksum or read(path).get('passed') is not True:
+            raise ValueError('actual_preparation_proof:'+name)
     if file_sha(INFRA/'INFRASTRUCTURE.json')!=prep['infrastructure_manifest_sha256']:raise ValueError('infrastructure_gate')
     for name,info in read(INFRA/'INFRASTRUCTURE.json')['files'].items():
         if file_sha(INFRA/name)!=info['sha256']:raise ValueError('infrastructure_content_gate')
@@ -93,6 +97,7 @@ def configure():
             actual_job_id=eligible[0]['id'],routing_labels=routing,
             unique_eligibility='User confirmed only this repository runner carries the unique label; inventory API denied administration access.'),
         workflow=dict(path='.github/workflows/non-market-certification.yml',job=eligible[0]['name'],
+            control_launcher_sha256=file_sha(workspace/'diagnostics/stage-e-observer-v2-self-hosted/launch_control.py'),
             timeout_minutes=720,matrix=False,cancel_in_progress=False,rerun=False,migration=False,
             pinned_actions=['11bd71901bbe5b1630ceea73d27597364c9af683','ea165f8d65b6e75b540449e92b4886f43607fa02']),
         preparation=prep,tape=tape,observer_contract=contract,
@@ -171,7 +176,17 @@ def run_trial(number):
         result=read(folder/'TRIAL_RESULT.json') if (folder/'TRIAL_RESULT.json').exists() else None
         origins=[read(p) for p in folder.rglob('ORIGIN-*.json')]
         provider_files=list(folder.rglob('PROVIDER_ATTEMPT-*.json'))
-        receipts_ok=bool(origins) and all(not r['provider_attempts'] and r['isolated']==1 and r['no_site']==1 for r in origins)
+        initial=[r for r in origins if r['phase']=='initialized']
+        terminated={r['pid'] for r in origins if r['phase']=='terminated'}
+        receipts_ok=bool(origins) and all(not r['provider_attempts'] and r['isolated']==1 and r['no_site']==1
+            and r['assembly_digest']==ASSEMBLY and r['candidate_sha']==S
+            and r['infrastructure_manifest_sha256']==prep['infrastructure_manifest_sha256'] for r in origins)
+        receipts_ok=receipts_ok and all(r['pid'] in terminated for r in initial)
+        roles={role:sum(r['role']==role for r in initial) for role in ('trial','member','decoder-spawn','resource-tracker')}
+        receipts_ok=receipts_ok and roles==dict(trial=1,member=4,**{'decoder-spawn':8,'resource-tracker':4})
+        receipts_ok=receipts_ok and all(r['projected_clock_installed'] and not any(
+            Path(m['origin']).is_relative_to(BASE/'assembly/source') for m in r['modules'].values())
+            for r in initial if r['role']!='trial')
         source_receipts=[read(p) for p in folder.rglob('SOURCE_RECEIPT.json')]
         declaration=read(root/'PREDECLARATION.json')
         expected=declaration['tape']['members']
@@ -183,6 +198,7 @@ def run_trial(number):
         measurement=dict(sequence=number,mode=MODES[number-1],start_ns=start,end_ns=end,
             elapsed_ns=end-start,valid=valid,exit_code=code,helpers_stopped=stopped,
             origins_valid=receipts_ok,tape_valid=tape_ok,provider_attempts=len(provider_files),
+            process_roles=roles,
             complete_members=len(source_receipts),declaration_sha256=ledger['declaration_sha256'])
         persist(folder/'MEASUREMENT.json',measurement)
         slot.update(status='COMPLETED' if valid else 'INVALID',measurement=measurement)

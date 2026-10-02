@@ -36,9 +36,14 @@ def main():
     (target/'INFRASTRUCTURE.json').chmod(0o444);target.chmod(0o555)
     os_tools={name:dict(path=shutil.which(name),sha256=file_sha(shutil.which(name)))
         for name in ('ps','git','sh','unshare')}
+    shared=Path(env['stdlib']).parent/'libpython3.12.so.1.0'
+    os_tools['python_shared_library']=dict(path=str(shared.resolve()),sha256=file_sha(shared))
     persist(output/'INFRASTRUCTURE.json',read(target/'INFRASTRUCTURE.json'))
     from tape import generate
-    generate(output)
+    if (BASE/'tape/TAPE.json').exists():
+        from tape import reuse
+        reuse(output,HERE/'GENERATOR_EQUIVALENCE.json')
+    else:generate(output)
     audit_dir=output/'bootstrap';audit_dir.mkdir(exist_ok=False)
     anchor=audit_dir/'anchor.bin';anchor.write_bytes(b'\0'*8)
     params=audit_dir/'params.json'
@@ -50,13 +55,18 @@ def main():
     subprocess.run(command,cwd=BASE/'candidate-checkout',env=child_env,check=True,timeout=120)
     for filename in ('DIFFERENTIAL_PROOF.json','SEMANTIC_CLOCK_AUDIT.json','BOOTSTRAP_PROOF.json'):
         shutil.copyfile(audit_dir/filename,output/filename)
+    proof_path=BASE/'preparation'/identity
+    proof_path.mkdir(parents=True,exist_ok=False)
+    for name in ('GENERATOR_EQUIVALENCE.json','DIFFERENTIAL_PROOF.json','SEMANTIC_CLOCK_AUDIT.json','BOOTSTRAP_PROOF.json'):
+        shutil.copyfile(output/name,proof_path/name);(proof_path/name).chmod(0o444)
+    proof_path.chmod(0o555)
     verify_assembly(BASE/'assembly',ASSEMBLY)
     row=dict(version='external-observer-preparation-v1',passed=True,
         infrastructure_path=str(target),infrastructure_manifest_sha256=infra_sha,
         environment_sha256=file_sha(BASE/'fresh-environment.json'),
         assembly_digest=ASSEMBLY,tape_manifest_sha256=file_sha(BASE/'tape/TAPE.json'),
         preparation_workflow_sha=os.environ['GITHUB_SHA'],preparation_run_id=os.environ['GITHUB_RUN_ID'],
-        os_tools=os_tools,storage_before=disk,storage_after=storage(),
+        os_tools=os_tools,proof_path=str(proof_path),storage_before=disk,storage_after=storage(),
         proof_hashes={name:file_sha(output/name) for name in ('GENERATOR_EQUIVALENCE.json',
             'DIFFERENTIAL_PROOF.json','SEMANTIC_CLOCK_AUDIT.json','BOOTSTRAP_PROOF.json')},
         started_trials=0,started_members=0,retries=0,invalid_pairs=0)

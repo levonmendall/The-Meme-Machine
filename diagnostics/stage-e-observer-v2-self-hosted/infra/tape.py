@@ -88,6 +88,46 @@ def generate(output):
     target.chmod(0o555)
 
 
+def reuse(output,original_proof):
+    """Verify the existing immutable tape; never regenerate or alter its bytes."""
+    import ast
+    from certification.stage_e_native_v2 import fixtures
+    from core import read
+    original=read(original_proof);meta=read(BASE/'tape/TAPE.json')
+    assert original['passed'] and original['checked_all_declared_native_frames']==240
+    assert original['tape_manifest_sha256']==file_sha(BASE/'tape/TAPE.json')
+    assert original['native_build_frame_sha256']==file_sha(fixtures.__file__)
+    assert meta['physical_sha256']==file_sha(meta['tape'])
+    assert meta['frame_inventory_sha256']==file_sha(meta['frames_file'])
+    producers=[p for p in (BASE/'infrastructure').glob('*/tape.py')
+        if file_sha(p)==original['external_generator_sha256']]
+    if not producers:raise ValueError('original_tape_generator_origin_missing')
+    def algorithm(path):
+        node=next(n for n in ast.parse(Path(path).read_bytes()).body
+            if isinstance(n,ast.FunctionDef) and n.name=='extended_frame')
+        return ast.dump(node,include_attributes=False)
+    current=algorithm(__file__)
+    if current!=algorithm(producers[0]):raise ValueError('tape_generator_algorithm_changed')
+    spec=fixtures.spec('run380');templates=fixtures.templates('run380');hashes=[]
+    with Path(meta['tape']).open('rb') as f:
+        assert f.read(len(MAGIC))==MAGIC
+        for number in range(240):
+            size=LENGTH.unpack(f.read(8))[0];stored=gzip.decompress(f.read(size))
+            fresh=extended_frame(number,fixtures,spec,templates)
+            native=fixtures.build_frame('run380',number)
+            if stored!=fresh or fresh!=native:raise ValueError('stored_tape_fixture_equivalence')
+            hashes.append(sha(native))
+    assert hashes==original['native_frame_hashes']
+    proof=dict(original,external_generator_sha256=file_sha(__file__),
+        original_generator_sha256=original['external_generator_sha256'],
+        original_producer_origin=str(producers[0]),extended_algorithm_ast_sha256=sha(current.encode()),
+        reused_immutable_tape_sha256=meta['physical_sha256'],
+        all_240_stored_frames_also_equal=True,tape_bytes_modified=False)
+    persist(Path(output)/'GENERATOR_EQUIVALENCE.json',proof)
+    persist(Path(output)/'TAPE.json',meta)
+    persist(Path(output)/'TAPE_HASH.json',dict(manifest_sha256=file_sha(BASE/'tape/TAPE.json')))
+
+
 class Reader:
     def __init__(self,frames):
         meta=__import__('core').read(BASE/'tape/TAPE.json')

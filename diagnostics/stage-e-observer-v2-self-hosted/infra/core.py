@@ -57,7 +57,9 @@ def runtime_command(entry,*args):
 
 
 def clean_env(params):
+    environment=read(params)['environment']
     return dict(PATH='/usr/bin:/bin',LANG='C.UTF-8',TZ='UTC',MM_REAL_IPC_TESTS='1',
+        LD_LIBRARY_PATH=str(Path(environment['stdlib']).parent),
         MM_OBSERVER_INFRA=str(INFRA),MM_OBSERVER_PARAMS=str(params),
         MM_OBSERVER_PARAMS_SHA=file_sha(params))
 

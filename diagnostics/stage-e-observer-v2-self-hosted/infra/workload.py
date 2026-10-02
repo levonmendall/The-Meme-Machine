@@ -89,7 +89,7 @@ async def run_member():
     import concurrent.futures
     params=bound.PARAMS;output=Path(params['output'])
     frames=params['frames'];observed=params['mode']=='observed'
-    control=qualification.Interaction()
+    control=qualification.Interaction() if observed else legacy.Interaction()
     control.checkpoint=lambda path,native:checkpoint(control,path,native,observed)
     recovery.PLAN_PATH=BASE/'assembly/source/certification/stagee24_qualification_plan.json'
     observer=lifecycle_capacity.LifecycleObserver(output) if observed and params['member']=='recovery-1' else None
@@ -108,7 +108,7 @@ async def run_member():
         def source_batch(self,items):
             phase=control.source_started(len(items))
             result=super().source_batch(items)
-            control.source_completed(phase,len(items))
+            if observed:control.source_completed(phase,len(items))
             return result
     def pool(*args,**kwargs):
         if 'mp_context' not in kwargs:
@@ -119,6 +119,7 @@ async def run_member():
             self.reader=Reader(frames);self.template=self.reader.next();self.pending=self.template
             self.frames=frames;self.sent=0;self.acks=asyncio.Queue();self.start=None
             self.paused=set();self.pause_deadline=None;self.pause_started=None;self.pause_sample=None
+            self.pause_inspection=None
             self.first_release=None;self.samples=[];wire_holder.append(self)
         async def __aenter__(self):return self
         async def __aexit__(self,*args):pass
@@ -129,10 +130,16 @@ async def run_member():
             if not self.acks.empty():return await self.acks.get()
             if self.sent>=self.frames:return await self.acks.get()
             if self.sent in (800,1400) and self.sent not in self.paused:
-                self.paused.add(self.sent);sample=await asyncio.to_thread(control.inspect)
+                self.paused.add(self.sent)
+                self.pause_inspection=asyncio.create_task(asyncio.to_thread(control.inspect))
+            if self.pause_inspection is not None:
+                # Preserve the required pause even when recv's native .5-second
+                # polling timeout cancels a slow control snapshot.
+                sample=await asyncio.shield(self.pause_inspection)
                 sample['source_seconds']=self.sent*.27;control.metrics['burst_evidence'].append(sample)
                 self.pause_started=time.monotonic();self.pause_deadline=self.pause_started+8
                 self.pause_sample=sample
+                self.pause_inspection=None
             if self.pause_deadline is not None:
                 await asyncio.sleep(max(0,self.pause_deadline-time.monotonic()))
                 self.pause_sample['observed_pause_seconds']=time.monotonic()-self.pause_started
@@ -191,6 +198,11 @@ async def run_member():
         immutable_semantic_wall_epoch=1800000000,immutable_semantic_monotonic_epoch=100,
         clock_samples=wire.samples,retiming_calls=0))
     persist(output/'MEMBER_RESULT.json',row)
+    # Native observer JSONL and the native driver's JSON are flushed as part
+    # of the measured member, before process teardown can complete.
+    for path in output.iterdir():
+        if path.is_file():
+            with path.open('rb') as f:__import__('os').fsync(f.fileno())
     if not row['workload_valid'] or not row['observation_valid']:
         raise ValueError('member_workload_or_observation_invalid')
 
