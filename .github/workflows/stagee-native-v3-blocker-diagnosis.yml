@@ -1,0 +1,36 @@
+name: Stage-E Native V3-A immutable blocker diagnosis (PAPER ONLY)
+on: [create]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-autonomous-blocker-20261003T133500Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 15
+    steps:
+      - name: Read frozen approved harness
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f480c6b4f7a8442fd148c7ed61bcc4447edaefca
+          path: native-v3-approved-autonomous-blocker
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read separate diagnostic source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: native-v3-autonomous-blocker
+          persist-credentials: false
+      - name: Preserve exact frozen tape rejection and remaining independent capabilities
+        id: collect
+        shell: sh
+        env:
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-autonomous-blocker
+        run: exec /workspace/stage-e-runtime/bin/python -I -B native-v3-autonomous-blocker/diagnostics/stage-e-native-v3-a-autonomous-20261003T133500Z/diagnose_admission_blocker.py
+      - name: Preserve diagnosis without native workload execution
+        if: always() && steps.collect.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-autonomous-blocker-diagnosis
+          path: ${{ steps.collect.outputs.evidence_path }}
+          retention-days: 90
+          if-no-files-found: error
