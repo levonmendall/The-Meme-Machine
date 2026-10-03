@@ -94,7 +94,8 @@ def validate_existing(path, frame_inventory, *, kind='A'):
                     and block['previousBlockhash'] == f'h{999+number}'
                     and block['blockTime'] == (1800000000*1000000+number*270000)//1000000-1
                     and len(block['transactions']) == 512, 'immutable_event_clock_or_shape')
-            require(sum(tx['meta']['err'] is not None for tx in block['transactions']) == 256, 'failed_transaction_mix')
+            # Approved native population: 256 failed filler + 28 captured Meteora failures.
+            require(sum(tx['meta']['err'] is not None for tx in block['transactions']) == 284, 'failed_transaction_mix')
             if reader.count in (2223, 4445):
                 checkpoints[str(reader.count)] = reader.receipt()
                 prefix = next(m for m in binding['members'] if m['frames'] == reader.count)

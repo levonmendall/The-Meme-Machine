@@ -103,6 +103,15 @@ test_stale_allocation_fails (test_envelope.EnvelopeTests.test_stale_allocation_f
 test_structural_exact_envelope_fixture (test_envelope.EnvelopeTests.test_structural_exact_envelope_fixture) ... ok
 test_swap_and_ballooning_fail (test_envelope.EnvelopeTests.test_swap_and_ballooning_fail) ... ok
 test_unattested_fsync_or_sqlite_fails (test_envelope.EnvelopeTests.test_unattested_fsync_or_sqlite_fails) ... ok
+test_256_and_neighboring_totals_fail_at_first_and_last_frame (test_failed_transaction_mix.FailedTransactionMixTests.test_256_and_neighboring_totals_fail_at_first_and_last_frame) ... ok
+test_exact_population_is_required_through_all_4445_frames (test_failed_transaction_mix.FailedTransactionMixTests.test_exact_population_is_required_through_all_4445_frames) ... ok
+test_failure_rule_is_not_special_cased_to_native_prefix_or_checkpoint (test_failed_transaction_mix.FailedTransactionMixTests.test_failure_rule_is_not_special_cased_to_native_prefix_or_checkpoint) ... ok
+test_final_physical_binding_remains_required (test_failed_transaction_mix.FailedTransactionMixTests.test_final_physical_binding_remains_required) ... ok
+test_frame_inventory_identity_remains_required (test_failed_transaction_mix.FailedTransactionMixTests.test_frame_inventory_identity_remains_required) ... ok
+test_frozen_lane_count_and_preserved_template_errors_derive_total (test_failed_transaction_mix.FailedTransactionMixTests.test_frozen_lane_count_and_preserved_template_errors_derive_total) ... ok
+test_neighboring_clock_and_shape_invariants_remain_strict (test_failed_transaction_mix.FailedTransactionMixTests.test_neighboring_clock_and_shape_invariants_remain_strict) ... ok
+test_prefix_binding_remains_required (test_failed_transaction_mix.FailedTransactionMixTests.test_prefix_binding_remains_required) ... ok
+test_production_AST_delta_is_only_the_total_failure_literal (test_failed_transaction_mix.FailedTransactionMixTests.test_production_AST_delta_is_only_the_total_failure_literal) ... ok
 test_changed_partial_prefix_or_release_bytes_are_rejected (test_overload_terminal.IncompleteInputTests.test_changed_partial_prefix_or_release_bytes_are_rejected) ... ok
 test_partial_C_prefix_is_verified_from_opaque_bytes_without_unread_credit (test_overload_terminal.IncompleteInputTests.test_partial_C_prefix_is_verified_from_opaque_bytes_without_unread_credit) ... ok
 test_every_native_proof_failure_refuses_terminal_credit (test_overload_terminal.OverloadProtocolTests.test_every_native_proof_failure_refuses_terminal_credit) ... ok
@@ -368,6 +377,6 @@ test_snapshot_hard_bound_and_owner_limits_are_unchanged_native_source (test_sour
 test_stress_profile_preserves_all_injected_delays_and_recovery (test_source_grounding.SourceGroundingTests.test_stress_profile_preserves_all_injected_delays_and_recovery) ... ok
 
 ----------------------------------------------------------------------
-Ran 368 tests in 8.174s
+Ran 377 tests in 36.846s
 
 OK
