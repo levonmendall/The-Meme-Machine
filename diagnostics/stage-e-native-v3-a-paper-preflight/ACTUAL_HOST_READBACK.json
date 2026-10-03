@@ -1,0 +1,19 @@
+{
+  "A_slots_consumed": 0,
+  "A_trials_started": 0,
+  "actual_boot_id": "f0453f41-fe5e-4e10-bda7-657de65713d8",
+  "artifact_SHA256": "a3f3533e200f9ece41b0dedf5ce5a266047aebf028a66f0e77bad1c9a35a70cb",
+  "artifact_id": 11263247429,
+  "exact_all_raw_bytes_verified": true,
+  "execution_authorized": false,
+  "job_id": 111117376565,
+  "raw_entries_verified": 10,
+  "raw_manifest_sha256": "1c39df0c4b5546a5948cdc1adbc319e111391aa757719b214d923f3c0895a096",
+  "remote_durable_preservation_path": "/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-a-paper-20261003T030901Z",
+  "result_sha256": "5408531733b6c93bb8f362718e06762082725f9af9a3366ada671e40e25e18c0",
+  "runner_id": 21,
+  "runner_name": "the meme machine",
+  "source_frames_released": 0,
+  "workflow_run_id": 37093086807,
+  "zip_bytes": 22746
+}

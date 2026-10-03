@@ -1,0 +1,23 @@
+{
+  "assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659",
+  "assembly_files_verified": 1241,
+  "assembly_manifest_sha256": "d60d02a32838df4658cc5943d469057ec08ece11e82301b3e85231e029c9eaa0",
+  "candidate_S": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "candidate_T": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+  "candidate_files_verified": 1241,
+  "candidate_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+  "contract_artifacts_verified": 191,
+  "contract_commit": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+  "contract_manifest_sha256": "786308bcfc18c88f1c5e97286c311766159d592b47a637d2c6ae6ff53ffd22f0",
+  "contract_tree": "2715b1807f85cf97653663c392fd1c5d22390886",
+  "errors": [],
+  "harness_artifacts_verified": 53,
+  "harness_commit": "f87c72cf2a15e3c099a8bd07acad3b0737d9dd27",
+  "harness_manifest_sha256": "b69d6cc95b478b03bafeeb4f7598abe668c141069fb58ebcea0e70ec6016926f",
+  "harness_source_digest": "9d2f1f8a02bc01c72f61004387a423d7db5f8803cf9d7c36e9dd7ac49af687e8",
+  "harness_tree": "09c48ee0601c4ef12dcef53a027bf2eb02e634a6",
+  "harness_verifier_sha256": "09853e0e2411c5d0a7befd2ab9f1ffbd9e97ee0005e6b9f1c3c22cfca4d6a5d9",
+  "method": "Independent Git smart-HTTP fetch; recomputed commit objects, Git blob identities and SHA-256 manifests; no repository code executed",
+  "passed": true,
+  "source_hashes_sha256": "dac7e6b843af9f2c353141fca761ac2495891a4b7e9faa88c29cde2a88f7b9fd"
+}

@@ -1,0 +1,57 @@
+{
+  "artifacts": [
+    {
+      "bytes": 825,
+      "path": "ACTUAL_HOST_READBACK.json",
+      "sha256": "1ad26ab24f5288bfa740a74e28c1454399ba84562eee9b8994b6152b1c10658f"
+    },
+    {
+      "bytes": 2273,
+      "path": "HISTORICAL_OBSERVER_V2_SEAL.json",
+      "sha256": "af68a1e5f2b4053a030f3616608d3c716f88ce43dc0e19ce508a28bbbf30f008"
+    },
+    {
+      "bytes": 3503,
+      "path": "HOST_RESOURCE_ATTESTATION.json",
+      "sha256": "696694e0d1923c7a35cf22fed3f209d7b55b6f6c18ccec25e3a6a280bf590abd"
+    },
+    {
+      "bytes": 1437,
+      "path": "IDENTITY_VERIFICATION.json",
+      "sha256": "99ee2044bfed1a317aaa689e19a0a02f88769cd48be51ceddb55ae62382356d7"
+    },
+    {
+      "bytes": 790,
+      "path": "PAPER_PROBE_READBACK.json",
+      "sha256": "99683819f7693ec629fc031b7953ff0927c3812aa45a86ad6d1fa7e849255678"
+    },
+    {
+      "bytes": 2536,
+      "path": "PREFLIGHT_REPORT.md",
+      "sha256": "fd6c017abfeaad20e6d273ffc7739e34bfa9c0d950ebafc84536fc09aedcb167"
+    },
+    {
+      "bytes": 9428,
+      "path": "PROVIDER_ALLOCATION_READBACK.json",
+      "sha256": "08f7de98b6bb43f07d2f7c3457989821b9f7cb0706efd60e533499b08d82574e"
+    },
+    {
+      "bytes": 70267,
+      "path": "PROVIDER_CAPABILITY_SOURCE.html",
+      "sha256": "26dc66504e5e4e2b5ccd5b46af92b48b99d844ec18c897a8e8650b5d7495419e"
+    },
+    {
+      "bytes": 1709,
+      "path": "RAW_EVIDENCE_MANIFEST.json",
+      "sha256": "1c39df0c4b5546a5948cdc1adbc319e111391aa757719b214d923f3c0895a096"
+    },
+    {
+      "bytes": 7127,
+      "path": "RESULT.json",
+      "sha256": "50dc25cb8c3b7828978680ae2ba0ecf85692e2a8cba1a148c02e24a2c9937856"
+    }
+  ],
+  "execution_authorized": false,
+  "manifest_self_hash_excluded": true,
+  "version": "blocked-paper-preflight-publication-v1"
+}

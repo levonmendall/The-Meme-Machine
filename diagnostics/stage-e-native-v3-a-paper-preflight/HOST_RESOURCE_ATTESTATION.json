@@ -1,0 +1,137 @@
+{
+  "affinity": [
+    0,
+    1
+  ],
+  "balloon_modules": [],
+  "boot_id": "f0453f41-fe5e-4e10-bda7-657de65713d8",
+  "cgroup": {
+    "ancestors": [
+      {
+        "controllers": [],
+        "cpu_max_raw": null,
+        "cpuset": null,
+        "cpuset_effective": null,
+        "membership": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "memory_high": null,
+        "memory_high_raw": "max",
+        "memory_max": null,
+        "memory_max_raw": "max",
+        "mount_root": "/",
+        "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "period_us": null,
+        "quota_us": null,
+        "swap_max": null,
+        "swap_max_raw": "max",
+        "version": "cgroup2"
+      },
+      {
+        "controllers": [],
+        "cpu_max_raw": null,
+        "cpuset": null,
+        "cpuset_effective": null,
+        "membership": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "memory_high": null,
+        "memory_high_raw": "max",
+        "memory_max": null,
+        "memory_max_raw": "max",
+        "mount_root": "/",
+        "path": "/sys/fs/cgroup/system.slice",
+        "period_us": null,
+        "quota_us": null,
+        "swap_max": null,
+        "swap_max_raw": "max",
+        "version": "cgroup2"
+      },
+      {
+        "controllers": [],
+        "cpu_max_raw": null,
+        "cpuset": null,
+        "cpuset_effective": "0-1",
+        "membership": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "memory_high": null,
+        "memory_high_raw": null,
+        "memory_max": null,
+        "memory_max_raw": null,
+        "mount_root": "/",
+        "path": "/sys/fs/cgroup",
+        "period_us": null,
+        "quota_us": null,
+        "swap_max": null,
+        "swap_max_raw": null,
+        "version": "cgroup2"
+      }
+    ],
+    "complete": false,
+    "memberships": [
+      [
+        "0",
+        [],
+        "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+      ]
+    ],
+    "namespace": "cgroup:[4026531835]",
+    "pid1_namespace": "cgroup:[4026531835]"
+  },
+  "cpu": {
+    "online": [
+      0,
+      1
+    ],
+    "possible": [
+      0,
+      1
+    ],
+    "present": [
+      0,
+      1
+    ]
+  },
+  "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+  "inspection_errors": [
+    "complete_cgroup_inventory_unavailable"
+  ],
+  "memory": {
+    "MemAvailable": 7640399872,
+    "MemTotal": 8327667712,
+    "SwapFree": 0,
+    "SwapTotal": 0
+  },
+  "real_monotonic_ns": 80040455777299,
+  "real_utc_ns": 1790997867875262362,
+  "scope_cgroup_sha256": "7ecd81cc0660c946b51d7223fc721f834b96b892e70214905b8beda1e405293d",
+  "scope_pid": 29855,
+  "storage": [
+    {
+      "block_bytes": 4096,
+      "device": "8:0",
+      "free_bytes": 47530713088,
+      "fs_type": "ext4",
+      "mount": "/mnt/volume_nyc1_1790918115030",
+      "mount_id": 54,
+      "options": "rw,noatime",
+      "parent_id": 30,
+      "path": "/mnt/volume_nyc1_1790918115030",
+      "root": "/",
+      "source": "/dev/sda",
+      "st_dev": 2048,
+      "super_options": "rw,discard",
+      "total_bytes": 53075214336
+    }
+  ],
+  "topology": [
+    {
+      "core_id": "0",
+      "cpu": 0,
+      "package_id": "0",
+      "thread_siblings": "0"
+    },
+    {
+      "core_id": "1",
+      "cpu": 1,
+      "package_id": "0",
+      "thread_siblings": "1"
+    }
+  ],
+  "version": "v3-linux-resource-snapshot"
+}
