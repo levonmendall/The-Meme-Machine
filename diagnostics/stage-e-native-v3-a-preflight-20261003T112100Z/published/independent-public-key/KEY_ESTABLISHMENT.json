@@ -1,0 +1,12 @@
+{
+  "algorithm": "RSA-3072/OpenSSL-dgst-SHA256",
+  "allocation_public_key_sha256": "dd8987a187f7dc241369c56354d1787f7d39bed0a8af5a993075e5e6eeab3f97",
+  "established_utc_ns": 1791028020530646075,
+  "owner_execution_permit_created": false,
+  "private_key_preserved": false,
+  "private_key_storage": "ephemeral controller-process memory only",
+  "public_key_bytes": 625,
+  "purpose": "allocation-attestation-only",
+  "separate_from_owner_execution_permit": true,
+  "version": "independent-allocation-attestation-trust-v1"
+}

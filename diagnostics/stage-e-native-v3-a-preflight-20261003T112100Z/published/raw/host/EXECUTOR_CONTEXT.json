@@ -1,0 +1,21 @@
+{
+  "approved_commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+  "collector_sha256": "1558734a4e581ce70d1a351e9a5253e5c4a1be2042679b5035a5350bdf68c3ab",
+  "context": {
+    "GITHUB_EVENT_NAME": "create",
+    "GITHUB_REPOSITORY": "levonmendall/The-Meme-Machine",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_RUN_ID": "37120391770",
+    "GITHUB_SHA": "2c3e619709b7900eab937bd9fefbec88e5fc4626",
+    "GITHUB_WORKFLOW_REF": "levonmendall/The-Meme-Machine/.github/workflows/stagee-native-v3-a-signed-preflight.yml@refs/heads/preflight/native-v3-a-signed-20261003T112100Z",
+    "GITHUB_WORKFLOW_SHA": "2c3e619709b7900eab937bd9fefbec88e5fc4626",
+    "RUNNER_ARCH": "X64",
+    "RUNNER_NAME": "the meme machine",
+    "RUNNER_OS": "Linux"
+  },
+  "gid": 0,
+  "python": "/workspace/stage-e-runtime/bin/python",
+  "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "repository": "/opt/actions-runner/_work/The-Meme-Machine/The-Meme-Machine/native-v3-approved-20261003T112100Z",
+  "uid": 0
+}

@@ -1,0 +1,17 @@
+{
+  "A_slots_consumed": 0,
+  "A_trials_started": 0,
+  "B_started": false,
+  "C_started": false,
+  "actual_slots_reserved": false,
+  "approved_executable_commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+  "campaign_created": false,
+  "execution_authorized": false,
+  "paper_only": true,
+  "preflight_id": "native-v3-a-preflight-20261003T112100Z",
+  "resource_configuration_mutations": 0,
+  "source_frames_released": 0,
+  "stage_e": "RED",
+  "stage_f": "NOT STARTED",
+  "version": "fresh-native-v3-A-host-preflight"
+}

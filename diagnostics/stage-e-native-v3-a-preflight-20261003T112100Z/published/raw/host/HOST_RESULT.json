@@ -1,0 +1,28 @@
+{
+  "A_slots_consumed": 0,
+  "A_trials_started": 0,
+  "B_started": false,
+  "C_started": false,
+  "actual_slots_reserved": false,
+  "ancestor_inventory_sha256": "8f216e390d07093b34e32de0e6e2cf418c9880c6bd898aaad2f49a2d7fda2d71",
+  "approved_executable_commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+  "boot_id": "f0453f41-fe5e-4e10-bda7-657de65713d8",
+  "campaign_created": false,
+  "execution_authorized": false,
+  "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+  "paper_only": true,
+  "preflight_id": "native-v3-a-preflight-20261003T112100Z",
+  "preflight_parent_shell_pid": 34770,
+  "resource_configuration_mutations": 0,
+  "retained_executor_evidence_path": "/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-a-preflight-20261003T112100Z",
+  "source_frames_released": 0,
+  "stage_e": "RED",
+  "stage_f": "NOT STARTED",
+  "status": "HOST_FACTS_COMPLETE_REQUIRES_SIGNED_ALLOCATION_AND_REMAINING_CHECKS",
+  "usable_ram_bytes": 8327667712,
+  "version": "fresh-native-v3-A-host-preflight",
+  "visible_cpu_ids": [
+    0,
+    1
+  ]
+}

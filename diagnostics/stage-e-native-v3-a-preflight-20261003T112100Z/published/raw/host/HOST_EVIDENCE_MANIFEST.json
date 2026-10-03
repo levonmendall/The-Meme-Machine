@@ -1,0 +1,72 @@
+{
+  "A_slots_consumed": 0,
+  "artifacts": [
+    {
+      "bytes": 5275,
+      "path": "CGROUP_VERIFICATION.json",
+      "sha256": "a9bbd6ac0d4ed554ef36d33a1d538c70d7c614b334b48fc92de71310f560404c"
+    },
+    {
+      "bytes": 119,
+      "path": "CONTRACT_READBACK.json",
+      "sha256": "ef620beb14e8035b9d83ee937c0304dd4c3f1a470ca15ac21e06f942e2834b74"
+    },
+    {
+      "bytes": 1001,
+      "path": "EXECUTOR_CONTEXT.json",
+      "sha256": "1da1541812bc60bbea28b0a9dc51435c0563fd0e5beb796d6a54a2ef168df07c"
+    },
+    {
+      "bytes": 3442,
+      "path": "EXTERNAL_SOURCE_IDENTITY.json",
+      "sha256": "0742301a79c43bd12867ad0e51e92772d6fb6250f322fd90356813eba97ab26c"
+    },
+    {
+      "bytes": 118,
+      "path": "HARNESS_READBACK.json",
+      "sha256": "ebc8636acf07c1ae456208bba5a416039b3bcf269f2cdb78629268ae9c9ff0c6"
+    },
+    {
+      "bytes": 1055,
+      "path": "HOST_RESULT.json",
+      "sha256": "79cfd45a57eaa3f7e86551233bdf02508278da36c1111bfe10b9ef53ce5683d0"
+    },
+    {
+      "bytes": 66,
+      "path": "PROVIDER_GUEST_IDENTITY.json",
+      "sha256": "b875c7c4cc0e7d5947975dd2fb363d3f52aa5dea722929cb820fa4276cc8ae53"
+    },
+    {
+      "bytes": 66682,
+      "path": "RAW_MACHINE_EVIDENCE.json",
+      "sha256": "32291aabd0bbbd90c099d5d5c5aa2b632543d4523c87edbc34585f5927074eb2"
+    },
+    {
+      "bytes": 80438,
+      "path": "RESOURCE_FINAL.json",
+      "sha256": "09a9c1ebd7aab5ae7d98c7ab7e9f1ae7ad9492b53a5de000a2b8ac2941bc59a9"
+    },
+    {
+      "bytes": 79395,
+      "path": "RESOURCE_INITIAL.json",
+      "sha256": "d017b8ce68f9240dce3c09d7dcfa47414229fa320f73dc74077c5411383f852e"
+    },
+    {
+      "bytes": 187,
+      "path": "RUNNER_REGISTRATION.json",
+      "sha256": "fb2bc08abdfa01458269add4f292fad451becdb94e45f5abdb1b562b9dac5dfc"
+    },
+    {
+      "bytes": 520,
+      "path": "SCOPE.json",
+      "sha256": "3824db0545f390ce22ae7c5fefce2923076bc35662adeb88473d0c82d09cfb19"
+    },
+    {
+      "bytes": 1602,
+      "path": "STORAGE_CAPABILITY.json",
+      "sha256": "59cb5c1e585b5295c39f306cd80bcaff58260f3cd59bd0e487691b2af05fad26"
+    }
+  ],
+  "execution_authorized": false,
+  "source_frames_released": 0
+}
