@@ -1,0 +1,30 @@
+name: Native-v3 A paper-only machine admission
+on:
+  create:
+permissions:
+  contents: read
+jobs:
+  paper-only-admission:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-paper-20261003T030901Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 12
+    steps:
+      - name: Read exact paper inspection source in a separate directory
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: native-v3-paper-20261003T030901Z
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Read actual executor resources and preserved immutable inputs
+        id: inspect
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: /usr/bin/python3 -B "$GITHUB_WORKSPACE/native-v3-paper-20261003T030901Z/diagnostics/stage-e-native-v3-a-paper-preflight/inspect.py"
+      - name: Preserve the paper evidence copy
+        if: always() && steps.inspect.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-a-paper-20261003T030901Z-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.inspect.outputs.evidence_path }}
+          if-no-files-found: error
+          retention-days: 90
