@@ -1,0 +1,244 @@
+name: Native-v3 read-only cgroup diagnosis
+on:
+  create:
+permissions:
+  contents: read
+jobs:
+  read-only-cgroup-diagnosis:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'diagnosis/native-v3-cgroup-20261003T034530Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 5
+    steps:
+      - name: Read complete controller hierarchy and systemd settings into job output
+        run: |
+          /usr/bin/python3 -I -S -B - <<'PY'
+          import base64, gzip, hashlib, json, os, platform, re, socket, subprocess, sys, time, urllib.request
+          from pathlib import Path
+          
+          FILES = ('cgroup.controllers','cgroup.subtree_control','cgroup.type','cgroup.procs','cgroup.threads',
+                   'cpu.max','cpu.weight','cpuset.cpus','cpuset.cpus.effective','cpuset.mems',
+                   'cpuset.mems.effective','memory.max','memory.high','memory.swap.max',
+                   'cgroup.events','cgroup.max.depth','cgroup.max.descendants')
+          STATIC = ('cgroup.controllers','cgroup.subtree_control','cgroup.type','cpu.max','cpu.weight',
+                    'cpuset.cpus','cpuset.cpus.effective','cpuset.mems','cpuset.mems.effective',
+                    'memory.max','memory.high','memory.swap.max')
+          PROPS = ('Id','Names','ControlGroup','Slice','CPUAccounting','CPUQuota','CPUQuotaPerSecUSec',
+                   'CPUQuotaPeriodUSec','CPUWeight','StartupCPUWeight','AllowedCPUs','EffectiveCPUs',
+                   'AllowedMemoryNodes','EffectiveMemoryNodes','MemoryAccounting','MemoryMax',
+                   'MemoryHigh','MemorySwapMax','TasksAccounting','TasksMax','Delegate',
+                   'DelegateControllers','DisableControllers','FragmentPath','DropInPaths')
+          data = dict(version='native-v3-read-only-cgroup-diagnosis-collection-v1',
+                      paper_only=True, execution_authorized=False, stage_e='RED', stage_f='NOT_STARTED',
+                      source_frames_released=0, A_slots_consumed=0, A_trials_started=0,
+                      B_started=False, C_started=False, diagnostic_file_writes=0,
+                      resource_configuration_mutations=0, errors=[])
+          
+          def sha(b):
+              return hashlib.sha256(b).hexdigest()
+          
+          def file(path):
+              p = Path(path)
+              out = dict(path=str(p))
+              try:
+                  st = p.stat()
+                  with p.open('rb') as f:
+                      b = f.read(1048577)
+                  if len(b) > 1048576:
+                      return dict(out,state='UNRESOLVED_TOO_LARGE',bytes_read=len(b))
+                  return dict(out,state='PRESENT',text=b.decode(),bytes=len(b),sha256=sha(b),
+                              inode=st.st_ino,device=st.st_dev,mode=oct(st.st_mode))
+              except FileNotFoundError:
+                  return dict(out,state='ABSENT')
+              except OSError as e:
+                  return dict(out,state='UNREADABLE',error_type=type(e).__name__,errno=e.errno)
+          
+          def link(path):
+              try:
+                  return dict(path=path,state='PRESENT',target=os.readlink(path))
+              except OSError as e:
+                  return dict(path=path,state='UNREADABLE',error_type=type(e).__name__,errno=e.errno)
+          
+          def command(argv):
+              try:
+                  p = subprocess.run(argv,capture_output=True,text=True,timeout=30)
+                  return dict(argv=argv,returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)
+              except (OSError,subprocess.TimeoutExpired) as e:
+                  return dict(argv=argv,state='UNREADABLE',error_type=type(e).__name__)
+          
+          def mounts(raw):
+              result=[]
+              for line in raw.splitlines():
+                  a=line.split();i=a.index('-')
+                  if a[i+1] not in ('cgroup','cgroup2'):
+                      continue
+                  unescape=lambda x: x.replace('\\040',' ').replace('\\011','\t').replace('\\134','\\')
+                  result.append(dict(mount_id=a[0],parent_id=a[1],device=a[2],root=unescape(a[3]),
+                      mountpoint=unescape(a[4]),mount_options=a[5],optional_fields=a[6:i],
+                      fs_type=a[i+1],source=a[i+2],super_options=a[i+3],raw=line))
+              return result
+          
+          def ancestry(name):
+              p=Path(name)
+              if not p.is_absolute() or '..' in p.parts:
+                  raise ValueError('unsafe_cgroup_membership')
+              rows=[]
+              while True:
+                  rows.append(p.as_posix())
+                  if p == Path('/'):
+                      return list(reversed(rows))
+                  p=p.parent
+          
+          def snapshot(root,names):
+              out=[]
+              for name in names:
+                  p=root/name.lstrip('/')
+                  row=dict(absolute_cgroup_path=name,filesystem_path=str(p),files={})
+                  try:
+                      st=p.stat()
+                      row['directory_identity']=dict(inode=st.st_ino,device=st.st_dev,mode=oct(st.st_mode))
+                      row['child_cgroup_directories']=sorted(x.name for x in p.iterdir() if x.is_dir())
+                  except OSError as e:
+                      row['directory_error']=dict(error_type=type(e).__name__,errno=e.errno)
+                  row['files']={n:file(p/n) for n in FILES}
+                  out.append(row)
+              return out
+          
+          def unit_evidence(unit):
+              raw=command(['systemctl','show','--all','--no-pager','--property='+','.join(PROPS),'--',unit])
+              observed={}
+              for line in raw.get('stdout','').splitlines():
+                  if '=' in line:
+                      k,v=line.split('=',1);observed[k]=v
+              out=dict(unit=unit,show=raw,properties={n:dict(state='PRESENT',value=observed[n])
+                        if n in observed else dict(state='ABSENT_PROPERTY') for n in PROPS},files=[])
+              paths=[]
+              if observed.get('FragmentPath'):
+                  paths.append(observed['FragmentPath'])
+              paths.extend(observed.get('DropInPaths','').split())
+              secret={'Environment','EnvironmentFile','PassEnvironment','UnsetEnvironment',
+                      'SetCredential','SetCredentialEncrypted','LoadCredential','LoadCredentialEncrypted'}
+              for path in paths:
+                  r=file(path)
+                  if r.get('state') == 'PRESENT':
+                      # Fully inspect files but keep credential/environment/command values out of job logs.
+                      filtered=[]
+                      for line in r['text'].splitlines():
+                          key=line.strip().split('=',1)[0]
+                          if key in secret or key.startswith('Exec'):
+                              filtered.append(key+'=<value omitted; exact original file SHA-256 preserved>')
+                          else:
+                              filtered.append(line)
+                      r['inspected_text_filtered']='\n'.join(filtered)+'\n'
+                      del r['text']
+                      r['redaction_note']='Only environment/credential/Exec directive values are omitted; resource settings and section structure are preserved.'
+                  out['files'].append(r)
+              return out
+          
+          try:
+              data['started_utc_ns']=time.time_ns()
+              data['host']=dict(hostname=socket.gethostname(),pid=os.getpid(),uid=os.getuid(),gid=os.getgid(),
+                  kernel=platform.release(),machine=platform.machine(),visible_cpu_count=os.cpu_count(),
+                  affinity=sorted(os.sched_getaffinity(0)),boot_id=file('/proc/sys/kernel/random/boot_id'),
+                  cpu_ids={n:file('/sys/devices/system/cpu/'+n) for n in ('possible','present','online')},
+                  meminfo=file('/proc/meminfo'),swaps=file('/proc/swaps'))
+              data['github_context']={k:os.environ.get(k) for k in
+                  ('GITHUB_REPOSITORY','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_EVENT_NAME',
+                   'GITHUB_SHA','GITHUB_WORKFLOW_REF','GITHUB_WORKFLOW_SHA','RUNNER_NAME','RUNNER_OS','RUNNER_ARCH')}
+              if data['host']['hostname']!='ubuntu-gd-2vcpu-8gb-nyc1' or os.environ.get('RUNNER_NAME')!='the meme machine':
+                  raise ValueError('actual_executor_mismatch')
+              if os.environ.get('GITHUB_RUN_ATTEMPT')!='1':
+                  raise ValueError('diagnostic_rerun_forbidden')
+              registration=json.loads(Path('/opt/actions-runner/.runner').read_text(encoding='utf-8-sig'))
+              data['runner_registration']={k:registration.get(k) for k in
+                  ('agentId','agentName','poolId','poolName','gitHubUrl','workFolder')}
+              data['provider_metadata']={}
+              opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+              for k in ('id','hostname'):
+                  with opener.open('http://169.254.169.254/metadata/v1/'+k,timeout=5) as f:
+                      data['provider_metadata'][k]=f.read(4096).decode().strip()
+              if data['provider_metadata'] != {'id':'605465049','hostname':'ubuntu-gd-2vcpu-8gb-nyc1'}:
+                  raise ValueError('provider_executor_identity_mismatch')
+              data['proc']={p:file(p) for p in
+                  ('/proc/cgroups','/proc/self/cgroup','/proc/1/cgroup','/proc/self/mountinfo',
+                   '/proc/1/mountinfo','/proc/self/status','/proc/1/status','/proc/1/comm','/proc/version')}
+              data['namespaces']={p:link(p) for p in
+                  ('/proc/self/ns/cgroup','/proc/1/ns/cgroup','/proc/self/ns/mnt','/proc/1/ns/mnt',
+                   '/proc/self/ns/pid','/proc/1/ns/pid','/proc/self/ns/user','/proc/1/ns/user','/proc/1/exe')}
+              self_mounts=mounts(data['proc']['/proc/self/mountinfo'].get('text',''))
+              init_mounts=mounts(data['proc']['/proc/1/mountinfo'].get('text',''))
+              data['cgroup_mounts']=dict(diagnostic=self_mounts,pid1=init_mounts)
+              cgm=[m for m in self_mounts if m['fs_type']=='cgroup2']
+              if len(cgm)!=1:
+                  raise ValueError('unambiguous_cgroup2_mount_unavailable')
+              mount=cgm[0]
+              root=Path(mount['mountpoint'])
+              data['cgroup2_mount_directory']=dict(path=str(root),inode=root.stat().st_ino,device=root.stat().st_dev)
+              if mount['root']!='/':
+                  raise ValueError('delegated_mount_root_hides_ancestors')
+              memberships={}
+              for who,p in [('diagnostic','/proc/self/cgroup'),('pid1','/proc/1/cgroup')]:
+                  text=data['proc'][p].get('text','')
+                  v2=[x.split(':',2)[2] for x in text.splitlines() if x.startswith('0::')]
+                  if len(v2)!=1:
+                      raise ValueError('unambiguous_unified_membership_unavailable:'+who)
+                  memberships[who]=v2[0]
+              diag=ancestry(memberships['diagnostic'])
+              services=[n for n in diag if Path(n).name.startswith('actions.runner.') and n.endswith('.service')]
+              if len(services)!=1:
+                  raise ValueError('actual_runner_service_ancestor_unresolved')
+              service=services[0]
+              names=sorted(set(diag+ancestry(memberships['pid1'])+['/','/system.slice',service]),
+                           key=lambda n:(len(Path(n).parts),n))
+              data['memberships']=dict(memberships,runner_service=service)
+              data['diagnostic_ancestor_paths']=diag
+              data['hierarchy_initial']=snapshot(root,names)
+              data['systemd_version']=command(['systemctl','--version'])
+              units=sorted(set(['-.slice','system.slice',Path(service).name]+
+                    [Path(n).name for n in diag if n.endswith('.slice')]))
+              data['systemd_units']=[unit_evidence(u) for u in units]
+              config_paths=['/boot/config-'+platform.release(),'/proc/config.gz']
+              data['kernel_config_sources']=[]
+              flags=('CONFIG_CGROUPS','CONFIG_CGROUP_SCHED','CONFIG_FAIR_GROUP_SCHED','CONFIG_CFS_BANDWIDTH',
+                     'CONFIG_RT_GROUP_SCHED','CONFIG_CPUSETS','CONFIG_MEMCG','CONFIG_MEMCG_SWAP',
+                     'CONFIG_CGROUP_PIDS','CONFIG_CGROUP_NS','CONFIG_NAMESPACES','CONFIG_SWAP')
+              for name in config_paths:
+                  try:
+                      b=Path(name).read_bytes()
+                      raw=gzip.decompress(b).decode() if name.endswith('.gz') else b.decode()
+                      found={}
+                      for line in raw.splitlines():
+                          for flag in flags:
+                              if line.startswith(flag+'='):
+                                  found[flag]=line.split('=',1)[1]
+                              elif line=='# '+flag+' is not set':
+                                  found[flag]='not set'
+                      data['kernel_config_sources'].append(dict(path=name,state='PRESENT',sha256=sha(b),
+                          bytes=len(b),flags={f:dict(state='PRESENT',value=found[f]) if f in found
+                                else dict(state='ABSENT_CONFIG_SYMBOL') for f in flags}))
+                  except FileNotFoundError:
+                      data['kernel_config_sources'].append(dict(path=name,state='ABSENT'))
+                  except OSError as e:
+                      data['kernel_config_sources'].append(dict(path=name,state='UNREADABLE',errno=e.errno))
+              bootargs=Path('/proc/cmdline').read_bytes()
+              data['kernel_controller_bootargs']=dict(path='/proc/cmdline',sha256=sha(bootargs),
+                  relevant_arguments=[x for x in bootargs.decode().split() if
+                    x.startswith(('cgroup_','cgroup.','systemd.unified_cgroup_hierarchy=','systemd.legacy_systemd_cgroup_controller='))])
+              data['hierarchy_final']=snapshot(root,names)
+              initial={n['absolute_cgroup_path']:{k:n['files'][k] for k in STATIC} for n in data['hierarchy_initial']}
+              final={n['absolute_cgroup_path']:{k:n['files'][k] for k in STATIC} for n in data['hierarchy_final']}
+              data['static_controller_interfaces_unchanged_during_diagnosis']=initial==final
+              data['kernel_raw_cgroup_mounts_visible']=self_mounts
+              data['status']='READ_ONLY_FACT_COLLECTION_COMPLETE'
+          except Exception as e:
+              data['errors'].append(dict(error_type=type(e).__name__,reason=str(e)))
+              data['status']='READ_ONLY_FACT_COLLECTION_INCOMPLETE'
+          finally:
+              data['finished_utc_ns']=time.time_ns()
+              payload=json.dumps(data,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
+              encoded=base64.b64encode(payload).decode()
+              print('CGROUP_DIAGNOSIS_BEGIN '+sha(payload)+' '+str(len(payload)),flush=True)
+              for i,start in enumerate(range(0,len(encoded),6000)):
+                  print('CGROUP_DIAGNOSIS_DATA '+str(i)+' '+encoded[start:start+6000],flush=True)
+              print('CGROUP_DIAGNOSIS_END',flush=True)
+              print('PAPER_ONLY_NO_RESOURCE_MUTATION_NO_A_B_C',flush=True)
+          PY
