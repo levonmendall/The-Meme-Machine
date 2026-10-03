@@ -112,3 +112,19 @@ class ResourceIntervalTests(unittest.TestCase):
     def test_resource_sample_gap_limit_is_still_enforced(self):
         self.snapshots = self.snapshots[:2]+self.snapshots[8:]
         with self.assertRaisesRegex(ValueError,'resource_monitor_gap'):self.verify()
+
+    def test_pure_timeline_rejects_forged_complete_and_rebound_inventory_hash(self):
+        for snapshot in self.snapshots:
+            snapshot['cgroup']['complete'] = True
+            del snapshot['cgroup']['ancestors'][-1]['interfaces']['cgroup.subtree_control']
+        self.allocation['ancestor_inventory_sha256'] = sha(canonical(self.snapshots[0]['cgroup']))
+        with self.assertRaisesRegex(ValueError,'raw_resource_admission'):self.verify()
+
+    def test_pure_timeline_enforces_quota_above_disabled_child_controller(self):
+        from cgroup_fixtures import controller_topology, interface
+        groups = controller_topology('cpu',stop_after=1)
+        interface(groups['ancestors'][1],'cpu.max','199999 100000\n')
+        for snapshot in self.snapshots:
+            snapshot['cgroup'] = deepcopy(groups)
+        self.allocation['ancestor_inventory_sha256'] = sha(canonical(groups))
+        with self.assertRaisesRegex(ValueError,'raw_resource_admission'):self.verify()

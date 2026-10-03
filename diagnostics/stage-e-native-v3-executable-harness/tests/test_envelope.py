@@ -8,11 +8,11 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'harness'))
 from core import RAM, HEADROOM, canonical, sha
 from attest import admission_errors, cpus, reserve_storage
+from cgroup_fixtures import diagnosed_cgroup
 
 
 def fixture():
-    cg = dict(complete=True, namespace='n', pid1_namespace='n', memberships=[['0', [], '/']],
-        ancestors=[dict(period_us=100000, quota_us=None, cpuset='0-1',cpuset_effective='0-1',memory_max=RAM,memory_high=None)])
+    cg = diagnosed_cgroup()
     snapshot = dict(cpu={'present':[0,1],'possible':[0,1],'online':[0,1]}, affinity=[0,1],
         boot_id='b',hostname='h',real_utc_ns=100,memory={'MemTotal':RAM-4096,'SwapTotal':0},
         cgroup=cg,balloon_modules=[],scope_pid=20,scope_cgroup_sha256='cg',
