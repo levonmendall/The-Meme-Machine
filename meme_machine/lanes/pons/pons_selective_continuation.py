@@ -15,8 +15,8 @@ from . import BoundaryError
 from .evidence import digest
 
 POLICY = "pons-selective-continuation-v1"
-POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1"
-from certification.execution_capacity import resize, buyer_persistence
+POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1-operational-nine-v1"
+from meme_machine.runtime.execution_capacity import resize, buyer_persistence
 ZERO = "0x0000000000000000000000000000000000000000"
 
 ENTRY_THRESHOLDS = dict(
@@ -37,7 +37,7 @@ ENTRY_THRESHOLDS = dict(
     max_creator_tax_bps=200,
     max_roundtrip_loss_bps=600,
     max_entry_impact_bps=400,
-    capital_size_bps=25,          # 0.25% of strategy capital
+    capital_size_bps=500,          # 0.25% of strategy capital
     real_quote_size_bps=200,      # 2% of real quote liquidity
     independent_net_size_bps=1000,# 10% of independent net demand
     max_state_age_seconds=5,
@@ -58,8 +58,11 @@ POST_GRAD_THRESHOLDS = dict(
 EXIT_POLICY = dict(
     risk_bps=-800,
     first_profit_bps=1800,
-    first_profit_sell_bps=3333,
-    runner_trailing_drawdown_bps=1000,
+    first_profit_sell_bps=2500,
+    runner_trailing_drawdown_bps=1200,
+    min_adverse_sell_buy_ratio_bps=12000,
+    tail_arm_bps=10000,
+    tail_gain_giveback_bps=4000,
     no_new_high_seconds=120,
     soft_deterioration_confirmations=2,
     entry_delay_seconds=2,
@@ -686,12 +689,18 @@ def pregraduation_action(
         current_index=max(1,10_000+current)
         high_index=max(current_index,10_000+high)
         drawdown=(high_index-current_index)*10_000//high_index
-        if drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]:
+        tail=(high >= EXIT_POLICY["tail_arm_bps"] and
+              current*10_000 <= high*(10_000-EXIT_POLICY["tail_gain_giveback_bps"]))
+        ordinary=(high < EXIT_POLICY["tail_arm_bps"] and
+                  drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"])
+        if tail or ordinary:
             return dict(
                 action="full_exit",reason="pregraduation_runner_trailing_stop",
                 exit_tokens=tokens,
             )
-        if int(demand.get("current_sell_quote",0)) > int(demand.get("current_buy_quote",0)):
+        if (int(demand.get("current_sell_quote",0)) > 0 and
+                int(demand.get("current_sell_quote",0))*10000 >=
+                max(1,int(demand.get("current_buy_quote",0)))*EXIT_POLICY["min_adverse_sell_buy_ratio_bps"]):
             return dict(action="full_exit",reason="flow_reversal",exit_tokens=tokens)
         if (
             current > 0
@@ -718,7 +727,9 @@ def pregraduation_action(
 
     if trajectory.get("complete") and int(trajectory.get("recent_progress_bps",0)) <= 0:
         return dict(action="full_exit",reason="momentum_failure",exit_tokens=tokens)
-    if int(demand.get("current_sell_quote",0)) > int(demand.get("current_buy_quote",0)):
+    if (int(demand.get("current_sell_quote",0)) > 0 and
+                int(demand.get("current_sell_quote",0))*10000 >=
+                max(1,int(demand.get("current_buy_quote",0)))*EXIT_POLICY["min_adverse_sell_buy_ratio_bps"]):
         return dict(action="full_exit",reason="flow_reversal",exit_tokens=tokens)
     eta=max(1,int(frozen_eta_seconds or ENTRY_THRESHOLDS["max_graduation_eta_seconds"]))
     deadline=min(EXIT_POLICY["max_pregraduation_thesis_seconds"],eta*2)
@@ -823,9 +834,14 @@ def runner_action(
         current_index=max(1,10_000+current)
         high_index=max(current_index,10_000+high)
         drawdown=(high_index-current_index)*10_000//high_index
-        if drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]:
+        tail=(high >= EXIT_POLICY["tail_arm_bps"] and
+              current*10_000 <= high*(10_000-EXIT_POLICY["tail_gain_giveback_bps"]))
+        ordinary=(high < EXIT_POLICY["tail_arm_bps"] and
+                  drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"])
+        if tail or ordinary:
             return dict(action="full_exit",reason="runner_trailing_stop",exit_tokens=tokens)
-        if int(sell_quote) > int(buy_quote):
+        if (int(sell_quote)>0 and int(sell_quote)*10000 >=
+                max(1,int(buy_quote))*EXIT_POLICY["min_adverse_sell_buy_ratio_bps"]):
             return dict(action="full_exit",reason="demand_failure",exit_tokens=tokens)
         soft=runner_soft_deterioration(
             seconds_since_high=seconds_since_high,

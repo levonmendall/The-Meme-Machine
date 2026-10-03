@@ -3,7 +3,7 @@ from fractions import Fraction
 import hashlib
 import json
 
-from certification.execution_capacity import buyer_persistence, turnover_capacity
+from meme_machine.runtime.execution_capacity import buyer_persistence, turnover_capacity
 
 STRATEGY_ID = 'pumpswap-survivor-momentum-v1'
 POLICY = dict(
@@ -14,7 +14,7 @@ POLICY = dict(
     minimum_reset_bps=1800, base_seconds=3600, compression_bps=6000,
     short_structure_seconds=7200, long_structure_seconds=21600,
     maximum_extension_bps=1500, maximum_base_range_extension_bps=15000,
-    minimum_fill_breadth_bps=5000, target_sleeve_bps=25, turnover_divisor=40,
+    minimum_fill_breadth_bps=5000, target_sleeve_bps=500, turnover_divisor=40,
     # These are the existing Pump hard execution/concentration ceilings.
     maximum_roundtrip_loss_bps=600, maximum_double_loss_bps=600,
     maximum_holder_concentration_bps=3000, minimum_size_units=1,

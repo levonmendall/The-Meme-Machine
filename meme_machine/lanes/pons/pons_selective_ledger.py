@@ -120,6 +120,13 @@ class SelectivePaper:
                 raise BoundaryError("selective_entry_replay_mismatch")
             cost=q["amount_in"]+q["gas_quote"]
             expected.update(cost=cost,remaining_cost=cost,tokens=q["amount_out"])
+        elif event['action']=='scale_add':
+            if (q is None or before['status']!='open' or before.get('scale_request')
+                    or not p.get('scale_request') or q['amount_in']<=0 or q['amount_out']<=0):
+                raise BoundaryError('selective_scale_replay_mismatch')
+            cost=q['amount_in']+q['gas_quote']
+            expected.update(cost=before['cost']+cost,remaining_cost=before['remaining_cost']+cost,
+                tokens=before['tokens']+q['amount_out'])
         elif event["action"]=="exit" and p.get("reason") is None:
             amount=before["pending_exit_tokens"]
             if q is None or q["amount_in"]!=amount or not 0<amount<=before["tokens"]:
@@ -203,7 +210,7 @@ class SelectivePaper:
                 if dt<0:raise BoundaryError("selective_accounting_clock_regression")
                 risk+=(p["reserved"] if p["status"]=="reserved" else p["remaining_cost"])*dt
                 reserved+=p["reserved"]*dt
-            if e.get("quote") and (e["action"]=="entry" or (e["action"]=="exit" and e["position"].get("reason") is None)):
+            if e.get("quote") and (e["action"] in ("entry","scale_add") or (e["action"]=="exit" and e["position"].get("reason") is None)):
                 execution_cost+=e["quote"]["gas_quote"]
         return dict(replay_verified=bool(events) and complete,
             capital_at_risk_unit_nanoseconds=risk if complete else None,
@@ -331,8 +338,24 @@ class SelectivePaper:
                 p.update(
                     tokens=int(quote.amount_out),entry_tokens=int(quote.amount_out),
                     cost=cost,remaining_cost=cost,realized_pnl=0,
+                    original_basis=cost,original_quantity=int(quote.amount_out),
                     realized_proceeds=0,pending_exit_tokens=None,status="open",
                 )
+
+            elif action=='scale_add':
+                request=cancel_reason
+                if p.get('scale_request')==request and request:
+                    if p['scale_quote']!=asdict(quote):raise BoundaryError('selective_scale_duplicate_conflict')
+                    self.store.db.execute('COMMIT');return p
+                if p['status']!='open' or p.get('scale_request') or not request:
+                    raise BoundaryError('selective_scale_state')
+                quote.check(now,p['market'],'buy',quote.amount_in,p['kind'],finality_ledger=finality_ledger)
+                cost=int(quote.amount_in)+int(quote.gas_quote)
+                if cost<=0 or quote.amount_out<=0:raise BoundaryError('selective_scale_quote')
+                p.update(cost=p['cost']+cost,remaining_cost=p['remaining_cost']+cost,
+                    tokens=p['tokens']+int(quote.amount_out),reserved=p['reserved']+cost,
+                    scale_request=request,scale_quote=asdict(quote))
+                p.pop('mark',None)
 
             elif action=="exit_intent":
                 if p["status"]!="open":

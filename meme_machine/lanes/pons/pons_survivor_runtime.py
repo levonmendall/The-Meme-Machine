@@ -11,12 +11,12 @@ import os
 from pathlib import Path
 import time
 
-from certification.directional_sleeve import open_sleeve
-from certification.execution_capacity import resize,buyer_persistence
-from certification.journal import digest
-from certification.survivor_commit import commit,monitor,handoff_ready
+from meme_machine.runtime.directional_sleeve import open_sleeve
+from meme_machine.runtime.execution_capacity import resize,buyer_persistence
+from meme_machine.runtime.journal import digest
+from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,scale
 from certification.survivor_history import History
-from certification.survivor_paper_book import PaperBook
+from meme_machine.runtime.survivor_paper_book import PaperBook
 from certification.robinhood.plane import Plane
 from certification.robinhood.pons import plane_path
 from . import BoundaryError
@@ -45,9 +45,9 @@ Each ladder point has its exact 2x probe. No interpolation invents executable
 capacity. Searching cached quotes issues zero additional provider calls.
 """
     def __init__(self,runtime,state,budget):
-        self.runtime=runtime;self.state=state;self.cache={};self.acquired=time.monotonic()
+        self.runtime=runtime;self.state=state;self.cache={};self.budget=budget;self.acquired=time.monotonic()
         rpc=runtime.rpc;key=PoolKey(**runtime.current['graduation']['key'])
-        block=hex(state['block']);minimum=runtime.capital*5//10000
+        block=hex(state['block']);minimum=runtime.sleeve.sizing_basis(500,minimum_bps=5)["minimum"]
         sizes={budget,minimum}
         for i in range(1,4):sizes.add(max(minimum,budget//2**i))
         sizes={n for n in sizes if minimum<=n<=budget};sizes|={2*n for n in sizes}
@@ -221,8 +221,9 @@ class Runtime:
                 buyer_groups=sorted(groups),new_buyer_groups=sorted(set(groups)-set(flow['previous_buyer_groups'])),
                 buy_quote_by_group=dict(groups),largest_buyer_flow_bps=0 if not total else max(groups.values())*10000//total,
                 creator_sell_quote=sum(e['quote'] for e in events if lower<=e['at']<upper and not e['buy'] and e['group'] in creators))
-        cap=min(self.capital*25//10000,flow['turnover']//POLICY['execution']['min_turnover_multiple'])
-        capacity=resize(cap,self.capital*5//10000,quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
+        sizing=self.sleeve.sizing_basis(500,minimum_bps=5)
+        cap=min(quotes.budget,sizing['allocatable_target'],flow['turnover']//POLICY['execution']['min_turnover_multiple'])
+        capacity=resize(cap,sizing["minimum"],quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
         self.facts=dict(now=now,graduation_at=row['graduation']['at'],lineage_proven=True,native_quote=True,
             price_points=[dict(at=p['at'],price_index=int(p['price'])) for p in points],
             flow_30m=window(now-1800,now+1),flow_previous_30m=window(now-3600,now-1800),
@@ -277,9 +278,10 @@ class Runtime:
 
     @decision_work(1)
     def _enter(self,row):
+        sizing=self.sleeve.sizing_basis(500,minimum_bps=5)
         return commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
             strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,decision=row['decision'],regime=row['regime'],at=self.now(),
-            target=self.capital*25//10000,minimum=self.capital*5//10000,retention_bps=5000,
+            target=sizing["target"],minimum=sizing["minimum"],retention_bps=5000,
             ordinary_limit=450,stress_limit=650,adapter=self,qualify=self.qualify)
 
     @position_work
@@ -313,6 +315,10 @@ class Runtime:
             soft_deterioration=None if flow is None else flow['buy_flow']*10000<flow['sell_flow']*8000 and flow['new_buyers']==0)
         action=monitor(book=self.book,sleeve=self.sleeve,identity=row['position'],observation=observation,
                        policy=risk_policy(),adapter=self)
+        if action['action']=='hold':
+            scale(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],
+                generation=row['generation'],adapter=self,qualify=self.qualify,ordinary_limit=450,
+                stress_limit=650,minimum=self.sleeve.sizing_basis(500,minimum_bps=5)["minimum"])
         if action['action']=='partial_exit':
             row=self.history.get(row['id']);row['state']='runner';self.history.save(row)
 
@@ -346,7 +352,7 @@ class Runtime:
                     self._increment(row,min(end,row['block']+40));row=self.history.get(row['id'])
                     if age<POLICY['universe']['min_seconds_after_graduation']:row['state']='aging';self.history.save(row)
                     elif end-row['block']<=40:
-                        state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.capital*25//10000)
+                        state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.sleeve.sizing_basis(500)["target"])
                         decision=self.qualify(self.reconstruct(state,quotes));f=decision['features']
                         regime=dict(at=state['at'],high_reset_cycle=f['reset_pullback_bps'],
                             base_id=[f.get('base_low'),f.get('base_high')],buyer_population=self.facts['organic_flow']['buyer_groups'],
@@ -357,10 +363,12 @@ class Runtime:
                             observed=time.time(),deadline=None,priority=4,needs_work=False)
                         observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
                             state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
+                        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
+                            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
                         if decision['candidate'] and sum(bool(r.get('position')) for r in self.history.rows())<POLICY['execution']['max_open_positions']:
-                            from certification.lifecycle_identity import issue
+                            from meme_machine.runtime.lifecycle_identity import issue
                             row['position']=issue(self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime]))
                             row['state']='reserved';self.history.save(row);self._enter(row)
                             row=self.history.get(row['id']);row['state']='filled'

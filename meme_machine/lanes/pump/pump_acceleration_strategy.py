@@ -40,7 +40,7 @@ def _points(value, low, high, maximum):
 
 @dataclass(frozen=True)
 class FrozenPolicy:
-    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1"
+    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1-operational-nine-v1"
     entry_fraction_bps: int = 500
     turnover_divisor: int = 40
     execution_stress_multiple: int = 2
@@ -103,7 +103,9 @@ class FrozenPolicy:
 
     # Independent paper exit policy.
     hard_stop_bps: int = -800
-    trailing_drawdown_bps: int = 1200
+    trailing_drawdown_bps: int = 1400
+    tail_arm_bps: int = 10000
+    tail_gain_giveback_bps: int = 4000
     demand_exit_score: int = 50
     demand_exit_confirmations: int = 2
     # Evidence-derived harvest activation: the prior frozen Pump policy used +15%,
@@ -622,9 +624,14 @@ def exit_decision(observation, policy=POLICY):
         raise ValueError("time_regression")
     if observation.return_bps <= policy.hard_stop_bps:
         return "risk_stop"
-    if (observation.peak_return_bps > 0 and
-            observation.peak_return_bps-observation.return_bps >= policy.trailing_drawdown_bps):
-        return "trailing_momentum_exit"
+    if observation.peak_return_bps > 0:
+        high=int(observation.peak_return_bps)
+        current=int(observation.return_bps)
+        if high >= policy.tail_arm_bps:
+            if current*10_000 <= high*(10_000-policy.tail_gain_giveback_bps):
+                return "tail_gain_giveback_exit"
+        elif (high-current)*10_000 >= (10_000+high)*policy.trailing_drawdown_bps:
+            return "trailing_momentum_exit"
     if observation.demand_score < policy.demand_exit_score:
         if observation.return_bps <= 0:
             return "demand_deceleration"

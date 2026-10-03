@@ -34,6 +34,16 @@ class PaperPosition:
     demand_deterioration_streak: int = 0
     hold_extensions_used: int = 0
     closed_at: int | None = None
+    original_basis: int = 0
+    original_quantity: int = 0
+    first_tail_crossed_at: int | None = None
+    bridged: bool = False
+    bridged_at: int | None = None
+    bridge_deadline: int | None = None
+    scale_committed: bool = False
+    scale_request: str | None = None
+    scale_cost: int = 0
+    scale_quantity: int = 0
 
 
 class PumpAccelerationPaperLifecycle:
@@ -48,7 +58,7 @@ class PumpAccelerationPaperLifecycle:
         self.entry_evidence=entry_evidence or {}
         self.sleeve=None
         if book is not None:
-            from certification.directional_sleeve import open_sleeve
+            from meme_machine.runtime.directional_sleeve import open_sleeve
             self.sleeve=open_sleeve('pump',book.identity['initial'])
         if book is not None and not lifecycle_id:
             raise ValueError("durable_lifecycle_id_required")
@@ -66,14 +76,14 @@ class PumpAccelerationPaperLifecycle:
             raise ValueError("lifecycle_already_active")
         if self.sleeve is not None:
             self.sleeve.reserve(self.lifecycle_id,strategy=STRATEGY_ID,
-                amount=int(budget_quote_units),at=int(now))
+                amount=int(budget_quote_units),at=int(now),asset=qualification.mint)
         if self.book is not None:
             try:
                 self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
                                   dict(qualification=asdict(qualification),snapshot=self.entry_evidence))
             except BaseException:
                 if self.sleeve is not None:
-                    from certification.journal import digest
+                    from meme_machine.runtime.journal import digest
                     replay=self.book.replay()
                     present=self.book.db.execute('SELECT 1 FROM positions WHERE id=?',(self.lifecycle_id,)).fetchone()
                     if not present:
@@ -114,7 +124,11 @@ class PumpAccelerationPaperLifecycle:
             opened_at=int(now),
             tokens=int(tokens),
             basis_quote_units=int(cost_quote_units),
+            original_basis=int(cost_quote_units),original_quantity=int(tokens),
         )
+        if self.book is not None:
+            from meme_machine.runtime.directional_continuation import native_sync
+            native_sync(self.book,self.sleeve,self.lifecycle_id)
         self.history.append(dict(event="filled",position=asdict(self.position)))
         self.reservation=None
         return asdict(self.position)
@@ -126,7 +140,7 @@ class PumpAccelerationPaperLifecycle:
             self.book.transition(self.lifecycle_id,"cancelled",int(now),
                                  evidence=dict(reason=str(reason)))
             if self.sleeve is not None:
-                from certification.directional_sleeve import native_terminal
+                from meme_machine.runtime.directional_sleeve import native_terminal
                 self.book.replay()
                 native_terminal(self.sleeve,self.lifecycle_id,self.book._load(self.lifecycle_id),int(now),verified=True)
                 self.sleeve.close();self.sleeve=None
@@ -163,7 +177,13 @@ class PumpAccelerationPaperLifecycle:
                                                execution=evidence))
         basis=self.position.basis_quote_units
         ret=(int(executable_proceeds_quote_units)-basis)*10_000//basis
+        if self.position.scale_committed:
+            from meme_machine.runtime.directional_continuation import reference_return
+            ret=reference_return(executable_proceeds_quote_units,self.position.tokens,
+                self.position.original_basis,self.position.original_quantity)
         self.position.peak_return_bps=max(self.position.peak_return_bps,ret)
+        if self.position.peak_return_bps>=10000 and self.position.first_tail_crossed_at is None:
+            self.position.first_tail_crossed_at=int(now)
         if int(demand_score) < int(POLICY.demand_exit_score) and ret > 0:
             self.position.demand_deterioration_streak+=1
         else:
@@ -209,9 +229,22 @@ class PumpAccelerationPaperLifecycle:
                 return_bps=int(ret),demand_score=int(demand_score),
             ))
         reason=exit_decision(observation)
+        if reason=='timeout' and self.position.exit_reason is None:
+            from meme_machine.runtime.directional_continuation import bridge_state
+            state=dict(opened_at=self.position.opened_at,
+                realization_taken=self.position.partial_harvest_taken,
+                high_water_bps=self.position.peak_return_bps,
+                bridged=self.position.bridged,bridged_at=self.position.bridged_at,
+                bridge_deadline=self.position.bridge_deadline)
+            updated,expired=bridge_state(state,(evidence or {}).get('continuation',{}),
+                now=int(now),ordinary_expired=True)
+            for field in ('bridged','bridged_at','bridge_deadline'):
+                if field in updated:setattr(self.position,field,updated[field])
+            if not expired:reason=None
         if reason is not None and self.position.exit_reason is None:
             self.position.exit_reason=reason
             self.position.exit_intended_at=int(now)
+        reason=self.position.exit_reason
         partial_harvest_bps=(
             int(POLICY.first_profit_sell_bps)
             if (
@@ -261,6 +294,9 @@ class PumpAccelerationPaperLifecycle:
         self.position.basis_quote_units=before_basis-basis_removed
         self.position.realized_quote_units+=realized
         self.position.partial_harvest_taken=True
+        if self.book is not None:
+            from meme_machine.runtime.directional_continuation import native_sync
+            native_sync(self.book,self.sleeve,self.lifecycle_id)
         row=dict(
             event="partial_harvest",time=int(now),tokens_sold=tokens_sold,
             proceeds_quote_units=proceeds,basis_removed_quote_units=basis_removed,
@@ -271,6 +307,24 @@ class PumpAccelerationPaperLifecycle:
         )
         self.history.append(row)
         return dict(row)
+
+    def add(self,cost,tokens,now,*,request,evidence):
+        """One native incremental commit; every original risk/clock field survives."""
+        if self.position is None or self.position.exit_reason:
+            raise ValueError('scale_position_state')
+        if self.position.scale_request==request:
+            if (self.position.scale_cost,self.position.scale_quantity)!=(cost,tokens):
+                raise ValueError('scale_duplicate_conflict')
+            return asdict(self.position)
+        if self.position.scale_committed or min(cost,tokens)<=0:
+            raise ValueError('scale_position_state')
+        if self.book is not None:
+            self.book.transition(self.lifecycle_id,'scale_add',int(now),amount=int(cost),tokens=int(tokens),
+                evidence=dict(evidence,request=request))
+        self.position.tokens+=int(tokens);self.position.basis_quote_units+=int(cost)
+        self.position.scale_committed=True;self.position.scale_request=request
+        self.position.scale_cost=int(cost);self.position.scale_quantity=int(tokens)
+        return asdict(self.position)
 
     def settle(self, executable_proceeds_quote_units: int, now: int, *, evidence=None):
         if self.position is None:
@@ -287,7 +341,7 @@ class PumpAccelerationPaperLifecycle:
             int(executable_proceeds_quote_units)-self.position.basis_quote_units
         )
         if self.sleeve is not None and self.book is not None:
-            from certification.directional_sleeve import native_terminal
+            from meme_machine.runtime.directional_sleeve import native_terminal
             self.book.replay()
             native_terminal(self.sleeve,self.lifecycle_id,self.book._load(self.lifecycle_id),int(now),verified=True)
             self.sleeve.close();self.sleeve=None
@@ -340,6 +394,9 @@ class PumpAccelerationPaperLifecycle:
                 removed=prior['basis']-position['basis']
                 proceeds=position['realized']-prior['realized']+removed
                 life.harvest(sold,proceeds,at,evidence=evidence.get('execution'))
+            elif action=='scale_add':
+                life.add(position['basis']-prior['basis'],position['tokens']-prior['tokens'],at,
+                    request=evidence['request'],evidence=evidence)
             elif action=='settled':
                 if life.position.exit_reason!=evidence['exit_reason']:
                     raise ValueError('pump_recovery_exit_thesis_mismatch')

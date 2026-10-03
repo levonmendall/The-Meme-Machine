@@ -36,7 +36,7 @@ class RamsesStrategyLedger:
         from contextlib import nullcontext
         from pathlib import Path
         import re
-        from certification.preserved_checkpoint import snapshot
+        from meme_machine.runtime.preserved_checkpoint import snapshot
         file=Path(path)
         preserved=(snapshot(path,name='ramses/'+file.parent.name+'/'+file.name,lane='ramses')
             if file.parent.name=='robinhood-ramses-extended-market.sqlite.campaign'
@@ -188,7 +188,7 @@ class RamsesStrategyLedger:
                 raise BoundaryError("duplicate_ramses_strategy_reservation")
             if reserved>self.reconcile()['available']:
                 raise BoundaryError("ramses_strategy_capital_exhausted")
-            from certification.lifecycle_identity import validate_new
+            from meme_machine.runtime.lifecycle_identity import validate_new
             from certification.ramses_archive import anchor
             validate_new(identity,archived=(anchor(self.db) or {}).get('archived_entry_scope'))
             self._save(body, "reserve")
@@ -255,7 +255,7 @@ class RamsesStrategyLedger:
                 raise BoundaryError("duplicate_ramses_strategy_reservation")
             if reserved>self.reconcile()['available']:
                 raise BoundaryError("ramses_strategy_capital_exhausted")
-            from certification.lifecycle_identity import validate_new
+            from meme_machine.runtime.lifecycle_identity import validate_new
             from certification.ramses_archive import anchor
             validate_new(identity,archived=(anchor(self.db) or {}).get('archived_entry_scope'))
             self._save(body, "forced_machinery_reserve")

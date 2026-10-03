@@ -15,7 +15,7 @@ from collections import Counter,deque
 from pathlib import Path
 from types import SimpleNamespace
 
-from certification.execution_capacity import resize, turnover_capacity
+from meme_machine.runtime.execution_capacity import resize, turnover_capacity
 from meme_machine.lanes.pump import pump
 from meme_machine.lanes.pump.concentration import ConcentrationReader
 from meme_machine.lanes.pump.engine import GAS
@@ -34,7 +34,7 @@ from meme_machine.lanes.pump.pipeline import Pipeline,censor_class
 from meme_machine.lanes.pump.pump_acceleration_paper import PumpAccelerationPaperLifecycle
 from meme_machine.lanes.pump.pump_acceleration_strategy import (
     MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG,POLICY,STRATEGY_ID,
-    SignalVector,entry_signal_persistence,flow_metrics,policy_hash,qualify,
+    SignalVector,entry_signal_persistence,flow_metrics,policy_hash,qualify,mode_max_hold_s,
 )
 from meme_machine.lanes.pump.solana_evidence_broker import (
     DEFAULT_BROKER_DB,EvidenceBroker,
@@ -53,9 +53,18 @@ GENESIS_SOL_USD_MICROS=97_840_000
 INITIAL_USD_MICROS=500_000_000
 INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
 ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
+
+def _current_pump_sizing():
+    from meme_machine.runtime.directional_sleeve import open_sleeve
+    sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
+    if sleeve is None:
+        return dict(realized_equity=INITIAL_LAMPORTS,target=ENTRY_BUDGET,
+                    allocatable_target=ENTRY_BUDGET,available=INITIAL_LAMPORTS)
+    try:return sleeve.sizing_basis(POLICY.entry_fraction_bps)
+    finally:sleeve.close()
 ENTRY_DELAY_SECONDS=2
 ENTRY_FILL_TIMEOUT_SECONDS=20
-FROZEN_POLICY_HASH="a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d"
+FROZEN_POLICY_HASH="89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5b972"
 FILL_PERSISTENCE_CONTEXT=None
 ACCOUNTING=None
 PIPELINE=None
@@ -194,7 +203,8 @@ def _late_roundtrip_loss_bps(snapshot, budget=ENTRY_BUDGET):
 
 
 
-def _capacity(snapshot, turnover, intended=ENTRY_BUDGET):
+def _capacity(snapshot, turnover, intended=None):
+    if intended is None:intended=_current_pump_sizing()["allocatable_target"]
     cap=turnover_capacity(turnover,authenticated=turnover is not None)
     def loss(n):
         try:
@@ -392,7 +402,7 @@ def _reserve_position(
     reserved_at=max(int(snapshot["available_time"]),int(time.time()))
     import uuid
     lifecycle_id=(ACCOUNTING.identity["run_id"] if ACCOUNTING else "research")+":"+uuid.uuid4().hex
-    from certification.lifecycle_identity import issue
+    from meme_machine.runtime.lifecycle_identity import issue
     lifecycle_id=issue(lifecycle_id)
     from dataclasses import asdict,is_dataclass
     context=FILL_PERSISTENCE_CONTEXT or {}
@@ -412,7 +422,10 @@ def _reserve_position(
             addresses=execution['addresses'],owner=lifecycle_id,lifecycle='reserved',priority=1)
     life=PumpAccelerationPaperLifecycle(book=ACCOUNTING,lifecycle_id=lifecycle_id,
                                        entry_evidence=evidence)
-    life.reserve(qualification,ENTRY_BUDGET+GAS,reserved_at)
+    sizing=_current_pump_sizing()
+    intended=min(sizing['target'],max(0,sizing['available']-GAS))
+    if intended<=0:raise ValueError('directional_realized_equity_unavailable')
+    life.reserve(qualification,intended+GAS,reserved_at)
     _progress(qualification.mint,"entry_reserved",lifecycle_id=lifecycle_id)
     qrow=dict(
         lifecycle_id=lifecycle_id,
@@ -499,7 +512,7 @@ def _fill_pending(
 
                 supply,_=pump.mint_info(snapshot["accounts"][1])
                 rates=pump.fees(snapshot["accounts"][2],curve,supply)
-                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover)
+                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover,life.reservation["budget_quote_units"]-GAS)
                 if capacity.final_size<=0:raise ValueError("entry_capacity_unavailable")
                 tokens,cost,fee=pump.buy(curve,capacity.final_size,rates)
                 surface="pump.fun"
@@ -554,7 +567,7 @@ def _fill_pending(
                 row["last_concentration"]=int(concentration)
                 _assert_fill_deadline(row)
 
-                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover)
+                capacity,capacity_telemetry=_capacity(snapshot,fill_signal.authenticated_recent_turnover,life.reservation["budget_quote_units"]-GAS)
                 if capacity.final_size<=0:raise ValueError("entry_capacity_unavailable")
                 quote=buy_quote(snapshot,capacity.final_size)
                 tokens=quote.output_amount;cost=quote.input_amount;surface="pumpswap"
@@ -656,6 +669,17 @@ def _record_attempt(report,signal,q,stage,extra=None):
     )
     if extra:
         row.update(extra)
+    from meme_machine.runtime.directional_sleeve import open_sleeve
+    from dataclasses import asdict
+    sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
+    if sleeve is not None:
+        try:
+            sleeve.opportunity(signal.mint,identity=signal.mint+':'+str(signal.observed_at),
+                regime='current',status='qualified' if q.qualified else 'rejected',
+                at=int(signal.observed_at),decision=dict(vector=asdict(signal),qualification=asdict(q),
+                    policy=asdict(POLICY)))
+        finally:sleeve.close()
+
     if ACCOUNTING is not None:
         with REPORT.with_suffix(".candidates.jsonl").open("a") as sink:
             sink.write(json.dumps(dict(policy_hash=policy_hash(),**row),sort_keys=True)+"\n")
@@ -682,7 +706,9 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
             position=life.position
             if position is None:
                 active.pop(key,None);continue
-            demand_score=0;confirmed=False
+            demand_score=0;confirmed=False;current=None;cq=None
+            continuation_due=(now-position.opened_at>=mode_max_hold_s(position.mode)*(1+position.hold_extensions_used)
+                or (position.first_tail_crossed_at is not None and now-position.first_tail_crossed_at>=900))
             if position.surface=="pump.fun":
                 snapshot=sessions.pump.snapshot(mint,now,priority=True)
                 curve=pump.curve(snapshot["accounts"][0])
@@ -714,7 +740,10 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                         current,_trajectory,_confirmation=_late_signal(
                             creation,ev,snapshot,
                             int(row.get("last_concentration",0)),confirmations)
-                        demand_score=qualify(current).score
+                        if continuation_due:
+                            concentration,_=sessions.reader.read(mint,snapshot,priority=True)
+                            current,_trajectory,_confirmation=_late_signal(creation,ev,snapshot,concentration,confirmations)
+                        cq=qualify(current);demand_score=cq.score
                     except Exception:
                         demand_score=0
             else:
@@ -735,8 +764,9 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                     state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
                 cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
 
+            facts=_pump_continuation_facts(life,current,cq,snapshot,proceeds,now)
             mark_evidence=dict(snapshot=snapshot,net_proceeds=proceeds,
-                               network_cost=GAS)
+                               network_cost=GAS,continuation=facts)
             mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
             if mark.get("partial_harvest_bps"):
                 tokens_before=int(life.position.tokens)
@@ -763,6 +793,8 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                         lifecycle_id=life.lifecycle_id,mint=mint,mode=mode,
                         opened=row["opened"],observed_at=now,
                         return_bps=mark["return_bps"],**harvest))
+            if mark['exit_reason'] is None and not mark.get('partial_harvest_bps'):
+                _scale_current(life,row,current,cq,snapshot,facts,now)
             age=now-int(row["opened"])
             for horizon in (15,60,300,900):
                 if age>=horizon and str(horizon) not in row["marks"]:
@@ -786,6 +818,65 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
             row.setdefault("monitor_failures",[]).append(dict(
                 observed_at=now,reason=str(exc) or type(exc).__name__))
             row["monitor_failures"]=row["monitor_failures"][-20:]
+
+
+
+def _pump_continuation_facts(life,current,qualification,snapshot,proceeds,now):
+    p=life.position
+    valid=current is not None and qualification is not None
+    basis=p.basis_quote_units
+    fresh=0<=now-int(snapshot['available_time'])<=5
+    return dict(current_after_cost_return_positive=proceeds>basis,
+        after_cost_return_bps=(proceeds-basis)*10000//basis,
+        fresh_generation_state=fresh,fresh_executable_exit_quote=fresh,
+        canonical_lineage_and_venue=bool(snapshot.get('mint')==p.mint),
+        creator_distribution_safe=valid and current.creator_quality_bps is not None and current.creator_quality_bps>=0,
+        hard_concentration_safe=valid and current.concentration_bps<=(POLICY.max_concentration_bps if p.surface=="pump.fun" else POLICY.max_postgrad_concentration_bps),
+        executable_exit_liquidity=proceeds>0,
+        no_persistent_confirmed_demand_failure=valid and p.demand_deterioration_streak<POLICY.demand_exit_confirmations,
+        no_irreversible_exit_intent=p.exit_reason is None,
+        fresh_strategy_requalified=valid and qualification.qualified)
+
+
+def _scale_current(life,row,current,qualification,snapshot,facts,now):
+    from meme_machine.runtime.directional_continuation import scale_budget,native_sync
+    from meme_machine.runtime.execution_capacity import breadth_retained
+    p=life.position
+    if (life.sleeve is None or p.scale_committed or not p.partial_harvest_taken
+            or p.first_tail_crossed_at is None or now-p.first_tail_crossed_at<900
+            or p.exit_reason or qualification is None or not qualification.qualified):return None
+    if not breadth_retained(life.entry_evidence.get('_runtime_recovery',{}).get('signal',{}).get('independent_buyer_clusters',0),
+            current.independent_buyer_clusters,5000):return None
+    target=min(life.sleeve.sizing_basis(250)['allocatable_target'],p.original_basis//2)
+    if target<=GAS:return None
+    capacity,telemetry=_capacity(snapshot,current.authenticated_recent_turnover,target-GAS)
+    state=dict(opened_at=p.opened_at,realization_taken=p.partial_harvest_taken,high_water_bps=p.peak_return_bps,
+        first_tail_crossed_at=p.first_tail_crossed_at,original_basis=p.original_basis,
+        scale_committed=p.scale_committed,pending_exit=p.exit_reason)
+    amount=scale_budget(state,dict(facts,fresh_execution_requalified=capacity.final_size>0),
+        now=now,sleeve=life.sleeve,execution_allowance=capacity.final_size+GAS)
+    if amount<=GAS:return None
+    if p.surface=='pump.fun':
+        curve=pump.curve(snapshot['accounts'][0]);supply,_=pump.mint_info(snapshot['accounts'][1])
+        rates=pump.fees(snapshot['accounts'][2],curve,supply)
+        quantity,cost,fee=pump.buy(curve,amount-GAS,rates)
+    else:
+        quote=buy_quote(snapshot,amount-GAS);quantity,cost,fee=quote.output_amount,quote.input_amount,quote.fee_amount
+    cost+=GAS;request=life.lifecycle_id+':scale:1'
+    if cost>amount:raise ValueError('scale_execution_overdraw')
+    life.sleeve.reserve_scale(life.lifecycle_id,amount=cost,original_basis=p.original_basis,at=now,request=request)
+    try:
+        with life.sleeve.scale_fence(life.lifecycle_id,request):
+            if not 0<=int(time.time())-int(snapshot['available_time'])<=5:raise ValueError('scale_stale_quote')
+            life.add(cost,quantity,now,request=request,evidence=dict(snapshot=snapshot,network_cost=GAS,fee=fee,
+                qualification=qualification.__dict__,capacity=telemetry))
+    except BaseException:
+        life.book.replay();native=life.book._load(life.lifecycle_id)
+        life.sleeve.recover_scale(life.lifecycle_id,request=request,native_verified=True,
+            committed=native.get('scale_request')==request)
+        raise
+    native_sync(life.book,life.sleeve,life.lifecycle_id)
+    return life.snapshot()
 
 
 class RollingAttemptBudget:
@@ -841,7 +932,7 @@ def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
         projection=json.loads(raw)
         life=PumpAccelerationPaperLifecycle.restore(book,identity)
         if bind_allocation:
-            from certification.directional_sleeve import bind_pump_recovered_allocation
+            from meme_machine.runtime.directional_sleeve import bind_pump_recovered_allocation
             bind_pump_recovered_allocation(book,life)
         state=life.entry_evidence.get('_runtime_recovery')
         if state is None:
@@ -907,7 +998,7 @@ def main(*,campaign=False,discovery_seconds=None):
         run_id=genesis['run_id']
     ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
                          policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
-    from certification.directional_sleeve import recover_pump_terminals
+    from meme_machine.runtime.directional_sleeve import recover_pump_terminals
     recover_pump_terminals(ACCOUNTING)
     PIPELINE=Pipeline(REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
     report=dict(

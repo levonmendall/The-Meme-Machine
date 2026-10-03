@@ -955,7 +955,7 @@ def run(
     )
     if lifecycle_prefix:
         identity = lifecycle_prefix + ":" + identity
-    from certification.lifecycle_identity import issue
+    from meme_machine.runtime.lifecycle_identity import issue
     identity=issue(identity)
     result["lifecycle_id"] = identity
     segments = []

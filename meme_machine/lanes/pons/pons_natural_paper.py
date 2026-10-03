@@ -333,7 +333,7 @@ def _v4_quoter_calldata(key,zero_for_one,amount):
 
 
 def _v4_quote(
-    rpc,key,pool_id,tokens,gas_units,store,label,*,local_freshness=False
+    rpc,key,pool_id,tokens,gas_units,store,label,*,local_freshness=False,side="sell"
 ):
     freshness_started_wall=time.time()
     freshness_started_monotonic=time.monotonic()
@@ -349,7 +349,8 @@ def _v4_quote(
     ),"address")
     if pm!=manager:
         raise BoundaryError("v4_quoter_manager_disagreement")
-    zero_for_one=(key.currency0!=ZERO)  # selling launch token into native quote.
+    if side not in ("buy","sell"):raise BoundaryError("v4_quote_side")
+    zero_for_one=(key.currency0!=ZERO) if side=="sell" else (key.currency0==ZERO)
     data=_v4_quoter_calldata(key,zero_for_one,tokens)
     raw=rpc.call("eth_call",[dict(to=V4_QUOTER,data=data),hex(block)],scope="pons_paper")
     values=words(raw)
@@ -375,7 +376,7 @@ def _v4_quote(
     )
     if local_freshness:
         quote=LocalFreshQuote(
-            pool_id,"sell",tokens,amount_out,gas,0,stamp,
+            pool_id,side,tokens,amount_out,gas,0,stamp,
             acquisition_latency_seconds=acquisition_latency,
             chain_timestamp_lag_seconds=(
                 freshness_started_wall-float(stamp.event_at)
@@ -383,7 +384,7 @@ def _v4_quote(
         )
     else:
         stamp.check(int(time.time()),5,finality_ledger=ledger)
-        quote=Quote(pool_id,"sell",tokens,amount_out,gas,0,stamp)
+        quote=Quote(pool_id,side,tokens,amount_out,gas,0,stamp)
     return quote,dict(
         venue="uniswap_v4",pool_id=pool_id,block=block,block_hash=header["hash"],
         amount_in=tokens,amount_out=amount_out,v4_quoter=V4_QUOTER,

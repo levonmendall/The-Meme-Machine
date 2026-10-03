@@ -594,7 +594,7 @@ def run(endpoint,*,campaign=False):
         reentry_policy=dict(REENTRY_POLICY),
         outcome_blind=True,reranking=False,replacement=False,
         wallet_skill_namespace=STRATEGY_NAMESPACE,
-        strategy_capital_quote=STRATEGY_CAPITAL_QUOTE,
+        strategy_capital_quote=_current_pons_realized_equity(),
         rows=[],qualifiers=[],lifecycles=[],discovery_sessions=[],
         sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
     )
@@ -835,7 +835,7 @@ def run(endpoint,*,campaign=False):
                         _decision_priority.set(10)
                 hydration=hydration_pool.submit(
                     evaluate_candidate,endpoint,event,list(tape),
-                    strategy_capital_quote=STRATEGY_CAPITAL_QUOTE,
+                    strategy_capital_quote=_current_pons_realized_equity(),
                     wallet_histories=None,creator_history=None,
                     evidence_observed_at=observed_at,
                     evidence_observed_monotonic=observed_monotonic,
@@ -848,6 +848,14 @@ def run(endpoint,*,campaign=False):
             identity=queue.identity(event)
             try:
                 evaluation=finished.result()
+                from meme_machine.runtime.directional_sleeve import open_sleeve
+                sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
+                if sleeve is not None:
+                    try:sleeve.opportunity(evaluation['token'],identity=identity,regime='current',
+                        status=evaluation['vector'].get('qualification','evaluated'),at=int(time.time()),
+                        decision=dict(vector=evaluation['vector']))
+                    finally:sleeve.close()
+
                 provider_after=provider_totals(evidence_context)
                 delta=[None if a is None or b is None else max(0,a-b) for a,b in zip(provider_after,provider_before)] if not replayed else [None,None]
                 if not replayed and not queue.finish(scheduled,evaluation,time.monotonic()-hydration_started,logical=delta[0],physical=delta[1]):
@@ -1062,6 +1070,15 @@ def run(endpoint,*,campaign=False):
     return result
 
 
+
+def _current_pons_realized_equity():
+    from meme_machine.runtime.directional_sleeve import open_sleeve
+    sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
+    if sleeve is None:return STRATEGY_CAPITAL_QUOTE
+    try:return max(0,sleeve.sizing_basis(500)['realized_equity'])
+    finally:sleeve.close()
+
+
 if __name__=="__main__":
     output=run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""))
     output=persist_terminal(output)
@@ -1070,3 +1087,4 @@ if __name__=="__main__":
         summary=output["summary"],
         elapsed_seconds=round(output["ended_at"]-output["started_at"],2),
     ),sort_keys=True))
+

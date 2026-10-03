@@ -58,7 +58,7 @@ POLICY=dict(
         ranking_tiebreak=['repeat_independent_buyers_30m','repeat_buyer_share_bps']),
     reentry=dict(minimum_seconds=3600,minimum_changed_dimensions=2),
     execution=dict(
-        target_capital_bps=25,
+        target_capital_bps=500,
         minimum_capital_bps=5,
         min_turnover_multiple=30,
         max_immediate_roundtrip_loss_bps=450,

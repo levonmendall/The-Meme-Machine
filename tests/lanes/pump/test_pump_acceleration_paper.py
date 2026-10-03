@@ -59,7 +59,7 @@ class PumpAccelerationPaperLifecycleTests(unittest.TestCase):
         life.fill(tokens=100,cost_quote_units=1000,now=102,surface="pump.fun")
         first=life.mark(1300,now=110,demand_score=80)
         self.assertIsNone(first["exit_reason"])
-        second=life.mark(1150,now=120,demand_score=80)
+        second=life.mark(1110,now=120,demand_score=80)
         self.assertEqual(second["exit_reason"],"trailing_momentum_exit")
         closed=life.settle(1140,now=122)
         self.assertEqual(closed["realized_quote_units"],140)

@@ -1,0 +1,68 @@
+{
+  "specification_commit": "16f7dcefb9632be278c10c9377fed5fe847089af",
+  "paper_only": true,
+  "changes": [
+    {
+      "number": 1,
+      "name": "directional_capital_parity",
+      "implementation": "500 bps in both existing family sleeves",
+      "status": "implemented"
+    },
+    {
+      "number": 2,
+      "name": "realized_equity_compounding",
+      "implementation": "replayed native partial/terminal cash flows; marks have no sizing authority",
+      "status": "implemented"
+    },
+    {
+      "number": 3,
+      "name": "pump_current_exits",
+      "implementation": "-800 / +1500 / 25% / proportional 14%; two confirmations",
+      "status": "implemented"
+    },
+    {
+      "number": 4,
+      "name": "pons_current_exits",
+      "implementation": "-800 / +1800 / 25% / proportional 12%; adverse ratio 1.20; two confirmations",
+      "status": "implemented"
+    },
+    {
+      "number": 5,
+      "name": "current_survivor_preservation",
+      "implementation": "durable observation links; same-asset reservation/fill fence",
+      "status": "implemented"
+    },
+    {
+      "number": 6,
+      "name": "common_right_tail",
+      "implementation": "arm +10000; retain 60% of original-reference peak gain",
+      "status": "implemented"
+    },
+    {
+      "number": 7,
+      "name": "current_tail_bridge",
+      "implementation": "same lifecycle; +5000; realized; fresh safety; original-open 129600 deadline",
+      "status": "implemented"
+    },
+    {
+      "number": 8,
+      "name": "staged_winner_scaling",
+      "implementation": "one incremental native lot; 900 seconds; 15% peak drawdown; 250/750 bps ceilings; durable reserve/replay",
+      "status": "implemented"
+    },
+    {
+      "number": 9,
+      "name": "meteora_exit_optimization",
+      "implementation": "strict <18% AND >82%; three verified collapse segments; other economics unchanged",
+      "status": "implemented"
+    }
+  ],
+  "validation": {
+    "boundary_suite": "tests.test_operational_nine",
+    "tests": 16,
+    "native_regression_tests": 174,
+    "source_audit": "operational/strategy-change-audit.json",
+    "ramses_economics": "unchanged"
+  },
+  "sizing_interpretation": "Owner directive 2 makes durable reconciled realized P&L authoritative. A replay-verified and sleeve-acknowledged partial cash flow is reconciled realized P&L; an unrealized mark is never authoritative."
+}

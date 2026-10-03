@@ -4,11 +4,12 @@ No signer, transport, strategy thresholds or trade authority. Reservations enfor
 one caller-supplied genesis across concurrent lifecycles instead of minting capital
 for each trial. Runtime evidence belongs in the run artifact, never in git.
 """
-from contextlib import contextmanager
+from contextlib import contextmanager,nullcontext
 import hashlib
 import json
 import sqlite3
 import threading
+from pathlib import Path
 
 
 def _json(value):
@@ -30,6 +31,19 @@ class PaperBook:
         _integer(initial)
         self.identity = dict(run_id=run_id, lane=lane, policy_hash=policy_hash, initial=initial)
         self.lock = threading.RLock()
+        from meme_machine.runtime.preserved_checkpoint import snapshot
+        native_lane={'pumpswap-survivor-momentum-v1':'pump','pons-postgrad-survivor-momentum-v1':'pons'}.get(lane)
+        folder='pump-survivor' if native_lane=='pump' else 'pons-selective-continuation-v1-cohort/pons-survivor'
+        preserved=snapshot(path,name=native_lane+'/'+folder+'/paper.sqlite',lane=native_lane) if native_lane else nullcontext(None)
+        with preserved as source:
+            try:
+                self._open(path)
+                if source:self._compact_preserved(*source)
+            except BaseException:
+                if hasattr(self,'db'):self.db.close()
+                raise
+
+    def _open(self,path):
         self.db = sqlite3.connect(path, isolation_level=None, timeout=30, check_same_thread=False)
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')
@@ -80,7 +94,10 @@ class PaperBook:
         body = dict(identity=self.identity, action=action, at=at, position=position,
                     evidence=evidence, evidence_hash=_hash(evidence))
         row = self.db.execute('SELECT seq,hash FROM journal ORDER BY seq DESC LIMIT 1').fetchone()
-        seq, previous = (row[0] + 1, row[1]) if row else (1, '0' * 64)
+        if row:seq,previous=row[0]+1,row[1]
+        else:
+            anchor=self._archive()
+            seq,previous=(anchor['seq']+1,anchor['final_hash']) if anchor else (1,'0'*64)
         self.db.execute('INSERT INTO journal VALUES(?,?,?,?)',
                         (seq, _json(body), previous, _hash([seq, previous, body])))
         self.db.execute('INSERT OR REPLACE INTO positions VALUES(?,?)',
@@ -101,6 +118,7 @@ class PaperBook:
             position = dict(id=identity, status='reserved', reserved=amount, basis=0,
                             mark=0, tokens=0, realized=0, capital_unit_seconds=0,
                             capital_at_risk=amount, risk_at=at, last_at=at)
+            if 'candidate' in evidence:position['candidate']=evidence['candidate']
             self._record(position, 'reserved', at, evidence)
 
     def transition(self, identity, action, at, *, amount=0, tokens=0, evidence=None):
@@ -128,6 +146,18 @@ class PaperBook:
                 if p['status'] != 'open':
                     raise ValueError('invalid_paper_mark')
                 p['mark'] = amount
+            elif action == 'scale_add':
+                request=(evidence or {}).get('request')
+                if p.get('scale_request')==request and request:
+                    if p['scale_cost']!=amount or p['scale_tokens']!=tokens:
+                        raise ValueError('scale_duplicate_conflict')
+                    return self.reconcile()
+                if (p['status']!='open' or p.get('scale_request') or not request
+                        or not amount or not tokens or amount>self.reconcile()['cash']):
+                    raise ValueError('invalid_paper_scale_add')
+                p.update(basis=p['basis']+amount,mark=p['mark']+amount,
+                    tokens=p['tokens']+tokens,capital_at_risk=p['capital_at_risk']+amount,
+                    scale_request=request,scale_cost=amount,scale_tokens=tokens)
             elif action == 'partial_harvest':
                 if p['status'] != 'open' or not tokens or tokens >= p['tokens']:
                     raise ValueError('invalid_paper_partial_harvest')
@@ -157,8 +187,9 @@ class PaperBook:
 
     def reconcile(self):
         with self.lock:
+            anchor=self._archive();folded=anchor.get('folded',{}) if anchor else {}
             positions = [json.loads(x[0]) for x in self.db.execute('SELECT body FROM positions')]
-            realized = sum(x['realized'] for x in positions)
+            realized = folded.get('realized',0)+sum(x['realized'] for x in positions)
             reserved = sum(x['reserved'] for x in positions)
             basis = sum(x['basis'] for x in positions)
             marks = sum(x['mark'] for x in positions)
@@ -168,18 +199,19 @@ class PaperBook:
             return dict(**self.identity, cash=cash, reserved=reserved, basis=basis,
                         realized=realized, unrealized=marks-basis,
                         marked_equity=cash+reserved+marks,
-                        capital_unit_seconds=sum(x['capital_unit_seconds'] for x in positions),
+                        capital_unit_seconds=folded.get('capital_unit_seconds',0)+sum(x['capital_unit_seconds'] for x in positions),
                         capital_hour_denominator=3600,
                         open_positions=sum(x['status']=='open' for x in positions),
                         pending=sum(x['status']=='reserved' for x in positions),
-                        settled=sum(x['status']=='settled' for x in positions),
+                        settled=folded.get('settled',0)+sum(x['status']=='settled' for x in positions),
                         reconciled=True)
 
     def replay(self):
         """Verify immutable chain, then independently rebuild cash and occupations."""
         with self.lock:
-            positions = {}; previous = '0' * 64; count = 0
-            cash = self.identity['initial']
+            anchor=self._archive()
+            positions,previous,count,cash=({},'0'*64,0,self.identity['initial']) if anchor is None else (
+                anchor['positions'],anchor['final_hash'],anchor['seq'],anchor['cash'])
             for seq, raw, prior, checksum in self.db.execute('SELECT * FROM journal ORDER BY seq'):
                 count += 1; body = json.loads(raw); p = body['position']; identity = p['id']
                 if (seq != count or prior != previous or body['identity'] != self.identity
@@ -214,6 +246,14 @@ class PaperBook:
                             or proceeds < 0):
                         raise ValueError('paper_replay_partial_harvest')
                     cash += proceeds
+                elif action == 'scale_add':
+                    e=body['evidence'];cost=p.get('scale_cost');quantity=p.get('scale_tokens')
+                    if (not old or old['status']!='open' or old.get('scale_request')
+                            or not cost or not quantity or p.get('scale_request')!=e.get('request')
+                            or p['basis']!=old['basis']+cost or p['tokens']!=old['tokens']+quantity
+                            or p['realized']!=old['realized']):
+                        raise ValueError('paper_replay_scale_add')
+                    cash-=cost
                 elif action == 'settled':
                     if (not old or old['status'] != 'open'
                             or p['realized'] != old['realized']+p['proceeds']-old['basis']):
@@ -235,6 +275,63 @@ class PaperBook:
                 raise ValueError('paper_projection_differs_from_replay')
             return dict(verified=True, events=count, final_hash=previous, cash=cash)
 
+    def _archive(self):
+        if not self.db.execute("SELECT 1 FROM sqlite_master WHERE name='journal_archive'").fetchone():return None
+        row=self.db.execute('SELECT body,hash FROM journal_archive WHERE id=1').fetchone()
+        if row is None:return None
+        value=json.loads(row[0])
+        if _hash(value)!=row[1] or value.get('identity')!=self.identity:
+            raise ValueError('paper_archive_integrity')
+        return value
+
+    def _compact_preserved(self,path,authority,*,cost_reader=None,risk_reader=None):
+        """Checkpoint only replayed bytes already in the exact native artifact."""
+        with Path(path).open('rb') as stream:
+            if hashlib.file_digest(stream,'sha256').hexdigest()!=authority['snapshot_sha256']:
+                raise ValueError('paper_archive_snapshot_identity')
+        source=object.__new__(PaperBook);source.identity=self.identity;source.lock=threading.RLock()
+        source.db=sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True)
+        try:
+            source.db.execute('BEGIN');proof=source.replay();prior=source._archive()
+            positions={i:json.loads(b) for i,b in source.db.execute('SELECT * FROM positions')}
+            from meme_machine.runtime.survivor_commit import risk_record
+            from meme_machine.runtime.directional_accounting import execution_cost
+            from meme_machine.runtime.journal_proof import extend
+            risk={} if prior is None else json.loads(_json(prior['risk_states']))
+            summaries={} if prior is None else json.loads(_json(prior['journal_proofs']))
+            for raw, in source.db.execute('SELECT body FROM journal ORDER BY seq'):
+                event=json.loads(raw);identity=event['position']['id']
+                summaries[identity]=extend([event],summaries.get(identity))
+                state=(risk_reader or risk_record)(risk.get(identity),event)
+                if state is not None:risk[identity]=state
+            anchor=dict(identity=self.identity,seq=proof['events'],final_hash=proof['final_hash'],
+                cash=proof['cash'],positions=positions,risk_states=risk,journal_proofs=summaries,
+                execution_cost=(cost_reader or execution_cost)(source),authority=authority,
+                previous_archive_hash=_hash(prior) if prior else None)
+            if prior:
+                for key in ('folded','archived_entry_scope'):
+                    if key in prior:anchor[key]=prior[key]
+        finally:source.db.close()
+        with self.transaction():
+            old=self._archive();seq=anchor['seq']
+            if old and old['seq']>=seq:
+                if old['seq']==seq and old['final_hash']!=anchor['final_hash']:
+                    raise ValueError('paper_archive_prefix_conflict')
+                if (old['seq']>seq or old['authority']['state_hash']==authority['state_hash']
+                        or old.get('retirement_pending')):return False
+            before=self.replay();accounting=self.reconcile()
+            row=self.db.execute('SELECT hash FROM journal WHERE seq=?',(seq,)).fetchone()
+            if not ((row and row[0]==anchor['final_hash'])
+                    or (old and old['seq']==seq and old['final_hash']==anchor['final_hash'])
+                    or (seq==0 and anchor['final_hash']=='0'*64)):
+                raise ValueError('paper_archive_prefix_conflict')
+            self.db.execute('INSERT OR REPLACE INTO journal_archive VALUES(1,?,?)',(_json(anchor),_hash(anchor)))
+            self.db.execute('DROP TRIGGER journal_no_delete')
+            self.db.execute('DELETE FROM journal WHERE seq<=?',(seq,))
+            self.db.execute("CREATE TRIGGER journal_no_delete BEFORE DELETE ON journal BEGIN SELECT RAISE(ABORT,'append_only'); END")
+            if self.replay()!=before or self.reconcile()!=accounting:raise ValueError('paper_archive_state_changed')
+        return True
+
     def runtime_state(self,identity,key):
         with self.lock:
             row=self.db.execute('SELECT body,hash FROM runtime_state WHERE identity=? AND key=?',(identity,key)).fetchone()
@@ -254,9 +351,3 @@ class PaperBook:
         self.replay()
         self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
         self.db.close()
-
-# The preserved accounting primitive has identical native transitions; only
-# terminal history representation and cumulative replay are extended.
-from meme_machine.runtime.survivor_paper_book import PaperBook as _PreservedBook
-for _method in ("_record","_archive","_compact_preserved","reconcile","replay","transition"):
-    setattr(PaperBook,_method,getattr(_PreservedBook,_method))

@@ -96,7 +96,7 @@ def vector(**overrides):
 class PonsSelectivePolicyTests(unittest.TestCase):
     def test_policy_is_distinct_and_frozen(self):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
-        self.assertEqual(POLICY_HASH,"cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3")
+        self.assertEqual(POLICY_HASH,"888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f")
         self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],4500)
         self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8800)
         self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],90)
@@ -107,10 +107,10 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertTrue(ENTRY_THRESHOLDS["require_curve_acceleration"])
         self.assertTrue(ENTRY_THRESHOLDS["require_flow_acceleration"])
         self.assertEqual(ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],5000)
-        self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
+        self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],500)
         self.assertEqual(EXIT_POLICY["risk_bps"],-800)
         self.assertEqual(EXIT_POLICY["first_profit_bps"],1800)
-        self.assertEqual(EXIT_POLICY["first_profit_sell_bps"],3333)
+        self.assertEqual(EXIT_POLICY["first_profit_sell_bps"],2500)
         self.assertEqual(EXIT_POLICY["soft_deterioration_confirmations"],2)
         self.assertEqual(EXIT_POLICY["max_total_hold_seconds"],900)
         self.assertEqual(REENTRY_POLICY["min_changed_dimensions"],2)
@@ -254,7 +254,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         )
         self.assertEqual(
             (first["action"],first["reason"],first["exit_tokens"]),
-            ("partial_exit","first_profit",333),
+            ("partial_exit","first_profit",250),
         )
 
         one=pregraduation_action(
@@ -360,7 +360,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
             high_water_return_bps=1900,seconds_since_high=0,new_buyer_growth=2,
             buy_quote=10,sell_quote=2,
         )
-        self.assertEqual((first["action"],first["exit_tokens"]),("partial_exit",333))
+        self.assertEqual((first["action"],first["exit_tokens"]),("partial_exit",250))
         trail=runner_action(
             tokens=500,partial_taken=True,after_cost_return_bps=2000,
             high_water_return_bps=4000,seconds_since_high=10,new_buyer_growth=1,

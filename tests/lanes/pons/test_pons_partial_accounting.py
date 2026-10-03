@@ -38,8 +38,8 @@ class PartialAccountingTests(unittest.TestCase):
             native=paper.reconcile();cohort=guard.reconcile()
             self.assertEqual((native['cash'],native['remaining_cost_basis'],native['booked_realized']),(966,51,17))
             self.assertEqual((cohort['cash'],cohort['remaining_cost_basis'],cohort['booked_realized']),(966,51,17))
-            # Partial profit is visible, but cannot increase allocation authority.
-            self.assertEqual((cohort['available'],cohort['reserved'],cohort['realized']),(880,120,0))
+            # Replayed cash flows compound realized sleeve equity.
+            self.assertEqual((cohort['available'],cohort['reserved'],cohort['realized']),(966,51,17))
             self.assertEqual(cohort['native_execution_cost'],4)
             self.assertEqual(cohort['capital_at_risk_unit_nanoseconds'],324*10**9)
             store.close();store=Store(path)

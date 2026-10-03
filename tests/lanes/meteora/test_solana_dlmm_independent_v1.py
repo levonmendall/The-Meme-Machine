@@ -45,9 +45,9 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             p["fee_model"]["live_fee_density_metric"])
         self.assertFalse(p["fee_model"]["require_dynamic_fee_uplift"])
         self.assertEqual(
-            p["revision"],"2.1-moderate-admission-thresholds-v1")
+            p["revision"],"2.2-moderate-admission-exit-hysteresis-v1")
         self.assertEqual(p["exit"]["core_hold_seconds"],14400)
-        self.assertEqual(p["exit"]["economic_collapse_confirmation_segments"],2)
+        self.assertEqual(p["exit"]["economic_collapse_confirmation_segments"],3)
         self.assertEqual(
             p["exit"]["pre_core_hard_risk_exit_reasons"],
             ["range_boundary","inventory_imbalance","one_way_flow"],
@@ -78,7 +78,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(
             hard,["range_boundary","inventory_imbalance","one_way_flow"])
 
-    def test_economic_collapse_needs_two_verified_segments_after_core_hold(self):
+    def test_economic_collapse_needs_three_verified_segments_after_core_hold(self):
         p=strategy.load_policy()
         one=strategy._eligible_exit_reasons(
             ["fee_density_collapse"],elapsed_seconds=14400,
@@ -88,7 +88,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(one,[])
         two=strategy._eligible_exit_reasons(
             ["fee_density_collapse"],elapsed_seconds=14400,
-            collapse_streaks={"volume_collapse":0,"fee_density_collapse":2},
+            collapse_streaks={"volume_collapse":0,"fee_density_collapse":3},
             policy=p,
         )
         self.assertEqual(two,["fee_density_collapse"])

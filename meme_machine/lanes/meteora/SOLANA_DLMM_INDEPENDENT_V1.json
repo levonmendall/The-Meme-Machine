@@ -167,15 +167,15 @@
     "conditions": [
       "active price reaches within 2 bins of either range boundary (immediate hard-risk exit)",
       "executable non-SOL inventory value exceeds 60% of initial capital (immediate hard-risk exit)",
-      "recent verified flow has >=2 swaps, two_way_balance <0.25 and drift_ratio >0.75 (immediate adverse-selection exit)",
-      "after the 4h core hold, recent fee density remains below 50% of entry authenticated fee density for at least 2 consecutive verified 300s segments",
-      "after the 4h core hold, recent volume rate remains below 50% of entry warmup volume rate for at least 2 consecutive verified 300s segments",
+      "recent verified flow has >=2 swaps, two_way_balance <0.18 and drift_ratio >0.82 (immediate adverse-selection exit)",
+      "after the 4h core hold, recent fee density remains below 50% of entry authenticated fee density for at least 3 consecutive verified 300s segments",
+      "after the 4h core hold, recent volume rate remains below 50% of entry warmup volume rate for at least 3 consecutive verified 300s segments",
       "stress-unwind or executable-mark evidence becomes unavailable",
       "maximum holding time of 24h reached"
     ],
     "settlement": "withdraw all liquidity and liquidate residual non-SOL inventory to SOL on the authenticated virtual state",
     "core_hold_seconds": 14400,
-    "economic_collapse_confirmation_segments": 2,
+    "economic_collapse_confirmation_segments": 3,
     "pre_core_hard_risk_exit_reasons": [
       "range_boundary",
       "inventory_imbalance",
@@ -219,7 +219,7 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "2.1-moderate-admission-thresholds-v1",
+  "revision": "2.2-moderate-admission-exit-hysteresis-v1",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -365,13 +365,13 @@
     }
   },
   "execution_certification": {
-    "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
+    "policy_hash": "ffdc8f510a4e099ea27d720ff1281c20e8e8562b24ae447078115635aa9a76f9",
     "purpose": "prospective_natural_paper_profitability_validation_of_authenticated_local_fee_density_strategy",
     "profitability_authority": true,
     "paper_only": true,
     "freshness_finality_unchanged": true,
     "exact_warmup_seconds": 12,
-    "reference_profitability_policy_revision": "2.1-moderate-admission-thresholds-v1",
+    "reference_profitability_policy_revision": "2.2-moderate-admission-exit-hysteresis-v1",
     "machinery_proof_only": false,
     "one_natural_settled_lifecycle_target": false,
     "prior_execution_certification_revision": "1.9-machinery-proof-v2",
@@ -388,7 +388,7 @@
     "live_fee_density_metric": "authenticated_fee_density_24h_pct = 100 * range_fee_sol_lamports / range_liquidity_sol_lamports * 86400 / observed_seconds",
     "policy_hash_definition": "sha256(canonical JSON of this artifact with execution_certification.policy_hash set to null)",
     "core_hold_runtime_enforced": true,
-    "economic_collapse_confirmation_segments": 2,
+    "economic_collapse_confirmation_segments": 3,
     "pre_core_hard_risk_exit_reasons": [
       "range_boundary",
       "inventory_imbalance",

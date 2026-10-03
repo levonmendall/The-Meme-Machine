@@ -26,7 +26,7 @@ class PaperBook:
         self.genesis=dict(namespace=NAMESPACE,asset='SOL_lamports',run_id=run_id,
                           policy_hash=policy_hash,capital=integer(capital),paper_only=True)
         self.path.parent.mkdir(parents=True,exist_ok=True)
-        from certification.preserved_checkpoint import snapshot
+        from meme_machine.runtime.preserved_checkpoint import snapshot
         preserved=(snapshot(path,name='meteora/solana-dlmm-independent-v1-live.accounting.sqlite3',lane='meteora')
                    if economic_replay else nullcontext(None))
         with preserved as source:
@@ -53,7 +53,7 @@ class PaperBook:
         return db
 
     def identity(self):
-        from certification.lifecycle_identity import issue
+        from meme_machine.runtime.lifecycle_identity import issue
         return issue(NAMESPACE+':'+self.run_id+':'+str(uuid.uuid4()))
 
     def events(self,db):
@@ -132,7 +132,7 @@ class PaperBook:
         with closing(self.connect()) as db:
             db.execute('BEGIN IMMEDIATE');state=self._replay(db)
             if action=='reserve':
-                from certification.lifecycle_identity import validate_new
+                from meme_machine.runtime.lifecycle_identity import validate_new
                 from certification.meteora_archive import anchor
                 validate_new(identity,archived=(anchor(db,self.genesis) or {}).get('archived_entry_scope'))
             event=dict(action=action,identity=identity,data=data,previous=state['hash'],at_ns=time.time_ns() if at_ns is None else at_ns)

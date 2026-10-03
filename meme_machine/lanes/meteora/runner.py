@@ -1198,8 +1198,8 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
     inventory=mark["non_sol_inventory_fraction_of_initial_capital"]>0.60
     directional=(
         recent["touch_swaps"]>=2
-        and recent["two_way_balance"]<0.25
-        and recent["drift_ratio"]>0.75
+        and recent["two_way_balance"]<0.18
+        and recent["drift_ratio"]>0.82
     )
     volume_collapse=(
         recent["touch_swaps"]>=2

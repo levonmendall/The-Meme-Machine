@@ -10,12 +10,12 @@ import os
 from pathlib import Path
 import time
 
-from certification.directional_sleeve import open_sleeve
-from certification.execution_capacity import buyer_persistence
-from certification.journal import digest
-from certification.survivor_commit import commit,monitor,handoff_ready
+from meme_machine.runtime.directional_sleeve import open_sleeve
+from meme_machine.runtime.execution_capacity import buyer_persistence
+from meme_machine.runtime.journal import digest
+from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,scale
 from certification.survivor_history import History
-from certification.survivor_paper_book import PaperBook
+from meme_machine.runtime.survivor_paper_book import PaperBook
 from .engine import GAS,MAYHEM_AGENT_WALLET
 from .postgrad import PostGraduationAdapter,graduation_handoff,buy_quote,sell_quote
 from .provider import Unavailable
@@ -228,13 +228,18 @@ class Runtime:
             soft_deterioration=None if not flow else flow['buy_flow']<=flow['sell_flow'] and flow['new_buyers']==0)
         action=monitor(book=self.book,sleeve=self.sleeve,identity=row['position'],observation=observation,
                        policy=POLICY['exits'],adapter=self)
+        if action['action']=='hold':
+            scale(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],
+                generation=row['generation'],adapter=self,qualify=evaluate_entry,ordinary_limit=600,
+                stress_limit=600,minimum=GAS*2+1)
         if action['action']=='partial_exit':
             row=self.history.get(row['id']);row['state']='runner';self.history.save(row)
 
     def _enter(self,row,decision,generation,regime,identity):
+        sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
         return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
             strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
-            target=self.capital*25//10000,minimum=GAS*2+1,retention_bps=5000,
+            target=sizing["target"],minimum=GAS*2+1,retention_bps=5000,
             ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
 
     def step(self,*,admit):
@@ -272,7 +277,7 @@ class Runtime:
                             flow_regime='buy' if f.get('buy_flow',0)>f.get('sell_flow',0) else 'sell')
                         blocked=row.get('extension_blocked_regime')
                         if blocked:
-                            from certification.survivor_risk import new_regime
+                            from meme_machine.runtime.survivor_risk import new_regime
                             if not (new_regime(blocked,regime) and blocked['base_id']!=regime['base_id']
                                     and blocked['high_reset_cycle']!=regime['high_reset_cycle']):
                                 decision['candidate']=False;decision['all_rejections'].append('extension_requires_new_reset_base')
@@ -280,10 +285,12 @@ class Runtime:
                             row['extension_blocked_regime']=regime;self.history.save(row)
                         observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
                             state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
+                        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
+                            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime)
                         if decision['candidate']:
-                            from certification.lifecycle_identity import issue
+                            from meme_machine.runtime.lifecycle_identity import issue
                             row['position']=issue(self.run_id+':'+digest([STRATEGY_ID,row['id'],regime]))
                             row['state']='reserved';self.history.save(row)
                             self._enter(row,decision,observed['generation'],regime,row['position'])

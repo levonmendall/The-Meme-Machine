@@ -31,7 +31,7 @@ class CohortCapital:
         self.recover_shared_terminals()
 
     def recover_shared_terminals(self,*,release_absent=False):
-        from certification.directional_sleeve import open_sleeve,native_terminal
+        from meme_machine.runtime.directional_sleeve import open_sleeve,native_terminal
         sleeve=open_sleeve('pons',self.capital)
         if sleeve is None:return
         with closing(sleeve),closing(self._connect()) as db:
@@ -75,13 +75,16 @@ class CohortCapital:
                     raise BoundaryError('selective_cohort_journal_transition')
             elif action=='observe':
                 if previous is None or previous['status']!='reserved' or any(
-                    row.get(k)!=previous.get(k) for k in ('status','reserved','initial_reserved','pnl','at','decision_hash','trial_path','policy_hash','native_reservation_intent')
+                    row.get(k)!=previous.get(k) for k in ('status','initial_reserved','at','decision_hash','trial_path','policy_hash','native_reservation_intent')
                 ):
                     raise BoundaryError('selective_cohort_journal_transition')
                 native=row.get('native_position',{})
                 old=previous.get('native_position')
                 if native.get('id')!=identity or native.get('experiment')!=STRATEGY_NAMESPACE or (old and native['version']<=old['version']):
                     raise BoundaryError('selective_cohort_native_sequence')
+                expected_held=native['reserved'] if native['status']=='reserved' else native['remaining_cost']
+                if row['reserved']!=expected_held or row['pnl']!=native['realized_pnl']:
+                    raise BoundaryError('selective_cohort_native_cash_flow')
             else:raise BoundaryError('selective_cohort_journal_transition')
             replay[identity]=row
         projection={identity:json.loads(raw) for identity,raw in db.execute('SELECT id,body FROM capital_positions')}
@@ -90,7 +93,7 @@ class CohortCapital:
         prefix=anchor(db);folded=(prefix or {}).get('folded',{})
         rows=list(replay.values())
         reserved=sum(x['reserved'] for x in rows)
-        realized=folded.get('realized',0)+sum(x['pnl'] for x in rows if x['status']=='settled')
+        realized=folded.get('realized',0)+sum(x['pnl'] for x in rows)
         available=self.capital+realized-reserved
         if available<0:raise BoundaryError('selective_cohort_capital_invariant')
         observed=[x for x in rows if 'native_position' in x]
@@ -135,11 +138,24 @@ class CohortCapital:
                 if not raw:raise BoundaryError('selective_cohort_reservation_missing')
                 row=json.loads(raw[0])
                 if row['decision_hash']!=digest(decision):raise BoundaryError('selective_cohort_decision_mismatch')
-                if row.get('native_position')==position:
-                    db.execute('COMMIT');return
-                row.update(native_position=position,native_journal_hash=digest(event),native_accounting=accounting)
-                self._write(db,row,'observe');self._reconcile(db);db.execute('COMMIT')
+                if row.get('native_position')!=position:
+                    row.update(native_position=position,native_journal_hash=digest(event),native_accounting=accounting,
+                        reserved=position['reserved'] if position['status']=='reserved' else position['remaining_cost'],
+                        pnl=position['realized_pnl'])
+                    self._write(db,row,'observe');self._reconcile(db)
+                db.execute('COMMIT')
             except BaseException:db.execute('ROLLBACK');raise
+        from meme_machine.runtime.directional_sleeve import open_sleeve
+        sleeve=open_sleeve('pons',self.capital)
+        if sleeve is not None:
+            with closing(sleeve):
+                held=sleeve.get(identity);reservation=(held or {}).get('scale_reservation') or {}
+                if reservation.get('status')=='reserved':
+                    sleeve.recover_scale(identity,request=reservation['request'],native_verified=True,
+                        committed=position.get('scale_request')==reservation['request'])
+                if position['status'] in ('open','exit_pending'):
+                    sleeve.acknowledge_native(identity,basis=position['remaining_cost'],pnl=position['realized_pnl'],
+                        at=position['last_at'],native_hash=digest(position),native_verified=True)
 
     def reconcile(self):
         with closing(self._connect()) as db:
@@ -190,15 +206,16 @@ class CohortCapital:
                     or intent['amount']+intent['gas_budget']!=amount
                     or digest(intent['features'])!=decision_hash):
                 raise BoundaryError('selective_cohort_native_intent_identity')
-        from certification.lifecycle_identity import validate_new
+        from meme_machine.runtime.lifecycle_identity import validate_new
         from certification.pons_terminal_archive import anchor
         with closing(self._connect()) as db:
             validate_new(identity,archived=(anchor(db) or {}).get('archived_entry_scope'))
-        from certification.directional_sleeve import open_sleeve
+        from meme_machine.runtime.directional_sleeve import open_sleeve
         sleeve=open_sleeve('pons',self.capital)
         if sleeve is not None:
             try:
-                with closing(sleeve):sleeve.reserve(identity,strategy=STRATEGY_NAMESPACE,amount=amount,at=int(at))
+                with closing(sleeve):sleeve.reserve(identity,strategy=STRATEGY_NAMESPACE,amount=amount,at=int(at),
+                    asset=(native_reservation_intent or {}).get("features",{}).get("token"))
             except ValueError as exc:raise BoundaryError(str(exc)) from None
         with closing(self._connect()) as db:
             db.execute('BEGIN IMMEDIATE')
@@ -234,13 +251,13 @@ class CohortCapital:
                 row=json.loads(raw[0])
                 if row['status']=='settled':raise BoundaryError('selective_cohort_duplicate_settlement')
                 if int(at)<row['at']:raise BoundaryError('selective_cohort_time_regression')
-                if pnl < -row['initial_reserved']:raise BoundaryError('selective_cohort_loss_exceeds_reservation')
+                if pnl < -max(row['initial_reserved'],position.get('cost',0)):raise BoundaryError('selective_cohort_loss_exceeds_reservation')
                 if 'native_position' in row and row['native_position']!=position:
                     raise BoundaryError('selective_cohort_unobserved_settlement')
                 row.update(status='settled',reserved=0,pnl=pnl,at=int(at),native_settlement_hash=digest(position),shared_terminal_position=position)
                 self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT')
             except BaseException:db.execute('ROLLBACK');raise
-        from certification.directional_sleeve import open_sleeve,native_terminal
+        from meme_machine.runtime.directional_sleeve import open_sleeve,native_terminal
         sleeve=open_sleeve('pons',self.capital)
         if sleeve is not None:
             with closing(sleeve):native_terminal(sleeve,identity,position,int(at),verified=True)

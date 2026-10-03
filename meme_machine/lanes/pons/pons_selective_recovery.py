@@ -56,7 +56,8 @@ class LifecycleState(SimpleNamespace):
             entry_largest=int(vector['demand']['largest_buyer_flow_bps']),seen_v4_buyers=set(),
             pending_transition_exit_reason=None,recovery_exit_reason=None,recovery_streak=0,
             pregrad_soft_deterioration_streak=0,runner_soft_deterioration_streak=0,
-            pending_action=None)
+            pending_action=None,bridged=False,bridged_at=None,bridge_deadline=None,
+            first_tail_crossed_at=None,scale_committed=False,bridge_probe_failed=False)
         cls._table(store)
         return state
 
@@ -89,7 +90,8 @@ class LifecycleState(SimpleNamespace):
         partial=bool(position['entry_tokens'] and 0<position['tokens']<position['entry_tokens'])
         data={k:v for k,v in vars(self).items() if k not in ('preholders','seen_v4_buyers','v4_key')}
         data.update(schema=SCHEMA,policy_hash=POLICY_HASH,partial_taken=self.partial_taken or partial,
-            v4_key=asdict(self.v4_key) if self.v4_key else None)
+            v4_key=asdict(self.v4_key) if self.v4_key else None,
+            scale_committed=getattr(self,'scale_committed',False) or bool(position.get('scale_request')))
         if action in ('exit','liquidity_writeoff'):data['pending_action']=None
         # Exact buyer identities are normalized once rather than copied into every
         # 32KiB journal row. Their digest is bound to the native hash chain.
