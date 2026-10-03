@@ -113,7 +113,11 @@ def restart_witness(path, output, *, native_failure, failure_frames):
     state = service.ServiceState(path, AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
     try:
         runtime = MaintenanceRuntime(state)
-        new_generation = state.fence.session
+        new_generation = runtime.generation
+        # Native runtime publication updates memory only. Flush its current
+        # metrics through the native durable health transaction while WARMING,
+        # before the refusal reader pins the new generation in SQLite.
+        state.fence.health('storage_maintenance', dict(state.storage_metrics))
         plane = RuntimeEvidence(path, owner='meteora')
         try:
             scopes = [scope for scope in ('program:meteora', 'program:pump', 'program:pumpswap')

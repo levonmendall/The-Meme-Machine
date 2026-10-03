@@ -2,7 +2,34 @@
 
 Disposition: **STAGE_E_NATIVE_V3_EXECUTABLE_REVIEW_READY**, pending independent executable re-review. The v3 contract remains approved and unchanged. Declaration: **NOT AUTHORIZED / PREVIEW ONLY**. Stage E: **RED**. Stage F: **NOT STARTED**. No A/B/C campaign, native service/workload, workload-frame release, provider workload or native termination experiment was performed.
 
-## Final refusal-time lifecycle blocker
+## Current restart generation publication blocker
+
+This repair starts from exact reviewed executable commit `2455f5cc598f166fb44970e4fce3123b2e359146`, tree `3deff025a34b0a33828b98fd50cdd9a12042d769`. Its 51 manifest-listed artifacts and the manifest itself passed independent local Git-object readback against package SHA-256 `d6c8402b8a917cd2086a8e84d30e558c63b782515f26acda581c9783ad4ee4f6`.
+
+The genuine frozen `MaintenanceRuntime(state)` publishes its new generation into `state.storage_metrics` in memory. SQLite still exposes the old generation until native health publication. The strict capture-time generation equality therefore correctly rejected the reviewed witness before it could preserve refusals. The later `ServiceState.close()` publication occurs after capture and transitions to OFF.
+
+`restart_witness()` now takes `runtime.generation` and calls `state.fence.health('storage_maintenance', dict(state.storage_metrics))` before constructing the native reader. This is the existing frozen `FinalizedFence.health()` publisher used by native maintenance health and close: it writes through the existing native writer transaction and commits its FULL-synchronous WAL. Phase remains WARMING. No direct SQL write, new publication mechanism, native method edit, generation relaxation or acceptance-semantic change is introduced. The earlier pinned refusal state/time proof and independent final OFF verifier are unchanged.
+
+The complete deterministic executable suite passes **322/322** tests on Python 3.12.14, with zero failures, errors or skips: the existing 302 tests, including all 94 earlier WARMING→OFF regressions and the unchanged 55-test approved contract suite, plus **20 new native publication regressions** in `tests/test_restart_publication.py`.
+
+| Required publication proof | Deterministic regression |
+| --- | --- |
+| old persisted → new in memory → new persisted → WARMING capture → OFF | Actual frozen `ServiceState` and `MaintenanceRuntime` constructors, native health transaction, real harness witness, pinned native reader/backup, native close and unchanged independent verifier. Both refusal reasons have the same ten assertions. |
+| Old generation remains durable before publication | Independent read-only SQLite connections expose the old generation after the new runtime constructor; memory exposes exactly `runtime.generation`. The old generation itself was published through native health, never seeded as an expected new generation. |
+| Publication is durable and capture stays WARMING | Native health returns with no writer transaction outstanding; an independent reader sees the entire current metrics dictionary and exactly the runtime generation before the refusal reader opens. Every captured receipt and preserved raw DB reports WARMING and that generation. |
+| Strict refusal before publication | The same native reader fails capture with `refusal_restart_lifecycle_or_generation`, rolls back and produces no refusal snapshot; native publication then makes capture succeed. Omitting publication also fails the actual witness, even though its finally-close later persists the new generation and reaches OFF. |
+| Wrong or uncommitted generation | Publishing a wrong generation, or retaining native publication inside an uncommitted outer transaction, fails the unchanged capture check. |
+| Direct fixture seeding is insufficient regression coverage | A counterfactual fixture writes the coherent new generation directly while omitting the real publisher; the observed handoff rejects this because native health completion was not exercised. Production harness source contains no such SQL. |
+| Independent final OFF verification | The unchanged raw verifier accepts the real close; coherently altered final WARMING or wrong-generation DB/summary fails independently despite valid WARMING capture evidence. |
+| Both C terminal paths | Four-member full-profile and one-member safety-only terminal records use the real corrected witness for every member and the unchanged raw trial verifier. Both refusal reasons pass; terminal FAILED_DIAGNOSTIC, zero capacity/observer credit and existing C classification remain intact. `stress.py` still calls this one handoff before classification. |
+
+These are tiny counterfactual unit databases with genuine native constructor/publication/read/close methods. Explicit guards prohibit service loops, source/maintenance work, provider connections, helper processes and helper threads. No A/B/C, native workload, pressure/provider workload or source frame ran. The immutable workload tape was not generated or consumed. No workflow was dispatched.
+
+The first full runs exposed two repository-restoration requirements in the unchanged approved suite: the candidate must be detached, and historical commit/tree objects must be available. Both were fixed in workspace Git setup; no test or integrity check was changed or skipped. The final full run passed all 322 tests. The prior environment inspection and refusal-time repair record are retained as historical review artifacts. Current test evidence is `evidence/test_results.json` and `evidence/unit_validation.log`; `evidence/generation_publication_fix_review.json` binds this repair's exact scope and regression evidence.
+
+Only `harness/overload.py` changes executable behavior. All other harness/entrypoint files, all existing regression files, A/B bindings, resource/lifetime evidence, durable failure preservation, A prerequisites, observer arithmetic, C semantics, the 192 approved-contract artifacts, all 1,241 candidate files/modes and historical Observer-v2 evidence are unchanged. The preview retains its existing unreserved campaign/ledger and refreshes only infrastructure hashes. **Stage E RED. Stage F NOT STARTED. STOP FOR ASTRA/OWNER.**
+
+## Earlier refusal-time lifecycle repair, preserved
 
 This repair starts from exact reviewed executable commit `49bd4cec92c4da58089ac4b0e4df06b44b3fc319`, tree `1285c4f04773685cced555ab18700f26ad575325`. Before editing, its 48 manifest-listed artifacts and manifest passed readback against SHA-256 `4c410207e205ef5da579d39c759cd85a5a1a5d00f5e4610971c9993d63445d34`.
 
