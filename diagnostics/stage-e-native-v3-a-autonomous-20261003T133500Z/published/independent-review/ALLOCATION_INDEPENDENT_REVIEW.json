@@ -1,0 +1,70 @@
+{
+  "artifacts_verified": 20,
+  "manifest_sha256": "c6d15b8fda172fba2d633229ef3946168dae789b34ba890376f938a55c5a06d8",
+  "process_count": 114,
+  "classifications": {
+    "ATTESTED_SYSTEM_SERVICE": 24,
+    "ATTESTED_KERNEL_SYSTEM_PROCESS": 89,
+    "NONMATERIAL_PREFLIGHT_SCOPE": 1
+  },
+  "unresolved": [],
+  "snapshot_keys": [
+    "affinity",
+    "balloon_modules",
+    "boot_id",
+    "cgroup",
+    "cpu",
+    "hostname",
+    "inspection_errors",
+    "memory",
+    "processes",
+    "real_monotonic_ns",
+    "real_utc_ns",
+    "scope_cgroup_sha256",
+    "scope_pid",
+    "storage",
+    "topology",
+    "version"
+  ],
+  "storage": [
+    {
+      "block_bytes": 4096,
+      "device": "8:0",
+      "free_bytes": 47417769984,
+      "fs_type": "ext4",
+      "mount": "/mnt/volume_nyc1_1790918115030",
+      "mount_id": 54,
+      "options": "rw,noatime",
+      "parent_id": 30,
+      "path": "/mnt/volume_nyc1_1790918115030",
+      "root": "/",
+      "source": "/dev/sda",
+      "st_dev": 2048,
+      "super_options": "rw,discard",
+      "total_bytes": 53075214336
+    }
+  ],
+  "cpu": {
+    "online": [
+      0,
+      1
+    ],
+    "possible": [
+      0,
+      1
+    ],
+    "present": [
+      0,
+      1
+    ]
+  },
+  "memory": {
+    "MemAvailable": 7592550400,
+    "MemTotal": 8327667712,
+    "SwapFree": 0,
+    "SwapTotal": 0
+  },
+  "system_process_count": 24,
+  "allocation_payload_sha256": "de4b5001ccc0947b1be3ee1eebd68c7779e3b3edd303aa2322b3fc71330b67f2",
+  "owner_key_not_substituted": true
+}

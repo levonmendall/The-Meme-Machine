@@ -1,0 +1,39 @@
+name: Native-v3 isolated runtime bounded repair (PAPER ONLY)
+on:
+  create:
+permissions:
+  contents: read
+jobs:
+  repair:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-autonomous-repair-20261003T133500Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 15
+    steps:
+      - name: Read frozen approved harness
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f480c6b4f7a8442fd148c7ed61bcc4447edaefca
+          path: native-v3-approved-autonomous-repair
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read separate nonmaterial collector
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: native-v3-autonomous-repair
+          persist-credentials: false
+      - name: Reconstruct isolated runtime with verified approved artifact provenance
+        id: repair
+        shell: sh
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-autonomous-repair
+        run: /usr/bin/python3 -I -B native-v3-autonomous-repair/diagnostics/stage-e-native-v3-a-autonomous-20261003T133500Z/repair_runtime.py
+      - name: Preserve original and corrected runtime bytes and provenance
+        if: always() && steps.repair.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-autonomous-runtime-repair-${{ github.run_id }}-1
+          path: ${{ steps.repair.outputs.evidence_path }}
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: false

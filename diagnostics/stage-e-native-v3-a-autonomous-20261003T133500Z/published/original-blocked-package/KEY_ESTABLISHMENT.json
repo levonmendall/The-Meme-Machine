@@ -1,0 +1,15 @@
+{
+  "algorithm": "RSA-3072/OpenSSL-dgst-SHA256",
+  "allocation_public_key_sha256": "5504ae8cfe2f20fcb3245c327e76e6f376f5cd8da895c56ffab3b258ae0079a4",
+  "established_utc_ns": 1791031294887038750,
+  "key_generation_procedure": "openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072; OpenSSL pkey -pubout; stdout/private stdin captured only in controller process memory; RLIMIT_CORE=0",
+  "owner_execution_permit_created": false,
+  "previous_private_key_discarded_and_not_reused": true,
+  "private_key_preserved": false,
+  "private_key_storage": "ephemeral controller-process memory only",
+  "process_attestation_precondition_sha256": "426617b42a14fe546ad48834108a6489a0ad2e45585187d39ad002de8741110c",
+  "public_key_bytes": 625,
+  "purpose": "allocation-attestation-only",
+  "separate_from_owner_execution_permit": true,
+  "version": "independent-allocation-attestation-trust-v1"
+}

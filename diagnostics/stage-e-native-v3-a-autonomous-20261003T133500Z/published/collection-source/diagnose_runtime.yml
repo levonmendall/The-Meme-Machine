@@ -1,0 +1,39 @@
+name: Native-v3 isolated runtime direct diagnosis (PAPER ONLY)
+on:
+  create:
+permissions:
+  contents: read
+jobs:
+  diagnosis:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-autonomous-diagnosis-20261003T133500Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 15
+    steps:
+      - name: Read frozen approved harness
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f480c6b4f7a8442fd148c7ed61bcc4447edaefca
+          path: native-v3-approved-autonomous-diagnosis
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read separate nonmaterial collector
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: native-v3-autonomous-diagnosis
+          persist-credentials: false
+      - name: Direct read-only executable and shared-library evidence
+        id: diagnosis
+        shell: sh
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-autonomous-diagnosis
+        run: /usr/bin/python3 -I -B native-v3-autonomous-diagnosis/diagnostics/stage-e-native-v3-a-autonomous-20261003T133500Z/diagnose_runtime.py
+      - name: Preserve direct diagnosis and every original runtime identity
+        if: always() && steps.diagnosis.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-autonomous-runtime-diagnosis-${{ github.run_id }}-1
+          path: ${{ steps.diagnosis.outputs.evidence_path }}
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: false

@@ -1,0 +1,10 @@
+{
+  "unchanged_approved_verifier": "attest.signed_document",
+  "verifier_sha256": "76f2dafa289d7a2a5c99325642ade644c08cfe69cd8f468c238a9a4c40fdc669",
+  "independent_public_key_source_commit": "04259d87f00dbce85b4061d43e5ca4f667724a92",
+  "public_key_sha256": "1c68ec0bffda7d70f93ef31ac6f4418bd5a6b600dfb2d06e106ac1907c9ceadd",
+  "signed_allocation_sha256": "70e49d3487f81cd418c1666d177be01d2ab5a88b78ab265e44c411338e05e08c",
+  "payload_exact_fresh_reviewed_draft": true,
+  "signature_verified": true,
+  "private_key_discarded": true
+}

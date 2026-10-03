@@ -1,0 +1,10 @@
+{
+  "allocation_public_key_sha256": "1c68ec0bffda7d70f93ef31ac6f4418bd5a6b600dfb2d06e106ac1907c9ceadd",
+  "canonical_payload_sha256": "41cd7494fab1f47bd98f485dd9eba49f2d972639d11d1ffa886ee2e43fda8850",
+  "openssl_sha256_verified": true,
+  "private_key_discarded": true,
+  "private_key_ever_preserved": false,
+  "signed_allocation_sha256": "70e49d3487f81cd418c1666d177be01d2ab5a88b78ab265e44c411338e05e08c",
+  "signing_utc_ns": 1791038014465400604,
+  "verification_output": "Verified OK"
+}

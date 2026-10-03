@@ -1,0 +1,1 @@
+{"storage_budget_policy":"GiB-aligned third of current free bytes after frozen 12-GiB headroom for working evidence; twice that for simultaneous trial and campaign copies","valid_from_basis":"fresh snapshot real_utc_ns","validity_duration_ns":3600000000000}
