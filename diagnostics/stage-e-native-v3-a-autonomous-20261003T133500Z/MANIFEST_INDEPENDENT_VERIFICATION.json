@@ -1,0 +1,18 @@
+{
+  "version": "independent-published-manifest-verification",
+  "method": "Separate network git fetch of immutable publication commit; git archive readback; rehash all manifested regular files and reject missing/extra files.",
+  "publication_commit": "820e172965ef8320add6bf4592b9e37163f1f340",
+  "published_package_path": "diagnostics/stage-e-native-v3-a-autonomous-20261003T133500Z/published",
+  "published_package_git_tree": "29c11393baa002c9afd7e8035d79e25ddf3277e8",
+  "manifest_sha256": "2a954aa28d6cd59c5c3cf97b6f179e202961d10a34cb64053fde5067cc95b0c6",
+  "verified_artifacts": 279,
+  "verified_bytes": 21602738,
+  "mismatches": [],
+  "extra_files": [],
+  "all_artifacts_verified": true,
+  "all_publication_changes_are_Stage_E_evidence": true,
+  "frozen_harness_and_candidate_unchanged": true,
+  "verified_at_utc": "2026-10-03T15:19:29.485627+00:00",
+  "A_slots_consumed": 0,
+  "source_frames_released": 0
+}
