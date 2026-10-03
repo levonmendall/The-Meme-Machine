@@ -1,0 +1,12 @@
+{
+  "algorithm": "RSA-3072",
+  "allocation_key_reused": false,
+  "generated_utc_ns": 1791049513206984120,
+  "owner_public_key_sha256": "5ce08e6e27a26848adba32c8bb82558552f5e75eb67c4d84ef0f4d2e608b80b4",
+  "private_key_not_published": true,
+  "private_key_written": false,
+  "requested_role": "separate owner execution permit for one exact fresh PAPER ONLY Stage-A declaration; requires explicit owner approval of this key and role first",
+  "signature_generated": false,
+  "status": "PROPOSED_NOT_TRUSTED_NO_EXECUTION_AUTHORITY",
+  "trust_not_self_asserted": true
+}

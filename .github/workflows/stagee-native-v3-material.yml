@@ -69,3 +69,21 @@ jobs:
           include-hidden-files: true
           overwrite: false
           if-no-files-found: error
+      - name: Hold exact run for the consolidated owner-signing handoff
+        if: steps.complete.outputs.owner_signing_candidate_ready == 'true'
+        id: owner_gate
+        shell: sh
+        env:
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-post-approval
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: exec /workspace/stage-e-runtime/bin/python -I -B native-v3-post-approval-preflight/diagnostics/stage-e-native-v3-a-post-approval-20261003T173000Z/complete_preflight.py await
+      - name: Preserve owner-gate terminal result and any Stage-A campaign evidence
+        if: always() && steps.binding.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-post-approval-final-${{ github.run_id }}-1
+          path: ${{ steps.binding.outputs.evidence_path }}
+          retention-days: 90
+          include-hidden-files: true
+          overwrite: false
+          if-no-files-found: error

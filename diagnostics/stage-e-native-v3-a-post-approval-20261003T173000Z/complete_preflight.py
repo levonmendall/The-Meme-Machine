@@ -20,6 +20,7 @@ sys.path.insert(0,str(PACKAGE))
 import attest
 import binding
 import core
+import run  # Frozen controller imports only; execute is never called before complete admission.
 
 PREFLIGHT='native-v3-a-post-approval-20261003T173000Z'
 MOUNT=Path('/mnt/volume_nyc1_1790918115030')
@@ -373,10 +374,15 @@ def finish_admission():
       slot_boundary='Unchanged ledger STARTED event before native child/process startup; this preflight never calls Ledger.create or run.execute.',
       campaign_path_exists=(MOUNT/d['campaign']).exists(),actual_slots_reserved=False))
     core.require(not (MOUNT/d['campaign']).exists(),'A_campaign_already_consumed')
-    owner=Path('/etc/stage-e-v3/owner-public.pem')
+    installed_owner=Path('/etc/stage-e-v3/owner-public.pem')
+    owner=OUTPUT/'PROPOSED_OWNER_EXECUTION_PUBLIC_KEY.pem'
+    preserve_bytes(owner.name,(HERE/'inputs'/owner.name).read_bytes())
+    save('PROPOSED_OWNER_KEY.json',core.read(HERE/'inputs/PROPOSED_OWNER_KEY.json'))
+    core.require(core.file_sha(owner)=='5ce08e6e27a26848adba32c8bb82558552f5e75eb67c4d84ef0f4d2e608b80b4','proposed_owner_public_key_hash')
     owner_permit=OUTPUT/'OWNER_PERMIT.json'
-    save('OWNER_SIGNING_TRUST_DISCOVERY.json',dict(example_approved_public_key_path=str(owner),public_key_present=owner.is_file(),
-      public_key_sha256=core.file_sha(owner) if owner.is_file() else None,exact_owner_permit_present=owner_permit.is_file(),
+    save('OWNER_SIGNING_TRUST_DISCOVERY.json',dict(example_approved_public_key_path=str(installed_owner),public_key_present=installed_owner.is_file(),
+      public_key_sha256=core.file_sha(installed_owner) if installed_owner.is_file() else None,
+      proposed_separate_owner_public_key_path=str(owner),proposed_owner_public_key_sha256=core.file_sha(owner),proposal_is_current_trust=False,exact_owner_permit_present=owner_permit.is_file(),
       separately_established_owner_public_key_sha256=None,private_keys_examined=False,
       textual_owner_authorization_received=True,authorization_scope='Bounded preflight repair and conditional exact Stage A; PAPER ONLY; no B/C/F',
       allocation_signing_key_is_separate_and_not_substituted_for_owner_key=True))
@@ -384,7 +390,7 @@ def finish_admission():
     # demands an independently trusted owner signature over these exact bytes.
     d['execution_authorized']=True
     d['disposition']='AUTHORIZED PAPER EXECUTION'
-    d['trust_keys']['owner_public_key_sha256']=None
+    d['trust_keys']['owner_public_key_sha256']=core.file_sha(owner)
     declaration_receipt=save('A_DECLARATION_FOR_VERIFIER.json',d)
     expected=dict(version='stage-e-native-v3-owner-execution-permit',declaration_sha256=declaration_receipt['sha256'],
       class_id='A',campaign=d['campaign'],workflow=d['workflow'],executor_id=d['executor']['executor_id'],
@@ -394,7 +400,7 @@ def finish_admission():
     try:
         authorize(OUTPUT/'A_DECLARATION_FOR_VERIFIER.json',owner_permit,owner,kind='A')
     except Exception as exc:
-        save('DECLARATION_VERIFICATION.json',dict(approved_verifier=str(PACKAGE/'harness/declaration.py'),approved_verifier_sha256=core.file_sha(PACKAGE/'harness/declaration.py'),function='authorize',passed=False,exact_rejection_type=type(exc).__name__,exact_rejection=str(exc),declaration_sha256=declaration_receipt['sha256'],allocation_key_not_substituted_for_owner_authority=True,A_slots_consumed=0,source_frames_released=0))
+        save('DECLARATION_VERIFICATION.json',dict(approved_verifier=str(PACKAGE/'harness/declaration.py'),approved_verifier_sha256=core.file_sha(PACKAGE/'harness/declaration.py'),function='authorize',passed=False,exact_rejection_type=type(exc).__name__,exact_rejection=str(exc),declaration_sha256=declaration_receipt['sha256'],allocation_key_not_substituted_for_owner_authority=True,pre_signature_declaration_checks_passed=True,A_slots_consumed=0,source_frames_released=0))
     else:
         RESULT['owner_declaration_authorized']=True
     save('CPU_RESERVATION.json',dict(allocated_vcpu=2,dedicated_vcpu=2,visible_cpu_ids=final['cpu']['present'],affinity=final['affinity'],ancestor_inventory_sha256=core.sha(core.canonical(final['cgroup'])),allocation_document_sha256=core.file_sha(OUTPUT/'SIGNED_ALLOCATION.json'),system_processes_attested=True,competing_workload=False,reservation_mechanism='Exact signed allocation and unchanged admission_errors predicate; no CPU quota or topology mutation',status='VERIFIED_FOR_NONMATERIAL_PREFLIGHT'))
@@ -402,9 +408,16 @@ def finish_admission():
     save('TAPE_EVIDENCE_CAPACITY_RESERVATION.json',dict(storage_bounds=d['storage_bounds'],storage_reservation=core.read(OUTPUT/'FINAL_STORAGE_RESERVATION.json'),canonical_tape_sha256=d['tape_binding']['physical_sha256'],tape_bytes=d['tape_binding']['physical_bytes'],source_frames_released=0))
     review=core.read(OUTPUT/'PROCESS_APPROVAL.json')
     save('NO_QUIESCENCE_REQUIRED.json',dict(unresolved=review['unresolved'],process_attestation_passed=review['process_attestation_passed'],critical_services_changed=False,service_mutations=0,environment_repair_performed=False))
-    save('DECLARATION_COMPLETENESS.json',dict(preview_constructed_by_unchanged_frozen_helper=True,candidate_bound=True,successor_bound=True,contract_bound=True,tape_bound=True,runtime_bound=True,allocation_signature_bound=True,executor_bound=True,workflow_bound=True,all_workload_timing_stop_preservation_trials_fields_unchanged=True,independent_approval_package_bound=True,owner_trust_key_bound=False,owner_permit_verified=False,effective_execution_authority=False,Stage_A_admitted=False))
+    save('DECLARATION_COMPLETENESS.json',dict(preview_constructed_by_unchanged_frozen_helper=True,candidate_bound=True,successor_bound=True,contract_bound=True,tape_bound=True,runtime_bound=True,allocation_signature_bound=True,executor_bound=True,workflow_bound=True,all_workload_timing_stop_preservation_trials_fields_unchanged=True,independent_approval_package_bound=True,required_owner_public_key_sha256=core.file_sha(owner),owner_trust_role_approved=False,owner_permit_verified=False,effective_execution_authority=False,Stage_A_admitted=False))
+    w=d['workflow']
+    core.require(w['event']=='workflow_dispatch' and w['attempt']==1 and w['repository']=='levonmendall/The-Meme-Machine' and w['workflow_path']=='.github/workflows/stagee-native-v3-material.yml' and core.file_sha(w['local_workflow_path'])==w['workflow_sha256'],'future_material_workflow_identity')
+    core.require('NOT AUTHORIZED / PREVIEW ONLY' not in Path(w['local_workflow_path']).read_text(),'preview_workflow_cannot_authorize')
+    core.require(os.environ.get('GITHUB_REPOSITORY')==w['repository'] and os.environ.get('GITHUB_RUN_ID')==str(w['run_id']) and os.environ.get('GITHUB_RUN_ATTEMPT')=='1' and os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch' and os.environ.get('GITHUB_SHA')==w['resolved_workflow_commit'],'actual_workflow_run_mismatch')
+    save('WORKFLOW_BINDING_VERIFICATION.json',dict(workflow=w,all_frozen_post_signature_workflow_checks_independently_passed=True))
+    save('OWNER_SIGNING_HANDOFF.json',dict(candidate_frozen=True,declaration_path=str(OUTPUT/'A_DECLARATION_FOR_VERIFIER.json'),declaration_sha256=declaration_receipt['sha256'],required_owner_public_key_sha256=core.file_sha(owner),proposed_owner_public_key_trusted=False,canonical_owner_permit_payload=expected,canonical_owner_permit_payload_sha256=core.sha(core.canonical(expected)),class_id='A',campaign=d['campaign'],executor=d['executor'],workflow=w,owner_signature_generated=False,owner_trust_role_approval_required=True,allocation_expires_utc_ns=d['allocation']['expires_utc_ns'],latest_owner_handoff_utc_ns=d['allocation']['expires_utc_ns']-4500*10**9,zero_A_trials=True,zero_A_slots=True,zero_released_frames=True,sole_remaining_gate='separate owner execution trust-role establishment and exact signature; no allocation-key substitution'))
+    RESULT['owner_signing_candidate_ready']=True
     matrix=[]
-    for name,evidence in [('repository_identity','REPOSITORY_IDENTITY.json'),('successor_package_commit_tree','APPROVED_IDENTITY.json'),('production_candidate_S_T','CANDIDATE_VERIFICATION.json'),('contract_identity','APPROVED_IDENTITY.json'),('canonical_tape_all_4445_frames_exact_284_failures','TAPE_VERIFICATION.json'),('runtime_dependencies_SQLite_shared_libraries','RUNTIME_ENVIRONMENT.json'),('isolated_runtime_integrity','PYTHON_CAPABILITY.json'),('process_service_attestation','PROCESS_APPROVAL.json'),('cgroup_CPU_RAM_dedication','COMPLETE_RESOURCE_ADMISSION.json'),('CPU_reservation','CPU_RESERVATION.json'),('RAM_reservation','RAM_RESERVATION.json'),('storage_reservation','FINAL_STORAGE_RESERVATION.json'),('tape_evidence_capacity_reservation','TAPE_EVIDENCE_CAPACITY_RESERVATION.json'),('runtime_reservation','RUNTIME_RESERVATION.json'),('allocation_signature','SIGNATURE_VERIFICATION.json'),('allocation_current_resource_admission','COMPLETE_RESOURCE_ADMISSION.json'),('isolated_child_network_namespace','CHILD_PROCESS_CAPABILITY.json'),('UNIX_paths_and_fresh_campaign','UNIX_PATH_BOUNDS.json'),('workload_slot_source_accounting','WORKLOAD_AND_SLOT_ACCOUNTING.json')]:
+    for name,evidence in [('workflow_run_binding','WORKFLOW_BINDING_VERIFICATION.json'),('repository_identity','REPOSITORY_IDENTITY.json'),('successor_package_commit_tree','APPROVED_IDENTITY.json'),('production_candidate_S_T','CANDIDATE_VERIFICATION.json'),('contract_identity','APPROVED_IDENTITY.json'),('canonical_tape_all_4445_frames_exact_284_failures','TAPE_VERIFICATION.json'),('runtime_dependencies_SQLite_shared_libraries','RUNTIME_ENVIRONMENT.json'),('isolated_runtime_integrity','PYTHON_CAPABILITY.json'),('process_service_attestation','PROCESS_APPROVAL.json'),('cgroup_CPU_RAM_dedication','COMPLETE_RESOURCE_ADMISSION.json'),('CPU_reservation','CPU_RESERVATION.json'),('RAM_reservation','RAM_RESERVATION.json'),('storage_reservation','FINAL_STORAGE_RESERVATION.json'),('tape_evidence_capacity_reservation','TAPE_EVIDENCE_CAPACITY_RESERVATION.json'),('runtime_reservation','RUNTIME_RESERVATION.json'),('allocation_signature','SIGNATURE_VERIFICATION.json'),('allocation_current_resource_admission','COMPLETE_RESOURCE_ADMISSION.json'),('isolated_child_network_namespace','CHILD_PROCESS_CAPABILITY.json'),('UNIX_paths_and_fresh_campaign','UNIX_PATH_BOUNDS.json'),('workload_slot_source_accounting','WORKLOAD_AND_SLOT_ACCOUNTING.json')]:
         matrix.append(dict(check=name,status='PASS',evidence=evidence,sha256=core.file_sha(OUTPUT/evidence)))
     matrix.append(dict(check='independent_approval_artifact_binding',status='PASS',evidence='INDEPENDENT_APPROVAL_BINDING.json',sha256=core.file_sha(OUTPUT/'INDEPENDENT_APPROVAL_BINDING.json')))
     authorized=RESULT.get('owner_declaration_authorized') is True
@@ -425,18 +438,23 @@ def finish_admission():
 if __name__=='__main__':
     phase=sys.argv[1]
     try:
-        core.require(phase in ('prepare','complete'),'nonmaterial_preflight_phase')
-        prepare() if phase=='prepare' else (complete(), finish_admission())
+        core.require(phase in ('prepare','complete','await'),'nonmaterial_preflight_phase')
+        if phase=='prepare':prepare()
+        elif phase=='complete':complete();finish_admission()
+        else:
+            sys.path.insert(0,str(HERE))
+            import await_owner_gate
+            await_owner_gate.await_owner(sys.modules[__name__])
     except Exception as exc:
         RESULT.update(status='STAGE_E_NATIVE_V3_A_PREFLIGHT_BLOCKED',blocker_type=type(exc).__name__,blocker=str(exc))
     finally:
         if OUTPUT.is_dir():
-            save('PREPARE_RESULT.json' if phase=='prepare' else 'FINAL_RESULT.json',RESULT)
+            save('PREPARE_RESULT.json' if phase=='prepare' else ('FINAL_RESULT.json' if phase=='complete' else 'AWAIT_RESULT.json'),RESULT)
             rows=[dict(path=p.relative_to(OUTPUT).as_posix(),bytes=p.stat().st_size,sha256=core.file_sha(p)) for p in sorted(OUTPUT.rglob('*')) if p.is_file()]
-            save('PREPARE_MANIFEST.json' if phase=='prepare' else 'FINAL_MANIFEST.json',dict(artifacts=rows,execution_authorized=False,
+            save('PREPARE_MANIFEST.json' if phase=='prepare' else ('FINAL_MANIFEST.json' if phase=='complete' else 'AWAIT_MANIFEST.json'),dict(artifacts=rows,execution_authorized=False,
                 actual_slots_reserved=False,source_frames_released=0,A_slots_consumed=0))
             if os.environ.get('GITHUB_OUTPUT'):
-                with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('evidence_path='+str(OUTPUT)+'\n')
+                with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('evidence_path='+str(OUTPUT)+'\nowner_signing_candidate_ready='+str(RESULT.get('owner_signing_candidate_ready') is True).lower()+'\n')
         print(json.dumps(RESULT,sort_keys=True))
-        if RESULT['status']=='STAGE_E_NATIVE_V3_A_PREFLIGHT_BLOCKED':
+        if RESULT['status']=='STAGE_E_NATIVE_V3_A_PREFLIGHT_BLOCKED' and not (phase=='complete' and RESULT.get('owner_signing_candidate_ready') is True):
             raise SystemExit(1)
