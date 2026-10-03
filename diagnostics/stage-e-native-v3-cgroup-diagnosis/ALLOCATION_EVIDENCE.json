@@ -1,0 +1,35 @@
+{
+  "allocated_ram_bytes": 8589934592,
+  "allocated_vcpu": 2,
+  "authenticated_provider_record_after": {
+    "path": "PROVIDER_ALLOCATION_AFTER.json",
+    "sha256": "08f7de98b6bb43f07d2f7c3457989821b9f7cb0706efd60e533499b08d82574e"
+  },
+  "authenticated_provider_record_before": {
+    "path": "PROVIDER_ALLOCATION_BEFORE.json",
+    "sha256": "08f7de98b6bb43f07d2f7c3457989821b9f7cb0706efd60e533499b08d82574e"
+  },
+  "boot_id": "f0453f41-fe5e-4e10-bda7-657de65713d8",
+  "boot_unchanged": true,
+  "cloud_allocation_is_distinct_from_cgroup_nonrestriction": true,
+  "dedicated_vcpu_capability": true,
+  "droplet_id": 605465049,
+  "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+  "plan": "gd-2vcpu-8gb",
+  "plan_description": "General Purpose 2x SSD",
+  "provider": "DigitalOcean",
+  "provider_allocation_unchanged": true,
+  "provider_capability_source": {
+    "path": "PROVIDER_CAPABILITY_SOURCE.html",
+    "preserved_without_change_from_prior_preflight": true,
+    "sha256": "26dc66504e5e4e2b5ccd5b46af92b48b99d844ec18c897a8e8650b5d7495419e",
+    "url": "https://docs.digitalocean.com/products/droplets/concepts/choosing-a-plan/"
+  },
+  "provider_guest_metadata": {
+    "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+    "id": "605465049"
+  },
+  "runner_id": 21,
+  "runner_name": "the meme machine",
+  "separately_signed_allocation_envelope": "NOT_PRESENT_IN_SUPPLIED_PRIOR_PREFLIGHT_RECORD; none created or claimed"
+}

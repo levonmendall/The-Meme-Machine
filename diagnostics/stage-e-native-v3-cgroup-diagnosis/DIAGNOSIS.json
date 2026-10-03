@@ -1,0 +1,996 @@
+{
+  "actual_CPU_cgroup_restriction_exists": false,
+  "ancestor_table": [
+    {
+      "absolute_cgroup_path": "/",
+      "ambiguities": [],
+      "cgroup_controllers": [
+        "cpuset",
+        "cpu",
+        "io",
+        "memory",
+        "hugetlb",
+        "pids",
+        "rdma",
+        "misc"
+      ],
+      "cgroup_subtree_control": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_type": {
+        "root_only_absence_explained": true,
+        "state": "ABSENT",
+        "text": ""
+      },
+      "cpu": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpu_max": {
+          "path": "/sys/fs/cgroup/cpu.max",
+          "state": "ABSENT"
+        },
+        "cpu_weight": {
+          "path": "/sys/fs/cgroup/cpu.weight",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root has cpu available but omits cpu from subtree_control, so by the top-down rule no non-root runner ancestor receives or can enable it. Root cpu.max/cpu.weight are also non-root-only interfaces by kernel design."
+      },
+      "cpuset": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpuset_cpus": {
+          "path": "/sys/fs/cgroup/cpuset.cpus",
+          "state": "ABSENT"
+        },
+        "cpuset_cpus_effective": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 15,
+          "mode": "0o100444",
+          "path": "/sys/fs/cgroup/cpuset.cpus.effective",
+          "sha256": "06c7168eabf724fe9d8184b87c401160ff4c740c5782a6445495523f811d3cfd",
+          "state": "PRESENT",
+          "text": "0-1\n"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root does not enable cpuset for children. Non-root ancestors cannot receive or reenable cpuset. Root effective CPU set explicitly remains 0-1; requested cpuset.cpus is a non-root-only interface."
+      },
+      "direct_procs_count": 87,
+      "direct_threads_count": 87,
+      "filesystem_path": "/sys/fs/cgroup",
+      "memory": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_UNAVAILABLE",
+        "classification_scope": "root memory-limit interfaces (not kernel support or availability for children)",
+        "enabled_for_children": true,
+        "kernel_supported": true,
+        "memory_high": {
+          "path": "/sys/fs/cgroup/memory.high",
+          "state": "ABSENT"
+        },
+        "memory_max": {
+          "path": "/sys/fs/cgroup/memory.max",
+          "state": "ABSENT"
+        },
+        "memory_swap_max": {
+          "path": "/sys/fs/cgroup/memory.swap.max",
+          "state": "ABSENT"
+        },
+        "reason": "At the verified true kernel root these three limit interfaces are defined only for non-root cgroups; memory remains available and enabled for children."
+      },
+      "parent": null,
+      "roles": [
+        "kernel_root",
+        "runner_ancestor"
+      ]
+    },
+    {
+      "absolute_cgroup_path": "/init.scope",
+      "ambiguities": [],
+      "cgroup_controllers": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_subtree_control": [],
+      "cgroup_type": {
+        "root_only_absence_explained": false,
+        "state": "PRESENT",
+        "text": "domain"
+      },
+      "cpu": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpu_max": {
+          "path": "/sys/fs/cgroup/init.scope/cpu.max",
+          "state": "ABSENT"
+        },
+        "cpu_weight": {
+          "path": "/sys/fs/cgroup/init.scope/cpu.weight",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root has cpu available but omits cpu from subtree_control, so by the top-down rule no non-root runner ancestor receives or can enable it. Root cpu.max/cpu.weight are also non-root-only interfaces by kernel design."
+      },
+      "cpuset": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpuset_cpus": {
+          "path": "/sys/fs/cgroup/init.scope/cpuset.cpus",
+          "state": "ABSENT"
+        },
+        "cpuset_cpus_effective": {
+          "path": "/sys/fs/cgroup/init.scope/cpuset.cpus.effective",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root does not enable cpuset for children. Non-root ancestors cannot receive or reenable cpuset. Root effective CPU set explicitly remains 0-1; requested cpuset.cpus is a non-root-only interface."
+      },
+      "direct_procs_count": 1,
+      "direct_threads_count": 1,
+      "filesystem_path": "/sys/fs/cgroup/init.scope",
+      "memory": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_ENABLED_WITH_EXPLICIT_UNRESTRICTIVE_LIMIT",
+        "classification_scope": "incoming controller and limits on this cgroup",
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "memory_high": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 50,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/init.scope/memory.high",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 51,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/init.scope/memory.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_swap_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 60,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/init.scope/memory.swap.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "reason": "Memory arrives from the enabled parent subtree. All three limit files are present and explicitly max. Empty leaf subtree_control does not remove its own incoming controller or own limits."
+      },
+      "parent": "/",
+      "roles": [
+        "pid1_visibility_crosscheck"
+      ]
+    },
+    {
+      "absolute_cgroup_path": "/system.slice",
+      "ambiguities": [],
+      "cgroup_controllers": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_subtree_control": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_type": {
+        "root_only_absence_explained": false,
+        "state": "PRESENT",
+        "text": "domain"
+      },
+      "cpu": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpu_max": {
+          "path": "/sys/fs/cgroup/system.slice/cpu.max",
+          "state": "ABSENT"
+        },
+        "cpu_weight": {
+          "path": "/sys/fs/cgroup/system.slice/cpu.weight",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root has cpu available but omits cpu from subtree_control, so by the top-down rule no non-root runner ancestor receives or can enable it. Root cpu.max/cpu.weight are also non-root-only interfaces by kernel design."
+      },
+      "cpuset": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpuset_cpus": {
+          "path": "/sys/fs/cgroup/system.slice/cpuset.cpus",
+          "state": "ABSENT"
+        },
+        "cpuset_cpus_effective": {
+          "path": "/sys/fs/cgroup/system.slice/cpuset.cpus.effective",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root does not enable cpuset for children. Non-root ancestors cannot receive or reenable cpuset. Root effective CPU set explicitly remains 0-1; requested cpuset.cpus is a non-root-only interface."
+      },
+      "direct_procs_count": 0,
+      "direct_threads_count": 0,
+      "filesystem_path": "/sys/fs/cgroup/system.slice",
+      "memory": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_ENABLED_WITH_EXPLICIT_UNRESTRICTIVE_LIMIT",
+        "classification_scope": "incoming controller and limits on this cgroup",
+        "enabled_for_children": true,
+        "kernel_supported": true,
+        "memory_high": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 92,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/memory.high",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 93,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/memory.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_swap_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 102,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/memory.swap.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "reason": "Memory arrives from the enabled parent subtree. All three limit files are present and explicitly max. Empty leaf subtree_control does not remove its own incoming controller or own limits."
+      },
+      "parent": "/",
+      "roles": [
+        "runner_ancestor",
+        "system_slice"
+      ]
+    },
+    {
+      "absolute_cgroup_path": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+      "ambiguities": [],
+      "cgroup_controllers": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_subtree_control": [],
+      "cgroup_type": {
+        "root_only_absence_explained": false,
+        "state": "PRESENT",
+        "text": "domain"
+      },
+      "cpu": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpu_max": {
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/cpu.max",
+          "state": "ABSENT"
+        },
+        "cpu_weight": {
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/cpu.weight",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root has cpu available but omits cpu from subtree_control, so by the top-down rule no non-root runner ancestor receives or can enable it. Root cpu.max/cpu.weight are also non-root-only interfaces by kernel design."
+      },
+      "cpuset": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpuset_cpus": {
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/cpuset.cpus",
+          "state": "ABSENT"
+        },
+        "cpuset_cpus_effective": {
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/cpuset.cpus.effective",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root does not enable cpuset for children. Non-root ancestors cannot receive or reenable cpuset. Root effective CPU set explicitly remains 0-1; requested cpuset.cpus is a non-root-only interface."
+      },
+      "direct_procs_count": 6,
+      "direct_threads_count": 41,
+      "filesystem_path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+      "memory": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_ENABLED_WITH_EXPLICIT_UNRESTRICTIVE_LIMIT",
+        "classification_scope": "incoming controller and limits on this cgroup",
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "memory_high": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 16288,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/memory.high",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 16289,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/memory.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_swap_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 16298,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/memory.swap.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "reason": "Memory arrives from the enabled parent subtree. All three limit files are present and explicitly max. Empty leaf subtree_control does not remove its own incoming controller or own limits."
+      },
+      "parent": "/system.slice",
+      "roles": [
+        "runner_service",
+        "current_diagnostic_process"
+      ]
+    }
+  ],
+  "approved_contract": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+  "approved_executable": "f87c72cf2a15e3c099a8bd07acad3b0737d9dd27",
+  "attempt": 1,
+  "collector_commit": "14afe1eab90e5804b0cb52a49c9e59d98dc6e0b8",
+  "collector_source_sha256": "db66cf79c156a5b184aef0f01a797d07453d2d906c7de1de0f4c0a3c3f4ae785",
+  "collector_workflow_sha256": "0ddfa714ca3f9fdb606f5f77b897d7bb12a2b64598286b3b06815921ece260bb",
+  "created_utc": "2026-10-03T03:58:51.224240+00:00",
+  "current_2_vcpu_8_GiB_cloud_allocation_remains_valid": true,
+  "current_A_preflight_result": "STAGE_E_NATIVE_V3_A_PREFLIGHT_BLOCKED",
+  "diagnostic_CPU_affinity": [
+    0,
+    1
+  ],
+  "host_allocation": {
+    "allocated_ram_bytes": 8589934592,
+    "allocated_vcpu": 2,
+    "authenticated_provider_record_after": {
+      "path": "PROVIDER_ALLOCATION_AFTER.json",
+      "sha256": "08f7de98b6bb43f07d2f7c3457989821b9f7cb0706efd60e533499b08d82574e"
+    },
+    "authenticated_provider_record_before": {
+      "path": "PROVIDER_ALLOCATION_BEFORE.json",
+      "sha256": "08f7de98b6bb43f07d2f7c3457989821b9f7cb0706efd60e533499b08d82574e"
+    },
+    "boot_id": "f0453f41-fe5e-4e10-bda7-657de65713d8",
+    "boot_unchanged": true,
+    "cloud_allocation_is_distinct_from_cgroup_nonrestriction": true,
+    "dedicated_vcpu_capability": true,
+    "droplet_id": 605465049,
+    "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+    "plan": "gd-2vcpu-8gb",
+    "plan_description": "General Purpose 2x SSD",
+    "provider": "DigitalOcean",
+    "provider_allocation_unchanged": true,
+    "provider_capability_source": {
+      "path": "PROVIDER_CAPABILITY_SOURCE.html",
+      "preserved_without_change_from_prior_preflight": true,
+      "sha256": "26dc66504e5e4e2b5ccd5b46af92b48b99d844ec18c897a8e8650b5d7495419e",
+      "url": "https://docs.digitalocean.com/products/droplets/concepts/choosing-a-plan/"
+    },
+    "provider_guest_metadata": {
+      "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+      "id": "605465049"
+    },
+    "runner_id": 21,
+    "runner_name": "the meme machine",
+    "separately_signed_allocation_envelope": "NOT_PRESENT_IN_SUPPLIED_PRIOR_PREFLIGHT_RECORD; none created or claimed"
+  },
+  "inspector_blocker": {
+    "approved_inspector_unchanged": true,
+    "correction_justified": true,
+    "cpu_rows_count": 0,
+    "cpuset_rows_count": 1,
+    "error": "complete_cgroup_inventory_unavailable",
+    "exact_logic": "complete = complete and (bool(cpu_rows and cpuset_rows and memory_rows) or unified_root)",
+    "memory_rows_count": 2,
+    "reason": "A non-root service membership has no CPU quota/period rows because the supported CPU controller is never enabled into the child hierarchy. The current inspector does not collect controller availability/enablement, so it cannot causally justify that absence and its row-presence heuristic yields complete=false.",
+    "unified_root_exception": false
+  },
+  "job_id": 111121313457,
+  "kernel_support": {
+    "config_source": {
+      "bytes": 287560,
+      "flags": {
+        "CONFIG_CFS_BANDWIDTH": {
+          "state": "PRESENT",
+          "value": "y"
+        },
+        "CONFIG_CGROUPS": {
+          "state": "PRESENT",
+          "value": "y"
+        },
+        "CONFIG_CGROUP_NS": {
+          "state": "ABSENT_CONFIG_SYMBOL"
+        },
+        "CONFIG_CGROUP_PIDS": {
+          "state": "PRESENT",
+          "value": "y"
+        },
+        "CONFIG_CGROUP_SCHED": {
+          "state": "PRESENT",
+          "value": "y"
+        },
+        "CONFIG_CPUSETS": {
+          "state": "PRESENT",
+          "value": "y"
+        },
+        "CONFIG_FAIR_GROUP_SCHED": {
+          "state": "PRESENT",
+          "value": "y"
+        },
+        "CONFIG_MEMCG": {
+          "state": "PRESENT",
+          "value": "y"
+        },
+        "CONFIG_MEMCG_SWAP": {
+          "state": "ABSENT_CONFIG_SYMBOL"
+        },
+        "CONFIG_NAMESPACES": {
+          "state": "PRESENT",
+          "value": "y"
+        },
+        "CONFIG_RT_GROUP_SCHED": {
+          "state": "PRESENT",
+          "value": "not set"
+        },
+        "CONFIG_SWAP": {
+          "state": "PRESENT",
+          "value": "y"
+        }
+      },
+      "path": "/boot/config-6.8.0-142-generic",
+      "sha256": "3b8533dd9d235ca634ac58f82c5ce1ee35f12ef620693e17033184d2c9ca5890",
+      "state": "PRESENT"
+    },
+    "cpu_accounting_note": "CPUAccounting=yes does not prove CPU bandwidth controller enablement. Linux documents cpu.stat as existing even when the CPU controller is not enabled.",
+    "cpu_supported": true,
+    "cpuset_supported": true,
+    "memory_supported": true,
+    "proc_cgroups": {
+      "bytes": 254,
+      "device": 23,
+      "inode": 4026531857,
+      "mode": "0o100444",
+      "path": "/proc/cgroups",
+      "sha256": "6513be698ecc6d2b533c12b2fccec389d2420e71f3e6d9c1fb64c382a9ebf4de",
+      "state": "PRESENT",
+      "text": "#subsys_name\thierarchy\tnum_cgroups\tenabled\ncpuset\t0\t206\t1\ncpu\t0\t206\t1\ncpuacct\t0\t206\t1\nblkio\t0\t206\t1\nmemory\t0\t206\t1\ndevices\t0\t206\t1\nfreezer\t0\t206\t1\nnet_cls\t0\t206\t1\nperf_event\t0\t206\t1\nnet_prio\t0\t206\t1\nhugetlb\t0\t206\t1\npids\t0\t206\t1\nrdma\t0\t206\t1\nmisc\t0\t206\t1\n"
+    },
+    "release": "6.8.0-142-generic",
+    "v1_controller_mounts_or_memberships": false
+  },
+  "memory_cgroup_restriction_exists": false,
+  "minimum_proposed_inspector_correction": {
+    "approved_target_sha256": "acbdaefbc779401f35997f0f21d98f30b2e427e528c91cee2d36b49ff78f9e6b",
+    "changes_proposed_only": [
+      "Capture cgroup.controllers, cgroup.subtree_control and cgroup.type, with PRESENT/ABSENT/UNREADABLE status and exact raw bytes; keep absent limits distinct from explicit max.",
+      "Validate the complete root-to-leaf parent/child enablement chain and domain types. An empty leaf subtree_control cannot prove that the controller is disabled for that leaf: its parent governs incoming limits.",
+      "Handle documented root-only exceptions only after proving the true full kernel root: root mount /, root directory identity, matching PID1/diagnostic namespaces and full visible ancestor chain.",
+      "For a non-root missing resource interface, accept only a proven disabled/unavailable controller state with matching parent subtree_control and child cgroup.controllers plus consistent absent interfaces. Unsupported availability must be established; unreadable or unproved absence stays blocking.",
+      "Require enabled controller interfaces to be present, valid and independently nonrestrictive under the existing comparators. Preserve all explicit CPU quota, cpuset and memory-limit rejection rules.",
+      "Replace the global requirement for at least one quota/period row with complete per-resource coverage by explicit limits or causally established non-applicability. Use the same proof rules for independently consumed raw snapshots, not an unchecked complete flag.",
+      "Preserve separate authenticated allocation, exactly 2 allocated/dedicated/visible CPUs, two-CPU affinity, 8 GiB RAM, and all safety, runtime, storage and lifetime checks. Do not widen the production envelope or bypass any hidden ancestor."
+    ],
+    "implementation_authorized": false,
+    "implementation_performed": false,
+    "proposed_review_cases": [
+      "Current documented disabled CPU/cpuset path with explicit max memory and fully visible root: causal completeness may pass.",
+      "An ancestor CPU quota below two CPUs or cpuset excluding either allocated CPU: still reject.",
+      "Enabled parent CPU with missing child cpu.max, unreadable controller files, inconsistent parent/child sets, threaded/invalid unsupported domain, hidden mount root or changed namespace: remain blocking.",
+      "Memory limit below 8 GiB: still reject. Empty leaf subtree_control while parent enables CPU/memory: require and check the leaf own limit files."
+    ],
+    "target": "diagnostics/stage-e-native-v3-executable-harness/harness/attest.py"
+  },
+  "owner_disposition": "STOP FOR ASTRA/OWNER",
+  "paper_only": true,
+  "raw_payload_bytes": 58777,
+  "raw_payload_sha256": "1a9bf5779ba44d30c65f522d11fe5db3bd349e846276434e0cc095cb372149a8",
+  "resource_interface_root_classification_note": "CONTROLLER_UNAVAILABLE on root memory refers only to the non-existent root resource-limit interfaces, which Linux defines solely for non-root cgroups. It does not mean memory is kernel-unsupported, absent from root cgroup.controllers, or disabled for children. All root raw interface absences remain ABSENT; none is normalized to max.",
+  "result": "STAGE_E_NATIVE_V3_CGROUP_DIAGNOSIS_COMPLETE",
+  "root_effective_cpu_ids": [
+    0,
+    1
+  ],
+  "run_id": 37094421860,
+  "scope": {
+    "A_slots_consumed": 0,
+    "A_trials_started": 0,
+    "B_started": false,
+    "C_started": false,
+    "PR_118_modified": false,
+    "collector_file_writes_on_executor": 0,
+    "configuration_mutations": 0,
+    "harness_correction_implemented": false,
+    "source_frames_released": 0,
+    "tape_read_or_replayed": false,
+    "workload_started": false
+  },
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "systemd_resource_settings": [
+    {
+      "files": [],
+      "properties": {
+        "AllowedCPUs": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "AllowedMemoryNodes": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "CPUAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "CPUQuota": {
+          "state": "ABSENT_PROPERTY"
+        },
+        "CPUQuotaPerSecUSec": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "CPUQuotaPeriodUSec": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "CPUWeight": {
+          "state": "PRESENT",
+          "value": "[not set]"
+        },
+        "ControlGroup": {
+          "state": "PRESENT",
+          "value": "/"
+        },
+        "Delegate": {
+          "state": "PRESENT",
+          "value": "no"
+        },
+        "DelegateControllers": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "DisableControllers": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "DropInPaths": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "EffectiveCPUs": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "EffectiveMemoryNodes": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "FragmentPath": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "Id": {
+          "state": "PRESENT",
+          "value": "-.slice"
+        },
+        "MemoryAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "MemoryHigh": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "MemoryMax": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "MemorySwapMax": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "Names": {
+          "state": "PRESENT",
+          "value": "-.slice"
+        },
+        "Slice": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "StartupCPUWeight": {
+          "state": "PRESENT",
+          "value": "[not set]"
+        },
+        "TasksAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "TasksMax": {
+          "state": "PRESENT",
+          "value": "infinity"
+        }
+      },
+      "show": {
+        "argv": [
+          "systemctl",
+          "show",
+          "--all",
+          "--no-pager",
+          "--property=Id,Names,ControlGroup,Slice,CPUAccounting,CPUQuota,CPUQuotaPerSecUSec,CPUQuotaPeriodUSec,CPUWeight,StartupCPUWeight,AllowedCPUs,EffectiveCPUs,AllowedMemoryNodes,EffectiveMemoryNodes,MemoryAccounting,MemoryMax,MemoryHigh,MemorySwapMax,TasksAccounting,TasksMax,Delegate,DelegateControllers,DisableControllers,FragmentPath,DropInPaths",
+          "--",
+          "-.slice"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "Slice=\nControlGroup=/\nEffectiveCPUs=\nEffectiveMemoryNodes=\nDelegate=no\nDelegateControllers=\nCPUAccounting=yes\nCPUWeight=[not set]\nStartupCPUWeight=[not set]\nCPUQuotaPerSecUSec=infinity\nCPUQuotaPeriodUSec=infinity\nAllowedCPUs=\nAllowedMemoryNodes=\nMemoryAccounting=yes\nMemoryHigh=infinity\nMemoryMax=infinity\nMemorySwapMax=infinity\nTasksAccounting=yes\nTasksMax=infinity\nDisableControllers=\nId=-.slice\nNames=-.slice\nFragmentPath=\nDropInPaths=\n"
+      },
+      "unit": "-.slice"
+    },
+    {
+      "files": [
+        {
+          "bytes": 310,
+          "device": 64769,
+          "inode": 273822,
+          "inspected_text_filtered": "[Unit]\nDescription=GitHub Actions Runner (levonmendall-The-Meme-Machine.the meme machine)\nAfter=network-online.target\n\n[Service]\nExecStart=<value omitted; exact original file SHA-256 preserved>\nUser=root\nWorkingDirectory=/opt/actions-runner\nKillMode=process\nKillSignal=SIGTERM\nTimeoutStopSec=5min\n\n[Install]\nWantedBy=multi-user.target\n",
+          "mode": "0o100664",
+          "path": "/etc/systemd/system/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+          "redaction_note": "Only environment/credential/Exec directive values are omitted; resource settings and section structure are preserved.",
+          "sha256": "0d42c89dd99a27dd52d5d478f926bc7217d8c937e55d4de956e0c94bf8bb6737",
+          "state": "PRESENT"
+        }
+      ],
+      "properties": {
+        "AllowedCPUs": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "AllowedMemoryNodes": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "CPUAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "CPUQuota": {
+          "state": "ABSENT_PROPERTY"
+        },
+        "CPUQuotaPerSecUSec": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "CPUQuotaPeriodUSec": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "CPUWeight": {
+          "state": "PRESENT",
+          "value": "[not set]"
+        },
+        "ControlGroup": {
+          "state": "PRESENT",
+          "value": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+        },
+        "Delegate": {
+          "state": "PRESENT",
+          "value": "no"
+        },
+        "DelegateControllers": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "DisableControllers": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "DropInPaths": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "EffectiveCPUs": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "EffectiveMemoryNodes": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "FragmentPath": {
+          "state": "PRESENT",
+          "value": "/etc/systemd/system/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+        },
+        "Id": {
+          "state": "PRESENT",
+          "value": "actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+        },
+        "MemoryAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "MemoryHigh": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "MemoryMax": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "MemorySwapMax": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "Names": {
+          "state": "PRESENT",
+          "value": "actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+        },
+        "Slice": {
+          "state": "PRESENT",
+          "value": "system.slice"
+        },
+        "StartupCPUWeight": {
+          "state": "PRESENT",
+          "value": "[not set]"
+        },
+        "TasksAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "TasksMax": {
+          "state": "PRESENT",
+          "value": "9484"
+        }
+      },
+      "show": {
+        "argv": [
+          "systemctl",
+          "show",
+          "--all",
+          "--no-pager",
+          "--property=Id,Names,ControlGroup,Slice,CPUAccounting,CPUQuota,CPUQuotaPerSecUSec,CPUQuotaPeriodUSec,CPUWeight,StartupCPUWeight,AllowedCPUs,EffectiveCPUs,AllowedMemoryNodes,EffectiveMemoryNodes,MemoryAccounting,MemoryMax,MemoryHigh,MemorySwapMax,TasksAccounting,TasksMax,Delegate,DelegateControllers,DisableControllers,FragmentPath,DropInPaths",
+          "--",
+          "actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "Slice=system.slice\nControlGroup=/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service\nEffectiveCPUs=\nEffectiveMemoryNodes=\nDelegate=no\nDelegateControllers=\nCPUAccounting=yes\nCPUWeight=[not set]\nStartupCPUWeight=[not set]\nCPUQuotaPerSecUSec=infinity\nCPUQuotaPeriodUSec=infinity\nAllowedCPUs=\nAllowedMemoryNodes=\nMemoryAccounting=yes\nMemoryHigh=infinity\nMemoryMax=infinity\nMemorySwapMax=infinity\nTasksAccounting=yes\nTasksMax=9484\nDisableControllers=\nId=actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service\nNames=actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service\nFragmentPath=/etc/systemd/system/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service\nDropInPaths=\n"
+      },
+      "unit": "actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+    },
+    {
+      "files": [],
+      "properties": {
+        "AllowedCPUs": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "AllowedMemoryNodes": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "CPUAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "CPUQuota": {
+          "state": "ABSENT_PROPERTY"
+        },
+        "CPUQuotaPerSecUSec": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "CPUQuotaPeriodUSec": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "CPUWeight": {
+          "state": "PRESENT",
+          "value": "[not set]"
+        },
+        "ControlGroup": {
+          "state": "PRESENT",
+          "value": "/system.slice"
+        },
+        "Delegate": {
+          "state": "PRESENT",
+          "value": "no"
+        },
+        "DelegateControllers": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "DisableControllers": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "DropInPaths": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "EffectiveCPUs": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "EffectiveMemoryNodes": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "FragmentPath": {
+          "state": "PRESENT",
+          "value": ""
+        },
+        "Id": {
+          "state": "PRESENT",
+          "value": "system.slice"
+        },
+        "MemoryAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "MemoryHigh": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "MemoryMax": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "MemorySwapMax": {
+          "state": "PRESENT",
+          "value": "infinity"
+        },
+        "Names": {
+          "state": "PRESENT",
+          "value": "system.slice"
+        },
+        "Slice": {
+          "state": "PRESENT",
+          "value": "-.slice"
+        },
+        "StartupCPUWeight": {
+          "state": "PRESENT",
+          "value": "[not set]"
+        },
+        "TasksAccounting": {
+          "state": "PRESENT",
+          "value": "yes"
+        },
+        "TasksMax": {
+          "state": "PRESENT",
+          "value": "infinity"
+        }
+      },
+      "show": {
+        "argv": [
+          "systemctl",
+          "show",
+          "--all",
+          "--no-pager",
+          "--property=Id,Names,ControlGroup,Slice,CPUAccounting,CPUQuota,CPUQuotaPerSecUSec,CPUQuotaPeriodUSec,CPUWeight,StartupCPUWeight,AllowedCPUs,EffectiveCPUs,AllowedMemoryNodes,EffectiveMemoryNodes,MemoryAccounting,MemoryMax,MemoryHigh,MemorySwapMax,TasksAccounting,TasksMax,Delegate,DelegateControllers,DisableControllers,FragmentPath,DropInPaths",
+          "--",
+          "system.slice"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "Slice=-.slice\nControlGroup=/system.slice\nEffectiveCPUs=\nEffectiveMemoryNodes=\nDelegate=no\nDelegateControllers=\nCPUAccounting=yes\nCPUWeight=[not set]\nStartupCPUWeight=[not set]\nCPUQuotaPerSecUSec=infinity\nCPUQuotaPeriodUSec=infinity\nAllowedCPUs=\nAllowedMemoryNodes=\nMemoryAccounting=yes\nMemoryHigh=infinity\nMemoryMax=infinity\nMemorySwapMax=infinity\nTasksAccounting=yes\nTasksMax=infinity\nDisableControllers=\nId=system.slice\nNames=system.slice\nFragmentPath=\nDropInPaths=\n"
+      },
+      "unit": "system.slice"
+    }
+  ],
+  "version": "stage-e-native-v3-cgroup-diagnosis-v1",
+  "visibility": {
+    "complete_hierarchy_visible": true,
+    "diagnostic_ancestor_paths": [
+      "/",
+      "/system.slice",
+      "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+    ],
+    "domain_type_nonroot": "domain",
+    "hidden_ancestor_detected": false,
+    "namespace_identities": {
+      "/proc/1/exe": {
+        "path": "/proc/1/exe",
+        "state": "PRESENT",
+        "target": "/usr/lib/systemd/systemd"
+      },
+      "/proc/1/ns/cgroup": {
+        "path": "/proc/1/ns/cgroup",
+        "state": "PRESENT",
+        "target": "cgroup:[4026531835]"
+      },
+      "/proc/1/ns/mnt": {
+        "path": "/proc/1/ns/mnt",
+        "state": "PRESENT",
+        "target": "mnt:[4026531841]"
+      },
+      "/proc/1/ns/pid": {
+        "path": "/proc/1/ns/pid",
+        "state": "PRESENT",
+        "target": "pid:[4026531836]"
+      },
+      "/proc/1/ns/user": {
+        "path": "/proc/1/ns/user",
+        "state": "PRESENT",
+        "target": "user:[4026531837]"
+      },
+      "/proc/self/ns/cgroup": {
+        "path": "/proc/self/ns/cgroup",
+        "state": "PRESENT",
+        "target": "cgroup:[4026531835]"
+      },
+      "/proc/self/ns/mnt": {
+        "path": "/proc/self/ns/mnt",
+        "state": "PRESENT",
+        "target": "mnt:[4026531841]"
+      },
+      "/proc/self/ns/pid": {
+        "path": "/proc/self/ns/pid",
+        "state": "PRESENT",
+        "target": "pid:[4026531836]"
+      },
+      "/proc/self/ns/user": {
+        "path": "/proc/self/ns/user",
+        "state": "PRESENT",
+        "target": "user:[4026531837]"
+      }
+    },
+    "nsdelegate_note": "nsdelegate enables namespace delegation semantics; this mount option alone is not evidence of a hidden ancestor. The observed mount root, inode 1, PID1 namespace and full chain establish the visible kernel root.",
+    "pid1_and_diagnostic_mounts_identical": true,
+    "root_directory": {
+      "device": 29,
+      "inode": 1,
+      "path": "/sys/fs/cgroup"
+    },
+    "root_mount": {
+      "device": "0:29",
+      "fs_type": "cgroup2",
+      "mount_id": "34",
+      "mount_options": "rw,nosuid,nodev,noexec,relatime",
+      "mountpoint": "/sys/fs/cgroup",
+      "optional_fields": [
+        "shared:9"
+      ],
+      "parent_id": "24",
+      "raw": "34 24 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:9 - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot",
+      "root": "/",
+      "source": "cgroup2",
+      "super_options": "rw,nsdelegate,memory_recursiveprot"
+    },
+    "static_resource_interfaces_unchanged": true
+  }
+}

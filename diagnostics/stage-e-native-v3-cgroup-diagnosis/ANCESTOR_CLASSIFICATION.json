@@ -1,0 +1,364 @@
+{
+  "classification_scope_note": "CONTROLLER_UNAVAILABLE on root memory refers only to the non-existent root resource-limit interfaces, which Linux defines solely for non-root cgroups. It does not mean memory is kernel-unsupported, absent from root cgroup.controllers, or disabled for children. All root raw interface absences remain ABSENT; none is normalized to max.",
+  "rows": [
+    {
+      "absolute_cgroup_path": "/",
+      "ambiguities": [],
+      "cgroup_controllers": [
+        "cpuset",
+        "cpu",
+        "io",
+        "memory",
+        "hugetlb",
+        "pids",
+        "rdma",
+        "misc"
+      ],
+      "cgroup_subtree_control": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_type": {
+        "root_only_absence_explained": true,
+        "state": "ABSENT",
+        "text": ""
+      },
+      "cpu": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpu_max": {
+          "path": "/sys/fs/cgroup/cpu.max",
+          "state": "ABSENT"
+        },
+        "cpu_weight": {
+          "path": "/sys/fs/cgroup/cpu.weight",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root has cpu available but omits cpu from subtree_control, so by the top-down rule no non-root runner ancestor receives or can enable it. Root cpu.max/cpu.weight are also non-root-only interfaces by kernel design."
+      },
+      "cpuset": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpuset_cpus": {
+          "path": "/sys/fs/cgroup/cpuset.cpus",
+          "state": "ABSENT"
+        },
+        "cpuset_cpus_effective": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 15,
+          "mode": "0o100444",
+          "path": "/sys/fs/cgroup/cpuset.cpus.effective",
+          "sha256": "06c7168eabf724fe9d8184b87c401160ff4c740c5782a6445495523f811d3cfd",
+          "state": "PRESENT",
+          "text": "0-1\n"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root does not enable cpuset for children. Non-root ancestors cannot receive or reenable cpuset. Root effective CPU set explicitly remains 0-1; requested cpuset.cpus is a non-root-only interface."
+      },
+      "direct_procs_count": 87,
+      "direct_threads_count": 87,
+      "filesystem_path": "/sys/fs/cgroup",
+      "memory": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_UNAVAILABLE",
+        "classification_scope": "root memory-limit interfaces (not kernel support or availability for children)",
+        "enabled_for_children": true,
+        "kernel_supported": true,
+        "memory_high": {
+          "path": "/sys/fs/cgroup/memory.high",
+          "state": "ABSENT"
+        },
+        "memory_max": {
+          "path": "/sys/fs/cgroup/memory.max",
+          "state": "ABSENT"
+        },
+        "memory_swap_max": {
+          "path": "/sys/fs/cgroup/memory.swap.max",
+          "state": "ABSENT"
+        },
+        "reason": "At the verified true kernel root these three limit interfaces are defined only for non-root cgroups; memory remains available and enabled for children."
+      },
+      "parent": null,
+      "roles": [
+        "kernel_root",
+        "runner_ancestor"
+      ]
+    },
+    {
+      "absolute_cgroup_path": "/init.scope",
+      "ambiguities": [],
+      "cgroup_controllers": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_subtree_control": [],
+      "cgroup_type": {
+        "root_only_absence_explained": false,
+        "state": "PRESENT",
+        "text": "domain"
+      },
+      "cpu": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpu_max": {
+          "path": "/sys/fs/cgroup/init.scope/cpu.max",
+          "state": "ABSENT"
+        },
+        "cpu_weight": {
+          "path": "/sys/fs/cgroup/init.scope/cpu.weight",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root has cpu available but omits cpu from subtree_control, so by the top-down rule no non-root runner ancestor receives or can enable it. Root cpu.max/cpu.weight are also non-root-only interfaces by kernel design."
+      },
+      "cpuset": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpuset_cpus": {
+          "path": "/sys/fs/cgroup/init.scope/cpuset.cpus",
+          "state": "ABSENT"
+        },
+        "cpuset_cpus_effective": {
+          "path": "/sys/fs/cgroup/init.scope/cpuset.cpus.effective",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root does not enable cpuset for children. Non-root ancestors cannot receive or reenable cpuset. Root effective CPU set explicitly remains 0-1; requested cpuset.cpus is a non-root-only interface."
+      },
+      "direct_procs_count": 1,
+      "direct_threads_count": 1,
+      "filesystem_path": "/sys/fs/cgroup/init.scope",
+      "memory": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_ENABLED_WITH_EXPLICIT_UNRESTRICTIVE_LIMIT",
+        "classification_scope": "incoming controller and limits on this cgroup",
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "memory_high": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 50,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/init.scope/memory.high",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 51,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/init.scope/memory.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_swap_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 60,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/init.scope/memory.swap.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "reason": "Memory arrives from the enabled parent subtree. All three limit files are present and explicitly max. Empty leaf subtree_control does not remove its own incoming controller or own limits."
+      },
+      "parent": "/",
+      "roles": [
+        "pid1_visibility_crosscheck"
+      ]
+    },
+    {
+      "absolute_cgroup_path": "/system.slice",
+      "ambiguities": [],
+      "cgroup_controllers": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_subtree_control": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_type": {
+        "root_only_absence_explained": false,
+        "state": "PRESENT",
+        "text": "domain"
+      },
+      "cpu": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpu_max": {
+          "path": "/sys/fs/cgroup/system.slice/cpu.max",
+          "state": "ABSENT"
+        },
+        "cpu_weight": {
+          "path": "/sys/fs/cgroup/system.slice/cpu.weight",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root has cpu available but omits cpu from subtree_control, so by the top-down rule no non-root runner ancestor receives or can enable it. Root cpu.max/cpu.weight are also non-root-only interfaces by kernel design."
+      },
+      "cpuset": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpuset_cpus": {
+          "path": "/sys/fs/cgroup/system.slice/cpuset.cpus",
+          "state": "ABSENT"
+        },
+        "cpuset_cpus_effective": {
+          "path": "/sys/fs/cgroup/system.slice/cpuset.cpus.effective",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root does not enable cpuset for children. Non-root ancestors cannot receive or reenable cpuset. Root effective CPU set explicitly remains 0-1; requested cpuset.cpus is a non-root-only interface."
+      },
+      "direct_procs_count": 0,
+      "direct_threads_count": 0,
+      "filesystem_path": "/sys/fs/cgroup/system.slice",
+      "memory": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_ENABLED_WITH_EXPLICIT_UNRESTRICTIVE_LIMIT",
+        "classification_scope": "incoming controller and limits on this cgroup",
+        "enabled_for_children": true,
+        "kernel_supported": true,
+        "memory_high": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 92,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/memory.high",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 93,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/memory.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_swap_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 102,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/memory.swap.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "reason": "Memory arrives from the enabled parent subtree. All three limit files are present and explicitly max. Empty leaf subtree_control does not remove its own incoming controller or own limits."
+      },
+      "parent": "/",
+      "roles": [
+        "runner_ancestor",
+        "system_slice"
+      ]
+    },
+    {
+      "absolute_cgroup_path": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+      "ambiguities": [],
+      "cgroup_controllers": [
+        "memory",
+        "pids"
+      ],
+      "cgroup_subtree_control": [],
+      "cgroup_type": {
+        "root_only_absence_explained": false,
+        "state": "PRESENT",
+        "text": "domain"
+      },
+      "cpu": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpu_max": {
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/cpu.max",
+          "state": "ABSENT"
+        },
+        "cpu_weight": {
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/cpu.weight",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root has cpu available but omits cpu from subtree_control, so by the top-down rule no non-root runner ancestor receives or can enable it. Root cpu.max/cpu.weight are also non-root-only interfaces by kernel design."
+      },
+      "cpuset": {
+        "available_for_children": false,
+        "classification": "CONTROLLER_NOT_ENABLED_FOR_CHILD",
+        "cpuset_cpus": {
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/cpuset.cpus",
+          "state": "ABSENT"
+        },
+        "cpuset_cpus_effective": {
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/cpuset.cpus.effective",
+          "state": "ABSENT"
+        },
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "reason": "Root does not enable cpuset for children. Non-root ancestors cannot receive or reenable cpuset. Root effective CPU set explicitly remains 0-1; requested cpuset.cpus is a non-root-only interface."
+      },
+      "direct_procs_count": 6,
+      "direct_threads_count": 41,
+      "filesystem_path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+      "memory": {
+        "available_for_children": true,
+        "classification": "CONTROLLER_ENABLED_WITH_EXPLICIT_UNRESTRICTIVE_LIMIT",
+        "classification_scope": "incoming controller and limits on this cgroup",
+        "enabled_for_children": false,
+        "kernel_supported": true,
+        "memory_high": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 16288,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/memory.high",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 16289,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/memory.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "memory_swap_max": {
+          "bytes": 4,
+          "device": 29,
+          "inode": 16298,
+          "mode": "0o100644",
+          "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service/memory.swap.max",
+          "sha256": "dbe7218fd3953d71eac340668b850fe4b57278326a462a0cf0ad506efbf8b02e",
+          "state": "PRESENT",
+          "text": "max\n"
+        },
+        "reason": "Memory arrives from the enabled parent subtree. All three limit files are present and explicitly max. Empty leaf subtree_control does not remove its own incoming controller or own limits."
+      },
+      "parent": "/system.slice",
+      "roles": [
+        "runner_service",
+        "current_diagnostic_process"
+      ]
+    }
+  ]
+}

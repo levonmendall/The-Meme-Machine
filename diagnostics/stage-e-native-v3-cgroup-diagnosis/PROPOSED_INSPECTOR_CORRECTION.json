@@ -1,0 +1,21 @@
+{
+  "approved_target_sha256": "acbdaefbc779401f35997f0f21d98f30b2e427e528c91cee2d36b49ff78f9e6b",
+  "changes_proposed_only": [
+    "Capture cgroup.controllers, cgroup.subtree_control and cgroup.type, with PRESENT/ABSENT/UNREADABLE status and exact raw bytes; keep absent limits distinct from explicit max.",
+    "Validate the complete root-to-leaf parent/child enablement chain and domain types. An empty leaf subtree_control cannot prove that the controller is disabled for that leaf: its parent governs incoming limits.",
+    "Handle documented root-only exceptions only after proving the true full kernel root: root mount /, root directory identity, matching PID1/diagnostic namespaces and full visible ancestor chain.",
+    "For a non-root missing resource interface, accept only a proven disabled/unavailable controller state with matching parent subtree_control and child cgroup.controllers plus consistent absent interfaces. Unsupported availability must be established; unreadable or unproved absence stays blocking.",
+    "Require enabled controller interfaces to be present, valid and independently nonrestrictive under the existing comparators. Preserve all explicit CPU quota, cpuset and memory-limit rejection rules.",
+    "Replace the global requirement for at least one quota/period row with complete per-resource coverage by explicit limits or causally established non-applicability. Use the same proof rules for independently consumed raw snapshots, not an unchecked complete flag.",
+    "Preserve separate authenticated allocation, exactly 2 allocated/dedicated/visible CPUs, two-CPU affinity, 8 GiB RAM, and all safety, runtime, storage and lifetime checks. Do not widen the production envelope or bypass any hidden ancestor."
+  ],
+  "implementation_authorized": false,
+  "implementation_performed": false,
+  "proposed_review_cases": [
+    "Current documented disabled CPU/cpuset path with explicit max memory and fully visible root: causal completeness may pass.",
+    "An ancestor CPU quota below two CPUs or cpuset excluding either allocated CPU: still reject.",
+    "Enabled parent CPU with missing child cpu.max, unreadable controller files, inconsistent parent/child sets, threaded/invalid unsupported domain, hidden mount root or changed namespace: remain blocking.",
+    "Memory limit below 8 GiB: still reject. Empty leaf subtree_control while parent enables CPU/memory: require and check the leaf own limit files."
+  ],
+  "target": "diagnostics/stage-e-native-v3-executable-harness/harness/attest.py"
+}

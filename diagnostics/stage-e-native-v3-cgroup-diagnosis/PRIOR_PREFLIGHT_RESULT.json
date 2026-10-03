@@ -1,0 +1,176 @@
+{
+  "PR_118": {
+    "base": "7e906e6683ba745f11a390f3c354291980321b89",
+    "draft": true,
+    "head": "f87c72cf2a15e3c099a8bd07acad3b0737d9dd27",
+    "merged": false,
+    "mutations": 0,
+    "updated_at": "2026-10-03T02:56:08Z"
+  },
+  "approved_identity_verification": {
+    "assembly_digest": "08d5a491975345c859941c01cbde6ee3ef8b56a85026209fd497c14daa047659",
+    "assembly_files_verified": 1241,
+    "assembly_manifest_sha256": "d60d02a32838df4658cc5943d469057ec08ece11e82301b3e85231e029c9eaa0",
+    "candidate_S": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "candidate_T": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+    "candidate_files_verified": 1241,
+    "candidate_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+    "contract_artifacts_verified": 191,
+    "contract_commit": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+    "contract_manifest_sha256": "786308bcfc18c88f1c5e97286c311766159d592b47a637d2c6ae6ff53ffd22f0",
+    "contract_tree": "2715b1807f85cf97653663c392fd1c5d22390886",
+    "errors": [],
+    "harness_artifacts_verified": 53,
+    "harness_commit": "f87c72cf2a15e3c099a8bd07acad3b0737d9dd27",
+    "harness_manifest_sha256": "b69d6cc95b478b03bafeeb4f7598abe668c141069fb58ebcea0e70ec6016926f",
+    "harness_source_digest": "9d2f1f8a02bc01c72f61004387a423d7db5f8803cf9d7c36e9dd7ac49af687e8",
+    "harness_tree": "09c48ee0601c4ef12dcef53a027bf2eb02e634a6",
+    "harness_verifier_sha256": "09853e0e2411c5d0a7befd2ab9f1ffbd9e97ee0005e6b9f1c3c22cfca4d6a5d9",
+    "method": "Independent Git smart-HTTP fetch; recomputed commit objects, Git blob identities and SHA-256 manifests; no repository code executed",
+    "passed": true,
+    "source_hashes_sha256": "dac7e6b843af9f2c353141fca761ac2495891a4b7e9faa88c29cde2a88f7b9fd"
+  },
+  "blocker": {
+    "approved_harness_error": "resource_inspection_incomplete:complete_cgroup_inventory_unavailable",
+    "code": "complete_cgroup_inventory_unavailable",
+    "explanation": "The exact approved cgroup_inventory() reports complete=false. cpu.max is absent at all three inspected ancestors; cpuset files are absent at the service and system.slice ancestors. The approved harness does not establish complete ancestor CPU coverage. Missing controls are not treated as an attested unlimited budget, and no admission rule is changed.",
+    "observed": {
+      "cgroup_complete": false,
+      "cgroup_namespace": "cgroup:[4026531835]",
+      "cpu_max_raw_all_ancestors": [
+        null,
+        null,
+        null
+      ],
+      "membership": [
+        [
+          "0",
+          [],
+          "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+        ]
+      ],
+      "pid1_cgroup_namespace": "cgroup:[4026531835]",
+      "service_and_slice_cpuset_effective": [
+        null,
+        null
+      ]
+    },
+    "required_gate": "Complete attestation of all ancestor CPU quotas/cpusets and memory limits"
+  },
+  "created_utc": "2026-10-03T03:28:25.800569+00:00",
+  "declaration": {
+    "commit": null,
+    "path": null,
+    "published": false,
+    "reason": "STOP at resource admission; no complete executable declaration claimed",
+    "sha256": null
+  },
+  "execution_authorized": false,
+  "executor": {
+    "boot_id": "f0453f41-fe5e-4e10-bda7-657de65713d8",
+    "droplet_id": 605465049,
+    "hostname": "ubuntu-gd-2vcpu-8gb-nyc1",
+    "inspection_attempt": 1,
+    "inspection_commit": "9506aca2c29cc83fc70540900b9b5c14753064ab",
+    "inspection_run_id": 37093086807,
+    "inspection_script_sha256": "43f6ff2cc4f6ba2be2dde2077939ccdba3fe54ac164852489fc75d6d8d66729b",
+    "inspection_workflow_sha256": "b178bfa40c464966b070902c7ab32efb4a2f91e5119d5df22a5005a2f218a025",
+    "provider": "DigitalOcean",
+    "runner_id": 21,
+    "runner_name": "the meme machine"
+  },
+  "fresh_A_campaign_id": null,
+  "fresh_A_campaign_ledger_created": false,
+  "historical_observer_v2": {
+    "historical_elapsed_credit_ns": 0,
+    "modifications": 0,
+    "slot_reuse": false,
+    "slots_2_through_6": "UNUSED_AND_FORBIDDEN",
+    "trial_1": "INVALID"
+  },
+  "immutable_tape_verification": "NOT_STARTED_AFTER_RESOURCE_ADMISSION_FAILURE; no tape replay or regeneration",
+  "owner_disposition": "STOP FOR OWNER",
+  "paper_only": true,
+  "preservation": {
+    "A_slots_consumed": 0,
+    "A_trials_started": 0,
+    "actual_boot_id": "f0453f41-fe5e-4e10-bda7-657de65713d8",
+    "artifact_SHA256": "a3f3533e200f9ece41b0dedf5ce5a266047aebf028a66f0e77bad1c9a35a70cb",
+    "artifact_id": 11263247429,
+    "exact_all_raw_bytes_verified": true,
+    "execution_authorized": false,
+    "job_id": 111117376565,
+    "raw_entries_verified": 10,
+    "raw_manifest_sha256": "1c39df0c4b5546a5948cdc1adbc319e111391aa757719b214d923f3c0895a096",
+    "remote_durable_preservation_path": "/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-a-paper-20261003T030901Z",
+    "result_sha256": "5408531733b6c93bb8f362718e06762082725f9af9a3366ada671e40e25e18c0",
+    "runner_id": 21,
+    "runner_name": "the meme machine",
+    "source_frames_released": 0,
+    "workflow_run_id": 37093086807,
+    "zip_bytes": 22746
+  },
+  "resources": {
+    "affinity_cpu_ids": [
+      0,
+      1
+    ],
+    "all_ancestor_resource_attestation": "FAILED",
+    "allocated_ram_bytes": 8589934592,
+    "allocated_ram_mib": 8192,
+    "allocated_vcpu": 2,
+    "available_ram_bytes": 7640399872,
+    "balloon_modules": [],
+    "dedicated_vcpu_capability": "POSITIVELY_ESTABLISHED_BY_PROVIDER_PLAN_AND_OFFICIAL_CAPABILITY_DOCUMENT; FULL_RESOURCE_ADMISSION_BLOCKED",
+    "no_competing_workload_attestation": "NOT_COMPLETED",
+    "process_and_thread_inventory_preserved": true,
+    "process_inventory_count": 116,
+    "provider_authenticated_plan": "gd-2vcpu-8gb",
+    "swap_total_bytes": 0,
+    "usable_ram_bytes": 8327667712,
+    "visible_cpu_ids": [
+      0,
+      1
+    ]
+  },
+  "result": "STAGE_E_NATIVE_V3_A_PREFLIGHT_BLOCKED",
+  "runtime_environment_digest": null,
+  "runtime_verification": "NOT_STARTED_AFTER_RESOURCE_ADMISSION_FAILURE",
+  "stage_e": "RED",
+  "stage_f": "NOT_STARTED",
+  "storage": {
+    "12_GiB_free_headroom_observed": true,
+    "campaign_working_and_publication_reservations": "NOT_CREATED_AFTER_ADMISSION_FAILURE",
+    "full_storage_and_durability_admission": "NOT_COMPLETED",
+    "observed": [
+      {
+        "block_bytes": 4096,
+        "device": "8:0",
+        "free_bytes": 47530713088,
+        "fs_type": "ext4",
+        "mount": "/mnt/volume_nyc1_1790918115030",
+        "mount_id": 54,
+        "options": "rw,noatime",
+        "parent_id": 30,
+        "path": "/mnt/volume_nyc1_1790918115030",
+        "root": "/",
+        "source": "/dev/sda",
+        "st_dev": 2048,
+        "super_options": "rw,discard",
+        "total_bytes": 53075214336
+      }
+    ]
+  },
+  "version": "stage-e-native-v3-a-paper-preflight-result-v1",
+  "zero_execution": {
+    "A_slots_consumed": 0,
+    "A_trials_started": 0,
+    "B_trials_started": 0,
+    "C_trials_started": 0,
+    "campaign_registry_opened": false,
+    "native_candidate_service_or_workload_started": false,
+    "source_frames_released": 0,
+    "tape_regenerated": false,
+    "tape_replayed": false
+  }
+}
