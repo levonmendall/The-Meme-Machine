@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 from meme_machine.lanes.meteora import dlmm
 from meme_machine.lanes.meteora.dlmm_discovery import CampaignDiscovery
-from tests.lanes.meteora import solana_dlmm_independent_v1 as strategy
+from meme_machine.lanes.meteora import runner as strategy
 
 
 def row(name):

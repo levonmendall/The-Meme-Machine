@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from tests.lanes.pump import pump_acceleration_natural_prospective as runner
+from meme_machine.lanes.pump import runner as runner
 
 
 class PumpProspectAdmissionTests(unittest.TestCase):

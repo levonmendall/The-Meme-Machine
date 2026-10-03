@@ -3962,5 +3962,191 @@
   "recipe_dependency_completion": [
     "solana_owner_admission.py from exact baseline for both Solana namespaces"
   ],
-  "source_equivalence": "all copied Python bytes equal after reversing namespace adaptation"
+  "resources": [
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/registry.json",
+      "path": "meme_machine/lanes/pons/registry.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/ramses_native_inventory_baseline.json",
+      "path": "meme_machine/lanes/pons/ramses_native_inventory_baseline.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_curve_template.json",
+      "path": "meme_machine/lanes/pons/pons_curve_template.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/pons_deployer.json",
+      "path": "meme_machine/lanes/pons/verified/pons_deployer.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/ramses_quoter.json",
+      "path": "meme_machine/lanes/pons/verified/ramses_quoter.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/ramses_fee_collector.json",
+      "path": "meme_machine/lanes/pons/verified/ramses_fee_collector.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/pons_v1_factory.json",
+      "path": "meme_machine/lanes/pons/verified/pons_v1_factory.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/uniswap_v3_factory.json",
+      "path": "meme_machine/lanes/pons/verified/uniswap_v3_factory.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/ramses_factory.json",
+      "path": "meme_machine/lanes/pons/verified/ramses_factory.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/uniswap_v4_manager.json",
+      "path": "meme_machine/lanes/pons/verified/uniswap_v4_manager.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/pons_executor.json",
+      "path": "meme_machine/lanes/pons/verified/pons_executor.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/pons_v2_factory.json",
+      "path": "meme_machine/lanes/pons/verified/pons_v2_factory.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/pons_v2_hook.json",
+      "path": "meme_machine/lanes/pons/verified/pons_v2_hook.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/ramses_pool_implementation.json",
+      "path": "meme_machine/lanes/pons/verified/ramses_pool_implementation.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/verified/ramses_router.json",
+      "path": "meme_machine/lanes/pons/verified/ramses_router.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/registry.json",
+      "path": "meme_machine/lanes/ramses/registry.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_native_inventory_baseline.json",
+      "path": "meme_machine/lanes/ramses/ramses_native_inventory_baseline.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/pons_curve_template.json",
+      "path": "meme_machine/lanes/ramses/pons_curve_template.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/pons_deployer.json",
+      "path": "meme_machine/lanes/ramses/verified/pons_deployer.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/ramses_quoter.json",
+      "path": "meme_machine/lanes/ramses/verified/ramses_quoter.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/ramses_fee_collector.json",
+      "path": "meme_machine/lanes/ramses/verified/ramses_fee_collector.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/pons_v1_factory.json",
+      "path": "meme_machine/lanes/ramses/verified/pons_v1_factory.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/uniswap_v3_factory.json",
+      "path": "meme_machine/lanes/ramses/verified/uniswap_v3_factory.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/ramses_factory.json",
+      "path": "meme_machine/lanes/ramses/verified/ramses_factory.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/uniswap_v4_manager.json",
+      "path": "meme_machine/lanes/ramses/verified/uniswap_v4_manager.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/pons_executor.json",
+      "path": "meme_machine/lanes/ramses/verified/pons_executor.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/pons_v2_factory.json",
+      "path": "meme_machine/lanes/ramses/verified/pons_v2_factory.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/pons_v2_hook.json",
+      "path": "meme_machine/lanes/ramses/verified/pons_v2_hook.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/ramses_pool_implementation.json",
+      "path": "meme_machine/lanes/ramses/verified/ramses_pool_implementation.json",
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/verified/ramses_router.json",
+      "path": "meme_machine/lanes/ramses/verified/ramses_router.json",
+      "source_equivalent": true
+    }
+  ],
+  "source_equivalence": "all copied Python bytes equal after reversing namespace adaptation",
+  "test_layout_adaptations": [
+    "native runner imports refer to lane.runner",
+    "source-wiring assertions read the actual relocated module.__file__"
+  ]
 }

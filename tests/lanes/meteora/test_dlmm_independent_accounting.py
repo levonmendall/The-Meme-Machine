@@ -10,7 +10,7 @@ from meme_machine.lanes.meteora.dlmm_independent_accounting import PaperBook
 from meme_machine.lanes.meteora.dlmm_tape import VerifiedTape
 from meme_machine.lanes.meteora.store import digest
 from tests.lanes.meteora.dlmm_support import snapshot
-from tests.lanes.meteora import solana_dlmm_independent_v1 as strategy
+from meme_machine.lanes.meteora import runner as strategy
 
 
 class DurableIndependentAccounting(unittest.TestCase):

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock,patch
 from meme_machine.lanes.meteora.solana_evidence_broker import EvidenceBroker
-from tests.lanes.meteora import solana_dlmm_independent_v1 as strategy
+from meme_machine.lanes.meteora import runner as strategy
 
 
 def row(signature,slot):

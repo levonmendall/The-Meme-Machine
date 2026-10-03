@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from meme_machine.lanes.pump import durable_publication
-from tests.lanes.pump import pump_acceleration_natural_prospective as runtime
+from meme_machine.lanes.pump import runner as runtime
 
 class PublicationIsolationTests(unittest.TestCase):
     def test_export_failure_does_not_escape_runtime(self):

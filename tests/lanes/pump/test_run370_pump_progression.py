@@ -12,7 +12,7 @@ from meme_machine.lanes.pump.solana_evidence_service import FinalizedFence
 from meme_machine.lanes.pump.solana_evidence_runtime import RuntimeEvidence,PUMP_SCOPE,SWAP_SCOPE
 from meme_machine.lanes.pump.solana_evidence_transport import Subscription
 from meme_machine.lanes.pump.pump_acceleration_confirmations import ConfirmationBook
-from tests.lanes.pump import pump_acceleration_natural_prospective as lane
+from meme_machine.lanes.pump import runner as lane
 from tests.lanes.pump.test_postgrad import MINT,CREATOR
 
 

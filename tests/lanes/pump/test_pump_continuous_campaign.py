@@ -6,7 +6,7 @@ import threading
 import unittest
 from unittest.mock import Mock,patch
 from meme_machine.lanes.pump import solana_evidence_broker as broker_module
-from tests.lanes.pump import pump_acceleration_natural_prospective as strategy
+from meme_machine.lanes.pump import runner as strategy
 
 
 class CampaignTests(unittest.TestCase):

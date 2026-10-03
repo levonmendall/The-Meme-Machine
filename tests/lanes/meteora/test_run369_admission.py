@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from meme_machine.lanes.meteora.solana_evidence_runtime import RuntimeEvidence
-from tests.lanes.meteora import solana_dlmm_independent_v1 as lane
+from meme_machine.lanes.meteora import runner as lane
 
 class Run369Admission(unittest.TestCase):
     def test_unavailable_plane_is_persisted_and_never_reaches_economic_screen(self):

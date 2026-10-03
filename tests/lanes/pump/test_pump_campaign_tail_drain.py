@@ -4,7 +4,7 @@ from meme_machine.lanes.pump.pump_acceleration_paper import PumpAccelerationPape
 from meme_machine.lanes.pump.pump_acceleration_strategy import (
     MODE_LATE_CURVE, POLICY, Qualification, STRATEGY_ID, policy_hash,
 )
-from tests.lanes.pump import pump_acceleration_natural_prospective as runner
+from meme_machine.lanes.pump import runner as runner
 
 
 class PumpCampaignTailDrainTests(unittest.TestCase):

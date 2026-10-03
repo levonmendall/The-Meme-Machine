@@ -3,7 +3,7 @@ import ast,json,subprocess,unittest
 from pathlib import Path
 from unittest.mock import patch
 from types import SimpleNamespace
-from tests.lanes.pump import pump_acceleration_natural_prospective as runtime
+from meme_machine.lanes.pump import runner as runtime
 from meme_machine.lanes.pump import pump_acceleration_strategy as strategy
 from meme_machine.lanes.pump.provider import Unavailable
 

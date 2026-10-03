@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch,MagicMock
 
 from meme_machine.lanes.meteora import dlmm
-from tests.lanes.meteora import solana_dlmm_independent_v1 as strategy
+from meme_machine.lanes.meteora import runner as strategy
 
 
 class SolanaDlmmIndependentV1Tests(unittest.TestCase):
@@ -100,7 +100,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(reset,[])
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
-        path=Path("tests/solana_dlmm_independent_v1.py")
+        path=Path(strategy.__file__)
         tree=ast.parse(path.read_text())
         imported=[]
         for node in ast.walk(tree):

@@ -1,6 +1,6 @@
 import unittest
 from types import SimpleNamespace
-from tests.lanes.pump import pump_acceleration_natural_prospective as runner
+from meme_machine.lanes.pump import runner as runner
 
 class MarketScopeEfficiencyTests(unittest.TestCase):
     def test_postgrad_holder_scan_only_needed_after_optimistic_pass(self):

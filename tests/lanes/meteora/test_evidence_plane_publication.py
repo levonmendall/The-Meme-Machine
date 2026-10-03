@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from meme_machine.lanes.meteora import durable_publication
-from tests.lanes.meteora import solana_dlmm_independent_v1 as runtime
+from meme_machine.lanes.meteora import runner as runtime
 
 class PublicationIsolationTests(unittest.TestCase):
     def test_export_failure_does_not_escape_runtime(self):

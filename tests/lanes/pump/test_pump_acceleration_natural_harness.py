@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from meme_machine.lanes.pump.pump_acceleration_strategy import STRATEGY_ID,policy_hash
-from tests.lanes.pump import pump_acceleration_natural_prospective as prospective
+from meme_machine.lanes.pump import runner as prospective
 
 
 class NaturalHarnessBoundaryTests(unittest.TestCase):

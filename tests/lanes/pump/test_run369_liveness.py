@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import tempfile
 import unittest
 from unittest.mock import patch
-from tests.lanes.pump import pump_acceleration_natural_prospective as lane
+from meme_machine.lanes.pump import runner as lane
 from meme_machine.lanes.pump.solana_evidence_plane import EvidenceUnavailable
 
 

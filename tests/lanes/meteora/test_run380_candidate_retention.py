@@ -9,7 +9,7 @@ from meme_machine.lanes.meteora.solana_evidence_plane import EvidenceWriter, Evi
 from meme_machine.lanes.meteora.solana_evidence_service import FinalizedFence
 from meme_machine.lanes.meteora.solana_evidence_transport import Subscription
 from meme_machine.lanes.meteora.solana_evidence_runtime import RuntimeEvidence, METEORA_SCOPE
-from tests.lanes.meteora import solana_dlmm_independent_v1 as lane
+from meme_machine.lanes.meteora import runner as lane
 
 class CandidateRetentionTests(unittest.TestCase):
     def test_terminal_paths_release_only_candidate_and_preserve_position_interest(self):

@@ -13,7 +13,7 @@ from meme_machine.lanes.pump.pump_acceleration_confirmations import Confirmation
 from meme_machine.lanes.pump.paper_accounting import PaperBook
 from meme_machine.lanes.pump.provider import PumpAdapter
 from meme_machine.lanes.pump.postgrad import PostGraduationAdapter,WSOL,PUMPSWAP_PROGRAM
-from tests.lanes.pump import pump_acceleration_natural_prospective as lane
+from meme_machine.lanes.pump import runner as lane
 from tests.lanes.pump.test_postgrad import MINT,CREATOR,pumpswap_pool,pumpswap_snapshot,pumpswap_pool_account,complete_pump_snapshot,mint_account,fee_config,token_account
 from meme_machine.lanes.pump import pump
 

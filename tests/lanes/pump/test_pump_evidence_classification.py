@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from meme_machine.lanes.pump.pipeline import Pipeline
 from meme_machine.lanes.pump.pump_acceleration_strategy import SignalVector,qualify
-from tests.lanes.pump import pump_acceleration_natural_prospective as runner
+from meme_machine.lanes.pump import runner as runner
 
 
 class EvidenceClassificationTests(unittest.TestCase):

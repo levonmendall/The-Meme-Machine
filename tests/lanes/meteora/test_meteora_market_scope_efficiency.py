@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from meme_machine.lanes.meteora import dlmm
-from tests.lanes.meteora import solana_dlmm_independent_v1 as runner
+from meme_machine.lanes.meteora import runner as runner
 
 class MeteoraMarketScopeEfficiencyTests(unittest.TestCase):
     def test_discovery_uses_pool_snapshot_without_per_pool_history_request(self):

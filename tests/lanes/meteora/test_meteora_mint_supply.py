@@ -7,7 +7,7 @@ from meme_machine.lanes.meteora import dlmm, pump
 from meme_machine.lanes.meteora.dlmm_tape import reconstruct
 from meme_machine.lanes.meteora.provider import Unavailable
 from meme_machine.lanes.meteora.store import digest
-from tests.lanes.meteora import solana_dlmm_independent_v1 as strategy
+from meme_machine.lanes.meteora import runner as strategy
 from tests.lanes.meteora.dlmm_support import snapshot, change_account, POOL
 from tests.lanes.meteora.test_dlmm_tape import interval
 from tests.lanes.meteora.test_dlmm_safe_token2022 import token2022_mint

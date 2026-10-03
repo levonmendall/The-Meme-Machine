@@ -50,7 +50,8 @@ class ProviderAuthorityTests(unittest.TestCase):
     def test_runtime_composition_retains_broker_boundaries(self):
         # Supplemental wiring guard; coalescing/fencing and provider tests above
         # exercise the actual broker and transport implementations.
-        source=(Path(__file__).parents[1]/'robinhood_research'/'pons_selective_cohort.py').read_text()
+        from meme_machine.lanes.pons import pons_selective_cohort
+        source=Path(pons_selective_cohort.__file__).read_text()
         for required in ['queue=Broker(', 'queue.committed()', 'evidence_context.generation_guard=', 'queue.finish(']:self.assertIn(required,source)
 
     def test_one_authority_and_mandatory_shared_store(self):
