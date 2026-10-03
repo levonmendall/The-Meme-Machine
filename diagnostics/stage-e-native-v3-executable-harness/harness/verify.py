@@ -346,52 +346,116 @@ def verify_native_db(root, row):
     return dict(integrity='ok', archive_records=records)
 
 
+def restart_raw_state(db):
+    """Read native continuity evidence from SQL, including snapshot integrity."""
+    protected = {table:[list(r) for r in db.execute('SELECT * FROM '+table+' ORDER BY 1,2')]
+                 for table in ('interests','service_interests','account_interest_floors','stream_receipts',
+                               'interest_checkpoints','interest_owners','consumers')}
+    protected['integrity'] = [r[0] for r in db.execute('PRAGMA integrity_check')]
+    h = __import__('hashlib').sha256(); count = 0
+    for record in db.execute('SELECT identity,hash,scope,slot,archive,market_time,first_seen FROM records ORDER BY identity'):
+        h.update(canonical(list(record))+b'\n');count += 1
+    return dict(protected=protected,records_digest=h.hexdigest(),record_count=count,
+        progress=[list(r) for r in db.execute('SELECT * FROM maintenance_progress ORDER BY scope,side')],
+        episodes=[list(r) for r in db.execute('SELECT * FROM maintenance_episodes ORDER BY scope,side')],
+        counters=dict(db.execute('SELECT key,value FROM counters')),
+        health={k:json.loads(v) for k,v in db.execute('SELECT key,value FROM service_health')},
+        gaps=[list(r) for r in db.execute('SELECT scope,lo,hi,reason FROM gaps WHERE repaired IS NULL ORDER BY scope,lo')],
+        floors=dict(db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'")))
+
+
+def verify_restart_state(actual, proof, generation):
+    require(set(proof['protected']) == set(actual['protected']), 'raw_restart_protected_table_inventory')
+    for table, expected in proof['protected'].items():
+        require(actual['protected'][table] == expected, 'raw_restart_protected_table_changed:'+table)
+    require(actual['protected']['integrity'] == ['ok'], 'raw_restart_integrity')
+    for key in ('progress','episodes'):
+        require(actual[key] == proof[key], 'raw_restart_native_ledger_changed')
+    require(actual['records_digest'] == proof['records_digest'] and actual['record_count'] == proof['record_count'],
+            'raw_restart_records_changed')
+    require(actual['counters'] == proof['counters'], 'raw_restart_committed_counters_changed')
+    require(actual['health'] == proof['health'], 'raw_restart_native_refusal_health_changed')
+    require(actual['health'].get('storage_maintenance',{}).get('maintenance_arbiter',{}).get('generation') == generation,
+            'raw_restart_generation_changed')
+    require(actual['gaps'] == proof['gaps'], 'raw_restart_native_gaps_changed')
+    require(actual['floors'] == proof['floors'], 'raw_restart_floors_changed')
+
+
 def verify_restart_raw(folder, row):
-    """Recheck preserved native before/after state; no restart is performed here."""
+    """Recompute WARMING refusals and independently verify final OFF teardown."""
+    from meme_machine.solana_evidence_plane import EvidenceReader
+    from meme_machine.solana_evidence_health import evidence_health
+    proof = row['native_restart']
     require(file_sha(Path(folder)/'BEFORE_RESTART_INVENTORY.json') ==
-            row['native_restart']['preserved_original_inventory_sha256'], 'restart_preservation_receipt_hash')
+            proof['preserved_original_inventory_sha256'], 'restart_preservation_receipt_hash')
     require(read(Path(folder)/'BEFORE_RESTART_INVENTORY.json')['artifacts'] ==
             inventory(Path(folder)/'before-restart-native-state'), 'restart_original_copy_changed')
+    states = {}
     for phase, name in [('before','before-restart-native-state/db'),('after','d/db')]:
-        proof = row['native_restart'][phase]
-        require(set(proof['protected']) == {'interests','service_interests','account_interest_floors',
-                'stream_receipts','interest_checkpoints','interest_owners','consumers','integrity'},
-                'raw_restart_protected_table_inventory')
-        with closing(sqlite3.connect(relative(folder,name).resolve().as_uri()+'?mode=ro',uri=True)) as db:
-            for table, expected in proof['protected'].items():
-                actual = [r[0] for r in db.execute('PRAGMA integrity_check')] if table == 'integrity' else [
-                    list(r) for r in db.execute('SELECT * FROM '+table+' ORDER BY 1,2')]
-                require(actual == expected, 'raw_restart_protected_table_changed:'+table)
-            for key, query in [('progress','SELECT * FROM maintenance_progress ORDER BY scope,side'),
-                               ('episodes','SELECT * FROM maintenance_episodes ORDER BY scope,side')]:
-                require([list(r) for r in db.execute(query)] == proof[key], 'raw_restart_native_ledger_changed')
-            h = __import__('hashlib').sha256(); count = 0
-            for record in db.execute('SELECT identity,hash,scope,slot,archive,market_time,first_seen FROM records ORDER BY identity'):
-                h.update(canonical(list(record))+b'\n');count += 1
-            require(h.hexdigest() == proof['records_digest'] and count == proof['record_count'], 'raw_restart_records_changed')
-            counters = dict(db.execute('SELECT key,value FROM counters'))
-            require(counters == proof['counters'], 'raw_restart_committed_counters_changed')
-            health = {k:json.loads(v) for k,v in db.execute('SELECT key,value FROM service_health')}
-            require(health == proof['health'], 'raw_restart_native_refusal_health_changed')
-            generation = health.get('storage_maintenance',{}).get('maintenance_arbiter',{}).get('generation')
-            require(generation == row['native_restart']['old_generation' if phase == 'before' else 'new_generation'],
-                    'raw_restart_generation_changed')
-            gaps = [list(r) for r in db.execute('SELECT scope,lo,hi,reason FROM gaps WHERE repaired IS NULL ORDER BY scope,lo')]
-            require(gaps == proof['gaps'], 'raw_restart_native_gaps_changed')
-            floors = dict(db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'"))
-            require(floors == proof['floors'], 'raw_restart_floors_changed')
+        with closing(EvidenceReader(relative(folder,name))) as reader:
+            reader.db.execute('BEGIN')
+            actual = states[phase] = restart_raw_state(reader.db)
+            verify_restart_state(actual,proof[phase],proof['old_generation' if phase == 'before' else 'new_generation'])
             if phase == 'after':
-                # Reuse only the exact immutable native read-only health predicate.
-                # No runtime/service is started, and no command is sent.
-                from types import SimpleNamespace
-                from meme_machine.solana_evidence_health import evidence_health
-                require(health.get('phase') == 'OFF' and number(proof['wall']), 'restart_final_native_teardown_missing')
-                reader = SimpleNamespace(db=db,path=relative(folder,name))
-                for refusal in row['native_restart']['stale_refusals']:
-                    result = evidence_health(reader,refusal['scope'],proof['wall'])
-                    require(result['usable'] is False and result['reason'] == refusal['reason'],
-                            'raw_restart_stale_authority_refusal_changed')
-    return dict(native_before_after_rechecked=True,source_frames_released=0)
+                require(actual['health'].get('phase') == 'OFF' and number(proof['after']['wall']),
+                        'restart_final_native_teardown_missing')
+                for scope in SCOPES:
+                    final = evidence_health(reader,scope,proof['after']['wall'])
+                    require(final['usable'] is False and final['reason'] == 'evidence_service_unavailable',
+                            'restart_final_native_teardown_health_changed')
+    # Both endpoints have now been rechecked from SQL. Apply the existing
+    # continuity invariants to raw state without changing the C distinction
+    # between a full-profile diagnostic pass and a native terminal overload.
+    before, after = states['before'], states['after']
+    for key in ('progress','episodes','records_digest','record_count','floors'):
+        require(before[key] == after[key], 'raw_restart_native_continuity_invalid:'+key)
+    require(before['protected'] == after['protected'], 'raw_restart_native_continuity_invalid:protected')
+    for key in ('archived_records','compacted_records','stream_accepted_messages'):
+        count = before['counters'].get(key)
+        require(type(count) is int and count >= 0 and count == after['counters'].get(key),
+                'raw_restart_native_continuity_invalid:'+key)
+    original_gaps, final_gaps = {tuple(r) for r in before['gaps']}, {tuple(r) for r in after['gaps']}
+    require(original_gaps.issubset(final_gaps) and any(r[-1] == 'service_restart' for r in final_gaps),
+            'raw_restart_native_continuity_invalid:gaps')
+    refusals = proof['stale_refusals']
+    require(len(refusals) == len(SCOPES) and {r.get('scope') for r in refusals} == set(SCOPES),
+            'raw_restart_stale_authority_scopes_changed')
+    for refusal in refusals:
+        receipt = relative(folder,refusal.get('receipt_path',''))
+        require(receipt.is_file() and file_sha(receipt) == refusal.get('receipt_sha256'),
+                'raw_restart_stale_authority_receipt_changed')
+        recorded = {k:v for k,v in refusal.items() if k not in ('receipt_path','receipt_sha256')}
+        require(read(receipt) == recorded, 'raw_restart_stale_authority_refusal_changed')
+        require(recorded.get('version') == 'v3-native-refusal-observation'
+                and number(recorded.get('observed_at')), 'raw_restart_stale_authority_observation_time_missing')
+        path = relative(folder,recorded.get('raw_state_path',''))
+        require(path.is_file() and path not in (relative(folder,'d/db'),relative(folder,'before-restart-native-state/db'))
+                and not Path(str(path)+'-wal').exists()
+                and file_sha(path) == recorded.get('raw_state_sha256')
+                and path.stat().st_size == recorded.get('raw_state_bytes'), 'raw_restart_refusal_time_state_changed')
+        with closing(EvidenceReader(path)) as reader:
+            reader.db.execute('BEGIN')
+            actual = restart_raw_state(reader.db)
+            require(actual['health'].get('phase') == recorded.get('phase') == 'WARMING',
+                    'raw_restart_refusal_time_phase_changed')
+            generation = actual['health'].get('storage_maintenance',{}).get('maintenance_arbiter',{}).get('generation')
+            require(generation and generation == recorded.get('generation') == proof['new_generation'],
+                    'raw_restart_refusal_time_generation_changed')
+            for key in ('protected','progress','episodes','records_digest','record_count','floors'):
+                require(actual[key] == states['after'][key], 'raw_restart_refusal_time_continuity_changed:'+key)
+            for key in ('archived_records','compacted_records','stream_accepted_messages'):
+                require(actual['counters'].get(key) == states['after']['counters'][key],
+                        'raw_restart_refusal_time_committed_counters_changed:'+key)
+            original_gaps = {tuple(r) for r in states['before']['gaps']}
+            observed_gaps = {tuple(r) for r in actual['gaps']}
+            final_gaps = {tuple(r) for r in states['after']['gaps']}
+            require(original_gaps.issubset(observed_gaps) and observed_gaps.issubset(final_gaps)
+                    and any(r[-1] == 'service_restart' for r in observed_gaps), 'raw_restart_refusal_time_gaps_changed')
+            result = evidence_health(reader,recorded['scope'],recorded['observed_at'])
+            require(result['usable'] is False and result['reason'] == recorded['reason']
+                    and result == recorded.get('observation'), 'raw_restart_stale_authority_refusal_changed')
+    return dict(native_before_after_rechecked=True,native_refusals_rechecked=len(refusals),
+                native_final_OFF_rechecked=True,source_frames_released=0)
 
 
 def verify_admissions(admissions, declaration, declaration_sha256, allocation, *, evidence_files=None):

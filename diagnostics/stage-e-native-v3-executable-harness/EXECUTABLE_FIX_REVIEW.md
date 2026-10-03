@@ -1,8 +1,36 @@
 # Executable correction review — PAPER ONLY
 
-Disposition remains **STAGE_E_NATIVE_V3_EXECUTABLE_FIX_REQUIRED**, pending independent executable re-review. The v3 contract remains approved and unchanged. Declaration: **NOT AUTHORIZED / PREVIEW ONLY**. Stage E: **RED**. Stage F: **NOT STARTED**. No A/B/C campaign, native service/workload, workload-frame release, provider workload or native termination experiment was performed.
+Disposition: **STAGE_E_NATIVE_V3_EXECUTABLE_REVIEW_READY**, pending independent executable re-review. The v3 contract remains approved and unchanged. Declaration: **NOT AUTHORIZED / PREVIEW ONLY**. Stage E: **RED**. Stage F: **NOT STARTED**. No A/B/C campaign, native service/workload, workload-frame release, provider workload or native termination experiment was performed.
 
-The exact input is commit `7e906e6683ba745f11a390f3c354291980321b89`. All 42 original published artifacts, including the manifest, passed readback; manifest SHA-256 was `4af38c299c2faf087974e4023871ebe0e4e9c64fc195e5979e307f8c29a85a4b`. The revised manifest binds this correction package. The approved contract's 192 artifacts and the frozen candidate's 1,241 files/modes remain unchanged.
+## Final refusal-time lifecycle blocker
+
+This repair starts from exact reviewed executable commit `49bd4cec92c4da58089ac4b0e4df06b44b3fc319`, tree `1285c4f04773685cced555ab18700f26ad575325`. Before editing, its 48 manifest-listed artifacts and manifest passed readback against SHA-256 `4c410207e205ef5da579d39c759cd85a5a1a5d00f5e4610971c9993d63445d34`.
+
+The witness previously stored scope/reason during restarted WARMING but preserved final OFF as its `after` state. The verifier recomputed that historical refusal against OFF using the later snapshot's wall time. This falsely rejected valid evidence because OFF legitimately returns `evidence_service_unavailable`, while WARMING can return `evidence_discontinuous` or `evidence_finalized_stale`.
+
+`harness/overload.py` now pins the native reader's SQLite transaction before the refusal calls, captures each exact native `health_observations` result and timestamp, verifies WARMING phase/native generation, and backs up that same read transaction before native close. All scopes share the pinned raw state; each has a distinct fsynced immutable receipt binding the DB's path, byte count and SHA-256 with scope, exact reason, time, phase, generation and result. Each refusal record binds its receipt SHA-256. The raw backup is read-only and contains committed WAL data without mutable sidecars.
+
+`harness/verify.py` checks those bindings and independently recomputes every refusal from its raw database using the frozen `EvidenceReader` (including native coverage/gap queries) and unchanged `evidence_health()` at the exact recorded observation time. Final OFF verification is separate: expected generation/state, native unavailability, integrity, protected evidence, committed counters/work, ledger/episode/record/floor preservation and restart/gap continuity remain required. Refusal reason verification remains exact; neither final OFF state nor a claimed dictionary substitutes for raw refusal-time evidence. A/B machinery, C diagnostic/safety classification and all safety thresholds are unchanged.
+
+The complete suite passes **302/302** tests with zero failures, errors or skips, including the unchanged 55-test contract suite and **94 new regressions**. `test_restart_lifecycle.py` runs these 23 assertions for each of full-profile/discontinuous, full-profile/finalized-stale, terminal-overload/discontinuous and terminal-overload/finalized-stale; its two additional tests check capture generation and a concurrent SQL WARMING → OFF transition during the pinned read.
+
+| Regression requirement | Deterministic evidence |
+| --- | --- |
+| WARMING `evidence_discontinuous` / `evidence_finalized_stale`, final OFF `evidence_service_unavailable` | Four lifecycle matrix classes recompute both states with frozen native read functions. |
+| Both C outcomes | Complete four-member C profile and one-member safety-only terminal overload call the actual raw restart verifier; unrelated source/resource/native diagnostic boundaries are mocked. Diagnostic FAIL and zero A/B credit remain explicit for terminal overload. |
+| Exact observation timestamps and generation | Per-scope times are taken directly from native predicate results and differ from final teardown wall time; absent/changed time/generation fail. |
+| Reason and raw state tampering | Changed or arbitrary nonempty reasons fail even with coherent unit receipts; snapshot changes fail hash checks, and coherently rebound raw-health changes fail native recomputation. |
+| Changed time changes the native result | A 20-second counterfactual shift makes the same raw WARMING database return `evidence_heartbeat_stale`; the original reason/result is rejected. |
+| Final OFF required independently | Raw WARMING with a claimed OFF summary fails; coherently rewritten WARMING final summaries also fail. Final generation and protected tables, counters, records, progress, episodes, floors or restart gaps cannot be forged into acceptance. |
+| Durable snapshot binding and actual read state | Every scope's receipt and DB digest/size are verified; missing bindings/snapshots, changed receipts, duplicate scopes and OFF substitution fail. The concurrent SQL fixture changes the live DB to OFF during the first native observation while the backup remains WARMING and every observation recomputes exactly. |
+
+An initial full-suite run encountered four sandbox `AF_UNIX.bind()` denials in existing closed-socket preservation fixtures. The complete suite was rerun with socket access enabled; all 302 tests then passed without modifying or skipping those tests. No server listened and no provider/native workload ran. Allowed `inspect`, `build` and `verify-package` operations only read metadata or create explicit nonauthorizing preview/review artifacts.
+
+The approved contract at `5ed5aef4dfe1bb7823037fe1ce440c193411a194`, all 192 contract artifacts, frozen S/T and all 1,241 candidate files/modes remain unchanged. Historical OBSERVER_V2: INVALID_PAIR and its five forbidden UNUSED slots remain unchanged. A prerequisite machinery, B observer machinery, resource interval/lifetime proof and durable failure preservation retain their prior implementation. Every native gate remains NOT_RUN. **STOP FOR ASTRA/OWNER.**
+
+## Prior four corrections, preserved
+
+The prior correction's exact input was commit `7e906e6683ba745f11a390f3c354291980321b89`. All 42 original published artifacts, including the manifest, passed readback; manifest SHA-256 was `4af38c299c2faf087974e4023871ebe0e4e9c64fc195e5979e307f8c29a85a4b`. The revised manifest binds the current correction package. The approved contract's 192 artifacts and the frozen candidate's 1,241 files/modes remain unchanged.
 
 | Blocking finding | Executable correction | Deterministic regression evidence |
 | --- | --- | --- |

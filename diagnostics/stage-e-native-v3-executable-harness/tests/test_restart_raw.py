@@ -1,56 +1,24 @@
 """Read-only SQL/predicate regressions using hand-written unit tables, no service."""
-from copy import deepcopy
-import importlib.util
-import json
 from pathlib import Path
-import sqlite3
 import sys
 import tempfile
-from types import ModuleType
 import unittest
-from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'harness'));sys.path.insert(0,str(ROOT))
-from core import canonical, file_sha, sha
-from preserve import inventory, persist
 from verify import verify_restart_raw
-from regression_fixtures import safe_overload_row
-from review import source_checkout
+from restart_fixtures import make_restart, native_reads
 
 
 class RawRestartProofTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name);self.row = safe_overload_row()
-        for phase,name in [('before','before-restart-native-state/db'),('after','d/db')]:
-            path = self.root/name;path.parent.mkdir()
-            proof = self.row['native_restart'][phase];proof['wall'] = 1800000001
-            record = ['unit-identity','unit-hash','unit-scope',1,None,1.0,1.0]
-            proof['records_digest'] = sha(canonical(record)+b'\n')
-            with sqlite3.connect(path) as db:
-                for table in proof['protected']:
-                    if table != 'integrity':db.execute('CREATE TABLE '+table+'(a,b)')
-                db.executescript('CREATE TABLE maintenance_progress(scope,side); CREATE TABLE maintenance_episodes(scope,side);'
-                    'CREATE TABLE records(identity,hash,scope,slot,archive,market_time,first_seen);'
-                    'CREATE TABLE counters(key,value); CREATE TABLE meta(key,value); CREATE TABLE service_health(key,value);'
-                    'CREATE TABLE gaps(scope,lo,hi,reason,repaired);')
-                db.execute('INSERT INTO records VALUES(?,?,?,?,?,?,?)',record)
-                db.executemany('INSERT INTO counters VALUES(?,?)',proof['counters'].items())
-                db.executemany('INSERT INTO service_health VALUES(?,?)',[(k,json.dumps(v)) for k,v in proof['health'].items()])
-                db.executemany('INSERT INTO gaps VALUES(?,?,?,?,NULL)',proof['gaps'])
-        path = self.root/'BEFORE_RESTART_INVENTORY.json'
-        persist(path,{'artifacts':inventory(self.root/'before-restart-native-state')})
-        self.row['native_restart']['preserved_original_inventory_sha256'] = file_sha(path)
-        # Only the frozen native pure health predicate is loaded. Its module has
-        # no entrypoint, service startup, provider call or frame-release code.
-        spec = importlib.util.spec_from_file_location('unit_exact_health',source_checkout()/'meme_machine/solana_evidence_health.py')
-        self.health = importlib.util.module_from_spec(spec);spec.loader.exec_module(self.health)
+        self.root = Path(self.temp.name)
+        self.native = self.enterContext(native_reads())
+        self.row = make_restart(self.root,self.native)
 
     def verify(self):
-        package = ModuleType('meme_machine');package.__path__ = []
-        with patch.dict(sys.modules,{'meme_machine':package,'meme_machine.solana_evidence_health':self.health}):
-            return verify_restart_raw(self.root,self.row)
+        return verify_restart_raw(self.root,self.row)
 
     def test_native_refusal_health_generation_and_stale_authority_rechecked_from_SQL(self):
         self.assertTrue(self.verify()['native_before_after_rechecked'])

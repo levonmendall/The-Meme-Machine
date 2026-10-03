@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import sqlite3
 
-from core import REAL_NS, canonical, require, sha
+from core import REAL_NS, canonical, file_sha, relative, require
 from preserve import inventory, persist, fsync_dir
 
 
@@ -28,12 +28,70 @@ def snapshot(path):
     return row
 
 
+def capture_stale_refusals(plane, scopes, output, *, generation):
+    """Bind native observations to a backup of their pinned SQLite read state.
+
+    All scopes share one read transaction and raw backup. The exact timestamp
+    comes from RuntimeEvidence's actual predicate result, never a later clock
+    read. This runs before native close and cannot release a source frame.
+    """
+    from meme_machine.solana_evidence_plane import EvidenceUnavailable
+    output = Path(output)
+    preserved = output/'refusal-native-state'
+    require(not preserved.exists(), 'refusal_preservation_reused')
+    require(plane.reader is not None, 'refusal_native_reader_missing')
+    db = plane.reader.db
+    db.execute('BEGIN')
+    try:
+        health = {k:json.loads(v) for k,v in db.execute('SELECT key,value FROM service_health')}
+        phase = health.get('phase')
+        actual_generation = health.get('storage_maintenance',{}).get('maintenance_arbiter',{}).get('generation')
+        require(phase == 'WARMING' and actual_generation == generation and generation,
+                'refusal_restart_lifecycle_or_generation')
+        observations = []
+        for scope in scopes:
+            try:
+                plane.require_usable(scope)
+            except EvidenceUnavailable as exc:
+                observed = plane.health_observations.get(scope)
+                require(observed is not None and observed['scope'] == scope and observed['usable'] is False
+                        and observed['reason'] == str(exc), 'refusal_native_observation_missing')
+                # Freeze each native result before any later observation.
+                observations.append(json.loads(canonical(observed)))
+            else:
+                raise ValueError('restart_stale_authority_was_usable')
+        require(observations, 'restart_stale_authority_refusal_missing')
+        preserved.mkdir()
+        path = preserved/'db'
+        with closing(sqlite3.connect(path)) as target:
+            db.backup(target)
+            # The standalone backup contains committed WAL state. It needs no
+            # mutable WAL sidecars when independently opened by the verifier.
+            target.execute('PRAGMA journal_mode=DELETE')
+    finally:
+        db.execute('ROLLBACK')
+    path.chmod(0o400)
+    with path.open('rb') as copied:
+        os.fsync(copied.fileno())
+    fsync_dir(preserved)
+    digest = file_sha(path)
+    refusals = []
+    for index, observed in enumerate(observations,1):
+        record = dict(version='v3-native-refusal-observation',scope=observed['scope'],reason=observed['reason'],
+            observed_at=observed['observed_at'],phase=phase,generation=generation,observation=observed,
+            raw_state_path='refusal-native-state/db',raw_state_sha256=digest,raw_state_bytes=path.stat().st_size)
+        name = f'refusal-native-state/r{index}.json'
+        receipt_sha256 = persist(relative(output,name),record)
+        refusals.append(dict(record,receipt_path=name,receipt_sha256=receipt_sha256))
+    fsync_dir(output)
+    return refusals
+
+
 def restart_witness(path, output, *, native_failure, failure_frames):
     """Only future C calls this after native teardown; zero further input released."""
     from meme_machine import solana_evidence_service as service
     from meme_machine.solana_provider_config import AlchemyEndpoint
     from meme_machine.solana_maintenance_runtime import MaintenanceRuntime
-    from meme_machine.solana_evidence_plane import EvidenceUnavailable
     from meme_machine.solana_evidence_runtime import RuntimeEvidence
     import bound_runtime as bound
     path, output = Path(path), Path(output)
@@ -55,19 +113,12 @@ def restart_witness(path, output, *, native_failure, failure_frames):
     state = service.ServiceState(path, AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
     try:
         runtime = MaintenanceRuntime(state)
-        after = snapshot(path)
         new_generation = state.fence.session
-        stale_refusals = []
         plane = RuntimeEvidence(path, owner='meteora')
         try:
-            for scope in ('program:meteora', 'program:pump', 'program:pumpswap'):
-                frontier = before['health'].get('finalized_frontier:'+scope, {}).get('slot')
-                if type(frontier) is not int:
-                    continue
-                try:
-                    plane.require_usable(scope)
-                except EvidenceUnavailable as exc:
-                    stale_refusals.append(dict(scope=scope, reason=str(exc)))
+            scopes = [scope for scope in ('program:meteora', 'program:pump', 'program:pumpswap')
+                      if type(before['health'].get('finalized_frontier:'+scope,{}).get('slot')) is int]
+            stale_refusals = capture_stale_refusals(plane,scopes,output,generation=new_generation)
         finally:
             plane.close()
     finally:
