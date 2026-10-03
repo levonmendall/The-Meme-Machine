@@ -1,0 +1,48 @@
+{
+  "verified_at_utc": "2026-10-03T14:44:51.757334+00:00",
+  "packages": [
+    {
+      "package": "diagnosis",
+      "manifest_file": "MANIFEST.json",
+      "manifest_sha256": "2864b577aff14288b9f9496cc3512944b597de05ede6cfeaee2edd56d22a27fa",
+      "artifacts_verified": 12,
+      "passed": true
+    },
+    {
+      "package": "runtime-repair-original",
+      "manifest_file": "MANIFEST.json",
+      "manifest_sha256": "d679ddff42366b4c0f52d7f4e80a136cedc529b9f50f492c7be249bdd38ddee7",
+      "artifacts_verified": 12,
+      "passed": true
+    },
+    {
+      "package": "runtime-closure",
+      "manifest_file": "MANIFEST.json",
+      "manifest_sha256": "b772e07fd4eb6941baf00a9df943bc6eb86d3ae2eb1f1c5ad7d8142ec70abe78",
+      "artifacts_verified": 20,
+      "passed": true
+    },
+    {
+      "package": "fresh-allocation",
+      "manifest_file": "PREPARE_MANIFEST.json",
+      "manifest_sha256": "c6d15b8fda172fba2d633229ef3946168dae789b34ba890376f938a55c5a06d8",
+      "artifacts_verified": 20,
+      "passed": true
+    },
+    {
+      "package": "admission-attempt",
+      "manifest_file": "FINAL_MANIFEST.json",
+      "manifest_sha256": "d747d18a2b40ad2a067cf2f527a5569bde191f2d9a53cd96fb00f30f0bc0c0c7",
+      "artifacts_verified": 36,
+      "passed": true
+    },
+    {
+      "package": "blocker-diagnosis",
+      "manifest_file": "MANIFEST.json",
+      "manifest_sha256": "9364ff6c8267391e0f122cc6a8a47291c13939eb5810f8559880b82941535bd3",
+      "artifacts_verified": 20,
+      "passed": true
+    }
+  ],
+  "all_passed": true
+}

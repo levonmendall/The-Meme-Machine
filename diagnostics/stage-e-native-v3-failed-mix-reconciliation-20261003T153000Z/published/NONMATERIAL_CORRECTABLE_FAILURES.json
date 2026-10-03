@@ -1,0 +1,15 @@
+{
+  "local_failure": {
+    "cause": "Execution sandbox disallowed AF_UNIX bind in four existing preservation tests",
+    "correction": "Rerun unchanged tests with sandbox network/socket permission",
+    "outcome": "377/377 pass; no skips"
+  },
+  "first_executor_failure": {
+    "cause": "Existing candidate Git clone does not contain historical dd75942 commit object required by unchanged source_integrity test",
+    "correction": "Use unchanged review workflow procedure: fresh exact S worktree from complete repository Git history",
+    "production_or_harness_source_change": false
+  },
+  "A_trials_started": 0,
+  "A_slots_consumed": 0,
+  "source_frames_released": 0
+}

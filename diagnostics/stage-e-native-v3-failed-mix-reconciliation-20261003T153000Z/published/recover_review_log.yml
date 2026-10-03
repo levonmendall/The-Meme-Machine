@@ -1,0 +1,36 @@
+name: Recover preserved Stage-E conformity review log (PAPER ONLY)
+on: [create]
+permissions:
+  contents: read
+jobs:
+  recover:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'diagnosis/stage-e-native-v3-failed-mix-review-log-20261003T153000Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 5
+    steps:
+      - name: Preserve existing deterministic failure evidence without rerunning tests
+        id: preserve
+        shell: bash
+        run: |
+          /usr/bin/python3 -I -B - <<'PY'
+          from pathlib import Path
+          import os,json,hashlib,shutil
+          source=Path(os.environ['GITHUB_WORKSPACE'])/'native-v3-failed-mix-conformity/diagnostics/stage-e-native-v3-executable-harness/evidence'
+          out=Path('/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-failed-mix-reconciliation-20261003T153000Z-failed-review-log')
+          out.mkdir(exist_ok=False)
+          rows=[]
+          for n in ['unit_validation.log','test_results.json']:
+              p=source/n
+              shutil.copy2(p,out/n)
+              rows.append(dict(path=n,bytes=p.stat().st_size,sha256=hashlib.sha256(p.read_bytes()).hexdigest()))
+          (out/'MANIFEST.json').write_text(json.dumps(dict(artifacts=rows,A_slots_consumed=0,source_frames_released=0),indent=2)+'\n')
+          print((out/'unit_validation.log').read_text()[-7000:])
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('evidence_path='+str(out)+'\n')
+          PY
+      - name: Preserve complete failed review log
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-failed-mix-first-review-log
+          path: ${{ steps.preserve.outputs.evidence_path }}
+          retention-days: 90
+          if-no-files-found: error

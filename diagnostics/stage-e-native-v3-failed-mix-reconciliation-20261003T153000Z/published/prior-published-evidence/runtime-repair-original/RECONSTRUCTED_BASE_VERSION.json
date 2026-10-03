@@ -1,0 +1,1 @@
+{"argv":["/workspace/stage-e-python-3.12.14/bin/python3.12","-I","-B","-c","import sys;assert sys.version_info[:3]==(3,12,14);print(sys.version)"],"returncode":0,"stderr":"","stdout":"3.12.14 (main, Aug 13 2026, 02:47:42) [GCC 13.3.0]\n","utc_ns":1791035661515278662}

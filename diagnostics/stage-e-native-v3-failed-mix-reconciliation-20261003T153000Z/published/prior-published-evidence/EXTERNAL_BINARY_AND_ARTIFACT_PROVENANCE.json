@@ -1,0 +1,81 @@
+{
+  "large_original_artifacts": [
+    {
+      "bytes": 95088884,
+      "official_source_url": "https://github.com/actions/python-versions/releases/download/3.12.14-31661455385/python-3.12.14-linux-24.04-x64.tar.gz",
+      "original_package": "runtime-repair-original",
+      "path": "python-3.12.14-linux-24.04-x64.tar.gz",
+      "preserved_local_path": "/workspace/stage-e-evidence/native-v3-a-autonomous-20261003T133500Z/runtime-repair-original/python-3.12.14-linux-24.04-x64.tar.gz",
+      "remote_evidence_root": "/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-a-autonomous-20261003T133500Z-runtime-repair",
+      "sha256": "5a03168292516f6dd6dcf630f4bf5369b108abd7c699a7e1db37f1e622257fff"
+    }
+  ],
+  "original_python_archive": {
+    "asset_id": 512394035,
+    "bytes": 95088884,
+    "release": "3.12.14-31661455385",
+    "sha256": "5a03168292516f6dd6dcf630f4bf5369b108abd7c699a7e1db37f1e622257fff"
+  },
+  "workflow_archives": [
+    {
+      "artifact_id": 11275313122,
+      "bytes": 170382,
+      "extracted_artifacts_preserved_under_manifest": true,
+      "name": "diagnosis.zip",
+      "preserved_local_path": "/workspace/stage-e-evidence/native-v3-a-autonomous-20261003T133500Z/diagnosis.zip",
+      "run_id": 37126924643,
+      "run_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37126924643",
+      "sha256": "41e03933d2d09eb6d1a9c41caec3f2ebd906288410fe8a216b52579a77987132"
+    },
+    {
+      "artifact_id": 11275935112,
+      "bytes": 94652896,
+      "extracted_artifacts_preserved_under_manifest": true,
+      "name": "runtime-repair-original.zip",
+      "preserved_local_path": "/workspace/stage-e-evidence/native-v3-a-autonomous-20261003T133500Z/runtime-repair-original.zip",
+      "run_id": 37127763008,
+      "run_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37127763008",
+      "sha256": "73a72e259c124c10166eb964cbe8b03e34ef4acabb9e27790fa3e6b7b29733f6"
+    },
+    {
+      "artifact_id": 11275634808,
+      "bytes": 586364,
+      "extracted_artifacts_preserved_under_manifest": true,
+      "name": "runtime-closure.zip",
+      "preserved_local_path": "/workspace/stage-e-evidence/native-v3-a-autonomous-20261003T133500Z/runtime-closure.zip",
+      "run_id": 37128222746,
+      "run_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37128222746",
+      "sha256": "77e4efb50211c2b73c9a79b1cdac97d0539f493af7c8255ac0a531d907441019"
+    },
+    {
+      "artifact_id": 11276342821,
+      "bytes": 191953,
+      "extracted_artifacts_preserved_under_manifest": true,
+      "name": "fresh-allocation.zip",
+      "preserved_local_path": "/workspace/stage-e-evidence/native-v3-a-autonomous-20261003T133500Z/fresh-allocation.zip",
+      "run_id": 37129843201,
+      "run_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37129843201",
+      "sha256": "ab75eac7f4f47eb74aa40b64c6077d8c27da4fd939e724731ad063ee9db3a400"
+    },
+    {
+      "artifact_id": 11276671279,
+      "bytes": 501630,
+      "extracted_artifacts_preserved_under_manifest": true,
+      "name": "admission-attempt.zip",
+      "preserved_local_path": "/workspace/stage-e-evidence/native-v3-a-autonomous-20261003T133500Z/admission-attempt.zip",
+      "run_id": 37129843201,
+      "run_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37129843201",
+      "sha256": "463310fa831b9edd65587f22edba78ce5973c2954caab7fd202a1d3afda79287"
+    },
+    {
+      "artifact_id": 11276726645,
+      "bytes": 252313,
+      "extracted_artifacts_preserved_under_manifest": true,
+      "name": "blocker-diagnosis.zip",
+      "preserved_local_path": "/workspace/stage-e-evidence/native-v3-a-autonomous-20261003T133500Z/blocker-diagnosis.zip",
+      "run_id": 37130492923,
+      "run_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37130492923",
+      "sha256": "14b798d3877b82e5c6a034e18b22c19bda1b820eb8d78d1dc7e9c44ec74c994d"
+    }
+  ]
+}

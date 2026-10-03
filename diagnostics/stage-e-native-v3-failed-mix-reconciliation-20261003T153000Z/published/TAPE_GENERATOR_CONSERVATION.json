@@ -1,0 +1,26 @@
+{
+  "generator_versions": [
+    {
+      "commit": "24f3bcfd8507445df768c8f3f622377b9cf6ce64",
+      "path": "diagnostics/stage-e-observer-v2-self-hosted/infra/tape.py",
+      "file_sha256": "a9288abc853546513a95dacb18e1561bd364586d852a6b90fb0c90949dc51141",
+      "pure_extended_frame_AST_sha256": "b50ba6eb9816d4b9c2028b94d062a26e21443385b8e27a032be15e76f3d4297d"
+    },
+    {
+      "commit": "e2a7b6cc8a24378a662e26f6945018cc8a531416",
+      "path": "diagnostics/stage-e-observer-v2-self-hosted/infra/tape.py",
+      "file_sha256": "6096ae743283710fae515d336b20215590e3d60f4b47547945d7f480201bc18f",
+      "pure_extended_frame_AST_sha256": "b50ba6eb9816d4b9c2028b94d062a26e21443385b8e27a032be15e76f3d4297d"
+    },
+    {
+      "commit": "dd75942dcc7498156f80808397c594a6767871e9",
+      "path": "diagnostics/stage-e-observer-v2-self-hosted/infra/tape.py",
+      "file_sha256": "6096ae743283710fae515d336b20215590e3d60f4b47547945d7f480201bc18f",
+      "pure_extended_frame_AST_sha256": "b50ba6eb9816d4b9c2028b94d062a26e21443385b8e27a032be15e76f3d4297d"
+    }
+  ],
+  "frame_generation_algorithm_unchanged": true,
+  "random_seed": null,
+  "determinism": "fixed captured template bytes; fixed lane order/counts; deterministic SHA-512 label signatures; fixed economic clock/cadence; deterministic gzip mtime=0",
+  "later_changes": "shared-library bootstrap/provenance and immutable tape reuse; no extended-frame population change"
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "commit": "4448f30c270af61fbc13079e36249472754568e5",
+    "parent": "04832519727f732d68fbd2ea7ddf643b74eafe14",
+    "path": "certification/tests/fixtures/run380-production-templates.json.gz",
+    "sha256": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+    "template_errors": {
+      "meteora": {
+        "templates": 32,
+        "failed": 7
+      },
+      "pump": {
+        "templates": 16,
+        "failed": 0
+      },
+      "pumpswap": {
+        "templates": 16,
+        "failed": 0
+      }
+    },
+    "metadata": {
+      "source_run": 36278710306,
+      "source_sha": "ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6",
+      "source_artifact": 10918621171,
+      "source_artifact_sha256": "2ed8ce809cc7a19f56aefb80186aaef589ce115a0f05a0cbacb4ee62b3555abb",
+      "scope": "retained transaction bodies and event log bodies; source envelopes reconstructed for offline replay"
+    }
+  },
+  {
+    "commit": "2e9876a32db5bb8665697689e62c10413aa30d66",
+    "parent": "ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6",
+    "path": "certification/tests/fixtures/run380-production-templates.json.gz",
+    "sha256": "6c3d4c0689a4886c0e1fedc95a758e634fb2de1b2cd8b93bec580e40ad008376",
+    "template_errors": {
+      "meteora": {
+        "templates": 32,
+        "failed": 7
+      },
+      "pump": {
+        "templates": 16,
+        "failed": 0
+      },
+      "pumpswap": {
+        "templates": 16,
+        "failed": 0
+      }
+    },
+    "metadata": {
+      "source_run": 36278710306,
+      "source_sha": "ee6523fb599f25e04e08fda67b7b14bbb7f9d2a6",
+      "source_artifact": 10918621171,
+      "source_artifact_sha256": "2ed8ce809cc7a19f56aefb80186aaef589ce115a0f05a0cbacb4ee62b3555abb",
+      "scope": "retained transaction bodies and event log bodies; source envelopes reconstructed for offline replay"
+    }
+  }
+]

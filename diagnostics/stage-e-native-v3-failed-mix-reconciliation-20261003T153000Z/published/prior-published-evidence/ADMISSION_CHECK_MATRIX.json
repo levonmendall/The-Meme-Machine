@@ -1,0 +1,37 @@
+{
+  "checks": {
+    "CPU_RAM_envelope": "PASS at signed resource admission; exactly two dedicated vCPU and 8 GiB allocated RAM",
+    "CPU_RAM_reservation": "PASS signed fresh provider allocation plus complete ancestor/process checks at 14:35 admission; not a Stage-A permit",
+    "Python_capability": "PASS selected isolated executable, prefixes, disabled user/system package fallback, affinity [0,1]",
+    "Python_identity": "PASS actual executing 3.12.14 with verified Stage-E-local executable and libpython",
+    "SQLite_and_shared_libraries": "PASS 3.45.1 and unchanged SQLite bytes; 1881 stdlib files; complete library closure inspected",
+    "allocation_signature": "PASS independently verified new exact fresh payload against pre-established separate public key",
+    "candidate": "PASS unchanged S/T, 1241 files",
+    "cgroup_completeness": "PASS complete inventory, no restrictive ancestor CPU/cpuset/RAM limit",
+    "child_process_capability": "PASS approved unshare binary launches verified 3.12.14 in a distinct network namespace",
+    "declaration_authorization": "BLOCKED/NOT ADMITTED; tape gate failed first; separate trusted owner key and exact-declaration signed permit are also unavailable",
+    "executor": "PASS existing DigitalOcean droplet 605465049, hostname and boot unchanged",
+    "final_material_admission": "BLOCKED; no complete preflight PASS record and no Stage A",
+    "full_tape_semantic_prefix_checks": "NOT REACHED: approved verifier stops at the first-frame semantic failure; no PASS claimed",
+    "harness": "PASS unchanged approved f480 commit, 62 manifest artifacts",
+    "locked_dependencies": "PASS 62 exact locked websockets files; required PyYAML/jsonschema versions and distribution identities",
+    "process_attestation": "PASS 114 processes at allocation; 116 at post-stop diagnostic; zero unexplained or competing processes",
+    "production_contract": "PASS unchanged approved 5ed5 commit, 192 manifest artifacts",
+    "required_workflow_identity": "PASS actual workflow_dispatch run 37129843201 attempt 1 at exact installed material workflow path",
+    "runtime_reservation": "BYTE IDENTITIES VERIFIED; final authorized declaration/runtime binding NOT ADMITTED after tape failure",
+    "slot_and_source_accounting": "PASS zero A slots consumed, zero trial namespaces created, zero source frames released",
+    "storage_capacity": "PASS approved durable volume, ext4, file/directory fsync and SQLite WAL locking",
+    "storage_reservation": "PASS unchanged reserve_storage check; 10 GiB working, 20 GiB simultaneous publication, 12 GiB headroom",
+    "tape_capacity_reservation": "PASS tape is 2442975789 bytes and included in signed storage bounds",
+    "tape_physical_and_inventory_bytes": "PASS exact approved tape and frame-inventory digests",
+    "tape_semantic_validation": "FAIL unchanged validate_existing at first frame: failed_transaction_mix; 284 actual failed transactions, 256 required",
+    "workload_identity": "PASS unchanged class A workload digest; no feeder or trial process started"
+  },
+  "first_exact_blocker": "failed_transaction_mix",
+  "no_partial_completion_promoted_to_PASS": true,
+  "true_escalation_numbers": [
+    3,
+    4,
+    12
+  ]
+}

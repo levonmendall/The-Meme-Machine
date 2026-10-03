@@ -363,7 +363,7 @@ test_all_normalization_constants_match_actual_run381_source (test_source_groundi
 test_all_required_gates_and_exact_original_rows_preserved (test_source_grounding.SourceGroundingTests.test_all_required_gates_and_exact_original_rows_preserved) ... ok
 test_all_three_full_predecessor_shapes_are_exact (test_source_grounding.SourceGroundingTests.test_all_three_full_predecessor_shapes_are_exact) ... ok
 test_commit_pad_is_additive_before_real_changed_transaction_commit (test_source_grounding.SourceGroundingTests.test_commit_pad_is_additive_before_real_changed_transaction_commit) ... ok
-test_exact_candidate_and_every_preserved_evidence_byte_unchanged (test_source_grounding.SourceGroundingTests.test_exact_candidate_and_every_preserved_evidence_byte_unchanged) ... ok
+test_exact_candidate_and_every_preserved_evidence_byte_unchanged (test_source_grounding.SourceGroundingTests.test_exact_candidate_and_every_preserved_evidence_byte_unchanged) ... ERROR
 test_exact_native_v2_pure_verifier_still_rejects_one_percent_and_incomplete_pairs (test_source_grounding.SourceGroundingTests.test_exact_native_v2_pure_verifier_still_rejects_one_percent_and_incomplete_pairs) ... ok
 test_exact_six_regime_economic_policy_and_sleeves_preserved (test_source_grounding.SourceGroundingTests.test_exact_six_regime_economic_policy_and_sleeves_preserved) ... ok
 test_historical_rationale_explicitly_excludes_artificial_delays_from_production (test_source_grounding.SourceGroundingTests.test_historical_rationale_explicitly_excludes_artificial_delays_from_production) ... ok
@@ -376,7 +376,27 @@ test_original_terminal_predeclaration_and_durability_publication_are_byte_bound 
 test_snapshot_hard_bound_and_owner_limits_are_unchanged_native_source (test_source_grounding.SourceGroundingTests.test_snapshot_hard_bound_and_owner_limits_are_unchanged_native_source) ... ok
 test_stress_profile_preserves_all_injected_delays_and_recovery (test_source_grounding.SourceGroundingTests.test_stress_profile_preserves_all_injected_delays_and_recovery) ... ok
 
+======================================================================
+ERROR: test_exact_candidate_and_every_preserved_evidence_byte_unchanged (test_source_grounding.SourceGroundingTests.test_exact_candidate_and_every_preserved_evidence_byte_unchanged)
 ----------------------------------------------------------------------
-Ran 377 tests in 65.622s
+Traceback (most recent call last):
+  File "/opt/actions-runner/_work/The-Meme-Machine/The-Meme-Machine/native-v3-failed-mix-conformity/diagnostics/stage-e-native-v3-production-envelope-contract/test_source_grounding.py", line 36, in test_exact_candidate_and_every_preserved_evidence_byte_unchanged
+    result=validation.source_integrity()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/actions-runner/_work/The-Meme-Machine/The-Meme-Machine/native-v3-failed-mix-conformity/diagnostics/stage-e-native-v3-production-envelope-contract/static_validation.py", line 50, in source_integrity
+    assert git('rev-parse',commit+'^{tree}').decode().strip()==record['tree']
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/actions-runner/_work/The-Meme-Machine/The-Meme-Machine/native-v3-failed-mix-conformity/diagnostics/stage-e-native-v3-production-envelope-contract/static_validation.py", line 24, in git
+    return subprocess.check_output(['git','-C',str(SOURCE),*args])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['git', '-C', '/mnt/volume_nyc1_1790918115030/meme-machine-observer-v2-7a516a6a/candidate-checkout', 'rev-parse', 'dd75942dcc7498156f80808397c594a6767871e9^{tree}']' returned non-zero exit status 128.
 
-OK
+----------------------------------------------------------------------
+Ran 377 tests in 65.925s
+
+FAILED (errors=1)

@@ -1,0 +1,44 @@
+{
+  "candidate_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "native_spec_sha256": "0f5ac9bab9f75d53546742b405b7bb98721198f2af15569a3c76215818242847",
+  "native_generator_sha256": "0faddec8928925b61e663a50337161eb52e6a229d5fa9c3e113bada1b53440f2",
+  "native_frame_0_payload_sha256": "a3d985034270a4147c30446d291fc5412e0f8be44b36108bab7e4d9c5e0ef27f",
+  "native_frame_0_payload_bytes": 4119399,
+  "actual_total_transactions": 512,
+  "actual_failed_transaction_count": 284,
+  "declared_failed_lane_count": 256,
+  "lane_breakdown": [
+    {
+      "lane": "failed",
+      "declared_transactions": 256,
+      "templates": 16,
+      "actual_failed_transactions": 256,
+      "template_failed_transactions": 0
+    },
+    {
+      "lane": "meteora",
+      "declared_transactions": 128,
+      "templates": 32,
+      "actual_failed_transactions": 28,
+      "template_failed_transactions": 7
+    },
+    {
+      "lane": "pump",
+      "declared_transactions": 48,
+      "templates": 16,
+      "actual_failed_transactions": 0,
+      "template_failed_transactions": 0
+    },
+    {
+      "lane": "pumpswap",
+      "declared_transactions": 80,
+      "templates": 16,
+      "actual_failed_transactions": 0,
+      "template_failed_transactions": 0
+    }
+  ],
+  "actual_templates_error_bytes_are_preserved": true,
+  "A_slots_consumed": 0,
+  "source_frames_released": 0,
+  "diagnostic_only": true
+}

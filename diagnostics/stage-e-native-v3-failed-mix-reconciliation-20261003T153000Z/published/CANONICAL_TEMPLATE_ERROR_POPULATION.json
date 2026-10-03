@@ -1,0 +1,144 @@
+{
+  "template_archive_sha256": "73f5a7bc8dd600ec060f3a9f907fb57b1fac9ea5bdf7d27ff9d3e8df72678ebe",
+  "population": {
+    "meteora": {
+      "templates": 32,
+      "failed_indices": [
+        6,
+        7,
+        15,
+        16,
+        20,
+        21,
+        23
+      ],
+      "error_values": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "InstructionError": [
+            4,
+            {
+              "Custom": 6016
+            }
+          ]
+        },
+        {
+          "InstructionError": [
+            4,
+            {
+              "Custom": 6016
+            }
+          ]
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "InstructionError": [
+            4,
+            {
+              "Custom": 6016
+            }
+          ]
+        },
+        {
+          "InstructionError": [
+            4,
+            {
+              "Custom": 6016
+            }
+          ]
+        },
+        null,
+        null,
+        null,
+        {
+          "InstructionError": [
+            4,
+            {
+              "Custom": 6016
+            }
+          ]
+        },
+        {
+          "InstructionError": [
+            3,
+            {
+              "Custom": 81
+            }
+          ]
+        },
+        null,
+        {
+          "InstructionError": [
+            3,
+            {
+              "Custom": 81
+            }
+          ]
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    "pump": {
+      "templates": 16,
+      "failed_indices": [],
+      "error_values": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    "pumpswap": {
+      "templates": 16,
+      "failed_indices": [],
+      "error_values": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  }
+}

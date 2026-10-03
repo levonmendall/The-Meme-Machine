@@ -1,0 +1,11 @@
+{
+  "workflow_run": 37135422430,
+  "artifact_id": 11278837291,
+  "archive_sha256": "40c1dbf4562cc5ca0df7df08645276b057acb5e4c2b06854be47a8678b37b8f4",
+  "outer_manifest_sha256": "217bb4dc7767dc9797bff034c1a1678be7a9e0a68ff9c7544e367647bf3bcc9a",
+  "outer_artifacts_verified": 85,
+  "one_archive_hidden_file_restored_from_exact_pinned_source": true,
+  "successor_manifest_sha256": "91753a805cd7acd48a10bb5e9cf31673f54ab9aebd70ee89039f37a7606ba9ff",
+  "successor_artifacts_verified": 65,
+  "mismatches": []
+}

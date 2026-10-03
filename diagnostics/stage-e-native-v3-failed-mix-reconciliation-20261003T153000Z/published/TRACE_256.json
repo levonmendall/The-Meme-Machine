@@ -1,0 +1,17 @@
+{
+  "associated_test": "diagnostics/stage-e-native-v3-executable-harness/tests/test_tape_clock.py",
+  "calculation_assumed_by_verifier": "Total meta.err != null was incorrectly equated to transaction_mix.failed lane cardinality.",
+  "classification": "CONTRACT_IMPLEMENTATION_MISMATCH",
+  "configuration_override": null,
+  "constant": 256,
+  "design_record": "Immutable native source/spec/template/tape identities and lane mix in the approved contract and review package.",
+  "file": "diagnostics/stage-e-native-v3-executable-harness/harness/tape.py",
+  "function": "validate_existing",
+  "introduction_commit": "7e906e6683ba745f11a390f3c354291980321b89",
+  "introduction_parent": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+  "introduction_utc": "2026-10-02T19:41:59Z",
+  "not_stale_due_to_later_fixture_evolution": true,
+  "predecessor_line": 97,
+  "reason_or_comment": "No total-error calculation or contract justification accompanies the literal.",
+  "test_scope": "Opaque reader/clock record tests; no validate_existing failed-population test."
+}

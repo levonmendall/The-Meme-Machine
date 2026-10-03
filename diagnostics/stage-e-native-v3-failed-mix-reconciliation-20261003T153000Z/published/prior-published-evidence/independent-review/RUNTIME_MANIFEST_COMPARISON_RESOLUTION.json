@@ -1,0 +1,21 @@
+{
+  "reason": "Different collector imports change which extension objects are mapped in /proc/self/maps; file identities and the complete stdlib inventory remain identical.",
+  "first_process_libraries": 64,
+  "second_process_libraries": 64,
+  "changes": [
+    {
+      "path": "/workspace/stage-e-python-3.12.14/lib/python3.12/lib-dynload/unicodedata.cpython-312-x86_64-linux-gnu.so",
+      "sha256": "350369af6279544528236519c3c51a6e43f846f9f3e1c2b2ba962021a73af2b6",
+      "already_verified_in_unchanged_stdlib_inventory": true
+    },
+    {
+      "path": "/workspace/stage-e-python-3.12.14/lib/python3.12/lib-dynload/_uuid.cpython-312-x86_64-linux-gnu.so",
+      "sha256": "a7fc5ec2f38a80c66c5e9e190de1614b020c109af5ab5a58e3854c06960fbcd3",
+      "already_verified_in_unchanged_stdlib_inventory": true
+    }
+  ],
+  "no_changed_file_bytes": true,
+  "no_material_trial_began": true,
+  "stdlib_digest": "b9cd0f55ae1f6f93f11af0df65026b722065aba8cd99b276095cbfad9e19e6eb",
+  "all_other_runtime_fields_identical": true
+}

@@ -1,0 +1,15 @@
+commit e2a7b6cc8a24378a662e26f6945018cc8a531416
+Author:     levonmendall <levon_mendall@yahoo.com>
+AuthorDate: Fri Oct 2 07:19:25 2026 -0700
+Commit:     levonmendall <levon_mendall@yahoo.com>
+CommitDate: Fri Oct 2 07:19:25 2026 -0700
+
+    [skip ci] Bind shared Python library, exact shared worker topology and immutable tape reuse before observer trials
+
+commit 24f3bcfd8507445df768c8f3f622377b9cf6ce64
+Author:     levonmendall <levon_mendall@yahoo.com>
+AuthorDate: Fri Oct 2 06:55:10 2026 -0700
+Commit:     levonmendall <levon_mendall@yahoo.com>
+CommitDate: Fri Oct 2 06:55:10 2026 -0700
+
+    [skip ci] Add external equal-byte tape, real-speed clock/bootstrap and observer proofs; no workload starts

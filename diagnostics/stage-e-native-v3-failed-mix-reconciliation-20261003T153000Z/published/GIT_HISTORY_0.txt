@@ -1,0 +1,15 @@
+commit 2e9876a32db5bb8665697689e62c10413aa30d66
+Author:     levonmendall <levon_mendall@yahoo.com>
+AuthorDate: Sat Sep 26 17:19:30 2026 -0700
+Commit:     levonmendall <levon_mendall@yahoo.com>
+CommitDate: Sat Sep 26 17:19:30 2026 -0700
+
+    Repair Run 380 sustained Solana persistence and Meteora candidate retention [non-market-cert]
+
+commit 4448f30c270af61fbc13079e36249472754568e5
+Author:     levonmendall <levon_mendall@yahoo.com>
+AuthorDate: Sat Sep 26 17:04:09 2026 -0700
+Commit:     levonmendall <levon_mendall@yahoo.com>
+CommitDate: Sat Sep 26 17:04:09 2026 -0700
+
+    Run 380 offline source-clock pressure comparison; no market authority

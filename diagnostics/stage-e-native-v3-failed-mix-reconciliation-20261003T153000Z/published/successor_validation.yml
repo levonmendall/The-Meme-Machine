@@ -1,0 +1,31 @@
+name: Stage-E Native V3 failed-mix conformity validation (PAPER ONLY)
+on: [create]
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'repair/stage-e-native-v3-failed-mix-conformity-20261003T153000Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 20
+    steps:
+      - name: Read narrowly corrected successor and immutable history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: native-v3-failed-mix-conformity
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Nonmaterial deterministic and existing-tape validation
+        id: validate
+        shell: sh
+        env:
+          MM_SUCCESSOR_REPOSITORY: ${{ github.workspace }}/native-v3-failed-mix-conformity
+        run: exec /workspace/stage-e-runtime/bin/python -I -B native-v3-failed-mix-conformity/diagnostics/stage-e-native-v3-failed-mix-reconciliation-20261003T153000Z/collect_successor_validation.py
+      - name: Preserve complete successor review evidence
+        if: always() && steps.validate.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-failed-mix-conformity-validation
+          path: ${{ steps.validate.outputs.evidence_path }}
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: false

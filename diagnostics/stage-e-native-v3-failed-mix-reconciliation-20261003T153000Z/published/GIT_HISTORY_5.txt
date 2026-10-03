@@ -1,0 +1,29 @@
+commit 7e906e6683ba745f11a390f3c354291980321b89
+Author:     levonmendall <levon_mendall@yahoo.com>
+AuthorDate: Fri Oct 2 12:41:59 2026 -0700
+Commit:     levonmendall <levon_mendall@yahoo.com>
+CommitDate: Fri Oct 2 12:41:59 2026 -0700
+
+    [skip ci] Publish Stage-E native-v3 executable harness review package
+    
+    STAGE_E_NATIVE_V3_EXECUTABLE_REVIEW_READY. PAPER ONLY.
+    
+    Add the external A/B/C harness, strict raw verifier, authenticated dedicated
+    resource attestation, immutable tape validation, fresh consumed trial ledger,
+    signed future declaration binding, evidence preservation and review workflow.
+    
+    Keep the approved v3 contract at 5ed5aef4dfe1bb7823037fe1ce440c193411a194
+    byte-identical. Frozen native candidate S/T remain unchanged:
+    S 7a516a6a92be9347661ac0e7f560971c171a0931
+    T 9da7d1e1625ba04c1437c63606c90f5e293bdba7
+    
+    Package manifest SHA-256:
+    4af38c299c2faf087974e4023871ebe0e4e9c64fc195e5979e307f8c29a85a4b
+    
+    142 unit/deterministic/static/pure-verifier checks pass; zero failures,
+    errors or skips. All 47 native gates remain NOT_RUN. No A/B/C execution,
+    workload-frame release, provider/market workload or Stage-F work occurred.
+    The declaration and material workflow remain NOT AUTHORIZED / PREVIEW ONLY.
+    
+    Preserve OBSERVER_V2: INVALID_PAIR with no slot reuse or acceptance credit.
+    Stage E: RED. Stage F: NOT STARTED. STOP FOR ASTRA/OWNER.

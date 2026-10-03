@@ -1,0 +1,15 @@
+{
+  "pr": {
+    "number": 118,
+    "html_url": "https://github.com/levonmendall/The-Meme-Machine/pull/118",
+    "state": "open",
+    "draft": true,
+    "head": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+    "body": "Corrects the native-v3 cgroup completeness false negative when CPU/cpuset are available at the true root but not enabled for its children. `harness/attest.py` preserves raw interface states and independently proves full ancestry, namespace/mount visibility and controller applicability. Every applicable ancestor limit remains enforced, including above a disabled child subtree.\n\nOnly `harness/attest.py` changes production executable behavior. Frozen candidate S/T, the approved contract, A/B/C bindings, prior executable repairs and the authoritative diagnosis package remain unchanged. Signed allocation remains required and unsupplied; A preflight stays BLOCKED pending independent executable re-review and full admission.\n\nValidation on Python 3.12.14: 368/368 full deterministic tests, 55/55 unchanged contract static tests, and 104/104 pure resource-attestation/verifier tests. The diagnosed-host fixture passes cgroup completeness only. All 16 required rejection classes are covered by 33 controller rejection tests plus two additional raw timeline rejection tests; zero failures, errors or skips.\n\nPAPER ONLY. No fresh preflight, A/B/C, native service workload, source-frame release, slot consumption or host/cloud configuration change. Stage E RED; Stage F NOT STARTED. STOP FOR ASTRA/OWNER.\n\n[Exact review package](https://github.com/levonmendall/The-Meme-Machine/blob/f480c6b4f7a8442fd148c7ed61bcc4447edaefca/diagnostics/stage-e-native-v3-executable-harness/CGROUP_INSPECTOR_FIX_REVIEW.md)"
+  },
+  "comments": [],
+  "reviews": [],
+  "observed_utc": "2026-10-03T16:22:00Z",
+  "successor_source_commit": "0c8edd6f35533fd2f345087bcb2faea1e9bb9a7a",
+  "successor_independent_approval_present": false
+}

@@ -125,7 +125,7 @@ test_member_after_terminal_is_rejected_even_if_inventoried (test_overload_termin
 test_missing_raw_restart_proof_rejects_self_asserted_safety (test_overload_terminal.RawTerminalVerifierTests.test_missing_raw_restart_proof_rejects_self_asserted_safety) ... ok
 test_original_failure_ancestry_cannot_be_replaced_by_member_claim (test_overload_terminal.RawTerminalVerifierTests.test_original_failure_ancestry_cannot_be_replaced_by_member_claim) ... ok
 test_partial_raw_trial_gets_only_terminal_C_safety_credit (test_overload_terminal.RawTerminalVerifierTests.test_partial_raw_trial_gets_only_terminal_C_safety_credit) ... ok
-test_abandoned_socket_cleanup_requires_confirmed_termination (test_preservation.PreservationTests.test_abandoned_socket_cleanup_requires_confirmed_termination) ... ok
+test_abandoned_socket_cleanup_requires_confirmed_termination (test_preservation.PreservationTests.test_abandoned_socket_cleanup_requires_confirmed_termination) ... ERROR
 test_boolean_slot_cannot_be_integer_one (test_preservation.PreservationTests.test_boolean_slot_cannot_be_integer_one) ... ok
 test_campaign_authority_and_ledger_are_copied_together (test_preservation.PreservationTests.test_campaign_authority_and_ledger_are_copied_together) ... ok
 test_campaign_namespace_cannot_be_created_twice (test_preservation.PreservationTests.test_campaign_namespace_cannot_be_created_twice) ... ok
@@ -134,16 +134,16 @@ test_changed_ledger_hash_chain_fails (test_preservation.PreservationTests.test_c
 test_durable_copy_readback_retains_original (test_preservation.PreservationTests.test_durable_copy_readback_retains_original) ... ok
 test_exact_sequential_six_slots (test_preservation.PreservationTests.test_exact_sequential_six_slots) ... ok
 test_exclusive_receipts_cannot_overwrite (test_preservation.PreservationTests.test_exclusive_receipts_cannot_overwrite) ... ok
-test_failure_copy_keeps_all_regular_files_and_itemizes_specials (test_preservation.PreservationTests.test_failure_copy_keeps_all_regular_files_and_itemizes_specials) ... ok
+test_failure_copy_keeps_all_regular_files_and_itemizes_specials (test_preservation.PreservationTests.test_failure_copy_keeps_all_regular_files_and_itemizes_specials) ... ERROR
 test_failure_terminal_old_unused_not_reusable (test_preservation.PreservationTests.test_failure_terminal_old_unused_not_reusable) ... ok
 test_injected_sealing_IO_failure_still_records_and_publishes (test_preservation.PreservationTests.test_injected_sealing_IO_failure_still_records_and_publishes) ... ok
 test_inventory_detects_byte_change (test_preservation.PreservationTests.test_inventory_detects_byte_change) ... ok
 test_inventory_detects_extra_file (test_preservation.PreservationTests.test_inventory_detects_extra_file) ... ok
-test_only_abandoned_IPC_is_removed_and_every_regular_byte_is_preserved (test_preservation.PreservationTests.test_only_abandoned_IPC_is_removed_and_every_regular_byte_is_preserved) ... ok
+test_only_abandoned_IPC_is_removed_and_every_regular_byte_is_preserved (test_preservation.PreservationTests.test_only_abandoned_IPC_is_removed_and_every_regular_byte_is_preserved) ... ERROR
 test_publication_error_does_not_erase_terminal_ledger (test_preservation.PreservationTests.test_publication_error_does_not_erase_terminal_ledger) ... ok
 test_regular_file_named_db_socket_is_never_deleted (test_preservation.PreservationTests.test_regular_file_named_db_socket_is_never_deleted) ... ok
 test_seal_exception_cannot_bypass_INVALID_or_regular_failure_publication (test_preservation.PreservationTests.test_seal_exception_cannot_bypass_INVALID_or_regular_failure_publication) ... ok
-test_socket_failure_is_cleaned_only_after_recorded_process_termination (test_preservation.PreservationTests.test_socket_failure_is_cleaned_only_after_recorded_process_termination) ... ok
+test_socket_failure_is_cleaned_only_after_recorded_process_termination (test_preservation.PreservationTests.test_socket_failure_is_cleaned_only_after_recorded_process_termination) ... ERROR
 test_symlink_refused (test_preservation.PreservationTests.test_symlink_refused) ... ok
 test_torn_ledger_fails_closed (test_preservation.PreservationTests.test_torn_ledger_fails_closed) ... ok
 test_trial_consumed_before_completion_no_retry (test_preservation.PreservationTests.test_trial_consumed_before_completion_no_retry) ... ok
@@ -376,7 +376,55 @@ test_original_terminal_predeclaration_and_durability_publication_are_byte_bound 
 test_snapshot_hard_bound_and_owner_limits_are_unchanged_native_source (test_source_grounding.SourceGroundingTests.test_snapshot_hard_bound_and_owner_limits_are_unchanged_native_source) ... ok
 test_stress_profile_preserves_all_injected_delays_and_recovery (test_source_grounding.SourceGroundingTests.test_stress_profile_preserves_all_injected_delays_and_recovery) ... ok
 
+======================================================================
+ERROR: test_abandoned_socket_cleanup_requires_confirmed_termination (test_preservation.PreservationTests.test_abandoned_socket_cleanup_requires_confirmed_termination)
 ----------------------------------------------------------------------
-Ran 377 tests in 65.622s
+Traceback (most recent call last):
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/tests/test_preservation.py", line 116, in test_abandoned_socket_cleanup_requires_confirmed_termination
+    folder = self.abandoned(self.root)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/tests/test_preservation.py", line 110, in abandoned
+    sock.bind(str(folder/'db.sock'));sock.close()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted
 
-OK
+======================================================================
+ERROR: test_failure_copy_keeps_all_regular_files_and_itemizes_specials (test_preservation.PreservationTests.test_failure_copy_keeps_all_regular_files_and_itemizes_specials)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/tests/test_preservation.py", line 138, in test_failure_copy_keeps_all_regular_files_and_itemizes_specials
+    source = self.root/'source';source.mkdir();self.abandoned(source)
+                                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/tests/test_preservation.py", line 110, in abandoned
+    sock.bind(str(folder/'db.sock'));sock.close()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted
+
+======================================================================
+ERROR: test_only_abandoned_IPC_is_removed_and_every_regular_byte_is_preserved (test_preservation.PreservationTests.test_only_abandoned_IPC_is_removed_and_every_regular_byte_is_preserved)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/tests/test_preservation.py", line 122, in test_only_abandoned_IPC_is_removed_and_every_regular_byte_is_preserved
+    folder = self.abandoned(self.root)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/tests/test_preservation.py", line 110, in abandoned
+    sock.bind(str(folder/'db.sock'));sock.close()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted
+
+======================================================================
+ERROR: test_socket_failure_is_cleaned_only_after_recorded_process_termination (test_preservation.PreservationTests.test_socket_failure_is_cleaned_only_after_recorded_process_termination)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/tests/test_preservation.py", line 178, in test_socket_failure_is_cleaned_only_after_recorded_process_termination
+    ledger,folder,d,pub = self.failure_attempt();self.abandoned(folder)
+                                                 ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/tests/test_preservation.py", line 110, in abandoned
+    sock.bind(str(folder/'db.sock'));sock.close()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted
+
+----------------------------------------------------------------------
+Ran 377 tests in 33.870s
+
+FAILED (errors=4)

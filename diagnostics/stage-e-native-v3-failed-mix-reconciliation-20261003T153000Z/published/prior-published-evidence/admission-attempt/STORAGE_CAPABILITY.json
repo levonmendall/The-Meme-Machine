@@ -1,0 +1,40 @@
+{
+  "A_trials_started": 0,
+  "closed_database_bytes": 8192,
+  "closed_database_sha256": "420e9761dd4a0fb3356de409daffd45a15f8b9b5da9d43de3e32e1f13e571ee1",
+  "directory_fsync_returned": true,
+  "files": [
+    {
+      "bytes": 4096,
+      "fsync_returned": true,
+      "path": "/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-a-autonomous-20261003T133500Z-allocation-binding-storage-capability/capability.sqlite",
+      "sha256": "e3ba06536f7dbba337dee3c1c5f01b43660ce276abb54c5cee2d5defc5b970aa"
+    },
+    {
+      "bytes": 32768,
+      "fsync_returned": true,
+      "path": "/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-a-autonomous-20261003T133500Z-allocation-binding-storage-capability/capability.sqlite-shm",
+      "sha256": "8f6b27626a43eae5ea4204bec9d002a894a4f444d5b2e0df17f16b7f10cbec1e"
+    },
+    {
+      "bytes": 12392,
+      "fsync_returned": true,
+      "path": "/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-a-autonomous-20261003T133500Z-allocation-binding-storage-capability/capability.sqlite-wal",
+      "sha256": "088d8b6d099b7a281be05ac463a65483f4aa2deddc8e1e38c390bab4e876e803"
+    }
+  ],
+  "journal_mode": "wal",
+  "path": "/mnt/volume_nyc1_1790918115030/stage-e-native-v3-paper-preflight/native-v3-a-autonomous-20261003T133500Z-allocation-binding-storage-capability/capability.sqlite",
+  "probe_rows": 1,
+  "second_writer_error": "database is locked",
+  "second_writer_excluded": true,
+  "separate_connection_readback": [
+    [
+      1
+    ]
+  ],
+  "source_frames_released": 0,
+  "sqlite_version": "3.45.1",
+  "synchronous": 2,
+  "version": "fresh-storage-capability-only"
+}

@@ -377,6 +377,6 @@ test_snapshot_hard_bound_and_owner_limits_are_unchanged_native_source (test_sour
 test_stress_profile_preserves_all_injected_delays_and_recovery (test_source_grounding.SourceGroundingTests.test_stress_profile_preserves_all_injected_delays_and_recovery) ... ok
 
 ----------------------------------------------------------------------
-Ran 377 tests in 65.622s
+Ran 377 tests in 36.846s
 
 OK
