@@ -1,0 +1,71 @@
+name: Stage-E Native V3-A complete fresh admission and conditional Stage A (PAPER ONLY)
+on:
+  create:
+  workflow_dispatch:
+    inputs:
+      execution_class:
+        type: choice
+        options: [A]
+        required: true
+permissions:
+  contents: read
+jobs:
+  register:
+    if: github.event_name == 'create' && github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-post-approval-20261003T173000Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 5
+    steps:
+      - name: Register fresh workflow without workload or reservation
+        run: /usr/bin/python3 -I -B -c 'import json,os; print(json.dumps({k:os.environ.get(k) for k in ("GITHUB_EVENT_NAME","GITHUB_RUN_ID","GITHUB_SHA","RUNNER_NAME")}))'
+  preflight:
+    if: github.event_name == 'workflow_dispatch' && inputs.execution_class == 'A' && github.run_attempt == 1 && github.ref == 'refs/heads/preflight/native-v3-a-post-approval-20261003T173000Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 120
+    steps:
+      - name: Read immutable independently approved successor
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: e85f7e35df4d4880763c256b5677de575d912d15
+          path: native-v3-approved-post-approval
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read separate admission collector and immutable approval binding
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: native-v3-post-approval-preflight
+          persist-credentials: false
+      - name: Fresh complete process, resource and allocation facts
+        id: binding
+        shell: sh
+        env:
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-post-approval
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: exec /workspace/stage-e-runtime/bin/python -I -B native-v3-post-approval-preflight/diagnostics/stage-e-native-v3-a-post-approval-20261003T173000Z/complete_preflight.py prepare
+      - name: Preserve fresh allocation for independent controller signature
+        if: always() && steps.binding.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-post-approval-allocation-${{ github.run_id }}-1
+          path: ${{ steps.binding.outputs.evidence_path }}
+          retention-days: 90
+          include-hidden-files: true
+          overwrite: false
+          if-no-files-found: error
+      - name: Verify signature and every remaining admission invariant, then conditional Stage A
+        if: steps.binding.outcome == 'success'
+        id: complete
+        shell: sh
+        env:
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-post-approval
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: exec /workspace/stage-e-runtime/bin/python -I -B native-v3-post-approval-preflight/diagnostics/stage-e-native-v3-a-post-approval-20261003T173000Z/complete_preflight.py complete
+      - name: Preserve final admission or Stage-A result and fresh evidence
+        if: always() && steps.binding.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-post-approval-preflight-${{ github.run_id }}-1
+          path: ${{ steps.binding.outputs.evidence_path }}
+          retention-days: 90
+          include-hidden-files: true
+          overwrite: false
+          if-no-files-found: error

@@ -1,0 +1,16 @@
+{
+  "adapted_sha256": "025f41e8bba47169587dc713ed811df818de447121f84cfd69b3b135a705e118",
+  "allocation_validity_policy": "Two-hour fresh validity window covers complete admission plus the frozen one-trial maximum wall duration; no resource envelope or workload change.",
+  "approval_publication_bound": "26136f1b7dc43f809e9968b5d1d9f805ee382aa9",
+  "changes": [
+    "fresh identity and namespace",
+    "fresh independently published allocation-only key",
+    "Git blob/mode/completeness verification",
+    "preserve supplied approval and owner hold",
+    "nonmaterial reservations and complete check matrix",
+    "Exact fresh declaration and unchanged owner-signature gate; conditional Stage-A routing only after complete PASS"
+  ],
+  "scope": "Operational preflight collector only; exact successor harness and contract unchanged",
+  "source_before_sha256": "db592b55f1d7db74ad23b3ab2540b0c060b925feaa3cab2138d50491457b4187",
+  "source_commit": "a568bb7704131c0aad3147968ed74ceabdce9466"
+}
