@@ -1,0 +1,20 @@
+{
+  "artifacts": [
+    {
+      "bytes": 70267,
+      "path": "PROVIDER_PLAN_CAPABILITIES.html",
+      "sha256": "26dc66504e5e4e2b5ccd5b46af92b48b99d844ec18c897a8e8650b5d7495419e"
+    },
+    {
+      "bytes": 3972,
+      "path": "PROVIDER_RESPONSE.json",
+      "sha256": "d38aeb771d2ccff5bdde27eaf0abd9f26a7eb678318eee95cd2eb0fad6655fdb"
+    }
+  ],
+  "collected_utc_ns": 1791027341440446054,
+  "droplet_id": 605465049,
+  "method": "read-only droplet_get",
+  "provider": "DigitalOcean",
+  "response_bytes_preserved_exactly": true,
+  "response_format": "Exact UTF-8 provider receipt returned by DigitalOcean MCP; no reserialization of its text"
+}
