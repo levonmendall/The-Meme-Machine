@@ -1,0 +1,10 @@
+{
+  "authority": "allocation only; not an owner permit",
+  "git_tree": "1dab73b9aa88146fcf2fa73e0080977e3028b4d4",
+  "independent_git_readback_verified": true,
+  "trust_commit": "8e3914672f7188769f51ba68fe00d328b8cda1bd",
+  "trust_path": "allocation-trust/native-v3-a-post-approval-20261003T173000Z/ALLOCATION_PUBLIC_KEY.pem",
+  "trusted_public_key_sha256": "f2257220125d8d48b752cce6d044b508c05436263dcf53f3d9e135e037ba0b36",
+  "verification_utc_ns": 1791048550446868367,
+  "verified_before_signature": true
+}

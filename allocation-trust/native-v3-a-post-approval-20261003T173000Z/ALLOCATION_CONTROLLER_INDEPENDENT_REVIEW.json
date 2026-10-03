@@ -1,0 +1,20 @@
+{
+  "CPU_ids": [
+    0,
+    1
+  ],
+  "RAM_usable_bytes": 8327667712,
+  "approved_system_processes": 24,
+  "artifacts_verified": 271,
+  "controller_independent_allocation_review_passed": true,
+  "fresh_payload_sha256": "670d91db6c7f2c44306d64a8d576f96acb28b359884014dfe1033faf357c5ec2",
+  "inspection_errors": [],
+  "manifest_sha256": "3a7812733f9565e2de0a69338ec860e9e67496d905423556adb0e0cc625b0fd8",
+  "processes": 113,
+  "storage_free_bytes": [
+    47399882752
+  ],
+  "unresolved_processes": 0,
+  "verification_utc_ns": 1791050448757232626,
+  "zip_sha256": "eb812ba53694280d8271822ff591a788f60987d10867255524c4e81c6f45a095"
+}
