@@ -1,0 +1,75 @@
+name: Native-v3 A complete preflight with signed allocation (PAPER ONLY)
+on:
+  create:
+permissions:
+  contents: read
+jobs:
+  signed-preflight:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-complete-20261003T112100Z'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 25
+    steps:
+      - name: Read exact immutable approved executable
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f480c6b4f7a8442fd148c7ed61bcc4447edaefca
+          path: native-v3-approved-complete-20261003T112100Z
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read separate preflight evidence controller
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: native-v3-complete-20261003T112100Z
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Fresh process and allocation binding; zero execution slots
+        id: binding
+        shell: sh
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-complete-20261003T112100Z
+        run: |
+          /usr/bin/python3 -I -B - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          env=json.loads(Path('/mnt/volume_nyc1_1790918115030/meme-machine-observer-v2-7a516a6a/fresh-environment.json').read_bytes())
+          executable=env['python_executable']
+          if hashlib.sha256(Path(executable).read_bytes()).hexdigest()!=env['python_executable_hash']:
+              raise SystemExit('preserved_Python_executable_changed')
+          script=Path(os.environ['GITHUB_WORKSPACE'])/'native-v3-complete-20261003T112100Z/diagnostics/stage-e-native-v3-a-preflight-20261003T112100Z/complete_preflight.py'
+          os.execv(executable,[executable,'-I','-B',str(script),'prepare'])
+          PY
+      - name: Preserve allocation payload before controller-only signing
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-a-allocation-binding-20261003T112100Z-${{ github.run_id }}-1
+          path: ${{ steps.binding.outputs.evidence_path }}
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: false
+      - name: Verify allocation signature; inspect runtime, immutable tape, storage and preview
+        id: complete
+        shell: sh
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-complete-20261003T112100Z
+        run: |
+          /usr/bin/python3 -I -B - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          env=json.loads(Path('/mnt/volume_nyc1_1790918115030/meme-machine-observer-v2-7a516a6a/fresh-environment.json').read_bytes())
+          executable=env['python_executable']
+          if hashlib.sha256(Path(executable).read_bytes()).hexdigest()!=env['python_executable_hash']:
+              raise SystemExit('preserved_Python_executable_changed')
+          script=Path(os.environ['GITHUB_WORKSPACE'])/'native-v3-complete-20261003T112100Z/diagnostics/stage-e-native-v3-a-preflight-20261003T112100Z/complete_preflight.py'
+          os.execv(executable,[executable,'-I','-B',str(script),'complete'])
+          PY
+      - name: Preserve only final preflight evidence and unauthorized preview
+        if: always() && steps.binding.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-a-final-preflight-20261003T112100Z-${{ github.run_id }}-1
+          path: ${{ steps.binding.outputs.evidence_path }}
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: false
