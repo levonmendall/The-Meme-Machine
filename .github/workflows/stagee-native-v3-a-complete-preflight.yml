@@ -5,7 +5,7 @@ permissions:
   contents: read
 jobs:
   signed-preflight:
-    if: github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-complete-20261003T112100Z'
+    if: github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-complete-20261003T112100Z-r2'
     runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
     timeout-minutes: 25
     steps:
@@ -42,7 +42,7 @@ jobs:
       - name: Preserve allocation payload before controller-only signing
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: native-v3-a-allocation-binding-20261003T112100Z-${{ github.run_id }}-1
+          name: native-v3-a-allocation-binding-r2-20261003T112100Z-${{ github.run_id }}-1
           path: ${{ steps.binding.outputs.evidence_path }}
           if-no-files-found: error
           retention-days: 90
@@ -68,7 +68,7 @@ jobs:
         if: always() && steps.binding.outputs.evidence_path != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: native-v3-a-final-preflight-20261003T112100Z-${{ github.run_id }}-1
+          name: native-v3-a-final-preflight-r2-20261003T112100Z-${{ github.run_id }}-1
           path: ${{ steps.binding.outputs.evidence_path }}
           if-no-files-found: error
           retention-days: 90

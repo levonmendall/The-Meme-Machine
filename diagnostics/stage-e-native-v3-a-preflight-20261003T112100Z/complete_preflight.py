@@ -23,12 +23,12 @@ import core
 PREFLIGHT='native-v3-a-preflight-20261003T112100Z'
 MOUNT=Path('/mnt/volume_nyc1_1790918115030')
 OLD=MOUNT/'meme-machine-observer-v2-7a516a6a'
-OUTPUT=MOUNT/'stage-e-native-v3-paper-preflight'/PREFLIGHT/'allocation-binding'
+OUTPUT=MOUNT/'stage-e-native-v3-paper-preflight'/PREFLIGHT/'allocation-binding-r2'
 EXECUTABLE='f480c6b4f7a8442fd148c7ed61bcc4447edaefca'
 KEY_SHA='dd8987a187f7dc241369c56354d1787f7d39bed0a8af5a993075e5e6eeab3f97'
 TRUST_COMMIT='6ee0c06c17f78048a37767edf9256403fe23a555'
 TRUST_PATH='allocation-trust/native-v3-a-20261003T112100Z/ALLOCATION_PUBLIC_KEY.pem'
-READY_BRANCH='preflight/native-v3-a-complete-20261003T112100Z'
+READY_BRANCH='preflight/native-v3-a-complete-20261003T112100Z-r2'
 READY_PATH='diagnostics/stage-e-native-v3-a-preflight-20261003T112100Z/signed/ALLOCATION_READY.json'
 RESULT=dict(preflight_id=PREFLIGHT,paper_only=True,stage_e='RED',stage_f='NOT STARTED',
     execution_authorized=False,actual_slots_reserved=False,source_frames_released=0,
@@ -124,6 +124,20 @@ def process_approval(snapshot):
         if fields.get('Id') and fields.get('ControlGroup'):
             groups[fields['Id']]=fields['ControlGroup']
     groups['init.scope']='/init.scope'
+    directory_inventory={}
+    for unit,group in groups.items():
+        folder=Path('/sys/fs/cgroup')/group.lstrip('/')
+        paths=[folder,*sorted(p for p in folder.rglob('*') if p.is_dir())]
+        records=[]
+        for path in paths:
+            core.require(path.is_dir() and not path.is_symlink(),'system_service_cgroup_directory_unavailable')
+            relative='/'+path.relative_to('/sys/fs/cgroup').as_posix()
+            raw='0::'+relative+'\n'
+            stat=path.stat()
+            records.append(dict(path=str(path),cgroup_path=relative,inode=stat.st_ino,device=stat.st_dev,
+                unified_membership_raw=raw,membership_sha256=core.sha(raw.encode())))
+        directory_inventory[unit]=records
+    save('SYSTEMD_CGROUP_DIRECTORY_INVENTORY.json',directory_inventory)
     scope={snapshot['scope_pid']}
     while True:
         expanded=scope|{r['pid'] for r in snapshot['processes'] if r['ppid'] in scope}
@@ -134,7 +148,8 @@ def process_approval(snapshot):
         if row['kernel'] or row['pid'] in scope:continue
         candidates=expected.get(row['executable'],())
         hashes={task['cgroup_sha256'] for task in row['threads']}
-        roles=[u for u in candidates if u in groups and hashes=={core.sha(('0::'+groups[u]+'\n').encode())}]
+        roles=[u for u in candidates if u in directory_inventory and hashes
+            and hashes.issubset({r['membership_sha256'] for r in directory_inventory[u]})]
         core.require(bool(roles),'competing_or_unattested_process:'+str(row['pid'])+':'+str(row['executable']))
         core.require(core.file_sha(row['executable'])==row['executable_sha256'],'system_process_executable_changed')
         approved.append({k:row[k] for k in ('pid','start_ticks','executable_sha256')})
@@ -183,7 +198,7 @@ def prepare():
     core.require(len(volume)==1 and volume[0]['model'].strip()=='Volume' and volume[0]['size']==50*1024**3
         and volume[0]['fstype']=='ext4' and str(MOUNT) in volume[0]['mountpoints'],'physical_durable_volume_identity_mismatch')
     for receipt in (snapshot_receipt,device_receipt):receipts.append({k:receipt[k] for k in ('path','sha256')})
-    for name in ('PROCESS_APPROVAL.json','SYSTEMD_PROCESS_BINDING_RAW.json','STORAGE_CAPABILITY.json'):
+    for name in ('PROCESS_APPROVAL.json','SYSTEMD_PROCESS_BINDING_RAW.json','SYSTEMD_CGROUP_DIRECTORY_INVENTORY.json','STORAGE_CAPABILITY.json'):
         receipts.append(dict(path=str(OUTPUT/name),sha256=core.file_sha(OUTPUT/name)))
     policy=dict(validity_duration_ns=3600*10**9,valid_from_basis='fresh snapshot real_utc_ns',
         storage_budget_policy='GiB-aligned third of current free bytes after frozen 12-GiB headroom for working evidence; twice that for simultaneous trial and campaign copies')
