@@ -1,0 +1,95 @@
+import asyncio,json,tempfile,time,unittest
+from pathlib import Path
+from unittest.mock import patch
+from meme_machine.lanes.pump.solana_evidence_service import ServiceState,serve
+from meme_machine.lanes.pump.solana_evidence_plane import EvidenceReader
+from meme_machine.lanes.pump.postgrad import PUMPSWAP_PROGRAM
+from meme_machine.lanes.pump.solana_evidence_runtime import SWAP_SCOPE
+
+from tests.lanes.pump.evidence_stream_harness import FakeSocket
+
+class FakeIPC:
+    def close(self):pass
+    async def wait_closed(self):pass
+
+async def local_server(*args,path,**kwargs):
+    Path(path).touch();return FakeIPC()
+
+# Captured PumpSwap event time is 1790346151. These ingestion/restart
+# fixtures observe it one second later, rather than manufacturing an already
+# expired 849-second residence interval unrelated to reader concurrency.
+class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
+    async def wait_for(self,predicate):
+        for _ in range(200):
+            if predicate():return
+            await asyncio.sleep(.01)
+        self.fail('offline service did not make progress')
+    async def test_run371_receive_loop_drains_23_message_burst_while_owner_is_slow(self):
+        fixture=json.loads((Path(__file__).parent/'fixtures/solana_evidence_plane/run-368-raw-pump.json').read_text())
+        logs=fixture['records'][0]['response']['result']['meta']['logMessages']
+        original=ServiceState.source
+        def slow_source(state,*args,**kwargs):
+            time.sleep(.03)
+            return original(state,*args,**kwargs)
+        with tempfile.TemporaryDirectory() as temp,patch('meme_machine.lanes.pump.solana_evidence_service.time.time',return_value=1790346152):
+            path=Path(temp)/'db';socket=FakeSocket();stop=asyncio.Event()
+            with patch.object(ServiceState,'source',slow_source),patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
+                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+                try:
+                    await self.wait_for(lambda:len(socket.subs)==1)
+                    for slot in range(200,223):
+                        await socket.inject(slot,logs)
+                    # Regression for Run 371: the application must keep calling recv
+                    # while the single SQLite owner is deliberately slower than the
+                    # incoming burst. The old inline await stalled here and allowed
+                    # websocket keepalive timeouts to create continuity gaps.
+                    await self.wait_for(lambda:socket.recv_count>=24)
+                    self.assertEqual(socket.queue.qsize(),0)
+                    reader=EvidenceReader(path)
+                    await self.wait_for(lambda:reader.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]>=23)
+                    telemetry=reader.telemetry()
+                    self.assertEqual(telemetry['counters'].get('disconnect:local_receive_backpressure_ping_timeout',0),0)
+                    self.assertEqual(telemetry['counters'].get('disconnect:local_receive_dispatch_capacity',0),0)
+                    self.assertTrue(reader.covered(SWAP_SCOPE,200,221,as_of=time.time()))
+                    reader.close()
+                finally:
+                    stop.set();await task
+
+    async def test_real_service_ingests_while_both_readers_are_paused_and_recovers(self):
+        fixture=json.loads((Path(__file__).parent/'fixtures/solana_evidence_plane/run-368-raw-pump.json').read_text())
+        logs=fixture['records'][0]['response']['result']['meta']['logMessages']
+        with tempfile.TemporaryDirectory() as temp,patch('meme_machine.lanes.pump.solana_evidence_service.time.time',return_value=1790346152):
+            path=Path(temp)/'db';socket=FakeSocket();stop=asyncio.Event()
+            with patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
+                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+                try:
+                    await self.wait_for(lambda:len(socket.subs)==1)
+                    pump=EvidenceReader(path);meteora=EvidenceReader(path)
+                    pump.db.execute('BEGIN');pump.db.execute('SELECT COUNT(*) FROM records').fetchone()
+                    for slot in range(100,104):await socket.inject(slot,logs)
+                    await self.wait_for(lambda:meteora.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]==4)
+                    self.assertEqual(pump.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
+                    self.assertTrue(meteora.covered(SWAP_SCOPE,100,102,as_of=time.time()))
+                    telemetry=meteora.telemetry()
+                    self.assertGreater(telemetry['counters']['stream_bytes'],0)
+                    self.assertGreaterEqual(telemetry['counters']['stream_messages'],4)
+                    self.assertEqual(telemetry['service_health']['subscriptions']['by_evidence_class'],{'blocks':1})
+                    self.assertEqual(telemetry['service_health']['provider']['provider'],'alchemy_solana_mainnet')
+                    self.assertNotIn('offline-test',json.dumps(telemetry))
+                    pump.db.execute('ROLLBACK');meteora.db.execute('BEGIN');meteora.db.execute('SELECT COUNT(*) FROM records').fetchone()
+                    for slot in range(104,107):await socket.inject(slot,logs)
+                    await self.wait_for(lambda:pump.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]==7)
+                    self.assertEqual(meteora.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],4)
+                    meteora.db.execute('ROLLBACK');pump.close();meteora.close()
+                finally:stop.set();await task
+            second=FakeSocket();stop=asyncio.Event()
+            with patch('websockets.asyncio.client.connect',return_value=second),patch('asyncio.start_unix_server',side_effect=local_server):
+                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+                try:
+                    await self.wait_for(lambda:len(second.subs)==1)
+                    reader=EvidenceReader(path)
+                    self.assertEqual(reader.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],7)
+                    self.assertGreaterEqual(reader.telemetry()['unresolved_gaps'],1)
+                    self.assertEqual(reader.telemetry()['counters']['restarts'],1)
+                    self.assertEqual(reader.db.execute('PRAGMA integrity_check').fetchone()[0],'ok');reader.close()
+                finally:stop.set();await task

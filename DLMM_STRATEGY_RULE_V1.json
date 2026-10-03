@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "status": "development",
+  "frozen_at": null,
+  "development_cutoff_time": null,
+  "strategy": null,
+  "target_distance_bps": null,
+  "min_projected_60s_fee_surplus_lamports": null,
+  "require_flow_into_range": true,
+  "require_two_way_or_revert": true,
+  "development_evidence": [],
+  "note": "Template only. Holdout must fail closed until this rule is reviewed, frozen, and committed after the development sample."
+}

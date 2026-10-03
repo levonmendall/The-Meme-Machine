@@ -1,0 +1,98 @@
+{
+  "schema": "ramses-viability-v4-replay-v1",
+  "paper_only": true,
+  "historical_sources": {
+    "fee_decomposition": {
+      "run_id": 35667408178,
+      "artifact_id": 10669119524,
+      "digest": "sha256:8ef3563f67c10222c0e228795854197409042a0a33ca774798a1203df033c00f"
+    },
+    "branch_b_final": {
+      "run_id": 35685789656,
+      "artifact_id": 10676927755
+    }
+  },
+  "historical_active_wide_quiet_rows": [
+    {
+      "symbol": "NVDA/USDG",
+      "pool": "0x337c9105eb8d682d49db7bfbd986dca952f89004",
+      "split": "derivation",
+      "deposit_usd": 11.643826579785298,
+      "gross_return": 0.047428957492068546,
+      "fee_return": 0.005706490058325199,
+      "inventory_return": 0.04172246743374333,
+      "hold_seconds": 786446,
+      "width_bins": 407
+    },
+    {
+      "symbol": "AAPL/USDG",
+      "pool": "0xbb29b3975729a8dcffe750561fbfe7846ebfecee",
+      "split": "derivation",
+      "deposit_usd": 23983.978715718935,
+      "gross_return": -0.005305387679279905,
+      "fee_return": 0.0006468777345417215,
+      "inventory_return": -0.005952265413821625,
+      "hold_seconds": 72961,
+      "width_bins": 119
+    },
+    {
+      "symbol": "NVDA/USDG",
+      "pool": "0x337c9105eb8d682d49db7bfbd986dca952f89004",
+      "split": "derivation",
+      "deposit_usd": 44.38189935177401,
+      "gross_return": 0.01767728870744323,
+      "fee_return": 0.0065758508330145725,
+      "inventory_return": 0.011101437874428561,
+      "hold_seconds": 425020,
+      "width_bins": 106
+    },
+    {
+      "symbol": "NVDA/USDG",
+      "pool": "0x337c9105eb8d682d49db7bfbd986dca952f89004",
+      "split": "derivation",
+      "deposit_usd": 395.665148908843,
+      "gross_return": -0.000019212799659662494,
+      "fee_return": 0,
+      "inventory_return": -0.000019212799659647708,
+      "hold_seconds": 2270,
+      "width_bins": 94
+    },
+    {
+      "symbol": "TENDIES/USDG",
+      "pool": "0x918272586842cbb9abbb492f1b6a9abae492ec9e",
+      "split": "validation",
+      "deposit_usd": 999.2824869319053,
+      "gross_return": 0.05772808169989463,
+      "fee_return": 0.120607070728048,
+      "inventory_return": -0.06287898902815343,
+      "hold_seconds": 1015802,
+      "width_bins": 79
+    }
+  ],
+  "historical_cost_anchor": {
+    "max_verified_quote_cycle_cost_raw": 1194323,
+    "usdg_decimals": 6
+  },
+  "rejected_branch_b": {
+    "resolved_24h": 15,
+    "win_rate_24h": 0,
+    "median_after_cost_return_bps_24h": -510,
+    "mean_after_cost_return_bps_24h": -6581.53,
+    "two_x_cost_stress_median_bps_24h": -727,
+    "resolved_72h": 14,
+    "win_rate_72h": 0.1429,
+    "median_after_cost_return_bps_72h": -239.5,
+    "mean_after_cost_return_bps_72h": -6270,
+    "two_x_cost_stress_median_bps_72h": -498.5
+  },
+  "prospective_natural_loss": {
+    "run_id": 36043064083,
+    "strategy_version": "ramses-active-wide-maker-v1/rebalance-v3",
+    "position_capital_quote_raw": 57940,
+    "execution_cost_quote_raw": 512646,
+    "gross_result_quote_raw": -296,
+    "net_result_quote_raw": -512942,
+    "after_cost_return_bps": -88530,
+    "rebalances": 0
+  }
+}

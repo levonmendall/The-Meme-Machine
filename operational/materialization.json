@@ -1,0 +1,3966 @@
+{
+  "baseline": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "files": [
+    {
+      "lane": "pump",
+      "origin": "meme_machine/__init__.py",
+      "path": "meme_machine/lanes/pump/__init__.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/__main__.py",
+      "path": "meme_machine/lanes/pump/__main__.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/concentration.py",
+      "path": "meme_machine/lanes/pump/concentration.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/durable_publication.py",
+      "path": "meme_machine/lanes/pump/durable_publication.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/engine.py",
+      "path": "meme_machine/lanes/pump/engine.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/legacy_raydium.py",
+      "path": "meme_machine/lanes/pump/legacy_raydium.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/market_native_priority.py",
+      "path": "meme_machine/lanes/pump/market_native_priority.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/market_native_research.py",
+      "path": "meme_machine/lanes/pump/market_native_research.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/market_native_runtime.py",
+      "path": "meme_machine/lanes/pump/market_native_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/market_native_shadow.py",
+      "path": "meme_machine/lanes/pump/market_native_shadow.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/outcome_research.py",
+      "path": "meme_machine/lanes/pump/outcome_research.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/paper_accounting.py",
+      "path": "meme_machine/lanes/pump/paper_accounting.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pipeline.py",
+      "path": "meme_machine/lanes/pump/pipeline.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/postgrad.py",
+      "path": "meme_machine/lanes/pump/postgrad.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/postgrad_resolver.py",
+      "path": "meme_machine/lanes/pump/postgrad_resolver.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/provider.py",
+      "path": "meme_machine/lanes/pump/provider.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pump.py",
+      "path": "meme_machine/lanes/pump/pump.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pump_acceleration_confirmations.py",
+      "path": "meme_machine/lanes/pump/pump_acceleration_confirmations.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pump_acceleration_evidence.py",
+      "path": "meme_machine/lanes/pump/pump_acceleration_evidence.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pump_acceleration_history.py",
+      "path": "meme_machine/lanes/pump/pump_acceleration_history.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pump_acceleration_paper.py",
+      "path": "meme_machine/lanes/pump/pump_acceleration_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pump_acceleration_strategy.py",
+      "path": "meme_machine/lanes/pump/pump_acceleration_strategy.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pump_evidence_execution.py",
+      "path": "meme_machine/lanes/pump/pump_evidence_execution.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pumpswap_runtime.py",
+      "path": "meme_machine/lanes/pump/pumpswap_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pumpswap_survivor.py",
+      "path": "meme_machine/lanes/pump/pumpswap_survivor.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pumpswap_survivor_evidence.py",
+      "path": "meme_machine/lanes/pump/pumpswap_survivor_evidence.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/pumpswap_survivor_runtime.py",
+      "path": "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/rejected_winner_trajectory.py",
+      "path": "meme_machine/lanes/pump/rejected_winner_trajectory.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/research.py",
+      "path": "meme_machine/lanes/pump/research.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_archive_snapshot.py",
+      "path": "meme_machine/lanes/pump/solana_archive_snapshot.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_checkpoint.py",
+      "path": "meme_machine/lanes/pump/solana_checkpoint.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_broker.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_broker.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_consumers.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_consumers.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_control.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_control.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_health.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_health.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_plane.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_plane.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_queries.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_queries.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_runtime.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_service.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_service.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_storage.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_storage.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_evidence_transport.py",
+      "path": "meme_machine/lanes/pump/solana_evidence_transport.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_immutable_rpc.py",
+      "path": "meme_machine/lanes/pump/solana_immutable_rpc.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_maintenance_arbiter.py",
+      "path": "meme_machine/lanes/pump/solana_maintenance_arbiter.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_maintenance_runtime.py",
+      "path": "meme_machine/lanes/pump/solana_maintenance_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_maintenance_state.py",
+      "path": "meme_machine/lanes/pump/solana_maintenance_state.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_owner_admission.py",
+      "path": "meme_machine/lanes/pump/solana_owner_admission.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_program_decoders.py",
+      "path": "meme_machine/lanes/pump/solana_program_decoders.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_provider_config.py",
+      "path": "meme_machine/lanes/pump/solana_provider_config.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_read_rpc.py",
+      "path": "meme_machine/lanes/pump/solana_read_rpc.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_retention_outcome.py",
+      "path": "meme_machine/lanes/pump/solana_retention_outcome.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/solana_signature_identity.py",
+      "path": "meme_machine/lanes/pump/solana_signature_identity.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/store.py",
+      "path": "meme_machine/lanes/pump/store.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/stream.py",
+      "path": "meme_machine/lanes/pump/stream.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "meme_machine/wallets.py",
+      "path": "meme_machine/lanes/pump/wallets.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/pump_acceleration_natural_prospective.py",
+      "path": "meme_machine/lanes/pump/runner.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/__init__.py",
+      "path": "tests/lanes/pump/__init__.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/analyze_market_native_vectors.py",
+      "path": "tests/lanes/pump/analyze_market_native_vectors.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/analyze_qualification_vectors.py",
+      "path": "tests/lanes/pump/analyze_qualification_vectors.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/concentration_live_probe.py",
+      "path": "tests/lanes/pump/concentration_live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/discovery_lane_compare.py",
+      "path": "tests/lanes/pump/discovery_lane_compare.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/evidence_ipc_harness.py",
+      "path": "tests/lanes/pump/evidence_ipc_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/evidence_stream_harness.py",
+      "path": "tests/lanes/pump/evidence_stream_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/forced_real_data_canary.py",
+      "path": "tests/lanes/pump/forced_real_data_canary.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/high_throughput_e2e_certification.py",
+      "path": "tests/lanes/pump/high_throughput_e2e_certification.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/inspect_curve_modes.py",
+      "path": "tests/lanes/pump/inspect_curve_modes.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/legacy_raydium_archival_probe.py",
+      "path": "tests/lanes/pump/legacy_raydium_archival_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/legacy_raydium_live_probe.py",
+      "path": "tests/lanes/pump/legacy_raydium_live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/live_probe.py",
+      "path": "tests/lanes/pump/live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/longevity_soak.py",
+      "path": "tests/lanes/pump/longevity_soak.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/maintenance_production_harness.py",
+      "path": "tests/lanes/pump/maintenance_production_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/make_tape.py",
+      "path": "tests/lanes/pump/make_tape.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/market_native_active_paper.py",
+      "path": "tests/lanes/pump/market_native_active_paper.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/market_native_fast_smoke.py",
+      "path": "tests/lanes/pump/market_native_fast_smoke.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/market_native_opportunity_outcomes.py",
+      "path": "tests/lanes/pump/market_native_opportunity_outcomes.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/market_native_paper_cohort.py",
+      "path": "tests/lanes/pump/market_native_paper_cohort.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/postgrad_live_probe.py",
+      "path": "tests/lanes/pump/postgrad_live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/prioritized_market_native_qualification.py",
+      "path": "tests/lanes/pump/prioritized_market_native_qualification.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/prospective_qualification.py",
+      "path": "tests/lanes/pump/prospective_qualification.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/prospective_stream_qualification.py",
+      "path": "tests/lanes/pump/prospective_stream_qualification.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/pump_http_primary_soak.py",
+      "path": "tests/lanes/pump/pump_http_primary_soak.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/pump_supply_probe.py",
+      "path": "tests/lanes/pump/pump_supply_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/qualified_post_exit_history.py",
+      "path": "tests/lanes/pump/qualified_post_exit_history.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/rejected_winner_preentry_analysis.py",
+      "path": "tests/lanes/pump/rejected_winner_preentry_analysis.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/resource_check.py",
+      "path": "tests/lanes/pump/resource_check.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/scout_census.py",
+      "path": "tests/lanes/pump/scout_census.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/support.py",
+      "path": "tests/lanes/pump/support.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_archive_pipeline.py",
+      "path": "tests/lanes/pump/test_archive_pipeline.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_broker_startup_wal.py",
+      "path": "tests/lanes/pump/test_broker_startup_wal.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_captured.py",
+      "path": "tests/lanes/pump/test_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_checkpoint_handoff.py",
+      "path": "tests/lanes/pump/test_checkpoint_handoff.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_concentration_reader.py",
+      "path": "tests/lanes/pump/test_concentration_reader.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_coordinated_database.py",
+      "path": "tests/lanes/pump/test_coordinated_database.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_default_signature_admission.py",
+      "path": "tests/lanes/pump/test_default_signature_admission.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_directional_capacity.py",
+      "path": "tests/lanes/pump/test_directional_capacity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_evidence_attribution.py",
+      "path": "tests/lanes/pump/test_evidence_attribution.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_evidence_consumers.py",
+      "path": "tests/lanes/pump/test_evidence_consumers.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_evidence_plane_publication.py",
+      "path": "tests/lanes/pump/test_evidence_plane_publication.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_evidence_runtime_cutover.py",
+      "path": "tests/lanes/pump/test_evidence_runtime_cutover.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_high_throughput_e2e_certification.py",
+      "path": "tests/lanes/pump/test_high_throughput_e2e_certification.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_legacy_raydium.py",
+      "path": "tests/lanes/pump/test_legacy_raydium.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_legacy_raydium_captured.py",
+      "path": "tests/lanes/pump/test_legacy_raydium_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_lifecycle.py",
+      "path": "tests/lanes/pump/test_lifecycle.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_local_admission_retry.py",
+      "path": "tests/lanes/pump/test_local_admission_retry.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_longevity.py",
+      "path": "tests/lanes/pump/test_longevity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_market_native_active_paper.py",
+      "path": "tests/lanes/pump/test_market_native_active_paper.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_market_native_fast_smoke.py",
+      "path": "tests/lanes/pump/test_market_native_fast_smoke.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_market_native_paper_cohort.py",
+      "path": "tests/lanes/pump/test_market_native_paper_cohort.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_market_native_priority.py",
+      "path": "tests/lanes/pump/test_market_native_priority.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_market_native_research.py",
+      "path": "tests/lanes/pump/test_market_native_research.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_market_native_runtime.py",
+      "path": "tests/lanes/pump/test_market_native_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_market_native_shadow.py",
+      "path": "tests/lanes/pump/test_market_native_shadow.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_market_scope_efficiency.py",
+      "path": "tests/lanes/pump/test_market_scope_efficiency.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_mayhem_mode.py",
+      "path": "tests/lanes/pump/test_mayhem_mode.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_observation_coverage.py",
+      "path": "tests/lanes/pump/test_observation_coverage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_opportunity_coverage.py",
+      "path": "tests/lanes/pump/test_opportunity_coverage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_outcome_research.py",
+      "path": "tests/lanes/pump/test_outcome_research.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_paper_accounting.py",
+      "path": "tests/lanes/pump/test_paper_accounting.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_postgrad.py",
+      "path": "tests/lanes/pump/test_postgrad.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_postgrad_captured.py",
+      "path": "tests/lanes/pump/test_postgrad_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_postgrad_raydium_lifecycle.py",
+      "path": "tests/lanes/pump/test_postgrad_raydium_lifecycle.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_postgrad_resolver.py",
+      "path": "tests/lanes/pump/test_postgrad_resolver.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_production_maintenance_arbiter.py",
+      "path": "tests/lanes/pump/test_production_maintenance_arbiter.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_prospective_concentration_bridge.py",
+      "path": "tests/lanes/pump/test_prospective_concentration_bridge.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_provider_partial_batch_retry.py",
+      "path": "tests/lanes/pump/test_provider_partial_batch_retry.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_provider_retry.py",
+      "path": "tests/lanes/pump/test_provider_retry.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_acceleration_confirmations.py",
+      "path": "tests/lanes/pump/test_pump_acceleration_confirmations.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_acceleration_evidence.py",
+      "path": "tests/lanes/pump/test_pump_acceleration_evidence.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_acceleration_history.py",
+      "path": "tests/lanes/pump/test_pump_acceleration_history.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_acceleration_natural_harness.py",
+      "path": "tests/lanes/pump/test_pump_acceleration_natural_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_acceleration_paper.py",
+      "path": "tests/lanes/pump/test_pump_acceleration_paper.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_acceleration_policy_identity.py",
+      "path": "tests/lanes/pump/test_pump_acceleration_policy_identity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_acceleration_strategy.py",
+      "path": "tests/lanes/pump/test_pump_acceleration_strategy.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_acceleration_stream_extensions.py",
+      "path": "tests/lanes/pump/test_pump_acceleration_stream_extensions.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_campaign_tail_drain.py",
+      "path": "tests/lanes/pump/test_pump_campaign_tail_drain.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_continuous_campaign.py",
+      "path": "tests/lanes/pump/test_pump_continuous_campaign.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_durable_strategy_recovery.py",
+      "path": "tests/lanes/pump/test_pump_durable_strategy_recovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_evidence_classification.py",
+      "path": "tests/lanes/pump/test_pump_evidence_classification.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_finalized_log_authority.py",
+      "path": "tests/lanes/pump/test_pump_finalized_log_authority.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_shared_survivor.py",
+      "path": "tests/lanes/pump/test_pump_shared_survivor.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pump_smoke_tail.py",
+      "path": "tests/lanes/pump/test_pump_smoke_tail.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pumpswap_main_routing.py",
+      "path": "tests/lanes/pump/test_pumpswap_main_routing.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pumpswap_runtime.py",
+      "path": "tests/lanes/pump/test_pumpswap_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pumpswap_runtime_captured.py",
+      "path": "tests/lanes/pump/test_pumpswap_runtime_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pumpswap_survivor.py",
+      "path": "tests/lanes/pump/test_pumpswap_survivor.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_pumpswap_survivor_evidence.py",
+      "path": "tests/lanes/pump/test_pumpswap_survivor_evidence.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_recovery.py",
+      "path": "tests/lanes/pump/test_recovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_rejected_winner_preentry_analysis.py",
+      "path": "tests/lanes/pump/test_rejected_winner_preentry_analysis.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_rejected_winner_trajectory.py",
+      "path": "tests/lanes/pump/test_rejected_winner_trajectory.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_research.py",
+      "path": "tests/lanes/pump/test_research.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_retention_outcomes.py",
+      "path": "tests/lanes/pump/test_retention_outcomes.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run369_liveness.py",
+      "path": "tests/lanes/pump/test_run369_liveness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run369_runtime.py",
+      "path": "tests/lanes/pump/test_run369_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run370_pump_progression.py",
+      "path": "tests/lanes/pump/test_run370_pump_progression.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run372_large_frame_runtime.py",
+      "path": "tests/lanes/pump/test_run372_large_frame_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run373_dispatch_throughput.py",
+      "path": "tests/lanes/pump/test_run373_dispatch_throughput.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run376_dispatch_pressure.py",
+      "path": "tests/lanes/pump/test_run376_dispatch_pressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run377_persistence.py",
+      "path": "tests/lanes/pump/test_run377_persistence.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run379_control_pressure.py",
+      "path": "tests/lanes/pump/test_run379_control_pressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run379_production_pressure.py",
+      "path": "tests/lanes/pump/test_run379_production_pressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run379_transport_backpressure.py",
+      "path": "tests/lanes/pump/test_run379_transport_backpressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run380_atomic_frame.py",
+      "path": "tests/lanes/pump/test_run380_atomic_frame.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run380_production_pressure.py",
+      "path": "tests/lanes/pump/test_run380_production_pressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run381_archive_canonical.py",
+      "path": "tests/lanes/pump/test_run381_archive_canonical.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run381_archive_scheduling.py",
+      "path": "tests/lanes/pump/test_run381_archive_scheduling.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run381_maintenance_overlap.py",
+      "path": "tests/lanes/pump/test_run381_maintenance_overlap.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run381_repair_pagination.py",
+      "path": "tests/lanes/pump/test_run381_repair_pagination.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run381_retention_progress.py",
+      "path": "tests/lanes/pump/test_run381_retention_progress.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_run381_subscription_progress.py",
+      "path": "tests/lanes/pump/test_run381_subscription_progress.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_solana_evidence_broker.py",
+      "path": "tests/lanes/pump/test_solana_evidence_broker.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_solana_evidence_service_runtime.py",
+      "path": "tests/lanes/pump/test_solana_evidence_service_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_solana_immutable_efficiency.py",
+      "path": "tests/lanes/pump/test_solana_immutable_efficiency.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_solana_read_rpc.py",
+      "path": "tests/lanes/pump/test_solana_read_rpc.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_stagee19_maintenance_batch_fairness.py",
+      "path": "tests/lanes/pump/test_stagee19_maintenance_batch_fairness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_stagee24_maintenance_integrity.py",
+      "path": "tests/lanes/pump/test_stagee24_maintenance_integrity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_strategy_prospect_admission.py",
+      "path": "tests/lanes/pump/test_strategy_prospect_admission.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_stream.py",
+      "path": "tests/lanes/pump/test_stream.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_stream_negative_admission.py",
+      "path": "tests/lanes/pump/test_stream_negative_admission.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_stream_payload_retention.py",
+      "path": "tests/lanes/pump/test_stream_payload_retention.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pump",
+      "origin": "tests/test_throughput_policy.py",
+      "path": "tests/lanes/pump/test_throughput_policy.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/__init__.py",
+      "path": "meme_machine/lanes/meteora/__init__.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/__main__.py",
+      "path": "meme_machine/lanes/meteora/__main__.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/concentration.py",
+      "path": "meme_machine/lanes/meteora/concentration.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/dlmm.py",
+      "path": "meme_machine/lanes/meteora/dlmm.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/dlmm_discovery.py",
+      "path": "meme_machine/lanes/meteora/dlmm_discovery.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/dlmm_independent_accounting.py",
+      "path": "meme_machine/lanes/meteora/dlmm_independent_accounting.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/dlmm_paper.py",
+      "path": "meme_machine/lanes/meteora/dlmm_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/dlmm_tape.py",
+      "path": "meme_machine/lanes/meteora/dlmm_tape.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/durable_publication.py",
+      "path": "meme_machine/lanes/meteora/durable_publication.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/engine.py",
+      "path": "meme_machine/lanes/meteora/engine.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/legacy_raydium.py",
+      "path": "meme_machine/lanes/meteora/legacy_raydium.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/pipeline.py",
+      "path": "meme_machine/lanes/meteora/pipeline.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/postgrad.py",
+      "path": "meme_machine/lanes/meteora/postgrad.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/postgrad_resolver.py",
+      "path": "meme_machine/lanes/meteora/postgrad_resolver.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/provider.py",
+      "path": "meme_machine/lanes/meteora/provider.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/pump.py",
+      "path": "meme_machine/lanes/meteora/pump.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/pumpswap_runtime.py",
+      "path": "meme_machine/lanes/meteora/pumpswap_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/research.py",
+      "path": "meme_machine/lanes/meteora/research.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_archive_snapshot.py",
+      "path": "meme_machine/lanes/meteora/solana_archive_snapshot.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_checkpoint.py",
+      "path": "meme_machine/lanes/meteora/solana_checkpoint.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_broker.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_broker.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_consumers.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_consumers.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_control.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_control.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_health.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_health.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_plane.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_plane.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_queries.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_queries.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_runtime.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_service.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_service.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_storage.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_storage.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_evidence_transport.py",
+      "path": "meme_machine/lanes/meteora/solana_evidence_transport.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_immutable_rpc.py",
+      "path": "meme_machine/lanes/meteora/solana_immutable_rpc.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_maintenance_arbiter.py",
+      "path": "meme_machine/lanes/meteora/solana_maintenance_arbiter.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_maintenance_runtime.py",
+      "path": "meme_machine/lanes/meteora/solana_maintenance_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_maintenance_state.py",
+      "path": "meme_machine/lanes/meteora/solana_maintenance_state.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_owner_admission.py",
+      "path": "meme_machine/lanes/meteora/solana_owner_admission.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_program_decoders.py",
+      "path": "meme_machine/lanes/meteora/solana_program_decoders.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_provider_config.py",
+      "path": "meme_machine/lanes/meteora/solana_provider_config.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_read_rpc.py",
+      "path": "meme_machine/lanes/meteora/solana_read_rpc.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_retention_outcome.py",
+      "path": "meme_machine/lanes/meteora/solana_retention_outcome.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/solana_signature_identity.py",
+      "path": "meme_machine/lanes/meteora/solana_signature_identity.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/store.py",
+      "path": "meme_machine/lanes/meteora/store.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/stream.py",
+      "path": "meme_machine/lanes/meteora/stream.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "meme_machine/wallets.py",
+      "path": "meme_machine/lanes/meteora/wallets.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/solana_dlmm_independent_v1.py",
+      "path": "meme_machine/lanes/meteora/runner.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_alchemy_provider.py",
+      "path": "meme_machine/lanes/meteora/dlmm_alchemy_provider.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/__init__.py",
+      "path": "tests/lanes/meteora/__init__.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/analyze_qualification_vectors.py",
+      "path": "tests/lanes/meteora/analyze_qualification_vectors.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/concentration_live_probe.py",
+      "path": "tests/lanes/meteora/concentration_live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_add_liquidity2_probe.py",
+      "path": "tests/lanes/meteora/dlmm_add_liquidity2_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_boundary_acquisition.py",
+      "path": "tests/lanes/meteora/dlmm_boundary_acquisition.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_capital_efficiency_v1.py",
+      "path": "tests/lanes/meteora/dlmm_capital_efficiency_v1.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_dense_acquisition.py",
+      "path": "tests/lanes/meteora/dlmm_dense_acquisition.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_dense_retrieval_probe.py",
+      "path": "tests/lanes/meteora/dlmm_dense_retrieval_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_host_fee_probe.py",
+      "path": "tests/lanes/meteora/dlmm_host_fee_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_host_fee_shape_probe.py",
+      "path": "tests/lanes/meteora/dlmm_host_fee_shape_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_live_host_fee_proof.py",
+      "path": "tests/lanes/meteora/dlmm_live_host_fee_proof.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_live_probe.py",
+      "path": "tests/lanes/meteora/dlmm_live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_mutation_probe.py",
+      "path": "tests/lanes/meteora/dlmm_mutation_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_profitability_pilot.py",
+      "path": "tests/lanes/meteora/dlmm_profitability_pilot.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_profitable_operator_deep.py",
+      "path": "tests/lanes/meteora/dlmm_profitable_operator_deep.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_profitable_operator_discovery.py",
+      "path": "tests/lanes/meteora/dlmm_profitable_operator_discovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_profitable_operator_freeze.py",
+      "path": "tests/lanes/meteora/dlmm_profitable_operator_freeze.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_profitable_operator_reconstruction.py",
+      "path": "tests/lanes/meteora/dlmm_profitable_operator_reconstruction.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_profitable_operator_rules.py",
+      "path": "tests/lanes/meteora/dlmm_profitable_operator_rules.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_provider_5rps_live.py",
+      "path": "tests/lanes/meteora/dlmm_provider_5rps_live.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_resource_check.py",
+      "path": "tests/lanes/meteora/dlmm_resource_check.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_small_pool_market_opportunity.py",
+      "path": "tests/lanes/meteora/dlmm_small_pool_market_opportunity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_small_pool_profitability.py",
+      "path": "tests/lanes/meteora/dlmm_small_pool_profitability.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_small_pool_screen.py",
+      "path": "tests/lanes/meteora/dlmm_small_pool_screen.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_strategy_development_analysis.py",
+      "path": "tests/lanes/meteora/dlmm_strategy_development_analysis.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_strategy_economics.py",
+      "path": "tests/lanes/meteora/dlmm_strategy_economics.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_strategy_high_activity.py",
+      "path": "tests/lanes/meteora/dlmm_strategy_high_activity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_strategy_high_activity_batched.py",
+      "path": "tests/lanes/meteora/dlmm_strategy_high_activity_batched.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_strategy_high_activity_publicnode.py",
+      "path": "tests/lanes/meteora/dlmm_strategy_high_activity_publicnode.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_strategy_high_activity_stonk.py",
+      "path": "tests/lanes/meteora/dlmm_strategy_high_activity_stonk.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_strategy_point_in_time.py",
+      "path": "tests/lanes/meteora/dlmm_strategy_point_in_time.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_support.py",
+      "path": "tests/lanes/meteora/dlmm_support.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_top_roi_wallet_evaluation.py",
+      "path": "tests/lanes/meteora/dlmm_top_roi_wallet_evaluation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_wallet_cluster_prospective.py",
+      "path": "tests/lanes/meteora/dlmm_wallet_cluster_prospective.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_wallet_provider_diagnostic.py",
+      "path": "tests/lanes/meteora/dlmm_wallet_provider_diagnostic.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/dlmm_wallet_strategy_discovery.py",
+      "path": "tests/lanes/meteora/dlmm_wallet_strategy_discovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/evidence_ipc_harness.py",
+      "path": "tests/lanes/meteora/evidence_ipc_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/evidence_stream_harness.py",
+      "path": "tests/lanes/meteora/evidence_stream_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/forced_real_data_canary.py",
+      "path": "tests/lanes/meteora/forced_real_data_canary.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/inspect_curve_modes.py",
+      "path": "tests/lanes/meteora/inspect_curve_modes.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/legacy_raydium_archival_probe.py",
+      "path": "tests/lanes/meteora/legacy_raydium_archival_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/legacy_raydium_live_probe.py",
+      "path": "tests/lanes/meteora/legacy_raydium_live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/live_probe.py",
+      "path": "tests/lanes/meteora/live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/longevity_soak.py",
+      "path": "tests/lanes/meteora/longevity_soak.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/maintenance_production_harness.py",
+      "path": "tests/lanes/meteora/maintenance_production_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/make_tape.py",
+      "path": "tests/lanes/meteora/make_tape.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/postgrad_live_probe.py",
+      "path": "tests/lanes/meteora/postgrad_live_probe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/prospective_qualification.py",
+      "path": "tests/lanes/meteora/prospective_qualification.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/prospective_stream_qualification.py",
+      "path": "tests/lanes/meteora/prospective_stream_qualification.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/resource_check.py",
+      "path": "tests/lanes/meteora/resource_check.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/scout_census.py",
+      "path": "tests/lanes/meteora/scout_census.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/solana_dlmm_support_census.py",
+      "path": "tests/lanes/meteora/solana_dlmm_support_census.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/support.py",
+      "path": "tests/lanes/meteora/support.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_archive_pipeline.py",
+      "path": "tests/lanes/meteora/test_archive_pipeline.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_broker_startup_wal.py",
+      "path": "tests/lanes/meteora/test_broker_startup_wal.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_captured.py",
+      "path": "tests/lanes/meteora/test_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_checkpoint_handoff.py",
+      "path": "tests/lanes/meteora/test_checkpoint_handoff.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_concentration_reader.py",
+      "path": "tests/lanes/meteora/test_concentration_reader.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_coordinated_database.py",
+      "path": "tests/lanes/meteora/test_coordinated_database.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_default_signature_admission.py",
+      "path": "tests/lanes/meteora/test_default_signature_admission.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm.py",
+      "path": "tests/lanes/meteora/test_dlmm.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_alchemy_provider.py",
+      "path": "tests/lanes/meteora/test_dlmm_alchemy_provider.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_bin_array_neutral.py",
+      "path": "tests/lanes/meteora/test_dlmm_bin_array_neutral.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_broker_census.py",
+      "path": "tests/lanes/meteora/test_dlmm_broker_census.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_capital_efficiency_v1.py",
+      "path": "tests/lanes/meteora/test_dlmm_capital_efficiency_v1.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_dense_acquisition.py",
+      "path": "tests/lanes/meteora/test_dlmm_dense_acquisition.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_endpoint_fresh.py",
+      "path": "tests/lanes/meteora/test_dlmm_endpoint_fresh.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_host_fee.py",
+      "path": "tests/lanes/meteora/test_dlmm_host_fee.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_independent_accounting.py",
+      "path": "tests/lanes/meteora/test_dlmm_independent_accounting.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_liquidity_reset.py",
+      "path": "tests/lanes/meteora/test_dlmm_liquidity_reset.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_pool_neutral.py",
+      "path": "tests/lanes/meteora/test_dlmm_pool_neutral.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_profitability_pilot.py",
+      "path": "tests/lanes/meteora/test_dlmm_profitability_pilot.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_profitable_operator_deep.py",
+      "path": "tests/lanes/meteora/test_dlmm_profitable_operator_deep.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_profitable_operator_discovery.py",
+      "path": "tests/lanes/meteora/test_dlmm_profitable_operator_discovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_profitable_operator_reconstruction.py",
+      "path": "tests/lanes/meteora/test_dlmm_profitable_operator_reconstruction.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_profitable_operator_rules.py",
+      "path": "tests/lanes/meteora/test_dlmm_profitable_operator_rules.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_reference.py",
+      "path": "tests/lanes/meteora/test_dlmm_reference.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_safe_token2022.py",
+      "path": "tests/lanes/meteora/test_dlmm_safe_token2022.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_signature_boundary.py",
+      "path": "tests/lanes/meteora/test_dlmm_signature_boundary.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_small_pool_market_opportunity.py",
+      "path": "tests/lanes/meteora/test_dlmm_small_pool_market_opportunity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_small_pool_profitability.py",
+      "path": "tests/lanes/meteora/test_dlmm_small_pool_profitability.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_strategy_development_analysis.py",
+      "path": "tests/lanes/meteora/test_dlmm_strategy_development_analysis.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_strategy_economics.py",
+      "path": "tests/lanes/meteora/test_dlmm_strategy_economics.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_strategy_high_activity.py",
+      "path": "tests/lanes/meteora/test_dlmm_strategy_high_activity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_strategy_point_in_time.py",
+      "path": "tests/lanes/meteora/test_dlmm_strategy_point_in_time.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_tape.py",
+      "path": "tests/lanes/meteora/test_dlmm_tape.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_tape_extensions.py",
+      "path": "tests/lanes/meteora/test_dlmm_tape_extensions.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_top_roi_wallet_evaluation.py",
+      "path": "tests/lanes/meteora/test_dlmm_top_roi_wallet_evaluation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_wallet_cluster_prospective.py",
+      "path": "tests/lanes/meteora/test_dlmm_wallet_cluster_prospective.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_dlmm_wallet_strategy_discovery.py",
+      "path": "tests/lanes/meteora/test_dlmm_wallet_strategy_discovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_evidence_attribution.py",
+      "path": "tests/lanes/meteora/test_evidence_attribution.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_evidence_consumers.py",
+      "path": "tests/lanes/meteora/test_evidence_consumers.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_evidence_plane_publication.py",
+      "path": "tests/lanes/meteora/test_evidence_plane_publication.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_evidence_runtime_cutover.py",
+      "path": "tests/lanes/meteora/test_evidence_runtime_cutover.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_legacy_raydium.py",
+      "path": "tests/lanes/meteora/test_legacy_raydium.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_legacy_raydium_captured.py",
+      "path": "tests/lanes/meteora/test_legacy_raydium_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_lifecycle.py",
+      "path": "tests/lanes/meteora/test_lifecycle.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_local_admission_retry.py",
+      "path": "tests/lanes/meteora/test_local_admission_retry.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_longevity.py",
+      "path": "tests/lanes/meteora/test_longevity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_mayhem_mode.py",
+      "path": "tests/lanes/meteora/test_mayhem_mode.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_meteora_continuous_campaign.py",
+      "path": "tests/lanes/meteora/test_meteora_continuous_campaign.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_meteora_discovery_scheduler.py",
+      "path": "tests/lanes/meteora/test_meteora_discovery_scheduler.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_meteora_evidence_recovery.py",
+      "path": "tests/lanes/meteora/test_meteora_evidence_recovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_meteora_market_scope_efficiency.py",
+      "path": "tests/lanes/meteora/test_meteora_market_scope_efficiency.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_meteora_mint_supply.py",
+      "path": "tests/lanes/meteora/test_meteora_mint_supply.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_meteora_missing_fee_context.py",
+      "path": "tests/lanes/meteora/test_meteora_missing_fee_context.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_observation_coverage.py",
+      "path": "tests/lanes/meteora/test_observation_coverage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_opportunity_coverage.py",
+      "path": "tests/lanes/meteora/test_opportunity_coverage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_postgrad.py",
+      "path": "tests/lanes/meteora/test_postgrad.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_postgrad_captured.py",
+      "path": "tests/lanes/meteora/test_postgrad_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_postgrad_raydium_lifecycle.py",
+      "path": "tests/lanes/meteora/test_postgrad_raydium_lifecycle.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_postgrad_resolver.py",
+      "path": "tests/lanes/meteora/test_postgrad_resolver.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_production_maintenance_arbiter.py",
+      "path": "tests/lanes/meteora/test_production_maintenance_arbiter.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_provider_retry.py",
+      "path": "tests/lanes/meteora/test_provider_retry.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_pumpswap_main_routing.py",
+      "path": "tests/lanes/meteora/test_pumpswap_main_routing.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_pumpswap_runtime.py",
+      "path": "tests/lanes/meteora/test_pumpswap_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_pumpswap_runtime_captured.py",
+      "path": "tests/lanes/meteora/test_pumpswap_runtime_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_recovery.py",
+      "path": "tests/lanes/meteora/test_recovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_research.py",
+      "path": "tests/lanes/meteora/test_research.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_retention_outcomes.py",
+      "path": "tests/lanes/meteora/test_retention_outcomes.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run369_admission.py",
+      "path": "tests/lanes/meteora/test_run369_admission.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run369_runtime.py",
+      "path": "tests/lanes/meteora/test_run369_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run372_large_frame_runtime.py",
+      "path": "tests/lanes/meteora/test_run372_large_frame_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run373_dispatch_throughput.py",
+      "path": "tests/lanes/meteora/test_run373_dispatch_throughput.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run376_dispatch_pressure.py",
+      "path": "tests/lanes/meteora/test_run376_dispatch_pressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run377_persistence.py",
+      "path": "tests/lanes/meteora/test_run377_persistence.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run379_control_pressure.py",
+      "path": "tests/lanes/meteora/test_run379_control_pressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run379_production_pressure.py",
+      "path": "tests/lanes/meteora/test_run379_production_pressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run379_transport_backpressure.py",
+      "path": "tests/lanes/meteora/test_run379_transport_backpressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run380_atomic_frame.py",
+      "path": "tests/lanes/meteora/test_run380_atomic_frame.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run380_candidate_retention.py",
+      "path": "tests/lanes/meteora/test_run380_candidate_retention.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run380_production_pressure.py",
+      "path": "tests/lanes/meteora/test_run380_production_pressure.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run381_archive_canonical.py",
+      "path": "tests/lanes/meteora/test_run381_archive_canonical.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run381_archive_scheduling.py",
+      "path": "tests/lanes/meteora/test_run381_archive_scheduling.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run381_maintenance_overlap.py",
+      "path": "tests/lanes/meteora/test_run381_maintenance_overlap.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run381_repair_pagination.py",
+      "path": "tests/lanes/meteora/test_run381_repair_pagination.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run381_retention_progress.py",
+      "path": "tests/lanes/meteora/test_run381_retention_progress.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_run381_subscription_progress.py",
+      "path": "tests/lanes/meteora/test_run381_subscription_progress.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_solana_dlmm_independent_v1.py",
+      "path": "tests/lanes/meteora/test_solana_dlmm_independent_v1.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_solana_evidence_broker.py",
+      "path": "tests/lanes/meteora/test_solana_evidence_broker.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_solana_evidence_service_runtime.py",
+      "path": "tests/lanes/meteora/test_solana_evidence_service_runtime.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_solana_immutable_efficiency.py",
+      "path": "tests/lanes/meteora/test_solana_immutable_efficiency.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_stagee19_maintenance_batch_fairness.py",
+      "path": "tests/lanes/meteora/test_stagee19_maintenance_batch_fairness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_stagee24_maintenance_integrity.py",
+      "path": "tests/lanes/meteora/test_stagee24_maintenance_integrity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_stream.py",
+      "path": "tests/lanes/meteora/test_stream.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "meteora",
+      "origin": "tests/test_stream_payload_retention.py",
+      "path": "tests/lanes/meteora/test_stream_payload_retention.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/__init__.py",
+      "path": "meme_machine/lanes/pons/__init__.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/abi.py",
+      "path": "meme_machine/lanes/pons/abi.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/continuation_robinhood.py",
+      "path": "meme_machine/lanes/pons/continuation_robinhood.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/continuation_robinhood_cohort.py",
+      "path": "meme_machine/lanes/pons/continuation_robinhood_cohort.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/continuation_robinhood_sample.py",
+      "path": "meme_machine/lanes/pons/continuation_robinhood_sample.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/directional.py",
+      "path": "meme_machine/lanes/pons/directional.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/evidence.py",
+      "path": "meme_machine/lanes/pons/evidence.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/evidence_queue.py",
+      "path": "meme_machine/lanes/pons/evidence_queue.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/finality.py",
+      "path": "meme_machine/lanes/pons/finality.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/identity.py",
+      "path": "meme_machine/lanes/pons/identity.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/immutable_rpc.py",
+      "path": "meme_machine/lanes/pons/immutable_rpc.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/keccak.py",
+      "path": "meme_machine/lanes/pons/keccak.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/liquidity.py",
+      "path": "meme_machine/lanes/pons/liquidity.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/observability_probe.py",
+      "path": "meme_machine/lanes/pons/observability_probe.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/outcomes.py",
+      "path": "meme_machine/lanes/pons/outcomes.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/paper.py",
+      "path": "meme_machine/lanes/pons/paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pipeline.py",
+      "path": "meme_machine/lanes/pons/pipeline.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons.py",
+      "path": "meme_machine/lanes/pons/pons.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_breakout_sample.py",
+      "path": "meme_machine/lanes/pons/pons_breakout_sample.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_concentration.py",
+      "path": "meme_machine/lanes/pons/pons_concentration.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_lineage_capture.py",
+      "path": "meme_machine/lanes/pons/pons_lineage_capture.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_natural_observation.py",
+      "path": "meme_machine/lanes/pons/pons_natural_observation.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_natural_paper.py",
+      "path": "meme_machine/lanes/pons/pons_natural_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_postgrad_survivor.py",
+      "path": "meme_machine/lanes/pons/pons_postgrad_survivor.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_relative_sample.py",
+      "path": "meme_machine/lanes/pons/pons_relative_sample.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_relative_value.py",
+      "path": "meme_machine/lanes/pons/pons_relative_value.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_acquisition.py",
+      "path": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_capital.py",
+      "path": "meme_machine/lanes/pons/pons_selective_capital.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_cohort.py",
+      "path": "meme_machine/lanes/pons/pons_selective_cohort.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_continuation.py",
+      "path": "meme_machine/lanes/pons/pons_selective_continuation.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_ledger.py",
+      "path": "meme_machine/lanes/pons/pons_selective_ledger.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_paper.py",
+      "path": "meme_machine/lanes/pons/pons_selective_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_recovery.py",
+      "path": "meme_machine/lanes/pons/pons_selective_recovery.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_v4.py",
+      "path": "meme_machine/lanes/pons/pons_selective_v4.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_selective_wallets.py",
+      "path": "meme_machine/lanes/pons/pons_selective_wallets.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/pons_survivor_runtime.py",
+      "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/position_sessions.py",
+      "path": "meme_machine/lanes/pons/position_sessions.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/probe.py",
+      "path": "meme_machine/lanes/pons/probe.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/protocol_probe.py",
+      "path": "meme_machine/lanes/pons/protocol_probe.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/protocols.py",
+      "path": "meme_machine/lanes/pons/protocols.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/provider.py",
+      "path": "meme_machine/lanes/pons/provider.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/provider_admission.py",
+      "path": "meme_machine/lanes/pons/provider_admission.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/provider_topology.py",
+      "path": "meme_machine/lanes/pons/provider_topology.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/ramses.py",
+      "path": "meme_machine/lanes/pons/ramses.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/ramses_capture.py",
+      "path": "meme_machine/lanes/pons/ramses_capture.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/ramses_forced_paper.py",
+      "path": "meme_machine/lanes/pons/ramses_forced_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/ramses_paper.py",
+      "path": "meme_machine/lanes/pons/ramses_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/sequencer_feed.py",
+      "path": "meme_machine/lanes/pons/sequencer_feed.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_research/view_batch.py",
+      "path": "meme_machine/lanes/pons/view_batch.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_candidate_authentication_deadline.py",
+      "path": "tests/lanes/pons/test_candidate_authentication_deadline.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_captured.py",
+      "path": "tests/lanes/pons/test_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_captured_natural_paper.py",
+      "path": "tests/lanes/pons/test_captured_natural_paper.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_captured_pons_lineage.py",
+      "path": "tests/lanes/pons/test_captured_pons_lineage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_confirmed_finality.py",
+      "path": "tests/lanes/pons/test_confirmed_finality.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_continuation_robinhood.py",
+      "path": "tests/lanes/pons/test_continuation_robinhood.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_continuation_robinhood_cohort.py",
+      "path": "tests/lanes/pons/test_continuation_robinhood_cohort.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_coverage_acquisition.py",
+      "path": "tests/lanes/pons/test_coverage_acquisition.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_discovery_capacity.py",
+      "path": "tests/lanes/pons/test_discovery_capacity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_discovery_range_batching.py",
+      "path": "tests/lanes/pons/test_discovery_range_batching.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_evidence_queue.py",
+      "path": "tests/lanes/pons/test_evidence_queue.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_foundation.py",
+      "path": "tests/lanes/pons/test_foundation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_immutable_rpc.py",
+      "path": "tests/lanes/pons/test_immutable_rpc.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_native_pons.py",
+      "path": "tests/lanes/pons/test_native_pons.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_native_ramses.py",
+      "path": "tests/lanes/pons/test_native_ramses.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_natural_paper_harness.py",
+      "path": "tests/lanes/pons/test_natural_paper_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_natural_paper_proof.py",
+      "path": "tests/lanes/pons/test_natural_paper_proof.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_opportunity_coverage.py",
+      "path": "tests/lanes/pons/test_opportunity_coverage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_candidate_plane.py",
+      "path": "tests/lanes/pons/test_pons_candidate_plane.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_capacity_persistence.py",
+      "path": "tests/lanes/pons/test_pons_capacity_persistence.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_cohort_capital.py",
+      "path": "tests/lanes/pons/test_pons_cohort_capital.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_continuous_campaign.py",
+      "path": "tests/lanes/pons/test_pons_continuous_campaign.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_current_recovery.py",
+      "path": "tests/lanes/pons/test_pons_current_recovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_entry_confirmation_ordering.py",
+      "path": "tests/lanes/pons/test_pons_entry_confirmation_ordering.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_evidence_reconstruction_semantics.py",
+      "path": "tests/lanes/pons/test_pons_evidence_reconstruction_semantics.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_execution_acquisition.py",
+      "path": "tests/lanes/pons/test_pons_execution_acquisition.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_factory_hint_reuse.py",
+      "path": "tests/lanes/pons/test_pons_factory_hint_reuse.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_market_scope_efficiency.py",
+      "path": "tests/lanes/pons/test_pons_market_scope_efficiency.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_natural_observation.py",
+      "path": "tests/lanes/pons/test_pons_natural_observation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_partial_accounting.py",
+      "path": "tests/lanes/pons/test_pons_partial_accounting.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_position_provider_recovery.py",
+      "path": "tests/lanes/pons/test_pons_position_provider_recovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_postgrad_survivor.py",
+      "path": "tests/lanes/pons/test_pons_postgrad_survivor.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_selective_continuation.py",
+      "path": "tests/lanes/pons/test_pons_selective_continuation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_selective_independence.py",
+      "path": "tests/lanes/pons/test_pons_selective_independence.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_shared_survivor.py",
+      "path": "tests/lanes/pons/test_pons_shared_survivor.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_pons_writeoff_proof.py",
+      "path": "tests/lanes/pons/test_pons_writeoff_proof.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_position_sessions.py",
+      "path": "tests/lanes/pons/test_position_sessions.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_protocol_identity.py",
+      "path": "tests/lanes/pons/test_protocol_identity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_provider.py",
+      "path": "tests/lanes/pons/test_provider.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_provider_admission.py",
+      "path": "tests/lanes/pons/test_provider_admission.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_provider_topology.py",
+      "path": "tests/lanes/pons/test_provider_topology.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_public_log_429_adaptive.py",
+      "path": "tests/lanes/pons/test_public_log_429_adaptive.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_ramses_forced_paper.py",
+      "path": "tests/lanes/pons/test_ramses_forced_paper.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_rpc_log_timestamp_metadata.py",
+      "path": "tests/lanes/pons/test_rpc_log_timestamp_metadata.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_run369_accounting.py",
+      "path": "tests/lanes/pons/test_run369_accounting.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_run377_survivor_provider.py",
+      "path": "tests/lanes/pons/test_run377_survivor_provider.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_run379_survivor_graduation.py",
+      "path": "tests/lanes/pons/test_run379_survivor_graduation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_selective_block_cache.py",
+      "path": "tests/lanes/pons/test_selective_block_cache.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_sequencer_feed.py",
+      "path": "tests/lanes/pons/test_sequencer_feed.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_shared_position_fairness.py",
+      "path": "tests/lanes/pons/test_shared_position_fairness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_strategy_prospect_admission.py",
+      "path": "tests/lanes/pons/test_strategy_prospect_admission.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "pons",
+      "origin": "robinhood_tests/test_view_batch.py",
+      "path": "tests/lanes/pons/test_view_batch.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/__init__.py",
+      "path": "meme_machine/lanes/ramses/__init__.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/abi.py",
+      "path": "meme_machine/lanes/ramses/abi.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/continuation_robinhood.py",
+      "path": "meme_machine/lanes/ramses/continuation_robinhood.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/continuation_robinhood_cohort.py",
+      "path": "meme_machine/lanes/ramses/continuation_robinhood_cohort.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/continuation_robinhood_sample.py",
+      "path": "meme_machine/lanes/ramses/continuation_robinhood_sample.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/directional.py",
+      "path": "meme_machine/lanes/ramses/directional.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/evidence.py",
+      "path": "meme_machine/lanes/ramses/evidence.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/evidence_queue.py",
+      "path": "meme_machine/lanes/ramses/evidence_queue.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/finality.py",
+      "path": "meme_machine/lanes/ramses/finality.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/identity.py",
+      "path": "meme_machine/lanes/ramses/identity.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/immutable_rpc.py",
+      "path": "meme_machine/lanes/ramses/immutable_rpc.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/keccak.py",
+      "path": "meme_machine/lanes/ramses/keccak.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/liquidity.py",
+      "path": "meme_machine/lanes/ramses/liquidity.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/observability_probe.py",
+      "path": "meme_machine/lanes/ramses/observability_probe.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/outcomes.py",
+      "path": "meme_machine/lanes/ramses/outcomes.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/paper.py",
+      "path": "meme_machine/lanes/ramses/paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/pipeline.py",
+      "path": "meme_machine/lanes/ramses/pipeline.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/pons.py",
+      "path": "meme_machine/lanes/ramses/pons.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/pons_concentration.py",
+      "path": "meme_machine/lanes/ramses/pons_concentration.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/pons_lineage_capture.py",
+      "path": "meme_machine/lanes/ramses/pons_lineage_capture.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/pons_natural_observation.py",
+      "path": "meme_machine/lanes/ramses/pons_natural_observation.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/pons_natural_paper.py",
+      "path": "meme_machine/lanes/ramses/pons_natural_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/probe.py",
+      "path": "meme_machine/lanes/ramses/probe.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/protocol_probe.py",
+      "path": "meme_machine/lanes/ramses/protocol_probe.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/protocols.py",
+      "path": "meme_machine/lanes/ramses/protocols.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/provider.py",
+      "path": "meme_machine/lanes/ramses/provider.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/provider_admission.py",
+      "path": "meme_machine/lanes/ramses/provider_admission.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/provider_topology.py",
+      "path": "meme_machine/lanes/ramses/provider_topology.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses.py",
+      "path": "meme_machine/lanes/ramses/ramses.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_active_wide_maker.py",
+      "path": "meme_machine/lanes/ramses/ramses_active_wide_maker.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_all_pool_lifecycle.py",
+      "path": "meme_machine/lanes/ramses/ramses_all_pool_lifecycle.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_campaign.py",
+      "path": "meme_machine/lanes/ramses/ramses_campaign.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_capture.py",
+      "path": "meme_machine/lanes/ramses/ramses_capture.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_costs.py",
+      "path": "meme_machine/lanes/ramses/ramses_costs.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_evidence_coverage.py",
+      "path": "meme_machine/lanes/ramses/ramses_evidence_coverage.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_extended_test.py",
+      "path": "meme_machine/lanes/ramses/ramses_extended_test.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_forced_paper.py",
+      "path": "meme_machine/lanes/ramses/ramses_forced_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_lifecycle_log_census.py",
+      "path": "meme_machine/lanes/ramses/ramses_lifecycle_log_census.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_paper.py",
+      "path": "meme_machine/lanes/ramses/ramses_paper.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_strategy.py",
+      "path": "meme_machine/lanes/ramses/ramses_strategy.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_strategy_ledger.py",
+      "path": "meme_machine/lanes/ramses/ramses_strategy_ledger.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_strategy_sample.py",
+      "path": "meme_machine/lanes/ramses/ramses_strategy_sample.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/ramses_universe.py",
+      "path": "meme_machine/lanes/ramses/ramses_universe.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_research/sequencer_feed.py",
+      "path": "meme_machine/lanes/ramses/sequencer_feed.py",
+      "runtime": true,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_captured.py",
+      "path": "tests/lanes/ramses/test_captured.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_captured_natural_paper.py",
+      "path": "tests/lanes/ramses/test_captured_natural_paper.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_captured_pons_lineage.py",
+      "path": "tests/lanes/ramses/test_captured_pons_lineage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_confirmed_finality.py",
+      "path": "tests/lanes/ramses/test_confirmed_finality.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_continuation_robinhood.py",
+      "path": "tests/lanes/ramses/test_continuation_robinhood.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_continuation_robinhood_cohort.py",
+      "path": "tests/lanes/ramses/test_continuation_robinhood_cohort.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_evidence_queue.py",
+      "path": "tests/lanes/ramses/test_evidence_queue.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_foundation.py",
+      "path": "tests/lanes/ramses/test_foundation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_immutable_rpc.py",
+      "path": "tests/lanes/ramses/test_immutable_rpc.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_native_pons.py",
+      "path": "tests/lanes/ramses/test_native_pons.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_native_ramses.py",
+      "path": "tests/lanes/ramses/test_native_ramses.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_natural_paper_harness.py",
+      "path": "tests/lanes/ramses/test_natural_paper_harness.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_natural_paper_proof.py",
+      "path": "tests/lanes/ramses/test_natural_paper_proof.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_opportunity_coverage.py",
+      "path": "tests/lanes/ramses/test_opportunity_coverage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_pons_natural_observation.py",
+      "path": "tests/lanes/ramses/test_pons_natural_observation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_protocol_identity.py",
+      "path": "tests/lanes/ramses/test_protocol_identity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_provider.py",
+      "path": "tests/lanes/ramses/test_provider.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_provider_admission.py",
+      "path": "tests/lanes/ramses/test_provider_admission.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_provider_topology.py",
+      "path": "tests/lanes/ramses/test_provider_topology.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_active_wide_maker.py",
+      "path": "tests/lanes/ramses/test_ramses_active_wide_maker.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_candidate_plane.py",
+      "path": "tests/lanes/ramses/test_ramses_candidate_plane.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_capital_replay.py",
+      "path": "tests/lanes/ramses/test_ramses_capital_replay.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_census_budget_regression.py",
+      "path": "tests/lanes/ramses/test_ramses_census_budget_regression.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_census_provider_defer.py",
+      "path": "tests/lanes/ramses/test_ramses_census_provider_defer.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_connected_lifecycle.py",
+      "path": "tests/lanes/ramses/test_ramses_connected_lifecycle.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_continuous_campaign.py",
+      "path": "tests/lanes/ramses/test_ramses_continuous_campaign.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_costs.py",
+      "path": "tests/lanes/ramses/test_ramses_costs.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_dynamic_event_capacity.py",
+      "path": "tests/lanes/ramses/test_ramses_dynamic_event_capacity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_evidence_coverage.py",
+      "path": "tests/lanes/ramses/test_ramses_evidence_coverage.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_extended_market.py",
+      "path": "tests/lanes/ramses/test_ramses_extended_market.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_finalized_frontier_monotonicity.py",
+      "path": "tests/lanes/ramses/test_ramses_finalized_frontier_monotonicity.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_forced_paper.py",
+      "path": "tests/lanes/ramses/test_ramses_forced_paper.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_lifecycle_log_census.py",
+      "path": "tests/lanes/ramses/test_ramses_lifecycle_log_census.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_market_scope_efficiency.py",
+      "path": "tests/lanes/ramses/test_ramses_market_scope_efficiency.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_preentry_metadata.py",
+      "path": "tests/lanes/ramses/test_ramses_preentry_metadata.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_rate_limit.py",
+      "path": "tests/lanes/ramses/test_ramses_rate_limit.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_scan_capacity_recovery.py",
+      "path": "tests/lanes/ramses/test_ramses_scan_capacity_recovery.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_state_budget.py",
+      "path": "tests/lanes/ramses/test_ramses_state_budget.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_strategy.py",
+      "path": "tests/lanes/ramses/test_ramses_strategy.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_strategy_isolation.py",
+      "path": "tests/lanes/ramses/test_ramses_strategy_isolation.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_universe.py",
+      "path": "tests/lanes/ramses/test_ramses_universe.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_ramses_viability_v4_replay.py",
+      "path": "tests/lanes/ramses/test_ramses_viability_v4_replay.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_rpc_log_timestamp_metadata.py",
+      "path": "tests/lanes/ramses/test_rpc_log_timestamp_metadata.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_run377_rpc_state.py",
+      "path": "tests/lanes/ramses/test_run377_rpc_state.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_sequencer_feed.py",
+      "path": "tests/lanes/ramses/test_sequencer_feed.py",
+      "runtime": false,
+      "source_equivalent": true
+    },
+    {
+      "lane": "ramses",
+      "origin": "robinhood_tests/test_shared_position_fairness.py",
+      "path": "tests/lanes/ramses/test_shared_position_fairness.py",
+      "runtime": false,
+      "source_equivalent": true
+    }
+  ],
+  "lanes": {
+    "meteora": {
+      "patches_applied_offline": 19,
+      "runtime_python_files": 45,
+      "runtime_source_equivalent": true,
+      "source": "a3579b4cc748fdbb7b4a466680f8a224773adc8b"
+    },
+    "pons": {
+      "patches_applied_offline": 29,
+      "runtime_python_files": 49,
+      "runtime_source_equivalent": true,
+      "source": "3de3d376847531ccb90e260cfcc96c37587ccb23"
+    },
+    "pump": {
+      "patches_applied_offline": 26,
+      "runtime_python_files": 55,
+      "runtime_source_equivalent": true,
+      "source": "3c9553afb3caa92ab5f3db769f870df033a9630f"
+    },
+    "ramses": {
+      "patches_applied_offline": 18,
+      "runtime_python_files": 44,
+      "runtime_source_equivalent": true,
+      "source": "41b5f263efc31bedf9b39039a9f66bed264b70d3"
+    }
+  },
+  "legacy_metadata_drift": {
+    "pump": "composed_file_hash for solana_evidence_service predates exact baseline overlay bytes",
+    "solana_diff": "legacy diff hashes omit later integration scheduling files; exact declared overlay bytes copied"
+  },
+  "recipe_dependency_completion": [
+    "solana_owner_admission.py from exact baseline for both Solana namespaces"
+  ],
+  "source_equivalence": "all copied Python bytes equal after reversing namespace adaptation"
+}

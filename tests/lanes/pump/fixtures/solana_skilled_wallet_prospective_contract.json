@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "test_name": "frozen_sol_skilled_wallet_prospective_v1",
+  "frozen_at_utc": "2026-09-18T13:26:00Z",
+  "cohort_source_run": 35301582766,
+  "cohort_fixture": "tests/fixtures/solana_alpha_wallet_cohort_frozen.json",
+  "cohort_policy": "immutable_for_this_test",
+  "target_n_interim": 100,
+  "target_n_final": 200,
+  "natural_buy_definition": "first frozen-wallet/mint buy after >=30 minutes without a buy by that same frozen wallet in that mint",
+  "market_state_rule": "strictly pre-buy only",
+  "entry_delays_seconds": [
+    15,
+    60
+  ],
+  "outcome_horizons_seconds_after_follower_entry": [
+    60,
+    300,
+    900,
+    3600
+  ],
+  "robust_control_rule": {
+    "max_controls": 12,
+    "primary_max_match_distance": 2,
+    "minimum_controls": 3,
+    "control_cohort_buy_exclusion_seconds": 900,
+    "aggregation": "median_control_return"
+  },
+  "tail_thresholds_pct": [
+    25,
+    50,
+    100
+  ],
+  "convergence_rule": "actionable threshold crossing when >=2 distinct frozen wallets have bought the same mint within the prior 15 minutes, including the current buy",
+  "strategy_authority": false,
+  "sizing_authority": false,
+  "execution_authority": false,
+  "paper_trades": 0
+}
