@@ -182,8 +182,11 @@ def receipt(phase):
         if origin is None or origin in ('built-in', 'frozen'):
             continue
         modules[name] = dict(origin=str(Path(origin).resolve()), sha256=expected_file(origin))
+    process_stat = Path('/proc/self/stat').read_text()
+    start_ticks = int(process_stat[process_stat.rfind(')')+2:].split()[19])
     persist(Path(PARAMS['output'])/f'ORIGIN-{os.getpid()}-{phase}.json',
         dict(version='v3-process-origin', pid=os.getpid(), parent_pid=os.getppid(), role=ROLE, phase=phase,
+             process_start_ticks=start_ticks, real_monotonic_ns=REAL_NS(),
              candidate_sha=S, assembly_digest=ASSEMBLY, declaration_sha256=PARAMS['declaration_sha256'],
              infrastructure_digest=PARAMS['declaration']['infrastructure']['digest'],
              environment_sha256=PARAMS['declaration']['environment_sha256'], modules=modules,

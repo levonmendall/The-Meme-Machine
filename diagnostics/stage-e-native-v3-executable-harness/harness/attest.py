@@ -83,74 +83,244 @@ def _ancestors(current, root):
     return result
 
 
-def cgroup_inventory(pid):
-    memberships = []
-    for line in Path(f'/proc/{pid}/cgroup').read_text().splitlines():
+V2_INTERFACES = ('cgroup.controllers', 'cgroup.subtree_control', 'cgroup.type',
+                 'cpu.max', 'cpu.weight', 'cpuset.cpus', 'cpuset.cpus.effective',
+                 'memory.max', 'memory.high', 'memory.swap.max')
+V1_INTERFACES = ('cpu.cfs_quota_us', 'cpu.cfs_period_us', 'cpuset.cpus',
+                 'cpuset.effective_cpus', 'memory.limit_in_bytes',
+                 'memory.soft_limit_in_bytes', 'memory.memsw.limit_in_bytes')
+# Linux cgroup-v2 documents these interfaces as non-root-only. This annotation
+# never replaces ABSENT evidence or proof that the observed root is the true root.
+V2_ROOT_EXCEPTIONS = ('cgroup.type', 'cpu.max', 'cpu.weight', 'cpuset.cpus',
+                      'memory.max', 'memory.high', 'memory.swap.max')
+
+
+def _interface(path):
+    try:
+        return dict(state='PRESENT', raw=Path(path).read_text())
+    except FileNotFoundError:
+        return dict(state='ABSENT')
+    except OSError as exc:
+        return dict(state='UNREADABLE', error=type(exc).__name__+':'+str(exc))
+
+
+def _raw(interface):
+    require(interface.get('state') == 'PRESENT' and type(interface.get('raw')) is str,
+            'unreadable_or_missing_cgroup_interface')
+    return interface['raw'].strip()
+
+
+def _memberships(raw):
+    rows = []
+    for line in raw.splitlines():
         hierarchy, controllers, name = line.split(':', 2)
-        require(name.startswith('/') and '..' not in Path(name).parts, 'hidden_cgroup_ancestor')
-        memberships.append((hierarchy, controllers.split(',') if controllers else [], name))
-    mounts = []
-    for line in Path('/proc/self/mountinfo').read_text().splitlines():
+        require(hierarchy.isdecimal() and name.startswith('/') and '..' not in Path(name).parts
+                and str(Path(name)) == name, 'hidden_cgroup_ancestor')
+        controls = controllers.split(',') if controllers else []
+        require(len(set(controls)) == len(controls) and bool(controls) == (int(hierarchy) != 0),
+                'invalid_cgroup_membership')
+        rows.append([hierarchy, controls, name])
+    require(rows and len({r[0] for r in rows}) == len(rows), 'missing_or_duplicate_cgroup_membership')
+    return rows
+
+
+def _cgroup_mounts(raw):
+    rows = []
+    for line in raw.splitlines():
         fields = line.split(); sep = fields.index('-')
         if fields[sep+1] in ('cgroup', 'cgroup2'):
-            mounts.append((fields[sep+1], fields[3], Path(fields[4]), fields[sep+3].split(',')))
-    result = []
-    complete = True
-    for hierarchy, controllers, name in memberships:
-        matches = [m for m in mounts if m[0] == ('cgroup' if controllers else 'cgroup2')
-                   and (not controllers or set(controllers).issubset(m[3]))]
-        if len(matches) != 1:
-            complete = False
-            continue
-        version, mount_root, root, _ = matches[0]
-        # A delegated subtree mount cannot establish omitted ancestor quotas.
-        if mount_root != '/':
-            complete = False
-            continue
-        for folder in _ancestors(root / name.lstrip('/'), root):
-            row = dict(version=version, controllers=controllers, membership=name,
-                       path=str(folder), mount_root=mount_root)
-            def optional(file):
-                p = folder/file
-                return _text(p) if p.exists() else None
-            if version == 'cgroup2':
-                raw = optional('cpu.max')
-                row['cpu_max_raw'] = raw
-                row['quota_us'], row['period_us'] = ((None if raw.split()[0] == 'max' else int(raw.split()[0]),
-                                                      int(raw.split()[1])) if raw else (None, None))
-                row['cpuset'] = optional('cpuset.cpus')
-                row['cpuset_effective'] = optional('cpuset.cpus.effective')
-                for name_, file in [('memory_max', 'memory.max'), ('memory_high', 'memory.high'),
-                                    ('swap_max', 'memory.swap.max')]:
-                    raw = optional(file)
-                    row[name_] = None if raw in (None, 'max') else int(raw)
-                    row[name_+'_raw'] = raw
+            unescape = lambda s: s.replace('\\040', ' ').replace('\\011', '\t').replace('\\134', '\\')
+            rows.append(dict(version=fields[sep+1], root=unescape(fields[3]),
+                mount=unescape(fields[4]), device=fields[2], mount_id=int(fields[0]),
+                controllers=fields[sep+3].split(','), raw=line))
+    return rows
+
+
+def _matching_mount(mounts, controllers):
+    matches = [m for m in mounts if m['version'] == ('cgroup' if controllers else 'cgroup2')
+               and (not controllers or set(controllers).issubset(m['controllers']))]
+    require(len(matches) == 1, 'missing_or_ambiguous_cgroup_mount')
+    mount = matches[0]
+    require(mount['root'] == '/' and Path(mount['mount']).is_absolute(), 'hidden_cgroup_mount_root')
+    return mount
+
+
+def _parsed_limits(row):
+    """Compatibility columns are derived from explicit raw states, never authority."""
+    files, v2 = row['interfaces'], row['version'] == 'cgroup2'
+    def optional(name):
+        return _raw(files[name]) if files[name]['state'] == 'PRESENT' else None
+    fields = dict(quota_us=None, period_us=None, cpuset=optional('cpuset.cpus'))
+    if v2:
+        raw = optional('cpu.max'); fields['cpu_max_raw'] = raw
+        if raw is not None:
+            parts = raw.split()
+            require(len(parts) == 2 and parts[1].isdecimal() and int(parts[1]) > 0
+                    and (parts[0] == 'max' or parts[0].isdecimal() and int(parts[0]) > 0),
+                    'invalid_cpu_max')
+            fields.update(quota_us=None if parts[0] == 'max' else int(parts[0]), period_us=int(parts[1]))
+        fields['cpuset_effective'] = optional('cpuset.cpus.effective')
+        memory_files = [('memory_max', 'memory.max'), ('memory_high', 'memory.high'),
+                        ('swap_max', 'memory.swap.max')]
+    else:
+        raw, period = optional('cpu.cfs_quota_us'), optional('cpu.cfs_period_us')
+        fields.update(quota_us=None if raw in (None, '-1') else int(raw),
+                      period_us=int(period) if period is not None else None)
+        require(fields['quota_us'] is None or fields['quota_us'] > 0, 'invalid_cpu_quota')
+        require(fields['period_us'] is None or fields['period_us'] > 0, 'invalid_cpu_period')
+        fields['cpuset_effective'] = optional('cpuset.effective_cpus') or fields['cpuset']
+        memory_files = [('memory_max', 'memory.limit_in_bytes'),
+                        ('memory_high', 'memory.soft_limit_in_bytes'), ('memsw_max', 'memory.memsw.limit_in_bytes')]
+    for field, name in memory_files:
+        raw = optional(name)
+        require(raw is None or raw == 'max' and v2 or raw.isdecimal(), 'invalid_memory_limit')
+        fields[field+'_raw'] = raw
+        fields[field] = None if raw is None or raw == 'max' or not v2 and int(raw) >= 2**60 else int(raw)
+    for field in ('cpuset', 'cpuset_effective'):
+        if fields[field] is not None:
+            cpus(fields[field])
+    return fields
+
+
+def verified_cgroup_inventory(groups):
+    """Pure completeness proof. Captured complete/applicability flags are not proof.
+
+    A node's incoming controller is governed by its parent's subtree_control;
+    disabling the node's outgoing propagation never excuses its own limits.
+    """
+    require(groups.get('version') == 'v3-cgroup-controller-evidence', 'cgroup_controller_evidence_missing')
+    for key in ('namespace', 'mount_namespace'):
+        value = groups.get(key)
+        require(type(value) is str and value and value == groups.get('pid1_'+key)
+                == groups.get('reader_'+key), 'cgroup_namespace_visibility_mismatch')
+    files = groups['visibility_interfaces']
+    memberships = _memberships(_raw(files['membership']))
+    require(groups['memberships'] == memberships, 'contradictory_cgroup_membership')
+    pid1 = _memberships(_raw(files['pid1_membership']))
+    require([r[:2] for r in pid1] == [r[:2] for r in memberships], 'hidden_cgroup_hierarchy')
+    mounts = _cgroup_mounts(_raw(files['mountinfo']))
+    require(mounts == _cgroup_mounts(_raw(files['pid1_mountinfo'])), 'cgroup_mount_visibility_mismatch')
+    remaining = list(groups['ancestors']); verified = []; observed_mounts = set()
+    for _, controllers, name in memberships:
+        mount = _matching_mount(mounts, controllers)
+        observed_mounts.add(mount['mount_id'])
+        root = Path(mount['mount'])
+        expected = list(reversed(_ancestors(root/name.lstrip('/'), root)))
+        parent_enabled = None
+        for folder in expected:
+            matches = [r for r in remaining if r.get('path') == str(folder)
+                       and r.get('membership') == name and r.get('controllers') == controllers]
+            require(len(matches) == 1, 'hidden_or_duplicate_cgroup_ancestor')
+            row = matches[0]; remaining.remove(row)
+            is_root = folder == root
+            require(row['version'] == mount['version'] and row['mount_root'] == '/'
+                    and row['cgroup_path'] == ('/' if is_root else '/' + folder.relative_to(root).as_posix())
+                    and row['namespace'] == groups['namespace'], 'contradictory_cgroup_ancestor_identity')
+            directory = row['directory']
+            require(directory.get('state') == 'PRESENT' and type(directory.get('inode')) is int
+                    and directory['inode'] > 0
+                    and f"{os.major(directory['device'])}:{os.minor(directory['device'])}" == mount['device'],
+                    'unreadable_or_changed_cgroup_directory')
+            if row['version'] == 'cgroup2':
+                require(not is_root or directory['inode'] == 1, 'hidden_cgroup_root_directory')
+                interfaces = row['interfaces']
+                require(set(interfaces) == set(V2_INTERFACES), 'missing_cgroup_interface_evidence')
+                available = _raw(interfaces['cgroup.controllers']).split()
+                enabled = _raw(interfaces['cgroup.subtree_control']).split()
+                require(len(set(available)) == len(available) and len(set(enabled)) == len(enabled)
+                        and all(t.replace('_', '').isalnum() for t in available+enabled)
+                        and set(enabled).issubset(available), 'contradictory_controller_enablement')
+                require(is_root or set(available) == parent_enabled, 'inconsistent_ancestor_enablement')
+                exceptions = list(V2_ROOT_EXCEPTIONS) if is_root else []
+                require(row.get('root_exceptions') == exceptions, 'invalid_cgroup_root_exception')
+                for field in exceptions:
+                    require(interfaces[field] == {'state': 'ABSENT'}, 'impossible_cgroup_root_interface')
+                if not is_root:
+                    require(_raw(interfaces['cgroup.type']) == 'domain', 'unsupported_cgroup_domain')
+                applicability = {'cpu': ('cpu.max', 'cpu.weight'),
+                                 'cpuset': ('cpuset.cpus', 'cpuset.cpus.effective'),
+                                 'memory': ('memory.max', 'memory.high', 'memory.swap.max')}
+                for controller, names in applicability.items():
+                    for field in names:
+                        if field in exceptions:
+                            continue
+                        if controller in available:
+                            value = _raw(interfaces[field])
+                            if field == 'cpuset.cpus.effective':
+                                require(bool(cpus(value)), 'missing_effective_cpuset')
+                            if field == 'cpu.weight':
+                                require(value.isdecimal() and 1 <= int(value) <= 10000, 'invalid_cpu_weight')
+                        else:
+                            require(interfaces[field] == {'state': 'ABSENT'}, 'unexplained_cgroup_interface_state')
+                parent_enabled = set(enabled)
             else:
-                raw = optional('cpu.cfs_quota_us')
-                row['quota_us'] = None if raw in (None, '-1') else int(raw)
-                raw_period = optional('cpu.cfs_period_us')
-                row['period_us'] = int(raw_period) if raw_period else None
-                row['cpuset'] = optional('cpuset.cpus')
-                row['cpuset_effective'] = optional('cpuset.effective_cpus') or row['cpuset']
-                for name_, file in [('memory_max', 'memory.limit_in_bytes'),
-                                    ('memory_high', 'memory.soft_limit_in_bytes'),
-                                    ('memsw_max', 'memory.memsw.limit_in_bytes')]:
-                    raw = optional(file)
-                    row[name_] = None if raw is None or int(raw) >= 2**60 else int(raw)
-                    row[name_+'_raw'] = raw
-            result.append(row)
-    if not result:
-        complete = False
-    cpu_rows = [r for r in result if r['period_us'] is not None]
-    cpuset_rows = [r for r in result if r['cpuset_effective']]
-    memory_rows = [r for r in result if r.get('memory_max_raw') is not None]
-    # Root-only v2 may have no controllers enabled: limits are unrestricted
-    # within the independently authenticated VM allocation.
-    unified_root = len(result) == 1 and result[0]['version'] == 'cgroup2' and result[0]['membership'] == '/'
-    complete = complete and (bool(cpu_rows and cpuset_rows and memory_rows) or unified_root)
-    return dict(complete=complete, memberships=[list(m) for m in memberships], ancestors=result,
-                namespace=os.readlink(f'/proc/{pid}/ns/cgroup'),
-                pid1_namespace=os.readlink('/proc/1/ns/cgroup'))
+                require(row.get('root_exceptions') == [] and set(row['interfaces']) == set(V1_INTERFACES),
+                        'invalid_legacy_cgroup_evidence')
+                # Preserve v1's explicit CPU/cpuset/memory checks. An optional
+                # old-kernel effective cpuset falls back to the explicit cpuset;
+                # absent memsw is not RAM evidence (host swap is separately zero).
+                required = {'cpu': ('cpu.cfs_quota_us', 'cpu.cfs_period_us'),
+                            'cpuset': ('cpuset.cpus',),
+                            'memory': ('memory.limit_in_bytes', 'memory.soft_limit_in_bytes')}
+                for controller, names in required.items():
+                    if controller in controllers:
+                        for field in names:
+                            require(bool(_raw(row['interfaces'][field])), 'missing_legacy_cgroup_limit')
+                require(all(f.get('state') in ('PRESENT', 'ABSENT') for f in row['interfaces'].values()),
+                        'unreadable_legacy_cgroup_interface')
+            fields = _parsed_limits(row)
+            require(all(k in row and type(row[k]) is type(v) and row[k] == v for k, v in fields.items()),
+                    'contradictory_parsed_cgroup_limit')
+            verified.append(dict(row, **fields))
+    require(not remaining and verified, 'extra_or_missing_cgroup_ancestor')
+    require(all(m['mount_id'] in observed_mounts for m in mounts
+                if m['version'] == 'cgroup2' or {'cpu', 'cpuset', 'memory'}.intersection(m['controllers'])),
+            'hidden_cgroup_controller_membership')
+    if not any(r['version'] == 'cgroup2' for r in verified):
+        require({'cpu', 'cpuset', 'memory'}.issubset({c for r in verified for c in r['controllers']}),
+                'incomplete_legacy_controller_coverage')
+    return verified
+
+
+def cgroup_completeness_errors(groups):
+    try:
+        verified_cgroup_inventory(groups)
+        return []
+    except (KeyError, TypeError, ValueError, IndexError, AttributeError) as exc:
+        return ['cgroup_evidence:'+str(exc)]
+
+
+def cgroup_inventory(pid):
+    files = dict(membership=_interface(f'/proc/{pid}/cgroup'), pid1_membership=_interface('/proc/1/cgroup'),
+                 mountinfo=_interface('/proc/self/mountinfo'), pid1_mountinfo=_interface('/proc/1/mountinfo'))
+    memberships = _memberships(_raw(files['membership']))
+    mounts = _cgroup_mounts(_raw(files['mountinfo']))
+    groups = dict(version='v3-cgroup-controller-evidence', complete=False, memberships=memberships,
+        ancestors=[], visibility_interfaces=files,
+        namespace=os.readlink(f'/proc/{pid}/ns/cgroup'), pid1_namespace=os.readlink('/proc/1/ns/cgroup'),
+        reader_namespace=os.readlink('/proc/self/ns/cgroup'),
+        mount_namespace=os.readlink(f'/proc/{pid}/ns/mnt'), pid1_mount_namespace=os.readlink('/proc/1/ns/mnt'),
+        reader_mount_namespace=os.readlink('/proc/self/ns/mnt'))
+    for _, controllers, name in memberships:
+        mount = _matching_mount(mounts, controllers); root = Path(mount['mount'])
+        for folder in _ancestors(root/name.lstrip('/'), root):
+            row = dict(version=mount['version'], controllers=controllers, membership=name, path=str(folder),
+                cgroup_path='/' if folder == root else '/' + folder.relative_to(root).as_posix(), mount_root=mount['root'],
+                namespace=groups['namespace'], root_exceptions=list(V2_ROOT_EXCEPTIONS)
+                if mount['version'] == 'cgroup2' and folder == root else [])
+            try:
+                st = folder.stat(); row['directory'] = dict(state='PRESENT', inode=st.st_ino, device=st.st_dev)
+            except OSError as exc:
+                row['directory'] = dict(state='UNREADABLE', error=type(exc).__name__+':'+str(exc))
+            row['interfaces'] = {f: _interface(folder/f) for f in
+                                 (V2_INTERFACES if mount['version'] == 'cgroup2' else V1_INTERFACES)}
+            try:
+                row.update(_parsed_limits(row))
+            except (ValueError, TypeError) as exc:
+                row['parse_error'] = str(exc)
+            groups['ancestors'].append(row)
+    groups['complete'] = not cgroup_completeness_errors(groups)
+    return groups
 
 
 def process_inventory():
@@ -162,7 +332,8 @@ def process_inventory():
         try:
             status = _text(path/'stat')
             rest = status[status.rfind(')')+2:].split()
-            row = dict(pid=int(path.name), ppid=int(rest[1]), state=rest[0], start_ticks=int(rest[19]))
+            row = dict(pid=int(path.name), ppid=int(rest[1]), process_group=int(rest[2]),
+                       state=rest[0], start_ticks=int(rest[19]))
             exe = path/'exe'
             if exe.exists():
                 actual = exe.resolve(strict=True)
@@ -274,14 +445,16 @@ def admission_errors(snapshot, allocation, storage_bounds, runtime, *, scope_pid
     usable = snapshot['memory']['MemTotal']
     check(0 < usable <= RAM and allocation.get('usable_ram_bytes') == usable, 'usable_RAM_allocation_binding')
     cg = snapshot['cgroup']
-    check(cg['complete'] is True and cg['namespace'] == cg['pid1_namespace']
+    evidence_errors = cgroup_completeness_errors(cg)
+    errors.extend(evidence_errors)
+    check(not evidence_errors and cg.get('complete') is True and cg.get('namespace') == cg.get('pid1_namespace')
           and allocation.get('ancestor_inventory_sha256') == sha(canonical(cg)), 'hidden_or_changed_cgroup_ancestors')
-    for row in cg['ancestors']:
-        period, quota = row['period_us'], row['quota_us']
-        check(quota is None or type(period) is int and period > 0 and Fraction(quota, period) >= 2,
+    for row in cg.get('ancestors', []):
+        period, quota = row.get('period_us'), row.get('quota_us')
+        check(quota is None or type(quota) is int and type(period) is int and period > 0 and Fraction(quota, period) >= 2,
               'restrictive_ancestor_CPU_quota')
         for field in ('cpuset', 'cpuset_effective'):
-            check(not row[field] or set(ids).issubset(cpus(row[field])), 'restrictive_ancestor_cpuset')
+            check(not row.get(field) or set(ids).issubset(cpus(row[field])), 'restrictive_ancestor_cpuset')
         for field in ('memory_max', 'memory_high', 'memsw_max'):
             limit = row.get(field)
             check(limit is None or type(limit) is int and limit >= RAM, 'restrictive_ancestor_'+field)

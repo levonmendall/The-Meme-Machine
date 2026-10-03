@@ -3,11 +3,15 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+import os
+import socket
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'harness'))
-from core import contract_file
+from core import contract_file, read
 from ledger import Ledger, fresh_campaign, trial_matrix
-from preserve import persist, seal, verify_inventory, redundant_copy
+from preserve import persist, seal, verify_inventory, redundant_copy, abandoned_ipc, failure_copy
+from run import _finalize_attempt, _finalize_campaign
 
 
 class PreservationTests(unittest.TestCase):
@@ -99,3 +103,98 @@ class PreservationTests(unittest.TestCase):
             with self.assertRaises(ValueError):trial_matrix(name,'B')
         self.assertIsNone(seal_['denominator_ns'])
         self.assertIsNone(seal_['numerator_ns'])
+
+    def abandoned(self, root):
+        folder = root/'m1/d';folder.mkdir(parents=True)
+        sock = socket.socket(socket.AF_UNIX)
+        sock.bind(str(folder/'db.sock'));sock.close()
+        (folder/'db').write_bytes(b'UNIT REGULAR DB EVIDENCE')
+        (folder/'db-wal').write_bytes(b'UNIT REGULAR WAL EVIDENCE')
+        return folder
+
+    def test_abandoned_socket_cleanup_requires_confirmed_termination(self):
+        folder = self.abandoned(self.root)
+        with self.assertRaisesRegex(ValueError,'confirmed_process_termination'):abandoned_ipc(self.root,{})
+        self.assertTrue((folder/'db.sock').exists())
+        with self.assertRaises(ValueError):seal(self.root)
+
+    def test_only_abandoned_IPC_is_removed_and_every_regular_byte_is_preserved(self):
+        folder = self.abandoned(self.root)
+        terminated = dict(trial_process_terminated=True,all_native_helpers_terminated=True)
+        self.assertEqual(len(abandoned_ipc(self.root,terminated)),1)
+        self.assertFalse((folder/'db.sock').exists())
+        seal(self.root)
+        self.assertEqual((folder/'db').read_bytes(),b'UNIT REGULAR DB EVIDENCE')
+        self.assertEqual((folder/'db-wal').read_bytes(),b'UNIT REGULAR WAL EVIDENCE')
+        self.assertFalse(read(self.root/'ABANDONED_IPC.json')['native_safety_credit'])
+
+    def test_regular_file_named_db_socket_is_never_deleted(self):
+        folder = self.root/'m1/d';folder.mkdir(parents=True);(folder/'db.sock').write_bytes(b'evidence')
+        with self.assertRaisesRegex(ValueError,'not_socket'):
+            abandoned_ipc(self.root,dict(trial_process_terminated=True,all_native_helpers_terminated=True))
+        self.assertEqual((folder/'db.sock').read_bytes(),b'evidence')
+
+    def test_failure_copy_keeps_all_regular_files_and_itemizes_specials(self):
+        source = self.root/'source';source.mkdir();self.abandoned(source)
+        os.mkfifo(source/'unit.fifo');(source/'link').symlink_to('/etc/os-release')
+        (source/'regular').write_bytes(b'unit log')
+        copied = failure_copy(source,self.root/'copy')
+        receipt = read(self.root/'copy/FAILURE_COPY_RECEIPT.json')
+        self.assertFalse(copied['acceptance_credit'])
+        self.assertEqual({r['path'] for r in receipt['nonregular_artifacts_retained_locally']},
+                         {'m1/d/db.sock','unit.fifo','link'})
+        self.assertEqual((self.root/'copy/m1/d/db-wal').read_bytes(),b'UNIT REGULAR WAL EVIDENCE')
+        self.assertTrue((source/'m1/d/db.sock').exists())
+
+    def failure_attempt(self, *, special=False):
+        ledger = self.ledger()
+        ledger.append('STARTED',1,{})
+        folder = ledger.path.parent/'t1';folder.mkdir()
+        persist(folder/'UNIT_FAILURE.json',{'native_safety_credit':False})
+        if special:os.mkfifo(folder/'unit.fifo')
+        publication = self.root/'publication';publication.mkdir()
+        declaration = dict(campaign=ledger.path.parent.name,paths={'durable_publication_root':str(publication)})
+        return ledger,folder,declaration,publication
+
+    def test_seal_exception_cannot_bypass_INVALID_or_regular_failure_publication(self):
+        ledger,folder,d,pub = self.failure_attempt(special=True)
+        result,error,terminal = _finalize_attempt(folder,d,1,valid=False,reason='unit failure',
+                                                 declaration_sha256='unit',allocation={})
+        self.assertIsNone(result);self.assertTrue(terminal);self.assertIn('raw_sealing_failure',error)
+        self.assertEqual(ledger.events()[-1]['event'],'INVALID')
+        self.assertIsNone(ledger.events()[-1]['details']['raw_inventory_sha256'])
+        copy = pub/(d['campaign']+'-t1-failure')
+        self.assertTrue((copy/'UNIT_FAILURE.json').is_file());self.assertTrue((copy/'SEAL_FAILURE.json').is_file())
+        with self.assertRaises(ValueError):ledger.append('STARTED',2,{})
+
+    def test_injected_sealing_IO_failure_still_records_and_publishes(self):
+        ledger,folder,d,pub = self.failure_attempt()
+        with patch('run.seal',side_effect=OSError('unit fsync failure')):
+            _finalize_attempt(folder,d,1,valid=True,reason=None,declaration_sha256='unit',allocation={})
+        self.assertEqual(ledger.events()[-1]['event'],'INVALID')
+        self.assertTrue((pub/(d['campaign']+'-t1-failure')/'UNIT_FAILURE.json').exists())
+
+    def test_socket_failure_is_cleaned_only_after_recorded_process_termination(self):
+        ledger,folder,d,pub = self.failure_attempt();self.abandoned(folder)
+        persist(folder/'PROCESS_TERMINATION.json',dict(trial_process_terminated=True,all_native_helpers_terminated=True))
+        _finalize_attempt(folder,d,1,valid=False,reason='unit termination',declaration_sha256='unit',allocation={})
+        self.assertEqual(ledger.events()[-1]['event'],'INVALID')
+        self.assertFalse((folder/'m1/d/db.sock').exists())
+        self.assertTrue((pub/(d['campaign']+'-t1')/'m1/d/db-wal').exists())
+
+    def test_publication_error_does_not_erase_terminal_ledger(self):
+        ledger,folder,d,pub = self.failure_attempt()
+        with patch('run.redundant_copy',side_effect=OSError('unit publication failure')),\
+             patch('run.failure_copy',side_effect=OSError('unit disk failure')):
+            _,error,_ = _finalize_attempt(folder,d,1,valid=False,reason='unit failure',declaration_sha256='unit',allocation={})
+        self.assertEqual(ledger.events()[-1]['event'],'INVALID')
+        self.assertIn('failure_publication',error)
+        self.assertTrue((folder/'UNIT_FAILURE.json').exists())
+
+    def test_campaign_seal_failure_records_STOPPED_and_preserves_all_regular_bytes(self):
+        ledger,folder,d,pub = self.failure_attempt(special=True)
+        with self.assertRaisesRegex(ValueError,'campaign_preservation_failure'):
+            _finalize_campaign(ledger.path.parent,d,ledger,'unit')
+        self.assertEqual(ledger.events()[-1]['event'],'STOPPED')
+        copy = pub/(d['campaign']+'-campaign-failure')
+        self.assertTrue((copy/'LEDGER.jsonl').exists());self.assertTrue((copy/'t1/UNIT_FAILURE.json').exists())

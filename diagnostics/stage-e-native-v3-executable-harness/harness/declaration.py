@@ -4,21 +4,25 @@ from pathlib import Path
 from attest import admission_errors, signed_document
 from binding import infrastructure_identity
 from core import (ASSEMBLY, CONTRACT_COMMIT, CONTRACT_MANIFEST_SHA, INFRA, MODES, ROOT,
-                  S, T, canonical, contract_file, file_sha, read, require, sha, workload)
+                  S, T, canonical, contract_file, file_sha, read, require, sha, workload, RESOURCE_SAMPLING)
 from ledger import trial_matrix
 
 TIMING = dict(start='before isolated trial-process startup and complete-cohort setup',
               end='after all four members, observer joins, teardown, persistence and helper termination',
+              C_overload_terminal_end='after started prefix, failed diagnostic, native proof preservation, teardown, persistence and helper termination',
               clock='time.perf_counter_ns', subtraction=False, double_counting=False, uploads_inside=False)
 STOP_RULES = ['resource admission or continuity failure', 'strict safety equality or excess',
               'missing/changed origin, tape, generation, raw receipt or prerequisite',
               'provider or DNS attempt', 'invalid baseline/member/pair or interruption',
               'any retry/replacement or insufficient storage', 'missing native overload-safety proof']
+STOP_RULES += ['C FAILED_DIAGNOSTIC: stop further members; only independently proved native safety can receive C safety credit']
 PRESERVATION = ['consume slot before process startup', 'stop qualification; join helpers',
                 'preserve DB/WAL/archive/pins/gaps/ledger/raw receipts',
                 'fsync files and parent directories; hash exact inventory',
                 'read back redundant durable copy; retain local copy',
                 'no advancement after failure; no sole evidence deletion']
+PRESERVATION += ['remove known abandoned IPC only after confirmed process-tree termination',
+                 'sealing failure still records INVALID and publishes every regular failure evidence file']
 
 
 def preview(kind, campaign, *, executor, environment, workflow, paths, allocation=None,
@@ -33,7 +37,7 @@ def preview(kind, campaign, *, executor, environment, workflow, paths, allocatio
         candidate_sha=S, candidate_tree=T, contract_commit=CONTRACT_COMMIT,
         contract_manifest_sha256=CONTRACT_MANIFEST_SHA, assembly_digest=ASSEMBLY,
         class_id=kind, campaign=campaign, trials=trial_rows, modes=list(MODES) if kind == 'B' else [trial_rows[0]['mode']],
-        retries=0, replacements=0, warmups=0, timing=TIMING, stop_rules=STOP_RULES,
+        retries=0, replacements=0, warmups=0, timing=TIMING, resource_sampling=RESOURCE_SAMPLING, stop_rules=STOP_RULES,
         preservation_rules=PRESERVATION, executor=executor, environment=environment,
         environment_sha256=sha(canonical(environment)), workflow=workflow,
         paths=paths, allocation=allocation, storage_bounds=storage_bounds,
@@ -56,7 +60,8 @@ def authorize(declaration_path, owner_permit_path, owner_key, *, kind):
     require(d['paper_only'] is True and d['stage_e'] == 'RED' and d['stage_f'] == 'NOT STARTED', 'execution_scope')
     require(d['trials'] == trial_matrix(d['campaign'], kind) and d['retries'] == d['replacements'] == d['warmups'] == 0,
             'declared_trial_identity')
-    require(d['timing'] == TIMING and d['stop_rules'] == STOP_RULES and d['preservation_rules'] == PRESERVATION,
+    require(d['timing'] == TIMING and d.get('resource_sampling') == RESOURCE_SAMPLING
+            and d['stop_rules'] == STOP_RULES and d['preservation_rules'] == PRESERVATION,
             'declaration_rules_changed')
     spec = workload(kind)
     require(d['workload_sha256'] == sha(canonical(spec)) and d['tape_binding'] == spec['tape_binding']

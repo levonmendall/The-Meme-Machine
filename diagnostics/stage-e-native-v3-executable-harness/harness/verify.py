@@ -11,10 +11,13 @@ from pathlib import Path
 import sqlite3
 
 from core import (ASSEMBLY, COHORT, MODES, S, T, canonical, contract_file, file_sha,
-                  read, relative, require, sha, workload)
+                  read, relative, require, sha, workload, RESOURCE_SAMPLING, RESOURCE_TOLERANCE_NS, CLOCK_PAIR_TOLERANCE_NS)
 from preserve import verify_inventory, inventory
 
 SCOPES = ('program:meteora', 'program:pump', 'program:pumpswap')
+OVERLOAD = 'DIAGNOSTIC_OVERLOAD_WITH_NATIVE_FAIL_CLOSED_PROOF'
+# Monitor cadence is .25 s. Two seconds is the maximum permitted collection
+# gap and boundary/identity sampling uncertainty; it is never elapsed credit.
 
 
 def number(value):
@@ -179,7 +182,7 @@ def native_overload_errors(row):
         errors.append('native_threshold_triggered_refusal_missing')
     if proof.get('external_stop_is_native_proof') is not False:
         errors.append('wrapper_stop_is_not_native_proof')
-    if not proof.get('old_generation') or proof.get('new_generation') == proof.get('old_generation'):
+    if not proof.get('old_generation') or not proof.get('new_generation') or proof.get('new_generation') == proof.get('old_generation'):
         errors.append('native_restart_generation_missing')
     if proof.get('source_frames_released_after_restart') != 0:
         errors.append('source_released_during_restart_witness')
@@ -193,16 +196,19 @@ def native_overload_errors(row):
         if key not in before.get('protected', {}) or before['protected'][key] != after.get('protected', {}).get(key):
             errors.append('protected_evidence_or_receipts_changed:'+key)
     for key in ('archived_records','compacted_records','stream_accepted_messages'):
-        if before.get('counters', {}).get(key) != after.get('counters', {}).get(key):
+        count = before.get('counters', {}).get(key)
+        if type(count) is not int or count < 0 or count != after.get('counters', {}).get(key):
             errors.append('uncommitted_or_duplicate_credit:'+key)
     original_gaps = {tuple(r) for r in before.get('gaps', [])}
     new_gaps = {tuple(r) for r in after.get('gaps', [])}
     if not original_gaps.issubset(new_gaps) or not any(r[-1] == 'service_restart' for r in new_gaps):
         errors.append('native_restart_gap_not_preserved')
-    if {r.get('scope') for r in proof.get('stale_refusals', [])} != set(SCOPES):
+    if {r.get('scope') for r in proof.get('stale_refusals', [])} != set(SCOPES) or any(
+            not r.get('reason') for r in proof.get('stale_refusals', [])):
         errors.append('native_stale_authority_refusal_missing')
     ipc = row.get('ipc', {})
-    if ipc.get('stream.received_messages') != ipc.get('stream.commit_messages'):
+    received, committed = ipc.get('stream.received_messages'), ipc.get('stream.commit_messages')
+    if type(received) is not int or received <= 0 or type(committed) is not int or received != committed:
         errors.append('lost_admitted_source_work')
     if not proof.get('preserved_original_inventory_sha256'):
         errors.append('pre_restart_raw_copy_missing')
@@ -217,6 +223,8 @@ def native_overload_errors(row):
 
 def stress_member_result(row):
     errors = []
+    if row.get('candidate_sha') != S or row.get('kind') != 'C':
+        errors.append('native_candidate_class')
     # Original strict outcomes are rechecked from raw dictionaries under exact S
     # source by verify_stress_native; these structural results never invent a pass.
     perf = row.get('workload_valid') is True and row.get('observation_valid') is True
@@ -232,7 +240,8 @@ def stress_member_result(row):
                         ('stream.commit_batch_messages_peak',8), ('stream.commit_batch_bytes_peak',16*1024**2)]:
         if not bounded(ipc.get(key), limit):
             errors.append('native_'+key)
-    if ipc.get('stream.received_messages') != ipc.get('stream.commit_messages'):
+    received, committed = ipc.get('stream.received_messages'), ipc.get('stream.commit_messages')
+    if type(received) is not int or received <= 0 or type(committed) is not int or received != committed:
         errors.append('native_admitted_drain')
     if not bounded(row.get('owner', {}).get('queue_peak'),64):
         errors.append('native_owner_queue')
@@ -244,29 +253,71 @@ def stress_member_result(row):
                         if not errors else 'NATIVE_SAFETY_FAILURE', capacity_credit=False)
 
 
-def verify_source(receipt, row, declaration):
+def verify_source(receipt, row, declaration, *, allow_incomplete=False):
     frames = row['frames']
-    require(receipt['source_frames_released'] == frames and receipt['retiming_calls'] == 0
+    released = receipt['source_frames_released']
+    require(type(released) is int and 0 < released <= frames
+            and (released == frames or allow_incomplete and row['kind'] == 'C') and receipt['retiming_calls'] == 0
             and receipt['immutable_semantic_wall_epoch'] == 1800000000
             and receipt['immutable_semantic_monotonic_epoch'] == 100, 'raw_source_clock_identity')
     require(receipt['declaration_sha256'] == row['declaration_sha256'], 'raw_source_declaration')
     anchor = receipt['first_release_real_monotonic_ns']
     require(type(anchor) is int and anchor > 0, 'source_release_anchor_missing')
+    require(receipt['clock_samples'] and receipt['clock_samples'][0]['frames'] == 1,
+            'source_clock_samples_missing')
+    prior = 0
     for sample in receipt['clock_samples']:
         elapsed = (sample['real_monotonic_ns']-anchor)/1e9
-        require(sample['anchor_real_monotonic_ns'] == anchor and elapsed >= 0
+        require(type(sample['frames']) is int and prior < sample['frames'] <= released
+                and sample['anchor_real_monotonic_ns'] == anchor and elapsed >= 0
                 and abs(sample['wall']-(1800000000+elapsed)) < .01
                 and abs(sample['monotonic']-(100+elapsed)) < .01, 'semantic_clock_rebased_or_unprojected')
+        prior = sample['frames']
     if not row.get('shape'):
         expected = next(m for m in declaration['tape_binding']['members'] if m['id'] == row['member'])
-        require(all(receipt['tape'].get(k) == v for k,v in expected.items() if k != 'id'), 'consumed_prefix_hash_changed')
-    if row.get('kind') != 'C':
-        release = receipt['raw_release_hashes']
-        require(len(release) == frames, 'raw_source_release_inventory_missing')
-        cadence = row['cadence_us']*1000
-        for n, event in enumerate(release):
-            require(event['number'] == n and event['released_real_monotonic_ns'] >= anchor+n*cadence,
-                    'source_cadence_or_order_changed')
+        if released == frames:
+            require(receipt['tape']['valid'] is True and all(receipt['tape'].get(k) == v for k,v in expected.items() if k != 'id'),
+                    'consumed_prefix_hash_changed')
+        else:
+            verify_incomplete_prefix(receipt, declaration, expected)
+    release = receipt['raw_release_hashes']
+    require(len(release) == released, 'raw_source_release_inventory_missing')
+    cadence = row.get('cadence_us',270000)*1000
+    previous = anchor-1
+    for n, event in enumerate(release):
+        now = event['released_real_monotonic_ns']
+        require(event['number'] == n and type(now) is int and now > previous and now >= anchor+n*cadence,
+                'source_cadence_or_order_changed')
+        previous = now
+    require(receipt['last_release_real_monotonic_ns'] == previous, 'last_source_release_boundary_changed')
+    return dict(first_release_ns=anchor, last_release_ns=previous, frames=released)
+
+
+def verify_incomplete_prefix(receipt, declaration, expected):
+    """Verify the consumed prefix against the unchanged authorized input bytes.
+
+    A partial prefix is permitted only at a proved C overload terminal. This
+    read-only path neither feeds a native source nor credits unread frames.
+    """
+    from tape import Reader
+    binding, paths = declaration['tape_binding'], declaration['paths']
+    require(file_sha(paths['frame_inventory']) == binding['frame_inventory_sha256'], 'partial_frame_inventory_changed')
+    require(Path(paths['tape']).stat().st_size == binding['physical_bytes']
+            and file_sha(paths['tape']) == binding['physical_sha256'], 'partial_original_input_changed')
+    frames = read(paths['frame_inventory'])
+    reader = Reader(paths['tape'], expected)
+    try:
+        for n in range(receipt['source_frames_released']):
+            raw, actual = reader.next()
+            event = receipt['raw_release_hashes'][n]
+            require(actual == frames[n] and event['number'] == n
+                    and event['sha256'] == sha(raw) and event['bytes'] == len(raw), 'partial_consumed_frame_changed')
+        actual_receipt = reader.close(strict=False)
+    finally:
+        if not reader.file.closed:
+            reader.file.close()
+    require(actual_receipt == receipt['tape'] and actual_receipt['immutable_file_unchanged'] is True,
+            'partial_consumed_prefix_changed')
 
 
 def verify_native_db(root, row):
@@ -295,34 +346,116 @@ def verify_native_db(root, row):
     return dict(integrity='ok', archive_records=records)
 
 
+def restart_raw_state(db):
+    """Read native continuity evidence from SQL, including snapshot integrity."""
+    protected = {table:[list(r) for r in db.execute('SELECT * FROM '+table+' ORDER BY 1,2')]
+                 for table in ('interests','service_interests','account_interest_floors','stream_receipts',
+                               'interest_checkpoints','interest_owners','consumers')}
+    protected['integrity'] = [r[0] for r in db.execute('PRAGMA integrity_check')]
+    h = __import__('hashlib').sha256(); count = 0
+    for record in db.execute('SELECT identity,hash,scope,slot,archive,market_time,first_seen FROM records ORDER BY identity'):
+        h.update(canonical(list(record))+b'\n');count += 1
+    return dict(protected=protected,records_digest=h.hexdigest(),record_count=count,
+        progress=[list(r) for r in db.execute('SELECT * FROM maintenance_progress ORDER BY scope,side')],
+        episodes=[list(r) for r in db.execute('SELECT * FROM maintenance_episodes ORDER BY scope,side')],
+        counters=dict(db.execute('SELECT key,value FROM counters')),
+        health={k:json.loads(v) for k,v in db.execute('SELECT key,value FROM service_health')},
+        gaps=[list(r) for r in db.execute('SELECT scope,lo,hi,reason FROM gaps WHERE repaired IS NULL ORDER BY scope,lo')],
+        floors=dict(db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'")))
+
+
+def verify_restart_state(actual, proof, generation):
+    require(set(proof['protected']) == set(actual['protected']), 'raw_restart_protected_table_inventory')
+    for table, expected in proof['protected'].items():
+        require(actual['protected'][table] == expected, 'raw_restart_protected_table_changed:'+table)
+    require(actual['protected']['integrity'] == ['ok'], 'raw_restart_integrity')
+    for key in ('progress','episodes'):
+        require(actual[key] == proof[key], 'raw_restart_native_ledger_changed')
+    require(actual['records_digest'] == proof['records_digest'] and actual['record_count'] == proof['record_count'],
+            'raw_restart_records_changed')
+    require(actual['counters'] == proof['counters'], 'raw_restart_committed_counters_changed')
+    require(actual['health'] == proof['health'], 'raw_restart_native_refusal_health_changed')
+    require(actual['health'].get('storage_maintenance',{}).get('maintenance_arbiter',{}).get('generation') == generation,
+            'raw_restart_generation_changed')
+    require(actual['gaps'] == proof['gaps'], 'raw_restart_native_gaps_changed')
+    require(actual['floors'] == proof['floors'], 'raw_restart_floors_changed')
+
+
 def verify_restart_raw(folder, row):
-    """Recheck preserved native before/after state; no restart is performed here."""
+    """Recompute WARMING refusals and independently verify final OFF teardown."""
+    from meme_machine.solana_evidence_plane import EvidenceReader
+    from meme_machine.solana_evidence_health import evidence_health
+    proof = row['native_restart']
     require(file_sha(Path(folder)/'BEFORE_RESTART_INVENTORY.json') ==
-            row['native_restart']['preserved_original_inventory_sha256'], 'restart_preservation_receipt_hash')
+            proof['preserved_original_inventory_sha256'], 'restart_preservation_receipt_hash')
     require(read(Path(folder)/'BEFORE_RESTART_INVENTORY.json')['artifacts'] ==
             inventory(Path(folder)/'before-restart-native-state'), 'restart_original_copy_changed')
+    states = {}
     for phase, name in [('before','before-restart-native-state/db'),('after','d/db')]:
-        proof = row['native_restart'][phase]
-        require(set(proof['protected']) == {'interests','service_interests','account_interest_floors',
-                'stream_receipts','interest_checkpoints','interest_owners','consumers','integrity'},
-                'raw_restart_protected_table_inventory')
-        with closing(sqlite3.connect(relative(folder,name).resolve().as_uri()+'?mode=ro',uri=True)) as db:
-            for table, expected in proof['protected'].items():
-                actual = [r[0] for r in db.execute('PRAGMA integrity_check')] if table == 'integrity' else [
-                    list(r) for r in db.execute('SELECT * FROM '+table+' ORDER BY 1,2')]
-                require(actual == expected, 'raw_restart_protected_table_changed:'+table)
-            for key, query in [('progress','SELECT * FROM maintenance_progress ORDER BY scope,side'),
-                               ('episodes','SELECT * FROM maintenance_episodes ORDER BY scope,side')]:
-                require([list(r) for r in db.execute(query)] == proof[key], 'raw_restart_native_ledger_changed')
-            h = __import__('hashlib').sha256(); count = 0
-            for record in db.execute('SELECT identity,hash,scope,slot,archive,market_time,first_seen FROM records ORDER BY identity'):
-                h.update(canonical(list(record))+b'\n');count += 1
-            require(h.hexdigest() == proof['records_digest'] and count == proof['record_count'], 'raw_restart_records_changed')
-            counters = dict(db.execute('SELECT key,value FROM counters'))
-            require(all(counters.get(k) == v for k,v in proof['counters'].items()), 'raw_restart_committed_counters_changed')
-            floors = dict(db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'"))
-            require(floors == proof['floors'], 'raw_restart_floors_changed')
-    return dict(native_before_after_rechecked=True,source_frames_released=0)
+        with closing(EvidenceReader(relative(folder,name))) as reader:
+            reader.db.execute('BEGIN')
+            actual = states[phase] = restart_raw_state(reader.db)
+            verify_restart_state(actual,proof[phase],proof['old_generation' if phase == 'before' else 'new_generation'])
+            if phase == 'after':
+                require(actual['health'].get('phase') == 'OFF' and number(proof['after']['wall']),
+                        'restart_final_native_teardown_missing')
+                for scope in SCOPES:
+                    final = evidence_health(reader,scope,proof['after']['wall'])
+                    require(final['usable'] is False and final['reason'] == 'evidence_service_unavailable',
+                            'restart_final_native_teardown_health_changed')
+    # Both endpoints have now been rechecked from SQL. Apply the existing
+    # continuity invariants to raw state without changing the C distinction
+    # between a full-profile diagnostic pass and a native terminal overload.
+    before, after = states['before'], states['after']
+    for key in ('progress','episodes','records_digest','record_count','floors'):
+        require(before[key] == after[key], 'raw_restart_native_continuity_invalid:'+key)
+    require(before['protected'] == after['protected'], 'raw_restart_native_continuity_invalid:protected')
+    for key in ('archived_records','compacted_records','stream_accepted_messages'):
+        count = before['counters'].get(key)
+        require(type(count) is int and count >= 0 and count == after['counters'].get(key),
+                'raw_restart_native_continuity_invalid:'+key)
+    original_gaps, final_gaps = {tuple(r) for r in before['gaps']}, {tuple(r) for r in after['gaps']}
+    require(original_gaps.issubset(final_gaps) and any(r[-1] == 'service_restart' for r in final_gaps),
+            'raw_restart_native_continuity_invalid:gaps')
+    refusals = proof['stale_refusals']
+    require(len(refusals) == len(SCOPES) and {r.get('scope') for r in refusals} == set(SCOPES),
+            'raw_restart_stale_authority_scopes_changed')
+    for refusal in refusals:
+        receipt = relative(folder,refusal.get('receipt_path',''))
+        require(receipt.is_file() and file_sha(receipt) == refusal.get('receipt_sha256'),
+                'raw_restart_stale_authority_receipt_changed')
+        recorded = {k:v for k,v in refusal.items() if k not in ('receipt_path','receipt_sha256')}
+        require(read(receipt) == recorded, 'raw_restart_stale_authority_refusal_changed')
+        require(recorded.get('version') == 'v3-native-refusal-observation'
+                and number(recorded.get('observed_at')), 'raw_restart_stale_authority_observation_time_missing')
+        path = relative(folder,recorded.get('raw_state_path',''))
+        require(path.is_file() and path not in (relative(folder,'d/db'),relative(folder,'before-restart-native-state/db'))
+                and not Path(str(path)+'-wal').exists()
+                and file_sha(path) == recorded.get('raw_state_sha256')
+                and path.stat().st_size == recorded.get('raw_state_bytes'), 'raw_restart_refusal_time_state_changed')
+        with closing(EvidenceReader(path)) as reader:
+            reader.db.execute('BEGIN')
+            actual = restart_raw_state(reader.db)
+            require(actual['health'].get('phase') == recorded.get('phase') == 'WARMING',
+                    'raw_restart_refusal_time_phase_changed')
+            generation = actual['health'].get('storage_maintenance',{}).get('maintenance_arbiter',{}).get('generation')
+            require(generation and generation == recorded.get('generation') == proof['new_generation'],
+                    'raw_restart_refusal_time_generation_changed')
+            for key in ('protected','progress','episodes','records_digest','record_count','floors'):
+                require(actual[key] == states['after'][key], 'raw_restart_refusal_time_continuity_changed:'+key)
+            for key in ('archived_records','compacted_records','stream_accepted_messages'):
+                require(actual['counters'].get(key) == states['after']['counters'][key],
+                        'raw_restart_refusal_time_committed_counters_changed:'+key)
+            original_gaps = {tuple(r) for r in states['before']['gaps']}
+            observed_gaps = {tuple(r) for r in actual['gaps']}
+            final_gaps = {tuple(r) for r in states['after']['gaps']}
+            require(original_gaps.issubset(observed_gaps) and observed_gaps.issubset(final_gaps)
+                    and any(r[-1] == 'service_restart' for r in observed_gaps), 'raw_restart_refusal_time_gaps_changed')
+            result = evidence_health(reader,recorded['scope'],recorded['observed_at'])
+            require(result['usable'] is False and result['reason'] == recorded['reason']
+                    and result == recorded.get('observation'), 'raw_restart_stale_authority_refusal_changed')
+    return dict(native_before_after_rechecked=True,native_refusals_rechecked=len(refusals),
+                native_final_OFF_rechecked=True,source_frames_released=0)
 
 
 def verify_admissions(admissions, declaration, declaration_sha256, allocation, *, evidence_files=None):
@@ -389,11 +522,63 @@ def verify_origins(folder, declaration, declaration_sha256, allocation, *, evide
     admissions = [read(p) for p in Path(folder).glob('ADMISSION-*.json')]
     verified = verify_admissions(admissions,declaration,declaration_sha256,allocation,evidence_files=evidence_files)
     require(set(verified['pids']) == set(pids), 'child_origin_and_resource_identity_mismatch')
-    return dict(pids=sorted(pids), roles=roles, **{k:v for k,v in verified.items() if k!='pids'})
+    lifetimes = []
+    for pid in sorted(pids):
+        origins = [r for r in receipts if r['pid'] == pid]
+        require(len(origins) == 2 and {r['phase'] for r in origins} == {'initialized','terminated'},
+                'duplicate_or_unknown_process_origin_phase')
+        first = next(r for r in origins if r['phase'] == 'initialized')
+        last = next(r for r in origins if r['phase'] == 'terminated')
+        require(type(first['real_monotonic_ns']) is int and type(last['real_monotonic_ns']) is int
+                and first['real_monotonic_ns'] < last['real_monotonic_ns']
+                and first['role'] == last['role'] and first['process_start_ticks'] == last['process_start_ticks'],
+                'process_lifetime_origin_changed')
+        own = [r for r in admissions if r['pid'] == pid]
+        for row in own:
+            process = next(p for p in row['snapshot']['processes'] if p['pid'] == pid)
+            require(process['start_ticks'] == first['process_start_ticks'], 'process_start_identity_changed')
+            require(type(row['real_monotonic_ns']) is int
+                    and 0 <= row['real_monotonic_ns']-row['snapshot']['real_monotonic_ns'] <= RESOURCE_TOLERANCE_NS
+                    and row['role'] == first['role'],
+                    'admission_snapshot_time_unbound')
+        require(sum(r['phase'] == 'initialized' for r in own) == sum(r['phase'] == 'terminated' for r in own) == 1,
+                'duplicate_process_admission_lifecycle')
+        initialized = next(r for r in own if r['phase'] == 'initialized')
+        terminated = next(r for r in own if r['phase'] == 'terminated')
+        require(initialized['real_monotonic_ns'] <= first['real_monotonic_ns']
+                < terminated['real_monotonic_ns'] <= last['real_monotonic_ns'], 'process_admission_lifetime_order')
+        require(initialized['tid'] == terminated['tid'] == pid and all(
+                    initialized['snapshot']['real_monotonic_ns'] <= r['snapshot']['real_monotonic_ns']
+                    <= r['real_monotonic_ns'] <= last['real_monotonic_ns'] for r in own),
+                'admission_outside_required_process_lifetime')
+        lifetimes.append(dict(pid=pid, start_ticks=first['process_start_ticks'], role=first['role'],
+                              start_ns=initialized['snapshot']['real_monotonic_ns'], end_ns=last['real_monotonic_ns']))
+        for row in own:
+            if row['phase'] == 'thread-start':
+                stop = next(r for r in own if r['tid'] == row['tid'] and r['phase'] == 'thread-stop')
+                require(row['real_monotonic_ns'] < stop['real_monotonic_ns'], 'thread_lifetime_order')
+                lifetimes.append(dict(pid=pid, tid=row['tid'], start_ticks=first['process_start_ticks'], role='thread',
+                                      start_ns=row['snapshot']['real_monotonic_ns'], end_ns=stop['real_monotonic_ns']))
+    return dict(pids=sorted(pids), roles=roles, lifetimes=lifetimes,
+                **{k:v for k,v in verified.items() if k!='pids'})
 
 
-def verify_resource_timeline(folder, declaration, allocation, *, evidence_files=None):
+def verify_resource_timeline(folder, declaration, allocation, *, execution_interval=None,
+                             lifetimes=None, source_intervals=None, evidence_files=None):
     from attest import admission_errors, constraint_identity
+    require(type(execution_interval) is dict and lifetimes and source_intervals,
+            'resource_execution_interval_and_lifetimes_required')
+    require(declaration.get('resource_sampling') == RESOURCE_SAMPLING, 'declared_resource_sampling_tolerance_changed')
+    interval = execution_interval
+    keys = ('start_real_monotonic_ns','startup_real_monotonic_ns','helpers_terminated_real_monotonic_ns',
+            'end_real_monotonic_ns','start_perf_ns','end_perf_ns','start_clock_read_span_ns','end_clock_read_span_ns')
+    require(all(type(interval.get(k)) is int and interval[k] >= 0 for k in keys), 'resource_interval_schema')
+    start, startup, helpers, end = [interval[k] for k in keys[:4]]
+    require(0 < start <= startup < helpers <= end and interval['end_perf_ns'] > interval['start_perf_ns'],
+            'resource_execution_boundary_order')
+    require(max(interval['start_clock_read_span_ns'],interval['end_clock_read_span_ns']) <= CLOCK_PAIR_TOLERANCE_NS
+            and abs((end-start)-(interval['end_perf_ns']-interval['start_perf_ns'])) <= 2*CLOCK_PAIR_TOLERANCE_NS,
+            'resource_monotonic_and_measured_clocks_unbound')
     rows = [read(p) for p in sorted(Path(folder).glob('RESOURCE-*.json'))]
     require(rows and rows[0]['boundary'] == 'admission' and rows[-1]['boundary'] == 'teardown', 'resource_timeline_boundaries')
     previous = '0'*64
@@ -401,64 +586,150 @@ def verify_resource_timeline(folder, declaration, allocation, *, evidence_files=
     previous_time = None
     for n, row in enumerate(rows,1):
         raw = dict(row); digest = raw.pop('sha256')
-        require(row['ordinal'] == n and row['previous'] == previous and sha(canonical(raw)) == digest, 'resource_timeline_hash_chain')
+        require(type(row['ordinal']) is int and row['ordinal'] == n and row['previous'] == previous
+                and sha(canonical(raw)) == digest, 'resource_timeline_hash_chain')
         snapshot = row['snapshot']
         require(row['errors'] == [] and not admission_errors(snapshot, allocation, declaration['storage_bounds'],
                     declaration['environment']['runtime_dependency_identities'],evidence_files=evidence_files), 'raw_resource_admission')
         current = sha(canonical(constraint_identity(snapshot)))
         require(row['constraints_sha256'] == current and (constraints is None or constraints == current), 'resource_continuity_changed')
         now = snapshot['real_monotonic_ns']
-        require(previous_time is None or 0 < now-previous_time <= 2*10**9, 'resource_monitor_gap')
+        require(type(now) is int and now > 0 and (previous_time is None or 0 < now-previous_time <= RESOURCE_TOLERANCE_NS),
+                'resource_monitor_gap')
+        require(row['boundary'] == ('admission' if n == 1 else 'teardown' if n == len(rows) else 'continuous'),
+                'resource_timeline_phase_order')
+        require(snapshot['boot_id'] == declaration['executor']['boot_id']
+                and snapshot['hostname'] == declaration['executor']['hostname'], 'resource_executor_time_binding')
         previous_time, previous, constraints = now, digest, current
-    return dict(samples=len(rows), constraints_sha256=constraints)
+    admission, teardown = rows[0]['snapshot']['real_monotonic_ns'], rows[-1]['snapshot']['real_monotonic_ns']
+    require(start <= admission <= startup and admission-start <= RESOURCE_TOLERANCE_NS
+            and helpers <= teardown <= end and end-teardown <= RESOURCE_TOLERANCE_NS,
+            'resource_timeline_does_not_cover_execution')
+    require(all(startup <= s['first_release_ns'] <= s['last_release_ns'] <= helpers for s in source_intervals),
+            'source_release_outside_resource_execution')
+    for life in lifetimes:
+        require(type(life['start_ns']) is int and type(life['end_ns']) is int
+                and startup <= life['start_ns'] < life['end_ns'] <= helpers,
+                'required_process_lifetime_outside_execution')
+        # Every sample taken away from lifecycle edges must contain that same
+        # PID/start_ticks (and TID for a thread). Short-lived helpers are covered
+        # by their mandatory admission/termination snapshots and edge brackets.
+        interior = [r['snapshot'] for r in rows if life['start_ns']+RESOURCE_TOLERANCE_NS
+                    <= r['snapshot']['real_monotonic_ns'] <= life['end_ns']-RESOURCE_TOLERANCE_NS]
+        require(life['end_ns']-life['start_ns'] <= 2*RESOURCE_TOLERANCE_NS or interior,
+                'required_process_lifetime_not_sampled')
+        for snapshot in interior:
+            process = next((p for p in snapshot['processes'] if p['pid'] == life['pid']), None)
+            require(process is not None and process['start_ticks'] == life['start_ticks']
+                    and ('tid' not in life or any(t['tid'] == life['tid'] for t in process['threads'])),
+                    'required_process_or_thread_missing_during_lifetime')
+    return dict(samples=len(rows), constraints_sha256=constraints, first_sample_ns=admission,
+                last_sample_ns=teardown, execution_interval=interval, sampling_tolerance_ns=RESOURCE_TOLERANCE_NS,
+                required_lifetimes_verified=len(lifetimes))
 
 
 def verify_trial(folder, declaration, *, declaration_sha256, allocation, evidence_files=None):
     folder = Path(folder)
     verify_inventory(folder)
     result = read(folder/'TRIAL_RESULT.json')
+    trial = next((r for r in declaration['trials'] if r['trial_id'] == result['trial_id']), None)
     require(result['declaration_sha256'] == declaration_sha256 and result['kind'] == declaration['class_id']
-            and result['trial_id'] in {r['trial_id'] for r in declaration['trials']}, 'fresh_exact_trial_binding')
+            and trial is not None and result['sequence'] == trial['sequence'] and result['mode'] == trial['mode'],
+            'fresh_exact_trial_binding')
     expected = [('run373-full-v3',14),('run379-full-v3',120),('run380-full-v3',240)] + list(COHORT) if result['kind'] == 'A' else list(COHORT)
-    require([(r['member'],r['frames']) for r in result['members']] == expected, 'complete_native_cohort_required')
+    terminal = result['kind'] == 'C' and result.get('outcome') == OVERLOAD
+    actual = [(r['member'],r['frames']) for r in result['members']]
+    if terminal:
+        require(0 < len(actual) <= len(expected) and actual == expected[:len(actual)]
+                and result.get('complete_profile') is False and result.get('no_further_members') is True
+                and result.get('terminal_member') == actual[-1][0]
+                and result.get('diagnostic_outcome') == 'FAILED_DIAGNOSTIC'
+                and result.get('capacity_credit') is False, 'C_terminal_overload_prefix_required')
+    else:
+        require(actual == expected and result.get('complete_profile') is True, 'complete_native_cohort_required')
+    require(sorted(p.name for p in folder.glob('m[0-9]*')) == sorted(f'm{i}' for i in range(1,len(actual)+1)),
+            'members_after_terminal_or_unlisted_member')
     require(type(result['start_perf_ns']) is int and type(result['end_perf_ns']) is int
             and result['end_perf_ns'] > result['start_perf_ns']
             and result['elapsed_ns'] == result['end_perf_ns']-result['start_perf_ns'], 'raw_trial_timing')
     require(result['mode'] in ('baseline','observed','stress') and result['valid'] is True, 'invalid_trial_retained')
     cohort = read(folder/'COHORT_RESULT.json')
     require(all(result[k] == v for k,v in cohort.items()), 'native_trial_result_contradicts_raw_cohort')
+    persistence = read(folder/'MEASURED_PERSISTENCE_COMPLETE.json')
+    require(persistence['cohort'] == cohort and persistence['all_native_helpers_terminated'] is True
+            and persistence['resource_errors'] == [] and persistence['no_subtraction'] is True
+            and persistence['no_double_counting'] is True, 'measured_persistence_or_helper_termination_missing')
+    interval = result['execution_interval']
+    require(interval['start_perf_ns'] == result['start_perf_ns'] and interval['end_perf_ns'] == result['end_perf_ns'],
+            'resource_interval_measured_endpoint_mismatch')
+    termination = read(folder/'PROCESS_TERMINATION.json')
+    require(termination['trial_process_terminated'] is True and termination['all_native_helpers_terminated'] is True
+            and termination['real_monotonic_ns'] == interval['helpers_terminated_real_monotonic_ns'],
+            'resource_helper_termination_boundary_unbound')
+    lifetimes, sources, classifications, child_constraints = [], [], [], []
     with native_verifier_context(declaration):
         for index, member in enumerate(result['members'],1):
-            verify_member(folder/f'm{index}', member, result, declaration, declaration_sha256, allocation,
-                          evidence_files=evidence_files)
-    verify_origins(folder, declaration, declaration_sha256, allocation,
+            verified = verify_member(folder/f'm{index}', member, result, declaration, declaration_sha256, allocation,
+                          allow_incomplete=terminal and index == len(actual), evidence_files=evidence_files)
+            lifetimes.extend(verified['origins']['lifetimes']); sources.append(verified['source'])
+            child_constraints.append(verified['origins']['constraints_sha256'])
+            classifications.append(verified['classification'])
+    if result['kind'] == 'C':
+        require(all(r['outcome'] == 'FULL_PROFILE_SAFETY_PASS' for r in classifications[:-1])
+                and classifications[-1]['outcome'] == (OVERLOAD if terminal else 'FULL_PROFILE_SAFETY_PASS'),
+                'C_terminal_classification_contradicts_raw_members')
+    trial_origins = verify_origins(folder, declaration, declaration_sha256, allocation,
                    evidence_files=evidence_files,expected_roles={'trial':1})
-    resources = verify_resource_timeline(folder/'resources', declaration, allocation,evidence_files=evidence_files)
+    lifetimes.extend(trial_origins['lifetimes'])
+    child_constraints.append(trial_origins['constraints_sha256'])
+    resources = verify_resource_timeline(folder/'resources', declaration, allocation,execution_interval=interval,
+                                         lifetimes=lifetimes, source_intervals=sources, evidence_files=evidence_files)
+    require(all(c == resources['constraints_sha256'] for c in child_constraints),
+            'resource_timeline_and_child_constraints_differ')
     return dict(version='v3-native-trial-verification', native_verified=True, class_id=result['kind'],
                 trial_id=result['trial_id'], mode=result['mode'], elapsed_ns=result['elapsed_ns'],
                 declaration_sha256=declaration_sha256, environment_sha256=declaration['environment_sha256'],
                 production_workload_sha256=declaration['production_workload_sha256'],
-                source_frames=[r['frames'] for r in result['members']], resources=resources,
+                source_frames=[r['frames'] for r in sources], resources=resources,
                 raw_inventory_sha256=file_sha(folder/'RAW_INVENTORY.json'), passed=True,
+                outcome=OVERLOAD if terminal else 'FULL_PROFILE_SAFETY_PASS' if result['kind'] == 'C' else 'COMPLETE_NATIVE_COHORT_PASS',
+                diagnostic_outcome='FAILED_DIAGNOSTIC' if terminal else 'PASS', safety_only=terminal,
+                complete_cohort=not terminal, capacity_credit=result['kind'] == 'A', observer_credit=False,
                 candidate_sha=S, candidate_tree=T, stage_e='RED', stage_f='NOT STARTED')
 
 
-def verify_member(member_folder, member, result, declaration, declaration_sha256, allocation, *, evidence_files=None):
+def verify_member(member_folder, member, result, declaration, declaration_sha256, allocation, *,
+                  allow_incomplete=False, evidence_files=None):
         row = read(member_folder/'MEMBER_RESULT.json')
         require(row['declaration_sha256'] == declaration_sha256 and row['mode'] == result['mode']
+                and row['kind'] == result['kind'] and member['valid'] is True and member['exit_code'] == 0
                 and row['member'] == member['member'] and row['frames'] == member['frames']
                 and file_sha(member_folder/'MEMBER_RESULT.json') == member['member_result_sha256'], 'member_binding')
         if result['kind'] == 'C':
-            require(stress_member_result(row)['mandatory_native_safety_pass'], 'C_native_safety_failure')
+            classification = stress_member_result(row)
+            require(classification['mandatory_native_safety_pass'] and all(row.get(k) == v for k,v in classification.items()),
+                    'C_native_safety_failure_or_forged_classification')
             verify_stress_native(row, declaration)
+            original = read(member_folder/'result.json')
+            require(original.get('failure') == row.get('failure') == row['native_restart']['native_failure']
+                    and original.get('failure_frames',[]) == row.get('failure_frames',[]) == row['native_restart']['native_failure_frames'],
+                    'original_native_failure_ancestry_changed')
             verify_restart_raw(member_folder,row)
         else:
+            classification = None
             require(not production_member_errors(row), 'A_B_raw_native_capacity_invalid')
             if result['mode'] == 'observed':
                 require(not observer_sample_errors(row), 'B_raw_observation_invalid')
-        verify_source(read(member_folder/'SOURCE_RECEIPT.json'), row, declaration)
+        receipt = read(member_folder/'SOURCE_RECEIPT.json')
+        require(row['source_receipt'] == receipt, 'member_embedded_source_receipt_changed')
+        source = verify_source(receipt, row, declaration, allow_incomplete=allow_incomplete)
         verify_native_db(member_folder, row)
-        verify_origins(member_folder, declaration, declaration_sha256, allocation,evidence_files=evidence_files)
+        origins = verify_origins(member_folder, declaration, declaration_sha256, allocation,evidence_files=evidence_files)
+        life = next(r for r in origins['lifetimes'] if r['role'] == 'member')
+        require(life['start_ns'] <= source['first_release_ns'] <= source['last_release_ns'] <= life['end_ns']
+                and all(life['start_ns'] <= r['real_monotonic_ns'] <= life['end_ns'] for r in receipt['clock_samples']),
+                'source_release_outside_member_lifetime')
+        return dict(source=source, origins=origins, classification=classification)
 
 
 @contextmanager
@@ -505,6 +776,7 @@ def verify_stress_native(row, declaration):
 
 def verify_observer(trials, declaration, capacity):
     require(capacity.get('native_verified') is True and capacity.get('passed') is True
+            and capacity.get('campaign_verified') is True and capacity.get('preservation_verified') is True
             and capacity.get('class_id') == 'A' and capacity.get('candidate_sha') == S
             and capacity.get('candidate_tree') == T
             and capacity.get('environment_sha256') == declaration['environment_sha256']

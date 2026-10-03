@@ -6,13 +6,14 @@ import subprocess
 
 from attest import ResourceMonitor, inspect, admission_errors, signed_document, reserve_storage
 from binding import candidate_integrity, contract_integrity, runtime_identity, verify_assembly
-from core import ASSEMBLY, INFRA, PERF_NS, canonical, file_sha, read, require, sha, workload
+from core import ASSEMBLY, INFRA, PERF_NS, REAL_NS, canonical, file_sha, read, require, sha, workload
+from campaign import verify_capacity_prerequisite
 from declaration import authorize
 from ledger import Ledger
-from preserve import persist, seal, fsync_dir, lock, redundant_copy
+from preserve import persist, seal, fsync_dir, lock, redundant_copy, abandoned_ipc, failure_copy
 from tape import validate_existing
 from trial import child_env, runtime_command
-from verify import verify_trial, verify_observer
+from verify import OVERLOAD, verify_trial, verify_observer
 
 
 def _wait_helpers(root_pid, known_pids, *, timeout=15):
@@ -28,7 +29,8 @@ def _wait_helpers(root_pid, known_pids, *, timeout=15):
         while scope != prior:
             prior = set(scope)
             scope.update(p['pid'] for p in processes if p['ppid'] in scope)
-        alive = [p for p in processes if (p['pid'] in scope or known_pids.get(p['pid']) == p['start_ticks'])
+        alive = [p for p in processes if (p['pid'] in scope or known_pids.get(p['pid']) == p['start_ticks']
+                                         or p.get('process_group') == root_pid)
                  and p['pid'] not in (root_pid, os.getpid()) and p['state'] != 'Z']
         if not alive:
             return
@@ -60,10 +62,98 @@ def _terminate_trial(child, monitor):
         try:
             child.wait(timeout=15)
             _wait_helpers(child.pid, monitor.known_pids, timeout=15)
-            return
+            return dict(trial_pid=child.pid, trial_process_terminated=True,
+                        all_native_helpers_terminated=True, real_monotonic_ns=REAL_NS(),
+                        tracked_processes=[dict(pid=p,start_ticks=t) for p,t in sorted(monitor.known_pids.items())])
         except (subprocess.TimeoutExpired, ValueError):
             if signum == signal.SIGKILL:
                 raise
+
+
+def _clock_boundary():
+    before = REAL_NS()
+    perf = PERF_NS()
+    after = REAL_NS()
+    return dict(real_monotonic_ns=before, perf_ns=perf, clock_read_span_ns=after-before)
+
+
+def _publish_failure(folder, destination):
+    try:
+        return redundant_copy(folder, destination)
+    except BaseException as exc:
+        # The strict inventory may itself be incomplete, or copytree may have
+        # left a partial destination. Use a separate exclusive failure copy.
+        receipt = failure_copy(folder, destination.with_name(destination.name+'-failure'))
+        return dict(receipt, strict_publication_failure=type(exc).__name__+':'+str(exc))
+
+
+def _finalize_attempt(folder, d, sequence, *, valid, reason, declaration_sha256, allocation):
+    """Sealing cannot skip INVALID consumption or failure publication."""
+    folder = Path(folder)
+    ledger = Ledger(folder.parent/'LEDGER.jsonl')
+    destination = Path(d['paths']['durable_publication_root'])/(d['campaign']+f'-t{sequence}')
+    digest, result = None, None
+    if not valid and (folder/'PROCESS_TERMINATION.json').exists():
+        try:
+            abandoned_ipc(folder, read(folder/'PROCESS_TERMINATION.json'))
+        except BaseException as exc:
+            reason = str(reason)+';abandoned_IPC:'+str(exc)
+    try:
+        digest = seal(folder)
+    except BaseException as exc:
+        valid = False
+        reason = str(reason or '')+';raw_sealing_failure:'+type(exc).__name__+':'+str(exc)
+        try:
+            persist(folder/'SEAL_FAILURE.json', dict(reason=reason, native_safety_credit=False))
+        except BaseException as receipt_error:
+            reason += ';seal_failure_receipt:'+str(receipt_error)
+    if valid:
+        try:
+            result = verify_trial(folder,d,declaration_sha256=declaration_sha256,allocation=allocation)
+            publication = redundant_copy(folder,destination)
+            persist(folder.parent/f'TRIAL-{sequence}-PRESERVATION.json', dict(publication,source=str(folder.resolve())))
+        except BaseException as exc:
+            valid = False
+            reason = 'raw_verification_or_preservation:'+type(exc).__name__+':'+str(exc)
+    if valid:
+        terminal = result.get('outcome') == OVERLOAD
+        ledger.append('DIAGNOSTIC_OVERLOAD' if terminal else 'COMPLETE_VALID',sequence,
+                      dict(raw_inventory_sha256=digest,verification=result))
+        return result, None, terminal
+    # This append precedes every failure-copy attempt, even when digest is null.
+    # If recording itself fails, the finally still attempts to publish raw files.
+    try:
+        ledger.append('INVALID',sequence,dict(reason=reason,raw_inventory_sha256=digest))
+    finally:
+        try:
+            publication = _publish_failure(folder,destination)
+            persist(folder.parent/f'TRIAL-{sequence}-FAILURE-PRESERVATION.json',
+                    dict(publication,source=str(folder.resolve()),reason=reason))
+        except BaseException as exc:
+            reason = str(reason)+';failure_publication:'+type(exc).__name__+':'+str(exc)
+    return None, reason, True
+
+
+def _finalize_campaign(campaign, d, ledger, declaration_sha256):
+    destination = Path(d['paths']['durable_publication_root'])/(d['campaign']+'-campaign')
+    try:
+        seal(campaign,name='CAMPAIGN_INVENTORY.json')
+        publication = redundant_copy(campaign,destination,name='CAMPAIGN_INVENTORY.json')
+        persist(campaign.with_name(d['campaign']+'.PRESERVATION.json'), dict(publication,
+            version='v3-complete-campaign-preservation',source=str(campaign.resolve()),campaign=d['campaign'],
+            declaration_sha256=declaration_sha256,ledger_sha256=file_sha(ledger.path)))
+    except BaseException as exc:
+        reason = 'campaign_preservation_failure:'+type(exc).__name__+':'+str(exc)
+        try:
+            events = ledger.events()
+            if not any(r['event'] in ('INVALID','STOPPED','DIAGNOSTIC_OVERLOAD') for r in events):
+                ledger.append('STOPPED',None,dict(reason=reason))
+        finally:
+            try:
+                persist(campaign/'CAMPAIGN_PRESERVATION_FAILURE.json',dict(reason=reason,native_safety_credit=False))
+            finally:
+                failure_copy(campaign,destination.with_name(destination.name+'-failure'))
+        raise ValueError(reason) from exc
 
 
 def execute(declaration_path, permit_path, owner_key, *, kind):
@@ -84,13 +174,7 @@ def execute(declaration_path, permit_path, owner_key, *, kind):
     tape_proof = validate_existing(paths['tape'], paths['frame_inventory'], kind=kind)
     capacity = None
     if kind == 'B':
-        prerequisite = d['prerequisites'].get('capacity', {})
-        require(file_sha(prerequisite['declaration']) == prerequisite['declaration_sha256'], 'A_prerequisite_declaration_changed')
-        a_declaration = read(prerequisite['declaration'])
-        require(a_declaration['class_id'] == 'A' and a_declaration['campaign'] != d['campaign'], 'A_is_separate_fresh_campaign')
-        capacity = verify_trial(prerequisite['raw_trial'], a_declaration,
-                                declaration_sha256=prerequisite['declaration_sha256'], allocation=allocation)
-        require(capacity['environment_sha256'] == d['environment_sha256'], 'A_same_environment_required')
+        capacity = verify_capacity_prerequisite(d,owner_key,paths['allocation_public_key'])
     registry = Path(paths['campaign_registry'])
     ledger = Ledger.create(registry, kind, file_sha(declaration_path), d['campaign'])
     campaign = ledger.path.parent
@@ -140,7 +224,8 @@ def execute(declaration_path, permit_path, owner_key, *, kind):
                     sequence = trial['sequence']
                     ledger.append('STARTED', sequence, dict(trial_id=trial['trial_id'], mode=trial['mode']))
                     # No frame or child can precede the consumed-on-start ledger event.
-                    start = PERF_NS()
+                    start_clock = _clock_boundary()
+                    start = start_clock['perf_ns']
                     folder = campaign/f't{sequence}'
                     folder.mkdir(exist_ok=False)
                     resources = folder/'resources'
@@ -160,68 +245,66 @@ def execute(declaration_path, permit_path, owner_key, *, kind):
                         unshare = actual_runtime['os_tools']['unshare']['path']
                         command = [unshare, '--net', '--', *runtime_command(params, '--trial')]
                         with (folder/'trial.log').open('xb') as log:
+                            startup = REAL_NS()
                             child = subprocess.Popen(command, cwd=paths['candidate_checkout'], env=child_env(param_path),
                                 stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
                             frames_seconds = 3000.78 + (81.3 if kind == 'A' else 0)
                             code = _wait_trial(child, monitor, frames_seconds+4*240+120)
                             log.flush(); os.fsync(log.fileno())
                         _wait_helpers(child.pid, monitor.known_pids)
+                        helpers = REAL_NS()
+                        persist(folder/'PROCESS_TERMINATION.json',dict(trial_pid=child.pid,
+                            trial_process_terminated=True,all_native_helpers_terminated=True,real_monotonic_ns=helpers,
+                            tracked_processes=[dict(pid=p,start_ticks=t) for p,t in sorted(monitor.known_pids.items())]))
                         require(code == 0, 'native_trial_process_failed')
                         cohort = read(folder/'COHORT_RESULT.json')
                         require(cohort['valid'] is True, 'native_cohort_invalid')
-                        monitor.close()
                         candidate_integrity(paths['candidate_checkout'])
                         verify_assembly(paths['assembly'])
                         persist(folder/'MEASURED_PERSISTENCE_COMPLETE.json', dict(cohort=cohort,
                             all_native_helpers_terminated=True, resource_errors=monitor.errors,
                             no_subtraction=True, no_double_counting=True))
                         fsync_dir(folder)
-                        end = PERF_NS()
+                        # Keep monitoring through candidate checks and measured
+                        # persistence; teardown then brackets the actual endpoint.
+                        monitor.close()
+                        end_clock = _clock_boundary()
+                        end = end_clock['perf_ns']
+                        interval = dict(start_real_monotonic_ns=start_clock['real_monotonic_ns'],start_perf_ns=start,
+                            start_clock_read_span_ns=start_clock['clock_read_span_ns'],startup_real_monotonic_ns=startup,
+                            helpers_terminated_real_monotonic_ns=helpers,end_perf_ns=end,
+                            end_real_monotonic_ns=end_clock['real_monotonic_ns'],end_clock_read_span_ns=end_clock['clock_read_span_ns'])
                         # Endpoint metadata records the instant after all measured
                         # work/persistence/joins. Upload and independent verification
                         # are outside the B interval; no cost is subtracted or added.
-                        persist(folder/'TRIAL_RESULT.json', dict(cohort, start_perf_ns=start, end_perf_ns=end, elapsed_ns=end-start))
+                        persist(folder/'TRIAL_RESULT.json', dict(cohort, start_perf_ns=start, end_perf_ns=end,
+                                                               elapsed_ns=end-start,execution_interval=interval))
                         valid = True
                     except BaseException as exc:
                         failure = type(exc).__name__+':'+str(exc)
                         terminal_error = failure
                         if child is not None:
                             try:
-                                _terminate_trial(child, monitor)
+                                termination = _terminate_trial(child, monitor)
+                                if not (folder/'PROCESS_TERMINATION.json').exists():
+                                    persist(folder/'PROCESS_TERMINATION.json',termination)
                             except BaseException as closing_error:
                                 failure += ';helper_teardown:'+str(closing_error)
                         try:
                             monitor.close()
                         except BaseException as closing_error:
                             failure += ';resource_teardown:'+str(closing_error)
-                        persist(folder/'TERMINAL_FAILURE.json', dict(reason=failure, interrupted=interrupted,
+                        terminal_error = failure
+                        try:
+                            persist(folder/'TERMINAL_FAILURE.json', dict(reason=failure, interrupted=interrupted,
                                 incomplete_elapsed_is_not_baseline=True, native_safety_credit=False))
-                    finally:
-                        # Failure is preserved before slot advancement or publication.
-                        digest = seal(folder)
-                    if valid:
-                        try:
-                            result = verify_trial(folder, d, declaration_sha256=file_sha(declaration_path), allocation=allocation)
-                            verified_trials.append(result)
-                            ledger.append('COMPLETE_VALID', sequence, dict(raw_inventory_sha256=digest, verification=result))
-                        except BaseException as exc:
-                            valid = False
-                            terminal_error = 'raw_native_verification:'+str(exc)
-                    if not valid:
-                        ledger.append('INVALID', sequence, dict(reason=terminal_error, raw_inventory_sha256=digest))
-                        destination = Path(paths['durable_publication_root'])/(d['campaign']+f'-t{sequence}')
-                        try:
-                            redundant_copy(folder, destination)
-                        except BaseException as exc:
-                            terminal_error += ';failure_publication:'+str(exc)
-                        break
-                    # Durable preservation copy is outside the measured interval.
-                    destination = Path(paths['durable_publication_root'])/(d['campaign']+f'-t{sequence}')
-                    try:
-                        redundant_copy(folder, destination)
-                    except BaseException as exc:
-                        terminal_error='durable_publication_failure:'+str(exc)
-                        ledger.append('STOPPED',None,dict(reason=terminal_error))
+                        except BaseException as receipt_error:
+                            terminal_error += ';failure_receipt:'+str(receipt_error)
+                    result, terminal_error, terminal = _finalize_attempt(folder,d,sequence,valid=valid,
+                        reason=terminal_error,declaration_sha256=file_sha(declaration_path),allocation=allocation)
+                    if result is not None:
+                        verified_trials.append(result)
+                    if terminal:
                         break
                 if len(verified_trials) == len(d['trials']) and terminal_error is None:
                     result = verify_observer(verified_trials, d, capacity) if kind == 'B' else verified_trials[0]
@@ -233,13 +316,18 @@ def execute(declaration_path, permit_path, owner_key, *, kind):
             for signum, handler in old_handlers.items():
                 signal.signal(signum, handler)
     except BaseException as exc:
-        persist(campaign/'CONTROLLER_FAILURE.json', dict(reason=type(exc).__name__+':'+str(exc),stage_e='RED',stage_f='NOT STARTED'))
+        reason = type(exc).__name__+':'+str(exc)
+        try:
+            events = ledger.events()
+            if not any(r['event'] in ('INVALID','STOPPED','DIAGNOSTIC_OVERLOAD') for r in events):
+                active = [r['sequence'] for r in events if r['event'] == 'STARTED']
+                done = [r['sequence'] for r in events if r['event'] == 'COMPLETE_VALID']
+                ledger.append('INVALID' if len(active) > len(done) else 'STOPPED',
+                              active[-1] if len(active) > len(done) else None,dict(reason=reason))
+        finally:
+            persist(campaign/'CONTROLLER_FAILURE.json', dict(reason=reason,stage_e='RED',stage_f='NOT STARTED'))
         raise
     finally:
-        seal(campaign,name='CAMPAIGN_INVENTORY.json')
-        # Final declaration, public signatures, consumed ledger and every
-        # success/failure byte remain independently verifiable after upload.
-        redundant_copy(campaign,Path(paths['durable_publication_root'])/(d['campaign']+'-campaign'),
-                       name='CAMPAIGN_INVENTORY.json')
+        _finalize_campaign(campaign,d,ledger,file_sha(declaration_path))
     require(terminal_error is None, 'campaign_stopped:'+str(terminal_error))
     return campaign

@@ -7,7 +7,7 @@ import sqlite3
 import time
 from unittest.mock import patch
 import bound_runtime as bound
-from core import S,REAL_NS,COHORT,read,workload,require
+from core import S,REAL_NS,COHORT,read,workload,require,sha
 from preserve import persist
 from production import read_snapshot,native_archive_proof
 from verify import stress_member_result
@@ -94,7 +94,7 @@ async def run_member():
             self.frames=frames;self.sent=0;self.acks=asyncio.Queue();self.start=None
             self.paused=set();self.pause_deadline=None;self.pause_started=None;self.pause_sample=None
             self.pause_inspection=None
-            self.first_release=None;self.samples=[];wire_holder.append(self)
+            self.first_release=None;self.samples=[];self.raw_hashes=[];wire_holder.append(self)
         async def __aenter__(self):return self
         async def __aexit__(self,*args):pass
         async def send(self,raw):
@@ -130,6 +130,8 @@ async def run_member():
             if self.first_release is None:
                 self.start=1800000000
                 self.first_release=bound.CLOCK.activate()
+            self.raw_hashes.append(dict(number=self.sent,sha256=sha(raw),bytes=len(raw),
+                                        released_real_monotonic_ns=REAL_NS()))
             self.sent+=1
             if self.sent==1 or self.sent%100==0 or self.sent==self.frames:
                 self.samples.append(dict(frames=self.sent,**bound.CLOCK.sample()))
@@ -171,7 +173,9 @@ async def run_member():
     persist(output/'SOURCE_RECEIPT.json',dict(member=params['member'],mode=params['mode'],
         tape=tape,source_frames_released=wire.sent,first_release_real_monotonic_ns=wire.first_release,
         immutable_semantic_wall_epoch=1800000000,immutable_semantic_monotonic_epoch=100,
-        clock_samples=wire.samples,retiming_calls=0,declaration_sha256=params['declaration_sha256']))
+        clock_samples=wire.samples,raw_release_hashes=wire.raw_hashes,
+        last_release_real_monotonic_ns=wire.raw_hashes[-1]['released_real_monotonic_ns'] if wire.raw_hashes else None,
+        retiming_calls=0,declaration_sha256=params['declaration_sha256']))
     row.update(version='stage-e-native-v3-stress-member',kind='C',member=params['member'],
         mode=params['mode'],artificial_contention=workload('C')['artificial_contention'],
         candidate_sha=S,declaration_sha256=params['declaration_sha256'],
@@ -188,9 +192,9 @@ async def run_member():
     persist(output/'MEMBER_RESULT.json',row)
     if not row['mandatory_native_safety_pass']:
         raise ValueError('mandatory_C_native_safety_not_proved')
-    # Performance failure remains separately FAILED_DIAGNOSTIC.
-    if not row['diagnostic_performance_pass']:
-        raise ValueError('FAILED_DIAGNOSTIC:stop_campaign_without_replacement')
+    # A native safe overload is a terminal protocol result, with the original
+    # FAILED_DIAGNOSTIC preserved. The trial stops further members and the
+    # controller grants C safety only after independent raw verification.
 
 
 

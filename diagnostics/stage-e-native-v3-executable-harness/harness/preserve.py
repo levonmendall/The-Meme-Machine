@@ -94,3 +94,87 @@ def redundant_copy(root, destination, *, name='RAW_INVENTORY.json'):
     verify_inventory(destination,name=name)
     return dict(destination=str(destination), inventory_sha256=file_sha(destination / name),
                 local_copy_retained=True, independently_read_back=True)
+
+
+def abandoned_ipc(root, termination):
+    """Remove only known, abandoned native sockets after the entire tree exits.
+
+    Regular evidence (including DB, WAL and logs) is never removed. Unknown
+    special artifacts still refuse an acceptance seal and are recorded by the
+    failure-only copier.
+    """
+    require(termination.get('all_native_helpers_terminated') is True
+            and termination.get('trial_process_terminated') is True,
+            'IPC_cleanup_requires_confirmed_process_termination')
+    root = Path(root)
+    removed = []
+    for member in sorted(root.glob('m[0-9]*')):
+        path = member/'d/db.sock'
+        if not path.exists():
+            continue
+        require(not member.is_symlink() and not path.parent.is_symlink(), 'IPC_parent_symlink')
+        info = path.lstat()
+        require(stat.S_ISSOCK(info.st_mode), 'abandoned_IPC_is_not_socket')
+        removed.append(dict(path=path.relative_to(root).as_posix(), device=info.st_dev,
+                            inode=info.st_ino, mode=info.st_mode))
+    # Durable intent precedes unlink; the socket itself contains no regular-file
+    # evidence. Never silently exclude it from an acceptance inventory.
+    if removed:
+        persist(root/'ABANDONED_IPC.json', dict(termination=termination, artifacts=removed,
+                regular_evidence_deleted=False, native_safety_credit=False))
+        for item in removed:
+            path = root/item['path']
+            info = path.lstat()
+            require(stat.S_ISSOCK(info.st_mode) and info.st_ino == item['inode']
+                    and info.st_dev == item['device'], 'abandoned_IPC_changed_before_cleanup')
+            path.unlink()
+            fsync_dir(path.parent)
+    return removed
+
+
+def regular_evidence(root):
+    """Failure inventory: enumerate every regular file without following links."""
+    root = Path(root).resolve()
+    rows, specials = [], []
+    for directory, folders, files in os.walk(root, followlinks=False):
+        for name in sorted(folders + files):
+            path = Path(directory)/name
+            info = path.lstat()
+            relative_name = path.relative_to(root).as_posix()
+            if stat.S_ISREG(info.st_mode):
+                with path.open('rb') as source:
+                    os.fsync(source.fileno())
+                rows.append(dict(path=relative_name, bytes=info.st_size, sha256=file_sha(path)))
+            elif not stat.S_ISDIR(info.st_mode):
+                specials.append(dict(path=relative_name, mode=info.st_mode,
+                                     device=info.st_dev, inode=info.st_ino))
+    return sorted(rows, key=lambda r:r['path']), sorted(specials, key=lambda r:r['path'])
+
+
+def failure_copy(root, destination):
+    """Publish all regular failure bytes even when a strict seal is impossible.
+
+    This copy explicitly denies acceptance. Unsupported IPC/links/special files
+    stay in the retained local directory and are itemized, never dereferenced.
+    """
+    root, destination = Path(root).resolve(), Path(destination)
+    require(not destination.exists(), 'publication_destination_reused')
+    rows, specials = regular_evidence(root)
+    destination.mkdir(exist_ok=False)
+    for item in rows:
+        source, target = relative(root, item['path']), relative(destination, item['path'])
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with source.open('rb') as reader, target.open('xb') as writer:
+            shutil.copyfileobj(reader, writer)
+            writer.flush(); os.fsync(writer.fileno())
+        require(target.stat().st_size == item['bytes'] and file_sha(target) == item['sha256'],
+                'failure_publication_readback_bytes')
+    require(regular_evidence(root) == (rows, specials), 'failure_evidence_changed_during_copy')
+    require(inventory(destination) == rows, 'failure_publication_regular_inventory')
+    persist(destination/'FAILURE_COPY_RECEIPT.json', dict(version='v3-failure-only-preservation',
+        artifacts=rows, nonregular_artifacts_retained_locally=specials, local_copy_retained=True,
+        independently_read_back=True, native_safety_credit=False, acceptance_credit=False))
+    fsync_dir(destination.parent)
+    return dict(destination=str(destination), local_copy_retained=True,
+                independently_read_back=True, acceptance_credit=False,
+                receipt_sha256=file_sha(destination/'FAILURE_COPY_RECEIPT.json'))

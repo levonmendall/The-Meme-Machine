@@ -1,0 +1,246 @@
+{
+  "cgroup": {
+    "ancestors": [
+      {
+        "cgroup_path": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "controllers": [],
+        "cpu_max_raw": null,
+        "cpuset": null,
+        "cpuset_effective": null,
+        "directory": {
+          "device": 29,
+          "inode": 16266,
+          "state": "PRESENT"
+        },
+        "interfaces": {
+          "cgroup.controllers": {
+            "raw": "memory pids\n",
+            "state": "PRESENT"
+          },
+          "cgroup.subtree_control": {
+            "raw": "",
+            "state": "PRESENT"
+          },
+          "cgroup.type": {
+            "raw": "domain\n",
+            "state": "PRESENT"
+          },
+          "cpu.max": {
+            "state": "ABSENT"
+          },
+          "cpu.weight": {
+            "state": "ABSENT"
+          },
+          "cpuset.cpus": {
+            "state": "ABSENT"
+          },
+          "cpuset.cpus.effective": {
+            "state": "ABSENT"
+          },
+          "memory.high": {
+            "raw": "max\n",
+            "state": "PRESENT"
+          },
+          "memory.max": {
+            "raw": "max\n",
+            "state": "PRESENT"
+          },
+          "memory.swap.max": {
+            "raw": "max\n",
+            "state": "PRESENT"
+          }
+        },
+        "membership": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "memory_high": null,
+        "memory_high_raw": "max",
+        "memory_max": null,
+        "memory_max_raw": "max",
+        "mount_root": "/",
+        "namespace": "cgroup:[4026531835]",
+        "path": "/sys/fs/cgroup/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "period_us": null,
+        "quota_us": null,
+        "root_exceptions": [],
+        "swap_max": null,
+        "swap_max_raw": "max",
+        "version": "cgroup2"
+      },
+      {
+        "cgroup_path": "/system.slice",
+        "controllers": [],
+        "cpu_max_raw": null,
+        "cpuset": null,
+        "cpuset_effective": null,
+        "directory": {
+          "device": 29,
+          "inode": 70,
+          "state": "PRESENT"
+        },
+        "interfaces": {
+          "cgroup.controllers": {
+            "raw": "memory pids\n",
+            "state": "PRESENT"
+          },
+          "cgroup.subtree_control": {
+            "raw": "memory pids\n",
+            "state": "PRESENT"
+          },
+          "cgroup.type": {
+            "raw": "domain\n",
+            "state": "PRESENT"
+          },
+          "cpu.max": {
+            "state": "ABSENT"
+          },
+          "cpu.weight": {
+            "state": "ABSENT"
+          },
+          "cpuset.cpus": {
+            "state": "ABSENT"
+          },
+          "cpuset.cpus.effective": {
+            "state": "ABSENT"
+          },
+          "memory.high": {
+            "raw": "max\n",
+            "state": "PRESENT"
+          },
+          "memory.max": {
+            "raw": "max\n",
+            "state": "PRESENT"
+          },
+          "memory.swap.max": {
+            "raw": "max\n",
+            "state": "PRESENT"
+          }
+        },
+        "membership": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "memory_high": null,
+        "memory_high_raw": "max",
+        "memory_max": null,
+        "memory_max_raw": "max",
+        "mount_root": "/",
+        "namespace": "cgroup:[4026531835]",
+        "path": "/sys/fs/cgroup/system.slice",
+        "period_us": null,
+        "quota_us": null,
+        "root_exceptions": [],
+        "swap_max": null,
+        "swap_max_raw": "max",
+        "version": "cgroup2"
+      },
+      {
+        "cgroup_path": "/",
+        "controllers": [],
+        "cpu_max_raw": null,
+        "cpuset": null,
+        "cpuset_effective": "0-1",
+        "directory": {
+          "device": 29,
+          "inode": 1,
+          "state": "PRESENT"
+        },
+        "interfaces": {
+          "cgroup.controllers": {
+            "raw": "cpuset cpu io memory hugetlb pids rdma misc\n",
+            "state": "PRESENT"
+          },
+          "cgroup.subtree_control": {
+            "raw": "memory pids\n",
+            "state": "PRESENT"
+          },
+          "cgroup.type": {
+            "state": "ABSENT"
+          },
+          "cpu.max": {
+            "state": "ABSENT"
+          },
+          "cpu.weight": {
+            "state": "ABSENT"
+          },
+          "cpuset.cpus": {
+            "state": "ABSENT"
+          },
+          "cpuset.cpus.effective": {
+            "raw": "0-1\n",
+            "state": "PRESENT"
+          },
+          "memory.high": {
+            "state": "ABSENT"
+          },
+          "memory.max": {
+            "state": "ABSENT"
+          },
+          "memory.swap.max": {
+            "state": "ABSENT"
+          }
+        },
+        "membership": "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service",
+        "memory_high": null,
+        "memory_high_raw": null,
+        "memory_max": null,
+        "memory_max_raw": null,
+        "mount_root": "/",
+        "namespace": "cgroup:[4026531835]",
+        "path": "/sys/fs/cgroup",
+        "period_us": null,
+        "quota_us": null,
+        "root_exceptions": [
+          "cgroup.type",
+          "cpu.max",
+          "cpu.weight",
+          "cpuset.cpus",
+          "memory.max",
+          "memory.high",
+          "memory.swap.max"
+        ],
+        "swap_max": null,
+        "swap_max_raw": null,
+        "version": "cgroup2"
+      }
+    ],
+    "complete": true,
+    "memberships": [
+      [
+        "0",
+        [],
+        "/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service"
+      ]
+    ],
+    "mount_namespace": "mnt:[4026531841]",
+    "namespace": "cgroup:[4026531835]",
+    "pid1_mount_namespace": "mnt:[4026531841]",
+    "pid1_namespace": "cgroup:[4026531835]",
+    "reader_mount_namespace": "mnt:[4026531841]",
+    "reader_namespace": "cgroup:[4026531835]",
+    "version": "v3-cgroup-controller-evidence",
+    "visibility_interfaces": {
+      "membership": {
+        "raw": "0::/system.slice/actions.runner.levonmendall-The-Meme-Machine.the_meme_machine.service\n",
+        "state": "PRESENT"
+      },
+      "mountinfo": {
+        "raw": "24 30 0:22 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw\n25 30 0:23 / /proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw\n26 30 0:5 / /dev rw,nosuid,relatime shared:2 - devtmpfs udev rw,size=4046792k,nr_inodes=1011698,mode=755,inode64\n27 26 0:24 / /dev/pts rw,nosuid,noexec,relatime shared:3 - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n28 30 0:25 / /run rw,nosuid,nodev,noexec,relatime shared:5 - tmpfs tmpfs rw,size=813252k,mode=755,inode64\n30 1 253:1 / / rw,relatime shared:1 - ext4 /dev/vda1 rw,discard,errors=remount-ro,commit=30\n31 24 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime shared:8 - securityfs securityfs rw\n32 26 0:27 / /dev/shm rw,nosuid,nodev shared:4 - tmpfs tmpfs rw,inode64\n33 28 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime shared:6 - tmpfs tmpfs rw,size=5120k,inode64\n34 24 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:9 - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n35 24 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime shared:10 - pstore pstore rw\n36 24 0:31 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime shared:11 - bpf bpf rw,mode=700\n38 25 0:32 / /proc/sys/fs/binfmt_misc rw,relatime shared:13 - autofs systemd-1 rw,fd=32,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=2107\n39 26 0:33 / /dev/hugepages rw,nosuid,nodev,relatime shared:14 - hugetlbfs hugetlbfs rw,pagesize=2M\n40 26 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime shared:15 - mqueue mqueue rw\n41 24 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime shared:16 - debugfs debugfs rw\n42 24 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime shared:17 - tracefs tracefs rw\n43 24 0:34 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime shared:18 - fusectl fusectl rw\n44 24 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime shared:19 - configfs configfs rw\n46 30 259:0 / /boot rw,relatime shared:29 - ext4 /dev/vda16 rw\n48 46 253:15 / /boot/efi rw,relatime shared:45 - vfat /dev/vda15 rw,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n50 38 0:35 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime shared:47 - binfmt_misc binfmt_misc rw\n54 30 8:0 / /mnt/volume_nyc1_1790918115030 rw,noatime shared:292 - ext4 /dev/sda rw,discard\n",
+        "state": "PRESENT"
+      },
+      "pid1_membership": {
+        "raw": "0::/init.scope\n",
+        "state": "PRESENT"
+      },
+      "pid1_mountinfo": {
+        "raw": "24 30 0:22 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw\n25 30 0:23 / /proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw\n26 30 0:5 / /dev rw,nosuid,relatime shared:2 - devtmpfs udev rw,size=4046792k,nr_inodes=1011698,mode=755,inode64\n27 26 0:24 / /dev/pts rw,nosuid,noexec,relatime shared:3 - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n28 30 0:25 / /run rw,nosuid,nodev,noexec,relatime shared:5 - tmpfs tmpfs rw,size=813252k,mode=755,inode64\n30 1 253:1 / / rw,relatime shared:1 - ext4 /dev/vda1 rw,discard,errors=remount-ro,commit=30\n31 24 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime shared:8 - securityfs securityfs rw\n32 26 0:27 / /dev/shm rw,nosuid,nodev shared:4 - tmpfs tmpfs rw,inode64\n33 28 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime shared:6 - tmpfs tmpfs rw,size=5120k,inode64\n34 24 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:9 - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n35 24 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime shared:10 - pstore pstore rw\n36 24 0:31 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime shared:11 - bpf bpf rw,mode=700\n38 25 0:32 / /proc/sys/fs/binfmt_misc rw,relatime shared:13 - autofs systemd-1 rw,fd=32,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=2107\n39 26 0:33 / /dev/hugepages rw,nosuid,nodev,relatime shared:14 - hugetlbfs hugetlbfs rw,pagesize=2M\n40 26 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime shared:15 - mqueue mqueue rw\n41 24 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime shared:16 - debugfs debugfs rw\n42 24 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime shared:17 - tracefs tracefs rw\n43 24 0:34 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime shared:18 - fusectl fusectl rw\n44 24 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime shared:19 - configfs configfs rw\n46 30 259:0 / /boot rw,relatime shared:29 - ext4 /dev/vda16 rw\n48 46 253:15 / /boot/efi rw,relatime shared:45 - vfat /dev/vda15 rw,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n50 38 0:35 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime shared:47 - binfmt_misc binfmt_misc rw\n54 30 8:0 / /mnt/volume_nyc1_1790918115030 rw,noatime shared:292 - ext4 /dev/sda rw,discard\n",
+        "state": "PRESENT"
+      }
+    }
+  },
+  "diagnosis_commit": "3ba04753e531b6c5e180f49f3da94e71c079b05b",
+  "execution_authorized": false,
+  "production_admission_credit": false,
+  "raw_evidence_sha256": "1a9bf5779ba44d30c65f522d11fe5db3bd349e846276434e0cc095cb372149a8",
+  "source_frames_released": 0,
+  "version": "UNIT-cgroup-evidence-projection",
+  "visible_cpu_ids": [
+    0,
+    1
+  ]
+}
