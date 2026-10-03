@@ -1,0 +1,8 @@
+{
+  "all_artifact_hashes_verified": 20,
+  "canonical_payload_sha256": "261bd20efccbcb5fa106fd65f01521cc8243495f1ba4d3d294baa08d1a9fb09f",
+  "fresh_system_processes": 28,
+  "payload_matches_actual_preserved_observations": true,
+  "private_key_transferred_to_executor": false,
+  "unresolved_processes": 0
+}

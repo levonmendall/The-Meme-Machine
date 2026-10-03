@@ -1,0 +1,1 @@
+{"provider":"DigitalOcean","operation":"read-only droplet_get","droplet_id":605465049,"requested_between_utc":["2026-10-03 12:44:26 UTC","2026-10-03 12:44:28 UTC"],"preserved_exact_provider_response_text_bytes":true,"receipt_is_not_a_signed_allocation_document":true}

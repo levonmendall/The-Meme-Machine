@@ -1,0 +1,50 @@
+name: Native-v3 A fresh process attestation closure (PAPER ONLY)
+on:
+  create:
+permissions:
+  contents: read
+jobs:
+  process-evidence:
+    if: github.event.ref_type == 'branch' && github.event.ref == 'preflight/native-v3-a-process-closure-20261003T121620Z-r2'
+    runs-on: [self-hosted, linux, x64, meme-machine-stage-e-observer]
+    timeout-minutes: 15
+    steps:
+      - name: Read exact approved executable without mutation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f480c6b4f7a8442fd148c7ed61bcc4447edaefca
+          path: native-v3-approved-closure-20261003T121620Z
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read separate environment evidence collector
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: native-v3-evidence-closure-20261003T121620Z
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Fresh complete process resource and provenance evidence
+        id: discovery
+        shell: sh
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          MM_APPROVED_REPOSITORY: ${{ github.workspace }}/native-v3-approved-closure-20261003T121620Z
+        run: |
+          /usr/bin/python3 -I -B - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          record=json.loads(Path('/mnt/volume_nyc1_1790918115030/meme-machine-observer-v2-7a516a6a/fresh-environment.json').read_bytes())
+          executable=record['python_executable']
+          if hashlib.sha256(Path(executable).read_bytes()).hexdigest()!=record['python_executable_hash']:
+              raise SystemExit('preserved_Python_executable_changed')
+          script=Path(os.environ['GITHUB_WORKSPACE'])/'native-v3-evidence-closure-20261003T121620Z/diagnostics/stage-e-native-v3-a-closure-20261003T121620Z/collect_process_attestation_r2.py'
+          os.execv(executable,[executable,'-I','-B',str(script)])
+          PY
+      - name: Preserve only bounded environment preflight evidence
+        if: always() && steps.discovery.outputs.evidence_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-v3-a-process-closure-r2-20261003T121620Z-${{ github.run_id }}-1
+          path: ${{ steps.discovery.outputs.evidence_path }}
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: false
