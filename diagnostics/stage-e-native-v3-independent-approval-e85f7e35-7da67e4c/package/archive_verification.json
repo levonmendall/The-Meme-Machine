@@ -1,0 +1,15 @@
+{
+  "workflow_run": 37135422430,
+  "job": 111238864238,
+  "artifact": 11278837291,
+  "artifact_zip_sha256": "40c1dbf4562cc5ca0df7df08645276b057acb5e4c2b06854be47a8678b37b8f4",
+  "original_zip_manifest_identical_to_publication": true,
+  "zip_manifest_listed_entries": 85,
+  "zip_entries_verified": 84,
+  "missing": [
+    "successor-repository/.github/workflows/stagee-native-v3-executable-review.yml"
+  ],
+  "declared_omission_only": true,
+  "published_restoration_hash_verified": true,
+  "all_available_zip_bytes_equal_published_evidence": true
+}

@@ -1,0 +1,32 @@
+{
+  "additional_captured_failures": 28,
+  "cause_of_284": "Arithmetic consequence of intentional preservation of captured failures in the approved workload; neither later drift nor new stress design.",
+  "classification_rule": "meta.err is not None; captured meta.err is preserved unless forced failed lane sets an error.",
+  "determinism": "Fixed captured templates, fixed lane counts and ordered cycling; SHA-512 labels produce deterministic signatures. Fixed clocks/cadence and gzip mtime=0.",
+  "earlier_256_to_284_transition_found": false,
+  "failed_meteora_templates": 7,
+  "first_historical_284_commit": "4448f30c270af61fbc13079e36249472754568e5",
+  "first_historical_parent": "04832519727f732d68fbd2ea7ddf643b74eafe14",
+  "first_native_v2_commit": "618fcca3ac008b2eb326b2e36164d30c663cef03",
+  "first_native_v2_parent": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+  "function": "build_frame / timed_transaction",
+  "generation_method": "Unchanged native construction extended to the finite fixed 4445-frame index bound; complete original 240-frame prefix byte equality independently verified.",
+  "lane_mix": {
+    "failed": 256,
+    "meteora": 128,
+    "pump": 48,
+    "pumpswap": 80
+  },
+  "meteora_templates": 32,
+  "native_fixture": "certification/stage_e_native_v2/fixtures.py",
+  "random_seed": null,
+  "repeat_factor": 4,
+  "spec": "certification/stage_e_native_v2/fixtures/run380-v2.json",
+  "tape_generator_commit": "dd75942dcc7498156f80808397c594a6767871e9",
+  "tape_generator_file": "diagnostics/stage-e-observer-v2-self-hosted/infra/tape.py",
+  "tape_generator_function": "extended_frame",
+  "templates": "certification/stage_e_native_v2/fixtures/run380-templates-v2.json.gz",
+  "total_failed": 284,
+  "total_successful": 228,
+  "total_transactions": 512
+}

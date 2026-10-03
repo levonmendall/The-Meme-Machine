@@ -1,0 +1,48 @@
+# NOT AUTHORIZED / PREVIEW ONLY. This is outside .github/workflows.
+# Owner must review/install a separately frozen workflow and sign its exact
+# executor/declaration/run binding before any future A, B or C source release.
+name: Stage-E native-v3 future material binding PREVIEW
+on:
+  workflow_dispatch:
+    inputs:
+      execution_class:
+        type: choice
+        options: [A, B, C]
+        required: true
+      declaration:
+        type: string
+        required: true
+      owner_permit:
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  material:
+    if: ${{ false }}
+    runs-on: [self-hosted, stage-e-native-v3-dedicated]
+    timeout-minutes: 480
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Exact owner permit and authenticated executor admission
+        env:
+          MM_DECLARATION: ${{ inputs.declaration }}
+          MM_OWNER_PERMIT: ${{ inputs.owner_permit }}
+          MM_EXECUTION_CLASS: ${{ inputs.execution_class }}
+        run: >-
+          python3.12 -B diagnostics/stage-e-native-v3-executable-harness/execute.py
+          --class "$MM_EXECUTION_CLASS"
+          --declaration "$MM_DECLARATION"
+          --owner-permit "$MM_OWNER_PERMIT"
+          --owner-public-key /etc/stage-e-v3/owner-public.pem
+      - name: Preserve every result, including failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage-e-native-v3-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /srv/stage-e-v3/preserved-publication/
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: false

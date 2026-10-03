@@ -1,0 +1,10 @@
+{
+  "initial_check": {
+    "status": "REVIEW_CHECK_ASSUMPTION_CORRECTED",
+    "reason": "The publication repository is not the frozen candidate checkout. An initial assertion incorrectly required every publication file to equal S.",
+    "observed_difference": ".github/workflows/non-market-certification.yml",
+    "difference_unchanged_from_approved_parent": true,
+    "successor_or_candidate_modified": false,
+    "resolution": "Compare successor to approved publication parent for every candidate path; independently verify frozen native fixture/spec/template and S/T bindings."
+  }
+}

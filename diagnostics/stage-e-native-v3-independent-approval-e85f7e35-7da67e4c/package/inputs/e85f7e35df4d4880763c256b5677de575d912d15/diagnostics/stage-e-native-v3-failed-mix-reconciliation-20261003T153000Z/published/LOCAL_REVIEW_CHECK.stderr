@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/review.py", line 206, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/review.py", line 197, in main
+    if args.command=='check':check()
+                             ^^^^^^^
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/review.py", line 94, in check
+    require(result.wasSuccessful(),'review_tests_failed')
+  File "/workspace/stage-e-reconciliation/diagnostics/stage-e-native-v3-executable-harness/harness/core.py", line 62, in require
+    raise ValueError(reason)
+ValueError: review_tests_failed

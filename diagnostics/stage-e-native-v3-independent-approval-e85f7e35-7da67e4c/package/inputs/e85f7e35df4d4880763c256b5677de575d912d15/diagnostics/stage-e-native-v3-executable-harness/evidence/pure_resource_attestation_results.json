@@ -1,0 +1,18 @@
+{
+  "errors": 0,
+  "failed": 0,
+  "modules": [
+    "test_cgroup_applicability",
+    "test_envelope",
+    "test_resource_interval",
+    "test_continuity",
+    "test_signatures"
+  ],
+  "passed": true,
+  "preflight_executed": false,
+  "python": "3.12.14",
+  "skipped": 0,
+  "source_frames_released": 0,
+  "tests_run": 104,
+  "version": "UNIT-pure-resource-attestation"
+}

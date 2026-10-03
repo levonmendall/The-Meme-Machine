@@ -1,0 +1,95 @@
+{
+  "A_admission_utc": null,
+  "checks": [
+    {
+      "check": "candidate S/T conservation",
+      "scope": "Supports review; does not by itself admit Stage A",
+      "status": "PASS_NONMATERIAL_VALIDATION"
+    },
+    {
+      "check": "immutable production-envelope contract",
+      "scope": "Supports review; does not by itself admit Stage A",
+      "status": "PASS_NONMATERIAL_VALIDATION"
+    },
+    {
+      "check": "successor code/source identity",
+      "scope": "Supports review; does not by itself admit Stage A",
+      "status": "PASS_NONMATERIAL_VALIDATION"
+    },
+    {
+      "check": "complete approved tape identities and corrected invariant",
+      "scope": "Supports review; does not by itself admit Stage A",
+      "status": "PASS_NONMATERIAL_VALIDATION"
+    },
+    {
+      "check": "Python / locked dependencies / SQLite / shared libraries from runtime bytes",
+      "scope": "Supports review; does not by itself admit Stage A",
+      "status": "PASS_NONMATERIAL_VALIDATION"
+    },
+    {
+      "check": "377 full + 55 contract + 104 pure resource deterministic tests",
+      "scope": "Supports review; does not by itself admit Stage A",
+      "status": "PASS_NONMATERIAL_VALIDATION"
+    },
+    {
+      "check": "65-artifact exact successor package manifest verification",
+      "scope": "Supports review; does not by itself admit Stage A",
+      "status": "PASS_NONMATERIAL_VALIDATION"
+    },
+    {
+      "check": "independent executable successor review",
+      "scope": "Required external review not present; cannot be substituted by Codex checks",
+      "status": "BLOCKED"
+    },
+    {
+      "check": "fresh complete process/service/provenance attestation",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    },
+    {
+      "check": "fresh cgroup completeness and process isolation admission",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    },
+    {
+      "check": "fresh CPU/RAM reservation",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    },
+    {
+      "check": "fresh storage reservation",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    },
+    {
+      "check": "fresh tape/evidence reservation",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    },
+    {
+      "check": "fresh runtime reservation",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    },
+    {
+      "check": "fresh signing/allocation trust and payload",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    },
+    {
+      "check": "exact-declaration and signed permit validation",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    },
+    {
+      "check": "complete material admission / every required admission check",
+      "scope": "Must be freshly completed after independent successor approval; no historical PASS promoted to current admission",
+      "status": "NOT_REACHED"
+    }
+  ],
+  "entire_preflight_pass": false,
+  "final_preflight": "BLOCKED",
+  "frames_released_before_admission": 0,
+  "sequence": "Review before fresh material admission",
+  "slots_consumed_before_admission": 0
+}

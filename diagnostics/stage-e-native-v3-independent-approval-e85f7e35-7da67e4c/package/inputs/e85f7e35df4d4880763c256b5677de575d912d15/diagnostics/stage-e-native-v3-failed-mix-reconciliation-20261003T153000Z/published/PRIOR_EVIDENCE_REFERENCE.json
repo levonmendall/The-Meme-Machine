@@ -1,0 +1,18 @@
+{
+  "admission_freshness": "HISTORICAL ONLY: no current allocation, process approval or reservation is inferred from these files",
+  "all_original_artifacts_independently_verified": 279,
+  "manifest_sha256": "2a954aa28d6cd59c5c3cf97b6f179e202961d10a34cb64053fde5067cc95b0c6",
+  "mismatches": [],
+  "payload_commit": "820e172965ef8320add6bf4592b9e37163f1f340",
+  "report_commit": "66765b918172387d1b7cf23bd5abfb98b19a869b",
+  "repository_path": "diagnostics/stage-e-native-v3-a-autonomous-20261003T133500Z/published",
+  "retained_directories": [
+    "admission-attempt",
+    "signing",
+    "blocker-diagnosis",
+    "runtime-closure",
+    "independent-review",
+    "diagnosis",
+    "runtime-repair-original"
+  ]
+}

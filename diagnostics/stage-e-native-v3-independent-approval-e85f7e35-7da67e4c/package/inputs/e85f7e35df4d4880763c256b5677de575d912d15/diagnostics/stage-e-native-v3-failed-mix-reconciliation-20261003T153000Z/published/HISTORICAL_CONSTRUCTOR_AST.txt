@@ -1,0 +1,342 @@
+FunctionDef(
+  name='__init__',
+  args=arguments(
+    posonlyargs=[],
+    args=[
+      arg(arg='self')],
+    kwonlyargs=[],
+    kw_defaults=[],
+    defaults=[]),
+  body=[
+    Assign(
+      targets=[
+        Attribute(
+          value=Name(id='self', ctx=Load()),
+          attr='templates',
+          ctx=Store())],
+      value=Subscript(
+        value=Call(
+          func=Attribute(
+            value=Name(id='json', ctx=Load()),
+            attr='loads',
+            ctx=Load()),
+          args=[
+            Call(
+              func=Attribute(
+                value=Name(id='gzip', ctx=Load()),
+                attr='decompress',
+                ctx=Load()),
+              args=[
+                Call(
+                  func=Attribute(
+                    value=BinOp(
+                      left=Attribute(
+                        value=Call(
+                          func=Attribute(
+                            value=Call(
+                              func=Name(id='Path', ctx=Load()),
+                              args=[
+                                Name(id='__file__', ctx=Load())],
+                              keywords=[]),
+                            attr='resolve',
+                            ctx=Load()),
+                          args=[],
+                          keywords=[]),
+                        attr='parent',
+                        ctx=Load()),
+                      op=Div(),
+                      right=Constant(value='tests/fixtures/run380-production-templates.json.gz')),
+                    attr='read_bytes',
+                    ctx=Load()),
+                  args=[],
+                  keywords=[])],
+              keywords=[])],
+          keywords=[]),
+        slice=Constant(value='templates'),
+        ctx=Load())),
+    Assign(
+      targets=[
+        Name(id='txs', ctx=Store())],
+      value=List(elts=[], ctx=Load())),
+    For(
+      target=Tuple(
+        elts=[
+          Name(id='kind', ctx=Store()),
+          Name(id='count', ctx=Store())],
+        ctx=Store()),
+      iter=List(
+        elts=[
+          Tuple(
+            elts=[
+              Constant(value='meteora'),
+              Constant(value=128)],
+            ctx=Load()),
+          Tuple(
+            elts=[
+              Constant(value='pump'),
+              Constant(value=48)],
+            ctx=Load()),
+          Tuple(
+            elts=[
+              Constant(value='pumpswap'),
+              Constant(value=80)],
+            ctx=Load()),
+          Tuple(
+            elts=[
+              Constant(value='empty'),
+              Constant(value=256)],
+            ctx=Load())],
+        ctx=Load()),
+      body=[
+        For(
+          target=Name(id='i', ctx=Store()),
+          iter=Call(
+            func=Name(id='range', ctx=Load()),
+            args=[
+              Name(id='count', ctx=Load())],
+            keywords=[]),
+          body=[
+            Assign(
+              targets=[
+                Name(id='t', ctx=Store())],
+              value=Call(
+                func=Attribute(
+                  value=Name(id='copy', ctx=Load()),
+                  attr='deepcopy',
+                  ctx=Load()),
+                args=[
+                  Subscript(
+                    value=Subscript(
+                      value=Attribute(
+                        value=Name(id='self', ctx=Load()),
+                        attr='templates',
+                        ctx=Load()),
+                      slice=IfExp(
+                        test=Compare(
+                          left=Name(id='kind', ctx=Load()),
+                          ops=[
+                            NotEq()],
+                          comparators=[
+                            Constant(value='empty')]),
+                        body=Name(id='kind', ctx=Load()),
+                        orelse=Constant(value='pumpswap')),
+                      ctx=Load()),
+                    slice=BinOp(
+                      left=Name(id='i', ctx=Load()),
+                      op=Mod(),
+                      right=Call(
+                        func=Name(id='len', ctx=Load()),
+                        args=[
+                          Subscript(
+                            value=Attribute(
+                              value=Name(id='self', ctx=Load()),
+                              attr='templates',
+                              ctx=Load()),
+                            slice=IfExp(
+                              test=Compare(
+                                left=Name(id='kind', ctx=Load()),
+                                ops=[
+                                  NotEq()],
+                                comparators=[
+                                  Constant(value='empty')]),
+                              body=Name(id='kind', ctx=Load()),
+                              orelse=Constant(value='pumpswap')),
+                            ctx=Load())],
+                        keywords=[])),
+                    ctx=Load())],
+                keywords=[])),
+            Assign(
+              targets=[
+                Subscript(
+                  value=Subscript(
+                    value=Name(id='t', ctx=Load()),
+                    slice=Constant(value='transaction'),
+                    ctx=Load()),
+                  slice=Constant(value='signatures'),
+                  ctx=Store())],
+              value=List(
+                elts=[
+                  BinOp(
+                    left=Constant(value='run380:1000:'),
+                    op=Add(),
+                    right=Call(
+                      func=Name(id='str', ctx=Load()),
+                      args=[
+                        Call(
+                          func=Name(id='len', ctx=Load()),
+                          args=[
+                            Name(id='txs', ctx=Load())],
+                          keywords=[])],
+                      keywords=[]))],
+                ctx=Load())),
+            If(
+              test=Compare(
+                left=Name(id='kind', ctx=Load()),
+                ops=[
+                  Eq()],
+                comparators=[
+                  Constant(value='empty')]),
+              body=[
+                Assign(
+                  targets=[
+                    Subscript(
+                      value=Subscript(
+                        value=Name(id='t', ctx=Load()),
+                        slice=Constant(value='meta'),
+                        ctx=Load()),
+                      slice=Constant(value='err'),
+                      ctx=Store())],
+                  value=Dict(
+                    keys=[
+                      Constant(value='InstructionError')],
+                    values=[
+                      List(
+                        elts=[
+                          Constant(value=0),
+                          Dict(
+                            keys=[
+                              Constant(value='Custom')],
+                            values=[
+                              Constant(value=1)])],
+                        ctx=Load())]))],
+              orelse=[]),
+            Expr(
+              value=Call(
+                func=Attribute(
+                  value=Name(id='txs', ctx=Load()),
+                  attr='append',
+                  ctx=Load()),
+                args=[
+                  Name(id='t', ctx=Load())],
+                keywords=[]))],
+          orelse=[])],
+      orelse=[]),
+    Assign(
+      targets=[
+        Attribute(
+          value=Name(id='self', ctx=Load()),
+          attr='template',
+          ctx=Store())],
+      value=Call(
+        func=Attribute(
+          value=Call(
+            func=Attribute(
+              value=Name(id='json', ctx=Load()),
+              attr='dumps',
+              ctx=Load()),
+            args=[
+              Call(
+                func=Name(id='dict', ctx=Load()),
+                args=[],
+                keywords=[
+                  keyword(
+                    arg='method',
+                    value=Constant(value='blockNotification')),
+                  keyword(
+                    arg='params',
+                    value=Call(
+                      func=Name(id='dict', ctx=Load()),
+                      args=[],
+                      keywords=[
+                        keyword(
+                          arg='subscription',
+                          value=Constant(value=1)),
+                        keyword(
+                          arg='result',
+                          value=Call(
+                            func=Name(id='dict', ctx=Load()),
+                            args=[],
+                            keywords=[
+                              keyword(
+                                arg='value',
+                                value=Call(
+                                  func=Name(id='dict', ctx=Load()),
+                                  args=[],
+                                  keywords=[
+                                    keyword(
+                                      arg='slot',
+                                      value=Constant(value=1000)),
+                                    keyword(
+                                      arg='err',
+                                      value=Constant(value=None)),
+                                    keyword(
+                                      arg='block',
+                                      value=Call(
+                                        func=Name(id='dict', ctx=Load()),
+                                        args=[],
+                                        keywords=[
+                                          keyword(
+                                            arg='parentSlot',
+                                            value=Constant(value=999)),
+                                          keyword(
+                                            arg='blockhash',
+                                            value=Constant(value='h1000')),
+                                          keyword(
+                                            arg='previousBlockhash',
+                                            value=Constant(value='h999')),
+                                          keyword(
+                                            arg='blockTime',
+                                            value=Constant(value=1000000000)),
+                                          keyword(
+                                            arg='transactions',
+                                            value=Name(id='txs', ctx=Load()))]))]))]))]))])],
+            keywords=[
+              keyword(
+                arg='separators',
+                value=Tuple(
+                  elts=[
+                    Constant(value=','),
+                    Constant(value=':')],
+                  ctx=Load()))]),
+          attr='encode',
+          ctx=Load()),
+        args=[],
+        keywords=[])),
+    Assign(
+      targets=[
+        Attribute(
+          value=Name(id='self', ctx=Load()),
+          attr='sent',
+          ctx=Store())],
+      value=Constant(value=0)),
+    Assign(
+      targets=[
+        Attribute(
+          value=Name(id='self', ctx=Load()),
+          attr='frames',
+          ctx=Store())],
+      value=Call(
+        func=Name(id='int', ctx=Load()),
+        args=[
+          Call(
+            func=Attribute(
+              value=Name(id='os', ctx=Load()),
+              attr='getenv',
+              ctx=Load()),
+            args=[
+              Constant(value='PRESSURE_FRAMES'),
+              Constant(value='160')],
+            keywords=[])],
+        keywords=[])),
+    Assign(
+      targets=[
+        Attribute(
+          value=Name(id='self', ctx=Load()),
+          attr='acks',
+          ctx=Store())],
+      value=Call(
+        func=Attribute(
+          value=Name(id='asyncio', ctx=Load()),
+          attr='Queue',
+          ctx=Load()),
+        args=[],
+        keywords=[])),
+    Assign(
+      targets=[
+        Attribute(
+          value=Name(id='self', ctx=Load()),
+          attr='start',
+          ctx=Store())],
+      value=Constant(value=None))],
+  decorator_list=[],
+  type_params=[])

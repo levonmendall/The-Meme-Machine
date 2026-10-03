@@ -1,0 +1,68 @@
+{
+  "root_cause": "CONTRACT_IMPLEMENTATION_MISMATCH",
+  "cause": "Forced failed-lane cardinality 256 was misapplied to total meta.err population; canonical captured Meteora errors contribute 28.",
+  "unique_mechanical_correction": "Exact equality literal 256 to 284 for every fixed tape frame.",
+  "executable_changed_files": [
+    "diagnostics/stage-e-native-v3-executable-harness/harness/tape.py"
+  ],
+  "before_sha256": "4437dfc8ec679ebb813c4015ff44f3fb35fc5637339e010999858f218bc8da7b",
+  "after_sha256": "56fbb3f9efff52d18d31b4327489a2b8b796c5d4b8fc444fd244e758fcdd038d",
+  "AST_only_changed_constant": true,
+  "rule_remains_exact_equality": true,
+  "rule_applies_to_every_frame": true,
+  "approved_lane_mix_unchanged": {
+    "failed": 256,
+    "meteora": 128,
+    "pump": 48,
+    "pumpswap": 80
+  },
+  "total_failed": 284,
+  "total_successful": 228,
+  "total_transactions": 512,
+  "all_other_executable_AST_unchanged": true,
+  "approved_contract": {
+    "commit": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+    "verified_artifacts": 192,
+    "changed": [],
+    "semantics_changed": false
+  },
+  "candidate": {
+    "candidate_sha": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "candidate_tree": "9da7d1e1625ba04c1437c63606c90f5e293bdba7",
+    "candidate_files": 1241,
+    "full_candidate_sha256": "d5088c22e6967e528876e01065794ae792ac97e00e911bb897521f32106289fc",
+    "changed": [],
+    "strategy_policy_changed": false
+  },
+  "workload_sha256": "4423e3354f10ab87d15b5a70129e2c6d1abe36df9f1c92aa401b0c0c93020dce",
+  "new_infrastructure_digest": "f5737e7f9d1154453f035e06c38c9178bcff4a2f8698a1ebabace1801d7a8491",
+  "original_infrastructure_digest": "80d030038ea770f99df4f76e8e87edcf039c74db2c38c9bbcbb215d58d537ae8",
+  "native_history": [
+    {
+      "path": "certification/stage_e_native_v2/fixtures.py",
+      "initial_commit": "618fcca3ac008b2eb326b2e36164d30c663cef03",
+      "candidate_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "sha256": "0faddec8928925b61e663a50337161eb52e6a229d5fa9c3e113bada1b53440f2",
+      "bytes_identical_since_introduction": true
+    },
+    {
+      "path": "certification/stage_e_native_v2/fixtures/run380-v2.json",
+      "initial_commit": "618fcca3ac008b2eb326b2e36164d30c663cef03",
+      "candidate_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "sha256": "0f5ac9bab9f75d53546742b405b7bb98721198f2af15569a3c76215818242847",
+      "bytes_identical_since_introduction": true
+    },
+    {
+      "path": "certification/stage_e_native_v2/fixtures/run380-templates-v2.json.gz",
+      "initial_commit": "618fcca3ac008b2eb326b2e36164d30c663cef03",
+      "candidate_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "sha256": "73f5a7bc8dd600ec060f3a9f907fb57b1fac9ea5bdf7d27ff9d3e8df72678ebe",
+      "bytes_identical_since_introduction": true
+    }
+  ],
+  "preserved_preview_campaign": "stage-e-native-v3-observer-6aee92166dea49fd949b23fd083e8aa3",
+  "no_actual_slots_reserved": true,
+  "A_trials_started": 0,
+  "A_slots_consumed": 0,
+  "source_frames_released": 0
+}

@@ -1,0 +1,25 @@
+{
+  "successor_manifest": {
+    "sha256": "91753a805cd7acd48a10bb5e9cf31673f54ab9aebd70ee89039f37a7606ba9ff"
+  },
+  "evidence_manifest": {
+    "sha256": "c6d2ea2275b68dc1dc650e53b76a98ddc46b71d2f12d9a4d60c6c603e97bdd7f"
+  },
+  "artifact_verification": {
+    "successor_listed": 65,
+    "successor_manifest_verified": true,
+    "successor_extra_or_missing_files": [],
+    "successor_git_blobs_and_modes_verified": true,
+    "consolidated_evidence_selected": 151,
+    "consolidated_evidence_listed": 276,
+    "historical_evidence_not_refetched": 125,
+    "mismatches": []
+  },
+  "reviewed_commit": "e85f7e35df4d4880763c256b5677de575d912d15",
+  "reviewed_tree": "44d5984e17ec3e22946b180fbecea531678a29bb",
+  "contract_trees": {
+    "e85f7e35df4d4880763c256b5677de575d912d15": "79e740ddb51c121ca46fa8fd38ab1342dec0b7b3",
+    "f480c6b4f7a8442fd148c7ed61bcc4447edaefca": "79e740ddb51c121ca46fa8fd38ab1342dec0b7b3",
+    "5ed5aef4dfe1bb7823037fe1ce440c193411a194": "79e740ddb51c121ca46fa8fd38ab1342dec0b7b3"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "exact_existing_evidence": [
+    {
+      "commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/README.md",
+      "line": 3,
+      "exact_quote": "A preflight remains BLOCKED pending independent executable re-review and full admission.",
+      "file_sha256": "5710e6acc958ea98a86a8dc0f5007eef8339dca01594bb79f6c02a8141d1e0bc"
+    },
+    {
+      "commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/ASTRA_REVIEW_PACKAGE.md",
+      "line": 3,
+      "exact_quote": "The bounded cgroup inspector correction awaits independent executable re-review.",
+      "file_sha256": "d2f8d05f2369f592ffe26c1f0bf71c38137213b0de461da49a079a5ae40553f7"
+    },
+    {
+      "commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+      "path": "diagnostics/stage-e-native-v3-production-envelope-contract/plan-v3.json",
+      "line": 18,
+      "exact_quote": "reviewed exact external v3 harness/verifier implementation; production source remains S/T",
+      "file_sha256": "fe746153013148dfd7660eeac0cea231612ab054e89e700d4f03334b1971617a"
+    }
+  ],
+  "successor_implementation_identity_changed": true,
+  "independent_approval_present": false,
+  "Codex_self_approval_not_substituted": true,
+  "owner_conditional_execution_authorization_already_supplied": true,
+  "mandatory_stop": "Independent executable re-review of the exact corrected successor before fresh material admission",
+  "no_semantic_owner_decision_needed": true,
+  "A_slots_consumed": 0,
+  "source_frames_released": 0
+}

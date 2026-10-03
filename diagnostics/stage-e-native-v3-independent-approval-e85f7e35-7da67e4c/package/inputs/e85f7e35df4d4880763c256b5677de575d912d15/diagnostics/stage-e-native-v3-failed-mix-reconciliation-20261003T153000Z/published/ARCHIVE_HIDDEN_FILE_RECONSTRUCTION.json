@@ -1,0 +1,15 @@
+{
+  "original_archive_sha256": "40c1dbf4562cc5ca0df7df08645276b057acb5e4c2b06854be47a8678b37b8f4",
+  "original_archive_omissions": [
+    "successor-repository/.github/workflows/stagee-native-v3-executable-review.yml"
+  ],
+  "reason": "upload-artifact default excludes hidden .github directory; executor manifest includes its unchanged review workflow",
+  "restored_exact_file": "successor-repository/.github/workflows/stagee-native-v3-executable-review.yml",
+  "restored_bytes": 1305,
+  "restored_sha256": "e42b87ecce668abd355882aa997479f25af8587be3103ef9a144ccf965f51a8d",
+  "immutable_source_commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+  "immutable_source_path": ".github/workflows/stagee-native-v3-executable-review.yml",
+  "restored_bytes_match_executor_outer_and_successor_manifests": true,
+  "original_archive_preserved_unchanged": true,
+  "no_harness_or_workload_semantic_change": true
+}

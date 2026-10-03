@@ -1,0 +1,37 @@
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  77) def validate_existing(path, frame_inventory, *, kind='A'):
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  78)     binding = workload(kind)['tape_binding']
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  79)     require(Path(path).stat().st_size == binding['physical_bytes'], 'physical_tape_bytes')
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  80)     require(file_sha(frame_inventory) == binding['frame_inventory_sha256'], 'frame_inventory_hash')
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  81)     frames = read(frame_inventory)
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  82)     require(type(frames) is list and len(frames) == 4445, 'full_frame_inventory')
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  83)     expected = binding['members'][-1]
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  84)     reader = Reader(path, expected)
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  85)     checkpoints = {}
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  86)     try:
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  87)         for number, frame in enumerate(frames):
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  88)             raw, actual = reader.next()
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  89)             require(actual == frame and number == frame['number'], 'frame_inventory_bytes')
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  90)             body = json.loads(raw)['params']['result']['value']
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  91)             block = body['block']
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  92)             require(body['slot'] == 1000+number and block['parentSlot'] == 999+number
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  93)                     and block['blockhash'] == f'h{1000+number}'
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  94)                     and block['previousBlockhash'] == f'h{999+number}'
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  95)                     and block['blockTime'] == (1800000000*1000000+number*270000)//1000000-1
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  96)                     and len(block['transactions']) == 512, 'immutable_event_clock_or_shape')
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  97)             require(sum(tx['meta']['err'] is not None for tx in block['transactions']) == 256, 'failed_transaction_mix')
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  98)             if reader.count in (2223, 4445):
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700  99)                 checkpoints[str(reader.count)] = reader.receipt()
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 100)                 prefix = next(m for m in binding['members'] if m['frames'] == reader.count)
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 101)                 require(all(checkpoints[str(reader.count)][k] == prefix[k] for k in checkpoints[str(reader.count)]),
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 102)                         'tape_prefix_binding')
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 103)         receipt = reader.close(full=True)
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 104)     except BaseException:
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 105)         if not reader.file.closed:
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 106)             reader.file.close()
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 107)         raise
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 108)     require(receipt['encoded_prefix_sha256'] == binding['physical_sha256'], 'physical_tape_sha256')
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 109)     return dict(version='v3-existing-tape-validation', binding_sha256=sha(canonical(binding)),
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 110)                 path=str(Path(path).resolve()), physical_sha256=binding['physical_sha256'],
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 111)                 frame_inventory_sha256=binding['frame_inventory_sha256'], checkpoints=checkpoints,
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 112)                 frames_validated=4445, native_prefix_frames=240, no_regeneration=True,
+7e906e668 (levonmendall 2026-10-02 12:41:59 -0700 113)                 source_frames_released=0, valid=True)

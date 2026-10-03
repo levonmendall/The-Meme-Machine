@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    {
+      "path": "unit_validation.log",
+      "bytes": 64950,
+      "sha256": "389fe7c9ea3e3f6dbb5a5a1cb3bd6455e8c91dd99be4bef52c5ee22e71d41ef7"
+    },
+    {
+      "path": "test_results.json",
+      "bytes": 4669,
+      "sha256": "0edacc37a98ab8b2bc215b36ad4f493353615cf7d9ae7de6bcf28f11e4806be1"
+    }
+  ],
+  "A_slots_consumed": 0,
+  "source_frames_released": 0
+}

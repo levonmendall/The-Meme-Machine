@@ -1,0 +1,110 @@
+[
+  {
+    "commit": "7e906e6683ba745f11a390f3c354291980321b89",
+    "parent": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+    "path": "diagnostics/stage-e-native-v3-executable-harness/harness/tape.py",
+    "git_blob": "96fad23bf1e5552f0e0c7985e3ef640e477a361a",
+    "bytes": 5372,
+    "sha256": "4437dfc8ec679ebb813c4015ff44f3fb35fc5637339e010999858f218bc8da7b",
+    "evidence_path": "authoritative-sources/7e906e6683ba745f11a390f3c354291980321b89/diagnostics/stage-e-native-v3-executable-harness/harness/tape.py"
+  },
+  {
+    "commit": "7e906e6683ba745f11a390f3c354291980321b89",
+    "parent": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+    "path": "diagnostics/stage-e-native-v3-executable-harness/tests/test_tape_clock.py",
+    "git_blob": "c3b9f59fec2a92bf07a62f3550bb2acedc0bb03f",
+    "bytes": 4433,
+    "sha256": "db5fccc7c451b3b248481c437897d79d1d6c1a960835f07d147e5a9d878b4254",
+    "evidence_path": "authoritative-sources/7e906e6683ba745f11a390f3c354291980321b89/diagnostics/stage-e-native-v3-executable-harness/tests/test_tape_clock.py"
+  },
+  {
+    "commit": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+    "parent": "dd75942dcc7498156f80808397c594a6767871e9",
+    "path": "diagnostics/stage-e-native-v3-production-envelope-contract/production_capacity_workload.json",
+    "git_blob": "840dcd5deb3aa45f3809cff814fe30a641baa25f",
+    "bytes": 22079,
+    "sha256": "4aa404db0f9cc679a6bbae39c680624fdc59e39babc7d462302222dfeee1fe9c",
+    "evidence_path": "authoritative-sources/5ed5aef4dfe1bb7823037fe1ce440c193411a194/diagnostics/stage-e-native-v3-production-envelope-contract/production_capacity_workload.json"
+  },
+  {
+    "commit": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+    "parent": "dd75942dcc7498156f80808397c594a6767871e9",
+    "path": "diagnostics/stage-e-native-v3-production-envelope-contract/ASTRA_REVIEW_PACKAGE.md",
+    "git_blob": "f39bb496d3bcdf1f582fe089a9090032b97fbbd5",
+    "bytes": 18925,
+    "sha256": "54aab138b9e5fcfa7b095062cffb039ffd7530a621e6de85831cb913fcdb2074",
+    "evidence_path": "authoritative-sources/5ed5aef4dfe1bb7823037fe1ce440c193411a194/diagnostics/stage-e-native-v3-production-envelope-contract/ASTRA_REVIEW_PACKAGE.md"
+  },
+  {
+    "commit": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+    "parent": "dd75942dcc7498156f80808397c594a6767871e9",
+    "path": "diagnostics/stage-e-native-v3-production-envelope-contract/plan-v3.json",
+    "git_blob": "dcbceb8cf45097c3b52ef4bda2e0efaebd46f6ee",
+    "bytes": 3186,
+    "sha256": "fe746153013148dfd7660eeac0cea231612ab054e89e700d4f03334b1971617a",
+    "evidence_path": "authoritative-sources/5ed5aef4dfe1bb7823037fe1ce440c193411a194/diagnostics/stage-e-native-v3-production-envelope-contract/plan-v3.json"
+  },
+  {
+    "commit": "618fcca3ac008b2eb326b2e36164d30c663cef03",
+    "parent": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "path": "certification/stage_e_native_v2/fixtures.py",
+    "git_blob": "30b87e358056e688dab19a262c27c74bc5a57cdf",
+    "bytes": 5213,
+    "sha256": "0faddec8928925b61e663a50337161eb52e6a229d5fa9c3e113bada1b53440f2",
+    "evidence_path": "authoritative-sources/618fcca3ac008b2eb326b2e36164d30c663cef03/certification/stage_e_native_v2/fixtures.py"
+  },
+  {
+    "commit": "618fcca3ac008b2eb326b2e36164d30c663cef03",
+    "parent": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "path": "certification/stage_e_native_v2/fixtures/run380-v2.json",
+    "git_blob": "10d66ffce7486ffe779cbaa5d2bd7adede5dff00",
+    "bytes": 1957,
+    "sha256": "0f5ac9bab9f75d53546742b405b7bb98721198f2af15569a3c76215818242847",
+    "evidence_path": "authoritative-sources/618fcca3ac008b2eb326b2e36164d30c663cef03/certification/stage_e_native_v2/fixtures/run380-v2.json"
+  },
+  {
+    "commit": "618fcca3ac008b2eb326b2e36164d30c663cef03",
+    "parent": "dc08f9064cf5e37b63f383f52aa709d0afc1723f",
+    "path": "certification/stage_e_native_v2/tests/test_clocks.py",
+    "git_blob": "11a1bb061837cf5462f0e3696833c339336d4f43",
+    "bytes": 8009,
+    "sha256": "4dd0e2b4addfe79203c6fe3872c43010fa1815257cc470b4e8228bb39b1c5bdc",
+    "evidence_path": "authoritative-sources/618fcca3ac008b2eb326b2e36164d30c663cef03/certification/stage_e_native_v2/tests/test_clocks.py"
+  },
+  {
+    "commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "parent": "5082e3c9c6db6c8798563ba21bb226b14ca16f5f",
+    "path": "certification/stage_e_native_v2/fixtures/run380-template-provenance-v2.json",
+    "git_blob": "7b69eedb47df47db74f2d05f537b2cae74836539",
+    "bytes": 678,
+    "sha256": "9280d8750c272dc2d3631657425dee7c05ac178707182e3e4113f77140a674d4",
+    "evidence_path": "authoritative-sources/7a516a6a92be9347661ac0e7f560971c171a0931/certification/stage_e_native_v2/fixtures/run380-template-provenance-v2.json"
+  },
+  {
+    "commit": "dd75942dcc7498156f80808397c594a6767871e9",
+    "parent": "eb0446a2953d0e7107738268d96204994502734d",
+    "path": "diagnostics/stage-e-observer-v2-self-hosted/infra/tape.py",
+    "git_blob": "8556fedf3e96599267f3b99aa3b7d0683f0c0727",
+    "bytes": 8898,
+    "sha256": "6096ae743283710fae515d336b20215590e3d60f4b47547945d7f480201bc18f",
+    "evidence_path": "authoritative-sources/dd75942dcc7498156f80808397c594a6767871e9/diagnostics/stage-e-observer-v2-self-hosted/infra/tape.py"
+  },
+  {
+    "commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+    "parent": "3ba04753e531b6c5e180f49f3da94e71c079b05b",
+    "path": "diagnostics/stage-e-native-v3-executable-harness/ASTRA_REVIEW_PACKAGE.md",
+    "git_blob": "7710b0008f5b8adbbad9d01bffef07306e39a625",
+    "bytes": 9507,
+    "sha256": "d2f8d05f2369f592ffe26c1f0bf71c38137213b0de461da49a079a5ae40553f7",
+    "evidence_path": "authoritative-sources/f480c6b4f7a8442fd148c7ed61bcc4447edaefca/diagnostics/stage-e-native-v3-executable-harness/ASTRA_REVIEW_PACKAGE.md"
+  },
+  {
+    "commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+    "parent": "3ba04753e531b6c5e180f49f3da94e71c079b05b",
+    "path": "diagnostics/stage-e-native-v3-executable-harness/README.md",
+    "git_blob": "6eb5b338ff0632e41412b610ffafde2d371aa216",
+    "bytes": 5411,
+    "sha256": "5710e6acc958ea98a86a8dc0f5007eef8339dca01594bb79f6c02a8141d1e0bc",
+    "evidence_path": "authoritative-sources/f480c6b4f7a8442fd148c7ed61bcc4447edaefca/diagnostics/stage-e-native-v3-executable-harness/README.md"
+  }
+]

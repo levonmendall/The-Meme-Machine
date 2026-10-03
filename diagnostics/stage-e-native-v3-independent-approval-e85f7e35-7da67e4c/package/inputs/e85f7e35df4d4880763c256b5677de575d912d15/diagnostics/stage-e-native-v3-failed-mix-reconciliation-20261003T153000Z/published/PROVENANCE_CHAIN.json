@@ -1,0 +1,20 @@
+{
+  "contract": {
+    "authority": "Exact immutable native fixture/spec/captured-template/assembly/tape bindings, conservation of non-clock economic fields, and fixed transaction lane population.",
+    "commit": "5ed5aef4dfe1bb7823037fe1ce440c193411a194",
+    "file": "diagnostics/stage-e-native-v3-production-envelope-contract/production_capacity_workload.json"
+  },
+  "current_observed_value": 284,
+  "fixture_generation": "Canonical source and spec/template blobs byte-identical from native introduction through candidate S; deepcopy preserves captured meta.err.",
+  "intended_invariant": "Reproduce the exact approved native fixture/tape population including preserved captured failures; not a new minimum, range, ratio or newly selected workload.",
+  "owner_semantic_choice_required": false,
+  "tape_generation": "Exact canonical first 240 frames plus immutable finite extension; all 4445 approved frames verified.",
+  "unique_correction": "Retain every approved tape/source/workload binding and exact equality; change only its total-error literal to 284.",
+  "verifier_divergence": "256 failed-lane cardinality was used as equality on all transaction meta.err values, omitting 28 preserved Meteora errors.",
+  "workload": {
+    "captured_meteora_failed": 28,
+    "failed_lane": 256,
+    "total_failed": 284,
+    "total_transactions": 512
+  }
+}

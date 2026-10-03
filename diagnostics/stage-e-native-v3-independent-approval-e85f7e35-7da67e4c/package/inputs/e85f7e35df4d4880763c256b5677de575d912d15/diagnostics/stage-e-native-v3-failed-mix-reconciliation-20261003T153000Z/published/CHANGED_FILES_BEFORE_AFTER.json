@@ -1,0 +1,124 @@
+{
+  "files": [
+    {
+      "after_bytes": 1494,
+      "after_sha256": "25b809cd41c507d3690338286ab50dff496eade742d90f349a923f5cb3807d53",
+      "before_bytes": null,
+      "before_sha256": null,
+      "path": ".github/workflows/stagee-native-v3-failed-mix-validation.yml",
+      "semantic_effect": "Nonmaterial validation helper/workflow only; no admission/feeder/native workload command."
+    },
+    {
+      "after_bytes": 9956,
+      "after_sha256": "bed77b7efe94995ac113bc2013981f198e357c7e71019e70fa22ec283cf68776",
+      "before_bytes": 9507,
+      "before_sha256": "d2f8d05f2369f592ffe26c1f0bf71c38137213b0de461da49a079a5ae40553f7",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/ASTRA_REVIEW_PACKAGE.md",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 4526,
+      "after_sha256": "668c0e5123d5aac49f4632eb24f762cb37333de1e969686df1559375910aacfe",
+      "before_bytes": null,
+      "before_sha256": null,
+      "path": "diagnostics/stage-e-native-v3-executable-harness/FAILED_TRANSACTION_MIX_REVIEW.md",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 10716,
+      "after_sha256": "f75ec718c7869f8119722e1db8c59840a821af9e5fc30b205f075c67bf3d773c",
+      "before_bytes": 10716,
+      "before_sha256": "6e16c994c76a21843a395bfe02d6346fc8517ee048989167c237e4c2bb06aa3c",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/PREDECLARATION_PREVIEW.json",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 5606,
+      "after_sha256": "82f3bcbf955987257070db6d95e92648ba00cd2079d8e2f87dfa1102b9193057",
+      "before_bytes": 5411,
+      "before_sha256": "5710e6acc958ea98a86a8dc0f5007eef8339dca01594bb79f6c02a8141d1e0bc",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/README.md",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 2683,
+      "after_sha256": "5e3b1c0cc9df6586a8358d87e6af6ae7cd5d10ba1353c9bc8c8736c46685b2e6",
+      "before_bytes": null,
+      "before_sha256": null,
+      "path": "diagnostics/stage-e-native-v3-executable-harness/evidence/failed_transaction_mix_conformity.json",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 4668,
+      "after_sha256": "6daeed7ce6c364339973fcc40777b09fca167d362596b0ab7e442f9ec4362a41",
+      "before_bytes": 4629,
+      "before_sha256": "0374241b0391c3878c397a762dafc9fcbaca1bc03a4e07848f2aa3bdb4372b50",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/evidence/test_results.json",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 62941,
+      "after_sha256": "abcbccae8bacc86e284b3b1fa648304b4d9ee4363e4830567fba2c3410ab580e",
+      "before_bytes": 61369,
+      "before_sha256": "cb85317f9105e20c831515a97471ee9491622ceb064ff58a9e75fae85e4645e9",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/evidence/unit_validation.log",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 5464,
+      "after_sha256": "56fbb3f9efff52d18d31b4327489a2b8b796c5d4b8fc444fd244e758fcdd038d",
+      "before_bytes": 5372,
+      "before_sha256": "4437dfc8ec679ebb813c4015ff44f3fb35fc5637339e010999858f218bc8da7b",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/harness/tape.py",
+      "semantic_effect": "Exact per-frame total meta.err cardinality equality 256 to 284; provenance comment. Only executable harness AST delta."
+    },
+    {
+      "after_bytes": 12986,
+      "after_sha256": "91753a805cd7acd48a10bb5e9cf31673f54ab9aebd70ee89039f37a7606ba9ff",
+      "before_bytes": 12373,
+      "before_sha256": "d0047922f45cc85599c25705616152005ab598d65343cb4482e983f34ebd6859",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/package-manifest.json",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 2684,
+      "after_sha256": "f39187a01c040921eb208db7890a2e948d5b9cb378dbf8a9b4e8b52f1aea7fc2",
+      "before_bytes": 2684,
+      "before_sha256": "7590d3196a1510677baa09deab01f8b66adea5a2f5e9a33c33db6dc097e88818",
+      "path": "diagnostics/stage-e-native-v3-executable-harness/source_hashes.json",
+      "semantic_effect": "Review documentation, exact successor source/preview/manifest bindings or preserved nonmaterial test results."
+    },
+    {
+      "after_bytes": 7253,
+      "after_sha256": "9ae95b7dfdf92d5b07edb02046522a75892f637f0ed6e0646f0f0ddfa08eaefc",
+      "before_bytes": null,
+      "before_sha256": null,
+      "path": "diagnostics/stage-e-native-v3-executable-harness/tests/test_failed_transaction_mix.py",
+      "semantic_effect": "Nine finite synthetic regression tests; no material workload or verifier behavior outside the corrected predicate."
+    },
+    {
+      "after_bytes": 8796,
+      "after_sha256": "db237b665c0e05f7f120b7fb85dbd316a6184acc1035cad97608f12412b433d6",
+      "before_bytes": null,
+      "before_sha256": null,
+      "path": "diagnostics/stage-e-native-v3-failed-mix-reconciliation-20261003T153000Z/collect_successor_validation.py",
+      "semantic_effect": "Nonmaterial validation helper/workflow only; no admission/feeder/native workload command."
+    },
+    {
+      "after_bytes": 9633,
+      "after_sha256": "fb4990328a66f32a83fdf01f6a35d9cec64cbffc6f62a0ba16a910219bc3bbfe",
+      "before_bytes": null,
+      "before_sha256": null,
+      "path": "diagnostics/stage-e-native-v3-failed-mix-reconciliation-20261003T153000Z/collect_successor_validation_r2.py",
+      "semantic_effect": "Nonmaterial validation helper/workflow only; no admission/feeder/native workload command."
+    }
+  ],
+  "final_harness_manifest_sha256": "91753a805cd7acd48a10bb5e9cf31673f54ab9aebd70ee89039f37a7606ba9ff",
+  "parent_commit": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+  "production_candidate_changed": false,
+  "runtime_changed_this_task": false,
+  "tape_changed": false,
+  "thresholds_or_accounting_or_stop_rules_changed": false,
+  "validated_source_commit": "02a282704ac1cdacdc35a3232d4553cc534f9bce",
+  "workload_changed": false
+}

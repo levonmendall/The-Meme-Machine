@@ -1,0 +1,32 @@
+name: Stage-E native-v3 executable review (PAPER ONLY)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Frozen candidate checkout for static reads
+        run: git worktree add --detach "$RUNNER_TEMP/The-Meme-Machine-S" 7a516a6a92be9347661ac0e7f560971c171a0931
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Unit, deterministic, static and pure verifier checks only
+        env:
+          MM_V3_CANDIDATE_CHECKOUT: ${{ runner.temp }}/The-Meme-Machine-S
+        run: python -B diagnostics/stage-e-native-v3-executable-harness/review.py check
+      - name: Preserve review evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stage-e-native-v3-review-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/stage-e-native-v3-executable-harness/evidence/
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: false
