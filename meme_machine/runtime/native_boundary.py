@@ -7,6 +7,7 @@ commit; restart proves every retained delivery against that same journal.
 from decimal import Decimal, localcontext
 import json
 import os
+import time
 
 from meme_machine.portfolio_accounting import PortfolioIntegrityError
 from meme_machine.runtime.portfolio import NativePortfolio
@@ -72,8 +73,18 @@ class NativeBoundary:
         # market value. Provider outages must not strand their capital holds.
         needs_value = action not in ('cancelled','cancel') and not (self.lane=='ramses' and action in ('mark','monitor'))
         value = self.value_reader(at) if needs_value else None
-        amount = lambda raw: format(value.amount(int(raw),at),"f")
-        evidence = value.evidence(at) if value is not None else None
+        native_at=at
+        valuation_acquired_at=max(native_at,int(time.time())) if value is not None else None
+        # USD publication uses its acquisition clock; native strategy/journal
+        # time and immutable observation/expiry evidence are preserved.
+        if value is not None:at=valuation_acquired_at
+        def validate_value():
+            if value is not None:
+                freshness_at=max(native_at,valuation_acquired_at,int(time.time()))
+                value.amount(0,freshness_at)
+        validate_value()
+        amount = lambda raw: format(value.amount(int(raw),valuation_acquired_at),"f")
+        evidence = value.evidence(valuation_acquired_at) if value is not None else None
         facts = None
         kind = None
         aliases = {"reserved":"reserve", "filled":"enter", "partial_harvest":"harvest", "settled":"settle", "cancelled":"release", "entry":"enter", "open":"enter", "cancel":"release"}
@@ -128,8 +139,6 @@ class NativeBoundary:
                 added=Decimal(amount(raw))
                 if added>equity*Decimal('.025') or added>original*Decimal('.5') or original+added>equity*Decimal('.075'):
                     raise PortfolioIntegrityError('increment_exceeds_realized_USD_lifecycle_limit')
-            self.client.deliver(native,event_key="add-reserve:"+checksum, journal_hash=checksum,
-                kind="rebalance_reserve",at=utc(at),data={"amount":amount(raw),"native_reservation_id":reservation})
             kind = "rebalance"
             facts = {"basis_released":"0","gross_proceeds":"0","basis_added":amount(raw),"fee":"0","native_reservation_id":reservation}
         elif kind in ("mark","monitor"):
@@ -154,11 +163,18 @@ class NativeBoundary:
                 cost=int(position.get('entry_cost',0)) if kind=='enter' else int(position.get('exit_cost',0))+int((data.get('mark') or {}).get('unwind_cost_lamports',0))
             if self.lane=='ramses' and kind=='settle':cost=int((position.get('outcome') or {}).get('execution_cost_quote',0))
             facts['included_fee']=amount(cost)
+        add_reserved=False
         try:
+            validate_value()
+            if action=='scale_add':
+                self.client.deliver(native,event_key="add-reserve:"+checksum,journal_hash=checksum,
+                    kind="rebalance_reserve",at=utc(native_at),data={"amount":amount(raw),"native_reservation_id":reservation})
+                add_reserved=True
+                validate_value()
             event = self.client.prepare(native,event_key="native:"+checksum,journal_hash=checksum,kind=kind,at=utc(at),data=facts,
                 value_evidence=evidence if kind not in ("reserve","release") and facts.get("state")!="UNAVAILABLE" else None)
         except BaseException:
-            if action=='scale_add':
+            if add_reserved:
                 self.client.deliver(native,event_key="failed-add-release:"+checksum,journal_hash=checksum,
                     kind="release",at=utc(at),data={"native_reservation_id":reservation})
             raise
