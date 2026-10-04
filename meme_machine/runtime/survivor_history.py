@@ -236,6 +236,13 @@ class Worker:
             admission_enabled_steps=self.admission_enabled_steps,
             last_step_completed_at=time.time()))
 
+    def prime(self,*,timeout=30):
+        """Initialize and reconcile on the owned executor, with a bounded wait."""
+        if self.future is None:self.future=self.pool.submit(self._step,False)
+        self.status=self.future.result(timeout=timeout)
+        self.future=None
+        return self.status
+
     def tick(self,now,*,admit=True):
         if self.future is not None:
             if not self.future.done():return self.status

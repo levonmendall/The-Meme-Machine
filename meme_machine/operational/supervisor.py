@@ -85,17 +85,25 @@ class Supervisor:
         return opened()
 
     def environment(self,lane):
-        env=dict(os.environ)
+        if lane not in (*LANES,'solana'):raise ValueError('unknown_runtime_lane')
+        solana=lane in ('pump','meteora','solana')
+        robinhood_state={'MM_PROVIDER_DB','MM_RPC_CACHE_DB'}
+        solana_state={'MM_PROVIDER_GOVERNOR_DB'}
+        env={k:v for k,v in os.environ.items() if not (
+            (solana and (k.startswith('MM_ROBINHOOD_') or k in robinhood_state)) or
+            (not solana and (k.startswith('MM_SOLANA_') or k.startswith('MM_ONFINALITY_SOLANA_') or k in solana_state)))}
         env['PYTHONPATH']=str(SOURCE_ROOT)+os.pathsep+env.get('PYTHONPATH','')
         env.update(MM_MODE='PAPER',MM_RUNTIME_LANE=lane,MM_PAPER_EPOCH=self.epoch,
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
-            MM_PROVIDER_DB=str(self.root/'shared/robinhood-provider.sqlite'),
-            MM_RPC_CACHE_DB=str(self.root/'shared/robinhood-evidence.sqlite'),
-            MM_ROBINHOOD_STATE_DIR=str(self.root/'shared'),
-            MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
-            MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'),
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
+        if solana:
+            env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
+                MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'))
+        else:
+            env.update(MM_PROVIDER_DB=str(self.root/'shared/robinhood-provider.sqlite'),
+                MM_RPC_CACHE_DB=str(self.root/'shared/robinhood-evidence.sqlite'),
+                MM_ROBINHOOD_STATE_DIR=str(self.root/'shared'))
         if self.offline:
             # The fixture worker constructs its explicit mock value reader. It
             # receives no provider credentials or production transport config.

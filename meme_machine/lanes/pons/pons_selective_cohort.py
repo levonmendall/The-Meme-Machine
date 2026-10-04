@@ -712,7 +712,7 @@ def run(endpoint,*,campaign=False):
                     result['qualifiers'],result['lifecycles'],pool=pool):
                 futures.append((qindex,future));active_curve_futures[curve]=(qindex,future)
 
-        if survivor is not None:survivor._step(False)
+        if survivor is not None:survivor.prime()
         from meme_machine.runtime.status import update
         update('MANAGING' if futures else 'DISCOVERING',reconciled=True,restored_positions=len(futures))
 
