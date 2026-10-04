@@ -48,6 +48,7 @@ class Supervisor:
         self.root=Path(state_root).resolve()
         self.offline=offline
         self.processes={}
+        self.process_instances={}
         self.restarts={lane:0 for lane in LANES}
         self.next_start={lane:0 for lane in LANES}
         self.stop_requested=False
@@ -124,7 +125,11 @@ class Supervisor:
         folder=self.root/lane;folder.mkdir(exist_ok=True,mode=0o700)
         args=[sys.executable,'-m','meme_machine.operational.lane','--lane',lane,'--state-root',str(self.root)]
         if self.offline:args.append('--offline')
-        self.processes[lane]=subprocess.Popen(args,cwd=folder,env=self.environment(lane),start_new_session=True)
+        import uuid
+        instance=uuid.uuid4().hex
+        env=self.environment(lane);env['MM_LANE_PROCESS_INSTANCE']=instance
+        self.processes[lane]=subprocess.Popen(args,cwd=folder,env=env,start_new_session=True)
+        self.process_instances[lane]=instance
 
     def start_services(self):
         if self.offline:return
@@ -145,6 +150,8 @@ class Supervisor:
             try:
                 row=json.loads(path.read_text())
                 if path.stat().st_size>262144:raise ValueError('health_bound')
+                if (row.get('pid')!=proc.pid or row.get('process_instance')!=self.process_instances.get(lane)):
+                    raise ValueError('health_predecessor_instance')
             except (OSError,ValueError):row=dict(phase='STARTING')
             health[lane]=dict(row,pid=proc.pid,exit_code=proc.poll(),restarts=self.restarts[lane])
         try:

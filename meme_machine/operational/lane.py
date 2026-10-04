@@ -13,7 +13,8 @@ from meme_machine.runtime.usd_valuation import utc,ValuationUnavailable
 
 def health(root,lane,phase,**fields):
     try:
-        _atomic_json(Path(root)/lane/'health.json',dict(lane=lane,phase=phase,paper_only=True,at=utc(time.time()),**fields))
+        _atomic_json(Path(root)/lane/'health.json',dict(lane=lane,phase=phase,paper_only=True,at=utc(time.time()),
+            pid=os.getpid(),process_instance=os.environ.get('MM_LANE_PROCESS_INSTANCE'),**fields))
     except OSError as error:
         print('health publication failed:',type(error).__name__,flush=True)
 

@@ -74,6 +74,26 @@ class NativeDeliveryRecovery(unittest.TestCase):
         self.assertTrue(result['idempotent'])
         with self.service.account() as account:self.assertEqual(account._reconcile(account.snapshot())['reserved'],Decimal('6.25'))
 
+    def test_restarted_child_cannot_inherit_predecessor_readiness(self):
+        from types import SimpleNamespace
+        path=self.root/'pump'/'health.json';path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps(dict(pid=100,process_instance='previous',phase='MANAGING',
+            reconciled=True,native_lifecycle='old-lifecycle')))
+        self.service.processes={'pump':SimpleNamespace(pid=200,poll=lambda:None)}
+        self.service.process_instances={'pump':'replacement'}
+        self.service.publish()
+        row=json.loads((self.root/'health.json').read_text())['lanes']['pump']
+        self.assertEqual(row['phase'],'STARTING')
+        self.assertFalse(row.get('reconciled',False))
+        self.assertNotIn('native_lifecycle',row)
+        # PID reuse still cannot confer predecessor readiness.
+        path.write_text(json.dumps(dict(pid=200,process_instance='previous',phase='MANAGING',reconciled=True)))
+        self.service.publish()
+        self.assertEqual(json.loads((self.root/'health.json').read_text())['lanes']['pump']['phase'],'STARTING')
+        path.write_text(json.dumps(dict(pid=200,process_instance='replacement',phase='MANAGING',reconciled=True)))
+        self.service.publish()
+        self.assertTrue(json.loads((self.root/'health.json').read_text())['lanes']['pump']['reconciled'])
+
     def test_publication_failure_cannot_stop_lane_or_supervisor(self):
         from meme_machine.operational.lane import health
         with patch('meme_machine.operational.lane._atomic_json',side_effect=OSError('read_only_dashboard')):
@@ -127,7 +147,8 @@ class ProcessSupervisor(unittest.TestCase):
                     self.assertGreaterEqual(recovered['lanes'][lane]['restarts'],1)
                 process.send_signal(signal.SIGTERM);self.assertEqual(process.wait(timeout=20),0)
                 final=json.loads((root/'health.json').read_text())
-                self.assertTrue(all(row['exit_code']==0 for row in final['lanes'].values()))
+                self.assertTrue(all(row['exit_code']==0 for row in final['lanes'].values()),
+                    {'lanes':final['lanes'],'offline_log':(root/'test.log').read_text()[-8000:]})
                 again=subprocess.run(command[:-1]+['2'],cwd=SOURCE_ROOT,stdout=log,stderr=log,timeout=25)
                 self.assertEqual(again.returncode,0)
                 with closing(PortfolioAccounting(root/'portfolio.sqlite',wait_for_writer=True)) as account:
