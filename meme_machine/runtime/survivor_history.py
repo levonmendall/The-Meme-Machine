@@ -219,16 +219,24 @@ def compact_restored_history(history,*,lane,reducer=None):
 
 class Worker:
     """One bounded task at a time; never blocks fast native decision scheduling."""
-    def __init__(self,factory):
+    def __init__(self,factory,*,enrichment_enabled=True):
         from concurrent.futures import ThreadPoolExecutor
         self.pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='survivor')
         self.factory=factory;self.service=None;self.future=None;self.last=0;self.status={}
         self.completed_steps=0;self.successful_steps=0;self.admission_enabled_steps=0
-        self.closed=False;self.close_future=None
+        self.closed=False;self.close_future=None;self.enrichment_enabled=enrichment_enabled
 
     def _step(self,admit):
         if self.service is None:self.service=self.factory()
         status=self.service.step(admit=admit)
+        if self.enrichment_enabled:
+            try:
+                from meme_machine.runtime.opportunity_telemetry import enrich_service
+                telemetry=enrich_service(self.service,now=time.time())
+            except Exception as error:
+                telemetry=dict(status='FAILED',reason='opportunity_enrichment_failed:'+type(error).__name__,
+                    qualification_authority=False,order_authority=False)
+            status=dict(status,opportunity_telemetry=telemetry)
         self.completed_steps+=1
         if admit:self.admission_enabled_steps+=1
         if not status.get('last_boundary'):self.successful_steps+=1

@@ -853,9 +853,15 @@ def run(endpoint,*,campaign=False):
                 from meme_machine.runtime.directional_sleeve import open_sleeve
                 sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
                 if sleeve is not None:
-                    try:sleeve.opportunity(evaluation['token'],identity=identity,regime='current',
-                        status=evaluation['vector'].get('qualification','evaluated'),at=int(time.time()),
-                        decision=dict(vector=evaluation['vector']))
+                    try:
+                        from meme_machine.runtime.opportunity_telemetry import pons_context
+                        context=pons_context(evaluation)
+                        decision_id=identity+':evaluation:'+digest([evaluation.get('evaluation_completed_at'),context,evaluation['vector']])
+                        sleeve.opportunity(evaluation['token'],identity=decision_id,regime='current',
+                        status=evaluation['vector'].get('qualification','evaluated'),at=int(evaluation.get('evaluation_completed_at',time.time())),
+                        decision=dict(vector=evaluation['vector'],context=context,native_identity=identity))
+                    except Exception as error:
+                        print('opportunity publication failed:',type(error).__name__,flush=True)
                     finally:sleeve.close()
 
                 provider_after=provider_totals(evidence_context)

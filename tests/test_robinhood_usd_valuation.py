@@ -402,7 +402,27 @@ class RobinhoodUSDTests(unittest.TestCase):
                 # The CAPACITY repair changes only executor-owned initialization.
                 self.assertEqual(current.count(b'survivor.prime()'),1)
                 current=current.replace(b'survivor.prime()',b'survivor._step(False)')
+            if rel=='meme_machine/lanes/pump/runner.py':
+                # Receipt context consumes existing snapshots only. Every byte
+                # outside its observation block and added argument is pinned.
+                original=baseline(rel)
+                start=current.index(b'    from meme_machine.runtime.directional_sleeve import open_sleeve',current.index(b'def _record_attempt('))
+                end=current.index(b'    if ACCOUNTING is not None:',start)
+                old_start=original.index(b'    from meme_machine.runtime.directional_sleeve import open_sleeve',original.index(b'def _record_attempt('))
+                old_end=original.index(b'    if ACCOUNTING is not None:',old_start)
+                current=current[:start]+original[old_start:old_end]+current[end:]
+                current=current.replace(b'extra=None,*,snapshot=None):',b'extra=None):')
+                self.assertEqual(current.count(b',snapshot=snapshot'),6)
+                current=current.replace(b',snapshot=snapshot',b'')
             if rel=='meme_machine/lanes/pons/pons_selective_cohort.py':
+                # Current receipt context is observation-only; the queue and
+                # native decision after it remain pinned byte for byte.
+                original=baseline(rel)
+                start=current.index(b"                from meme_machine.runtime.directional_sleeve import open_sleeve",current.index(b'evaluation=finished.result()'))
+                end=current.index(b'                provider_after=',start)
+                old_start=original.index(b"                from meme_machine.runtime.directional_sleeve import open_sleeve",original.index(b'evaluation=finished.result()'))
+                old_end=original.index(b'                provider_after=',old_start)
+                current=current[:start]+original[old_start:old_end]+current[end:]
                 # Approved shutdown engineering precedes the unchanged native
                 # lifecycle collection. Compare every other source byte exactly.
                 original=baseline(rel)

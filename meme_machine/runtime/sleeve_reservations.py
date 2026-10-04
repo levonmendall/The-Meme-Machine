@@ -14,6 +14,31 @@ import threading
 from meme_machine.runtime.journal import canonical, digest
 
 
+def _opportunity_native(method):
+    """Publish only after the original native/accounting transaction commits."""
+    from functools import wraps
+    @wraps(method)
+    def observed(self,*args,**kwargs):
+        result=method(self,*args,**kwargs)
+        try:
+            identity=args[0] if args else kwargs.get('identity')
+            row=result if isinstance(result,dict) else None
+            asset=(row or {}).get('asset') or (row or {}).get('candidate')
+            if row and asset and kwargs.get('at') is not None:
+                regime='survivor' if 'survivor' in row['strategy'] else 'current'
+                status=row['status']
+                outcome=dict(native_hash=row.get('native_hash')) if status=='filled' else None
+                if status in ('settled','cancelled'):
+                    outcome=dict(status=status,realized_pnl=row.get('pnl'),native_hash=row.get('terminal_hash'))
+                self.opportunity(asset,identity=identity,regime=regime,status=status,
+                    at=kwargs['at'],outcome=outcome)
+        except Exception as error:
+            self.opportunity_error='native_observation_failed:'+type(error).__name__
+            print('opportunity publication failed:',type(error).__name__,flush=True)
+        return result
+    return observed
+
+
 class SleeveReservations:
     def __init__(self,path,*,lane,capital,policies,cohort):
         if lane not in ('pump','pons') or type(capital) is not int or capital <= 0 or len(policies) != 2:
@@ -52,6 +77,14 @@ class SleeveReservations:
             if self.db.execute('SELECT body FROM sleeve_genesis').fetchone()[0]!=canonical(self.identity):
                 raise ValueError('sleeve_genesis_drift')
             self.reconcile()
+        self.opportunity_ready=False;self.opportunity_error=None
+        try:
+            from meme_machine.runtime.opportunity_telemetry import install
+            with self.transaction():install(self.db,self.identity)
+            self.opportunity_ready=True
+        except Exception as error:
+            self.opportunity_error='schema_unavailable:'+type(error).__name__
+            print('opportunity schema unavailable:',type(error).__name__,flush=True)
 
     @contextmanager
     def transaction(self):
@@ -85,22 +118,24 @@ class SleeveReservations:
         row=self.db.execute('SELECT body FROM sleeve_candidates WHERE id=?',(identity,)).fetchone()
         return json.loads(row[0]) if row else None
 
-    def opportunity(self,asset,*,identity,regime,status,at,decision=None):
+    def opportunity(self,asset,*,identity,regime,status,at,decision=None,outcome=None):
         """Observation-only links. No Current outcome retires Survivor eligibility."""
         key=self.asset_key(asset)
         if key is None or regime not in ('current','survivor'):raise ValueError('opportunity_identity')
-        try:return self._opportunity(key,identity=identity,regime=regime,status=status,at=at,decision=decision)
-        except (sqlite3.Error,OSError) as error:
+        try:return self._opportunity(key,identity=identity,regime=regime,status=status,at=at,decision=decision,outcome=outcome)
+        except Exception as error:
             # The native positions/reservations still fence economic exposure.
             # A debug receipt cannot reject independent Survivor evaluation.
+            self.opportunity_error='receipt_unavailable:'+type(error).__name__
             print('opportunity publication failed:',type(error).__name__,flush=True)
             return None
 
-    def _opportunity(self,key,*,identity,regime,status,at,decision):
+    def _opportunity(self,key,*,identity,regime,status,at,decision,outcome=None):
         with self.transaction():
             old=self.db.execute('SELECT body FROM opportunity_links WHERE asset=?',(key,)).fetchone()
             link=json.loads(old[0]) if old else dict(asset=key,current={},survivor={})
             link[regime]=dict(identity=identity,status=status,at=at)
+            if outcome is not None:link[regime]['outcome']=outcome
             self.db.execute('INSERT OR REPLACE INTO opportunity_links VALUES(?,?,?)',(key,canonical(link),at))
             if decision is not None:
                 receipt=canonical(dict(asset=key,identity=identity,regime=regime,status=status,at=at,decision=decision))
@@ -108,6 +143,11 @@ class SleeveReservations:
                 prior=self.db.execute('SELECT body FROM opportunity_receipts WHERE id=?',(receipt_id,)).fetchone()
                 if prior and prior[0]!=receipt:raise ValueError('opportunity_receipt_conflict')
                 self.db.execute('INSERT OR IGNORE INTO opportunity_receipts VALUES(?,?,?,?)',(receipt_id,key,at,receipt))
+            if self.opportunity_ready:
+                from meme_machine.runtime.opportunity_telemetry import record
+                event_id=canonical([key,identity,regime,status,at] if outcome is None else [key,identity,regime,status,at,outcome])
+                record(self.db,self.identity,event_id,key,identity,regime,status,at,decision,outcome=outcome)
+            self.opportunity_error=None
             self.db.execute('DELETE FROM opportunity_receipts WHERE id IN (SELECT id FROM opportunity_receipts ORDER BY at DESC,id DESC LIMIT -1 OFFSET 10000)')
             protected={self.asset_key(json.loads(r).get('asset')) for r, in self.db.execute('SELECT body FROM sleeve_positions') if json.loads(r)['status']!='settled'}
             excess=self.db.execute('SELECT asset FROM opportunity_links ORDER BY at DESC,asset DESC LIMIT -1 OFFSET 10000').fetchall()
@@ -167,6 +207,7 @@ class SleeveReservations:
                 return row['id']
         return None
 
+    @_opportunity_native
     def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None):
         if strategy not in self.identity['policies'] or type(amount) is not int or amount<=0:
             raise ValueError('sleeve_reservation')
@@ -219,6 +260,7 @@ class SleeveReservations:
             row=dict(row,status='filled')
             self._event('filled',row)
 
+    @_opportunity_native
     def release(self,identity,*,pnl,at,terminal_hash,native_verified,cancelled=False):
         if native_verified is not True or type(pnl) is not int or not terminal_hash:
             raise ValueError('native_terminal_required')
@@ -235,6 +277,7 @@ class SleeveReservations:
             self._event('settle',row)
             return row
 
+    @_opportunity_native
     def acknowledge_native(self,identity,*,basis,pnl,at,native_hash,native_verified):
         """Only replayed native cash flows release basis or compound realized P&L."""
         if (native_verified is not True or type(basis) is not int or basis<0

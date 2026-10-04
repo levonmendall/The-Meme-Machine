@@ -301,6 +301,7 @@
     "meme_machine.runtime.lifecycle_timing",
     "meme_machine.runtime.meteora_archive",
     "meme_machine.runtime.native_boundary",
+    "meme_machine.runtime.opportunity_telemetry",
     "meme_machine.runtime.pons_terminal_archive",
     "meme_machine.runtime.portfolio",
     "meme_machine.runtime.position_continuation",

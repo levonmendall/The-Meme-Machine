@@ -633,7 +633,7 @@ def _service_pending_entries(report,pending,active,sessions,postgrad,*,monitor):
         _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
         if pending:_stop_sleep(1)
 
-def _record_attempt(report,signal,q,stage,extra=None):
+def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
     plane=(FILL_PERSISTENCE_CONTEXT or {}).get('plane')
     if stage=='full_point_in_time' and plane is not None:plane.count('pump.decisions_fully_local')
     if stage=="full_point_in_time":
@@ -676,10 +676,17 @@ def _record_attempt(report,signal,q,stage,extra=None):
     sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
     if sleeve is not None:
         try:
-            sleeve.opportunity(signal.mint,identity=signal.mint+':'+str(signal.observed_at),
+            from meme_machine.runtime.opportunity_telemetry import pump_context
+            context=pump_context(signal,snapshot,stage)
+            from meme_machine.runtime.journal import digest as receipt_digest
+            decision_id=signal.mint+':'+signal.phase+':'+stage+':'+str(signal.observed_at)+':'+receipt_digest([context,asdict(signal),asdict(q)])
+            sleeve.opportunity(signal.mint,identity=decision_id,
                 regime='current',status='qualified' if q.qualified else 'rejected',
                 at=int(signal.observed_at),decision=dict(vector=asdict(signal),qualification=asdict(q),
-                    policy=asdict(POLICY)))
+                    policy=asdict(POLICY),context=context))
+        except Exception as error:
+            row['opportunity_error']='receipt_capture_failed:'+type(error).__name__
+            print('opportunity publication failed:',type(error).__name__,flush=True)
         finally:sleeve.close()
 
     if ACCOUNTING is not None:
@@ -1202,7 +1209,7 @@ def main(*,campaign=False,discovery_seconds=None):
                             _record_attempt(
                                 report,pre_signal,preq,"optimistic_preflight",
                                 {"trajectory":trajectory,
-                                 "confirmation_evidence":_confirmation_meta(confirmation)})
+                                 "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
                             continue
                         _progress(mint,"evidence_required",mode=MODE_LATE_CURVE,
                                   decision_at=pre_signal.observed_at,
@@ -1225,7 +1232,7 @@ def main(*,campaign=False,discovery_seconds=None):
                             report,signal,q,"full_point_in_time",
                             {"concentration_source":meta.get("source"),
                              "trajectory":trajectory,
-                             "confirmation_evidence":_confirmation_meta(confirmation)})
+                             "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
                         if q.qualified and not any(
                                 x["mint"]==mint and x["mode"]==MODE_LATE_CURVE
                                 for x in report["qualifiers"]):
@@ -1299,13 +1306,13 @@ def main(*,campaign=False,discovery_seconds=None):
                             report,post_signal0,post_q0,"optimistic_preflight",
                             {"history_status":state["history"].status(now),
                              "concentration_scan_skipped":True,
-                             "confirmation_evidence":_confirmation_meta(post_confirmation0)})
+                             "confirmation_evidence":_confirmation_meta(post_confirmation0)},snapshot=snapshot)
                     if second_q0 is not None and not second_q0.qualified:
                         _record_attempt(
                             report,second_signal0,second_q0,"optimistic_preflight",
                             {"history_status":state["history"].status(now),
                              "concentration_scan_skipped":True,
-                             "confirmation_evidence":_confirmation_meta(second_confirmation0)})
+                             "confirmation_evidence":_confirmation_meta(second_confirmation0)},snapshot=snapshot)
 
                     if not _postgrad_concentration_required(post_q0,second_q0):
                         continue
@@ -1326,7 +1333,7 @@ def main(*,campaign=False,discovery_seconds=None):
                         _record_attempt(
                             report,signal,q,"full_point_in_time",
                             {"history_status":state["history"].status(now),
-                             "confirmation_evidence":_confirmation_meta(confirmation)})
+                             "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
                         if q.qualified and not any(
                                 x["mint"]==mint and x["mode"]==MODE_POSTGRAD
                                 for x in report["qualifiers"]):
@@ -1341,7 +1348,7 @@ def main(*,campaign=False,discovery_seconds=None):
                         _record_attempt(
                             report,second,q2,"full_point_in_time",
                             {"history_status":state["history"].status(now),
-                             "confirmation_evidence":_confirmation_meta(confirmation2)})
+                             "confirmation_evidence":_confirmation_meta(confirmation2)},snapshot=snapshot)
                         if q2.qualified and not any(
                                 x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
                                 for x in report["qualifiers"]):
