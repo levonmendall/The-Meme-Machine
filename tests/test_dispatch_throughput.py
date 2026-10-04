@@ -139,8 +139,10 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
             relevant_transactions=80,
         )
         stop=asyncio.Event()
+        wall_started=time.monotonic()
         with tempfile.TemporaryDirectory() as temp,patch(
-            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
+            'meme_machine.solana_evidence_service.time.time',
+            side_effect=lambda:1790439000+time.monotonic()-wall_started
         ),patch(
             'websockets.asyncio.client.connect',return_value=socket
         ),patch(
@@ -193,7 +195,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                     service.STREAM_DISPATCH_MAX_BYTES,
                 )
                 self.assertTrue(reader.covered(
-                    SWAP_SCOPE,1000,1000+frames-2,as_of=1790439000
+                    SWAP_SCOPE,1000,1000+frames-2,as_of=int(time.time())
                 ))
                 reader.close()
             finally:
@@ -222,8 +224,10 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(service.STREAM_DISPATCH_MAX_MESSAGES,64)
         self.assertEqual(service.STREAM_DISPATCH_MAX_BYTES,96*1024*1024)
+        wall_started=time.monotonic()
         with tempfile.TemporaryDirectory() as temp,patch(
-            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
+            'meme_machine.solana_evidence_service.time.time',
+            side_effect=lambda:1790439000+time.monotonic()-wall_started
         ),patch.object(
             EvidenceWriter,'transaction',delayed_transaction
         ),patch(
@@ -306,8 +310,10 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
             reasons.append(reason)
             return original_disconnected(state,reason)
 
+        wall_started=time.monotonic()
         with tempfile.TemporaryDirectory() as temp,patch(
-            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
+            'meme_machine.solana_evidence_service.time.time',
+            side_effect=lambda:1790439000+time.monotonic()-wall_started
         ),patch.object(
             service,'STREAM_DISPATCH_MAX_MESSAGES',4
         ),patch.object(

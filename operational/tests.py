@@ -22,6 +22,8 @@ OPERATIONAL=FAST+[
  'tests.test_housekeeping_integration','tests.test_production_maintenance_arbiter',
  'tests.test_maintenance_batch_fairness','tests.test_maintenance_integrity',
  'tests.test_maintenance_overlap',
+ 'tests.test_dispatch_throughput',
+ 'tests.test_retention_outcomes','tests.test_retention_progress',
  'dashboard.tests.test_dashboard','dashboard.tests.test_server_security',
 ]
 
