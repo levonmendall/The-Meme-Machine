@@ -28,7 +28,7 @@ OPERATIONAL=FAST+[
  'tests.test_orphan_schema_compatibility','tests.test_survivor_bounded_drain',
  'tests.lanes.ramses.test_ramses_dynamic_event_capacity','tests.lanes.ramses.test_ramses_scan_capacity_recovery',
  'tests.test_solana_evidence_plane','tests.test_solana_evidence_broker',
- 'tests.test_solana_evidence_queries','tests.test_solana_evidence_fences',
+ 'tests.test_solana_evidence_queries','tests.test_solana_evidence_fences','tests.test_run369_runtime',
  'tests.test_run370_storage','tests.test_provider_partial_batch_retry','tests.test_concentration_reader',
  'tests.test_runtime_resource_contract','tests.test_ramses_source_attribution',
  'tests.test_durable_publication','tests.test_report_publisher_isolation',
