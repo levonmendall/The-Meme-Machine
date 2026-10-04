@@ -38,6 +38,8 @@ class ImmutableReads:
     def event(self,db,method,kind):
         db.execute('INSERT INTO solana_reuse_events(endpoint,lane,method,kind,at) VALUES(?,?,?,?,?)',
             (self.endpoint,os.environ.get('MM_RUNTIME_LANE','unknown'),method,kind,time.time()))
+        from meme_machine.runtime.storage import audit_ring
+        audit_ring(db,'solana_reuse_events','solana_reuse_no_delete',key='id')
 
     def eligible(self,method,params):
         if method=='getGenesisHash' and not params:return True
@@ -73,6 +75,7 @@ class ImmutableReads:
                 with self.connect() as db:
                     db.execute('INSERT OR IGNORE INTO solana_immutable_reads VALUES(?,?,?,?,?,?)',
                         (self.endpoint,method,key,json.dumps(value),time.time(),os.environ.get('MM_RUNTIME_LANE','unknown')))
+                    db.execute('DELETE FROM solana_immutable_reads WHERE rowid NOT IN (SELECT rowid FROM solana_immutable_reads ORDER BY at DESC LIMIT 8192)')
             return value
         finally:
             with self.connect() as db:db.execute('DELETE FROM solana_read_leases WHERE endpoint=? AND method=? AND key=? AND owner=?',(self.endpoint,method,key,owner))

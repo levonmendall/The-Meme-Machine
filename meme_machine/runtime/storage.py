@@ -14,6 +14,31 @@ def audit_ring(db, table, trigger, *, limit=4096, key='seq'):
     if sql:db.execute(sql[0])
 
 
+def solana_cache_retention(db,now):
+    """Keep a day of authenticated evidence and all live consumer interests.
+
+    Hot strategy windows retain their original evidence. Expired observations
+    grant no permanent execution authority and do not need a second RPC archive.
+    Caller owns the transaction and broker lock.
+    """
+    cutoff=now-86400
+    trigger=db.execute("SELECT sql FROM sqlite_master WHERE name='immutable_transactions_no_delete'").fetchone()
+    if trigger:db.execute('DROP TRIGGER immutable_transactions_no_delete')
+    db.execute("DELETE FROM immutable_transactions WHERE cached_at<? AND NOT EXISTS(SELECT 1 FROM evidence_consumers c WHERE c.signature=immutable_transactions.signature AND c.state='waiting' AND c.deadline>=?)",(cutoff,now))
+    if trigger:db.execute(trigger[0])
+    # tx_cache is only a legacy compatibility cache in the operational epoch.
+    db.execute('DELETE FROM tx_cache WHERE cached_at<?',(cutoff,))
+    db.execute('DELETE FROM signature_interests WHERE NOT EXISTS(SELECT 1 FROM immutable_transactions t WHERE t.signature=signature_interests.signature) AND NOT EXISTS(SELECT 1 FROM evidence_consumers c WHERE c.signature=signature_interests.signature)')
+    db.execute('DELETE FROM speculative_permits WHERE epoch<?',(int(now//10)-2,))
+    db.execute('DELETE FROM evidence_consumers WHERE deadline<? AND state<>\'waiting\'',(cutoff,))
+    terminal=db.execute("SELECT sql FROM sqlite_master WHERE name='evidence_terminals_no_delete'").fetchone()
+    if terminal:db.execute('DROP TRIGGER evidence_terminals_no_delete')
+    db.execute('DELETE FROM evidence_terminals WHERE deadline<? AND NOT EXISTS(SELECT 1 FROM evidence_consumers c WHERE c.owner=evidence_terminals.owner AND c.signature=evidence_terminals.signature)',(cutoff,))
+    if terminal:db.execute(terminal[0])
+    audit_ring(db,'acquisition_phases','acquisition_phases_no_delete')
+    audit_ring(db,'hydration_attempt_failures','hydration_attempt_no_delete')
+
+
 def jsonl_ring(path,row,*,limit=256):
     """Debug projection only. Recovery uses the native SQLite checkpoints."""
     path=Path(path)

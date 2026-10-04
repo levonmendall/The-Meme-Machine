@@ -96,6 +96,13 @@ class NineChanges(unittest.TestCase):
         self.sleeve.release('current',pnl=0,at=5,terminal_hash='cancelled',native_verified=True,cancelled=True)
         self.sleeve.reserve('survivor',strategy='survivor',amount=5000,at=5,candidate='mint',generation=row['generation'],regime={'at':4})
 
+    def test_receipt_failure_does_not_suppress_fresh_survivor_evaluation(self):
+        self.sleeve.db.execute("CREATE TRIGGER failed_receipt BEFORE INSERT ON opportunity_receipts BEGIN SELECT RAISE(ABORT,'receipt_unavailable'); END;")
+        self.assertIsNone(self.sleeve.opportunity('mint',identity='current',regime='current',status='rejected',at=1,decision={'reason':'reject'}))
+        row=self.sleeve.observe('mint',strategy='survivor',at=2,state='qualified',evidence={'fresh':True},regime={'at':2})
+        self.sleeve.reserve('survivor',strategy='survivor',amount=5000,at=2,candidate='mint',generation=row['generation'],regime={'at':2})
+        self.assertEqual(self.sleeve.get('survivor')['held'],5000)
+
     def test_all_four_tail_examples_and_safety_precedence(self):
         from meme_machine.lanes.pump.pumpswap_survivor import POLICY as ps
         from meme_machine.lanes.pons.pons_postgrad_survivor import risk_policy

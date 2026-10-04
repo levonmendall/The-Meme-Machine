@@ -216,7 +216,7 @@ def main():
         parser.error(str(error))
 
     print(
-        f"Read-only {mode} observer bound on {args.host}:{server.server_port}; "
+        f"Read-only {mode} dashboard at http://{args.host}:{server.server_port}; "
         "portfolio inception is not performed by this service",
         flush=True,
     )

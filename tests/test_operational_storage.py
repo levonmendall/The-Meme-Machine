@@ -12,6 +12,24 @@ from meme_machine.portfolio_accounting import PortfolioAccounting,LANES,inceptio
 
 
 class StorageBounds(unittest.TestCase):
+    def test_decision_evidence_retention_preserves_waiting_consumers_without_double_archive(self):
+        from meme_machine.lanes.pump.solana_evidence_broker import EvidenceBroker
+        from meme_machine.runtime.storage import solana_cache_retention
+        clock=[1]
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{'MM_PAPER_EPOCH':'offline-cache'}):
+            broker=EvidenceBroker(Path(td)/'cache.sqlite',clock=lambda:clock[0])
+            try:
+                broker.put_transaction('expired',{'slot':1,'blockTime':1})
+                broker.put_transaction('needed',{'slot':2,'blockTime':1})
+                broker.consumers.register('open-position',['needed'],'position_monitor',200000)
+                self.assertEqual(broker.db.execute('SELECT COUNT(*) FROM tx_cache').fetchone()[0],0)
+                clock[0]=90000
+                with broker.lock,broker.db:solana_cache_retention(broker.db,clock[0])
+                self.assertIsNone(broker.get_transaction('expired'))
+                self.assertEqual(broker.get_transaction('needed')['slot'],2)
+                with self.assertRaises(sqlite3.IntegrityError):broker.db.execute("DELETE FROM immutable_transactions WHERE signature='needed'")
+            finally:broker.close()
+
     def test_active_pons_prefix_retains_flow_integral_and_next_commit(self):
         from tests.lanes.pons.test_pons_partial_accounting import PartialAccountingTests
         from meme_machine.lanes.pons.pons_selective_ledger import SelectivePaper,STRATEGY_NAMESPACE,JOURNAL_CATEGORY

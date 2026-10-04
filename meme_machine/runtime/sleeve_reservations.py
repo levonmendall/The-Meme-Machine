@@ -89,6 +89,14 @@ class SleeveReservations:
         """Observation-only links. No Current outcome retires Survivor eligibility."""
         key=self.asset_key(asset)
         if key is None or regime not in ('current','survivor'):raise ValueError('opportunity_identity')
+        try:return self._opportunity(key,identity=identity,regime=regime,status=status,at=at,decision=decision)
+        except (sqlite3.Error,OSError) as error:
+            # The native positions/reservations still fence economic exposure.
+            # A debug receipt cannot reject independent Survivor evaluation.
+            print('opportunity publication failed:',type(error).__name__,flush=True)
+            return None
+
+    def _opportunity(self,key,*,identity,regime,status,at,decision):
         with self.transaction():
             old=self.db.execute('SELECT body FROM opportunity_links WHERE asset=?',(key,)).fetchone()
             link=json.loads(old[0]) if old else dict(asset=key,current={},survivor={})

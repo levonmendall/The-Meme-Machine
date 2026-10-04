@@ -1167,7 +1167,8 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
 def _continuation_facts(position,mark,meta,candidate,rbps,*,demand,soft_streak,action):
     now=int(time.time());fresh=0<=now-int(mark.stamp.observed_at)<=5
     creator=int(demand.get('creator_sell_quote_15s',0))
-    creators={str(candidate['record'].get(k,'')).lower() for k in ('deployer','creatorFeeRecipient')}
+    record=candidate.get('record') or {}
+    creators={str(record.get(k,'')).lower() for k in ('deployer','creatorFeeRecipient')}
     creator+=sum(int(e.get('quote',0)) for e in demand.get('swaps',demand.get('events',[]))
         if (e.get('side')=='sell' or e.get('buy') is False) and str(e.get('group','')).lower() in creators)
     largest=demand.get('largest_buyer_flow_bps')
@@ -1177,7 +1178,7 @@ def _continuation_facts(position,mark,meta,candidate,rbps,*,demand,soft_streak,a
     return dict(observed_at=now,current_after_cost_return_positive=rbps>0,after_cost_return_bps=rbps,
         fresh_generation_state=fresh and bool(meta.get('block_hash')),
         fresh_executable_exit_quote=fresh,canonical_lineage_and_venue=bool(candidate.get('auth')),
-        creator_distribution_safe=creator==0,hard_concentration_safe=concentration,
+        creator_distribution_safe=bool(record) and creator==0,hard_concentration_safe=concentration,
         executable_exit_liquidity=mark.amount_out>mark.gas_quote,
         no_persistent_confirmed_demand_failure=soft_streak<EXIT_POLICY['soft_deterioration_confirmations'],
         no_irreversible_exit_intent=position['status']=='open' and action['action']=='hold')

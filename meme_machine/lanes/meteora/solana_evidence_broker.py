@@ -400,8 +400,13 @@ class EvidenceBroker:
             if existing and existing[0]!=hashed:raise ValueError('immutable_transaction_conflict')
             self.db.execute('INSERT OR IGNORE INTO immutable_transactions VALUES(?,?,?,?,?)',
                 (str(signature),zlib.compress(body.encode()),hashed,now,os.environ.get('MM_RUNTIME_LANE','unknown')))
-            self.db.execute('INSERT OR IGNORE INTO tx_cache VALUES(?,?,?,?,?)',
-                (str(signature),slot if type(slot) is int else None,block_time if type(block_time) is int else None,body,existing[1] if existing else now))
+            if not os.environ.get('MM_PAPER_EPOCH'):
+                self.db.execute('INSERT OR IGNORE INTO tx_cache VALUES(?,?,?,?,?)',
+                    (str(signature),slot if type(slot) is int else None,block_time if type(block_time) is int else None,body,existing[1] if existing else now))
+            if now-getattr(self,'_retained_at',0)>=60:
+                from meme_machine.runtime.storage import solana_cache_retention
+                solana_cache_retention(self.db,now)
+                self._retained_at=now
             count=self.db.execute('SELECT COUNT(*) FROM tx_cache').fetchone()[0]
             if count>20000:
                 # Bounded hot cache, append-only compressed cold evidence. Eviction

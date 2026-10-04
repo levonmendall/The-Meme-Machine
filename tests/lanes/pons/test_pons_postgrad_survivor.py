@@ -55,7 +55,7 @@ class PonsPostgradSurvivorTests(unittest.TestCase):
         import hashlib,os,tempfile
         from pathlib import Path
         from unittest.mock import patch
-        from certification.survivor_history import History
+        from meme_machine.runtime.survivor_history import History
         from meme_machine.lanes.pons.pons_postgrad_survivor import POLICY_HASH
         for age in (30*3600,7*86400):
             for price in (10000,20000):

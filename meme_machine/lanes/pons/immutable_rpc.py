@@ -150,8 +150,10 @@ class Reuse:
         if value is None:return
         if method=='eth_gasPrice' and key and key.startswith('gas_epoch:'):
             mono=time.monotonic();at=time.time()
-            with self.store.lock,self.store.db:self.store.db.execute('INSERT INTO gas_quotes VALUES(?,?,?,?,?)',
-                (self.domain,key[len('gas_epoch:'):],mono,at,canonical(value)))
+            with self.store.lock,self.store.db:
+                self.store.db.execute('INSERT INTO gas_quotes VALUES(?,?,?,?,?)',
+                    (self.domain,key[len('gas_epoch:'):],mono,at,canonical(value)))
+                self.store.db.execute('DELETE FROM gas_quotes WHERE rowid NOT IN (SELECT rowid FROM gas_quotes ORDER BY at DESC LIMIT 4096)')
             self.gas_quote_origin=dict(observed_at=at,observed_monotonic=mono,reused=False)
             return
         if method=='eth_chainId':

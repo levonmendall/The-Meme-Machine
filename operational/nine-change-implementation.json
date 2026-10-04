@@ -59,7 +59,7 @@
   ],
   "validation": {
     "boundary_suite": "tests.test_operational_nine",
-    "tests": 16,
+    "tests": 17,
     "native_regression_tests": 174,
     "source_audit": "operational/strategy-change-audit.json",
     "ramses_economics": "unchanged"
