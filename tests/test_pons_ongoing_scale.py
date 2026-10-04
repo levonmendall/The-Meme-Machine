@@ -67,6 +67,16 @@ class OngoingScaleTests(unittest.TestCase):
             self.fixture(phase);self.evidence['demand']={}
             self.assertFalse(self.evaluate()['scale_qualified'])
 
+    def test_initial_eta_window_does_not_veto_current_mature_quality(self):
+        from meme_machine.lanes.pons.pons_selective_continuation import entry_signal_persistence
+        for eta in (1,1000,None):
+            with self.subTest(eta=eta):
+                self.fixture();self.evidence['trajectory']['graduation_eta_seconds']=eta
+                self.assertTrue(self.evaluate()['scale_qualified'])
+                initial=entry_signal_persistence({'demand':self.evidence['original_demand_reference']},
+                    self.evidence['trajectory'],self.evidence['demand'])
+                self.assertIn('fill_graduation_eta',initial['reasons'])
+
     def test_authenticated_original_breadth_still_detects_deterioration(self):
         self.fixture();self.evidence['original_demand_reference']={'independent_groups':20}
         result=self.evaluate()

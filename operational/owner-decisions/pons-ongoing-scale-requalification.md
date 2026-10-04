@@ -64,3 +64,5 @@ failures, fresh execution rejection, final requalification failure, unchanged
 initial-entry timing, and real native-store reopen with exact reservation replay.
 The initial-entry/exit policy remains pinned by the historical source comparison.
 This record does not declare migration completeness or authorize CAPACITY.
+
+The ongoing quality helper does not reapply the initial graduation-ETA encounter window. Current curve velocity, acceleration, buyer breadth and retention, flow quality, concentration and creator-distribution checks remain authoritative. The original initial-entry helper and its ETA gate remain unchanged.

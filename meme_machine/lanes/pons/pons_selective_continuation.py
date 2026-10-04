@@ -901,6 +901,66 @@ def breakout_vector(
 PONS_ONGOING_SCALE_REQUALIFICATION = "PONS_ONGOING_SCALE_REQUALIFICATION"
 
 
+def _ongoing_pregraduation_quality(original_vector, trajectory, demand):
+    """Fresh ongoing quality; initial graduation encounter timing grants no scale authority."""
+    reasons=[]
+    if not trajectory.get("complete"):
+        reasons.append("fill_trajectory_incomplete")
+    else:
+        if int(trajectory.get("progress_15s_bps",0)) < ENTRY_THRESHOLDS["min_progress_15s_bps"]:
+            reasons.append("fill_curve_velocity")
+        if (
+            ENTRY_THRESHOLDS["require_curve_acceleration"]
+            and not bool(trajectory.get("accelerating"))
+        ):
+            reasons.append("fill_curve_deceleration")
+
+    if int(demand.get("independent_groups",0)) < ENTRY_THRESHOLDS["min_independent_groups"]:
+        reasons.append("fill_independent_breadth")
+    if int(demand.get("new_independent_groups_15s",0)) < ENTRY_THRESHOLDS["min_new_independent_groups_15s"]:
+        reasons.append("fill_buyer_growth")
+    if int(demand.get("buy_sell_ratio_bps",0)) < ENTRY_THRESHOLDS["min_buy_sell_ratio_bps"]:
+        reasons.append("fill_buy_sell_flow")
+    if int(demand.get("current_net_quote",0)) <= 0:
+        reasons.append("fill_net_demand_nonpositive")
+    if (
+        ENTRY_THRESHOLDS["require_flow_acceleration"]
+        and not bool(demand.get("net_flow_accelerating"))
+    ):
+        reasons.append("fill_flow_deceleration")
+    if int(demand.get("largest_buyer_flow_bps",10_000)) > ENTRY_THRESHOLDS["max_largest_buyer_flow_bps"]:
+        reasons.append("fill_largest_buyer_concentration")
+    if int(demand.get("top3_buyer_flow_bps",10_000)) > ENTRY_THRESHOLDS["max_top3_buyer_flow_bps"]:
+        reasons.append("fill_top3_buyer_concentration")
+    if int(demand.get("creator_sell_quote_15s",0)) > 0:
+        reasons.append("fill_creator_distribution")
+
+    original_demand=(original_vector or {}).get("demand") or {}
+    original_breadth=max(1,int(original_demand.get("independent_groups",1)))
+    breadth_retention=(
+        int(demand.get("independent_groups",0))*10_000//original_breadth
+    )
+    if breadth_retention < ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"]:
+        reasons.append("fill_buyer_breadth_decay")
+
+    return dict(
+        persistent=not reasons,
+        reasons=tuple(dict.fromkeys(reasons)),
+        breadth_retention_bps=int(breadth_retention),
+        original_independent_groups=int(original_demand.get("independent_groups",0)),
+        fill_independent_groups=int(demand.get("independent_groups",0)),
+        original_progress_15s_bps=int(
+            ((original_vector or {}).get("trajectory") or {}).get("progress_15s_bps",0)
+        ),
+        fill_progress_15s_bps=int(trajectory.get("progress_15s_bps",0) or 0),
+        fill_accelerating=bool(trajectory.get("accelerating")),
+        original_current_net_quote=int(original_demand.get("current_net_quote",0)),
+        fill_current_net_quote=int(demand.get("current_net_quote",0)),
+        fill_prior_net_quote=int(demand.get("prior_net_quote",0)),
+        fill_flow_accelerating=bool(demand.get("net_flow_accelerating")),
+    )
+
+
 def ongoing_scale_requalification(*, position, controller, evidence, now):
     """Current quality of an existing winner; never initial-entry authority.
 
@@ -949,7 +1009,7 @@ def ongoing_scale_requalification(*, position, controller, evidence, now):
         # Original breadth remains a deterioration reference only. All positive
         # qualification gates consume independently acquired current evidence.
         reference=evidence.get('original_demand_reference') or {}
-        signal=entry_signal_persistence({'demand':reference},trajectory,demand)
+        signal=_ongoing_pregraduation_quality({'demand':reference},trajectory,demand)
         reasons.extend(signal['reasons'])
     elif evidence.get('phase')=='postgraduation':
         buy=int(demand.get('buy_quote',0));sell=int(demand.get('sell_quote',0))
