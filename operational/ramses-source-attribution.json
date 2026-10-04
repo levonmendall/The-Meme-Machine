@@ -1,0 +1,585 @@
+{
+  "composition_pin": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+  "sources_sha256": "9a276d75ad83f253a8f5e041d225e773531ab4766dbbf51505142c99542c9c14",
+  "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+  "patches": [
+    {
+      "path": "certification/patches/ramses-admission.patch",
+      "sha256": "958e5ebb8a27feebfafea9c27eb2c2d5e5ff61e6ddfdc37ec43603184e53d796",
+      "bytes": 206585,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/market-scope-efficiency-ramses.patch",
+      "sha256": "fa4e6bc7b404ee38f9bbea2e134db8db93366fd40b1f65912ecc7c457948cf5a",
+      "bytes": 13393,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/ramses-ledger-position.patch",
+      "sha256": "a313a543a0f05fa6e04a76fe776f15b385402e63e2ea9316296c5fddd37a8a30",
+      "bytes": 285,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/ramses-census-resilience.patch",
+      "sha256": "792d927c1ac4deebf8400d1fe3a249b296b7a16602a0a503f47ce168a17db706",
+      "bytes": 6078,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/ramses-census-budget-progress.patch",
+      "sha256": "d283d7a3229084a3e5bc42067b73e4740b664090c154232d0a646a1314edb065",
+      "bytes": 8011,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/ramses-state-hydration-budget.patch",
+      "sha256": "4c5304eb96fc0bf6476470aed93db562eb68552daaacee3ce1a094fa821cad85",
+      "bytes": 7304,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/ramses-log-identity-metadata.patch",
+      "sha256": "203b6ad242494b2edcad2e1406eca302a83a7f4824ddb06e56a0ba041c55b9d7",
+      "bytes": 48454,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/market-assurance-ramses.patch",
+      "sha256": "44d0189fdcb333e228aac3836b3d948151f2a98bfe00010b4ce953b27aaaed16",
+      "bytes": 14465,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/ramses-receipt-set-metadata.patch",
+      "sha256": "abef57935f78448213888cebfe3b587fe779c4da5763b829fc593c2155ed2553",
+      "bytes": 3085,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/target-coverage-repair-ramses.patch",
+      "sha256": "c47ae7742f3866e35f8a57755e119bca02b4459f2e6486f9b9a63f4a76bf4cbe",
+      "bytes": 50317,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/evidence-reconstruction-ramses.patch",
+      "sha256": "d88baa28de6440b01714e3cf95a708fe1c2dab0556ad15ce35590470825a8c0b",
+      "bytes": 275910,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/robinhood-evidence-plane-ramses.patch",
+      "sha256": "772e2acbbe6b0e629f6a732670e5e2657fb526c6622127e43388301cef3cb818",
+      "bytes": 42966,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/robinhood-provider-authority-ramses.patch",
+      "sha256": "25c6de87b4f066827cf242d49f25b2b49e94adb08599e3de18d5174410afaead",
+      "bytes": 61539,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/run371-ramses-transient-pressure.patch",
+      "sha256": "a7dd2510e86d93e6df7068582c4ab8397e7f86fdf66f88376b6808d36e816f43",
+      "bytes": 9606,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/run377-ramses-rpc-state-attribution.patch",
+      "sha256": "67722e6ea02faaabfc68d0b5d62585e80301642a2be26bd296452d07b7163d84",
+      "bytes": 6321,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/autonomous-ramses-campaign-recovery.patch",
+      "sha256": "0fbb7afb0f2f4de2bf1589e9677433edb877a8fc40caee1d647834b8464ff804",
+      "bytes": 9260,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/autonomous-ramses-atomic-funding.patch",
+      "sha256": "05554cef64db1f914c0628f2a0e3fb9582e0259b701de3b7c558c011043ac4f0",
+      "bytes": 11465,
+      "applied": true
+    },
+    {
+      "path": "certification/patches/autonomous-ramses-terminal-archive.patch",
+      "sha256": "817b442c05c4005572811fa6e3f080916a6f7aeb0341153c128214a07e4c20d7",
+      "bytes": 5337,
+      "applied": true
+    }
+  ],
+  "frozen_files": {
+    ".github/workflows/robinhood-ramses-extended.yml": {
+      "declared_sha256": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+      "base_sha256": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+      "composed_sha256": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+      "byte_unchanged": true
+    },
+    "robinhood_research/ramses_strategy.py": {
+      "declared_sha256": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+      "base_sha256": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+      "composed_sha256": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+      "byte_unchanged": true
+    },
+    "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json": {
+      "declared_sha256": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
+      "base_sha256": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
+      "composed_sha256": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
+      "byte_unchanged": true
+    }
+  },
+  "composed_files": {
+    ".github/workflows/robinhood-ramses-extended.yml": {
+      "expected": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+      "actual": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+      "match": true
+    },
+    "robinhood_research/ramses_strategy.py": {
+      "expected": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+      "actual": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+      "match": true
+    },
+    "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json": {
+      "expected": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
+      "actual": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
+      "match": true
+    },
+    "robinhood_research/ramses_campaign.py": {
+      "expected": "9d27575983f9206f81b1f83d97352fce5f545c46f60191f64b4894e1b4aaa000",
+      "actual": "9d27575983f9206f81b1f83d97352fce5f545c46f60191f64b4894e1b4aaa000",
+      "match": true
+    },
+    "robinhood_research/ramses_extended_test.py": {
+      "expected": "ff8233dd253ec3504f7a5a900645c77ca1b687a728ebe23edb774cefce1b2661",
+      "actual": "ff8233dd253ec3504f7a5a900645c77ca1b687a728ebe23edb774cefce1b2661",
+      "match": true
+    },
+    "robinhood_tests/test_ramses_continuous_campaign.py": {
+      "expected": "a51065aae8e220b943bfdaf73ff6083f0cb33162198a042675fcfc051c0f4c9c",
+      "actual": "a51065aae8e220b943bfdaf73ff6083f0cb33162198a042675fcfc051c0f4c9c",
+      "match": true
+    },
+    "robinhood_research/ramses_strategy_ledger.py": {
+      "expected": "8bded272f4edbf37a08a0070ab4d469318c47f485860b0feb20f05032fea1dcf",
+      "actual": "8bded272f4edbf37a08a0070ab4d469318c47f485860b0feb20f05032fea1dcf",
+      "match": true
+    },
+    "robinhood_research/ramses_all_pool_lifecycle.py": {
+      "expected": "a3296a19f3645ff26c3191631e209d6e773c8ecd25114fb456cc8cdb28db769e",
+      "actual": "a3296a19f3645ff26c3191631e209d6e773c8ecd25114fb456cc8cdb28db769e",
+      "match": true
+    }
+  },
+  "result": "PASS",
+  "composed_diff_sha256": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9",
+  "declared_diff_sha256": "cbf75a15df626001d031288ee2658d8878a06493af94a498d449e4814aea1fe9",
+  "composed_diff_match": true,
+  "materialized_modules": [
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "5fda329a32a172c6e17b4271a19eb1c3a7e9d4f8dfa57e0d33bbfb092642a480",
+      "differing_nodes": [],
+      "origin": "robinhood_research/__init__.py",
+      "path": "meme_machine/lanes/ramses/__init__.py",
+      "reconstructed_sha256": "7a08167ee430e4196ad37ff77bd3228c9215ca7e79cb64bf779a2653fe943f51",
+      "current_sha256": "7a08167ee430e4196ad37ff77bd3228c9215ca7e79cb64bf779a2653fe943f51"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "dae25a7434ef9e448cee454ff483e32159b15a52e964e856bfa0447077cfa96e",
+      "differing_nodes": [],
+      "origin": "robinhood_research/abi.py",
+      "path": "meme_machine/lanes/ramses/abi.py",
+      "reconstructed_sha256": "491c9ad996d4cbd3b26fcecf0bf4216b92778151ba1d6818b621c2be7f5c52c8",
+      "current_sha256": "491c9ad996d4cbd3b26fcecf0bf4216b92778151ba1d6818b621c2be7f5c52c8"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "e927a6605abc2020313ca73031319ef85ddf4123bbffdd4ad6725a9433854a8d",
+      "differing_nodes": [],
+      "origin": "robinhood_research/continuation_robinhood.py",
+      "path": "meme_machine/lanes/ramses/continuation_robinhood.py",
+      "reconstructed_sha256": "aa6936ed20838880920b4ce3f2040b17008418babecca07971fc1b8cfe2e0681",
+      "current_sha256": "aa6936ed20838880920b4ce3f2040b17008418babecca07971fc1b8cfe2e0681"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "91bd899ff65c118dd44c0451080a07498d7500db2d621732d9cd5955df703236",
+      "differing_nodes": [],
+      "origin": "robinhood_research/continuation_robinhood_cohort.py",
+      "path": "meme_machine/lanes/ramses/continuation_robinhood_cohort.py",
+      "reconstructed_sha256": "d232d2210701d3c7d728b5f57b9bbb5407c62ddb1e27588044d5f4cd50c409cd",
+      "current_sha256": "cb86e1e3621451dacf5e90250d0a663db4f56df2ea110ea894042e0c9c52f943"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "51041dcd4d7a9d54c8f7bfd4058593482f5668132c082b2d254d430a29950791",
+      "differing_nodes": [],
+      "origin": "robinhood_research/continuation_robinhood_sample.py",
+      "path": "meme_machine/lanes/ramses/continuation_robinhood_sample.py",
+      "reconstructed_sha256": "223057c56c6a62aa781f670d9f3737c6ee33b88a81fcfbdd3407e7a3086c804e",
+      "current_sha256": "b6553e7ef8b1b831a170f932b6d9cda36164f419c4d920e6d0987a8314203be2"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "714a3bec3287ce3045e2c02bd90b6ac592c6d1ce7c9755a364a90c703312f72f",
+      "differing_nodes": [],
+      "origin": "robinhood_research/directional.py",
+      "path": "meme_machine/lanes/ramses/directional.py",
+      "reconstructed_sha256": "d52afd909fe82a49d2d25dae0651ea732877cdea041a22224e06caac4ec85639",
+      "current_sha256": "d52afd909fe82a49d2d25dae0651ea732877cdea041a22224e06caac4ec85639"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "1389ea5cb00cb5061744e3568f0682dd5257d7415f0d7b60da967d79fa6df18f",
+      "differing_nodes": [],
+      "origin": "robinhood_research/evidence.py",
+      "path": "meme_machine/lanes/ramses/evidence.py",
+      "reconstructed_sha256": "cd62e4ff4a695a2f291aadb2b87a419b97a853ee40c1aa71c716b662e0c36c6b",
+      "current_sha256": "cd62e4ff4a695a2f291aadb2b87a419b97a853ee40c1aa71c716b662e0c36c6b"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "f705b4be7959e94ac55407bdcf50adb40eed3fcdc06ff9b5c8cef75d1e20266a",
+      "differing_nodes": [],
+      "origin": "robinhood_research/evidence_queue.py",
+      "path": "meme_machine/lanes/ramses/evidence_queue.py",
+      "reconstructed_sha256": "46a33b8d67e3f4eb77d3c3c05ffdee3cc60f5e6ee4cc033e028e42b3bf730047",
+      "current_sha256": "46a33b8d67e3f4eb77d3c3c05ffdee3cc60f5e6ee4cc033e028e42b3bf730047"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "84bc806e1d95ee8159f8192c5ac0a89dfa2eb4242f244b7d9ea25c4fad1462ec",
+      "differing_nodes": [],
+      "origin": "robinhood_research/finality.py",
+      "path": "meme_machine/lanes/ramses/finality.py",
+      "reconstructed_sha256": "357f6f365b9ab4ce2969d4151425d9c67459e3fa7592db867813f758780be139",
+      "current_sha256": "357f6f365b9ab4ce2969d4151425d9c67459e3fa7592db867813f758780be139"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "eea11d9eb1e8a22b8e32fb094ddf63e65188f8101fa50ee40a43dba593ba2832",
+      "differing_nodes": [],
+      "origin": "robinhood_research/identity.py",
+      "path": "meme_machine/lanes/ramses/identity.py",
+      "reconstructed_sha256": "9cd47cf9d5316c8958fa85ab760064e1a4c30f42cdc0991da2ce41143a8a984d",
+      "current_sha256": "9cd47cf9d5316c8958fa85ab760064e1a4c30f42cdc0991da2ce41143a8a984d"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "b6b82381732fa90208ebfdfcc8766fb59fa12b1de85fc9741fc78ff05a8bbdde",
+      "differing_nodes": [],
+      "origin": "robinhood_research/immutable_rpc.py",
+      "path": "meme_machine/lanes/ramses/immutable_rpc.py",
+      "reconstructed_sha256": "191c29073eab0b97eb6760814ad33c1c57a4a26d04124b2e30e9e1ddf803b299",
+      "current_sha256": "96b92abb0566f7c4125c56fd24620ec728aa52f0f482558c40f7c9b1b5e52285"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "d633b5e76c174e3399eaee4755c158696a9d6d73def30472cf8e386493842923",
+      "differing_nodes": [],
+      "origin": "robinhood_research/keccak.py",
+      "path": "meme_machine/lanes/ramses/keccak.py",
+      "reconstructed_sha256": "4b4bd8c33463fc36152c6dc497146f7353352685bc6bca996545a892f1393c5c",
+      "current_sha256": "4b4bd8c33463fc36152c6dc497146f7353352685bc6bca996545a892f1393c5c"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "04f6b63335d23322646777270ed18744ad48b76cb9fd12f357ac33c79d3578b4",
+      "differing_nodes": [],
+      "origin": "robinhood_research/liquidity.py",
+      "path": "meme_machine/lanes/ramses/liquidity.py",
+      "reconstructed_sha256": "f982994e92c625accaee35c6467bd99638a05e03cf3212a97a67adf90f776b40",
+      "current_sha256": "f982994e92c625accaee35c6467bd99638a05e03cf3212a97a67adf90f776b40"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "e233e29dcc77a9cff5f6baaa2549a957c5bded0fb3fbdaa45754e1c05f4d01ac",
+      "differing_nodes": [],
+      "origin": "robinhood_research/observability_probe.py",
+      "path": "meme_machine/lanes/ramses/observability_probe.py",
+      "reconstructed_sha256": "c6df219bc3c6d4348d1a885b6001f919e4149f17fb76d601705f623858cee245",
+      "current_sha256": "c6df219bc3c6d4348d1a885b6001f919e4149f17fb76d601705f623858cee245"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "98b0327409423d1a6a0134255f2a936d24354d1d8bf422a3992adb10241ec111",
+      "differing_nodes": [],
+      "origin": "robinhood_research/outcomes.py",
+      "path": "meme_machine/lanes/ramses/outcomes.py",
+      "reconstructed_sha256": "52e8f3bba196b298bcf373f5e47838112bb251c0acc18763f7f1e0970fa87d39",
+      "current_sha256": "52e8f3bba196b298bcf373f5e47838112bb251c0acc18763f7f1e0970fa87d39"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "10f6cb35801ab46fbf003e4fd97b2fae3afd583f4bd56030a8f1b3352c4ea473",
+      "differing_nodes": [],
+      "origin": "robinhood_research/paper.py",
+      "path": "meme_machine/lanes/ramses/paper.py",
+      "reconstructed_sha256": "e74525a29b41f5d084999aea30a9ec8200f6e31401f41a3195d76c03d1192bcc",
+      "current_sha256": "e74525a29b41f5d084999aea30a9ec8200f6e31401f41a3195d76c03d1192bcc"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "e7f5b043e149c50d002778225588042ebe718f2b7f586ca0efdbc361cdab817f",
+      "differing_nodes": [],
+      "origin": "robinhood_research/pipeline.py",
+      "path": "meme_machine/lanes/ramses/pipeline.py",
+      "reconstructed_sha256": "315564b7bb84db1c9829312ad9d60b16480154337fd6bb3ef62259dfa22ad083",
+      "current_sha256": "4367ba307b150fc17119c47cc0efb9ae0ad69b3fdf305d4b904fb9201af0f9a9"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "7a96ec51714d1bf9f5bd023902434fcd172e5c0d535a02d651d706ac1f24e194",
+      "differing_nodes": [],
+      "origin": "robinhood_research/pons.py",
+      "path": "meme_machine/lanes/ramses/pons.py",
+      "reconstructed_sha256": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233",
+      "current_sha256": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "f89fb24b636acfe7d968413c1e64b2a4702ef1e85e755652edd57e2c5c8448f5",
+      "differing_nodes": [],
+      "origin": "robinhood_research/pons_concentration.py",
+      "path": "meme_machine/lanes/ramses/pons_concentration.py",
+      "reconstructed_sha256": "5be1119085b0885b65c07a34367e5d036e2f237e96ac2ddebcc6831dd20acc52",
+      "current_sha256": "5be1119085b0885b65c07a34367e5d036e2f237e96ac2ddebcc6831dd20acc52"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "2cdb577d929fcb2c8d298d27065fec1e81088ba64946aa57fc1fdbfa422bd07f",
+      "differing_nodes": [],
+      "origin": "robinhood_research/pons_lineage_capture.py",
+      "path": "meme_machine/lanes/ramses/pons_lineage_capture.py",
+      "reconstructed_sha256": "d62758989275ebc63957e7fcd0b536e839892d3832b7422bdba885ef25e27c4e",
+      "current_sha256": "d62758989275ebc63957e7fcd0b536e839892d3832b7422bdba885ef25e27c4e"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "70636369adce5e4ddfa97abb5a957e64120f15753285f0ef0209718a96489c7d",
+      "differing_nodes": [],
+      "origin": "robinhood_research/pons_natural_observation.py",
+      "path": "meme_machine/lanes/ramses/pons_natural_observation.py",
+      "reconstructed_sha256": "9e833b48c518a7e91ceaf43dad5e7d976121e969f8b56653bc53920257eb5874",
+      "current_sha256": "a457269d5669f2c949763262fa380639ad1e03e20f374eeb53d96715ad1af1cf"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "2a2f3b55a553e0cd61c1b39ecbb1a652eb2d9c021da33bf21aaed253f413afbb",
+      "differing_nodes": [],
+      "origin": "robinhood_research/pons_natural_paper.py",
+      "path": "meme_machine/lanes/ramses/pons_natural_paper.py",
+      "reconstructed_sha256": "50ff8d85647048e8328f853d1cbece08944251c338f6780e5187c0c15074754f",
+      "current_sha256": "18f3488a9347e791e2cf89edefef3cb1eb559a8419da5329c3e67269be8bb92a"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "2ca602828eacef76d52be124e578fb9c2b555df31daf7c196b0cda3b0e33fab4",
+      "differing_nodes": [],
+      "origin": "robinhood_research/probe.py",
+      "path": "meme_machine/lanes/ramses/probe.py",
+      "reconstructed_sha256": "2e92205e28a8819042b5e6aa5b94f08458aabaeeaa75b780d93c8a001576bfc4",
+      "current_sha256": "2e92205e28a8819042b5e6aa5b94f08458aabaeeaa75b780d93c8a001576bfc4"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "873e261a1d950606c3b9a3036d7c5b75218f3f98642c2c9179f83b0a6639f13c",
+      "differing_nodes": [],
+      "origin": "robinhood_research/protocol_probe.py",
+      "path": "meme_machine/lanes/ramses/protocol_probe.py",
+      "reconstructed_sha256": "aa3da5769e325fd6c9b6e45b10c9ace9133b9b3292822b6255a005c753caea5e",
+      "current_sha256": "aa3da5769e325fd6c9b6e45b10c9ace9133b9b3292822b6255a005c753caea5e"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "ff16129b2b3bb419dabb249f3391eac3e66d6084f4e1a3eeadc54299de4e9e20",
+      "differing_nodes": [],
+      "origin": "robinhood_research/protocols.py",
+      "path": "meme_machine/lanes/ramses/protocols.py",
+      "reconstructed_sha256": "7b88e36ace37c9b0125798dc2c04ff32601df9dda595ab06e0e00ee28038edfc",
+      "current_sha256": "7b88e36ace37c9b0125798dc2c04ff32601df9dda595ab06e0e00ee28038edfc"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "a6bce51078f59bd4ef79f7c7bf0940fb1837eb91c22c54e31c734823e5f0d9b8",
+      "differing_nodes": [],
+      "origin": "robinhood_research/provider.py",
+      "path": "meme_machine/lanes/ramses/provider.py",
+      "reconstructed_sha256": "41397c1bec1a6ccf7a06861099e25a7579fdf2483f194339dc8a0543663bda2a",
+      "current_sha256": "9bc3b4c93f4228c0136db609d733d437c0eed759de0c4ddda1bb4608786fe8df"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "cae20c49963a6cc055eed8f51baf017bb8a2808daeece1362454ec55d54438dd",
+      "differing_nodes": [],
+      "origin": "robinhood_research/provider_admission.py",
+      "path": "meme_machine/lanes/ramses/provider_admission.py",
+      "reconstructed_sha256": "9d38bf773d051f7c7ff9e0a3f4f08fa3ef28a912683dd2b8f8c0f55fba88cc01",
+      "current_sha256": "81c0311da623997f1cf57b59cbe22f409afbecb26de7ade1fab5b07e4e5863f3"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "6c23d1ee23fb5fa7b893e81ab3fd5cc1064268516ff1cd6896ca69bcfd227a7c",
+      "differing_nodes": [],
+      "origin": "robinhood_research/provider_topology.py",
+      "path": "meme_machine/lanes/ramses/provider_topology.py",
+      "reconstructed_sha256": "b3f39f95d8cf26ac3b670ca4240928c79c6f4b827da2a6967d74606bb77c091d",
+      "current_sha256": "6b1dc5d637827be278cd307abd404bb15749507ee4ed535131872a5b1b067fe4"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "df65a2b9c30625583c0b93e9c2e010deb154ac183c43b6cf8bc9cf7f40cb3db9",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses.py",
+      "path": "meme_machine/lanes/ramses/ramses.py",
+      "reconstructed_sha256": "3b1cab124cfd6644b87747fd712339cc6d93e371371a6079c5930855e01e3251",
+      "current_sha256": "3b1cab124cfd6644b87747fd712339cc6d93e371371a6079c5930855e01e3251"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "0648a715f4b78908769936cbf20084825c085a08a6aef7569721c0c3bfc05b15",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_active_wide_maker.py",
+      "path": "meme_machine/lanes/ramses/ramses_active_wide_maker.py",
+      "reconstructed_sha256": "0bc1d9a1df432920966c49fdb26d2c27186c6c8153d2b0aba7b36d8ca9584e62",
+      "current_sha256": "0bc1d9a1df432920966c49fdb26d2c27186c6c8153d2b0aba7b36d8ca9584e62"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "fee23aa65b5320860c8afd17f368f7cb5b36ed60504f71716a9df0b53940dff7",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_all_pool_lifecycle.py",
+      "path": "meme_machine/lanes/ramses/ramses_all_pool_lifecycle.py",
+      "reconstructed_sha256": "a3296a19f3645ff26c3191631e209d6e773c8ecd25114fb456cc8cdb28db769e",
+      "current_sha256": "8cd973918f6923ee95d9fd3fcfa7d244d4f3ddb96c7157fa9ff484c0694bdf94"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "a295f4e9efc1d7f7a8fc7d0f54646595f45691ac62f633d96daeaa108a801320",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_campaign.py",
+      "path": "meme_machine/lanes/ramses/ramses_campaign.py",
+      "reconstructed_sha256": "9d27575983f9206f81b1f83d97352fce5f545c46f60191f64b4894e1b4aaa000",
+      "current_sha256": "9d27575983f9206f81b1f83d97352fce5f545c46f60191f64b4894e1b4aaa000"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "f08fa3e14bd624cfb61abe5de87942583edb7e782fe1dcd246807130b5ed62fd",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_capture.py",
+      "path": "meme_machine/lanes/ramses/ramses_capture.py",
+      "reconstructed_sha256": "639ce4ec9dcceec614ce964f64a46a93348fb8c8b946a78eb8af7d9c46333bbb",
+      "current_sha256": "bf0d97cd48dfa2c9ed91e7f6231d37c32faaa1e9beb6f9b0cacdd6769cc7595e"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "f5d8021b0954f546211427baab28e946490567bb385f4b9b2e16719cbc1cfd8b",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_costs.py",
+      "path": "meme_machine/lanes/ramses/ramses_costs.py",
+      "reconstructed_sha256": "5bc3564fea784c2e1d644c20803d39de69d83bc04aa8eadbb8624de77f8ecfcd",
+      "current_sha256": "5bc3564fea784c2e1d644c20803d39de69d83bc04aa8eadbb8624de77f8ecfcd"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "ae867c52942783a66880d9a65a171c1aeb2ed6812ea11b257d90fe2ef7eaa5e1",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_evidence_coverage.py",
+      "path": "meme_machine/lanes/ramses/ramses_evidence_coverage.py",
+      "reconstructed_sha256": "436e818b1f373ec6cc1f0f1095778d6f5809469d6a5e52159d4a236eec8c5625",
+      "current_sha256": "436e818b1f373ec6cc1f0f1095778d6f5809469d6a5e52159d4a236eec8c5625"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "6a335cbfdef797e2e5255f254f68156ca1b7ed3438f8b108e1986e54abe1425b",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_extended_test.py",
+      "path": "meme_machine/lanes/ramses/ramses_extended_test.py",
+      "reconstructed_sha256": "ff8233dd253ec3504f7a5a900645c77ca1b687a728ebe23edb774cefce1b2661",
+      "current_sha256": "6294fb39cf6401932a20901d03e7675e57403279e593c66a4f24eb988ac22ef3"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "7f76c8ebfc18fb0ba7603ad53f577c9606b378843a2c8bb778634f5d57e9f317",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_forced_paper.py",
+      "path": "meme_machine/lanes/ramses/ramses_forced_paper.py",
+      "reconstructed_sha256": "d0c408b1723545b5e5c3a0cd8072149ca0b0393a7e83fba546cc6e53b938b428",
+      "current_sha256": "d0c408b1723545b5e5c3a0cd8072149ca0b0393a7e83fba546cc6e53b938b428"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "fa010bad379ca7b6f3b0b01bcdb6650bba265d0e1a6bd93042b8c5cca32bdec4",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_lifecycle_log_census.py",
+      "path": "meme_machine/lanes/ramses/ramses_lifecycle_log_census.py",
+      "reconstructed_sha256": "9f9087e62e1dfb7203c0c9d1b77aa423942227b42b2d5090911b9b1a8e037d37",
+      "current_sha256": "9f9087e62e1dfb7203c0c9d1b77aa423942227b42b2d5090911b9b1a8e037d37"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "0b0dbd396f9901dc7302c7c7c44941c9d381f82cacd8a48f118e928f15552548",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_paper.py",
+      "path": "meme_machine/lanes/ramses/ramses_paper.py",
+      "reconstructed_sha256": "464217ee757c8fe9390529dd2d3b1131b1fc2b1514c61b130327ac7a5775e049",
+      "current_sha256": "464217ee757c8fe9390529dd2d3b1131b1fc2b1514c61b130327ac7a5775e049"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "c227b2b255350d5bd72625469ba0501bf61d39e92d41e1b302e9baf5fab53f1e",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_strategy.py",
+      "path": "meme_machine/lanes/ramses/ramses_strategy.py",
+      "reconstructed_sha256": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+      "current_sha256": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "030aa0e6d295a15bd8c44d5a9c432a154c40f3eb18a2b7e13c8e38ce5b638f2f",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_strategy_ledger.py",
+      "path": "meme_machine/lanes/ramses/ramses_strategy_ledger.py",
+      "reconstructed_sha256": "8bded272f4edbf37a08a0070ab4d469318c47f485860b0feb20f05032fea1dcf",
+      "current_sha256": "45646a7990664f256761a8485469910783ecdd140caa669d12925c2ccda7175b"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "3cf22dbffbd0db7086a3b3bb65c7a392843947a02a868c18b3e594e1c9137247",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_strategy_sample.py",
+      "path": "meme_machine/lanes/ramses/ramses_strategy_sample.py",
+      "reconstructed_sha256": "90e39b76ee1063f34193678cff057af680d454c0c01a3f87ae973f88cc74b3bc",
+      "current_sha256": "90e39b76ee1063f34193678cff057af680d454c0c01a3f87ae973f88cc74b3bc"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "1c5396b3cd8be196c81d09c73aae3fa5be560347280d5068aeb87bc3ff4ec16f",
+      "differing_nodes": [],
+      "origin": "robinhood_research/ramses_universe.py",
+      "path": "meme_machine/lanes/ramses/ramses_universe.py",
+      "reconstructed_sha256": "46e34628bacb78a6815aafaca68db464e87598e47f8d3a4192b4415202d196e3",
+      "current_sha256": "9f2b294a46ff29954e8b6f09a5ee5766ff9f56d4e8ec401031b035ef5c98cbdd"
+    },
+    {
+      "economic_AST_equal": true,
+      "economic_AST_sha256": "dfde0b8657a58eecb30ea699cb120e98089791524ae766c29b468e0fde170538",
+      "differing_nodes": [],
+      "origin": "robinhood_research/sequencer_feed.py",
+      "path": "meme_machine/lanes/ramses/sequencer_feed.py",
+      "reconstructed_sha256": "56cae0b33d656d925fba3dffad63e0ae98f4628cb0d6cc115bf1b35d57f4c362",
+      "current_sha256": "56cae0b33d656d925fba3dffad63e0ae98f4628cb0d6cc115bf1b35d57f4c362"
+    }
+  ],
+  "source_reconstruction": "PASS",
+  "attribution": "PASS",
+  "RAMSES_ECONOMICS": "UNCHANGED",
+  "authority": "Operational engineering reference and regression baseline; no certification or trading authority.",
+  "normalization": "Whole AST with explicit import namespace resolution and enumerated operational adapters only; see operational/ramses_attribution.py"
+}
