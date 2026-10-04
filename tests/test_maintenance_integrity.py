@@ -24,6 +24,29 @@ class MaintenanceIntegrityTests(unittest.TestCase):
     def counts(self,state):
         return dict(state.writer.db.execute('SELECT key,value FROM counters WHERE key LIKE \'lifecycle.%\''))
 
+    def test_large_live_address_dictionary_observation_stays_bounded(self):
+        from meme_machine.solana_maintenance_state import DebtAgeAdapter,OBSERVATION_VM_STEPS
+        with self.state() as state:
+            state.writer.ingest([record()])
+            db=state.writer.db
+            rowid=db.execute('SELECT rowid FROM records LIMIT 1').fetchone()[0]
+            with state.writer.transaction():
+                db.executemany('INSERT INTO address_keys(id,address) VALUES(?,?)',
+                    [(i,'offline-address-'+str(i)) for i in range(100000,150000)])
+                db.executemany('INSERT INTO address_refs VALUES(?,?,?)',
+                    [(i,rowid,1) for i in range(100000,150000)])
+            observation=DebtAgeAdapter(state.writer).observe(state.fence.session)
+            self.assertLessEqual(observation.vm_steps,OBSERVATION_VM_STEPS)
+            self.assertFalse(db.execute("SELECT 1 FROM maintenance_orphans WHERE kind='address'").fetchone())
+            with self.assertRaisesRegex(RuntimeError,'rollback'):
+                with state.writer.transaction():
+                    db.execute('DELETE FROM address_refs WHERE address_id=100000')
+                    self.assertTrue(db.execute("SELECT 1 FROM maintenance_orphans WHERE kind='address' AND key='100000'").fetchone())
+                    raise RuntimeError('rollback')
+            self.assertFalse(db.execute("SELECT 1 FROM maintenance_orphans WHERE kind='address' AND key='100000'").fetchone())
+            with state.writer.transaction():db.execute('DELETE FROM address_refs WHERE address_id=100000')
+            self.assertTrue(db.execute("SELECT 1 FROM maintenance_orphans WHERE kind='address' AND key='100000'").fetchone())
+
     def test_stale_interruption_flag_never_swallows_storage_error(self):
         for message in ('disk I/O error','database is locked','database or disk is full'):
             with self.subTest(message=message),self.state() as state:

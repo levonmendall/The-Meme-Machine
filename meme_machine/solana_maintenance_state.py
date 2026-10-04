@@ -80,6 +80,93 @@ END;
 '''
 
 
+ORPHAN_SPECS=(('address','address_keys','id','address_refs','address_id'),
+              ('chunk','hot_chunks','hash','hot_refs','hash'),
+              ('archive','archives','name','records','archive'))
+
+
+def orphan_triggers(*, updates=True):
+    definitions={}
+    for kind,table,key,refs,refkey in ORPHAN_SPECS:
+        bodies={
+            'key_insert':f"INSERT OR IGNORE INTO maintenance_orphans SELECT '{kind}',CAST(NEW.{key} AS TEXT) WHERE NOT EXISTS(SELECT 1 FROM {refs} WHERE {refkey}=NEW.{key});",
+            'key_delete':f"DELETE FROM maintenance_orphans WHERE kind='{kind}' AND key=CAST(OLD.{key} AS TEXT);",
+            'ref_insert':f"DELETE FROM maintenance_orphans WHERE kind='{kind}' AND key=CAST(NEW.{refkey} AS TEXT);",
+            'ref_delete':f"INSERT OR IGNORE INTO maintenance_orphans SELECT '{kind}',CAST(OLD.{refkey} AS TEXT) WHERE OLD.{refkey} IS NOT NULL AND EXISTS(SELECT 1 FROM {table} WHERE {key}=OLD.{refkey}) AND NOT EXISTS(SELECT 1 FROM {refs} WHERE {refkey}=OLD.{refkey});",
+        }
+        for suffix,body in bodies.items():
+            target=table if suffix.startswith('key') else refs
+            operation='INSERT' if suffix.endswith('insert') else 'DELETE'
+            name='orphan_'+kind+'_'+suffix
+            definitions[name]=f'CREATE TRIGGER {name} AFTER {operation} ON {target} BEGIN {body} END'
+        if kind=='archive' or updates:
+            name='orphan_'+kind+'_ref_update'
+            # Archive v1 already supplied this update trigger. Keep its exact SQL.
+            old=f"INSERT OR IGNORE INTO maintenance_orphans SELECT '{kind}',"+(f'OLD.{refkey}' if kind=='archive' else f'CAST(OLD.{refkey} AS TEXT)')+f" WHERE OLD.{refkey} IS NOT NULL AND EXISTS(SELECT 1 FROM {table} WHERE {key}=OLD.{refkey}) AND NOT EXISTS(SELECT 1 FROM {refs} WHERE {refkey}=OLD.{refkey});"
+            new=f"DELETE FROM maintenance_orphans WHERE kind='{kind}' AND key="+(f'NEW.{refkey}' if kind=='archive' else f'CAST(NEW.{refkey} AS TEXT)')+';'
+            definitions[name]=f'CREATE TRIGGER {name} AFTER UPDATE OF {refkey} ON {refs} BEGIN {new} {old} END'
+    return definitions
+
+
+def _verify_orphan_triggers(db,expected):
+    found=dict(db.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND name GLOB 'orphan_*'"))
+    normalized=lambda sql:' '.join(sql.rstrip(';').split()).replace('CREATE TRIGGER IF NOT EXISTS','CREATE TRIGGER')
+    if found.keys()!=expected.keys() or any(normalized(found[k])!=normalized(v) for k,v in expected.items()):
+        raise EvidenceUnavailable('maintenance_synopsis_trigger_identity')
+
+
+def install_housekeeping_witnesses(db):
+    """Exact orphan predicates; atomic batches before source admission.
+
+    An incomplete install restarts its disposable synopsis from scratch. A
+    completed install must prove its trigger definitions before it is trusted.
+    Neither marker names maintenance obligations nor modifies their deadlines.
+    """
+    db.execute("CREATE TABLE IF NOT EXISTS maintenance_orphans(kind TEXT NOT NULL,key TEXT NOT NULL,PRIMARY KEY(kind,key)) WITHOUT ROWID")
+    expected=orphan_triggers()
+    v1=db.execute("SELECT 1 FROM meta WHERE key='maintenance_orphans_v1'").fetchone()
+    v2=db.execute("SELECT 1 FROM meta WHERE key='maintenance_orphans_v2'").fetchone()
+    if v1:
+        prior=expected if v2 else orphan_triggers(updates=False)
+        _verify_orphan_triggers(db,prior)
+        if v2:return
+        # A v1 synopsis may already have missed reference UPDATEs. Rebuild the
+        # disposable index before admission instead of trusting stale witnesses.
+    # No source/consumer is admitted during an incomplete installation.
+    db.execute('BEGIN IMMEDIATE')
+    try:
+        for (name,) in db.execute("SELECT name FROM sqlite_master WHERE type='trigger' AND name GLOB 'orphan_*'").fetchall():
+            db.execute('DROP TRIGGER '+name)
+        db.execute('DELETE FROM maintenance_orphans')
+        db.execute("DELETE FROM meta WHERE key IN ('maintenance_orphans_v1','maintenance_orphans_v2')")
+        db.execute('COMMIT')
+    except BaseException:
+        db.execute('ROLLBACK');raise
+    for kind,table,key,refs,refkey in ORPHAN_SPECS:
+        cursor=None
+        while True:
+            rows=db.execute('SELECT '+key+' FROM '+table+(' WHERE '+key+'>?' if cursor is not None else '')+' ORDER BY '+key+' LIMIT 512', (cursor,) if cursor is not None else ()).fetchall()
+            if not rows:break
+            db.execute('BEGIN IMMEDIATE')
+            try:
+                for (value,) in rows:
+                    if not db.execute('SELECT 1 FROM '+refs+' WHERE '+refkey+'=? LIMIT 1',(value,)).fetchone():
+                        db.execute('INSERT INTO maintenance_orphans VALUES(?,?)',(kind,str(value)))
+                db.execute('COMMIT')
+            except BaseException:
+                db.execute('ROLLBACK');raise
+            cursor=rows[-1][0]
+    try:
+        db.execute('BEGIN IMMEDIATE')
+        for sql in expected.values():db.execute(sql)
+        db.execute("INSERT OR REPLACE INTO meta VALUES('maintenance_orphans_v1','1')")
+        db.execute("INSERT OR REPLACE INTO meta VALUES('maintenance_orphans_v2','1')")
+        db.execute('COMMIT')
+    except BaseException:
+        if db.in_transaction:db.execute('ROLLBACK')
+        raise
+
+
 def install(writer):
     """Restartable 512-row migration, before source/consumer service is admitted.
 
@@ -88,6 +175,7 @@ def install(writer):
     """
     db = writer.db
     db.executescript(SCHEMA)
+    install_housekeeping_witnesses(db)
     done = db.execute("SELECT value FROM meta WHERE key='maintenance_synopsis_v1'").fetchone()
     if done:
         expected = {'maintenance_record_insert', 'maintenance_record_archive',
@@ -337,11 +425,8 @@ class DebtAgeAdapter:
             # These are work witnesses, not potentially unbounded garbage scans.
             # Independent of archived_pending; low record debt does not erase GC.
             housekeeping = 0
-            for sql in [
-                'SELECT 1 FROM archives a WHERE NOT EXISTS(SELECT 1 FROM records r WHERE r.archive=a.name) LIMIT 1',
-                'SELECT 1 FROM hot_chunks c WHERE NOT EXISTS(SELECT 1 FROM hot_refs r WHERE r.hash=c.hash) LIMIT 1',
-                'SELECT 1 FROM address_keys k WHERE NOT EXISTS(SELECT 1 FROM address_refs r WHERE r.address_id=k.id) LIMIT 1']:
-                housekeeping += int(db.execute(sql).fetchone() is not None)
+            for kind in ('archive','chunk','address'):
+                housekeeping += int(db.execute('SELECT 1 FROM maintenance_orphans WHERE kind=? LIMIT 1',(kind,)).fetchone() is not None)
             recent_progress = tuple(self.bounded('SELECT scope,side,at,units,record_at,records FROM maintenance_progress ORDER BY scope,side', limit=MAX_SCOPES*2+2))
         end = self.monotonic()
         if end < begin:

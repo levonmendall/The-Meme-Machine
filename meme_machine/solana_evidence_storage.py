@@ -33,6 +33,10 @@ def install(db):
             path=next(r[2] for r in db.execute('PRAGMA database_list') if r[1]=='main')
             pages=db.execute('PRAGMA page_count').fetchone()[0]*db.execute('PRAGMA page_size').fetchone()[0]
             require_storage(path,required_bytes=2*pages)
+            # Dependent orphan triggers must not reference the replaced table.
+            for (name,) in db.execute("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'orphan_address_%'").fetchall():
+                db.execute('DROP TRIGGER '+name)
+            db.execute("DELETE FROM meta WHERE key IN ('maintenance_orphans_v1','maintenance_orphans_v2')")
             if old and old[0]=='view':db.execute('DROP VIEW addresses')
             db.execute('DROP TRIGGER IF EXISTS record_storage_delete')
             db.execute('''CREATE TABLE ordered_address_refs(address_id INTEGER NOT NULL,

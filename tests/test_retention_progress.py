@@ -331,7 +331,7 @@ class RetentionProgressTests(unittest.TestCase):
    rows=[replace(record(),identity='row:'+str(i),signature='sig:'+str(i),slot=10+i) for i in range(3)]
    writer.ingest(rows,proof=proof(10,12));writer.close()
    db=sqlite3.connect(path,isolation_level=None)
-   definitions=db.execute("SELECT type,name,sql FROM sqlite_master WHERE name IN ('addresses','addresses_insert','addresses_delete','record_storage_delete')").fetchall()
+   definitions=db.execute("SELECT type,name,sql FROM sqlite_master WHERE name IN ('addresses','addresses_insert','addresses_delete','record_storage_delete') OR name LIKE 'orphan_address_%'").fetchall()
    db.execute('BEGIN')
    for kind,name,sql in definitions:db.execute('DROP '+kind+' IF EXISTS '+name)
    db.execute('CREATE TABLE old_refs(address_id INTEGER,record_id INTEGER,slot INTEGER,PRIMARY KEY(address_id,record_id)) WITHOUT ROWID')
