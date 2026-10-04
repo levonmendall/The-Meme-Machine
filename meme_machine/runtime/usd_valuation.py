@@ -85,6 +85,7 @@ def _block(rpc,now):
     block=rpc.call('eth_getBlockByNumber',['latest',False],scope='position_monitor')
     if (not isinstance(block,dict) or not re.fullmatch(r'0x[0-9a-fA-F]{64}',str(block.get('hash')))):
         raise _unavailable('malformed_block')
+    now=max(now,int(time.time()))  # Fresh completion clock after admission/transport.
     number=int(block['number'],16);timestamp=int(block['timestamp'],16)
     if number<=0 or not 0<timestamp<=now:raise _unavailable('invalid_block_time')
     return number,timestamp,block['hash']
@@ -142,6 +143,7 @@ def robinhood_usd(rpc=None,*,now=None,_at_block=None):
         # AggregatorV3 compatibility is proved by the strict getter/round decode;
         # the underlying aggregator must also be a deployed contract.
         _code(rpc.call('eth_getCode',[aggregator,hex(block)],scope='position_monitor'))
+        now=max(now,int(time.time()))
         rid,price,updated=_round(raw,decimals,now)
         if updated>timestamp:raise _unavailable('round_after_pinned_block')
         evidence=dict(chain_id=4663,proxy=USDG_FEED,asset=USDG_ASSET,
@@ -182,7 +184,7 @@ def _pons_usd(rpc,value,now,state,block_info):
         'native-usdg-usd:'+str(block)+':'+route['route_pool'],
         digest(dict(oracle=value.evidence_hash,block_hash=block_hash,wnative=wnative,
             quote=USDG_ASSET,probe_raw=probe,route=route)))
-    result.amount(0,now)
+    result.amount(0,max(now,int(time.time())))
     return result
 
 
@@ -198,6 +200,7 @@ class NativeValueReader:
         self.route_state={}
 
     def _robinhood(self,now):
+        now=max(now,int(time.time()))
         try:
             if self.lane=='ramses' and self.book is not None and self.book.quote_asset.lower()!=USDG_ASSET:
                 raise _unavailable('wrong_Ramses_quote_asset')
@@ -213,10 +216,10 @@ class NativeValueReader:
             if not (self.oracle and self.oracle.observed_at<=now<=self.oracle.valid_until
                     and self.oracle_checked_at<=now<=self.oracle_checked_at+USDG_CACHE_SECONDS):
                 self.oracle=robinhood_usd(rpc,now=now,_at_block=block)
-                self.oracle_checked_at=now
+                self.oracle_checked_at=max(now,int(time.time()))
             self.cached=_pons_usd(rpc,self.oracle,now,self.route_state,block) if self.lane=='pons' else self.oracle
             # Transport/admission waits cannot extend a quote or oracle deadline.
-            self.cached.amount(0,now+int(time.monotonic()-started))
+            self.cached.amount(0,max(int(time.time()),now+int(time.monotonic()-started)))
             return self.cached
         except Exception as error:
             failure=error if isinstance(error,ValuationUnavailable) else _unavailable('RPC_unavailable_or_invalid')
@@ -225,6 +228,7 @@ class NativeValueReader:
             raise failure from None
 
     def __call__(self,now):
+        now=max(now,int(time.time()))
         if self.lane in ('pons','ramses'):
             return self._robinhood(now)
         if self.cached and self.cached.observed_at<=now<=self.cached.valid_until:
@@ -234,7 +238,7 @@ class NativeValueReader:
         from meme_machine.runtime.journal import digest
         rpc=new_rpc(limit=40)
         response=rpc.call('getMultipleAccounts',[[SOL_USD_ACCOUNT],dict(encoding='base64',commitment='finalized')],priority=True)
-        self.cached=sol_usd(response['value'][0],now=now,slot=response['context']['slot'],evidence_hash=digest(response))
+        self.cached=sol_usd(response['value'][0],now=max(now,int(time.time())),slot=response['context']['slot'],evidence_hash=digest(response))
         return self.cached
 
 

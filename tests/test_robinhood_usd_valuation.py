@@ -116,13 +116,47 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
-    def setUp(self):self.rpc=ReadRPC()
+    def setUp(self):
+        self.rpc=ReadRPC()
+        clock=patch('meme_machine.runtime.usd_valuation.time.time',side_effect=lambda:self.rpc.now)
+        clock.start();self.addCleanup(clock.stop)
 
     def value(self):return robinhood_usd(self.rpc,now=self.rpc.now)
 
     def unavailable(self,reason=None):
         with self.assertRaisesRegex(ValuationUnavailable,reason or 'VALUATION_UNAVAILABLE:USDG/USD'):
             self.value()
+
+    def test_block_acquired_after_caller_time_succeeds(self):
+        self.rpc.now=NOW+3
+        self.rpc.round=[ROUND,100000000,NOW+1,NOW+2,ROUND]
+        value=robinhood_usd(self.rpc,now=NOW)
+        self.assertEqual(value.observed_at,NOW+2)
+        self.assertEqual(value.amount(1000000,NOW+3),Decimal('1'))
+
+    def test_future_block_after_completion_fails(self):
+        original=self.rpc.call
+        def call(method,params,**kw):
+            result=original(method,params,**kw)
+            if method=='eth_getBlockByNumber':result['timestamp']=hex(NOW+4)
+            return result
+        with patch.object(self.rpc,'call',side_effect=call):
+            self.unavailable('invalid_block_time')
+
+    def test_provider_delay_does_not_refresh_stale_oracle(self):
+        self.rpc.now=UPDATED+USDG_HEARTBEAT+3
+        with self.assertRaisesRegex(ValuationUnavailable,'stale_round'):
+            robinhood_usd(self.rpc,now=UPDATED+USDG_HEARTBEAT-1)
+
+    def test_route_expiring_during_transport_fails_at_completion(self):
+        original=self.rpc.call
+        def call(method,params,**kw):
+            result=original(method,params,**kw)
+            if method=='eth_call' and params[0]['data']==calldata('getSwapOut(uint128,bool)',10**15,1):
+                self.rpc.now=NOW+6
+            return result
+        with patch.object(self.rpc,'call',side_effect=call):
+            with self.assertRaises(ValuationUnavailable):NativeValueReader('pons',rpc=self.rpc)(NOW)
 
     def test_verified_readback_decode_and_decimal_normalization(self):
         value=self.value()
