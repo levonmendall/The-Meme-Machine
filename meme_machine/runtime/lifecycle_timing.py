@@ -205,6 +205,9 @@ def install_meteora(module):
                 except Exception:
                     pass
             finally:
+                # The shared evidence facade owns a reader for this worker only.
+                plane=getattr(module,'EVIDENCE_PLANE',None)
+                if plane is not None:plane.close()
                 if life_broker is not None:
                     try:
                         life_broker.close()

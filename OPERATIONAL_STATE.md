@@ -68,3 +68,5 @@ reservation, order or economic-journal authority and can be disabled.
 Tests: test_opportunity_telemetry and test_current_survivor_independence cover
 signed gates, replay/conflicting duplicates, append-only integrity, outcomes,
 exact accounting, interruption/restart, context capture and failure isolation.
+
+Read-only Solana evidence facades may be shared by main and position workers, but each calling thread owns its own SQLite reader. The same configured evidence path, scope/finality/freshness checks and command identities remain authoritative. Closing a worker closes only its own reader and does not create a new handle. Meteora continuation explicitly closes its reader on that worker. This changes no durable schema, epoch, journal, reservation or strategy economics. FAST permanently covers all three runtime namespaces, the actual Meteora poll, and production continuation cleanup.

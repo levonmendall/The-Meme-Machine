@@ -443,6 +443,32 @@ class RobinhoodUSDTests(unittest.TestCase):
                 old_start=original.index(b'def _attempt_current_scale(')
                 old_end=original.index(b'\n\n# Public recovery entrypoint',old_start)
                 current=current[:start]+original[old_start:old_end]+current[end:]
+            if rel in ('meme_machine/lanes/pump/solana_evidence_runtime.py','meme_machine/lanes/meteora/solana_evidence_runtime.py'):
+                # Admit only the exact reviewed reader-ownership plumbing.
+                # Every existing query, control and policy byte remains pinned.
+                property_block=b"""    @property
+    def reader(self):
+        # The facade may be shared with a position worker; SQLite handles may not.
+        if not hasattr(self._thread_readers,'reader'):
+            try:self._thread_readers.reader=EvidenceReader(self.path)
+            except sqlite3.Error:self._thread_readers.reader=None
+        return self._thread_readers.reader
+    @reader.setter
+    def reader(self,value):
+        self._thread_readers.reader=value
+"""
+                allocation=b"        self._thread_readers=threading.local()\n"
+                close_block=b"""    def close(self):
+        # Closing a worker must neither open a new handle nor close another owner.
+        reader=getattr(self._thread_readers,'reader',None)
+        if reader:reader.close()
+        self._thread_readers.reader=None
+"""
+                for part in (property_block,allocation,close_block,b'import sqlite3\nimport threading\n'):
+                    self.assertEqual(current.count(part),1,rel)
+                current=current.replace(property_block,b'').replace(allocation,b'')
+                current=current.replace(b'import sqlite3\nimport threading\n',b'import sqlite3\n')
+                current=current.replace(close_block,b'    def close(self):\n        if self.reader:self.reader.close()\n')
             self.assertEqual(current,baseline(rel),rel)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):

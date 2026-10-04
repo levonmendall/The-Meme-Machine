@@ -9,6 +9,7 @@ import socket
 import time
 import uuid
 import sqlite3
+import threading
 from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical,decode_body
 from .solana_evidence_queries import PumpEvidenceView,MeteoraEvidenceView
 
@@ -21,11 +22,22 @@ class RuntimeEvidence:
         path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
         if not path:raise EvidenceUnavailable('shared_evidence_plane_required')
         self.path=Path(path).resolve()
+        self._thread_readers=threading.local()
         try:self.reader=EvidenceReader(self.path)
         except sqlite3.Error:self.reader=None
         self.owner=owner;self.clock=clock;self._command=command
         self.counts={}
         self.health_observations={}
+    @property
+    def reader(self):
+        # The facade may be shared with a position worker; SQLite handles may not.
+        if not hasattr(self._thread_readers,'reader'):
+            try:self._thread_readers.reader=EvidenceReader(self.path)
+            except sqlite3.Error:self._thread_readers.reader=None
+        return self._thread_readers.reader
+    @reader.setter
+    def reader(self,value):
+        self._thread_readers.reader=value
     def command(self,**request):
         from .solana_evidence_control import COMMAND_SECONDS,ATTEMPT_SECONDS
         request.setdefault('owner',self.owner)
@@ -158,7 +170,10 @@ class RuntimeEvidence:
     def telemetry(self):
         return dict(self.reader.telemetry() if self.reader else {},lane_counters=dict(self.counts),admission_health=dict(self.health_observations))
     def close(self):
-        if self.reader:self.reader.close()
+        # Closing a worker must neither open a new handle nor close another owner.
+        reader=getattr(self._thread_readers,'reader',None)
+        if reader:reader.close()
+        self._thread_readers.reader=None
 
 class LocalPumpHistory:
     """Adapter for the real Pump runner's frozen history/decision interface."""

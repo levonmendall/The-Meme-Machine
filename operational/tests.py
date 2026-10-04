@@ -2,7 +2,7 @@
 import argparse,ipaddress,socket,unittest,urllib.request
 
 FAST=[
- 'tests.test_operational_capacity_repairs',
+ 'tests.test_operational_capacity_repairs','tests.test_runtime_evidence_thread_ownership',
  'tests.test_operational_nine','tests.test_operational_portfolio',
  'tests.test_robinhood_usd_valuation','tests.test_native_valuation_completion',
  'tests.test_opportunity_telemetry','tests.test_pons_ongoing_scale','tests.test_strategic_reference','tests.test_current_survivor_independence',
