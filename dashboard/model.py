@@ -258,19 +258,26 @@ def validate_export(raw, epoch, mode):
         rows.sort(key=lambda x: stamp(x['at']))
         if len({r['at'] for r in rows}) != len(rows):
             raise ValueError('duplicate_history_sample')
+    retired=raw.get('retired_lane_totals',{})
+    for lane,totals in retired.items():
+        if lane not in LANES or type(totals['count']) is not int or totals['count']<0:raise ValueError('retired_lane_totals')
+        decimal(totals['realized_pnl'])
+        if decimal(totals['fees'])<0:raise ValueError('retired_lane_costs')
     return dict(epoch=epoch, as_of=raw['as_of'], valid_until=raw['valid_until'],
                 sequence=raw['sequence'], positions=positions, balances=balance,
                 history=histories, excluded_positions=len(raw['positions'])-len(positions),
-                identities=safe_identities(raw), history_complete=raw.get('history_complete') is True)
+                identities=safe_identities(raw), history_complete=raw.get('history_complete') is True,retired=retired)
 
 
-def performance(rows, now, state):
+def performance(rows, now, state, retired=None):
+    retired=retired or {};retired_count=retired.get('count',0)
     settled = [p for p in rows if p['state'] == 'SETTLED']
     opened = [p for p in rows if p['state'] == 'OPEN']
     outcomes_complete = all(p['realized_pnl'] is not None for p in settled)
     results = [decimal(p['realized_pnl']) for p in settled if p['realized_pnl'] is not None]
     wins, losses = [x for x in results if x > 0], [x for x in results if x < 0]
     realized = sum((decimal(p['realized_pnl']) for p in rows), Decimal(0)) if all(p['realized_pnl'] is not None for p in rows) else None
+    if realized is not None:realized+=decimal(retired.get('realized_pnl','0'))
     unrealized = Decimal(0)
     mark_state = state
     for p in opened:
@@ -289,15 +296,19 @@ def performance(rows, now, state):
     net = realized + unrealized if valid and realized is not None else None
     hold = [Decimal(str(stamp(p['settled_at']) - stamp(p['entered_at']))) for p in settled]
     fees = sum((decimal(p['fees']) for p in rows), Decimal(0)) if all(p['fees'] is not None for p in rows) else None
+    if fees is not None:fees+=decimal(retired.get('fees','0'))
     out = missing_metrics('UNAVAILABLE', 'not_provided_by_canonical_accounting')
     values = dict(realized_pnl=realized, fees=fees, deployed_capital=sum((decimal(p['remaining_basis']) for p in opened), Decimal(0)) if all(p['remaining_basis'] is not None for p in opened) else None,
-        trades_taken=len(rows), completed_trades=len(settled), open_positions=len(opened),
+        trades_taken=len(rows)+retired_count, completed_trades=len(settled)+retired_count, open_positions=len(opened),
         wins=len(wins) if outcomes_complete else None, losses=len(losses) if outcomes_complete else None, breakevens=sum(x == 0 for x in results) if outcomes_complete else None,
         win_rate=Decimal(len(wins))*100/len(wins+losses) if outcomes_complete and (wins or losses) else None,
         average_result=sum(results)/len(results) if outcomes_complete and results else None,
         largest_winner=max(wins) if outcomes_complete and wins else None, largest_loser=min(losses) if outcomes_complete and losses else None,
         average_holding_seconds=sum(hold)/len(hold) if hold else None)
     out.update({k: metric(v, state) for k, v in values.items()})
+    if retired_count:
+        for key in ('wins','losses','breakevens','win_rate','average_result','largest_winner','largest_loser','average_holding_seconds'):
+            out[key]=metric(None,'UNAVAILABLE','individual_closed_history_retired; cumulative_money_and_count_preserved')
     out['unrealized_pnl'] = metric(unrealized if valid else None, mark_state, 'canonical_net_liquidation_marks_required' if not valid else None)
     out['net_pnl'] = metric(net, mark_state)
     out['contribution_pct'] = metric(net * 100 / CAPITAL if net is not None else None, mark_state)
@@ -344,6 +355,9 @@ class Reader:
                 current = {p['id']: p for p in value['positions']}
                 for pid, before in self._lifecycles.items():
                     after = current.get(pid)
+                    if after is None and before['state']=='SETTLED':
+                        prior=(self._cache or {}).get('retired',{}).get(before['lane'],{}).get('count',0)
+                        if value['retired'].get(before['lane'],{}).get('count',0)>prior:continue
                     if after is None or any(before[k] != after[k] for k in ('lane', 'asset', 'entered_at')):
                         return None, 'FAIL_CLOSED'
                     terminal_facts = ('state', 'settled_at', 'capital', 'remaining_basis',
@@ -378,6 +392,7 @@ class Reader:
                 if not isinstance(result, dict) or not isinstance(result.get('lanes', {}), dict):
                     raise ValueError('telemetry_shape')
                 at = result.get('observed_at', result.get('ended_at'))
+                if at is None and isinstance(result.get('at'),str):at=Decimal(str(stamp(result['at'])))
                 fresh = isinstance(at, (int, Decimal)) and 0 <= Decimal(str(now))-at <= 120
                 out['telemetry'] = metric('persisted_supervisor', 'CURRENT' if fresh else 'STALE')
                 out['observed_at'] = datetime.fromtimestamp(float(at), timezone.utc).isoformat() if isinstance(at, (int, Decimal)) else None
@@ -389,6 +404,8 @@ class Reader:
             if not isinstance(row, dict):
                 row = {}
             health = row.get('health', 'unknown')
+            if 'phase' in row:
+                health='exited' if row.get('exit_code') is not None else 'responsive' if row.get('reconciled') is True else 'starting'
             known = ('responsive', 'starting', 'responsive_but_strategy_stalled', 'progress_stalled', 'exited', 'terminated', 'unknown')
             if health not in known:
                 health = 'unknown'
@@ -458,8 +475,11 @@ class Reader:
                 portfolio.update(epoch=data['epoch'], starting_capital=metric(CAPITAL), as_of=data['as_of'],
                                  excluded_historical_positions=data['excluded_positions'], identities=data['identities'])
                 for lane in LANES:
-                    lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state), as_of=data['as_of'])
-                metrics = performance(positions, now, state)
+                    lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state,data['retired'].get(lane)), as_of=data['as_of'])
+                retired=dict(count=sum(r['count'] for r in data['retired'].values()),
+                    realized_pnl=str(sum((decimal(r['realized_pnl']) for r in data['retired'].values()),Decimal(0))),
+                    fees=str(sum((decimal(r['fees']) for r in data['retired'].values()),Decimal(0))))
+                metrics = performance(positions, now, state,retired)
                 balance = data['balances']
                 for key, value in balance.items():
                     metrics[key] = metric(value, state)
@@ -472,6 +492,7 @@ class Reader:
                     metrics['equity'] = metric(None, metrics['unrealized_pnl']['state'], 'current_valuation_unavailable')
                 checks = {}
                 realized = sum((decimal(p['realized_pnl']) for p in positions), Decimal(0)) if all(p['realized_pnl'] is not None for p in positions) else None
+                if realized is not None:realized+=decimal(retired['realized_pnl'])
                 if realized is not None and balance['realized_pnl'] is not None and balance['shared_costs'] is not None:
                     checks['lane_realized_less_shared_costs'] = realized-balance['shared_costs'] == balance['realized_pnl']
                 if balance['deployed_capital'] is not None and all(p['remaining_basis'] is not None for p in positions):
@@ -481,7 +502,7 @@ class Reader:
                 if net is not None and balance['equity'] is not None:
                     checks['equity_equals_inception_plus_net'] = balance['equity'] == CAPITAL+net
                 if balance['fees'] is not None and balance['shared_costs'] is not None and all(p['fees'] is not None for p in positions):
-                    checks['cost_attribution'] = sum((decimal(p['fees']) for p in positions), Decimal(0))+balance['shared_costs'] == balance['fees']
+                    checks['cost_attribution'] = sum((decimal(p['fees']) for p in positions), Decimal(0))+decimal(retired['fees'])+balance['shared_costs'] == balance['fees']
                 reconcile_state = 'FAIL_CLOSED' if False in checks.values() else state if len(checks) == 5 else 'UNAVAILABLE'
                 portfolio['reconciliation'] = metric(checks, reconcile_state)
                 portfolio['state'] = worse(state, metrics['unrealized_pnl']['state'])

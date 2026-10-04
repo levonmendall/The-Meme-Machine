@@ -21,14 +21,18 @@ class NativeBoundary:
 
     def journal_hashes(self):
         if self.lane in ("pump", "pons") and hasattr(self.book, "identity"):
+            if self.book.replay()['verified'] is not True:raise PortfolioIntegrityError('native_replay_required')
             return {row[0] for row in self.book.db.execute("SELECT hash FROM journal")}
         if self.lane == "pons":
+            self.book.positions()
             from meme_machine.lanes.pons.pons_selective_ledger import JOURNAL_CATEGORY
             return {row[0] for row in self.book.store.db.execute("SELECT hash FROM records WHERE category=?",(JOURNAL_CATEGORY,))}
         if self.lane == "meteora":
+            self.book.reconcile()
             from contextlib import closing
             with closing(self.book.connect()) as db:
                 return {row[0] for row in db.execute("SELECT hash FROM events")}
+        self.book.reconcile()
         return {row[0] for row in self.book.db.execute("SELECT hash FROM ramses_strategy_journal")}
 
     def recover(self):
@@ -57,6 +61,8 @@ class NativeBoundary:
                 raise PortfolioIntegrityError("native_commit_not_durable")
             self.client.committed(native,event_key=event.native_event_id,journal_hash=event.native_journal_hash)
         self.prepared.clear()
+        from meme_machine.runtime.status import update
+        update('MANAGING',reconciled=True,accounting_reconciled=True)
 
     def record(self, native, action, position, previous, *, at, checksum, quote=None, data=None):
         if action not in ('reserved','reserve','filled','entry','open','partial_harvest','exit','settled','settle','cancelled','cancel','scale_add','mark','monitor','liquidity_writeoff','writeoff'):

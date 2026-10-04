@@ -1827,6 +1827,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
     network_identity=_prove_network_identity(pacer,rpcs)
     plane=_evidence_plane()
     _recover_position_evidence(book)
+    from meme_machine.runtime.status import update
+    update('MANAGING' if recovered else 'DISCOVERING',reconciled=True,restored_positions=book.reconcile()['unsettled'])
     broker=EvidenceBroker(DLMM_BROKER_DB)
     stream_stop=threading.Event();stream_ready=threading.Event()
     wake_stream=ProgramAccountWakeStream(

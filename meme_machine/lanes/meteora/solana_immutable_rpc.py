@@ -37,7 +37,7 @@ class ImmutableReads:
 
     def event(self,db,method,kind):
         db.execute('INSERT INTO solana_reuse_events(endpoint,lane,method,kind,at) VALUES(?,?,?,?,?)',
-            (self.endpoint,os.environ.get('MM_CERTIFICATION_LANE','unknown'),method,kind,time.time()))
+            (self.endpoint,os.environ.get('MM_RUNTIME_LANE','unknown'),method,kind,time.time()))
 
     def eligible(self,method,params):
         if method=='getGenesisHash' and not params:return True
@@ -55,7 +55,7 @@ class ImmutableReads:
                 db.execute('BEGIN IMMEDIATE')
                 row=db.execute('SELECT value,lane FROM solana_immutable_reads WHERE endpoint=? AND method=? AND key=?',(self.endpoint,method,key)).fetchone()
                 if row:
-                    self.event(db,method,'cross_lane_hit' if row[1]!=os.environ.get('MM_CERTIFICATION_LANE','unknown') else 'hit')
+                    self.event(db,method,'cross_lane_hit' if row[1]!=os.environ.get('MM_RUNTIME_LANE','unknown') else 'hit')
                     return json.loads(row[0])
                 # Lease lasts beyond the bounded HTTP retry path, and cannot be
                 # stolen during a live fetch merely because a consumer expired.
@@ -72,7 +72,7 @@ class ImmutableReads:
             if valid:
                 with self.connect() as db:
                     db.execute('INSERT OR IGNORE INTO solana_immutable_reads VALUES(?,?,?,?,?,?)',
-                        (self.endpoint,method,key,json.dumps(value),time.time(),os.environ.get('MM_CERTIFICATION_LANE','unknown')))
+                        (self.endpoint,method,key,json.dumps(value),time.time(),os.environ.get('MM_RUNTIME_LANE','unknown')))
             return value
         finally:
             with self.connect() as db:db.execute('DELETE FROM solana_read_leases WHERE endpoint=? AND method=? AND key=? AND owner=?',(self.endpoint,method,key,owner))
@@ -115,7 +115,7 @@ class ImmutableRPCMixin:
         self._assert_transaction_authority()
         deadline=getattr(self,'evidence_deadline',None) or time.time()+30
         priority=getattr(self,'evidence_priority',20)
-        kind='position_monitor' if priority==0 else 'dlmm_fresh' if os.environ.get('MM_CERTIFICATION_LANE')=='meteora' else 'pump_window'
+        kind='position_monitor' if priority==0 else 'dlmm_fresh' if os.environ.get('MM_RUNTIME_LANE')=='meteora' else 'pump_window'
         result,meta=self._immutable_broker.hydrate_transactions(self,[p[0] for p in params_list],
             kind=kind,deadline=deadline,batch_size=batch_size,
             owner=f'direct:{kind}:{deadline!r}')

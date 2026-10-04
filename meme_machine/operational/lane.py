@@ -43,6 +43,14 @@ def run_native(root,lane):
     # Shared USD delivery recovery is attached by each native book constructor.
     # Native restoration below is the existing recovery path, before discovery.
     health(root,lane,'RECONCILING')
+    import threading
+    from meme_machine.runtime import status
+    from meme_machine.runtime.stop import requested
+    def heartbeat():
+        while not requested.wait(2):
+            value=status.snapshot();phase=value.pop('phase')
+            health(root,lane,phase,**value)
+    threading.Thread(target=heartbeat,daemon=True,name='health').start()
     capital=None
     if lane in ('pump','pons','meteora'):
         from meme_machine.runtime.usd_valuation import native_reader

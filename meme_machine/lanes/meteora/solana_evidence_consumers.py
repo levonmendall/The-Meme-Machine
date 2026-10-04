@@ -62,7 +62,7 @@ class EvidenceConsumers:
             # A repeated request cannot rejuvenate this consumer's original deadline.
             b.db.executemany('INSERT OR IGNORE INTO evidence_consumers '
                             '(owner,signature,kind,deadline,created_at,lane,candidate_id) VALUES(?,?,?,?,?,?,?)',
-                            [(str(owner), str(s), str(kind), float(deadline), now, os.environ.get('MM_CERTIFICATION_LANE','unknown'), candidate_id)
+                            [(str(owner), str(s), str(kind), float(deadline), now, os.environ.get('MM_RUNTIME_LANE','unknown'), candidate_id)
                              for s in dict.fromkeys(signatures)])
         self.reject_default_signature(str(owner))
 
@@ -146,24 +146,24 @@ class EvidenceConsumers:
         b=self.broker
         with b.lock,b.db:
             b.db.execute('INSERT INTO acquisition_phases(lane,owner,kind,phase,at,deadline,signatures) VALUES(?,?,?,?,?,?,?)',
-                (os.environ.get('MM_CERTIFICATION_LANE','unknown'),str(owner),kind,phase,
+                (os.environ.get('MM_RUNTIME_LANE','unknown'),str(owner),kind,phase,
                  float(b.clock()),float(deadline),json.dumps(list(signatures))))
 
     def failure(self, reason, *, owner=None, candidate_id=None, kind=None, signatures=()):
         b = self.broker
         with b.lock, b.db:
             b.db.execute('INSERT INTO hydration_attempt_failures(lane,owner,candidate_id,kind,at,reason,signatures) VALUES(?,?,?,?,?,?,?)',
-                (os.environ.get('MM_CERTIFICATION_LANE','unknown'),str(owner) if owner else None,candidate_id,kind,
+                (os.environ.get('MM_RUNTIME_LANE','unknown'),str(owner) if owner else None,candidate_id,kind,
                  float(b.clock()),reason,json.dumps(list(signatures))))
             b.db.execute('INSERT INTO attributed_hydration_failures VALUES(?,?,1) '
                          'ON CONFLICT(lane,reason) DO UPDATE SET count=count+1',
-                         (os.environ.get('MM_CERTIFICATION_LANE','unknown'),reason))
+                         (os.environ.get('MM_RUNTIME_LANE','unknown'),reason))
             b.db.execute('INSERT INTO hydration_failures VALUES(?,1) '
                          'ON CONFLICT(reason) DO UPDATE SET count=count+1', (reason,))
 
     def telemetry(self, lane=None):
         self.settle()
-        lane=lane or os.environ.get('MM_CERTIFICATION_LANE','unknown')
+        lane=lane or os.environ.get('MM_RUNTIME_LANE','unknown')
         b = self.broker
         with b.lock:
             rows = b.db.execute('SELECT kind,state,COUNT(*) FROM evidence_consumers '

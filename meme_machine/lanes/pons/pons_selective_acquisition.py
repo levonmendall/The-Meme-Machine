@@ -173,7 +173,7 @@ class SelectiveEvidenceContext:
         self.receipt_pins={}
         self.block_receipts_supported=False
         self.view_batch_state={"supported":False}
-        cap=os.environ.get('MM_CERTIFICATION_RPC_CAPABILITIES')
+        cap=os.environ.get('MM_RPC_CAPABILITIES')
         if cap:
             from . import CHAIN_ID
             domain=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()

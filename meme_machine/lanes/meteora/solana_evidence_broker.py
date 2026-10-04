@@ -375,7 +375,7 @@ class EvidenceBroker:
     def _reuse(self, kind):
         with self.lock,self.db:
             self.db.execute('INSERT INTO immutable_reuse VALUES(?,?,1) ON CONFLICT(lane,kind) DO UPDATE SET count=count+1',
-                (os.environ.get('MM_CERTIFICATION_LANE','unknown'),kind))
+                (os.environ.get('MM_RUNTIME_LANE','unknown'),kind))
 
     def get_transaction(self, signature):
         if is_default_signature(signature):return None
@@ -399,7 +399,7 @@ class EvidenceBroker:
             existing=self.db.execute('SELECT sha256,cached_at FROM immutable_transactions WHERE signature=?',(str(signature),)).fetchone()
             if existing and existing[0]!=hashed:raise ValueError('immutable_transaction_conflict')
             self.db.execute('INSERT OR IGNORE INTO immutable_transactions VALUES(?,?,?,?,?)',
-                (str(signature),zlib.compress(body.encode()),hashed,now,os.environ.get('MM_CERTIFICATION_LANE','unknown')))
+                (str(signature),zlib.compress(body.encode()),hashed,now,os.environ.get('MM_RUNTIME_LANE','unknown')))
             self.db.execute('INSERT OR IGNORE INTO tx_cache VALUES(?,?,?,?,?)',
                 (str(signature),slot if type(slot) is int else None,block_time if type(block_time) is int else None,body,existing[1] if existing else now))
             count=self.db.execute('SELECT COUNT(*) FROM tx_cache').fetchone()[0]
@@ -696,7 +696,7 @@ class EvidenceBroker:
             if sig and sig not in seen:
                 seen.add(sig)
                 requested.append(sig)
-        lane=os.environ.get('MM_CERTIFICATION_LANE','unknown')
+        lane=os.environ.get('MM_RUNTIME_LANE','unknown')
         with self.lock,self.db:
             self.db.executemany('INSERT OR IGNORE INTO signature_interests VALUES(?,?)',[(lane,sig) for sig in requested])
             cross=sum(bool(self.db.execute('SELECT 1 FROM immutable_transactions WHERE signature=? AND lane<>?',(sig,lane)).fetchone()) for sig in requested)
@@ -709,7 +709,7 @@ class EvidenceBroker:
         if reused:
             with self.lock,self.db:
                 self.db.execute('INSERT INTO immutable_reuse VALUES(?,?,?) ON CONFLICT(lane,kind) DO UPDATE SET count=count+excluded.count',
-                    (os.environ.get('MM_CERTIFICATION_LANE','unknown'),'transaction_consumer_hits',reused))
+                    (os.environ.get('MM_RUNTIME_LANE','unknown'),'transaction_consumer_hits',reused))
         if owner is not False:
             owner = owner or f'{kind}:request:{deadline!r}'
             self.consumers.register(owner, missing_at_request, kind, deadline, candidate_id=candidate_id)
@@ -815,7 +815,7 @@ class EvidenceBroker:
             prior_broker_transport=getattr(rpc,'_broker_transport',False)
             rpc._broker_transport=True
             try:
-                if not os.environ.get('MM_CERT_GOVERNOR_DB'):rpc.evidence_transport_callback()
+                if not os.environ.get('MM_PROVIDER_GOVERNOR_DB'):rpc.evidence_transport_callback()
                 values = rpc.call_many(
                     "getTransaction",
                     params,

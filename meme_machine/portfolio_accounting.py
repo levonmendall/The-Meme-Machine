@@ -1190,6 +1190,7 @@ class PortfolioAccounting:
             from meme_machine.runtime.lifecycle_identity import parsed
             protected=set(state['positions'])
             for reservation in state['reservations'].values():
+                if reservation.get('lifecycle_id'):protected.add(reservation['lifecycle_id'])
                 native=reservation.get('provenance',{}).get('native_lifecycle_id')
                 if native:protected.add(reservation['lane']+':'+native)
             for lane,body in self.db.execute('SELECT lane,body FROM portfolio_native_pending'):

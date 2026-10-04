@@ -127,20 +127,54 @@ class Supervisor:
             except (OSError,ValueError):row=dict(phase='STARTING')
             health[lane]=dict(row,pid=proc.pid,exit_code=proc.poll(),restarts=self.restarts[lane])
         try:
-            _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,epoch_id=self.epoch,at=utc(now),stopping=self.stop_requested,lanes=health,python=sys.version.split()[0],sqlite=sqlite3.sqlite_version))
+            _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(now),stopping=self.stop_requested,lanes=health,providers=self.provider_health(),python=sys.version.split()[0],sqlite=sqlite3.sqlite_version))
         except OSError as error:
             print('health publication failed:',type(error).__name__,flush=True)
         try:
             with self.account() as account:
                 sequence=account.snapshot()['sequence']
                 account.export_path=self.root/'portfolio.json'
+                _atomic_json(self.root/'inception.json',account.binding()['receipt'])
+                if now-getattr(self,'last_history',0)>=60:
+                    account.record_history_sample(epoch_id=self.epoch,event_id='history:'+str(sequence+1),at=utc(now))
+                    sequence=account.snapshot()['sequence'];self.last_history=now
                 account.publish(epoch_id=self.epoch,event_id='snapshot:'+str(sequence+1),as_of=utc(now),valid_until=utc(now+30))
                 if account.db.execute('SELECT COUNT(*) FROM portfolio_events').fetchone()[0]>1024:
                     account.compact()
-        except (OSError,ValueError):
+            from meme_machine.portfolio_snapshot_transport import publish_snapshot
+            publish_snapshot(self.root/'inception.json',self.root/'portfolio.json',self.root/'dashboard-snapshot.json')
+        except (OSError,ValueError,RuntimeError):
             # Read-only dashboard files have no authority over native execution.
             pass
         self.last_publish=time.monotonic()
+
+    def provider_health(self):
+        result={}
+        for provider,name in (('solana','solana-provider.sqlite'),('robinhood','robinhood-provider.sqlite')):
+            path=self.root/'shared'/name
+            if not path.exists():result[provider]={'state':'UNAVAILABLE'};continue
+            db=None
+            try:
+                db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=.1)
+                depth,oldest=db.execute('SELECT COUNT(*),MIN(created) FROM queue').fetchone()
+                result[provider]=dict(state='CURRENT',queue_depth=depth,oldest_wait_seconds=max(0,time.monotonic()-oldest) if oldest is not None else 0)
+                if provider=='solana':
+                    result[provider]['pressure']=[dict(provider=p,grants=g,rate_errors=e,cooldown_seconds=max(0,c-time.monotonic())) for p,_,c,g,e in db.execute('SELECT * FROM pressure')]
+                else:
+                    result[provider]['usage']=[dict(lane=lane,metric=metric,value=value) for lane,metric,value in db.execute('SELECT lane,metric,SUM(value) FROM provider_usage GROUP BY lane,metric')]
+            except (OSError,sqlite3.Error):result[provider]={'state':'UNAVAILABLE'}
+            finally:
+                if db:db.close()
+        path=self.root/'shared/solana-evidence.sqlite'
+        if path.exists():
+            db=None
+            try:
+                db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=.1)
+                result['evidence']=dict(state='CURRENT',hot_records=db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0],open_gaps=db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],frontiers=[dict(scope=s,slot=slot,updated=updated) for s,slot,updated in db.execute('SELECT * FROM cursors')])
+            except (OSError,sqlite3.Error):result['evidence']={'state':'UNAVAILABLE'}
+            finally:
+                if db:db.close()
+        return result
 
     def run(self,*,seconds=None):
         self.initialize()

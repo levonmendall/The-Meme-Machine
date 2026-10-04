@@ -1063,6 +1063,9 @@ def main(*,campaign=False,discovery_seconds=None):
         report['active_regimes']=[STRATEGY_ID,'pumpswap-survivor-momentum-v1']
     cursor=0;full_attempts=0
     created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
+    if survivor is not None:survivor._step(False)
+    from meme_machine.runtime.status import update
+    update('MANAGING' if active or pending else 'DISCOVERING',reconciled=True,restored_positions=len(active)+len(pending))
     report["qualifiers"].extend(recovered)
     FILL_PERSISTENCE_CONTEXT=dict(
         tape=tape,created=created,postgrad=postgrad,plane=plane,confirmations=confirmations

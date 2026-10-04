@@ -712,6 +712,10 @@ def run(endpoint,*,campaign=False):
                     result['qualifiers'],result['lifecycles'],pool=pool):
                 futures.append((qindex,future));active_curve_futures[curve]=(qindex,future)
 
+        if survivor is not None:survivor._step(False)
+        from meme_machine.runtime.status import update
+        update('MANAGING' if futures else 'DISCOVERING',reconciled=True,restored_positions=len(futures))
+
         warm_started=time.monotonic()
         warm_min_deadline=warm_started+TAPE_WARM_SECONDS
         warm_hard_deadline=warm_started+TAPE_WARM_MAX_SECONDS

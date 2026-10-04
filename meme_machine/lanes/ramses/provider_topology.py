@@ -203,9 +203,9 @@ class PacedRpc(Rpc):
         self.provider_kind = _provider_kind(endpoint)
         from .immutable_rpc import configured as evidence_store, Reuse
         store=evidence_store(authority.paths()['cache']) if self.canonical_authority else None
-        self.evidence_reuse=Reuse(endpoint,store,os.environ.get('MM_CERTIFICATION_LANE','unknown')) if store else None
+        self.evidence_reuse=Reuse(endpoint,store,os.environ.get('MM_RUNTIME_LANE','unknown')) if store else None
         self.hash_state_supported=set()
-        capability_path=os.environ.get('MM_CERTIFICATION_RPC_CAPABILITIES')
+        capability_path=os.environ.get('MM_RPC_CAPABILITIES')
         if capability_path and self.evidence_reuse:
             import json
             from pathlib import Path
