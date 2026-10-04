@@ -133,3 +133,13 @@ class ValuationRPCBounds(unittest.TestCase):
 
     def test_pons_valuation_constructor_bounds_and_pacing(self):self.construct('pons')
     def test_ramses_valuation_constructor_bounds_and_pacing(self):self.construct('ramses')
+
+class EvidenceWorkerDiagnosticTests(unittest.TestCase):
+    def test_fixed_reason_visible_and_arbitrary_credentials_redacted(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        self.assertEqual(failure_diagnostic(EvidenceUnavailable('authoritative_subscription_rejected')),
+            'evidence_worker_failed:EvidenceUnavailable:authoritative_subscription_rejected')
+        secret='https://provider.invalid/v2/private-secret'
+        self.assertEqual(failure_diagnostic(RuntimeError(secret)),'evidence_worker_failed:RuntimeError')
+        self.assertEqual(failure_diagnostic(EvidenceUnavailable(secret)),'evidence_worker_failed:EvidenceUnavailable')
