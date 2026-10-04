@@ -14,6 +14,17 @@
       "source_entry_sha256": "e9a2485d52e62373a2e9c6e5833003164ba68b021cf7f6f15f0f1e4a49d7e575",
       "current_path": "tests/lanes/ramses/fixtures/ramses_140_bin_withdrawal_35578433187.json",
       "change": "byte-identical captured incident fixture"
+    },
+    {
+      "source_entry": "robinhood_tests/test_ramses_scan_capacity_recovery.py",
+      "source_entry_sha256": "eb3a17450dd5ba7e101cb476265554e66d155b59e331cf5258e11738a5a8eb44",
+      "current_path": "tests/lanes/ramses/test_ramses_scan_capacity_recovery.py",
+      "change": "original source plus exact later recovery-test overlay and import namespace relocation",
+      "later_overlay": {
+        "path": "certification/patches/run371-ramses-transient-pressure.patch",
+        "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+        "sha256": "a7dd2510e86d93e6df7068582c4ab8397e7f86fdf66f88376b6808d36e816f43"
+      }
     }
   ],
   "operational_authority": false

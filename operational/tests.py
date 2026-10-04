@@ -26,7 +26,7 @@ OPERATIONAL=FAST+[
  'tests.test_dispatch_throughput',
  'tests.test_retention_outcomes','tests.test_retention_progress',
  'tests.test_orphan_schema_compatibility','tests.test_survivor_bounded_drain',
- 'tests.lanes.ramses.test_ramses_dynamic_event_capacity',
+ 'tests.lanes.ramses.test_ramses_dynamic_event_capacity','tests.lanes.ramses.test_ramses_scan_capacity_recovery',
  'tests.test_runtime_resource_contract','tests.test_ramses_source_attribution',
  'dashboard.tests.test_dashboard','dashboard.tests.test_server_security',
 ]
