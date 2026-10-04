@@ -11,7 +11,7 @@ import sys
 import time
 
 from meme_machine.portfolio_accounting import PortfolioAccounting,inception_receipt,digest,LANES,_atomic_json
-from meme_machine.runtime.usd_valuation import USDG_BLOCKER,ValuationUnavailable,utc
+from meme_machine.runtime.usd_valuation import ValuationUnavailable,utc
 
 SOURCE_ROOT=Path(__file__).resolve().parents[2]
 
@@ -35,8 +35,12 @@ def validate_environment(*,offline=False,environ=None):
     if sys.version_info[:3]!=(3,12,14):raise RuntimeError('CPython_3.12.14_required')
     if sqlite3.sqlite_version_info<(3,45,1):raise RuntimeError('SQLite_3.45.1_or_tested_successor_required')
     if not offline:
-        # No market I/O and no inception occurs before the missing value is fixed.
-        raise ValuationUnavailable(USDG_BLOCKER)
+        # Configuration only. Oracle availability is checked by Robinhood value
+        # readers before economic exposure, independently of the Solana lanes.
+        from meme_machine.runtime.robinhood.provider_authority import endpoint
+        try:endpoint(environ=env)
+        except ValueError:
+            raise ValuationUnavailable('VALUATION_UNAVAILABLE:USDG/USD:MM_ROBINHOOD_READ_RPC_URL unavailable or invalid') from None
 
 
 class Supervisor:

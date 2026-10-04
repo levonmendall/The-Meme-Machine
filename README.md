@@ -7,9 +7,10 @@ transaction signers, real trade submissions, owner permits or live-money switch.
 
 Start here: [OPERATIONAL_STATE.md](OPERATIONAL_STATE.md).
 
-Production is **blocked by the missing authoritative USDG/USD valuation**.
-No genuine portfolio epoch, market acquisition or deployment occurred during
-consolidation. The offline candidate and read-only dashboard are implemented.
+The candidate is **ready for deployment acceptance**. Robinhood USD valuation
+uses its existing RPC and the verified Chainlink USDG/USD feed. No genuine
+portfolio epoch, market execution or deployment occurred during consolidation
+or the read-only oracle repair.
 
 With CPython 3.12.14 and `pip install -r requirements.txt`:
 
@@ -19,7 +20,7 @@ python -m operational.tests OPERATIONAL
 python -m meme_machine.operational check
 ```
 
-`check` reports the valuation blocker before network I/O or creating state.
+`check` validates runtime and provider configuration without network I/O or state creation.
 Tests use temporary synthetic portfolios and prohibit market provider calls.
 SQLite 3.45.1 and 3.53.1 were explicitly tested. The only external runtime
 dependency is `websockets==17.1`.

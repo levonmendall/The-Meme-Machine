@@ -1,10 +1,10 @@
 # Later acceptance on the existing Droplet
 
-Do not execute these steps during consolidation. USDG/USD remains unresolved;
-production `check` stops before network I/O or inception until that repair exists.
+Do not execute these steps during consolidation or the oracle repair. USDG/USD
+is resolved through the verified read-only Chainlink feed; production `check`
+validates configuration without network I/O or inception.
 
-1. Resolve the single valuation blocker using existing authoritative evidence or
-   an explicitly established frozen contract. Select the resulting exact commit.
+1. Select the exact accepted operational commit containing the USDG/USD repair.
 2. On Droplet **605465049**, verify the existing persistent volume's actual mount;
    bind `MM_STATE_ROOT` there with a new empty `paper-v1` directory. Do not import
    campaign balances, positions or P&L. Keep an existing epoch on later updates.

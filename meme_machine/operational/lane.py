@@ -8,7 +8,7 @@ import signal
 import time
 
 from meme_machine.portfolio_accounting import _atomic_json
-from meme_machine.runtime.usd_valuation import utc
+from meme_machine.runtime.usd_valuation import utc,ValuationUnavailable
 
 
 def health(root,lane,phase,**fields):
@@ -108,6 +108,9 @@ def main():
         else:
             try:run_native(args.state_root,args.lane)
             except Shutdown:health(args.state_root,args.lane,'STOPPED',reconciled=True)
+            except ValuationUnavailable as error:
+                health(args.state_root,args.lane,'VALUATION_UNAVAILABLE',reason=str(error))
+                raise
     finally:lock.close()
 
 

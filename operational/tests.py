@@ -3,6 +3,7 @@ import argparse,ipaddress,socket,unittest,urllib.request
 
 FAST=[
  'tests.test_operational_nine','tests.test_operational_portfolio',
+ 'tests.test_robinhood_usd_valuation',
  'tests.test_portfolio_accounting','tests.test_portfolio_lane_integration',
  'tests.test_provider_retry',
  'tests.lanes.pump.test_pump_acceleration_strategy','tests.lanes.pump.test_pump_acceleration_paper',
