@@ -31,6 +31,7 @@ OPERATIONAL=FAST+[
  'tests.test_solana_evidence_queries','tests.test_solana_evidence_fences',
  'tests.test_run370_storage','tests.test_provider_partial_batch_retry','tests.test_concentration_reader',
  'tests.test_runtime_resource_contract','tests.test_ramses_source_attribution',
+ 'tests.test_durable_publication','tests.test_report_publisher_isolation',
  'dashboard.tests.test_dashboard','dashboard.tests.test_server_security',
 ]
 
