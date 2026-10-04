@@ -1,0 +1,27 @@
+[Unit]
+Description=Meme Machine autonomous PAPER service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=meme-machine
+Group=meme-machine
+WorkingDirectory=/opt/meme-machine
+EnvironmentFile=/etc/meme-machine/paper.env
+ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational run
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+KillMode=control-group
+TimeoutStopSec=90
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

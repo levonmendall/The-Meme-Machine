@@ -81,6 +81,24 @@ class NativeDeliveryRecovery(unittest.TestCase):
         with patch('meme_machine.operational.supervisor._atomic_json',side_effect=OSError('read_only_dashboard')):
             self.service.publish()
 
+    def test_failed_incremental_delivery_keeps_original_native_and_usd_position(self):
+        book,_,_=open_native(self.root,'pump',self.service.epoch)
+        native=open_position(book,'pump',self.service.epoch,int(time.time()))
+        original=book._load(native)
+        with self.service.account() as account:usd=account.snapshot()['positions']
+        prepare=book.portfolio.client.prepare
+        def failed_add(*args,**kwargs):
+            if kwargs.get('kind')=='rebalance':raise RuntimeError('incremental_commit_failed')
+            return prepare(*args,**kwargs)
+        with patch.object(book.portfolio.client,'prepare',side_effect=failed_add):
+            with self.assertRaisesRegex(RuntimeError,'incremental_commit_failed'):
+                book.transition(native,'scale_add',int(time.time()),amount=3000000000,tokens=500,evidence={'request':'one-add'})
+        self.assertEqual(book._load(native),original)
+        with self.service.account() as account:
+            self.assertEqual(account.snapshot()['positions'],usd)
+            self.assertFalse(account.snapshot()['reservations'])
+        close(book,'pump')
+
 
 class ProcessSupervisor(unittest.TestCase):
     def wait_health(self,root,predicate):
