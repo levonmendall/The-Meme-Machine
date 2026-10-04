@@ -106,3 +106,12 @@ test that difference explicitly; use the known SQLite behavior in deployment.
 PyYAML/jsonschema are harness dependencies, not yet established runtime needs.
 No provider calls, credentials, deployment, systemd start or acceptance runs have
 occurred.
+
+
+Cleanup completed after the runtime and retained test import gate passed. The
+final per-file outcomes are in `operational/keep-port-archive.json`; the exact
+checkout removal list is `operational/cleanup.json`. Useful certification
+implementations were relocated to `meme_machine/runtime/`. Historical Stage-E,
+attestation, authorization, review, evidence, diagnostic and workflow surfaces
+remain only in existing Git history. No historical branch, PR, main or ref was
+deleted or rewritten. Retained scheduling and recovery tests use ordinary names.

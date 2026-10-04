@@ -16,10 +16,10 @@ OPERATIONAL=FAST+[
  'tests.test_operational_supervisor','tests.test_operational_storage',
  'tests.test_operational_dashboard','tests.test_portfolio_snapshot_transport',
  'tests.lanes.pons.test_pons_current_recovery','tests.lanes.pons.test_pons_position_provider_recovery',
- 'tests.test_owner_admission_phase2','tests.test_m1_maintenance_completion',
+ 'tests.test_work_admission','tests.test_m1_maintenance_completion',
  'tests.test_housekeeping_integration','tests.test_production_maintenance_arbiter',
- 'tests.test_stagee19_maintenance_batch_fairness','tests.test_stagee24_maintenance_integrity',
- 'tests.test_run381_maintenance_overlap',
+ 'tests.test_maintenance_batch_fairness','tests.test_maintenance_integrity',
+ 'tests.test_maintenance_overlap',
  'dashboard.tests.test_dashboard','dashboard.tests.test_server_security',
 ]
 

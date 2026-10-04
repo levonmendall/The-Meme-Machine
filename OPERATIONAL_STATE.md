@@ -5,7 +5,7 @@ supervisor with one fresh $500 Decimal portfolio. Production start is currently
 blocked by the missing authoritative USDG/USD valuation.
 
 Entrypoint: `python -m meme_machine.operational run`. CPython 3.12.14;
-`pip install -r requirements.txt`. SQLite 3.45.1 or the explicitly tested successor.
+`pip install -r requirements.txt`. SQLite 3.45.1 and 3.53.1 have both passed the operational suite.
 
 Required environment: `MM_STATE_ROOT`, `MM_SOLANA_READ_RPC_URL`,
 `MM_ROBINHOOD_READ_RPC_URL`. State is SQLite and bounded snapshots below

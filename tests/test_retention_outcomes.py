@@ -12,7 +12,7 @@ from meme_machine.solana_evidence_service import ServiceState
 from meme_machine.solana_evidence_control import PriorityOwner
 from meme_machine.solana_provider_config import AlchemyEndpoint
 from meme_machine.solana_retention_outcome import RetentionOutcome
-from tests.test_run381_retention_progress import record
+from tests.test_retention_progress import record
 
 CONFIG=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test')
 

@@ -1,1 +1,0 @@
-Final verification after every Solana evidence-acquisition repair: candidate-specific PumpSwap wakeups, shared durable transaction cache, decision-before-research hydration, open-position priority, incremental evidence, atomic cross-process leases, and DB-backed global provider pacing/cooldown. Frozen Pump strategy unchanged.

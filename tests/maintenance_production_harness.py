@@ -22,7 +22,7 @@ from meme_machine import solana_evidence_service as service
 from meme_machine import solana_maintenance_runtime as production
 from meme_machine.solana_evidence_control import PriorityOwner
 from meme_machine.solana_evidence_plane import EvidenceWriter
-from tests.test_run381_retention_progress import record
+from tests.test_retention_progress import record
 from tests.evidence_ipc_harness import ipc_transport
 
 SCOPES=('program:meteora','program:pump','program:pumpswap')

@@ -55,7 +55,12 @@ def inventory():
     runtime_roots+=['dashboard','dashboard.__main__']
     runtime,imports=closure(runtime_roots,mapping)
     tests,_=closure(OPERATIONAL+['operational.tests'],mapping)
+    resources=['meme_machine/operational/offline-market.json','operational/sources.json']
+    resources+=[str(p.relative_to(ROOT)) for p in (ROOT/'meme_machine/lanes').rglob('*.json')]
+    resources+=[str(p.relative_to(ROOT)) for p in (ROOT/'dashboard/static').rglob('*') if p.is_file()]
+    assert all((ROOT/p).is_file() for p in resources), 'required non-Python resource missing'
     return dict(result='PASS',runtime_import_files=runtime,test_import_files=tests,
+                runtime_resource_files=sorted(resources),
                 runtime_external_import_roots=imports,certification_imports=[],
                 note='Conservative static import closure plus explicit subprocess entrypoints; runtime JSON/static resources retained separately.')
 

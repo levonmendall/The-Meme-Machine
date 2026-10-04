@@ -1,2 +1,0 @@
-Canonicalize the Meteora overlay after the failed-monitor accounting repair.
-No market run requested by this commit.

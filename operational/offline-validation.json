@@ -39,5 +39,9 @@
   "market_provider_calls": 0,
   "genuine_portfolio_epoch_initialized": false,
   "deployment_performed": false,
-  "acceptance_run": false
+  "acceptance_run": false,
+  "cleanup": "1593 obsolete checkout files removed after import/resource analysis; historical refs preserved",
+  "post_cleanup_operational_tests": 485,
+  "post_cleanup_result": "PASS",
+  "post_cleanup_fast_tests": 252
 }

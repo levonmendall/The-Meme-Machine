@@ -1,1 +1,0 @@
-Run the frozen rejected-winner pre-entry development analysis against outcome run 35433611938. Research only; continuation-v1 unchanged; no order authority.
