@@ -1001,8 +1001,27 @@ def run(endpoint,*,campaign=False):
         result["discovery_sessions"].append(terminal_provider)
         _append_jsonl(PROVIDER_LOG,terminal_provider)
     finally:
-        # Resolve any externally in-flight work; its durable generation still fences it.
-        if survivor is not None:result['survivor']=survivor.close()
+        # One finite drain window inside the supervisor's 15s lane deadline.
+        # Accepted tasks retain their native journal/reservation identity. If a
+        # transport exceeds the deadline, leave connections on their owner and
+        # let process termination/replay complete recovery; never race close().
+        from concurrent.futures import wait,TimeoutError as FutureTimeout
+        drain_deadline=time.monotonic()+5
+        outstanding=[f for f in (discovery_future,hydration) if f is not None]
+        outstanding.extend(f for _,f in futures)
+        if outstanding:
+            _,pending=wait(outstanding,timeout=max(0,drain_deadline-time.monotonic()))
+        else:pending=set()
+        try:
+            if survivor is not None:
+                result['survivor']=survivor.close(timeout=max(0,drain_deadline-time.monotonic()))
+        except FutureTimeout:
+            pending.add(survivor.close_future)
+        if pending:
+            discovery_pool.shutdown(wait=False,cancel_futures=True)
+            hydration_pool.shutdown(wait=False,cancel_futures=True)
+            if pool is not None:pool.shutdown(wait=False,cancel_futures=True)
+            raise BoundaryError('selective_shutdown_drain_timeout')
         discovery_pool.shutdown(wait=True)
         hydration_pool.shutdown(wait=True)
         if hydration is not None:

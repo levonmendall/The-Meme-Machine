@@ -224,6 +224,7 @@ class Worker:
         self.pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='survivor')
         self.factory=factory;self.service=None;self.future=None;self.last=0;self.status={}
         self.completed_steps=0;self.successful_steps=0;self.admission_enabled_steps=0
+        self.closed=False;self.close_future=None
 
     def _step(self,admit):
         if self.service is None:self.service=self.factory()
@@ -238,12 +239,14 @@ class Worker:
 
     def prime(self,*,timeout=30):
         """Initialize and reconcile on the owned executor, with a bounded wait."""
+        if self.closed:raise RuntimeError('survivor_worker_closed')
         if self.future is None:self.future=self.pool.submit(self._step,False)
         self.status=self.future.result(timeout=timeout)
         self.future=None
         return self.status
 
     def tick(self,now,*,admit=True):
+        if self.closed:raise RuntimeError('survivor_worker_closed')
         if self.future is not None:
             if not self.future.done():return self.status
             self.status=self.future.result();self.future=None
@@ -251,11 +254,25 @@ class Worker:
             self.last=now;self.future=self.pool.submit(self._step,admit)
         return self.status
 
-    def close(self):
+    def _close_owned_service(self):
+        # Queued behind the accepted step on the same executor. SQLite is never
+        # closed from the supervisor thread, including after a timed-out prime.
         try:
             if self.future is not None:self.status=self.future.result()
         finally:
-            try:
-                if self.service is not None:self.pool.submit(self.service.close).result()
-            finally:self.pool.shutdown(wait=True)
+            if self.service is not None:self.service.close()
         return self.status
+
+    def close(self,*,timeout=5):
+        """Bound caller drain; the supervisor owns process termination deadlines.
+
+        A timed-out transport may still finish on its owner thread. Do not close
+        its connection concurrently or report a durable step as cancelled. The
+        one queued close runs after it; native journals remain restart authority.
+        """
+        if timeout<0:raise ValueError('survivor_close_timeout')
+        if self.close_future is None:
+            self.closed=True
+            self.close_future=self.pool.submit(self._close_owned_service)
+            self.pool.shutdown(wait=False)
+        return self.close_future.result(timeout=timeout)

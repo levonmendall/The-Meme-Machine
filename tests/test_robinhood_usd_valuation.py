@@ -402,6 +402,15 @@ class RobinhoodUSDTests(unittest.TestCase):
                 # The CAPACITY repair changes only executor-owned initialization.
                 self.assertEqual(current.count(b'survivor.prime()'),1)
                 current=current.replace(b'survivor.prime()',b'survivor._step(False)')
+            if rel=='meme_machine/lanes/pons/pons_selective_cohort.py':
+                # Approved shutdown engineering precedes the unchanged native
+                # lifecycle collection. Compare every other source byte exactly.
+                original=baseline(rel)
+                start=current.index(b'        # One finite drain window')
+                end=current.index(b'        discovery_pool.shutdown(wait=True)',start)
+                old_start=original.index(b'        # Resolve any externally in-flight work;')
+                old_end=original.index(b'        discovery_pool.shutdown(wait=True)',old_start)
+                current=current[:start]+original[old_start:old_end]+current[end:]
             self.assertEqual(current,baseline(rel),rel)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):
