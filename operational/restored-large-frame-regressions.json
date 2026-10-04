@@ -1,0 +1,9 @@
+{
+  "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "source_path": "tests/test_run372_large_frame_runtime.py",
+  "current_path": "tests/test_run372_large_frame_runtime.py",
+  "change": "Only Pump protocol import relocated to meme_machine.lanes.pump.postgrad; all assertions unchanged.",
+  "suite": "OPERATIONAL",
+  "result": "4PASS in5.798s",
+  "coverage": "Actual production serve and spawned ProcessPool decoder children; four7MB raw frames; event-loop maxgap<0.5s and lag<500000us; source8transactions retained4; bounded dispatch; finalized coverage; slow observer excluded fromlag; injected real0.6s stall detected; protocol decoder payload exact; fake websocket and UnixIPC only, no providers."
+}

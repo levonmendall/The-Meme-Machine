@@ -23,7 +23,7 @@ OPERATIONAL=FAST+[
  'tests.test_housekeeping_integration','tests.test_production_maintenance_arbiter',
  'tests.test_maintenance_batch_fairness','tests.test_maintenance_integrity',
  'tests.test_maintenance_overlap',
- 'tests.test_dispatch_throughput',
+ 'tests.test_dispatch_throughput','tests.test_run372_large_frame_runtime',
  'tests.test_retention_outcomes','tests.test_retention_progress',
  'tests.test_orphan_schema_compatibility','tests.test_survivor_bounded_drain',
  'tests.lanes.ramses.test_ramses_dynamic_event_capacity','tests.lanes.ramses.test_ramses_scan_capacity_recovery',
