@@ -34,7 +34,7 @@ class EvidenceStore:
             BEGIN SELECT RAISE(ABORT,'append_only');END;''')
     @contextmanager
     def lease(self,domain,keys,deadline=None):
-        from certification.robinhood.plane import process_identity, alive
+        from meme_machine.runtime.robinhood.plane import process_identity, alive
         keys=sorted(set(k for k in keys if k));owner=process_identity()+'|'+uuid.uuid4().hex
         deadline=time.monotonic()+30 if deadline is None else deadline
         while keys:
@@ -51,7 +51,7 @@ class EvidenceStore:
                 except BaseException:self.db.rollback();raise
             if not busy:break
             if time.monotonic()>=deadline:raise BoundaryError('immutable_evidence_wait_deadline')
-            time.sleep(min(.01,max(0,deadline-time.monotonic())))
+            _stop_sleep(min(.01,max(0,deadline-time.monotonic())))
         try:yield
         finally:
             with self.lock,self.db:self.db.execute('DELETE FROM flights WHERE owner=?',(owner,))
@@ -68,13 +68,17 @@ class EvidenceStore:
                 self.event('shared',domain,'immutable','conflict',key)
                 raise BoundaryError('immutable_rpc_evidence_conflict')
             self.db.execute('INSERT OR IGNORE INTO evidence VALUES(?,?,?,?)',(domain,key,body,time.time()))
+            self.db.execute('DELETE FROM evidence WHERE rowid NOT IN (SELECT rowid FROM evidence ORDER BY created DESC LIMIT 8192)')
     def event(self,lane,domain,method,outcome,key,source_at=None):
-        with self.lock,self.db:self.db.execute('INSERT INTO reuse_events(lane,domain,method,outcome,at,key_digest,source_at) VALUES(?,?,?,?,?,?,?)',
-            (lane,domain,method,outcome,time.time(),hashlib.sha256(key.encode()).hexdigest() if key else None,source_at))
+        with self.lock,self.db:
+            self.db.execute('INSERT INTO reuse_events(lane,domain,method,outcome,at,key_digest,source_at) VALUES(?,?,?,?,?,?,?)',
+                (lane,domain,method,outcome,time.time(),hashlib.sha256(key.encode()).hexdigest() if key else None,source_at))
+            from meme_machine.runtime.storage import audit_ring
+            audit_ring(self.db,'reuse_events','reuse_no_delete',key='sequence')
 
 _stores={};_lock=threading.Lock()
 def configured(path=None):
-    path=path or os.environ.get('MM_CERTIFICATION_RPC_CACHE_DB')
+    path=path or os.environ.get('MM_RPC_CACHE_DB')
     if not path:return None
     from pathlib import Path
     path=str(Path(path).resolve());Path(path).parent.mkdir(parents=True,exist_ok=True)
@@ -182,3 +186,8 @@ def choose_block_receipts(relevant_count,total_transactions,*,supported,remainin
     return bool(supported and isinstance(total_transactions,int) and 25<=relevant_count<=total_transactions<=128
         and relevant_count*2>=total_transactions and remaining_seconds>=1
         and block_cu<individual_cu*relevant_count)
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

@@ -7,8 +7,8 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from . import BoundaryError, CHAIN_ID
-from certification.robinhood.provider_usage import http_started
-from certification.robinhood.provider_authority import failure_class, protect_response
+from meme_machine.runtime.robinhood.provider_usage import http_started
+from meme_machine.runtime.robinhood.provider_authority import failure_class, protect_response
 
 RPC_HTTP_HEADERS = {
     'Content-Type': 'application/json',
@@ -74,7 +74,7 @@ class Rpc:
         try:
             reply = json.loads(raw)
             if reply.get('error'):
-                from certification.robinhood.rpc_errors import classify, boundary
+                from meme_machine.runtime.robinhood.rpc_errors import classify, boundary
                 self.last_provider_rpc_error = classify(reply['error'], self._endpoint)
                 raise BoundaryError(boundary(self.last_provider_rpc_error))
             if reply.get('id') != 1 or 'result' not in reply:
@@ -126,7 +126,7 @@ class Rpc:
                 # A quota boundary is terminal for this session, never retry it.
                 if '429' in str(exc) or attempt == self.retries:
                     raise
-                time.sleep(0.1 * (attempt + 1))
+                _stop_sleep(0.1 * (attempt + 1))
 
     def _http_batch(self, calls):
         self.last_provider_rpc_error = None
@@ -157,7 +157,7 @@ class Rpc:
             for i in range(1,len(calls)+1):
                 item=rows[i]
                 if item.get('error'):
-                    from certification.robinhood.rpc_errors import classify, boundary
+                    from meme_machine.runtime.robinhood.rpc_errors import classify, boundary
                     self.last_provider_rpc_error = classify(item['error'], self._endpoint)
                     raise BoundaryError(boundary(self.last_provider_rpc_error))
                 if 'result' not in item or item['result'] is None:
@@ -231,3 +231,8 @@ class Rpc:
         while len(self.cache) > 128:
             self.cache.popitem(last=False)
         return result
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

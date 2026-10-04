@@ -10,7 +10,7 @@ from meme_machine.lanes.pons.evidence import Store
 from meme_machine.lanes.pons.pons_selective_capital import CohortCapital
 from tests.lanes.pons import test_pons_partial_accounting as accounting_fixture
 from tests.lanes.pons import test_pons_position_provider_recovery as recovery_fixture
-from certification.execution_capacity import resize
+from meme_machine.runtime.execution_capacity import resize
 
 class ProcessCut(BaseException):pass
 
@@ -91,7 +91,7 @@ class CurrentRecoveryTests(unittest.TestCase):
                 with self.assertRaises(ProcessCut):runtime.run_lifecycle('unused',evaluation,db_path=db,capital_path=capital)
             if cut=='before_reserve':
                 stack.pop_all().close()
-                from certification.directional_sleeve import open_sleeve
+                from meme_machine.runtime.directional_sleeve import open_sleeve
                 with patch.object(runtime,'paper_rpc',side_effect=AssertionError('unfilled recovery needs no provider')):
                     result=runtime.resume_lifecycle('unused',db_path=db,capital_path=capital)
                     again=runtime.resume_lifecycle('unused',db_path=db,capital_path=capital)
@@ -116,18 +116,18 @@ class CurrentRecoveryTests(unittest.TestCase):
                 self.assertEqual(before['controller_state']['policy_hash'],POLICY_HASH)
             if cut=='partial':
                 import hashlib
-                from certification.terminal_reconciliation import pons_current_handoff
+                from meme_machine.runtime.terminal_reconciliation import pons_current_handoff
                 before_bytes=hashlib.sha256(db.read_bytes()).hexdigest()
                 handoff=pons_current_handoff(folder,capital)
                 self.assertEqual(handoff['positions'][0]['id'],before['id'])
                 self.assertFalse(handoff['entry_authority'])
                 self.assertEqual(hashlib.sha256(db.read_bytes()).hexdigest(),before_bytes)
-                self.assertEqual(before['tokens'],667)
+                self.assertEqual(before['tokens'],750)
                 self.assertTrue(before['controller_state']['partial_taken'])
                 self.assertGreater(before['controller_state']['high_water'],1800)
                 self.assertIsNone(before['controller_state']['pending_action'])
-            if cut=='mark':self.assertEqual(before['controller_state']['pending_action']['exit_tokens'],333)
-            if cut=='exit_intent':self.assertEqual(before['pending_exit_tokens'],333)
+            if cut=='mark':self.assertEqual(before['controller_state']['pending_action']['exit_tokens'],250)
+            if cut=='exit_intent':self.assertEqual(before['pending_exit_tokens'],250)
             if cut=='entry':clock[0]+=5
             if cut=='v4_pending_timeout':clock[0]=100+EXIT_POLICY['max_total_hold_seconds']+10
             if cut in ('transition','postgrad_mark','runner_mark'):
@@ -143,25 +143,11 @@ class CurrentRecoveryTests(unittest.TestCase):
                 with patch.object(runtime.time,'monotonic',side_effect=lambda:clock[0]):
                     sliced=runtime.resume_lifecycle('unused',db_path=db,capital_path=capital,slice_seconds=1)
                 self.assertEqual(sliced['status'],'handoff_required')
-                self.assertEqual(sliced['final_position']['tokens'],667)
+                self.assertEqual(sliced['final_position']['tokens'],750)
                 self.assertEqual(sliced['final_position']['controller_state']['opened_at'],102)
                 self.assertTrue(sliced['final_position']['controller_state']['partial_taken'])
                 self.assertEqual(sliced['cohort_reconciliation']['unsettled'],1)
-            if workflow is not None:
-                from contextlib import chdir
-                from certification.position_continuation import resume_directional
-                from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
-                original=Path(workflow)/'source-result.json'
-                original.write_text(json.dumps(dict(lanes={'pons':{'survivor':{'accounting':{'settled':0}}}})))
-                with patch('certification.position_continuation._runtime_identity',return_value=dict(result_path=str(original))),\
-                     patch.object(Runtime,'_provider'),chdir(Path(folder).parent):
-                    continued=resume_directional(workflow,lane='pons',slice_seconds=60)
-                self.assertEqual(continued['status'],'settled')
-                self.assertEqual(continued['new_entries'],0);self.assertFalse(continued['discovery_enabled'])
-                self.assertEqual(continued['newly_settled'],1)
-                self.assertEqual(len(continued['current_lifecycles']),1)
-                result=continued['current_lifecycles'][0]
-            elif cohort:
+            if cohort:
                 from meme_machine.lanes.pons.pons_selective_recovery import recover_existing_lifecycles
                 qualifier=dict(index=0,token='token',curve='m',source_transaction='source',vector=evaluation['vector'])
                 receipts=[]
@@ -219,10 +205,8 @@ class CurrentRecoveryTests(unittest.TestCase):
 
     def test_crash_after_cohort_before_native_reserve_releases_exact_intent(self):
         import os
-        from certification import position_continuation
-        protocol=json.loads(Path(position_continuation.__file__).with_name('profitability_protocol.json').read_text())
         with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,dict(
-                MM_DIRECTIONAL_COMPOSITE_REQUIRED='1',MM_DIRECTIONAL_COHORT_ID=protocol['cohort_id'],
+                MM_DIRECTIONAL_COMPOSITE_REQUIRED='1',MM_DIRECTIONAL_COHORT_ID='offline-recovery',
                 MM_DIRECTIONAL_SLEEVE_DB=str(Path(td)/'sleeve.sqlite'))):
             self.case(td,'before_reserve')
 
@@ -242,24 +226,8 @@ class CurrentRecoveryTests(unittest.TestCase):
     def test_recovered_native_partial_uses_existing_pool_without_blocking_discovery(self):
         with tempfile.TemporaryDirectory() as td:self.case(td,'partial',cohort=True,asynchronous=True)
 
-    def test_position_workflow_resumes_native_current_and_shared_sleeve_without_entry(self):
-        import os
-        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
-        from certification import position_continuation
-        protocol=json.loads(Path(position_continuation.__file__).with_name('profitability_protocol.json').read_text())
-        with tempfile.TemporaryDirectory() as td:
-            state=Path(td);root=state/'certification-native/source/pons'
-            folder=root/'pons-selective-continuation-v1-cohort';folder.mkdir(parents=True)
-            with patch.dict(os.environ,dict(MM_DIRECTIONAL_COMPOSITE_REQUIRED='1',
-                    MM_DIRECTIONAL_COHORT_ID=protocol['cohort_id'],
-                    MM_DIRECTIONAL_SLEEVE_DB=str(root/'directional-sleeve.sqlite'),
-                    MM_ROBINHOOD_READ_RPC_URL='https://robinhood-mainnet.g.alchemy.com/v2/offline')):
-                survivor=Runtime(folder/'pons-survivor',runtime.STRATEGY_CAPITAL_QUOTE,'native-continuation','unused')
-                survivor.close()
-                self.case(folder,'partial',workflow=state)
-
     def test_recovery_receipts_reject_identity_changes_and_duplicate_counting(self):
-        from certification.robinhood.pons import coalesce_lifecycle_rows
+        from meme_machine.runtime.robinhood.pons import coalesce_lifecycle_rows
         prior=dict(index=0,curve='m',lifecycle_id='x',status='boundary')
         final=dict(index=0,curve='m',lifecycle_id='x',status='settled',recovery_replaces_index=0,
             entry_authority=False,final_position=dict(id='x',status='settled',tokens=0))

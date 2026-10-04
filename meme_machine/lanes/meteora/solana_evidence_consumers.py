@@ -235,7 +235,7 @@ class StreamEvidenceService:
                     self.step()
                     self.stop.wait(.5)
             except Exception as exc:
-                # An unexpected worker failure is visible and stops certification.
+                # An unexpected worker failure is visible and stops meme_machine.runtime.
                 self.error = type(exc).__name__
         self.thread = threading.Thread(target=run, name='solana-stream-evidence', daemon=True)
         self.thread.start()

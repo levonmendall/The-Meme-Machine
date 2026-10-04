@@ -24,6 +24,8 @@ from .provider import RPC, Unavailable
 from .solana_provider_config import AlchemyEndpoint
 
 
+from meme_machine.runtime.request_scheduling import governed_sol_http
+
 PRIMARY_PROVIDER = "alchemy_solana_mainnet"
 PUBLIC_HTTP_PROVIDER = "solana_public_mainnet_fallback"
 PUBLIC_RPC_URL = "https://api.mainnet-beta.solana.com"
@@ -435,6 +437,7 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
                 except AttributeError:pass
             else:self._active_rpc_method=previous
 
+    @governed_sol_http
     def _http(self, request):
         if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
             _validate_alchemy_url(self.url)

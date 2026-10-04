@@ -308,7 +308,7 @@ def _refresh_entry_persistence_signal(endpoint,candidate,entry_meta):
 def _entry_generation(evaluation):
     path=evaluation.get('candidate_plane_path')
     if path:
-        from certification.robinhood.plane import Plane
+        from meme_machine.runtime.robinhood.plane import Plane
         plane=Plane(path)
         try:
             if not plane.decision(evaluation['candidate_broker_identity'],
@@ -393,7 +393,7 @@ def _delayed_exit(
           int(pending.get("pending_exit_tokens") or 0)!=int(exit_tokens)):
         raise BoundaryError("selective_pending_exit_identity")
     # A retry resumes the existing intent, amount and due time; never a new exit.
-    time.sleep(max(0,pending["due"]-int(time.time())))
+    _stop_sleep(max(0,pending["due"]-int(time.time())))
     amount=int(pending["pending_exit_tokens"])
     if transition is None:
         try:
@@ -416,7 +416,7 @@ def _delayed_exit(
                 break
             if time.monotonic()>=deadline:
                 raise BoundaryError("selective_v4_delayed_exit_timeout")
-            time.sleep(0.5)
+            _stop_sleep(0.5)
     position=paper.advance(
         identity,now=quote.stamp.observed_at,action="exit",quote=quote,
         finality_ledger=ledger,
@@ -442,7 +442,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
             break
         if time.monotonic()>=deadline:
             raise BoundaryError("selective_pending_v4_exit_timeout")
-        time.sleep(0.5)
+        _stop_sleep(0.5)
     position=paper.advance(
         identity,now=quote.stamp.observed_at,action="exit",quote=quote,
         finality_ledger=ledger,
@@ -477,7 +477,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
         if capital_guard is not None:capital_guard.observe(paper,position)
         path=evaluation.get('candidate_plane_path')
         if path:
-            from certification.robinhood.plane import project_native_position
+            from meme_machine.runtime.robinhood.plane import project_native_position
             project_native_position(path,'pons',evaluation['candidate_broker_identity'],position,
                 ledger_path=db_path,policy=POLICY_HASH)
     state=None
@@ -515,7 +515,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
             identity=issue(identity)
             result["lifecycle_id"]=identity
             if evaluation.get('candidate_plane_path'):
-                from certification.robinhood.plane import Plane
+                from meme_machine.runtime.robinhood.plane import Plane
                 plane=Plane(evaluation['candidate_plane_path'])
                 try:
                     if not plane.decision(evaluation['candidate_broker_identity'],
@@ -546,7 +546,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 units_proxy=gas_units,gas_price=gas_price,reservation_budget=gas_budget
             )
 
-            time.sleep(max(0,reserved["due"]-int(time.time())))
+            _stop_sleep(max(0,reserved["due"]-int(time.time())))
             entry,entry_meta,entry_ledger=_wait_curve_quote(
                 rpc,candidate,"buy",amount,gas_units,store,"selective-entry",
                 reserved["due"],seconds=30,local_freshness=True,
@@ -657,7 +657,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
             # execute afterward because they open their own connection to the Plane.
             plane=None
             if evaluation.get('candidate_plane_path'):
-                from certification.robinhood.plane import Plane
+                from meme_machine.runtime.robinhood.plane import Plane
                 plane=Plane(evaluation['candidate_plane_path'])
             callback=paper.on_commit
             try:
@@ -734,7 +734,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 break
             try:
                 rpc.rotate_if_needed()
-                time.sleep(EXIT_POLICY["monitor_seconds"])
+                _stop_sleep(EXIT_POLICY["monitor_seconds"])
                 header=_latest_header(rpc)
                 block=int(header["number"],16)
                 position=paper._get(identity)
@@ -928,7 +928,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     wait=max(
                         0,(state.graduation_at+POST_GRAD_OBSERVE_SECONDS)-int(time.time())
                     )
-                    time.sleep(wait)
+                    _stop_sleep(wait)
                     header=_latest_header(rpc);block=int(header["number"],16)
                     position=paper._get(identity)
                     mark,meta,ledger=_v4_quote(
@@ -1104,7 +1104,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 recoveries=result.setdefault("provider_recoveries",[]);recoveries.append(row)
                 store.put("selective_provider_recovery",identity+":"+str(uuid.uuid4()),row)
                 result["monitor"].append(dict(available=False,reason=str(exc),provider_recovery=True))
-                time.sleep(min(8,2**state.recovery_streak))
+                _stop_sleep(min(8,2**state.recovery_streak))
 
         reconciliation=paper.reconcile();store.close();store=None
         store=Store(str(db_path),max_records=8192)
@@ -1148,12 +1148,12 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     result.update(status='entry_failed',entry_failure=str(exc),final_position=cancelled)
                 result['reconciliation']=recovery.reconcile()
             except Exception as cleanup:
-                # Ambiguous exposure remains reserved and explicitly blocks certification.
+                # Ambiguous exposure remains reserved and explicitly blocks meme_machine.runtime.
                 result['cancellation_failure']=type(cleanup).__name__
         return result
     finally:
         if capital_guard is not None:
-            # Ambiguous native exits keep capital occupied and fail certification.
+            # Ambiguous native exits keep capital occupied and fail meme_machine.runtime.
             result["cohort_reconciliation"]=capital_guard.reconcile()
         if rpc is not None:
             result["provider_sessions"].append(rpc.telemetry())
@@ -1232,7 +1232,7 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
         budget-=gas
         if budget<=0:return None
         try:
-            time.sleep(EXIT_POLICY['entry_delay_seconds'])
+            _stop_sleep(EXIT_POLICY['entry_delay_seconds'])
             if state.transition is None:
                 entry,meta,ledger=_wait_curve_quote(rpc,candidate,'buy',budget,gas_units,store,'selective-scale',now+EXIT_POLICY['entry_delay_seconds'],seconds=5,local_freshness=True)
                 fresh_trajectory,fresh_demand,_=_refresh_entry_persistence_signal(endpoint,candidate,meta)
@@ -1284,3 +1284,8 @@ from .pons_selective_recovery import resume_lifecycle,exclusive_lifecycle
 @exclusive_lifecycle
 def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
     return _run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path)
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

@@ -214,7 +214,7 @@ def _wait_curve_quote(
             last=str(exc)
             if last=="curve_graduated_requires_transition":
                 raise
-        time.sleep(0.5)
+        _stop_sleep(0.5)
     raise BoundaryError(last or "delayed_quote_timeout")
 
 
@@ -420,7 +420,7 @@ def _discover(rpc,report):
                     if len(report["candidate_rejections"])>50:
                         raise BoundaryError("paper_candidate_rejection_capacity")
             cursor=latest
-        time.sleep(0.5)
+        _stop_sleep(0.5)
     raise BoundaryError("no_current_authenticated_pons_candidate")
 
 
@@ -476,7 +476,7 @@ def run(endpoint):
         report["reservation"]=reserved
 
         # Delayed paper fill from a new current state, never the nomination quote.
-        time.sleep(max(0,reserved["due"]-int(time.time())))
+        _stop_sleep(max(0,reserved["due"]-int(time.time())))
         entry,entry_meta,entry_ledger=_wait_curve_quote(
             rpc,candidate,"buy",PAPER_AMOUNT,gas_units,store,"entry",
             reserved["due"],seconds=20,
@@ -503,7 +503,7 @@ def run(endpoint):
             if rpc.used>145:
                 report["provider_sessions"].append(rpc.telemetry())
                 rpc=_rpc(endpoint);rpc.verify_chain()
-            time.sleep(MONITOR_SECONDS)
+            _stop_sleep(MONITOR_SECONDS)
             header=_latest_header(rpc);block=int(header["number"],16)
             position=paper._get(identity)
             if position["status"]=="settled":
@@ -571,7 +571,7 @@ def run(endpoint):
 
             paper.advance(identity,now=mark.stamp.observed_at,action="exit_intent")
             pending=paper._get(identity)
-            time.sleep(max(0,pending["due"]-int(time.time())))
+            _stop_sleep(max(0,pending["due"]-int(time.time())))
             if transition is None:
                 exit_quote,exit_meta,exit_ledger=_wait_curve_quote(
                     rpc,candidate,"sell",pending["tokens"],gas_units,store,
@@ -587,7 +587,7 @@ def run(endpoint):
                         break
                     if time.monotonic()>=deadline:
                         raise BoundaryError("v4_delayed_exit_quote_timeout")
-                    time.sleep(0.5)
+                    _stop_sleep(0.5)
             settled=paper.advance(
                 identity,now=exit_quote.stamp.observed_at,action="exit",quote=exit_quote,
                 finality_ledger=exit_ledger,
@@ -636,3 +636,8 @@ if __name__=="__main__":
         final_position=result.get("final_position"),
         exit=result.get("exit"),provider_sessions=result["provider_sessions"],
     ),sort_keys=True))
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

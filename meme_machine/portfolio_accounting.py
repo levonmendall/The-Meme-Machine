@@ -401,6 +401,9 @@ class PortfolioAccounting:
             (event_id,),
         ).fetchone()
         if row is None:
+            checkpoint=self.db.execute('SELECT body FROM portfolio_checkpoint WHERE id=1').fetchone()
+            if checkpoint:
+                return json.loads(checkpoint[0]).get('delivery_receipts',{}).get(event_id)
             return None
         try:
             body = json.loads(row[1], parse_float=Decimal)
@@ -489,6 +492,8 @@ class PortfolioAccounting:
             "journal_hash": ZERO_HASH,
             "retired": {lane: {"realized_pnl": Decimal(0), "fees": Decimal(0), "count": 0} for lane in LANES},
             "native_cursors": {},
+            "retired_native_through": {},
+            "delivery_receipts": {},
         }
 
     def configure_family_sleeves(self):
@@ -554,13 +559,13 @@ class PortfolioAccounting:
             raise PortfolioIntegrityError("portfolio_sequence_gap")
         return state
 
-    def _require_epoch(self, state, epoch_id, at):
+    def _require_epoch(self, state, epoch_id, at, *, native=False):
         if epoch_id != state["receipt"]["epoch_id"]:
             raise PortfolioIntegrityError("cross_epoch_fact")
         when = _stamp(at)
         if when < _stamp(state["receipt"]["inception_at"]):
             raise PortfolioIntegrityError("pre_inception_fact")
-        if when < _stamp(state["last_at"]):
+        if not native and when < _stamp(state["last_at"]):
             raise PortfolioIntegrityError("portfolio_time_regression")
 
     @staticmethod
@@ -577,7 +582,7 @@ class PortfolioAccounting:
 
     def _apply(self, state, event):
         action, data = event["action"], event["data"]
-        self._require_epoch(state, event["epoch_id"], event["at"])
+        self._require_epoch(state, event["epoch_id"], event["at"],native=bool(data.get('provenance',{}).get('native_sequence')))
         if action not in ("inception", "publish"):
             # A prior file remains a valid historical snapshot, but it is no
             # longer the projection of the journal head.
@@ -670,7 +675,14 @@ class PortfolioAccounting:
             state["last_publish"] = {"as_of": event["at"], "valid_until": data["valid_until"]}
         else:
             raise PortfolioIntegrityError("unknown_portfolio_action")
-        state["last_at"] = event["at"]
+        if data.get('included_fee') is not None:
+            # Native books already include these paid costs in basis or net
+            # proceeds. Attribute them without charging the cash movement twice.
+            cost=_money(data['included_fee'],nonnegative=True)
+            p=state['positions'][data['lifecycle_id']]
+            p['fees']+=cost
+            p['gross_result']+=cost
+        if _stamp(event["at"])>=_stamp(state["last_at"]):state["last_at"] = event["at"]
         provenance = data.get("provenance") or {}
         if provenance.get("native_sequence") is not None:
             lane = data.get("lane") or str(data.get("lifecycle_id", "")).split(":")[0]
@@ -920,7 +932,7 @@ class PortfolioAccounting:
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="release_reservation", data=data)
 
     def enter(self, *, epoch_id, event_id, reservation_id, lifecycle_id, lane, asset, basis,
-              fee, at, strategy_id, provenance, prior_stages=(), lane_state=None):
+              fee, at, strategy_id, provenance, prior_stages=(), lane_state=None,included_fee=None):
         if lane not in LANES:
             raise ValueError("unknown_lane")
         data = {
@@ -935,10 +947,11 @@ class PortfolioAccounting:
             "lane_state": _lane_state(lane, lane_state),
             "provenance": _provenance(provenance, at, valued=True),
         }
+        if included_fee is not None:data['included_fee']=_amount(_money(included_fee,nonnegative=True))
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="enter", data=data)
 
     def realize(self, *, epoch_id, event_id, lifecycle_id, basis_released, gross_proceeds,
-                fee, at, provenance, harvest=False):
+                fee, at, provenance, harvest=False,included_fee=None):
         action = "harvest" if harvest else "partial_realization"
         data = {
             "lifecycle_id": _identity(lifecycle_id),
@@ -947,10 +960,11 @@ class PortfolioAccounting:
             "fee": _amount(_money(fee, nonnegative=True)),
             "provenance": _provenance(provenance, at, valued=True),
         }
+        if included_fee is not None:data['included_fee']=_amount(_money(included_fee,nonnegative=True))
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action=action, data=data)
 
     def rebalance(self, *, epoch_id, event_id, lifecycle_id, reservation_id, basis_released,
-                  gross_proceeds, basis_added, fee, at, provenance, lane_state=None):
+                  gross_proceeds, basis_added, fee, at, provenance, lane_state=None,included_fee=None):
         current = deepcopy(self._state)
         if current is None:
             raise PortfolioIntegrityError("portfolio_not_initialized")
@@ -965,9 +979,10 @@ class PortfolioAccounting:
             "lane_state": _lane_state(lane, lane_state),
             "provenance": _provenance(provenance, at, valued=True),
         }
+        if included_fee is not None:data['included_fee']=_amount(_money(included_fee,nonnegative=True))
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="rebalance", data=data)
 
-    def settle(self, *, epoch_id, event_id, lifecycle_id, gross_proceeds, fee, exit_reason, at, provenance):
+    def settle(self, *, epoch_id, event_id, lifecycle_id, gross_proceeds, fee, exit_reason, at, provenance,included_fee=None):
         state = deepcopy(self._state)
         if state is None:
             raise PortfolioIntegrityError("portfolio_not_initialized")
@@ -980,6 +995,7 @@ class PortfolioAccounting:
             "exit_reason": _identity(exit_reason),
             "provenance": _provenance(provenance, at, valued=True),
         }
+        if included_fee is not None:data['included_fee']=_amount(_money(included_fee,nonnegative=True))
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="settle", data=data)
 
     def mark(self, *, epoch_id, event_id, lifecycle_id, at, provenance, state,
@@ -1165,6 +1181,28 @@ class PortfolioAccounting:
                 totals["count"] += 1
                 del state["positions"][p["id"]]
             self._reconcile(state)
+            # Keep a bounded duplicate-delivery suffix. A closed local identity
+            # older than it is fenced by its monotone native retirement index.
+            receipts=dict(state.get('delivery_receipts',{}))
+            for event_id,sequence,raw,checksum in self.db.execute('SELECT event_id,sequence,body,hash FROM portfolio_events ORDER BY sequence'):
+                receipts[event_id]=dict(sequence=sequence,body=json.loads(raw),hash=checksum)
+            state['delivery_receipts']=dict(sorted(receipts.items(),key=lambda item:item[1]['sequence'])[-512:])
+            from meme_machine.runtime.lifecycle_identity import parsed
+            protected=set(state['positions'])
+            for reservation in state['reservations'].values():
+                native=reservation.get('provenance',{}).get('native_lifecycle_id')
+                if native:protected.add(reservation['lane']+':'+native)
+            for lane,body in self.db.execute('SELECT lane,body FROM portfolio_native_pending'):
+                protected.add(lane+':'+json.loads(body)['native_lifecycle_id'])
+            for alias,lane,native in self.db.execute('SELECT id,lane,native FROM portfolio_native_ids').fetchall():
+                key=lane+':n'+str(alias)
+                if key in protected:continue
+                issued=parsed(native)
+                if issued:
+                    floor=state['retired_native_through'].get(lane,0)
+                    state['retired_native_through'][lane]=max(floor,issued['index'])
+                self.db.execute('DELETE FROM portfolio_native_ids WHERE id=?',(alias,))
+                state['native_cursors'].pop(key,None)
             encoded = _encode_checkpoint(state)
             self.db.execute("INSERT OR REPLACE INTO portfolio_checkpoint VALUES(1,?,?)", (canonical(encoded), digest(encoded)))
             self.db.execute("DROP TRIGGER portfolio_events_no_delete")

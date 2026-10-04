@@ -38,6 +38,13 @@ class Pipeline:
             self.db.execute('INSERT INTO progress(lane,policy_hash,candidate,stage,reason,classification,at,monotonic,details) VALUES(?,?,?,?,?,?,?,?,?)',
                 (self.lane,self.policy_hash,c,stage,reason,classification,at,mono,json.dumps(details,sort_keys=True)))
             self._index(c,stage,reason,classification,at,mono)
+            if self.records>=8192:
+                from meme_machine.runtime.storage import audit_ring
+                with self.db:
+                    audit_ring(self.db,'progress','progress_no_delete',key='sequence')
+                    self.db.execute('DELETE FROM progress_sources WHERE sequence<(SELECT MAX(p.sequence) FROM progress_sources p WHERE p.source=progress_sources.source)')
+                self.stages.clear();self.classes.clear();self.reasons.clear();self.records=0
+                for row in self.db.execute('SELECT candidate,stage,reason,classification,at,monotonic FROM progress ORDER BY sequence'):self._index(*row)
         self.write_seconds+=time.monotonic()-mono
 
     def snapshot(self):
@@ -53,7 +60,7 @@ class Pipeline:
                      'no_authentic_activity','local_budget_exhausted','consumer_deadline')
             return dict(schema='lane-opportunity-coverage-v1',lane=self.lane,
                 identity_scope='native_candidate_identity; stages and classes overlap; never sum as losses',
-                raw_records=self.records,
+                raw_records=self.records,retention='latest 4096-8192 debug transitions',
                 authenticated_triggers=len(self.stages['trigger_started']),
                 terminally_classified_triggers=len(self.stages['trigger_terminal']),
                 unresolved_triggers=len(self.stages['trigger_started']-self.stages['trigger_terminal']),

@@ -53,6 +53,8 @@ class PaperBook:
         if json.loads(self.db.execute('SELECT body FROM genesis').fetchone()[0]) != self.identity:
             raise ValueError('paper_book_namespace_or_genesis_mismatch')
         self.replay()
+        from meme_machine.runtime.native_boundary import attach
+        self.portfolio=attach(self,'pump' if 'pump' in self.identity['lane'] else 'pons')
 
     @contextmanager
     def transaction(self):
@@ -61,8 +63,11 @@ class PaperBook:
             try:
                 yield
                 self.db.execute('COMMIT')
+                if getattr(self,'portfolio',None):self.portfolio.flush()
+                from meme_machine.runtime.storage import compact_pump
+                compact_pump(self)
             except BaseException:
-                self.db.execute('ROLLBACK')
+                if self.db.in_transaction:self.db.execute('ROLLBACK')
                 raise
 
     def _load(self, identity):

@@ -6,6 +6,7 @@ capital held, never available twice. There is no cross-sleeve borrowing.
 """
 from contextlib import contextmanager
 import json
+import os
 from pathlib import Path
 import sqlite3
 import threading
@@ -124,6 +125,17 @@ class SleeveReservations:
                 or type(minimum_bps) is not int or not 0<=minimum_bps<=target_bps):
             raise ValueError('directional_sizing_bps')
         state=self.reconcile();equity=state['capital']+state['realized']
+        database=os.environ.get('MM_PORTFOLIO_ACCOUNTING_DB')
+        if database:
+            from meme_machine.runtime.portfolio import NativePortfolio
+            from meme_machine.runtime.usd_valuation import native_reader
+            from decimal import Decimal,localcontext
+            import time
+            value=native_reader(self.identity['lane'])(int(time.time()))
+            with localcontext() as context:
+                context.prec=80
+                usd=NativePortfolio(database,self.identity['lane']).equity()
+                equity=int(usd*(Decimal(10)**value.decimals)/value.usd_per_unit)
         target=max(0,equity)*target_bps//10000
         return dict(genesis_capital=state['capital'],realized_pnl=state['realized'],
             realized_equity=equity,reserved=state['reserved'],available=state['available'],

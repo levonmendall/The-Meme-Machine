@@ -362,16 +362,24 @@ class PumpAccelerationPaperLifecycle:
         book.replay()
         with book.lock:
             anchor=book._archive()
+            saved=(anchor or {}).get('controller_snapshots',{}).get(lifecycle_id)
             records=list((anchor or {}).get('controller_events',{}).get(lifecycle_id,[]))
             records.extend(json.loads(raw) for raw, in book.db.execute(
                 'SELECT body FROM journal ORDER BY seq'))
             expected=book._load(lifecycle_id)
         records=[row for row in records if row['position']['id']==lifecycle_id]
-        if not records or records[0]['action']!='reserved':
+        if saved:
+            state=saved['state'];life=cls(lifecycle_id=lifecycle_id,entry_evidence=saved['entry_evidence'])
+            life.reservation=state['reservation']
+            life.position=PaperPosition(**state['position']) if state['position'] else None
+            life.history=list(state['history'])
+            prior=anchor['positions'][lifecycle_id]
+        elif not records or records[0]['action']!='reserved':
             raise ValueError('pump_recovery_reservation_missing')
-        first=records[0]['evidence']
-        life=cls(lifecycle_id=lifecycle_id,entry_evidence=first.get('snapshot') or {})
-        prior=None
+        else:
+            first=records[0]['evidence']
+            life=cls(lifecycle_id=lifecycle_id,entry_evidence=first.get('snapshot') or {})
+            prior=None
         for row in records:
             action=row['action'];at=row['at'];position=row['position'];evidence=row['evidence']
             if action=='reserved':

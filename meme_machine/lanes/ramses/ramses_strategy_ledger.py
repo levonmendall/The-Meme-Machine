@@ -44,8 +44,10 @@ class RamsesStrategyLedger:
         with preserved as source:
             try:
                 self._initialize()
+                from meme_machine.runtime.native_boundary import attach
+                self.portfolio=attach(self,'ramses')
                 if source:
-                    from certification.ramses_archive import compact
+                    from meme_machine.runtime.ramses_archive import compact
                     compact(self,*source)
             except BaseException:
                 if hasattr(self,'db'):self.db.close()
@@ -102,11 +104,12 @@ class RamsesStrategyLedger:
 
 
     def _project_committed(self,body):
+        if getattr(self,'portfolio',None):self.portfolio.flush()
         import os
         from pathlib import Path
-        cache=os.environ.get('MM_CERTIFICATION_RPC_CACHE_DB')
+        cache=os.environ.get('MM_RPC_CACHE_DB')
         if not cache:return
-        from certification.robinhood.plane import project_native_position
+        from meme_machine.runtime.robinhood.plane import project_native_position
         from .identity import load
         key='ramses:4663:'+load('ramses_factory')['address'].lower()+':'+body['pool'].lower()
         project_native_position(Path(cache).with_suffix('.candidates.sqlite'),'ramses',key,body,
@@ -132,6 +135,9 @@ class RamsesStrategyLedger:
     def _save(self, body, action):
         encoded = _canonical(body)
         checksum = _digest(body)
+        if getattr(self,'portfolio',None):
+            prior=self.db.execute('SELECT body FROM ramses_strategy_position WHERE id=?',(body['id'],)).fetchone()
+            self.portfolio.record(body['id'],action,body,json.loads(prior[0]) if prior else None,at=body['at'],checksum=checksum)
         self.db.execute(
             "INSERT OR REPLACE INTO ramses_strategy_position VALUES(?,?,?)",
             (body["id"], encoded, checksum),
@@ -189,7 +195,7 @@ class RamsesStrategyLedger:
             if reserved>self.reconcile()['available']:
                 raise BoundaryError("ramses_strategy_capital_exhausted")
             from meme_machine.runtime.lifecycle_identity import validate_new
-            from certification.ramses_archive import anchor
+            from meme_machine.runtime.ramses_archive import anchor
             validate_new(identity,archived=(anchor(self.db) or {}).get('archived_entry_scope'))
             self._save(body, "reserve")
             self.db.execute("COMMIT")
@@ -256,7 +262,7 @@ class RamsesStrategyLedger:
             if reserved>self.reconcile()['available']:
                 raise BoundaryError("ramses_strategy_capital_exhausted")
             from meme_machine.runtime.lifecycle_identity import validate_new
-            from certification.ramses_archive import anchor
+            from meme_machine.runtime.ramses_archive import anchor
             validate_new(identity,archived=(anchor(self.db) or {}).get('archived_entry_scope'))
             self._save(body, "forced_machinery_reserve")
             self.db.execute("COMMIT")
@@ -407,7 +413,7 @@ class RamsesStrategyLedger:
             ):
                 raise BoundaryError("ramses_strategy_ledger_domain_drift")
             positions.append(body)
-        from certification.ramses_archive import anchor
+        from meme_machine.runtime.ramses_archive import anchor
         folded=(anchor(self.db) or {}).get('folded',{})
         realized = folded.get('realized',0)+sum(p["realized"] for p in positions if p["status"] == "settled")
         committed = sum(p["reserved"] for p in positions if p["status"] != "settled")

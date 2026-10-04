@@ -31,9 +31,12 @@ class PaperBook:
                    if economic_replay else nullcontext(None))
         with preserved as source:
             self._initialize()
+            from meme_machine.runtime.native_boundary import attach
+            self.portfolio=attach(self,'meteora')
             if source:
-                from certification.meteora_archive import compact
+                from meme_machine.runtime.meteora_archive import compact
                 compact(self,*source,economic_replay)
+
 
     def _initialize(self):
         with closing(self.connect()) as db:
@@ -57,13 +60,13 @@ class PaperBook:
         return issue(NAMESPACE+':'+self.run_id+':'+str(uuid.uuid4()))
 
     def events(self,db):
-        from certification.meteora_archive import events
+        from meme_machine.runtime.meteora_archive import events
         return events(db,self.genesis)
 
     def _replay(self,db):
         state=dict(cash=self.genesis['capital'],positions={},realized=0,net_cash_flows=0,
                    capital_unit_nanoseconds=0,last_at_ns=0,hash='0'*64,events=0)
-        from certification.meteora_archive import anchor
+        from meme_machine.runtime.meteora_archive import anchor
         saved=anchor(db,self.genesis)
         if saved:
             genesis=db.execute('SELECT body,hash FROM events WHERE seq=1').fetchone()
@@ -131,13 +134,16 @@ class PaperBook:
     def append(self,identity,action,data,*,at_ns=None):
         with closing(self.connect()) as db:
             db.execute('BEGIN IMMEDIATE');state=self._replay(db)
+            previous=json.loads(encode(state['positions'].get(identity)))
             if action=='reserve':
                 from meme_machine.runtime.lifecycle_identity import validate_new
-                from certification.meteora_archive import anchor
+                from meme_machine.runtime.meteora_archive import anchor
                 validate_new(identity,archived=(anchor(db,self.genesis) or {}).get('archived_entry_scope'))
             event=dict(action=action,identity=identity,data=data,previous=state['hash'],at_ns=time.time_ns() if at_ns is None else at_ns)
             self._apply(state,event)
+            if self.portfolio:self.portfolio.record(identity,action,state['positions'][identity],previous,at=event['at_ns']//1000000000,checksum=digest(event),data=data)
             db.execute('INSERT INTO events VALUES(?,?,?)',(state['events']+1,encode(event),digest(event)));db.commit()
+        if self.portfolio:self.portfolio.flush()
         return self.reconcile()
 
     def recover_unfilled_reservations(self):
@@ -153,15 +159,19 @@ class PaperBook:
             at=max(time.time_ns(),state['last_at_ns'])
             for identity,row in state['positions'].items():
                 if row['status']!='reserved':continue
+                previous=json.loads(encode(row))
                 event=dict(action='cancel',identity=identity,
                     data=dict(reason='restart_before_paper_fill'),
                     previous=state['hash'],at_ns=at)
                 self._apply(state,event);checksum=digest(event)
+                if self.portfolio:self.portfolio.record(identity,'cancel',state['positions'][identity],previous,
+                    at=at//1000000000,checksum=checksum,data=event['data'])
                 db.execute('INSERT INTO events VALUES(?,?,?)',
                            (state['events']+1,encode(event),checksum))
                 state.update(events=state['events']+1,hash=checksum)
                 cancelled.append(identity)
             db.commit()
+        if self.portfolio:self.portfolio.flush()
         return cancelled
 
     def fail(self,identity,reason):
@@ -176,7 +186,7 @@ class PaperBook:
         with closing(self.connect()) if owned else nullcontext(db) as db:
             if owned:db.execute('BEGIN')
             s=self._replay(db)
-            from certification.meteora_archive import anchor
+            from meme_machine.runtime.meteora_archive import anchor
             folded=(anchor(db,self.genesis) or {}).get('folded',{})
         open_rows=[p for p in s['positions'].values() if p['status'] in ('open','unresolved')]
         marked=sum(p['mark']['ending_sol_lamports']-p['exit_cost'] for p in open_rows)
@@ -202,7 +212,7 @@ class PaperBook:
         with closing(self.connect()) if owned else nullcontext(db) as db:
             if owned:db.execute('BEGIN')
             self._replay(db)
-            from certification.meteora_archive import anchor
+            from meme_machine.runtime.meteora_archive import anchor
             checked=(anchor(db,self.genesis) or {}).get('folded',{}).get('economic_events',0)
             for event in self.events(db):
                 data=event['data'];identity=event['identity']

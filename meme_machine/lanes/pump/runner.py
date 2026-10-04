@@ -15,6 +15,7 @@ from collections import Counter,deque
 from pathlib import Path
 from types import SimpleNamespace
 
+from meme_machine.runtime.request_scheduling import position_work
 from meme_machine.runtime.execution_capacity import resize, turnover_capacity
 from meme_machine.lanes.pump import pump
 from meme_machine.lanes.pump.concentration import ConcentrationReader
@@ -448,6 +449,7 @@ def _reserve_position(
     )
 
 
+@position_work
 def _fill_pending(
     report,pending,active,sessions,postgrad,now,*,
     tape=None,created=None,confirmations=None
@@ -629,7 +631,7 @@ def _service_pending_entries(report,pending,active,sessions,postgrad,*,monitor):
     while pending:
         monitor()
         _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
-        if pending:time.sleep(1)
+        if pending:_stop_sleep(1)
 
 def _record_attempt(report,signal,q,stage,extra=None):
     plane=(FILL_PERSISTENCE_CONTEXT or {}).get('plane')
@@ -692,6 +694,7 @@ def _record_attempt(report,signal,q,stage,extra=None):
     report["attempts"]=report["attempts"][-1000:]
 
 
+@position_work
 def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now):
     # Exact frozen exit controller on natural qualifiers.  Each qualifier is
     # an isolated research lifecycle; no shared Store capital is mutated.
@@ -890,9 +893,8 @@ class RollingAttemptBudget:
 
 
 def _terminal(report,row):
-    with REPORT.with_suffix('.terminal.jsonl').open('a') as sink:
-        sink.write(json.dumps(dict(policy_hash=policy_hash(),**row),sort_keys=True)+'\n')
-        sink.flush();os.fsync(sink.fileno())
+    from meme_machine.runtime.storage import jsonl_ring
+    jsonl_ring(REPORT.with_suffix('.terminal.jsonl'),dict(policy_hash=policy_hash(),**row))
     counts=report.setdefault('terminal_reason_counts',{})
     _progress(row.get("mint","unknown"),"terminal",row["terminal_reason"])
     reason=row['terminal_reason'];counts[reason]=counts.get(reason,0)+1
@@ -982,18 +984,18 @@ def main(*,campaign=False,discovery_seconds=None):
     discovery_seconds=DISCOVERY_SECONDS if discovery_seconds is None else int(discovery_seconds)
     if not 600<=discovery_seconds<=(21600 if campaign else 3300):
         raise ValueError('pump_discovery_runtime_bound')
-    smoke_flat_tail=bool(campaign and os.environ.get('MM_CERTIFICATION_PHASE')=='smoke')
+    smoke_flat_tail=bool(campaign and os.environ.get('MM_OPERATIONAL_PHASE')=='smoke')
     actual_policy_hash=policy_hash()
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
     confirmations=ConfirmationBook.from_files()
-    run_id=os.environ.get("MM_CERTIFICATION_RUN_ID") or uuid.uuid4().hex
+    run_id=os.environ.get("MM_PAPER_EPOCH") or uuid.uuid4().hex
     accounting_path=REPORT.with_suffix(".accounting.sqlite3")
     if accounting_path.exists():
         import sqlite3
         with sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True) as prior:
             genesis=json.loads(prior.execute('SELECT body FROM genesis').fetchone()[0])
-        if os.environ.get('MM_CERTIFICATION_RUN_ID') not in (None,genesis['run_id']):
+        if os.environ.get('MM_PAPER_EPOCH') not in (None,genesis['run_id']):
             raise RuntimeError('paper_recovery_run_identity_mismatch')
         run_id=genesis['run_id']
     ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
@@ -1055,7 +1057,7 @@ def main(*,campaign=False,discovery_seconds=None):
     sessions=Sessions();sessions.plane=plane
     survivor=None
     if os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')=='1':
-        from certification.survivor_history import Worker
+        from meme_machine.runtime.survivor_history import Worker
         from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
         survivor=Worker(lambda:Runtime(REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))
         report['active_regimes']=[STRATEGY_ID,'pumpswap-survivor-momentum-v1']
@@ -1095,7 +1097,7 @@ def main(*,campaign=False,discovery_seconds=None):
                 report["evidence_plane_wait"]=str(exc)
                 if now-last_save>=2:
                     report['stream']=plane.telemetry();_save(report);last_save=now
-                time.sleep(.25);continue
+                _stop_sleep(.25);continue
             for event in fresh:
                 creation=tape.creation(event["mint"])
                 if creation is None:
@@ -1381,7 +1383,7 @@ def main(*,campaign=False,discovery_seconds=None):
                          marks=dict(v["marks"]),snapshot=v["lifecycle"].snapshot())
                     for k,v in active.items()]
                 _save(report);last_save=now
-            time.sleep(1)
+            _stop_sleep(1)
     finally:
         if survivor is not None:report['survivor']=survivor.close()
         stop.set();thread.join(timeout=5)
@@ -1423,3 +1425,8 @@ def main(*,campaign=False,discovery_seconds=None):
 
 if __name__=="__main__":
     main()
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

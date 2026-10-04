@@ -115,6 +115,9 @@ class LifecycleState(SimpleNamespace):
         entries=[paper.store.get(JOURNAL_CATEGORY,key) for key, in paper.store.db.execute(
             'SELECT id FROM records WHERE category=?',(JOURNAL_CATEGORY,))]
         entries=[e for e in entries if e['position']['id']==identity and e['action']=='entry']
+        from meme_machine.runtime.storage import pons_prefix
+        retained=pons_prefix(paper).get(identity,{}).get('entry')
+        if retained:entries=[retained]
         if len(entries)!=1 or entries[0]['at']!=raw['opened_at'] or raw['opened_at']!=base['opened_at']:
             raise BoundaryError('selective_controller_original_hold_clock')
         data=dict(raw);data.pop('schema');data.pop('policy_hash')
@@ -149,7 +152,7 @@ def settle_recovered(guard,paper,position,*,at):
 def recovery_evaluation(base,db_path):
     evaluation=json.loads(canonical(base['evaluation']))
     if evaluation.get('candidate_plane_path'):
-        from certification.robinhood.plane import plane_path
+        from meme_machine.runtime.robinhood.plane import plane_path
         path=plane_path(Path(db_path).parent/'candidate-evidence.sqlite')
         if not path.is_file():raise BoundaryError('selective_recovery_candidate_plane_missing')
         # Only the local artifact locator changes. Candidate, policy, ledger and
@@ -215,7 +218,7 @@ def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None):
                 guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
                 result['cohort_reconciliation']=settle_recovered(guard,paper,p,at=p['last_at'])
             if evaluation.get('candidate_plane_path'):
-                from certification.robinhood.plane import project_native_position
+                from meme_machine.runtime.robinhood.plane import project_native_position
                 project_native_position(evaluation['candidate_plane_path'],'pons',
                     evaluation['candidate_broker_identity'],p,ledger_path=db_path,policy=POLICY_HASH)
             return result
@@ -228,7 +231,7 @@ def _pending_recoveries(root,qualifiers,lifecycles):
     """Restore native trial ownership before the cohort admits another candidate."""
     from contextlib import closing
     import re
-    from certification.robinhood.pons import coalesce_lifecycle_rows
+    from meme_machine.runtime.robinhood.pons import coalesce_lifecycle_rows
     from .pons_selective_paper import STRATEGY_CAPITAL_QUOTE
     root=Path(root)
     capital_path=root/'pons-selective-cohort-capital.sqlite'
@@ -284,7 +287,7 @@ def submit_existing_lifecycles(endpoint,root,qualifiers,lifecycles,*,pool):
 def recover_existing_lifecycles(endpoint,root,qualifiers,lifecycles,*,on_recovered):
     """Synchronous no-entry continuation for callers without discovery authority."""
     from concurrent.futures import ThreadPoolExecutor
-    from certification.robinhood.pons import coalesce_lifecycle_rows
+    from meme_machine.runtime.robinhood.pons import coalesce_lifecycle_rows
     pending,guard,capital_path=_pending_recoveries(root,qualifiers,lifecycles)
     receipts=[]
     with ThreadPoolExecutor(max_workers=8) as pool:

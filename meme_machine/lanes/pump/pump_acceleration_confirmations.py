@@ -23,8 +23,8 @@ from .pump_acceleration_strategy import (
 )
 
 
-DEFAULT_COHORT=Path("tests/fixtures/solana_alpha_wallet_cohort_frozen.json")
-DEFAULT_CONTRACT=Path("tests/fixtures/solana_skilled_wallet_prospective_contract.json")
+DEFAULT_COHORT=Path(__file__).parent/Path("fixtures/solana_alpha_wallet_cohort_frozen.json")
+DEFAULT_CONTRACT=Path(__file__).parent/Path("fixtures/solana_skilled_wallet_prospective_contract.json")
 
 
 def _iso_epoch(value):

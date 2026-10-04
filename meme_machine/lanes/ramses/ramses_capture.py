@@ -58,7 +58,7 @@ class BoundedMultiRpc:
             or provider_role not in ("authoritative","public_observation")
         ):
             raise BoundaryError("invalid_ramses_provider_shape")
-        from certification.robinhood.provider_authority import reference
+        from meme_machine.runtime.robinhood.provider_authority import reference
         self.endpoint=reference(endpoint) if provider_role=="authoritative" else "public_observation"
         self.provider_role=provider_role
         self.max_sessions=max_sessions
@@ -85,7 +85,7 @@ class BoundedMultiRpc:
     def chain_verified(self):return bool(getattr(self.sessions[-1],'chain_verified',False))
     @property
     def provider_fingerprint(self):
-        from certification.robinhood.provider_authority import fingerprint
+        from meme_machine.runtime.robinhood.provider_authority import fingerprint
         return fingerprint(self.endpoint) if self.canonical_authority else None
 
     def _new(self):
@@ -111,7 +111,7 @@ class BoundedMultiRpc:
         delay=self.rate_cooldown*(2**max(0,int(attempt)))
         self.rate_limit_events+=1
         if delay:
-            time.sleep(delay)
+            _stop_sleep(delay)
             self.rate_limit_sleep_seconds+=delay
         return delay
 
@@ -198,7 +198,7 @@ class BoundedMultiRpc:
                     self.adaptive_batch_splits+=1
                     left=self._batch_chunk(chunk[:mid],scope,depth+1)
                     if self.batch_pause:
-                        time.sleep(self.batch_pause)
+                        _stop_sleep(self.batch_pause)
                     right=self._batch_chunk(chunk[mid:],scope,depth+1)
                     return left+right
                 if attempt>=self.rate_retries:
@@ -215,7 +215,7 @@ class BoundedMultiRpc:
         ]
         for index,chunk in enumerate(chunks):
             if index and self.batch_pause:
-                time.sleep(self.batch_pause)
+                _stop_sleep(self.batch_pause)
             out.extend(self._batch_chunk(chunk,scope))
         return out
 
@@ -645,7 +645,7 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
                     last_state[row['address']]=(tuple(values(initial[2*i])),tuple(values(initial[2*i+1])))
                 slot_started=time.monotonic();slot_end=cursor;polls=0
                 while time.monotonic()-slot_started<WATCH_SLOT_SECONDS and selection is None:
-                    time.sleep(ACTIVITY_POLL_SECONDS)
+                    _stop_sleep(ACTIVITY_POLL_SECONDS)
                     frontier=rpc.call('eth_getBlockByNumber',['latest',False],scope='discovery')
                     height=int(frontier['number'],16)
                     if height<=cursor:continue
@@ -684,7 +684,7 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
             while int(selection_finalized['number'],16)<selection_block:
                 if time.monotonic()-finality_started>=FINALITY_WAIT_SECONDS:
                     raise BoundaryError('selection_finality_timeout')
-                time.sleep(10)
+                _stop_sleep(10)
                 selection_finalized=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
             selection_header=rpc.call('eth_getBlockByNumber',[hex(selection_block),False],scope='discovery')
             if selection_header['hash']!=selection['blockHash']:
@@ -757,7 +757,7 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
             end_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
             while int(end_frontier['timestamp'],16)<target:
                 if time.monotonic()>=finality_deadline:raise BoundaryError('forced_terminal_finality_timeout')
-                time.sleep(10)
+                _stop_sleep(10)
                 end_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
             finalized_frontier=end_frontier
             end_frontier,previous_frontier,search_reads=_first_finalized_block_at_or_after(
@@ -777,14 +777,14 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
             end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
             while int(end_candidate['timestamp'],16)<target:
                 if time.monotonic()>=head_deadline:raise BoundaryError('insufficient_forward_head_window')
-                time.sleep(5)
+                _stop_sleep(5)
                 end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
             end=int(end_candidate['number'],16);end_ts=int(end_candidate['timestamp'],16)
             finality_deadline=time.monotonic()+FORWARD_FINALITY_WAIT_SECONDS
             finalized_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
             while int(finalized_frontier['number'],16)<end:
                 if time.monotonic()>=finality_deadline:raise BoundaryError('terminal_finality_timeout')
-                time.sleep(10)
+                _stop_sleep(10)
                 finalized_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
             end_frontier=rpc.call('eth_getBlockByNumber',[hex(end),False],scope='forward')
             if end_frontier['hash']!=end_candidate['hash']:
@@ -901,3 +901,7 @@ if __name__=='__main__':
     data=base64.b64encode(zlib.compress(raw,9)).decode()
     for i in range(0,len(data),6000):
         print('PUBLIC_EVIDENCE_CHUNK '+str(i//6000)+' '+data[i:i+6000])
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

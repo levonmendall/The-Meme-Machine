@@ -15,10 +15,10 @@ from meme_machine.runtime.directional_sleeve import open_sleeve
 from meme_machine.runtime.execution_capacity import resize,buyer_persistence
 from meme_machine.runtime.journal import digest
 from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,scale
-from certification.survivor_history import History
+from meme_machine.runtime.survivor_history import History
 from meme_machine.runtime.survivor_paper_book import PaperBook
-from certification.robinhood.plane import Plane
-from certification.robinhood.pons import plane_path
+from meme_machine.runtime.robinhood.plane import Plane
+from meme_machine.runtime.robinhood.pons import plane_path
 from . import BoundaryError
 from .abi import calldata,words,scalar
 from .identity import load,authenticate
@@ -93,11 +93,11 @@ class Runtime:
         self.sleeve=open_sleeve('pons',capital)
         if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
         self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
-        from certification.survivor_history import compact_restored_history
+        from meme_machine.runtime.survivor_history import compact_restored_history
         compact_restored_history(self.history,lane='pons')
         self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_VERSION,
                             policy_hash=POLICY_HASH,initial=capital)
-        from certification.survivor_terminal_archive import compact
+        from meme_machine.runtime.survivor_terminal_archive import compact
         compact(self.book,self.sleeve,self.history)
         self.plane=Plane(plane_path(self.root/'candidate-evidence.sqlite'))
         self.rpc=None;self.current=None;self.last_error=None
@@ -326,6 +326,8 @@ class Runtime:
     def step(self,*,admit):
         discovery_deferred=False
         try:
+            from meme_machine.runtime.storage import compact_survivor
+            compact_survivor(self,'pons')
             self._provider()
             for row in self.history.rows():
                 if row.get('position'):self._position(row,admit=admit)
@@ -375,7 +377,7 @@ class Runtime:
                         self.history.save(row)
             self.last_error=None
         except (ValueError,BoundaryError) as exc:self.last_error=str(exc)
-        from certification.directional_accounting import execution_cost
+        from meme_machine.runtime.directional_accounting import execution_cost
         return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
                     native_execution_cost=execution_cost(self.book),
                     candidate_count=len(self.history.rows()),last_boundary=self.last_error,

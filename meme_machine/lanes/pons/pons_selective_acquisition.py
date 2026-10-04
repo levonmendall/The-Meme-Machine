@@ -157,7 +157,7 @@ class SelectiveEvidenceContext:
     """Reuse one bounded authoritative RPC lane and immutable evidence across candidates."""
 
     def __init__(self,endpoint,cache=None):
-        from certification.robinhood.provider_authority import reference
+        from meme_machine.runtime.robinhood.provider_authority import reference
         self.endpoint=reference(endpoint)
         self.cache=cache or ImmutableEvidenceCache()
         self.rpc=None
@@ -354,7 +354,7 @@ def _rpc(endpoint,*,evidence_deadline=None):
     # Chain authentication is part of this consumer's acquisition budget.
     rpc.evidence_deadline=evidence_deadline
     rpc.verify_chain()
-    from certification.robinhood.provider_authority import require_canonical
+    from meme_machine.runtime.robinhood.provider_authority import require_canonical
     try:require_canonical(rpc)
     except ValueError as exc:raise BoundaryError(str(exc)) from None
     return rpc
@@ -488,7 +488,7 @@ def _authenticate_window(
     for event in selected:
         block_hash=event["blockHash"]
         receipt=receipts[(event["transactionHash"],block_hash)]
-        from certification.robinhood.pons import normalized_cached
+        from meme_machine.runtime.robinhood.pons import normalized_cached
         def build(event=event,receipt=receipt):
             row=raw_event(
                 curve_abi(),event,address=curve,receipt=receipt,

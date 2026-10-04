@@ -7,8 +7,8 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from . import BoundaryError, CHAIN_ID
-from certification.robinhood.provider_usage import http_started
-from certification.robinhood.provider_authority import failure_class, protect_response
+from meme_machine.runtime.robinhood.provider_usage import http_started
+from meme_machine.runtime.robinhood.provider_authority import failure_class, protect_response
 
 RPC_HTTP_HEADERS = {
     'Content-Type': 'application/json',
@@ -155,7 +155,7 @@ class Rpc:
                 # A quota boundary is terminal for this session, never retry it.
                 if '429' in str(exc) or attempt == self.retries:
                     raise
-                time.sleep(0.1 * (attempt + 1))
+                _stop_sleep(0.1 * (attempt + 1))
 
     def _http_batch(self, calls):
         body=json.dumps([
@@ -262,3 +262,8 @@ class Rpc:
         while len(self.cache) > 128:
             self.cache.popitem(last=False)
         return result
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

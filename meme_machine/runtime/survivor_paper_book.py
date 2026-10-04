@@ -67,6 +67,8 @@ class PaperBook:
         if json.loads(self.db.execute('SELECT body FROM genesis').fetchone()[0]) != self.identity:
             raise ValueError('paper_book_namespace_or_genesis_mismatch')
         self.replay()
+        from meme_machine.runtime.native_boundary import attach
+        self.portfolio=attach(self,'pump' if 'pump' in self.identity['lane'] else 'pons')
 
     @contextmanager
     def transaction(self):
@@ -75,8 +77,9 @@ class PaperBook:
             try:
                 yield
                 self.db.execute('COMMIT')
+                if getattr(self,'portfolio',None):self.portfolio.flush()
             except BaseException:
-                self.db.execute('ROLLBACK')
+                if self.db.in_transaction:self.db.execute('ROLLBACK')
                 raise
 
     def _load(self, identity):
@@ -98,6 +101,10 @@ class PaperBook:
         else:
             anchor=self._archive()
             seq,previous=(anchor['seq']+1,anchor['final_hash']) if anchor else (1,'0'*64)
+        boundary=getattr(self,'portfolio',None)
+        if boundary:
+            row=self.db.execute('SELECT body FROM positions WHERE id=?',(position['id'],)).fetchone()
+            boundary.record(position['id'],action,position,json.loads(row[0]) if row else None,at=at,checksum=_hash([seq,previous,body]),data=evidence)
         self.db.execute('INSERT INTO journal VALUES(?,?,?,?)',
                         (seq, _json(body), previous, _hash([seq, previous, body])))
         self.db.execute('INSERT OR REPLACE INTO positions VALUES(?,?)',

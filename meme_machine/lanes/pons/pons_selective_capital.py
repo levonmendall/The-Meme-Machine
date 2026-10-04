@@ -60,7 +60,9 @@ class CohortCapital:
         return db
 
     def _reconcile(self,db):
-        replay={}
+        from meme_machine.runtime.pons_terminal_archive import anchor
+        prefix=anchor(db)
+        replay=json.loads(canonical((prefix or {}).get('positions',{})))
         for identity,action,raw,checksum in db.execute('SELECT id,action,body,hash FROM capital_journal ORDER BY seq'):
             row=json.loads(raw);previous=replay.get(identity)
             if row.get('id')!=identity or checksum!=digest(row) or row.get('policy_hash')!=POLICY_HASH:
@@ -89,7 +91,7 @@ class CohortCapital:
             replay[identity]=row
         projection={identity:json.loads(raw) for identity,raw in db.execute('SELECT id,body FROM capital_positions')}
         if projection!=replay:raise BoundaryError('selective_cohort_projection_mismatch')
-        from certification.pons_terminal_archive import anchor
+        from meme_machine.runtime.pons_terminal_archive import anchor
         prefix=anchor(db);folded=(prefix or {}).get('folded',{})
         rows=list(replay.values())
         reserved=sum(x['reserved'] for x in rows)
@@ -157,6 +159,9 @@ class CohortCapital:
                     sleeve.acknowledge_native(identity,basis=position['remaining_cost'],pnl=position['realized_pnl'],
                         at=position['last_at'],native_hash=digest(position),native_verified=True)
 
+        from meme_machine.runtime.pons_terminal_archive import checkpoint_capital
+        checkpoint_capital(self)
+
     def reconcile(self):
         with closing(self._connect()) as db:
             db.execute('BEGIN')
@@ -190,7 +195,7 @@ class CohortCapital:
     def _write(self,db,row,action):
         raw=canonical(row)
         db.execute('INSERT OR REPLACE INTO capital_positions VALUES(?,?)',(row['id'],raw))
-        from certification.pons_terminal_archive import anchor
+        from meme_machine.runtime.pons_terminal_archive import anchor
         prefix=anchor(db)
         seq=max((prefix or {}).get('sequence',0),db.execute('SELECT COALESCE(MAX(seq),0) FROM capital_journal').fetchone()[0])+1
         db.execute('INSERT INTO capital_journal(seq,id,action,body,hash) VALUES(?,?,?,?,?)',(seq,row['id'],action,raw,digest(row)))
@@ -207,7 +212,7 @@ class CohortCapital:
                     or digest(intent['features'])!=decision_hash):
                 raise BoundaryError('selective_cohort_native_intent_identity')
         from meme_machine.runtime.lifecycle_identity import validate_new
-        from certification.pons_terminal_archive import anchor
+        from meme_machine.runtime.pons_terminal_archive import anchor
         with closing(self._connect()) as db:
             validate_new(identity,archived=(anchor(db) or {}).get('archived_entry_scope'))
         from meme_machine.runtime.directional_sleeve import open_sleeve

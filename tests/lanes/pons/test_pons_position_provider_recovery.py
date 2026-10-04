@@ -10,7 +10,7 @@ from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH
 from meme_machine.lanes.pons.pons_selective_ledger import JOURNAL_CATEGORY
 from meme_machine.lanes.pons.pons_selective_paper import run_lifecycle,STRATEGY_CAPITAL_QUOTE
 from tests.lanes.pons import test_pons_partial_accounting as accounting_fixture
-from certification.execution_capacity import resize
+from meme_machine.runtime.execution_capacity import resize
 
 MODULE='meme_machine.lanes.pons.pons_selective_paper.'
 class PositionRecoveryTests(unittest.TestCase):

@@ -401,6 +401,7 @@ class PortfolioLaneProducer:
                 provenance=provenance,
                 prior_stages=tuple(data.get("prior_stages") or ()),
                 lane_state=deepcopy(data.get("lane_state")),
+                included_fee=data.get('included_fee'),
             )
         if event.kind in ("realize", "harvest"):
             self._require_value_evidence(event)
@@ -410,6 +411,7 @@ class PortfolioLaneProducer:
                 gross_proceeds=_money(data.get("gross_proceeds"), nonnegative=True),
                 fee=_money(data.get("fee", "0"), nonnegative=True),
                 provenance=provenance, harvest=event.kind == "harvest",
+                included_fee=data.get('included_fee'),
             )
         if event.kind == "rebalance":
             self._require_value_evidence(event)
@@ -420,6 +422,7 @@ class PortfolioLaneProducer:
                 basis_added=_money(data.get("basis_added", "0"), nonnegative=True),
                 fee=_money(data.get("fee", "0"), nonnegative=True),
                 provenance=provenance, lane_state=deepcopy(data.get("lane_state")),
+                included_fee=data.get('included_fee'),
             )
         if event.kind == "mark":
             mark_state = data.get("state")
@@ -452,6 +455,7 @@ class PortfolioLaneProducer:
                 fee=_money(data.get("fee", "0"), nonnegative=True),
                 exit_reason=_id(data.get("exit_reason"), "exit_reason"),
                 provenance=provenance,
+                included_fee=data.get('included_fee'),
             )
         raise ValueError("unsupported_lane_event")
 

@@ -88,7 +88,7 @@ def _recover_discovery(endpoint,rpc,result,cursor,reason):
         recoveries.append(dict(
             at=int(time.time()),reason=last,cursor=int(cursor),attempt=attempt,
         ))
-        time.sleep(TRANSPORT_RECOVERY_BACKOFF_SECONDS)
+        _stop_sleep(TRANSPORT_RECOVERY_BACKOFF_SECONDS)
         candidate=None
         try:
             candidate=sample_discovery_rpc(endpoint)
@@ -208,7 +208,7 @@ def _run_lifecycle(endpoint,row,event,index):
         result["minimum_fill_tokens"]=min_tokens
 
         # Same delayed-fill discipline as Solana continuation-v1.
-        time.sleep(max(0,reserved["due"]-int(time.time())))
+        _stop_sleep(max(0,reserved["due"]-int(time.time())))
         try:
             entry,entry_meta,entry_ledger=_wait_curve_quote(
                 rpc,candidate,"buy",PAPER_AMOUNT,gas_units,store,
@@ -262,7 +262,7 @@ def _run_lifecycle(endpoint,row,event,index):
             if rpc.used>145:
                 result["provider_sessions"].append(rpc.telemetry())
                 rpc=paper_rpc(endpoint);rpc.verify_chain()
-            time.sleep(MONITOR_SECONDS)
+            _stop_sleep(MONITOR_SECONDS)
             header=_latest_header(rpc)
             block=int(header["number"],16)
             position=paper._get(identity)
@@ -348,7 +348,7 @@ def _run_lifecycle(endpoint,row,event,index):
                 identity,now=mark.stamp.observed_at,action="exit_intent"
             )
             pending=paper._get(identity)
-            time.sleep(max(0,pending["due"]-int(time.time())))
+            _stop_sleep(max(0,pending["due"]-int(time.time())))
 
             # Graduation may happen during the two-second exit delay.
             if transition is None:
@@ -394,7 +394,7 @@ def _run_lifecycle(endpoint,row,event,index):
                         break
                     if time.monotonic()>=deadline:
                         raise BoundaryError("v4_delayed_exit_quote_timeout")
-                    time.sleep(0.5)
+                    _stop_sleep(0.5)
 
             settled=paper.advance(
                 identity,now=exit_quote.stamp.observed_at,action="exit",
@@ -613,3 +613,7 @@ if __name__=="__main__":
         summary=output["summary"],
         elapsed_seconds=round(output["ended_at"]-output["started_at"],2),
     ),sort_keys=True))
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

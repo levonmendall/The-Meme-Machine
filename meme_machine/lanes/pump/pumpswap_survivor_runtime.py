@@ -14,7 +14,7 @@ from meme_machine.runtime.directional_sleeve import open_sleeve
 from meme_machine.runtime.execution_capacity import buyer_persistence
 from meme_machine.runtime.journal import digest
 from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,scale
-from certification.survivor_history import History
+from meme_machine.runtime.survivor_history import History
 from meme_machine.runtime.survivor_paper_book import PaperBook
 from .engine import GAS,MAYHEM_AGENT_WALLET
 from .postgrad import PostGraduationAdapter,graduation_handoff,buy_quote,sell_quote
@@ -46,12 +46,12 @@ class Runtime:
         self.sleeve=open_sleeve('pump',capital)
         if self.sleeve is None:raise ValueError('survivor_shared_sleeve_required')
         self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
-        from certification.survivor_history import compact_restored_history
+        from meme_machine.runtime.survivor_history import compact_restored_history
         from .pumpswap_survivor import reduce_reset_history
         compact_restored_history(self.history,lane='pump',reducer=reduce_reset_history)
         self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_ID,
                             policy_hash=POLICY_HASH,initial=capital)
-        from certification.survivor_terminal_archive import compact
+        from meme_machine.runtime.survivor_terminal_archive import compact
         compact(self.book,self.sleeve,self.history)
         self.plane=RuntimeEvidence(owner='pump:survivor')
         self.rpc=None;self.current=None;self.last_error=None
@@ -245,6 +245,8 @@ class Runtime:
     def step(self,*,admit):
         discovery_deferred=False
         try:
+            from meme_machine.runtime.storage import compact_survivor
+            compact_survivor(self,'pump')
             rows=self.history.rows()
             for row in rows:
                 if row.get('position'):

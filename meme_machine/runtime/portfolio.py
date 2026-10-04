@@ -38,6 +38,12 @@ class NativePortfolio:
     def _alias(self, account, native):
         if not isinstance(native, str) or not native or len(native) > 2048:
             raise ValueError("native_identity_required")
+        existing=account.db.execute('SELECT id FROM portfolio_native_ids WHERE lane=? AND native=?',(self.lane,native)).fetchone()
+        if existing:return 'n'+str(existing[0])
+        from meme_machine.runtime.lifecycle_identity import parsed
+        issued=parsed(native)
+        if issued and issued['index']<=account.snapshot().get('retired_native_through',{}).get(self.lane,0):
+            raise PortfolioIntegrityError('retired_native_lifecycle_replay')
         account.db.execute("INSERT OR IGNORE INTO portfolio_native_ids(lane,native) VALUES(?,?)", (self.lane, native))
         return "n" + str(account.db.execute("SELECT id FROM portfolio_native_ids WHERE lane=? AND native=?", (self.lane, native)).fetchone()[0])
 
@@ -54,6 +60,18 @@ class NativePortfolio:
                     raise PortfolioIntegrityError("conflicting_native_delivery_intent")
                 return event
             sequence = producer._native_cursors.get((self.lane, alias), 0) + 1
+            tentative=LaneEvent(producer.epoch_id,self.lane,alias,event_key,sequence,journal_hash,kind,at,data,value_evidence)
+            existing=account.canonical_event(producer._event_id(tentative))
+            if existing:
+                sequence=existing['body']['data']['provenance']['native_sequence']
+                at=existing['body']['at']
+            # Native observation clocks stay in their own journal. Serialized
+            # shared publication time cannot regress behind another lane.
+            from meme_machine.portfolio_accounting import _stamp
+            last_at=account.snapshot()["last_at"]
+            if _stamp(at)<_stamp(last_at):at=last_at
+            if kind=='mark' and data.get('state')=='CURRENT' and value_evidence:
+                value_evidence=dict(value_evidence,as_of=at)
             event = LaneEvent(producer.epoch_id, self.lane, alias, event_key, sequence, journal_hash, kind, at, data, value_evidence)
             body = canonical(event.canonical_value())
             # The pending fact is durably stored before any native commit. Native

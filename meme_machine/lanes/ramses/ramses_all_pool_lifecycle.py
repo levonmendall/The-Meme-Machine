@@ -977,7 +977,7 @@ def run(
         result["status"] = "open"
 
         while True:
-            time.sleep(monitor_poll_seconds)
+            _stop_sleep(monitor_poll_seconds)
             # The previous completed poll is preserved in the native ledger.
             # This is a new bounded monitoring operation, not a provider retry.
             try:
@@ -1378,3 +1378,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

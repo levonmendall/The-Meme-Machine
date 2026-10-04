@@ -1,4 +1,4 @@
-"""Optional cross-process read-only transport admission for concurrent certification.
+"""Optional cross-process read-only transport admission for concurrent meme_machine.runtime.
 
 Endpoint credentials never enter SQLite. Existing role pacers and error recovery
 remain authoritative; this adds a shared physical-transport ceiling and telemetry.
@@ -75,7 +75,7 @@ def record_service(db,endpoint,lane,is_position):
 
 
 def fingerprint(endpoint):
-    from certification.robinhood import provider_authority as authority
+    from meme_machine.runtime.robinhood import provider_authority as authority
     try:return authority.fingerprint(endpoint)
     except ValueError:pass
     from urllib.parse import urlsplit
@@ -174,14 +174,16 @@ class Admission:
                 request_id=ticket,methods=methods,transport_attempted=False,
                 priority=priority(scope),failure_domain=None if granted else 'local_admission',
                 reason='granted' if granted else failure or 'admission_failed')),))
+            from meme_machine.runtime.storage import audit_ring
+            audit_ring(db,'admissions','no_admission_delete')
             db.close()
     def telemetry(self):
-        from certification.robinhood.provider_usage import snapshot
+        from meme_machine.runtime.robinhood.provider_usage import snapshot
         return snapshot(self.path,self.endpoint)
 
     def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None,batch=False):
-        from certification.robinhood.provider_usage import _active
-        from certification.robinhood.provider_authority import failure_class
+        from meme_machine.runtime.robinhood.provider_usage import _active
+        from meme_machine.runtime.robinhood.provider_authority import failure_class
         attempt=dict(physical_requests=0,path=str(self.path),endpoint_fingerprint=self.endpoint,
             lane=self.lane,session=self.session,methods=methods,scope=scope,retry_attempt=retry_count,batch=batch)
         token=_active.set(attempt)
@@ -217,15 +219,17 @@ class Admission:
                 db.execute('BEGIN IMMEDIATE')
                 if http_status==429 or rpc_code==429:
                     db.execute('UPDATE limits SET cooldown=MAX(cooldown,?) WHERE endpoint=?',(self.clock()+8,self.endpoint))
-                from certification.robinhood.provider_usage import record
+                from meme_machine.runtime.robinhood.provider_usage import record
                 record(db,row,wire=False)
                 db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(row,sort_keys=True),))
+                from meme_machine.runtime.storage import audit_ring
+                audit_ring(db,'transports','no_transport_delete')
                 db.execute('COMMIT')
             finally:db.close()
 
 
 def configured(endpoint, mandatory=False):
-    from certification.robinhood.provider_authority import paths
-    path=paths()['provider'] if mandatory else os.environ.get('MM_CERTIFICATION_PROVIDER_DB')
+    from meme_machine.runtime.robinhood.provider_authority import paths
+    path=paths()['provider'] if mandatory else os.environ.get('MM_PROVIDER_DB')
     if not path:return None
-    return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
+    return Admission(path,endpoint,lane=os.environ.get('MM_RUNTIME_LANE','unknown'))

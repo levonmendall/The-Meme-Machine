@@ -53,7 +53,7 @@ from meme_machine.lanes.meteora.store import encode,digest
 from meme_machine.lanes.meteora.dlmm_independent_accounting import PaperBook
 from meme_machine.lanes.meteora import dlmm_alchemy_provider as provider
 
-POLICY_PATH=Path("SOLANA_DLMM_INDEPENDENT_V1.json")
+POLICY_PATH=Path(__file__).with_name("SOLANA_DLMM_INDEPENDENT_V1.json")
 OUT=Path("solana-dlmm-independent-v1-live.json")
 API_BASE="https://dlmm.datapi.meteora.ag"
 
@@ -97,7 +97,7 @@ class _MeteoraPacer:
             now=time.monotonic()
             wait=max(0.0,self.next-now)
             if wait:
-                time.sleep(wait)
+                _stop_sleep(wait)
                 now=time.monotonic()
             self.next=max(now,self.next)+METEORA_MIN_INTERVAL_SECONDS
 
@@ -543,7 +543,7 @@ def _prove_network_identity(pacer,rpcs):
                 attempt=index,verified=False,reason=str(exc)[:120],
                 rpc=_rpc_metrics(rpc)))
             if index<NETWORK_IDENTITY_MAX_ATTEMPTS:
-                time.sleep(NETWORK_IDENTITY_RETRY_SECONDS*index)
+                _stop_sleep(NETWORK_IDENTITY_RETRY_SECONDS*index)
     raise Unavailable("solana_network_identity_unavailable")
 
 
@@ -765,7 +765,7 @@ def _capture_chunk(
     if wait_seconds<=0:
         raise ValueError("solana_dlmm_chunk_wait")
     _stage(start["pool"],"forward_observation",duration_seconds=wait_seconds)
-    time.sleep(wait_seconds)
+    _stop_sleep(wait_seconds)
     _stage(start["pool"],"reconstruction_started")
     end_snapshot=adapter.snapshot_from_state(
         start,int(time.time()),True,fresh=True)
@@ -1490,7 +1490,7 @@ def _await_fresh_swap_trigger_polling(
                 continue
             # The shared Alchemy pacer has already installed the adaptive cooldown.
             # Yield control without classifying the candidate as failed.
-            time.sleep(min(
+            _stop_sleep(min(
                 FRESH_SWAP_TRIGGER_POLL_SECONDS,remaining))
             continue
         if swaps:
@@ -1503,7 +1503,7 @@ def _await_fresh_swap_trigger_polling(
                 adapter,pacer,rpcs,deadline)
             if int(post["slot"])<trigger_slot:
                 # Finalized pool state must be at or beyond the authenticated swap.
-                time.sleep(FRESH_SWAP_TRIGGER_POLL_SECONDS)
+                _stop_sleep(FRESH_SWAP_TRIGGER_POLL_SECONDS)
                 continue
             trigger.update(
                 triggered=True,
@@ -1524,7 +1524,7 @@ def _await_fresh_swap_trigger_polling(
             _runtime_remaining(deadline))
         if remaining<=0:
             continue
-        time.sleep(min(FRESH_SWAP_TRIGGER_POLL_SECONDS,remaining))
+        _stop_sleep(min(FRESH_SWAP_TRIGGER_POLL_SECONDS,remaining))
 
 
 def _await_fresh_swap_trigger(
@@ -1615,7 +1615,7 @@ def _await_fresh_swap_trigger(
                         0.0,time.monotonic()-started),
                     _runtime_remaining(deadline))
                 if remaining>0:
-                    time.sleep(min(0.5,remaining))
+                    _stop_sleep(min(0.5,remaining))
                 continue
 
             if recovering_gap:
@@ -1660,7 +1660,7 @@ def _await_fresh_swap_trigger(
                     FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
                         0.0,time.monotonic()-started),
                     _runtime_remaining(deadline))
-                if remaining>0:time.sleep(min(0.5,remaining))
+                if remaining>0:_stop_sleep(min(0.5,remaining))
                 continue
             pending_trigger.update(
                 triggered=True,reason="authenticated_fresh_swap",
@@ -1681,7 +1681,7 @@ def _await_fresh_swap_trigger(
             _runtime_remaining(deadline))
         if remaining<=0:
             continue
-        time.sleep(min(0.25,remaining))
+        _stop_sleep(min(0.25,remaining))
 
 def _triggered_warmup(
     adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline=None,broker=None
@@ -1803,22 +1803,22 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
     deadline=run_started_monotonic+max_runtime_seconds
 
     book_path=OUT.with_suffix('.accounting.sqlite3')
-    run_id=os.environ.get('MM_CERTIFICATION_RUN_ID') or str(uuid.uuid4())
+    run_id=os.environ.get('MM_PAPER_EPOCH') or str(uuid.uuid4())
     if book_path.exists():
         import sqlite3
         from contextlib import closing
         with closing(sqlite3.connect(book_path.resolve().as_uri()+'?mode=ro',uri=True)) as db:
             genesis=json.loads(db.execute('SELECT body FROM events ORDER BY seq LIMIT 1').fetchone()[0])['data']
-        if os.environ.get('MM_CERTIFICATION_RUN_ID') not in (None,genesis['run_id']):raise ValueError('runtime_run_identity_mismatch')
+        if os.environ.get('MM_PAPER_EPOCH') not in (None,genesis['run_id']):raise ValueError('runtime_run_identity_mismatch')
         run_id=genesis['run_id']
-    book=PaperBook(book_path,run_id=run_id,policy_hash=digest(policy),capital=1_000_000_000,
+    book=PaperBook(book_path,run_id=run_id,policy_hash=digest(policy),capital=globals().get('NATIVE_GENESIS_CAPITAL',1_000_000_000),
                    economic_replay=(_build_position,_advance_position,_mark))
     # No providers or lifecycle workers exist yet. Only the native journal can
     # establish whether a crashed reservation ever became PAPER inventory.
     book.recover_unfilled_reservations()
     recovered=None
     if book.reconcile()['unsettled']:
-        from certification.position_continuation import restore_meteora_strategy
+        from meme_machine.runtime.position_continuation import restore_meteora_strategy
         recovered=restore_meteora_strategy(book,sys.modules[__name__])
     discovery_telemetry=dict(
         rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
@@ -1925,7 +1925,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                 # multi-hour position owns capital but must not stop market observation.
                 # New admission is capacity-censored until the durable continuation
                 # settles; smoke/standalone behavior remains unchanged.
-                if os.environ.get('MM_CERTIFICATION_PHASE')=='hourly':
+                if os.environ.get('MM_OPERATIONAL_PHASE')=='continuous':
                     failure_counts['paper_capital_occupied']+=1
                     report['attempts'].append(dict(
                         pool=candidate['address'],candidate=candidate,
@@ -2196,3 +2196,8 @@ def main():
 
 if __name__=="__main__":
     main()
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

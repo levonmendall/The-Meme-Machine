@@ -154,7 +154,7 @@ def run(endpoint):
         max_pullback_seen=0;previous_buy=0
         deadline=time.monotonic()+MONITOR_SECONDS
         while time.monotonic()<deadline:
-            time.sleep(POLL_SECONDS)
+            _stop_sleep(POLL_SECONDS)
             rpc=evidence_rpc(endpoint)
             header=_latest_header(rpc)
             current_block=int(header["number"],16)
@@ -235,3 +235,8 @@ if __name__=="__main__":
         status=output["status"],boundary=output.get("boundary"),
         signal=output.get("signal"),
     ),sort_keys=True))
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

@@ -46,3 +46,29 @@ def sol_usd(account,*,now,slot,evidence_hash):
 def robinhood_usd(*args,**kwargs):
     # No config number, historical fixed ETH price or USDG symbol can grant a value.
     raise ValuationUnavailable(USDG_BLOCKER)
+
+
+class NativeValueReader:
+    """Read the existing authenticated account through shared read-only RPC."""
+    def __init__(self,lane,book=None):
+        self.lane=lane
+        self.cached=None
+
+    def __call__(self,now):
+        if self.lane in ('pons','ramses'):
+            return robinhood_usd()
+        if self.cached and self.cached.observed_at<=now<=self.cached.valid_until:
+            return self.cached
+        from meme_machine.solana_read_rpc import new_rpc
+        from meme_machine.lanes.pump.pumpswap_survivor_evidence import SOL_USD_ACCOUNT
+        from meme_machine.runtime.journal import digest
+        rpc=new_rpc(limit=40)
+        response=rpc.call('getMultipleAccounts',[[SOL_USD_ACCOUNT],dict(encoding='base64',commitment='finalized')],priority=True)
+        self.cached=sol_usd(response['value'][0],now=now,slot=response['context']['slot'],evidence_hash=digest(response))
+        return self.cached
+
+
+_readers={}
+def native_reader(lane):
+    if lane not in _readers:_readers[lane]=NativeValueReader(lane)
+    return _readers[lane]

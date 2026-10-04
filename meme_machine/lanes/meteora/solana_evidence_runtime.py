@@ -48,14 +48,14 @@ class RuntimeEvidence:
                 result=json.loads(reply)
                 if result.get('state')=='pending' or result.get('error')=='evidence_control_overloaded':
                     self.counts['ipc_retries']=self.counts.get('ipc_retries',0)+1
-                    time.sleep(min(.05,max(0,end-time.monotonic())));continue
+                    _stop_sleep(min(.05,max(0,end-time.monotonic())));continue
                 if result.get('ok') is not True:raise EvidenceUnavailable(result.get('error','evidence_command_rejected'))
                 if result.get('request_id')!=request['request_id']:raise EvidenceUnavailable('evidence_ack_identity')
                 return result
             except EvidenceUnavailable:raise
             except (OSError,ValueError):
                 self.counts['ipc_retries']=self.counts.get('ipc_retries',0)+1
-                time.sleep(min(.05,max(0,end-time.monotonic())))
+                _stop_sleep(min(.05,max(0,end-time.monotonic())))
         self.counts['ipc_unacknowledged']=self.counts.get('ipc_unacknowledged',0)+1
         error=EvidenceUnavailable('evidence_command_unacknowledged')
         error.request=request # retry this exact envelope; never mint a new counter ID
@@ -245,3 +245,8 @@ class LocalInterestRegistry:
     def remove_address(self,address):
         return self.plane.command(op='release',owner='pump:pool:'+address,scope=SWAP_SCOPE,resolved=False)
     def status(self):return self.plane.telemetry()
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

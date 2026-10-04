@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 from . import BoundaryError, CHAIN_ID
 from .provider import Rpc
-from certification.robinhood import provider_authority as authority
+from meme_machine.runtime.robinhood import provider_authority as authority
 
 
 PRIMARY_ENV = "MM_ROBINHOOD_READ_RPC_URL"
@@ -258,7 +258,7 @@ class PacedRpc(Rpc):
 
     def _record_demand(self, methods):
         if self.canonical_authority:
-            from certification.robinhood.provider_usage import demand
+            from meme_machine.runtime.robinhood.provider_usage import demand
             from .provider import READ_METHODS
             demand(self.shared_admission.path,self.provider_fingerprint,[m for m in methods if m in READ_METHODS])
 
@@ -370,7 +370,7 @@ class PacedRpc(Rpc):
         return out
 
     def telemetry(self):
-        from certification.robinhood.provider_usage import cache_snapshot
+        from meme_machine.runtime.robinhood.provider_usage import cache_snapshot
         data = super().telemetry()
         if self.evidence_reuse:
             data['shared_evidence']=cache_snapshot(authority.paths()['cache'],self.evidence_reuse.domain)
@@ -508,7 +508,7 @@ class ObservationFallbackRpc(PacedRpc):
                 raise
 
     def telemetry(self):
-        from certification.robinhood.provider_usage import cache_snapshot
+        from meme_machine.runtime.robinhood.provider_usage import cache_snapshot
         data = super().telemetry()
         if self.evidence_reuse:
             data['shared_evidence']=cache_snapshot(authority.paths()['cache'],self.evidence_reuse.domain)

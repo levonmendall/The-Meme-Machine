@@ -64,7 +64,7 @@ class ImmutableReads:
                     (self.endpoint,method,key,owner,time.time()+60)).rowcount
                 if changed:self.event(db,method,'miss')
             if changed:break
-            time.sleep(min(.01,max(0,deadline-time.time())))
+            _stop_sleep(min(.01,max(0,deadline-time.time())))
         else:raise Unavailable('immutable_read_consumer_deadline')
         try:
             value=fetch()
@@ -143,3 +143,8 @@ class ImmutableRPCMixin:
             for p,v in zip(params_list,values):
                 if self._body_params(p) and isinstance(v,dict):shared.finalized(v.get('slot'))
         return values
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

@@ -500,7 +500,7 @@ def run(endpoint):
         report["candidate"]["state"]=asdict(candidate["state"])
 
         # Outcome clock starts only after the candidate/quote is frozen.
-        time.sleep(OBSERVE_SECONDS)
+        _stop_sleep(OBSERVE_SECONDS)
         final_header=_latest_header(discovery)
         final_block=int(final_header["number"],16)
         follow=_current_curve_events(discovery,candidate["block"],final_block)
@@ -574,3 +574,8 @@ if __name__=="__main__":
         outcome=result.get("outcome"),
         provider=result["provider"],
     ),sort_keys=True))
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

@@ -290,7 +290,7 @@ def _forward_mark(endpoint,row):
             header=_latest_header(rpc)
             if int(header["timestamp"],16)>=int(entry["asof_time"])+FORWARD_SECONDS:
                 break
-            time.sleep(POLL_SECONDS)
+            _stop_sleep(POLL_SECONDS)
         if header is None or int(header["timestamp"],16)<int(entry["asof_time"])+FORWARD_SECONDS:
             raise BoundaryError("forward_horizon_not_reached")
         block=int(header["number"],16)
@@ -523,3 +523,7 @@ if __name__=="__main__":
         summary=result["summary"],
         elapsed_seconds=round(result["ended_at"]-result["started_at"],2),
     ),sort_keys=True))
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

@@ -14,7 +14,7 @@ import time
 
 from . import BoundaryError
 from .abi import topic
-from certification.robinhood.pons import Broker, durable_cache, plane_path, save_cohort_checkpoint, recover_cohort, provider_totals
+from meme_machine.runtime.robinhood.pons import Broker, durable_cache, plane_path, save_cohort_checkpoint, recover_cohort, provider_totals
 from .pipeline import Pipeline,censor_class
 from .provider_admission import foreground_work
 from .pons_natural_observation import (
@@ -98,12 +98,8 @@ RECOVERY_LOG=ROOT/"sequencer-recoveries.jsonl"
 
 
 def _append_jsonl(path,row):
-    encoded=json.dumps(row,sort_keys=True,separators=(",",":"))
-    with path.open("a",encoding="utf-8") as handle:
-        handle.write(encoded+"\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-
+    from meme_machine.runtime.storage import jsonl_ring
+    jsonl_ring(path,row)
 
 def _atomic_json(path,row):
     raw=json.dumps(row,sort_keys=True,separators=(",",":")).encode()
@@ -169,7 +165,7 @@ def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary
         source_block=event.get('blockNumber'),boundary=str(boundary))
     if screen is not None:
         reason='strategy_current_state:'+','.join(screen['reasons'])
-        from certification.robinhood.accounting import classify,screen_outcome
+        from meme_machine.runtime.robinhood.accounting import classify,screen_outcome
         classification=classify(screen_outcome(screen))[1]
         record('prospect_screened',reason,classification,
                         authenticated_evidence=screen['authenticated_evidence'])
@@ -194,6 +190,8 @@ def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary
 
 def _checkpoint(result,*,cursor,feed,rpc,phase):
     active_provider=rpc.telemetry()
+    from meme_machine.runtime.pons_terminal_archive import retire_controller
+    retire_controller(result)
     save_cohort_checkpoint(result,cursor,phase)
     snapshot=dict(
         kind="pons-selective-continuation-v1-checkpoint",
@@ -243,7 +241,7 @@ def _recover_sequencer(feed,cursor,recoveries):
         except SequencerTransportError as exc:
             last=str(exc)
             if attempt<SEQUENCER_RECONNECT_ATTEMPTS:
-                time.sleep(SEQUENCER_RECONNECT_SLEEP_SECONDS)
+                _stop_sleep(SEQUENCER_RECONNECT_SLEEP_SECONDS)
             continue
         row=dict(
             recovered_at=time.time(),
@@ -310,9 +308,9 @@ def _recover_discovery(
     )
     for attempt in range(1,attempts+1):
         if rate_limited or capacity_limited:
-            time.sleep(PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS*attempt)
+            _stop_sleep(PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS*attempt)
         elif attempt>1:
-            time.sleep(PROVIDER_RECOVERY_SLEEP_SECONDS)
+            _stop_sleep(PROVIDER_RECOVERY_SLEEP_SECONDS)
         try:
             replacement=_discovery(endpoint)
         except BoundaryError as exc:
@@ -501,7 +499,7 @@ def _attach_wallet_overlay(vector,skill_book):
 
 
 def _record_completed_lifecycle(result,life):
-    from certification.robinhood.pons import coalesce_lifecycle_rows
+    from meme_machine.runtime.robinhood.pons import coalesce_lifecycle_rows
     merged=coalesce_lifecycle_rows(result['lifecycles']+[life])
     _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
     result['lifecycles']=merged
@@ -601,7 +599,7 @@ def run(endpoint,*,campaign=False):
 
     if recovered:
         result=recovered
-        from certification.robinhood.pons import restore_position_needs
+        from meme_machine.runtime.robinhood.pons import restore_position_needs
         from .pons_selective_recovery import submit_existing_lifecycles
         restore_position_needs(plane_path(ROOT/'candidate-evidence.sqlite'),ROOT/'pons-selective-cohort-capital.sqlite')
         result['cohort_accounting']=_cohort_accounting()
@@ -621,9 +619,9 @@ def run(endpoint,*,campaign=False):
     rpc=_discovery(endpoint)
     survivor=None
     if os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')=='1':
-        from certification.survivor_history import Worker
+        from meme_machine.runtime.survivor_history import Worker
         from .pons_survivor_runtime import Runtime
-        run_id=os.environ['MM_CERTIFICATION_RUN_ID']
+        run_id=os.environ['MM_PAPER_EPOCH']
         survivor=Worker(lambda:Runtime(ROOT/'pons-survivor',STRATEGY_CAPITAL_QUOTE,run_id,endpoint))
         result['active_regimes']=['pons-selective-continuation-v1','pons-postgrad-survivor-momentum-v1']
     feed=SequencerBlockClock();feed.connect()
@@ -765,7 +763,7 @@ def run(endpoint,*,campaign=False):
             if discovery_future.done():
                 rpc,cursor,fresh=discovery_future.result();discovery_future=None
             while discovery_failures:_checkpoint_provider_failure(*discovery_failures.pop(0))
-            if not fresh and (hydration is None or not hydration.done()):time.sleep(.005)
+            if not fresh and (hydration is None or not hydration.done()):_stop_sleep(.005)
             for curve_key in list(active_curve_futures):
                 collect_curve_future(curve_key)
             futures=[item for item in futures if id(item[1]) not in collected_futures]
@@ -1088,3 +1086,8 @@ if __name__=="__main__":
         elapsed_seconds=round(output["ended_at"]-output["started_at"],2),
     ),sort_keys=True))
 
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

@@ -613,7 +613,7 @@ def run(
         result['checkpoint_at']=time.time()
         result['unique_active_pools']=len(seen_pools)
         if campaign_books is not None:result['campaign_accounting']=campaign_books.reconcile()
-        if campaign or os.environ.get('MM_CERTIFICATION_RUN_ID'):_persist_public_result(result)
+        if campaign or os.environ.get('MM_PAPER_EPOCH'):_persist_public_result(result)
 
     def checkpoint_preentry(candidate,stage,**details):
         identity=details.pop('frontier')
@@ -636,7 +636,7 @@ def run(
 
     try:
         while True:
-            if campaign or os.environ.get("MM_CERTIFICATION_RUN_ID"):
+            if campaign or os.environ.get("MM_PAPER_EPOCH"):
                 result["checkpoint_at"]=time.time()
                 result["frontier_discovery"]=dict(result.get("frontier_discovery",{}),
                     polls=frontier_polls,advances=frontier_advances,
@@ -671,7 +671,7 @@ def run(
                     infrastructure_censored=True)
                 checkpoint_scan(deferred)
                 remaining=max(0,discovery_seconds-(time.monotonic()-started))
-                if remaining:time.sleep(min(DISCOVERY_FRONTIER_POLL_SECONDS,remaining))
+                if remaining:_stop_sleep(min(DISCOVERY_FRONTIER_POLL_SECONDS,remaining))
                 continue
             progress=_frontier_progress(last_observed_frontier,frontier)
             if progress=="advanced":
@@ -705,7 +705,7 @@ def run(
                 finalized_timestamp=int(frontier['timestamp'],16),last_gate_reason=gate_reason,
                 next_scan_eligibility=('eligible' if should_scan else gate_reason),
                 expensive_scans=len(screens))
-            if campaign or os.environ.get('MM_CERTIFICATION_RUN_ID'):_persist_public_result(result)
+            if campaign or os.environ.get('MM_PAPER_EPOCH'):_persist_public_result(result)
 
             if should_scan:
                 scan_started=time.monotonic()
@@ -869,7 +869,7 @@ def run(
                 if until_eligible:
                     sleep_for=min(sleep_for,until_eligible)
             if sleep_for:
-                time.sleep(sleep_for)
+                _stop_sleep(sleep_for)
 
         result["natural_qualifier_found"]=bool(result.get('natural_qualifier_found'))
         result["unique_active_pools"]=len(seen_pools)
@@ -905,7 +905,7 @@ def run(
         else:
             try:
                 if FORCED_PROVIDER_COOLDOWN_SECONDS:
-                    time.sleep(FORCED_PROVIDER_COOLDOWN_SECONDS)
+                    _stop_sleep(FORCED_PROVIDER_COOLDOWN_SECONDS)
                 result["forced_machinery"]=_forced_machinery(
                     endpoint,screen,row,db_path=str(db_path or DB)
                 )
@@ -1006,3 +1006,8 @@ def main(*,campaign=False):
 
 if __name__=="__main__":
     main()
+
+
+def _stop_sleep(seconds):
+    from meme_machine.runtime.stop import sleep
+    return sleep(seconds,sleeper=time.sleep)

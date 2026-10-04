@@ -38,6 +38,8 @@ class SelectivePaper:
         self.natural_policy_hash=str(natural_policy_hash)
         self.on_commit=on_commit
         self.clock_ns=clock_ns
+        self.store.db.execute('CREATE TABLE IF NOT EXISTS pons_journal_checkpoint(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL,hash TEXT NOT NULL)')
+        self.portfolio=None
         self.store.db.execute(
             """CREATE TABLE IF NOT EXISTS pons_selective_paper(
                    id TEXT PRIMARY KEY, body TEXT NOT NULL)"""
@@ -61,6 +63,13 @@ class SelectivePaper:
             ),
         )
 
+        from meme_machine.runtime.native_boundary import attach
+        self.portfolio=attach(self,'pons')
+
+    def events(self,identity):
+        events=[self.store.get(JOURNAL_CATEGORY,key) for key, in self.store.db.execute('SELECT id FROM records WHERE category=?',(JOURNAL_CATEGORY,))]
+        return sorted((e for e in events if e['position']['id']==identity),key=lambda e:e['position']['version'])
+
     def positions(self):
         out=[]
         for body, in self.store.db.execute(
@@ -80,11 +89,15 @@ class SelectivePaper:
             if identity!=f'{p["id"]}:{p["version"]}':
                 raise BoundaryError("selective_journal_identity_mismatch")
             replay.setdefault(p["id"],[]).append(event)
-        latest={}
+        from meme_machine.runtime.storage import pons_prefix
+        prefix=pons_prefix(self)
+        latest={identity:value['event']['position'] for identity,value in prefix.items()}
         for identity,events in replay.items():
             events.sort(key=lambda e:e["position"]["version"])
-            previous=None
-            for version,event in enumerate(events):
+            previous=prefix.get(identity,{}).get('event')
+            events=[e for e in events if previous is None or e['position']['version']>previous['position']['version']]
+            start=previous['position']['version']+1 if previous else 0
+            for version,event in enumerate(events,start):
                 p=event["position"]
                 if p["version"]!=version or (previous is None and event["action"]!="reserve"):
                     raise BoundaryError("selective_journal_sequence_mismatch")
@@ -94,7 +107,7 @@ class SelectivePaper:
                     raise BoundaryError("selective_accounting_clock_regression")
                 self._verify_flow(previous,event)
                 previous=event
-            latest[identity]=events[-1]["position"]
+            if events:latest[identity]=events[-1]["position"]
         if {p["id"]:p for p in out}!=latest:
             raise BoundaryError("selective_projection_mismatch")
         return out
@@ -196,28 +209,30 @@ class SelectivePaper:
         Open exposure is integrated only through the last durable event. This
         is cost basis at risk, not an invented live mark or unrealized return.
         """
-        events=[]
-        for key, in self.store.db.execute("SELECT id FROM records WHERE category=?",(JOURNAL_CATEGORY,)):
-            e=self.store.get(JOURNAL_CATEGORY,key)
-            if e["position"]["id"]==identity:events.append(e)
-        events.sort(key=lambda e:e["position"]["version"])
-        risk=reserved=execution_cost=0;complete=True
+        from meme_machine.runtime.storage import pons_prefix
+        prefix=pons_prefix(self).get(identity)
+        previous=prefix['event'] if prefix else None
+        prior=prefix['accounting'] if prefix else {}
+        events=[e for e in self.events(identity) if previous is None or e['position']['version']>previous['position']['version']]
+        risk=prior.get('capital_at_risk_unit_nanoseconds',0);reserved=prior.get('held_reservation_unit_nanoseconds',0)
+        execution_cost=prior.get('native_execution_cost',0);complete=prior.get('replay_verified',True)
         for index,e in enumerate(events):
             complete=complete and "recorded_at_ns" in e and "quote" in e
-            if index and complete:
-                prev=events[index-1];p=prev["position"]
+            if (index or previous) and complete:
+                prev=events[index-1] if index else previous;p=prev["position"]
                 dt=e["recorded_at_ns"]-prev["recorded_at_ns"]
                 if dt<0:raise BoundaryError("selective_accounting_clock_regression")
                 risk+=(p["reserved"] if p["status"]=="reserved" else p["remaining_cost"])*dt
                 reserved+=p["reserved"]*dt
             if e.get("quote") and (e["action"] in ("entry","scale_add") or (e["action"]=="exit" and e["position"].get("reason") is None)):
                 execution_cost+=e["quote"]["gas_quote"]
-        return dict(replay_verified=bool(events) and complete,
+        last=events[-1] if events else previous
+        return dict(replay_verified=bool(last) and complete,
             capital_at_risk_unit_nanoseconds=risk if complete else None,
             held_reservation_unit_nanoseconds=reserved if complete else None,
             native_execution_cost=execution_cost if complete else None,
-            through_recorded_at_ns=events[-1].get("recorded_at_ns") if events else None,
-            integral_complete=bool(events) and complete and events[-1]["position"]["status"]=="settled")
+            through_recorded_at_ns=last.get("recorded_at_ns") if last else None,
+            integral_complete=bool(last) and complete and last["position"]["status"]=="settled")
 
     def _save(self,p,action,now,quote=None):
         # Controller and ledger share this transaction and immutable journal hash.
@@ -227,15 +242,13 @@ class SelectivePaper:
         recorded_at_ns=int(self.clock_ns())
         if previous and recorded_at_ns<previous.get("recorded_at_ns",0):
             raise BoundaryError("selective_accounting_clock_regression")
-        self.store.put(
-            JOURNAL_CATEGORY,f'{p["id"]}:{p["version"]}',
-            dict(
-                strategy_namespace=STRATEGY_NAMESPACE,
-                action=action,at=int(now),position=p,
-                recorded_at_ns=recorded_at_ns,previous_hash=digest(previous) if previous else None,
-                quote=asdict(quote) if quote is not None else None,
-            ),
-        )
+        event=dict(strategy_namespace=STRATEGY_NAMESPACE,action=action,at=int(now),position=p,
+            recorded_at_ns=recorded_at_ns,previous_hash=digest(previous) if previous else None,
+            quote=asdict(quote) if quote is not None else None)
+        if getattr(self,'portfolio',None):
+            self.portfolio.record(p['id'],action,p,previous['position'] if previous else None,
+                at=int(now),checksum=digest(event),quote=event['quote'])
+        self.store.put(JOURNAL_CATEGORY,f'{p["id"]}:{p["version"]}',event)
         self.store.db.execute(
             f"INSERT OR REPLACE INTO {TABLE} VALUES(?,?)",
             (p["id"],canonical(p)),
@@ -291,7 +304,10 @@ class SelectivePaper:
         except Exception:
             self.store.db.execute("ROLLBACK")
             raise
+        if self.portfolio:self.portfolio.flush()
         if self.on_commit:self.on_commit(self,p)
+        from meme_machine.runtime.storage import compact_pons
+        compact_pons(self)
         return p
 
     def resize_reservation(self,identity,amount,now):
@@ -309,7 +325,10 @@ class SelectivePaper:
             self.store.db.execute('COMMIT')
         except BaseException:
             self.store.db.execute('ROLLBACK');raise
+        if self.portfolio:self.portfolio.flush()
         if self.on_commit:self.on_commit(self,p)
+        from meme_machine.runtime.storage import compact_pons
+        compact_pons(self)
         return p
 
     def advance(
@@ -467,5 +486,8 @@ class SelectivePaper:
         except Exception:
             self.store.db.execute("ROLLBACK")
             raise
+        if self.portfolio:self.portfolio.flush()
         if self.on_commit:self.on_commit(self,p)
+        from meme_machine.runtime.storage import compact_pons
+        compact_pons(self)
         return p

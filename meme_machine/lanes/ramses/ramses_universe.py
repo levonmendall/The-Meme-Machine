@@ -362,7 +362,7 @@ def _decode_histories(logs, addresses):
 
 
 def _pool_identity(rpc,factory,address,block):
-    from certification.robinhood.ramses import pool_metadata
+    from meme_machine.runtime.robinhood.ramses import pool_metadata
     return pool_metadata(rpc,factory,address,block,
         lambda:_uncached_pool_identity(rpc,factory,address,block),FACTORY_CACHE.with_suffix('.candidates.sqlite'))
 
@@ -662,8 +662,8 @@ def scan(
 
     # Route conversion depends only on authenticated pool identity, frozen native
     # cost amounts and this finalized block. It does not need 201 bins.
-    from certification.robinhood.ramses import RouteIndex
-    from certification.robinhood.plane import plane_path
+    from meme_machine.runtime.robinhood.ramses import RouteIndex
+    from meme_machine.runtime.robinhood.plane import plane_path
     route_index=RouteIndex(plane_path(FACTORY_CACHE.with_suffix('.candidates.sqlite')),POLICY_HASH,source=endpoint)
     try:
         route_preflight=[];preflight_costs={}
