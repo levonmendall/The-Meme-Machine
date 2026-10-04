@@ -1,0 +1,20 @@
+{
+  "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "source_path": "certification/frozen_repair_inputs.json",
+  "source_sha256": "f8382210dbc693056909b6b82524cc198a614dc28403a638763e05fdc0929917",
+  "restorations": [
+    {
+      "source_entry": "robinhood_tests/test_ramses_dynamic_event_capacity.py",
+      "source_entry_sha256": "9a4f7c76be2000015e29eaf70430f0cc613cc0df072fc2480e727e50ac9e1c35",
+      "current_path": "tests/lanes/ramses/test_ramses_dynamic_event_capacity.py",
+      "change": "import namespace only"
+    },
+    {
+      "source_entry": "robinhood_tests/fixtures/ramses_140_bin_withdrawal_35578433187.json",
+      "source_entry_sha256": "e9a2485d52e62373a2e9c6e5833003164ba68b021cf7f6f15f0f1e4a49d7e575",
+      "current_path": "tests/lanes/ramses/fixtures/ramses_140_bin_withdrawal_35578433187.json",
+      "change": "byte-identical captured incident fixture"
+    }
+  ],
+  "operational_authority": false
+}
