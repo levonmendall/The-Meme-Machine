@@ -85,11 +85,21 @@ SAFE_EVIDENCE_REASONS=frozenset(('address_history_page_bound', 'address_history_
 
 def failure_diagnostic(exc):
     from meme_machine.solana_evidence_plane import EvidenceUnavailable
-    result='evidence_worker_failed:'+type(exc).__name__
-    if type(exc) is EvidenceUnavailable and len(exc.args)==1:
-        reason=exc.args[0]
-        if isinstance(reason,str) and reason in SAFE_EVIDENCE_REASONS:
-            result+=':'+reason
+    def classification(error):
+        result=type(error).__name__
+        if type(error) is EvidenceUnavailable and len(error.args)==1:
+            reason=error.args[0]
+            if isinstance(reason,str) and reason in SAFE_EVIDENCE_REASONS:
+                result+=':'+reason
+        return result
+    result='evidence_worker_failed:'+classification(exc)
+    seen={id(exc)}
+    # Preserve native writer_failed causes without formatting messages or URLs.
+    for _ in range(3):
+        cause=exc.__cause__
+        if cause is None and not exc.__suppress_context__:cause=exc.__context__
+        if cause is None or id(cause) in seen:break
+        seen.add(id(cause));result+=':caused_by:'+classification(cause);exc=cause
     return result
 
 if __name__=='__main__':

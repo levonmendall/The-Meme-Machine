@@ -171,3 +171,32 @@ class EvidenceWorkerDiagnosticTests(unittest.TestCase):
         secret='https://provider.invalid/v2/private-secret'
         self.assertEqual(failure_diagnostic(RuntimeError(secret)),'evidence_worker_failed:RuntimeError')
         self.assertEqual(failure_diagnostic(EvidenceUnavailable(secret)),'evidence_worker_failed:EvidenceUnavailable')
+
+    def test_native_writer_failure_keeps_safe_causal_reason(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable,IngestionService
+        service=object.__new__(IngestionService)
+        service.failed=EvidenceUnavailable('maintenance_observation_python_bound')
+        try:service.check()
+        except EvidenceUnavailable as error:
+            self.assertEqual(failure_diagnostic(error),
+                'evidence_worker_failed:EvidenceUnavailable:writer_failed:caused_by:'
+                'EvidenceUnavailable:maintenance_observation_python_bound')
+        else:self.fail('failed writer did not stop')
+
+    def test_cause_messages_are_redacted_and_cycles_depth_are_bounded(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        secret='https://provider.invalid/v2/private-secret'
+        error=EvidenceUnavailable('writer_failed');error.__cause__=RuntimeError(secret)
+        self.assertEqual(failure_diagnostic(error),
+            'evidence_worker_failed:EvidenceUnavailable:writer_failed:caused_by:RuntimeError')
+        error.__cause__=error
+        self.assertEqual(failure_diagnostic(error),'evidence_worker_failed:EvidenceUnavailable:writer_failed')
+        top=error=EvidenceUnavailable('writer_failed')
+        for _ in range(10):
+            child=EvidenceUnavailable('maintenance_observation_python_bound')
+            error.__cause__=child;error=child
+        result=failure_diagnostic(top)
+        self.assertEqual(result.count(':caused_by:'),3)
+        self.assertNotIn(secret,result)
