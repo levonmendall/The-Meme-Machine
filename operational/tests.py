@@ -4,7 +4,8 @@ import argparse,ipaddress,socket,unittest,urllib.request
 FAST=[
  'tests.test_operational_capacity_repairs',
  'tests.test_operational_nine','tests.test_operational_portfolio',
- 'tests.test_robinhood_usd_valuation',
+ 'tests.test_robinhood_usd_valuation','tests.test_native_valuation_completion',
+ 'tests.test_strategic_reference','tests.test_current_survivor_independence',
  'tests.test_portfolio_accounting','tests.test_portfolio_lane_integration',
  'tests.test_provider_retry',
  'tests.lanes.pump.test_pump_acceleration_strategy','tests.lanes.pump.test_pump_acceleration_paper',
@@ -24,6 +25,8 @@ OPERATIONAL=FAST+[
  'tests.test_maintenance_overlap',
  'tests.test_dispatch_throughput',
  'tests.test_retention_outcomes','tests.test_retention_progress',
+ 'tests.test_orphan_schema_compatibility','tests.test_survivor_bounded_drain',
+ 'tests.test_runtime_resource_contract',
  'dashboard.tests.test_dashboard','dashboard.tests.test_server_security',
 ]
 

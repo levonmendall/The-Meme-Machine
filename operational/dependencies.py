@@ -50,18 +50,23 @@ def closure(roots,mapping):
 def inventory():
     from operational.tests import OPERATIONAL
     mapping=modules()
+    contract=json.loads((ROOT/'operational/runtime-resource-contract.json').read_text())
+    missing=set(contract['required_runtime_modules'])-set(mapping)
+    assert not missing, 'required runtime modules missing: '+','.join(sorted(missing))
     # Preserve the ordinary committed lane source, including frozen helpers.
     runtime_roots=[n for n in mapping if n.startswith(('meme_machine.lanes.','meme_machine.runtime.','meme_machine.operational.'))]
-    runtime_roots+=['dashboard','dashboard.__main__']
+    runtime_roots+=contract['required_runtime_modules']
     runtime,imports=closure(runtime_roots,mapping)
     tests,_=closure(OPERATIONAL+['operational.tests'],mapping)
-    resources=['meme_machine/operational/offline-market.json','operational/sources.json']
-    resources+=[str(p.relative_to(ROOT)) for p in (ROOT/'meme_machine/lanes').rglob('*.json')]
-    resources+=[str(p.relative_to(ROOT)) for p in (ROOT/'dashboard/static').rglob('*') if p.is_file()]
+    contract=json.loads((ROOT/'operational/runtime-resource-contract.json').read_text())
+    # Fixed consumer-reviewed contract: deleting a resource cannot delete its
+    # obligation by making rglob() stop seeing it.
+    resources=contract['required_packaged_resources']
     assert all((ROOT/p).is_file() for p in resources), 'required non-Python resource missing'
     return dict(result='PASS',runtime_import_files=runtime,test_import_files=tests,
                 runtime_resource_files=sorted(resources),
                 runtime_external_import_roots=imports,certification_imports=[],
-                note='Conservative static import closure plus explicit subprocess entrypoints; runtime JSON/static resources retained separately.')
+                dynamic_resource_contract=contract,
+                note='Static module closure plus explicit dynamic entrypoints/resource contract. Consumer tests exercise role resources; optional/generated resources have no packaged-state obligation.')
 
 if __name__=='__main__':print(json.dumps(inventory(),indent=2))
