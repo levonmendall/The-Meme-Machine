@@ -56,6 +56,34 @@ class CapacityRepairs(unittest.TestCase):
                         self.assertTrue({'MM_ROBINHOOD_READ_RPC_URL','MM_ROBINHOOD_SEQUENCER_FEED_URL','MM_PROVIDER_DB','MM_RPC_CACHE_DB','MM_ROBINHOOD_STATE_DIR'}<=names)
                     if lane!='solana':self.assertIn('MM_DIRECTIONAL_SLEEVE_DB',names)
 
+    def test_child_environments_reject_parent_credentials_and_state_overrides(self):
+        poison={name:'untrusted-parent' for name in (
+            'AWS_SECRET_ACCESS_KEY','ALCHEMY_TOKEN','SECRET_VENDOR_PASSWORD',
+            'WALLET_PRIVATE_KEY','MM_LIVE_TRADING','MM_RPC_CAPABILITIES',
+            'MM_BROKER_DB','MM_SOLANA_EVIDENCE_BROKER_DB',
+            'MM_ROBINHOOD_PONS_PAPER_DB','MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON',
+            'MM_PORTFOLIO_INCEPTION_RECEIPT','MM_ALLOCATION_ENABLED',
+            'PYTHONPATH','MM_STATE_ROOT','MM_DIRECTIONAL_SLEEVE_DB')}
+        transport={'HTTPS_PROXY':'http://offline-proxy:8080',
+                   'SSL_CERT_FILE':'/offline/ca.pem','PATH':'/offline/bin'}
+        providers={'MM_SOLANA_READ_RPC_URL':'solana-fixture',
+                   'MM_ROBINHOOD_READ_RPC_URL':'robinhood-fixture'}
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,
+                dict(poison,**transport,**providers),clear=True):
+            for offline in (False,True):
+                supervisor=Supervisor(td,offline=offline);supervisor.epoch='preserved'
+                for lane in ('pump','meteora','solana','pons','ramses'):
+                    with self.subTest(lane=lane,offline=offline):
+                        env=supervisor.environment(lane)
+                        for name,value in poison.items():self.assertNotEqual(env.get(name),value)
+                        for name,value in transport.items():self.assertEqual(env[name],value)
+                        self.assertEqual(env['MM_STATE_ROOT'],str(Path(td).resolve()))
+                        self.assertEqual(env['MM_PAPER_EPOCH'],'preserved')
+                        self.assertEqual(env['MM_MODE'],'PAPER')
+                        expected='MM_SOLANA_READ_RPC_URL' if lane in ('pump','meteora','solana') else 'MM_ROBINHOOD_READ_RPC_URL'
+                        if offline:self.assertFalse(set(providers)&set(env))
+                        else:self.assertEqual(env[expected],providers[expected])
+
     def survivor_lifecycle(self,lane):
         if lane=='pump':
             from meme_machine.lanes.pump import pumpswap_survivor_runtime as module

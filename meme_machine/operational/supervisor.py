@@ -87,12 +87,21 @@ class Supervisor:
     def environment(self,lane):
         if lane not in (*LANES,'solana'):raise ValueError('unknown_runtime_lane')
         solana=lane in ('pump','meteora','solana')
-        robinhood_state={'MM_PROVIDER_DB','MM_RPC_CACHE_DB'}
-        solana_state={'MM_PROVIDER_GOVERNOR_DB'}
-        env={k:v for k,v in os.environ.items() if not (
-            (solana and (k.startswith('MM_ROBINHOOD_') or k in robinhood_state)) or
-            (not solana and (k.startswith('MM_SOLANA_') or k.startswith('MM_ONFINALITY_SOLANA_') or k in solana_state)))}
-        env['PYTHONPATH']=str(SOURCE_ROOT)+os.pathsep+env.get('PYTHONPATH','')
+        # Parent credentials, strategy overrides and state paths are not child
+        # configuration. Retain only interpreter/OS transport needs and explicitly
+        # sanctioned provider inputs; durable paths below belong to this epoch.
+        transport={'PATH','HOME','LANG','LC_ALL','LC_CTYPE','TZ','TMPDIR',
+            'VIRTUAL_ENV','PYTHONHOME','PYTHONUNBUFFERED','PYTHONDONTWRITEBYTECODE',
+            'HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','NO_PROXY',
+            'http_proxy','https_proxy','all_proxy','no_proxy',
+            'SSL_CERT_FILE','SSL_CERT_DIR','REQUESTS_CA_BUNDLE','CURL_CA_BUNDLE'}
+        providers=({'MM_SOLANA_READ_RPC_URL','MM_SOLANA_PUBLIC_RPC_URL',
+            'MM_ONFINALITY_SOLANA_RPC_URL','MM_ONFINALITY_SOLANA_WS_URL'} if solana
+            else {'MM_ROBINHOOD_READ_RPC_URL','MM_ROBINHOOD_DLMM_RPC_URL',
+                  'MM_ROBINHOOD_SEQUENCER_FEED_URL'})
+        allowed=transport | (set() if self.offline else providers)
+        env={k:v for k,v in os.environ.items() if k in allowed}
+        env['PYTHONPATH']=str(SOURCE_ROOT)
         env.update(MM_MODE='PAPER',MM_RUNTIME_LANE=lane,MM_PAPER_EPOCH=self.epoch,
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
