@@ -411,6 +411,18 @@ class RobinhoodUSDTests(unittest.TestCase):
                 old_start=original.index(b'        # Resolve any externally in-flight work;')
                 old_end=original.index(b'        discovery_pool.shutdown(wait=True)',old_start)
                 current=current[:start]+original[old_start:old_end]+current[end:]
+            if rel=='meme_machine/lanes/pons/pons_selective_continuation.py':
+                # Owner-approved ongoing scaling is a separate appended authority.
+                # Every byte of the initial-entry/exit policy remains pinned.
+                current=current[:current.index(b'\n\nPONS_ONGOING_SCALE_REQUALIFICATION =')]
+            if rel=='meme_machine/lanes/pons/pons_selective_paper.py':
+                # Only the existing scale path and its dedicated reader changed.
+                original=baseline(rel)
+                start=current.index(b'def _ongoing_scale_evidence(')
+                end=current.index(b'\n\n# Public recovery entrypoint',start)
+                old_start=original.index(b'def _attempt_current_scale(')
+                old_end=original.index(b'\n\n# Public recovery entrypoint',old_start)
+                current=current[:start]+original[old_start:old_end]+current[end:]
             self.assertEqual(current,baseline(rel),rel)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):

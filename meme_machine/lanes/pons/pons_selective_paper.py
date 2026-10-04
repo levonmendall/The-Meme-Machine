@@ -1199,11 +1199,107 @@ def _bridge_action(state,facts,action,position,*,now):
 
 
 
+def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_units,store,sleeve):
+    """Authenticate a rolling horizon and a current executable exit independently."""
+    from collections import defaultdict
+    from .pons_selective_continuation import curve_progress_bps
+    started=time.time();position=paper._get(identity)
+    if state.transition is None:
+        mark,meta,_=_curve_quote(rpc,candidate,'sell',position['tokens'],gas_units,store,
+            'selective-scale-current-exit',local_freshness=True)
+    else:
+        mark,meta,_=_v4_quote(rpc,state.v4_key,position['market'],position['tokens'],gas_units,store,
+            'selective-scale-current-exit',local_freshness=True)
+    head=dict(number=hex(int(meta['block'])),hash=meta['block_hash'],timestamp=hex(int(meta['event_at'])))
+    asof=int(meta['event_at']);creators={str(candidate['record'].get(k,'')).lower()
+        for k in ('deployer','creatorFeeRecipient')}
+    if state.transition is None:
+        events,_=_curve_logs(endpoint,candidate['curve'],head,seconds=900)
+        trajectory,demand,_=_refresh_curve_signal(endpoint,candidate,meta)
+        curve=CurveState(**meta['state'])
+        progress=curve_progress_bps(curve.real_quote,candidate['record']['graduationThreshold'])
+        snipe=int(rpc.call('eth_call',[dict(to=candidate['curve'],
+            data=calldata('currentSnipeTaxBps(address)',RESEARCH_RECIPIENT)),hex(int(meta['block']))],
+            scope='pons_ongoing_scale_requalification'),16)
+        structural=(not curve.graduated and snipe==0
+            and curve.creator_tax_bps<=ENTRY_THRESHOLDS['max_creator_tax_bps']
+            and ENTRY_THRESHOLDS['min_curve_progress_bps']<=progress<=ENTRY_THRESHOLDS['max_curve_progress_bps'])
+        action=pregraduation_action(tokens=position['tokens'],partial_taken=state.partial_taken,
+            elapsed_seconds=int(time.time())-state.opened_at,frozen_eta_seconds=state.frozen_eta,
+            trajectory=trajectory,demand=demand,after_cost_return_bps=_position_return_bps(position,mark),
+            high_water_return_bps=state.high_water,
+            soft_deterioration_streak=state.pregrad_soft_deterioration_streak)
+        phase='pregraduation'
+    else:
+        locator=evidence_rpc(endpoint)
+        start=_header_search(locator,int(meta['block']),asof,max(0,asof-900),{int(meta['block']):head})
+        activity=collect_v4_activity(endpoint,pool_id=position['market'],key=state.v4_key,
+            token=candidate['token'],start_block=int(start['number'],16),end_block=int(meta['block']),
+            preholder_groups=state.preholders,max_events=ENTRY_THRESHOLDS['max_market_events'])
+        events=[r for r in activity['swaps'] if asof-900<=int(r['event_at'])<=asof]
+        recent=[r for r in events if int(r['event_at'])>=asof-15
+            and str(r['group']).lower() not in creators
+            and str(r.get('actor',r['group'])).lower() not in creators]
+        flows=defaultdict(int)
+        for r in recent:
+            if r['side']=='buy':flows[r['group']]+=int(r['quote'])
+        total=sum(flows.values());ordered=sorted(flows.values(),reverse=True)
+        buy=sum(int(r['quote']) for r in recent if r['side']=='buy')
+        sell=sum(int(r['quote']) for r in recent if r['side']=='sell')
+        prices=[int(r['price_index']) for r in events]
+        demand=dict(buy_quote=buy,sell_quote=sell,net_quote=buy-sell,
+            new_independent_buyers=len(set(flows)-set(state.preholders)),
+            largest_buyer_flow_bps=10000 if not total else max(ordered)*10000//total,
+            top3_buyer_flow_bps=10000 if not total else sum(ordered[:3])*10000//total,
+            preholder_sell_quote=sum(int(r['quote']) for r in recent
+                if r['side']=='sell' and r['group'] in state.preholders),
+            price_retention_bps=0 if not prices else prices[-1]*10000//max(prices))
+        trajectory=None;structural=bool(state.transition and state.v4_key)
+        action=runner_action(tokens=position['tokens'],partial_taken=state.partial_taken,
+            after_cost_return_bps=_position_return_bps(position,mark),high_water_return_bps=state.high_water,
+            seconds_since_high=int(time.time())-state.high_at,new_buyer_growth=len(set(flows)-state.seen_v4_buyers),
+            buy_quote=buy,sell_quote=sell,soft_deterioration_streak=state.runner_soft_deterioration_streak)
+        phase='postgraduation'
+    independent=defaultdict(int);buy=sell=creator_sell=0
+    for r in events:
+        if not asof-900<=int(r['event_at'])<=asof:raise BoundaryError('scale_window_identity')
+        amount=int(r['quote']);group=str(r['group']).lower()
+        excluded=group in creators or str(r.get('actor',group)).lower() in creators
+        if excluded:
+            if r['side']=='sell':creator_sell+=amount
+            continue
+        if r['side']=='buy':
+            buy+=amount;independent[group]+=amount
+        else:sell+=amount
+    total=sum(independent.values());ordered=sorted(independent.values(),reverse=True)
+    horizon=dict(independent_groups=len(independent),buy_quote=buy,sell_quote=sell,net_quote=buy-sell,
+        largest_buyer_flow_bps=10000 if not total else ordered[0]*10000//total,
+        top3_buyer_flow_bps=10000 if not total else sum(ordered[:3])*10000//total)
+    base=store.get('pons_selective_recovery_base',identity)
+    if not base or any(candidate.get(k)!=base['evaluation']['candidate'].get(k)
+            for k in ('token','curve','auth','record')):
+        raise BoundaryError('scale_authenticated_lifecycle_identity')
+    if mark.market!=position['market']:raise BoundaryError('scale_market_identity')
+    held=sleeve.get(identity) or {};reservation=held.get('scale_reservation') or {}
+    evidence=dict(phase=phase,window_seconds=900,window_ending_at=asof,
+        acquisition_started_at=started,block_hash=meta['block_hash'],block=meta['block'],
+        authenticated=bool(candidate.get('auth')),structural_safe=structural,
+        originally_qualified=bool(base and base['evaluation']['vector'].get('current_threshold_pass')
+            and base['evaluation']['vector'].get('policy_hash')==POLICY_HASH),
+        outstanding_scale_reservation=reservation.get('status')=='reserved',
+        no_exit_condition=action['action']=='hold',creator_safe=creator_sell==0,
+        exit_liquidity=mark.amount_out>mark.gas_quote,
+        after_cost_return_bps=_position_return_bps(position,mark),entry_largest=state.entry_largest,
+        horizon=horizon,trajectory=trajectory,demand=demand,events_digest=digest(events),
+        original_demand_reference=base['evaluation']['vector'].get('demand') or {})
+    return evidence,position,mark,meta
+
+
 def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units,store,facts,position,*,trajectory=None,demand):
     from contextlib import closing
     from meme_machine.runtime.directional_sleeve import open_sleeve
     from meme_machine.runtime.directional_continuation import scale_budget
-    from .pons_selective_continuation import POST_GRAD_THRESHOLDS
+    from .pons_selective_continuation import ongoing_scale_requalification
     now=int(time.time())
     if (getattr(state,'scale_committed',False) or position.get('scale_request') or not state.partial_taken
             or getattr(state,'first_tail_crossed_at',None) is None
@@ -1211,21 +1307,24 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
     sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
     if sleeve is None:return None
     with closing(sleeve):
-        original_vector=store.get('pons_selective_recovery_base',identity)['evaluation']['vector']
-        if trajectory is not None:
-            requalified=entry_signal_persistence(original_vector,trajectory,demand)['persistent']
-        else:
-            buy=int(demand['buy_quote']);sell=int(demand['sell_quote'])
-            requalified=(int(demand['new_independent_buyers'])>=POST_GRAD_THRESHOLDS['min_new_independent_buyers']
-                and buy>sell and buy*10000>=max(1,sell)*POST_GRAD_THRESHOLDS['min_buy_sell_ratio_bps']
-                and int(demand['largest_buyer_flow_bps'])<=state.entry_largest)
+        try:
+            current,position,mark,mark_meta=_ongoing_scale_evidence(
+                endpoint,rpc,paper,identity,state,candidate,gas_units,store,sleeve)
+        except BoundaryError:return None
+        result=ongoing_scale_requalification(position=position,controller=vars(state),
+            evidence=current,now=time.time())
+        requalified=result['scale_qualified']
+        facts=_continuation_facts(position,mark,mark_meta,candidate,current['after_cost_return_bps'],
+            demand=current['demand'],soft_streak=(state.pregrad_soft_deterioration_streak if state.transition is None
+                else state.runner_soft_deterioration_streak),action={'action':'hold'})
+        if not requalified:return None
         view=dict(opened_at=state.opened_at,original_basis=position['original_basis'],
             realization_taken=state.partial_taken,high_water_bps=state.high_water,
             first_tail_crossed_at=state.first_tail_crossed_at,scale_committed=position.get('scale_request') is not None,
             pending_exit=state.pending_action)
         budget=min(sleeve.sizing_basis(250)['allocatable_target'],view['original_basis']//2)
         if budget<=0 or not requalified:return None
-        allowance=max(0,int(demand.get('current_net_quote',demand.get('net_quote',0))))*ENTRY_THRESHOLDS['independent_net_size_bps']//10000
+        allowance=max(0,int(current['demand'].get('current_net_quote',current['demand'].get('net_quote',0))))*ENTRY_THRESHOLDS['independent_net_size_bps']//10000
         budget=min(budget,allowance)
         budget=scale_budget(view,dict(facts,fresh_strategy_requalified=requalified,fresh_execution_requalified=True),
             now=now,sleeve=sleeve,execution_allowance=budget)
@@ -1236,12 +1335,11 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
             _stop_sleep(EXIT_POLICY['entry_delay_seconds'])
             if state.transition is None:
                 entry,meta,ledger=_wait_curve_quote(rpc,candidate,'buy',budget,gas_units,store,'selective-scale',now+EXIT_POLICY['entry_delay_seconds'],seconds=5,local_freshness=True)
-                fresh_trajectory,fresh_demand,_=_refresh_entry_persistence_signal(endpoint,candidate,meta)
-                if not entry_signal_persistence(original_vector,fresh_trajectory,fresh_demand)['persistent']:return None
                 capacity=_entry_capacity(meta,budget,entry.gas_quote)
                 if capacity.final_size<=0:return None
                 if capacity.final_size<budget:
-                    entry,meta,ledger=_curve_quote(rpc,candidate,'buy',capacity.final_size,gas_units,store,'selective-scale-resized',local_freshness=True)
+                    entry,meta,ledger=_wait_curve_quote(rpc,candidate,'buy',capacity.final_size,gas_units,store,'selective-scale-resized',now+EXIT_POLICY['entry_delay_seconds'],seconds=5,local_freshness=True)
+                _validate_final_entry(entry,meta,mark,entry.amount_in,now+EXIT_POLICY['entry_delay_seconds'])
                 _fresh_fill_full_exit_check(meta,position['tokens']+entry.amount_out)
             else:
                 def quote_loss(amount):
@@ -1253,7 +1351,24 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
                 capacity=resize(budget,1,quote_loss,ordinary_limit=ENTRY_THRESHOLDS['max_roundtrip_loss_bps'])
                 if capacity.final_size<=0:return None
                 entry,meta,ledger=_v4_quote(rpc,state.v4_key,position['market'],capacity.final_size,gas_units,store,'selective-scale-entry',local_freshness=True,side='buy')
-            if not 0<=int(time.time())-facts['observed_at']<=5:return None
+                full_exit,_,_=_v4_quote(rpc,state.v4_key,position['market'],position['tokens']+entry.amount_out,
+                    gas_units,store,'selective-scale-full-exit',local_freshness=True)
+                if full_exit.amount_out<=full_exit.gas_quote:return None
+            # Qualification is reacquired after execution probing. Neither a
+            # historical vector nor a stale capacity/market result can commit.
+            current,position,mark,mark_meta=_ongoing_scale_evidence(
+                endpoint,rpc,paper,identity,state,candidate,gas_units,store,sleeve)
+            result=ongoing_scale_requalification(position=position,controller=vars(state),
+                evidence=current,now=time.time())
+            if not result['scale_qualified']:return None
+            if not 0<=time.time()-entry.stamp.observed_at<=5:return None
+            facts=_continuation_facts(position,mark,mark_meta,candidate,current['after_cost_return_bps'],
+            demand=current['demand'],soft_streak=(state.pregrad_soft_deterioration_streak if state.transition is None
+                else state.runner_soft_deterioration_streak),action={'action':'hold'})
+            allowance=max(0,int(current['demand'].get('current_net_quote',current['demand'].get('net_quote',0))))*ENTRY_THRESHOLDS['independent_net_size_bps']//10000
+            if entry.amount_in>allowance:return None
+            store.put('pons_ongoing_scale_requalification',digest(dict(identity=identity,evidence=current)),
+                dict(identity=identity,evidence=current,result=result,executable_quote=asdict(entry)))
             cost=entry.amount_in+entry.gas_quote
             size=scale_budget(view,dict(facts,fresh_strategy_requalified=requalified,fresh_execution_requalified=True),
                 now=int(time.time()),sleeve=sleeve,execution_allowance=cost)
@@ -1263,7 +1378,7 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
             callback=paper.on_commit;paper.on_commit=None
             try:
                 with sleeve.scale_fence(identity,request):
-                    if state.pending_action is not None:raise BoundaryError('scale_pending_exit')
+                    if state.pending_action is not None or paper._get(identity)['status']!='open':raise BoundaryError('scale_pending_exit')
                     position=paper.advance(identity,now=int(time.time()),action='scale_add',quote=entry,
                         finality_ledger=ledger,cancel_reason=request)
                 state.scale_committed=True

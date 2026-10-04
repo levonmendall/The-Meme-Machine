@@ -45,3 +45,11 @@ The approved nine-rule contract, right-tail calibration, Current-to-Survivor opp
 ## OPERATIONAL_REFERENCE — engineering lessons
 
 Run 373 established large-frame dispatch saturation and durable batching requirements. Run 381 established retention/archive starvation: zero local reads caused by infrastructure cannot establish poor strategy economics. Permanent current regressions must retain these lessons. Dashboard snapshots remain read-only, and publication failure must not stop position management. Shared Decimal accounting, family sleeves and pending delivery preserve the existing $500 inception and recovery identity.
+
+## Mature Pons scaling interpretation
+
+The explicit owner interpretation of full requalification for mature Pons winners
+is authoritative in [Pons ongoing scale requalification](owner-decisions/pons-ongoing-scale-requalification.md).
+It creates a separate rolling 15-minute scale-only qualification path and grants
+no new-entry authority. Initial-entry timing, sizing and all other economics remain
+unchanged.

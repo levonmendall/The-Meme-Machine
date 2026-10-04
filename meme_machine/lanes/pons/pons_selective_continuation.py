@@ -896,3 +896,82 @@ def breakout_vector(
         all_rejections=rejections,
         buy_sell_ratio_bps=ratio,
     )
+
+
+PONS_ONGOING_SCALE_REQUALIFICATION = "PONS_ONGOING_SCALE_REQUALIFICATION"
+
+
+def ongoing_scale_requalification(*, position, controller, evidence, now):
+    """Current quality of an existing winner; never initial-entry authority.
+
+    Evidence is acquired by the dedicated authenticated ongoing-window reader.
+    Initial token age and early graduation timing are deliberately absent here.
+    Existing substantive demand, trajectory and safety thresholds stay intact.
+    """
+    reasons=[]
+    def reject(reason):
+        if reason not in reasons:reasons.append(reason)
+    if position.get('status')!='open' or not evidence.get('originally_qualified'):
+        reject('scale_existing_qualified_position_required')
+    if (position.get('scale_request') or controller.get('scale_committed')
+            or evidence.get('outstanding_scale_reservation')):
+        reject('scale_already_reserved_or_committed')
+    if (controller.get('pending_action') is not None or position.get('pending_exit_tokens')
+            or not evidence.get('no_exit_condition')):
+        reject('scale_exit_active')
+    crossed=controller.get('first_tail_crossed_at')
+    if (not controller.get('partial_taken') or crossed is None
+            or int(now)-int(crossed)<900 or int(controller.get('high_water',0))<10000):
+        reject('scale_tail_persistence')
+    high=int(controller.get('high_water',0));current=evidence.get('after_cost_return_bps')
+    if current is None or int(current)<=0 or (high-int(current))*10000>(10000+high)*1500:
+        reject('scale_price_below_high')
+    if (not evidence.get('authenticated') or not evidence.get('block_hash')
+            or evidence.get('window_seconds')!=900):reject('scale_current_window_required')
+    acquired=evidence.get('acquisition_started_at')
+    if acquired is None or not 0<=float(now)-float(acquired)<=ENTRY_THRESHOLDS['max_state_age_seconds']:
+        reject('scale_stale_current_evidence')
+    if not evidence.get('structural_safe'):reject('scale_structural_safety')
+    if not evidence.get('exit_liquidity'):reject('scale_exit_liquidity')
+    horizon=evidence.get('horizon') or {}
+    ratio=(POST_GRAD_THRESHOLDS['min_buy_sell_ratio_bps'] if evidence.get('phase')=='postgraduation'
+        else ENTRY_THRESHOLDS['min_buy_sell_ratio_bps'])
+    if (int(horizon.get('independent_groups',0))<ENTRY_THRESHOLDS['min_independent_groups']
+            or int(horizon.get('net_quote',0))<=0
+            or int(horizon.get('buy_quote',0))*10000<max(1,int(horizon.get('sell_quote',0)))*ratio):
+        reject('scale_ongoing_demand_failure')
+    if (int(horizon.get('largest_buyer_flow_bps',10000))>ENTRY_THRESHOLDS['max_largest_buyer_flow_bps']
+            or int(horizon.get('top3_buyer_flow_bps',10000))>ENTRY_THRESHOLDS['max_top3_buyer_flow_bps']):
+        reject('scale_ongoing_concentration')
+    demand=evidence.get('demand') or {}
+    if evidence.get('phase')=='pregraduation':
+        trajectory=evidence.get('trajectory') or {}
+        # Original breadth remains a deterioration reference only. All positive
+        # qualification gates consume independently acquired current evidence.
+        reference=evidence.get('original_demand_reference') or {}
+        signal=entry_signal_persistence({'demand':reference},trajectory,demand)
+        reasons.extend(signal['reasons'])
+    elif evidence.get('phase')=='postgraduation':
+        buy=int(demand.get('buy_quote',0));sell=int(demand.get('sell_quote',0))
+        if int(demand.get('new_independent_buyers',0))<POST_GRAD_THRESHOLDS['min_new_independent_buyers']:
+            reject('scale_second_wave_breadth')
+        if buy<=sell or buy*10000<max(1,sell)*POST_GRAD_THRESHOLDS['min_buy_sell_ratio_bps']:
+            reject('scale_postgrad_flow')
+        if int(demand.get('net_quote',0))<=0:reject('scale_postgrad_net_flow')
+        if int(demand.get('largest_buyer_flow_bps',10000))>int(evidence.get('entry_largest',0)):
+            reject('scale_postgrad_concentration_worsened')
+        if int(demand.get('preholder_sell_quote',0))*10000>max(1,sell)*POST_GRAD_THRESHOLDS['max_preholder_sell_share_bps']:
+            reject('scale_preholder_pressure')
+        retention=demand.get('price_retention_bps')
+        if retention is None or int(retention)<POST_GRAD_THRESHOLDS['min_price_retention_bps']:
+            reject('scale_postgrad_price_persistence')
+    else:reject('scale_phase_required')
+    if int(demand.get('largest_buyer_flow_bps',10000))>ENTRY_THRESHOLDS['max_largest_buyer_flow_bps']:
+        reject('scale_largest_buyer_concentration')
+    if int(demand.get('top3_buyer_flow_bps',10000))>ENTRY_THRESHOLDS['max_top3_buyer_flow_bps']:
+        reject('scale_top3_buyer_concentration')
+    if not evidence.get('creator_safe'):reject('scale_creator_distribution')
+    return dict(authority=PONS_ONGOING_SCALE_REQUALIFICATION,
+        qualification_authority=False,initial_entry_authority=False,
+        scale_qualified=not reasons,all_rejections=list(dict.fromkeys(reasons)),
+        window_seconds=900,asof=int(now),block_hash=evidence.get('block_hash'))
