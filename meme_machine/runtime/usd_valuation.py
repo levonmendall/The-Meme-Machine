@@ -115,7 +115,7 @@ def _rpc(lane):
         from meme_machine.lanes.pons.provider_topology import configured_rpc as constructor
     else:
         from meme_machine.lanes.ramses.provider_topology import configured_dlmm_rpc as constructor
-    return constructor(limit=400,per_scope=400,retries=0)
+    return constructor(limit=200,per_scope=200,retries=0)
 
 
 def robinhood_usd(rpc=None,*,now=None,_at_block=None):

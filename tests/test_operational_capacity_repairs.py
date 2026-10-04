@@ -104,3 +104,32 @@ class CapacityRepairs(unittest.TestCase):
             self.assertTrue(entered.wait(1))
         finally:release.set();worker.close()
         self.assertEqual(owners[0],owners[1])
+
+
+class ValuationRPCBounds(unittest.TestCase):
+    def construct(self,lane):
+        from meme_machine.runtime.usd_valuation import _rpc
+        from meme_machine.lanes.pons import provider_topology as pons
+        from meme_machine.lanes.ramses import provider_topology as ramses
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{
+                'MM_ROBINHOOD_READ_RPC_URL':'https://robinhood-mainnet.g.alchemy.com/v2/offline-fixture',
+                'MM_ROBINHOOD_STATE_DIR':td},clear=True),\
+                patch('urllib.request.urlopen',side_effect=AssertionError('provider I/O forbidden')) as http,\
+                patch('socket.socket.connect',side_effect=AssertionError('provider I/O forbidden')) as connect:
+            rpc=_rpc(lane)
+            self.assertEqual((rpc.limit,rpc.per_scope,rpc.retries),(200,200,0))
+            if lane=='pons':
+                self.assertIs(rpc.pacer,pons._DIRECTIONAL_PACER)
+                self.assertEqual(rpc.pacer.requests_per_second,2.0)
+                self.assertEqual(rpc.role,'directional_evidence_primary')
+            else:
+                self.assertIs(rpc.pacer,ramses._SHARED_PRIMARY_DLMM_PACER)
+                self.assertEqual(rpc.pacer.requests_per_second,1.0)
+                self.assertEqual(rpc.role,'dlmm_reconstruction_primary_shared_observation')
+                self.assertTrue(rpc.primary_shared)
+                self.assertFalse(rpc.primary_fallback)
+            self.assertEqual(rpc.used,0)
+            http.assert_not_called();connect.assert_not_called()
+
+    def test_pons_valuation_constructor_bounds_and_pacing(self):self.construct('pons')
+    def test_ramses_valuation_constructor_bounds_and_pacing(self):self.construct('ramses')
