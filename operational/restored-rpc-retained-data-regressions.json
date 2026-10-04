@@ -1,0 +1,58 @@
+{
+  "historical_source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "suite": "OPERATIONAL",
+  "validation": {
+    "initial": {
+      "tests": 17,
+      "errors": 7,
+      "seconds": 7.341,
+      "reason": "Port dependencies: wrong namespace exception import, obsolete RepairRPC import, missing retained fixtures."
+    },
+    "final": {
+      "tests": 17,
+      "result": "PASS",
+      "seconds": 6.473
+    }
+  },
+  "adaptation": "solana_read_rpc changes only certification.evidence_worker to runtime.evidence_worker. retained_raw changes only two Pump namespace imports. Other tests and two raw fixtures byte-identical.",
+  "files": [
+    {
+      "historical_path": "tests/test_solana_read_rpc.py",
+      "current_path": "tests/test_solana_read_rpc.py",
+      "historical_sha256": "c0eeab657199db023e0337a5e3ea156b3fee9d4297f0ad7800e53b129b8cd05a",
+      "current_sha256": "ef9fa00042a888412fabdedc8925ef747c0faf795adb16e4c92107bde32d5f3c"
+    },
+    {
+      "historical_path": "tests/test_solana_retained_raw.py",
+      "current_path": "tests/test_solana_retained_raw.py",
+      "historical_sha256": "b265a47d7c48401826c9e8472e06c511d1350e32045d20616b80773738af99e8",
+      "current_sha256": "e1d2719f749b1d5a35df35dc711b52c8ab075ef497ec5258cc7dbda70448be11"
+    },
+    {
+      "historical_path": "tests/test_solana_retention_working_set.py",
+      "current_path": "tests/test_solana_retention_working_set.py",
+      "historical_sha256": "5909ca406bac58a09c014e8ea3d22842681731976e5b0928039b9fcddafc5238",
+      "current_sha256": "5909ca406bac58a09c014e8ea3d22842681731976e5b0928039b9fcddafc5238"
+    },
+    {
+      "historical_path": "tests/test_run381_repair_pagination.py",
+      "current_path": "tests/test_run381_repair_pagination.py",
+      "historical_sha256": "4b7b8b60c15f0c2b23b72287e641254db974b7463d8e46873e22a36e5252ab61",
+      "current_sha256": "4b7b8b60c15f0c2b23b72287e641254db974b7463d8e46873e22a36e5252ab61"
+    },
+    {
+      "historical_path": "tests/fixtures/solana_evidence_plane/run-367-raw-pump.json",
+      "current_path": "tests/fixtures/solana_evidence_plane/run-367-raw-pump.json",
+      "historical_sha256": "0332e71fc3c6dc5700bc696fa36e9293c102b2d8cc23cf8d95099f5249f382f3",
+      "current_sha256": "0332e71fc3c6dc5700bc696fa36e9293c102b2d8cc23cf8d95099f5249f382f3"
+    },
+    {
+      "historical_path": "tests/fixtures/solana_evidence_plane/run-368-raw-pump.json",
+      "current_path": "tests/fixtures/solana_evidence_plane/run-368-raw-pump.json",
+      "historical_sha256": "418798b03b7d26c91a80fe0e7047656dddb9e77226176e4d12f55ea738b38df0",
+      "current_sha256": "418798b03b7d26c91a80fe0e7047656dddb9e77226176e4d12f55ea738b38df0"
+    }
+  ],
+  "state_compatibility": "Disposable SQLite databases and mocked provider transport only; no runtime/schema/economic/PAPER writes.",
+  "obligations": "RPC authority/failover/redaction; captured raw event parity without invented interval coverage; bounded mature-store I/O and trigger rollback after restart; gap repair pagination/subscription progress."
+}
