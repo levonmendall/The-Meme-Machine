@@ -64,8 +64,9 @@
       "dashboard"
     ],
     "request_scheduler_provider_classes": [
-      "meme_machine.lanes.pons.provider",
-      "meme_machine.lanes.ramses.provider"
+      "meme_machine.provider",
+      "meme_machine.lanes.pump.provider",
+      "meme_machine.lanes.meteora.provider"
     ],
     "decoder_workers": "spawn imports solana_evidence_service functions; no inherited SQLite connection"
   },

@@ -46,3 +46,24 @@ class RuntimeResourceContractTests(unittest.TestCase):
         self.assertIsNotNone(source_decoder_probe())
         service=(dependencies.ROOT/'deployment/meme-machine-paper.service').read_text()
         self.assertIn('-m meme_machine.operational',service)
+
+    def test_governor_timeout_selects_each_native_solana_provider_exception(self):
+        import os
+        from unittest.mock import MagicMock
+        names=['meme_machine.provider','meme_machine.lanes.pump.provider','meme_machine.lanes.meteora.provider']
+        contract=json.loads((dependencies.ROOT/'operational/runtime-resource-contract.json').read_text())
+        self.assertEqual(set(contract['dynamic_modules']['request_scheduler_provider_classes']),set(names))
+        governor=MagicMock()
+        governor.acquire.side_effect=TimeoutError('offline_admission_timeout')
+        with patch.dict(os.environ,{'MM_PROVIDER_GOVERNOR_DB':'offline-mocked-governor'},clear=True),patch('meme_machine.runtime.governor.Governor',return_value=governor):
+            for name in names:
+                topology=importlib.import_module(name.rsplit('.',1)[0]+'.solana_read_rpc')
+                native=importlib.import_module(name).Unavailable
+                for factory in (topology.new_rpc,topology.new_pool_scan_rpc):
+                    with self.subTest(provider=name,factory=factory.__name__):
+                        rpc=factory(limit=40,environ={topology.ALCHEMY_ENV_NAME:'https://solana-mainnet.g.alchemy.com/v2/offline-test'})
+                        with self.assertRaises(native) as caught:
+                            rpc._http({'id':1,'method':'getGenesisHash','params':[]})
+                        self.assertIs(type(caught.exception),native)
+                        self.assertEqual(caught.exception.args,('offline_admission_timeout',))
+                        self.assertEqual(rpc.http_requests,0)
