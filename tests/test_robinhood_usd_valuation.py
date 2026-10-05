@@ -546,6 +546,25 @@ class RobinhoodUSDTests(unittest.TestCase):
                 for changed,original in pairs:
                     self.assertEqual(current.count(changed),1,rel)
                     current=current.replace(changed,original)
+            if rel.endswith('/solana_evidence_plane.py'):
+                # Exact bounded address-index plumbing; source/economic bodies remain pinned.
+                pairs=[
+                    (b'publish as publish_storage, publish_addresses',b'publish as publish_storage'),
+                    (b'scope_insertions={};address_cache={}',b'scope_insertions={}'),
+                    (b'                    publish_addresses(self.db,record.identity,record.slot,row.addresses,address_cache)',
+                     b"                    self.db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',\n"
+                     b'                        [(address, record.identity, record.slot) for address in row.addresses])'),
+                ]
+                for changed,original in pairs:
+                    self.assertEqual(current.count(changed),1,rel)
+                    current=current.replace(changed,original)
+            if rel.endswith('/solana_evidence_storage.py'):
+                from hashlib import sha256
+                start=current.index(b'def publish_addresses(')
+                end=current.index(b'def publish(db,',start)
+                helper=current[start:end]
+                self.assertEqual(sha256(helper).hexdigest(),'c80eecd05fa687516733d14b043afd1b39d6f02e1135e4a2dc68b4e108dc429b',rel)
+                current=current[:start]+current[end:]
             self.assertEqual(current,baseline(rel),rel)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):

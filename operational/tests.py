@@ -30,7 +30,7 @@ OPERATIONAL=FAST+[
  'tests.test_run377_persistence', 'tests.test_run380_atomic_frame', 'tests.test_run380_production_pressure',
  'tests.test_run379_transport_backpressure','tests.test_run381_archive_scheduling',
  'tests.test_dispatch_throughput','tests.test_run372_large_frame_runtime',
- 'tests.test_retention_outcomes','tests.test_retention_progress',
+ 'tests.test_source_address_batching','tests.test_retention_outcomes','tests.test_retention_progress',
  'tests.test_orphan_schema_compatibility','tests.test_survivor_bounded_drain','tests.test_ramses_census_connection',
  'tests.lanes.ramses.test_ramses_dynamic_event_capacity','tests.lanes.ramses.test_ramses_scan_capacity_recovery',
  'tests.test_solana_evidence_plane','tests.test_solana_evidence_broker',

@@ -21,7 +21,7 @@ import threading
 import time
 import uuid
 from .solana_provider_config import public_value
-from .solana_evidence_storage import install as install_storage, encode as encode_body, decode as _decode_body, archive_body, collect as collect_storage, prepare as prepare_storage, publish as publish_storage
+from .solana_evidence_storage import install as install_storage, encode as encode_body, decode as _decode_body, archive_body, collect as collect_storage, prepare as prepare_storage, publish as publish_storage, publish_addresses
 
 STORAGE_WARNING_BYTES = 512 * 1024 * 1024
 STORAGE_CRITICAL_BYTES = 128 * 1024 * 1024
@@ -400,15 +400,14 @@ class EvidenceWriter:
                 self.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
                 self._count('evidence_conflicts')
             else:
-                scope_insertions={}
+                scope_insertions={};address_cache={}
                 for row in prepared:
                     record=row.record
                     inserted = self.db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
                         (record.identity, record.scope, record.slot, record.signature, record.program,
                          record.market_time, record.event_index, record.transaction_index, record.kind,
                          publish_storage(self.db,record.identity,row.encoded,row.chunks), staged[record.identity], record.observed_at)).rowcount
-                    self.db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',
-                        [(address, record.identity, record.slot) for address in row.addresses])
+                    publish_addresses(self.db,record.identity,record.slot,row.addresses,address_cache)
                     self.db.execute('INSERT OR IGNORE INTO lineage VALUES(?,?,?,?)',
                         (record.identity, record.source, record.endpoint_identity, record.observed_at))
                     self.db.execute('INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated',

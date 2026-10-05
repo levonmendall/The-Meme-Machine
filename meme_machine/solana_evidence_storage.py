@@ -91,6 +91,22 @@ def prepare(body,*,canonical_body=None):
         value['payload'][parent]=dict(section,**{key:{'_hot_log_chunk':checksum}})
     return b'SEP1'+zlib.compress(_json(value).encode(),1),tuple(chunks)
 
+def publish_addresses(db,identity,slot,addresses,cache):
+    """Reuse bounded key lookups within one owner transaction; preserve view semantics."""
+    record=db.execute('SELECT rowid FROM records WHERE identity=?',(identity,)).fetchone()
+    if record is None:return
+    refs=[]
+    for address in addresses:
+        key=cache.get(address)
+        if key is None:
+            db.execute('INSERT OR IGNORE INTO address_keys(address) VALUES(?)',(address,))
+            key=db.execute('SELECT id FROM address_keys WHERE address=?',(address,)).fetchone()[0]
+            if len(cache)<4096:cache[address]=key
+        refs.append((key,record[0],slot))
+    # The native address_refs triggers still maintain orphan/retention witnesses.
+    db.executemany('INSERT OR IGNORE INTO address_refs VALUES(?,?,?)',refs)
+
+
 def publish(db,identity,encoded,chunks):
     for checksum,body in chunks:
         db.execute('INSERT OR IGNORE INTO hot_chunks VALUES(?,?)',(checksum,body))
