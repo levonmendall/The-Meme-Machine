@@ -18,5 +18,12 @@
     "Pending pre-entry context and verified-zero warmup remain distinct"
   ],
   "suite": "OPERATIONAL",
-  "authority": "Mocked offline providers and disposable state. Captured fixture proves only its recorded lag, never fabricated catch-up or natural qualification."
+  "authority": "Mocked offline providers and disposable state. Captured fixture proves only its recorded lag, never fabricated catch-up or natural qualification.",
+  "suite_isolation": {
+    "runner": "tests/test_meteora_evidence_recovery_isolated.py",
+    "runner_sha256": "bdea69000554dd34d79d0ae57fc591c11cd824a998dfea6deec72da56ed98dc7",
+    "reason": "Native run enforces whole-process strategy import independence. Combined suite legitimately preloads other lanes; execute original full fourteen tests unchanged in clean guarded subprocess instead.",
+    "guard": "network_guard before test imports; MM_ variables excluded only from disposable child, no configured state/provider authority; original independence check never mocked or weakened.",
+    "negative_result": "OPERATIONAL880 FAILED1error207.663s: native Meteora test rejected combined-suite Pons/Ramses imports; all other879tests passed."
+  }
 }
