@@ -7,7 +7,7 @@ transaction signers, real trade submissions, owner permits or live-money switch.
 
 Start here: [OPERATIONAL_STATE.md](OPERATIONAL_STATE.md).
 
-The candidate is **ready for deployment acceptance**. Robinhood USD valuation
+Migration completeness must pass before deployment acceptance. Robinhood USD valuation
 uses its existing RPC and the verified Chainlink USDG/USD feed. No genuine
 portfolio epoch, market execution or deployment occurred during consolidation
 or the read-only oracle repair.
@@ -38,3 +38,6 @@ Historical development and qualification material remains in Git history.
 [Inventory](OPERATIONAL_CONSOLIDATION_INVENTORY.md), source equivalence and
 offline check results live under `operational/`; none grants execution authority
 or forms a startup dependency.
+
+[Incident reference](operational/INCIDENT_REFERENCE.md) preserves production
+engineering findings, exact historical attribution and unresolved evidence limits.
