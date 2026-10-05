@@ -374,11 +374,10 @@ class MaintenanceRuntime:
 
     def cold_completed(self,observation,flight=None):
         """Resume only after real overdue cleanup, crediting committed work."""
+        from .startup_storage import needs_recovery
         if (flight is not None and not flight.idle or
-                observation.generation!=self.generation or observation.housekeeping or
-                any(at is not None and self.clock.project(at+RESIDENCE_SECONDS)<=observation.monotonic
-                    for s in observation.scopes for at in
-                    (s.hot_oldest,s.retirement_oldest,s.blocked_retirement_oldest))):
+                observation.generation!=self.generation or
+                needs_recovery(observation,self.clock,housekeeping=True)):
             raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
         self.last_observation=observation
         self.arbiter.origin.pop(('archive','__archive_receipt__'),None)

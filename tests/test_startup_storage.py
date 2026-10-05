@@ -13,6 +13,27 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class StartupStorage(unittest.IsolatedAsyncioTestCase):
+    async def test_cold_cleanup_uses_the_same_conservative_clock_margin_as_completion(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight
+        with native_runtime() as (state,runtime,clock):
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+            ingest(state.writer,rows(clock,SCOPES[0],3,age=239))
+            finalized_frontier(state,clock,SCOPES[0]);flight=ArchiveFlight()
+            self.assertTrue(runtime.turn(flight,clock.monotonic())['cold_recovery_required'])
+            original_error=runtime.leases.clock_error
+            async def work(fn,priority,**kwargs):return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,flight=flight,clock=runtime.clock,
+                    on_complete=lambda s,o:runtime.cold_completed(o,flight))
+            self.assertFalse(state.writer.db.execute('SELECT 1 FROM records').fetchone())
+            self.assertEqual(state.writer.db.execute("SELECT value FROM counters WHERE key='archived_records'").fetchone()[0],3)
+            self.assertEqual(runtime.leases.clock_error,original_error)
+            self.assertIsNone(runtime.arbiter.pending)
+            self.assertIsNone(runtime.failure)
+
     async def test_live_young_debt_can_remain_after_real_old_cleanup_without_extending_safety(self):
         from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
         from tests.maintenance_production_harness import rows,ingest,SCOPES

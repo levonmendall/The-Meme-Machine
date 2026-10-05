@@ -5,10 +5,28 @@ import json
 import os
 from pathlib import Path
 import signal
+import sqlite3
 import time
 
 from meme_machine.portfolio_accounting import _atomic_json
 from meme_machine.runtime.usd_valuation import utc,ValuationUnavailable
+
+
+class NativeReconciliationUnavailable(RuntimeError):
+    """A bounded read can retry without restarting or authorizing discovery."""
+
+
+def native_reconciliation(root,check,reason):
+    from .observation import database
+    # Native recovery gets its own durable-state read budget. The independent
+    # low-priority observer's one-second budget is not an economic recovery SLA.
+    proof=database(Path(root)/'portfolio.sqlite',check,seconds=5)
+    if proof.get('state')=='CURRENT' and proof.get('reconciled') is True:return proof
+    if (proof.get('sqlite_code') in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_CANTOPEN) or
+            proof.get('sqlite_code')==sqlite3.SQLITE_INTERRUPT and
+            proof.get('observation_deadline_exhausted') is True):
+        raise NativeReconciliationUnavailable(reason)
+    raise RuntimeError(reason)
 
 
 def health(root,lane,phase,**fields):
@@ -68,8 +86,11 @@ def run_native(root,lane):
                     # repeatedly during legitimate unavailable market liquidity.
                     # Empty native state is reconciled against the shared epoch;
                     # existing exposure without native genesis fails closed.
-                    empty_native_reconciliation(root,lane)
-                    status.update('FAIL_CLOSED',reconciled=True,restored_positions=0,
+                    reconciled=False
+                    try:
+                        empty_native_reconciliation(root,lane);reconciled=True
+                    except NativeReconciliationUnavailable:pass
+                    status.update('FAIL_CLOSED',reconciled=reconciled,restored_positions=0,
                         discovery_enabled=False,valuation_available=False,
                         regimes=dict(current='FAIL_CLOSED',survivor='FAIL_CLOSED'))
                     if requested.wait(15):return
@@ -98,15 +119,20 @@ def run_native(root,lane):
     else:
         from meme_machine.runtime.lifecycle_timing import install_ramses
         from meme_machine.lanes.ramses import ramses_extended_test
-        if unfunded_ramses_reconciliation(root):
-            status.update('DISCOVERING',reconciled=True,restored_positions=0)
+        while True:
+            try:
+                if unfunded_ramses_reconciliation(root):
+                    status.update('DISCOVERING',reconciled=True,restored_positions=0)
+                break
+            except NativeReconciliationUnavailable:
+                status.update('FAIL_CLOSED',reconciled=False,discovery_enabled=False)
+                if requested.wait(15):return
         install_ramses(ramses_extended_test)
         ramses_extended_test.main(campaign=True)
     health(root,lane,'STOPPED',reconciled=True)
 
 
 def empty_native_reconciliation(root,lane):
-    from .observation import database
     from meme_machine.portfolio_accounting import PortfolioAccounting
     folder=Path(root)/lane
     if any(p.is_file() for p in folder.rglob('*.sqlite*')):
@@ -122,10 +148,7 @@ def empty_native_reconciliation(root,lane):
                 db.execute('SELECT 1 FROM portfolio_native_pending WHERE lane=? LIMIT 1',(lane,)).fetchone()):
             raise RuntimeError('native_genesis_missing_with_shared_economic_state')
         return dict(reconciled=True)
-    proof=database(Path(root)/'portfolio.sqlite',check)
-    if proof.get('state')!='CURRENT' or proof.get('reconciled') is not True:
-        raise RuntimeError('empty_native_state_not_reconciled')
-    return proof
+    return native_reconciliation(root,check,'empty_native_state_not_reconciled')
 
 
 def unfunded_ramses_reconciliation(root):
@@ -134,7 +157,6 @@ def unfunded_ramses_reconciliation(root):
     Existing funded books still use their native startup/recovery before new
     discovery. Never infer empty state from a no-trade report alone.
     """
-    from .observation import database
     from meme_machine.portfolio_accounting import PortfolioAccounting
     folder=Path(root)/'ramses'
     if (folder/'robinhood-ramses-extended-market.sqlite.campaign').exists():return False
@@ -158,9 +180,7 @@ def unfunded_ramses_reconciliation(root):
                 db.execute("SELECT 1 FROM portfolio_native_pending WHERE lane='ramses' LIMIT 1").fetchone()):
             raise RuntimeError('unfunded_ramses_shared_economic_state_present')
         return dict(reconciled=True)
-    proof=database(Path(root)/'portfolio.sqlite',check)
-    if proof.get('state')!='CURRENT' or proof.get('reconciled') is not True:
-        raise RuntimeError('unfunded_ramses_not_reconciled')
+    native_reconciliation(root,check,'unfunded_ramses_not_reconciled')
     return True
 
 

@@ -10,19 +10,23 @@ from .solana_evidence_plane import EvidenceUnavailable,EvidenceWriter
 from .solana_maintenance_state import DebtAgeAdapter,RESIDENCE_SECONDS
 
 
+def needs_recovery(observation,clock=None,*,housekeeping=False):
+    return (housekeeping and bool(observation.housekeeping) or any(
+        at is not None and (at+RESIDENCE_SECONDS<=observation.wall if clock is None else
+            clock.project(at+RESIDENCE_SECONDS)<=observation.monotonic)
+        for scope in observation.scopes for at in
+        (scope.hot_oldest,scope.retirement_oldest,scope.blocked_retirement_oldest)))
+
+
 async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
-                  force=False,flight=None,on_complete=None):
+                  force=False,flight=None,on_complete=None,clock=None):
     wall=wall or time.time;monotonic=monotonic or time.monotonic
     started=monotonic();deadline=started+60
     def overdue(state):
         observation=DebtAgeAdapter(state.writer,wall=wall,monotonic=monotonic).observe(state.fence.session)
-        pending=any(
-                at is not None and at+RESIDENCE_SECONDS<=observation.wall
-                for scope in observation.scopes for at in
-                (scope.hot_oldest,scope.retirement_oldest,scope.blocked_retirement_oldest))
         # A live source need not become entirely idle. Clean the newly overdue
         # evidence, then let the unchanged arbiter service ordinary young debt.
-        if force:pending |= bool(observation.housekeeping)
+        pending=needs_recovery(observation,clock,housekeeping=force)
         if not pending and on_complete is not None:on_complete(state,observation)
         return pending
     async def commit(plan,receipt):
