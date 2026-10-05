@@ -1,0 +1,41 @@
+{
+  "classification": "OPERATIONAL_REFERENCE",
+  "historical_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "sources": [
+    {
+      "path": "docs/run370-solana-capacity-repair.md",
+      "sha256": "1777ff365566d105a9f05b4a6bc64307fb0800d0a0197427effa14e72eff99d3"
+    },
+    {
+      "path": "docs/run371-infrastructure-repair.md",
+      "sha256": "7e575efb80d63c5fc34b5a40f6f2b52684953e3bd5868128b09588201c659282"
+    },
+    {
+      "path": "docs/run372-solana-large-frame-repair.md",
+      "sha256": "a91b91dc09ff42a1473da51f410fd5b3c4ec081efb1bb3c631585192bb427d39"
+    },
+    {
+      "path": "docs/run375-runtime-repair.md",
+      "sha256": "69b886f7a2f419bb583fa80f4046c4c6c5bb4b715be08f00fff70f017040a8f8"
+    }
+  ],
+  "current_tests": [
+    "tests/test_run370_storage.py",
+    "tests/test_provider_partial_batch_retry.py",
+    "tests/test_retention_outcomes.py",
+    "tests/test_retention_progress.py",
+    "tests/test_run372_large_frame_runtime.py",
+    "tests/test_run376_dispatch_pressure.py",
+    "tests/test_run381_subscription_progress.py",
+    "tests/lanes/ramses/test_ramses_scan_capacity_recovery.py",
+    "tests/test_provider_usage_wal_race.py"
+  ],
+  "preserved_limits": [
+    "Generic historical ConnectionClosedError causes cannot be inferred.",
+    "Interrupted/coarsely sampled runs do not become completed/peak measurements.",
+    "Finite store may fail closed under indefinite evidence/retention obligations.",
+    "Run370 consumer/smoke regression obligations still require separate ledger review.",
+    "Run380 pressure regression remains pending, not accepted."
+  ],
+  "authority": "Information and engineering invariants only; no economic change, market workload, deployment or certification authority."
+}
