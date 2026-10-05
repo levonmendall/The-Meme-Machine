@@ -1,0 +1,32 @@
+[Unit]
+Description=Meme Machine independent read-only operational observation
+After=mnt-volume_nyc1_1790918115030.mount
+
+[Service]
+Type=exec
+User=meme-machine
+Group=meme-machine
+WorkingDirectory=/opt/meme-machine
+ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.observation --state-root /mnt/volume_nyc1_1790918115030/meme-machine-paper-v1
+Restart=on-failure
+RestartSec=15
+StateDirectory=meme-machine-observer
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/mnt/volume_nyc1_1790918115030
+ReadWritePaths=/var/lib/meme-machine-observer
+RestrictAddressFamilies=AF_UNIX
+Nice=10
+CPUQuota=10%
+MemoryMax=256M
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

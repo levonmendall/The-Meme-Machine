@@ -1,0 +1,29 @@
+[Unit]
+Description=Meme Machine durable PAPER acceptance %i
+Wants=meme-machine-observer.service
+After=meme-machine-paper.service meme-machine-observer.service
+
+[Service]
+Type=exec
+User=root
+WorkingDirectory=/opt/meme-machine
+EnvironmentFile=/etc/meme-machine/paper.env
+EnvironmentFile=/etc/meme-machine/acceptance.env
+ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.durable_acceptance run %i
+ExecStopPost=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.durable_acceptance finalize %i
+Restart=no
+StateDirectory=meme-machine-acceptance
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_KILL
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/mnt/volume_nyc1_1790918115030
+ReadWritePaths=/var/lib/meme-machine-acceptance
+RestrictAddressFamilies=AF_UNIX
+KillMode=control-group
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
