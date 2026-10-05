@@ -16,11 +16,13 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
     started=monotonic();deadline=started+60
     def overdue(state):
         observation=DebtAgeAdapter(state.writer,wall=wall,monotonic=monotonic).observe(state.fence.session)
-        pending=(bool(observation.housekeeping) or any(
-            s.hot_eligible or s.retirement_eligible or s.continuity or s.floor_changed
-            for s in observation.scopes)) if force else any(
+        pending=any(
                 at is not None and at+RESIDENCE_SECONDS<=observation.wall
-                for scope in observation.scopes for at in (scope.hot_oldest,scope.retirement_oldest))
+                for scope in observation.scopes for at in
+                (scope.hot_oldest,scope.retirement_oldest,scope.blocked_retirement_oldest))
+        # A live source need not become entirely idle. Clean the newly overdue
+        # evidence, then let the unchanged arbiter service ordinary young debt.
+        if force:pending |= bool(observation.housekeeping)
         if not pending and on_complete is not None:on_complete(state,observation)
         return pending
     async def commit(plan,receipt):

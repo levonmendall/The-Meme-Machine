@@ -65,18 +65,24 @@ def numeric(value, depth=0):
 def database(path, callback, seconds=1):
     if not Path(path).is_file():
         return {'state': 'UNAVAILABLE'}
+    expired=False
     try:
         with closing(sqlite3.connect(Path(path).absolute().as_uri()+'?mode=ro',
                 uri=True, timeout=.2, isolation_level=None)) as db:
             db.execute('PRAGMA query_only=ON')
             deadline = time.monotonic() + seconds
-            db.set_progress_handler(lambda: int(time.monotonic()>deadline), 1000)
+            def bounded():
+                nonlocal expired
+                expired=time.monotonic()>deadline
+                return int(expired)
+            db.set_progress_handler(bounded, 1000)
             db.execute('BEGIN')
             return dict(state='CURRENT', **callback(db))
     except sqlite3.Error as error:
         code = getattr(error, 'sqlite_errorcode', 0) & 255
         return dict(state='FAIL_CLOSED' if code in (11,26) else 'UNAVAILABLE',
-                    integrity_failure=code in (11,26), sqlite_code=code)
+                    integrity_failure=code in (11,26), sqlite_code=code,
+                    observation_deadline_exhausted=code==sqlite3.SQLITE_INTERRUPT and expired)
     except (OSError, ValueError, RuntimeError, KeyError, TypeError) as error:
         failure=type(error).__name__=='PortfolioIntegrityError'
         return dict(state='FAIL_CLOSED' if failure else 'UNAVAILABLE',
@@ -112,13 +118,19 @@ def portfolio_summary(reader,state,as_of):
         unrealized_pnl=amount(unrealized) if unrealized is not None else None)
 
 
+def projection_allowed(result):
+    return (result.get('sqlite_code')==sqlite3.SQLITE_CANTOPEN or
+        result.get('sqlite_code')==sqlite3.SQLITE_INTERRUPT and result.get('observation_deadline_exhausted') is True)
+
+
 def observed_portfolio(root,health,now):
     result=database(Path(root)/'portfolio.sqlite',portfolio)
-    if result.get('sqlite_code')!=sqlite3.SQLITE_CANTOPEN:return result
+    if not projection_allowed(result):return result
     # A genuinely read-only mount cannot create missing WAL support files
     # between short-lived writer connections. Use the existing owner's bounded
     # atomic health projection; never mark the live database immutable, write
     # support files, acquire its economic lock, or suppress an integrity error.
+    # The same fallback covers only this observer's own bounded-read timeout.
     try:
         row=health['portfolio_observation']
         from meme_machine.portfolio_accounting import _stamp
@@ -145,6 +157,43 @@ def observed_portfolio(root,health,now):
             if not isinstance(row[key],str) or not re.fullmatch('[0-9a-f]{64}',row[key]):return result
         return dict({key:row[key] for key in keys},
             observation_source='canonical_health_projection',live_sqlite_code=result['sqlite_code'])
+    except (KeyError,TypeError,ValueError):return result
+
+
+def observed_provider(root,health,provider_name,now):
+    result=database(Path(root)/'shared'/f'{provider_name}-provider.sqlite',
+        lambda db:provider(db,provider_name=='solana'))
+    if not projection_allowed(result):return result
+    try:
+        from meme_machine.portfolio_accounting import _stamp
+        row=health['providers'][provider_name]
+        if not 0<=now-_stamp(health['at'])<=15 or row['state']!='CURRENT':return result
+        if type(row['queue_depth']) is not int or row['queue_depth']<0:return result
+        wait=row['oldest_wait_seconds']
+        if type(wait) not in (int,float) or not math.isfinite(wait) or wait<0:return result
+        projected=dict(state='CURRENT',queue_depth=row['queue_depth'],oldest_wait_seconds=wait,
+            observation_source='canonical_health_projection',live_sqlite_code=result['sqlite_code'])
+        if provider_name=='solana':
+            projected['pressure']=[]
+            for entry in (row.get('pressure') or [])[:8]:
+                if all(type(entry.get(k)) in (int,float) and math.isfinite(entry[k]) and entry[k]>=0
+                       for k in ('grants','rate_errors','cooldown_seconds')):
+                    projected['pressure'].append(dict(provider='solana',**{k:entry[k] for k in
+                        ('grants','rate_errors','cooldown_seconds')}))
+        else:
+            projected['usage']=[]
+            metrics={'batch_members','batch_transports','completed_transport_attempts','logical_rpc_calls',
+                'physical_http_requests','provider_queue_wait_seconds','responses_429','retries','transport_latency_seconds'}
+            methods={'eth_call','eth_chainId','eth_getBlockByNumber','eth_getCode','eth_getLogs',
+                'eth_getTransactionReceipt','eth_gasPrice','eth_getStorageAt','eth_getBalance'}
+            for entry in (row.get('usage') or [])[:128]:
+                metric=entry.get('metric','');value=entry.get('value')
+                if (entry.get('lane') in ('pump','pons','meteora','ramses') and isinstance(metric,str) and
+                        (metric in metrics or metric.removeprefix('method:') in methods or
+                         re.fullmatch('failure:provider_rpc_-?[0-9]{1,10}',metric)) and
+                        type(value) in (int,float) and math.isfinite(value) and value>=0):
+                    projected['usage'].append({k:entry[k] for k in ('lane','metric','value')})
+        return projected
     except (KeyError,TypeError,ValueError):return result
 
 
@@ -189,6 +238,14 @@ def evidence(db):
     result['counters'] = {k:v for k,v in db.execute('SELECT key,value FROM counters LIMIT 128')}
     count,created,pages,attempts = db.execute('SELECT COUNT(*),MIN(created),SUM(pages),SUM(attempts) FROM gaps WHERE repaired IS NULL').fetchone()
     result['repair_backlog'] = dict(open_gaps=count, oldest_created=created, pages=pages, attempts=attempts)
+    # A sealed historical gap remains unavailable; it is not a failure of the
+    # current stream unless active work or fresh coverage still references it.
+    required,oldest=db.execute('''SELECT COUNT(*),MIN(g.created) FROM gaps g
+        WHERE g.repaired IS NULL AND (g.hi IS NULL
+        OR EXISTS(SELECT 1 FROM interests i WHERE i.scope=g.scope AND i.active=1 AND i.lower_slot<=g.hi)
+        OR EXISTS(SELECT 1 FROM coverage c WHERE c.scope=g.scope AND c.available>=? AND c.lo<=g.hi AND c.hi>=g.lo))''',
+        (time.time()-180,)).fetchone()
+    result['repair_backlog'].update(required_gaps=required,oldest_required_created=oldest)
     result['maintenance_progress'] = [dict(scope=s,side=side,at=at,units=units,record_at=record_at,records=records)
         for s,side,at,units,record_at,records in db.execute("SELECT * FROM maintenance_progress WHERE scope IN ('program:pump','program:pumpswap','program:meteora')")]
     result['all_maintenance_progress'] = [dict(side=side,scopes=scopes,units=units,records=records,last_progress=at)
@@ -329,7 +386,7 @@ def collect(root):
     value['portfolio'] = observed_portfolio(root,health,time.time())
     value['solana'] = database(root/'shared/solana-evidence.sqlite', evidence)
     for name in ('solana','robinhood'):
-        value[name+'_provider'] = database(root/'shared'/f'{name}-provider.sqlite', lambda db:provider(db,name=='solana'))
+        value[name+'_provider'] = observed_provider(root,health,name,time.time())
     return value
 
 

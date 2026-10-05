@@ -30,7 +30,9 @@ def conditions(sample,epoch,now):
     s=sample.get('solana',{})
     if s.get('state')!='CURRENT':found.add('evidence_unavailable')
     gap=s.get('repair_backlog',{})
-    if gap.get('open_gaps',0) and gap.get('oldest_created') is not None and now-gap['oldest_created']>PERSISTENCE:
+    required=gap.get('required_gaps',gap.get('open_gaps',0))
+    created=gap.get('oldest_required_created',gap.get('oldest_created'))
+    if required and created is not None and now-created>PERSISTENCE:
         found.add('persistent_evidence_gap')
     heartbeat=s.get('heartbeat')
     if isinstance(heartbeat,(int,float)) and now-heartbeat>60:found.add('evidence_heartbeat_stale')
@@ -59,8 +61,9 @@ def evaluate(sample,previous,epoch,now=None,*,expect_running=True):
     previous=previous or {};first=previous.get('first_seen',{})
     progress={}
     solana=(sample or {}).get('solana',{})
+    programs=solana.get('frontiers') or []
     counters_to_watch={'evidence_stream_receive':solana.get('counters',{}).get('stream_messages'),
-        'evidence_committed_frontier':solana.get('all_frontiers',{}).get('highest_slot')}
+        'evidence_committed_frontier':max((r['slot'] for r in programs),default=None)}
     for code,value in counters_to_watch.items():
         if not isinstance(value,(int,float)):continue
         old=previous.get('progress',{}).get(code,{})

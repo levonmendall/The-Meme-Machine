@@ -6,6 +6,23 @@ import unittest
 from meme_machine.operational import monitoring
 
 class Conditions(unittest.TestCase):
+    def test_sealed_unreferenced_history_is_not_a_current_evidence_failure(self):
+        sample=self.sample()
+        sample['solana']['repair_backlog']=dict(open_gaps=13,oldest_created=1,
+            required_gaps=0,oldest_required_created=None)
+        self.assertNotIn('persistent_evidence_gap',monitoring.conditions(sample,'paper-existing',1000))
+        sample['solana']['repair_backlog'].update(required_gaps=1,oldest_required_created=1)
+        self.assertIn('persistent_evidence_gap',monitoring.conditions(sample,'paper-existing',1000))
+
+    def test_stale_account_frontier_cannot_hide_healthy_program_progress(self):
+        previous={}
+        for now in (1000,1200,1400):
+            sample=self.sample(now)
+            sample['solana'].update(frontiers=[dict(scope='program:pump',slot=now)],
+                all_frontiers=dict(highest_slot=999999))
+            previous=monitoring.evaluate(sample,previous,'paper-existing',now)
+            self.assertNotIn('evidence_committed_frontier_stalled',previous['conditions'])
+
     def sample(self,now=1000):
         return dict(timestamp=now,portfolio=dict(state='CURRENT',epoch_id='paper-existing',checks={'conservation':True},positions_by_lane={}),
             host={'service':{'ActiveState':'active','NRestarts':'0'},'disks':{}},

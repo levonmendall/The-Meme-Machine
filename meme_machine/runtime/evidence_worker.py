@@ -89,7 +89,8 @@ def failure_diagnostic(exc):
         result=type(error).__name__
         if type(error) is EvidenceUnavailable and len(error.args)==1:
             reason=error.args[0]
-            if isinstance(reason,str) and reason in SAFE_EVIDENCE_REASONS:
+            if isinstance(reason,str) and reason in SAFE_EVIDENCE_REASONS | {
+                    'maintenance_startup_recovery_incomplete','maintenance_gap_range_bound'}:
                 result+=':'+reason
                 diagnostic=getattr(error,'maintenance_failure',None)
                 if isinstance(diagnostic,dict):

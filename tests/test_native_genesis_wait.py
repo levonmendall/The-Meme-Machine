@@ -4,11 +4,32 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-from meme_machine.operational.lane import empty_native_reconciliation
+from meme_machine.operational.lane import empty_native_reconciliation,unfunded_ramses_reconciliation
 from meme_machine.portfolio_accounting import PortfolioAccounting,LANES,inception_receipt
 
 
 class NativeGenesisWait(unittest.TestCase):
+    def test_no_ramses_qualifier_is_reconciled_without_funding_or_replacing_native_state(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{'MM_PAPER_EPOCH':'paper-fixture'}):
+            root=Path(td);folder=root/'ramses';folder.mkdir()
+            ids=dict(source_sha='a'*40,policy_hash='b'*64,config_hash='c'*64)
+            with closing(PortfolioAccounting(root/'portfolio.sqlite')) as account:
+                account.establish_inception(inception_receipt('paper-fixture','2026-10-05T00:00:00Z','fixture'),portfolio_identities=ids,lane_identities={lane:ids for lane in LANES})
+                account.configure_family_sleeves();before=account.snapshot()
+            cache=folder/'robinhood-ramses-extended-market.sqlite.pipeline.sqlite'
+            with sqlite3.connect(cache) as db:db.execute('CREATE TABLE observation(value)')
+            original=cache.read_bytes()
+            self.assertTrue(unfunded_ramses_reconciliation(root))
+            self.assertEqual(cache.read_bytes(),original)
+            with closing(PortfolioAccounting(root/'portfolio.sqlite')) as account:self.assertEqual(account.snapshot(),before)
+            self.assertFalse((folder/'native-genesis.json').exists())
+            manifest=folder/'robinhood-ramses-extended-market.sqlite.campaign';manifest.mkdir()
+            self.assertFalse(unfunded_ramses_reconciliation(root))
+            manifest.rmdir()
+            (folder/'robinhood-ramses-continuation.json').write_text('{"active":true}')
+            with self.assertRaisesRegex(RuntimeError,'native_continuation_present'):unfunded_ramses_reconciliation(root)
+
     def test_empty_lane_proof_readonly_and_existing_state_is_never_replaced(self):
         with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{'MM_PAPER_EPOCH':'paper-fixture'}):
             root=Path(td);(root/'pons').mkdir();ids=dict(source_sha='a'*40,policy_hash='b'*64,config_hash='c'*64)

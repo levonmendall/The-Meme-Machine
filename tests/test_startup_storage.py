@@ -13,6 +13,32 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class StartupStorage(unittest.IsolatedAsyncioTestCase):
+    async def test_live_young_debt_can_remain_after_real_old_cleanup_without_extending_safety(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight
+        with native_runtime() as (state,runtime,clock):
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+            ingest(state.writer,rows(clock,SCOPES[0],4,age=1800))
+            finalized_frontier(state,clock,SCOPES[0]);flight=ArchiveFlight()
+            self.assertTrue(runtime.turn(flight,clock.monotonic())['cold_recovery_required'])
+            added=[False]
+            async def work(fn,priority,**kwargs):
+                result=fn(state)
+                if kwargs['label']=='retention' and not added[0]:
+                    ingest(state.writer,rows(clock,SCOPES[0],5,age=185,start=3000,tag='ongoing'))
+                    added[0]=True
+                return result
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,flight=flight,
+                    on_complete=lambda s,o:runtime.cold_completed(o,flight))
+            self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],5)
+            self.assertIsNone(runtime.arbiter.pending)
+            current=runtime.adapter.observe(runtime.generation)
+            self.assertEqual(next(s for s in current.scopes if s.scope==SCOPES[0]).hot_oldest,clock.time()-185)
+            self.assertEqual(runtime.turn(flight,clock.monotonic())['side'],'archive')
+
     async def test_late_cleanup_finishes_existing_archive_carrier_before_new_work(self):
         from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
         from tests.maintenance_production_harness import rows,ingest,SCOPES

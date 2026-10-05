@@ -373,18 +373,33 @@ class MaintenanceRuntime:
         return found
 
     def cold_completed(self,observation,flight=None):
-        """Resolve clocks only after the same owner observes real empty debt."""
+        """Resume only after real overdue cleanup, crediting committed work."""
         if (flight is not None and not flight.idle or
                 observation.generation!=self.generation or observation.housekeeping or
-                any(s.hot_eligible or s.retirement_eligible or s.continuity or s.floor_changed
-                    for s in observation.scopes)):
+                any(at is not None and self.clock.project(at+RESIDENCE_SECONDS)<=observation.monotonic
+                    for s in observation.scopes for at in
+                    (s.hot_oldest,s.retirement_oldest,s.blocked_retirement_oldest))):
             raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
         self.last_observation=observation
         self.arbiter.origin.pop(('archive','__archive_receipt__'),None)
         needs=self._demands(observation)
-        self.arbiter.choose(generation=self.state.fence.session,
-            as_of=observation.monotonic,now=self.monotonic(),needs=needs,
-            ready=dict(archive=True,retirement=True))
+        before=getattr(self,'cold_progress_before',{})
+        for need in needs:
+            key=need.side,need.scope;row=self.last_progress.get(key)
+            prior=before.get(key,(0,0))
+            # Cumulative native counters must show new committed work of the
+            # right kind. Observation, eligibility or a young row gives no credit.
+            if row and (row[5]>prior[1] if need.records else row[3]>prior[0]):
+                at=row[4] if need.records else row[2]
+                credited=self.clock.project(at)
+                if credited>observation.monotonic:
+                    raise EvidenceUnavailable('maintenance_progress_clock_invalid')
+                self.arbiter.origin[key]=max(self.arbiter.origin.get(key,credited),credited)
+        self.cold_progress_before={}
+        for need in needs:
+            if not need.units:self.arbiter.origin.pop((need.side,need.scope),None)
+        # The next ordinary turn owns admission of remaining young work. Do
+        # not reserve a decision here and strand it without its native execution.
 
 
     def turn(self, flight, submitted):
@@ -413,6 +428,7 @@ class MaintenanceRuntime:
                 previous=self.last_observation
                 self.last_observation=observation
                 if self._newly_eligible_old_evidence(observation,previous):
+                    self.cold_progress_before={(r[1],r[0]):(r[3],r[5]) for r in observation.recent_progress}
                     self._record(dict(reason='cold_recovery_required',at=self.monotonic(),
                         generation=self.generation,selected=None))
                     return dict(side=None,archive_pressure=True,retirement_pressure=True,

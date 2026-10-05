@@ -98,6 +98,8 @@ def run_native(root,lane):
     else:
         from meme_machine.runtime.lifecycle_timing import install_ramses
         from meme_machine.lanes.ramses import ramses_extended_test
+        if unfunded_ramses_reconciliation(root):
+            status.update('DISCOVERING',reconciled=True,restored_positions=0)
         install_ramses(ramses_extended_test)
         ramses_extended_test.main(campaign=True)
     health(root,lane,'STOPPED',reconciled=True)
@@ -124,6 +126,42 @@ def empty_native_reconciliation(root,lane):
     if proof.get('state')!='CURRENT' or proof.get('reconciled') is not True:
         raise RuntimeError('empty_native_state_not_reconciled')
     return proof
+
+
+def unfunded_ramses_reconciliation(root):
+    """No qualifier/funding is a reconciled empty state, not a stalled restart.
+
+    Existing funded books still use their native startup/recovery before new
+    discovery. Never infer empty state from a no-trade report alone.
+    """
+    from .observation import database
+    from meme_machine.portfolio_accounting import PortfolioAccounting
+    folder=Path(root)/'ramses'
+    if (folder/'robinhood-ramses-extended-market.sqlite.campaign').exists():return False
+    allowed='robinhood-ramses-extended-market.sqlite.pipeline.sqlite'
+    if any(p.is_file() and p.name not in (allowed,allowed+'-wal',allowed+'-shm')
+           for p in folder.rglob('*.sqlite*')):
+        raise RuntimeError('unfunded_ramses_unknown_native_store')
+    continuation=folder/'robinhood-ramses-continuation.json'
+    if continuation.exists():
+        value=json.loads(continuation.read_text())
+        if value.get('active') or value.get('ledger_path'):
+            raise RuntimeError('unfunded_ramses_native_continuation_present')
+    def check(db):
+        reader=object.__new__(PortfolioAccounting);reader.db=db
+        state=reader._replay();reader._reconcile(state)
+        if state['receipt']['epoch_id']!=os.environ['MM_PAPER_EPOCH']:
+            raise RuntimeError('unfunded_ramses_epoch_mismatch')
+        if (any(p['lane']=='ramses' for p in state['positions'].values()) or
+                any(p['lane']=='ramses' for p in state['reservations'].values()) or
+                state['retired']['ramses']['count'] or
+                db.execute("SELECT 1 FROM portfolio_native_pending WHERE lane='ramses' LIMIT 1").fetchone()):
+            raise RuntimeError('unfunded_ramses_shared_economic_state_present')
+        return dict(reconciled=True)
+    proof=database(Path(root)/'portfolio.sqlite',check)
+    if proof.get('state')!='CURRENT' or proof.get('reconciled') is not True:
+        raise RuntimeError('unfunded_ramses_not_reconciled')
+    return True
 
 
 def main():

@@ -14,6 +14,33 @@ from meme_machine.operational.supervisor import identities
 
 
 class ReadOnlyObservation(unittest.TestCase):
+    def test_only_the_observers_own_sqlite_read_deadline_allows_projection(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/'data.sqlite'
+            with sqlite3.connect(p) as db:db.execute('CREATE TABLE data(value)')
+            row=observation.database(p,lambda db:db.execute('WITH RECURSIVE n(v) AS (SELECT 1 UNION ALL SELECT v+1 FROM n WHERE v<100000) SELECT SUM(v) FROM n').fetchone(),seconds=-1)
+            self.assertEqual(row['sqlite_code'],sqlite3.SQLITE_INTERRUPT)
+            self.assertTrue(row['observation_deadline_exhausted'])
+            self.assertTrue(observation.projection_allowed(row))
+            self.assertFalse(observation.projection_allowed(dict(sqlite_code=sqlite3.SQLITE_INTERRUPT)))
+
+    def test_provider_projection_is_fresh_bounded_redacted_and_never_masks_integrity(self):
+        from meme_machine.runtime.usd_valuation import utc
+        now=1791234000.0;health=dict(at=utc(now),providers={'robinhood':dict(state='CURRENT',queue_depth=3,
+            oldest_wait_seconds=1,endpoint='private-secret',usage=[
+                dict(lane='pons',metric='responses_429',value=4),
+                dict(lane='pons',metric='private-secret',value=123)])})
+        missing=dict(state='UNAVAILABLE',sqlite_code=sqlite3.SQLITE_CANTOPEN)
+        with patch.object(observation,'database',return_value=missing):
+            row=observation.observed_provider('/unused',health,'robinhood',now)
+            self.assertEqual(row['queue_depth'],3)
+            self.assertEqual(row['usage'],[dict(lane='pons',metric='responses_429',value=4)])
+            self.assertNotIn('private-secret',json.dumps(row))
+            self.assertEqual(observation.observed_provider('/unused',health,'robinhood',now+16),missing)
+        corrupt=dict(state='FAIL_CLOSED',sqlite_code=sqlite3.SQLITE_CORRUPT)
+        with patch.object(observation,'database',return_value=corrupt):
+            self.assertEqual(observation.observed_provider('/unused',health,'robinhood',now),corrupt)
+
     def test_learning_usage_projection_is_bounded_query_only_and_ignores_symlinks(self):
         from meme_machine.runtime import learning
         with tempfile.TemporaryDirectory() as td:
@@ -43,7 +70,7 @@ class ReadOnlyObservation(unittest.TestCase):
             supervisor.publish();supervisor.publish()
             health=json.loads((root/'health.json').read_text())
             health['portfolio_observation']['valid_until']='2020-01-01T00:00:00Z'
-            missing=dict(state='UNAVAILABLE',sqlite_code=sqlite3.SQLITE_CANTOPEN)
+            missing=dict(state='UNAVAILABLE',sqlite_code=sqlite3.SQLITE_INTERRUPT,observation_deadline_exhausted=True)
             with patch.object(observation,'database',return_value=missing):
                 self.assertEqual(observation.observed_portfolio(root,health,time.time()),missing)
 
