@@ -92,6 +92,7 @@ OPERATIONAL=FAST+[
  'tests.lanes.pons.test_captured_pons_lineage',
  'tests.lanes.pons.test_captured',
  'tests.lanes.pump.test_pump_acceleration_confirmations','tests.lanes.pump.test_pump_acceleration_evidence',
+ 'tests.lanes.pump.test_pump_supply_boundaries',
  'tests.lanes.pump.test_captured','tests.lanes.pump.test_postgrad_captured','tests.lanes.pump.test_pump_acceleration_stream_extensions',
  'tests.lanes.pump.test_postgrad',
  'tests.lanes.pump.test_directional_capacity',
