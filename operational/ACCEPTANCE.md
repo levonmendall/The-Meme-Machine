@@ -9,9 +9,14 @@ validates configuration without network I/O or inception.
    journal. Never create a replacement directory or reseed capital when storage
    is missing. Verify the actual persistent mount and filesystem UUID. Configure
    root-owned, non-writable-by-others `/etc/meme-machine/storage.json` with exactly
-   `mount_target`, `state_root`, `filesystem_uuid`, `epoch_id`, and
+   `mount_target`, `state_root`, `filesystem_uuid`, `volume_device`, `epoch_id`, and
    `inception_sha256` from the preserved canonical portfolio inception. The service
    requires the mount and checks that identity before economic initialization.
+   `volume_device` is the original DigitalOcean `/dev/disk/by-id/` volume link;
+   clone UUIDs cannot substitute another device. Deploy tracked files as root,
+   readable by the service user (0644 files, 0755 directories; preserve executable
+   modes). The non-secret storage configuration must also be readable by that
+   user; keep provider env files root:root 0600.
 3. Prepare `/opt/meme-machine` at that exact commit, CPython **3.12.14** and
    `websockets==17.1`. Verify SQLite **3.45.1** or the tested compatible successor.
    Run `python -m operational.tests FAST`, then `python -m operational.tests OPERATIONAL`.

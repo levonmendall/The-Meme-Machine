@@ -28,12 +28,16 @@ class StorageStartup(unittest.TestCase):
             db.execute('INSERT INTO portfolio_inception VALUES(1,?,?)', (body, checksum))
         self.config = Path(self.tmp.name) / 'storage.json'
         self.expected = dict(mount_target=str(self.mount), state_root=str(self.root),
+            volume_device='/dev/disk/by-id/expected-volume',
             filesystem_uuid='expected-filesystem', epoch_id='paper-preserved',
             inception_sha256=checksum)
         self.config.write_text(json.dumps(self.expected))
         self.config.chmod(0o644)
         self.mounted = dict(target=str(self.mount), uuid='expected-filesystem',
                             fstype='ext4', options='rw,noatime')
+        self.mounted['maj:min'] = '8:0'
+        device = patch('meme_machine.operational.storage_guard.device_identity',return_value='8:0')
+        device.start(); self.addCleanup(device.stop)
         self.env = patch.dict(os.environ, MM_STORAGE_GUARD_CONFIG=str(self.config))
         self.env.start(); self.addCleanup(self.env.stop)
 
@@ -73,6 +77,10 @@ class StorageStartup(unittest.TestCase):
 
     def test_nested_mount_rejected(self):
         self.assert_startup_rejected(dict(self.mounted, target=str(self.root)),
+                                     'expected_persistent_volume_not_mounted')
+
+    def test_cloned_filesystem_uuid_on_wrong_volume_is_rejected(self):
+        self.assert_startup_rejected(dict(self.mounted, **{'maj:min':'8:1'}),
                                      'expected_persistent_volume_not_mounted')
 
     def test_readonly_mount_rejected(self):

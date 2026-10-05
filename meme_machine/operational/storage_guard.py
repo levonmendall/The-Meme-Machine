@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import stat
 import subprocess
 
 DEFAULT_CONFIG = '/etc/meme-machine/storage.json'
@@ -13,6 +14,13 @@ DEFAULT_CONFIG = '/etc/meme-machine/storage.json'
 
 class StorageGuardError(RuntimeError):
     pass
+
+
+def device_identity(path):
+    device = os.stat(path)
+    if not stat.S_ISBLK(device.st_mode):
+        raise StorageGuardError('persistent_volume_device_unavailable')
+    return str(os.major(device.st_rdev)) + ':' + str(os.minor(device.st_rdev))
 
 
 def bounded_json(path, limit=16384):
@@ -31,7 +39,7 @@ def verify_storage(root, config=None):
         if permissions.st_uid != 0 or permissions.st_mode & 0o022:
             raise StorageGuardError('storage_configuration_permissions')
         expected = bounded_json(path)
-        if set(expected) != {'mount_target', 'state_root', 'filesystem_uuid',
+        if set(expected) != {'mount_target', 'state_root', 'filesystem_uuid', 'volume_device',
                              'epoch_id', 'inception_sha256'}:
             raise StorageGuardError('storage_configuration_shape')
         root = Path(root)
@@ -44,13 +52,14 @@ def verify_storage(root, config=None):
         # of a directory left on the root disk underneath an absent volume.
         response = subprocess.run(
             ['findmnt', '--json', '--target', str(root), '--output',
-             'TARGET,FSTYPE,UUID,OPTIONS'], capture_output=True, check=True,
+             'TARGET,FSTYPE,UUID,OPTIONS,MAJ:MIN'], capture_output=True, check=True,
             timeout=5, text=True)
         if len(response.stdout) > 16384:
             raise StorageGuardError('storage_mount_response_bound')
         rows = json.loads(response.stdout)['filesystems']
         if (len(rows) != 1 or rows[0]['target'] != str(mount) or
                 rows[0]['uuid'] != expected['filesystem_uuid'] or
+                rows[0]['maj:min'] != device_identity(expected['volume_device']) or
                 rows[0]['fstype'] != 'ext4' or
                 'rw' not in rows[0]['options'].split(',')):
             raise StorageGuardError('expected_persistent_volume_not_mounted')
