@@ -1,0 +1,14 @@
+{
+  "historical_source_commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+  "historical_path": "tests/lanes/meteora/test_meteora_missing_fee_context.py",
+  "historical_sha256": "afb4dab1201a252c5b95513189a843b35f54fc713b9f30bf03aa5bafae95e75d",
+  "current_path": "tests/test_meteora_missing_fee_context.py",
+  "adaptation": "None; original full source byte-for-byte.",
+  "coverage": [
+    "Missing five-minute fields acquire completed history buckets",
+    "Failed acquisition is incomplete evidence, never zero-fee strategy rejection",
+    "Measured zero remains a rejection without extra history request"
+  ],
+  "suite": "OPERATIONAL",
+  "authority": "Offline mocked list/history responses only; initial policy, evidence clocks and strategy economics unchanged."
+}
