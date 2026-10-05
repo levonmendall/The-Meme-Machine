@@ -176,7 +176,9 @@ class Supervisor:
             except (OSError,ValueError):row=dict(phase='STARTING')
             health[lane]=dict(row,pid=proc.pid,exit_code=proc.poll(),restarts=self.restarts[lane])
         try:
-            _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(now),stopping=self.stop_requested,lanes=health,providers=self.provider_health(),python=sys.version.split()[0],sqlite=sqlite3.sqlite_version))
+            _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(now),stopping=self.stop_requested,lanes=health,providers=self.provider_health(),python=sys.version.split()[0],sqlite=sqlite3.sqlite_version,
+                portfolio_observation=getattr(self,'portfolio_observation',None),
+                learning_observation=getattr(self,'learning_observation',None)))
         except OSError as error:
             print('health publication failed:',type(error).__name__,flush=True)
         try:
@@ -190,11 +192,20 @@ class Supervisor:
                 account.publish(epoch_id=self.epoch,event_id='snapshot:'+str(sequence+1),as_of=utc(now),valid_until=utc(now+30))
                 if account.db.execute('SELECT COUNT(*) FROM portfolio_events').fetchone()[0]>1024:
                     account.compact()
+                from .observation import portfolio_summary
+                state=account.snapshot()
+                self.portfolio_observation=dict(state='CURRENT',timestamp=now,
+                    valid_until=account._export(state)['valid_until'],
+                    **portfolio_summary(account,state,utc(now)))
             from meme_machine.portfolio_snapshot_transport import publish_snapshot
             publish_snapshot(self.root/'inception.json',self.root/'portfolio.json',self.root/'dashboard-snapshot.json')
         except (OSError,ValueError,RuntimeError):
             # Read-only dashboard files have no authority over native execution.
             pass
+        try:
+            from .observation import owner_learning_observation
+            self.learning_observation=owner_learning_observation(self.root)
+        except (OSError,ValueError,RuntimeError):self.learning_observation=None
         self.last_publish=time.monotonic()
 
     def provider_health(self):

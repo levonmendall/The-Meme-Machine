@@ -10,13 +10,35 @@ from .solana_evidence_plane import EvidenceUnavailable,EvidenceWriter
 from .solana_maintenance_state import DebtAgeAdapter,RESIDENCE_SECONDS
 
 
-async def recover(work,pool,path,stop,*,wall=None,monotonic=None):
+async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
+                  force=False,flight=None,on_complete=None):
     wall=wall or time.time;monotonic=monotonic or time.monotonic
     started=monotonic();deadline=started+60
     def overdue(state):
         observation=DebtAgeAdapter(state.writer,wall=wall,monotonic=monotonic).observe(state.fence.session)
-        return any(at is not None and at+RESIDENCE_SECONDS<=observation.wall
-                   for scope in observation.scopes for at in (scope.hot_oldest,scope.retirement_oldest))
+        pending=(bool(observation.housekeeping) or any(
+            s.hot_eligible or s.retirement_eligible or s.continuity or s.floor_changed
+            for s in observation.scopes)) if force else any(
+                at is not None and at+RESIDENCE_SECONDS<=observation.wall
+                for scope in observation.scopes for at in (scope.hot_oldest,scope.retirement_oldest))
+        if not pending and on_complete is not None:on_complete(state,observation)
+        return pending
+    async def commit(plan,receipt):
+        while plan:
+            plan=await work(lambda state:state.archive_commit_slice(plan,receipt),4,label='archive_commit_plan')
+            if monotonic()>=deadline:raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
+    # Finish the existing carrier first; never start a second archive worker or
+    # discard a durable receipt while an older operation is still in flight.
+    if flight is not None:
+        if flight.future is not None:
+            plan,receipt=await asyncio.wait_for(asyncio.wrap_future(flight.future),15)
+            await commit(plan,receipt)
+        elif flight.pending is not None:await commit(*flight.pending)
+        elif flight.prepared is not None:
+            future=pool.submit(EvidenceWriter.prepare_and_write_archive,path,flight.prepared,max_bytes=16*1024*1024)
+            plan,receipt=await asyncio.wait_for(asyncio.wrap_future(future),15)
+            await commit(plan,receipt)
+        flight.future=flight.pending=flight.prepared=flight.submitted=flight.generation=None
     initial=await work(overdue,4,label='maintenance_decision')
     if not initial:return
     while not stop.is_set():
@@ -25,9 +47,7 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None):
         if snapshot:
             future=pool.submit(EvidenceWriter.prepare_and_write_archive,path,snapshot,max_bytes=16*1024*1024)
             plan,receipt=await asyncio.wait_for(asyncio.wrap_future(future),15)
-            while plan:
-                plan=await work(lambda state:state.archive_commit_slice(plan,receipt),4,label='archive_commit_plan')
-                if monotonic()>=deadline:raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
+            await commit(plan,receipt)
         await work(lambda state:state.retention(),4,label='retention')
         if not await work(overdue,4,label='maintenance_decision'):
             return

@@ -4,7 +4,9 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import os
+import time
 import unittest
+from unittest.mock import patch
 
 from meme_machine.operational import observation
 from meme_machine.portfolio_accounting import PortfolioAccounting, inception_receipt
@@ -12,6 +14,71 @@ from meme_machine.operational.supervisor import identities
 
 
 class ReadOnlyObservation(unittest.TestCase):
+    def test_learning_usage_projection_is_bounded_query_only_and_ignores_symlinks(self):
+        from meme_machine.runtime import learning
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);p=root/'facts.sqlite3'
+            with sqlite3.connect(p) as db:
+                db.execute('BEGIN')
+                learning.save(db,'winner','asset','pump-current',1,{'winner_multiple':50})
+            before=p.read_bytes()
+            row=observation.owner_learning_observation(root)
+            self.assertTrue(row['learning_measurement_complete'])
+            self.assertEqual(row['learning_rows'],1)
+            self.assertGreater(row['learning_store_bytes'],0)
+            self.assertEqual(p.read_bytes(),before)
+            (root/'link.sqlite').symlink_to(p)
+            row=observation.owner_learning_observation(root)
+            self.assertFalse(row['learning_measurement_complete'])
+            self.assertEqual(row['learning_rows'],1)
+            (root/'link.sqlite').unlink()
+            with patch.object(observation.time,'monotonic',side_effect=[0,1]):
+                self.assertFalse(observation.owner_learning_observation(root)['learning_measurement_complete'])
+
+    def test_portfolio_projection_rejects_expired_mark_validity_despite_fresh_health(self):
+        from meme_machine.operational.supervisor import Supervisor
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);supervisor=Supervisor(root,offline=True)
+            supervisor.initialize();self.addCleanup(supervisor.lock.close)
+            supervisor.publish();supervisor.publish()
+            health=json.loads((root/'health.json').read_text())
+            health['portfolio_observation']['valid_until']='2020-01-01T00:00:00Z'
+            missing=dict(state='UNAVAILABLE',sqlite_code=sqlite3.SQLITE_CANTOPEN)
+            with patch.object(observation,'database',return_value=missing):
+                self.assertEqual(observation.observed_portfolio(root,health,time.time()),missing)
+
+    def test_wal_support_file_absence_uses_only_fresh_canonical_owner_projection(self):
+        from meme_machine.operational.supervisor import Supervisor
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);supervisor=Supervisor(root,offline=True)
+            supervisor.initialize()
+            self.addCleanup(supervisor.lock.close)
+            supervisor.publish();supervisor.publish()
+            health=json.loads((root/'health.json').read_text());now=time.time()
+            health['portfolio_observation']['provider']='https://provider.invalid/private-secret'
+            before=(root/'portfolio.sqlite').read_bytes()
+            missing=dict(state='UNAVAILABLE',sqlite_code=sqlite3.SQLITE_CANTOPEN)
+            with patch.object(observation,'database',return_value=missing):
+                row=observation.observed_portfolio(root,health,now)
+                self.assertEqual(row['epoch_id'],supervisor.epoch)
+                self.assertEqual(row['reconciliation'],'PASS')
+                self.assertEqual(row['marked_equity'],'500.00')
+                self.assertEqual(row['reservations'],0)
+                self.assertEqual(row['pending_deliveries'],0)
+                self.assertNotIn('private-secret',json.dumps(row))
+                self.assertEqual(observation.observed_portfolio(root,health,now+31),missing)
+                health['portfolio_observation']['epoch_id']='other-epoch'
+                self.assertEqual(observation.observed_portfolio(root,health,now),missing)
+            self.assertEqual((root/'portfolio.sqlite').read_bytes(),before)
+
+    def test_canonical_projection_cannot_hide_integrity_or_reconciliation_failure(self):
+        missing=dict(state='FAIL_CLOSED',sqlite_code=sqlite3.SQLITE_CORRUPT,integrity_failure=True)
+        with patch.object(observation,'database',return_value=missing):
+            self.assertEqual(observation.observed_portfolio('/missing',{},0),missing)
+        missing=dict(state='FAIL_CLOSED',reconciliation_failure=True)
+        with patch.object(observation,'database',return_value=missing):
+            self.assertEqual(observation.observed_portfolio('/missing',{},0),missing)
+
     def test_read_only_replay_preserves_writer_lock_and_economic_bytes(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'portfolio.sqlite'

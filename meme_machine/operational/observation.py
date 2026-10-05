@@ -89,11 +89,17 @@ def portfolio(db):
     from meme_machine.portfolio_accounting import PortfolioAccounting
     reader = object.__new__(PortfolioAccounting); reader.db = db
     state = reader._replay()
+    return portfolio_summary(reader,state,stamp())
+
+
+def portfolio_summary(reader,state,as_of):
+    """The same compact facts from a read-only replay or the existing writer."""
     if state is None:
         raise ValueError('missing_portfolio_inception')
     totals = reader._reconcile(state)
-    pending = db.execute('SELECT COUNT(*) FROM portfolio_native_pending').fetchone()[0]
-    equity, _, unrealized = reader._values_at(state, stamp())
+    pending = reader.db.execute('SELECT COUNT(*) FROM portfolio_native_pending').fetchone()[0]
+    equity, _, unrealized = reader._values_at(state, as_of)
+    from meme_machine.exact_money import amount
     return dict(epoch_id=state['receipt']['epoch_id'],
         inception_sha256=state['receipt_hash'], sequence=state['sequence'],
         journal_hash=state['journal_hash'], reconciliation='PASS',
@@ -102,8 +108,72 @@ def portfolio(db):
         open_positions=sum(p['state']=='OPEN' for p in state['positions'].values()),
         positions_by_lane={lane:sum(p['lane']==lane and p['state']=='OPEN'
             for p in state['positions'].values()) for lane in ('pump','pons','meteora','ramses')},
-        realized_pnl=str(totals['realized']), marked_equity=str(equity) if equity is not None else None,
-        unrealized_pnl=str(unrealized) if unrealized is not None else None)
+        realized_pnl=amount(totals['realized']), marked_equity=amount(equity) if equity is not None else None,
+        unrealized_pnl=amount(unrealized) if unrealized is not None else None)
+
+
+def observed_portfolio(root,health,now):
+    result=database(Path(root)/'portfolio.sqlite',portfolio)
+    if result.get('sqlite_code')!=sqlite3.SQLITE_CANTOPEN:return result
+    # A genuinely read-only mount cannot create missing WAL support files
+    # between short-lived writer connections. Use the existing owner's bounded
+    # atomic health projection; never mark the live database immutable, write
+    # support files, acquire its economic lock, or suppress an integrity error.
+    try:
+        row=health['portfolio_observation']
+        from meme_machine.portfolio_accounting import _stamp
+        from meme_machine.exact_money import money
+        if (row['state']!='CURRENT' or row['epoch_id']!=health['epoch_id'] or
+                not 0<=now-row['timestamp']<=15 or
+                not now<=_stamp(row['valid_until']) or
+                row['reconciliation']!='PASS' or set(row['checks'])!={
+                    'lane_realized_less_shared_costs','remaining_basis','cash_basis_conservation','cost_attribution'} or
+                any(v is not True for v in row['checks'].values())):
+            return result
+        for key in ('realized_pnl','marked_equity','unrealized_pnl'):
+            if row[key] is not None:money(row[key])
+        for key in ('sequence','reservations','pending_deliveries','open_positions'):
+            if type(row[key]) is not int or row[key]<0:return result
+        if (set(row['positions_by_lane'])!={'pump','pons','meteora','ramses'} or
+                any(type(n) is not int or n<0 for n in row['positions_by_lane'].values()) or
+                sum(row['positions_by_lane'].values())!=row['open_positions']):return result
+        keys=('state','timestamp','valid_until','epoch_id','inception_sha256','sequence',
+            'journal_hash','reconciliation','checks','reservations','pending_deliveries',
+            'open_positions','positions_by_lane','realized_pnl','marked_equity','unrealized_pnl')
+        if any(not re.fullmatch('[a-z_]{1,64}',key) for key in row['checks']):return result
+        for key in ('inception_sha256','journal_hash'):
+            if not isinstance(row[key],str) or not re.fullmatch('[0-9a-f]{64}',row[key]):return result
+        return dict({key:row[key] for key in keys},
+            observation_source='canonical_health_projection',live_sqlite_code=result['sqlite_code'])
+    except (KeyError,TypeError,ValueError):return result
+
+
+def learning_usage(db):
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE name='learning_usage_v1'").fetchone():
+        return dict(bytes=0,rows=0)
+    rows,body_bytes=db.execute('SELECT records,bytes FROM learning_usage_v1 WHERE id=1').fetchone()
+    return dict(bytes=body_bytes,rows=rows)
+
+
+def owner_learning_observation(root):
+    """Bounded read-only metadata on the existing runtime's writable mount.
+
+    It may create ordinary SQLite WAL support files, which the independent
+    observer's read-only mount cannot create. Economic tables stay query-only.
+    No provider call, economic lock, or separate writer is involved.
+    """
+    deadline=time.monotonic()+.25;rows=body_bytes=files=0;complete=True
+    for p in Path(root).rglob('*.sqlite*'):
+        if time.monotonic()>=deadline:complete=False;break
+        if p.suffix not in ('.sqlite','.sqlite3'):continue
+        files+=1
+        if files>64 or time.monotonic()>=deadline:complete=False;break
+        if p.is_symlink():complete=False;continue
+        value=database(p,learning_usage,seconds=max(.001,deadline-time.monotonic()))
+        complete &= value.get('state')=='CURRENT'
+        rows+=value.get('rows',0);body_bytes+=value.get('bytes',0)
+    return dict(timestamp=time.time(),learning_rows=rows,learning_store_bytes=body_bytes,
+        learning_measurement_complete=complete)
 
 
 def evidence(db):
@@ -228,17 +298,13 @@ def collect(root):
         if p.name.endswith(('.sqlite','.sqlite3')):
             if time.monotonic()>=learning_deadline:
                 learning_complete=False;continue
-            def learning(db):
-                if not db.execute("SELECT 1 FROM sqlite_master WHERE name='learning_usage_v1'").fetchone():
-                    return dict(bytes=0,rows=0)
-                rows,body_bytes=db.execute('SELECT records,bytes FROM learning_usage_v1 WHERE id=1').fetchone()
-                return dict(bytes=body_bytes,rows=rows)
-            facts=database(p,learning,seconds=max(.01,learning_deadline-time.monotonic()))
+            facts=database(p,learning_usage,seconds=max(.01,learning_deadline-time.monotonic()))
             learning_complete &= facts.get('state')=='CURRENT'
             learning_bytes+=facts.get('bytes',0);learning_rows+=facts.get('rows',0)
     value['storage_totals']=dict(state_root_bytes=state_bytes,archive_bytes=archive_bytes,
         learning_store_bytes=learning_bytes,learning_rows=learning_rows,
         learning_measurement_complete=learning_complete,files=total)
+    health={}
     try:
         health = read_json(root/'health.json')
         value['health_at'] = health['at']; value['epoch_id'] = health['epoch_id']
@@ -250,8 +316,17 @@ def collect(root):
              ('Pons Survivor','pons'),('Meteora','meteora'),('Ramses','ramses'))}
     except (OSError, ValueError, KeyError, TypeError):
         value['health_unavailable'] = True
+    cached=health.get('learning_observation') or {}
+    if (not learning_complete and cached.get('learning_measurement_complete') is True and
+            type(cached.get('timestamp')) in (int,float) and math.isfinite(cached['timestamp']) and
+            0<=time.time()-cached.get('timestamp',0)<=15 and
+            all(type(cached.get(key)) is int and cached[key]>=0
+                for key in ('learning_rows','learning_store_bytes'))):
+        value['storage_totals'].update({key:cached[key] for key in
+            ('learning_rows','learning_store_bytes','learning_measurement_complete')})
+        value['storage_totals']['learning_observation_source']='canonical_health_projection'
     directional_reports(root,value.setdefault('six_regimes',{}))
-    value['portfolio'] = database(root/'portfolio.sqlite', portfolio)
+    value['portfolio'] = observed_portfolio(root,health,time.time())
     value['solana'] = database(root/'shared/solana-evidence.sqlite', evidence)
     for name in ('solana','robinhood'):
         value[name+'_provider'] = database(root/'shared'/f'{name}-provider.sqlite', lambda db:provider(db,name=='solana'))

@@ -348,6 +348,44 @@ class MaintenanceRuntime:
                 all(effective(n)>peer_window for n in active
                     if n.scope!='__housekeeping__'))
 
+    def _newly_eligible_old_evidence(self,current,previous):
+        """Distinguish released/backfilled old data from unserviced old debt.
+
+        Immutable market times remain unchanged. A previously healthy scope can
+        gain older eligible data when repair completes or a lifecycle releases
+        its protection. That transition needs actual bounded cleanup, rather
+        than killing every lane. Existing service/recovery droughts still fail.
+        """
+        if previous is None or previous.generation!=current.generation:return False
+        now=current.monotonic
+        if (any(at+self.leases.drought<=now for at in self.arbiter.origin.values()) or
+                any(self.clock.project(row[0])<=now for row in self.episodes.values())):
+            return False
+        prior={s.scope:s for s in previous.scopes};found=False
+        for scope in current.scopes:
+            old=prior.get(scope.scope)
+            for field in ('hot_oldest','retirement_oldest','blocked_retirement_oldest'):
+                at=getattr(scope,field)
+                if at is None or self.clock.project(at+RESIDENCE_SECONDS)>now:continue
+                before=getattr(old,field) if old is not None else None
+                if before is not None and before<=at:return False
+                found=True
+        return found
+
+    def cold_completed(self,observation,flight=None):
+        """Resolve clocks only after the same owner observes real empty debt."""
+        if (flight is not None and not flight.idle or
+                observation.generation!=self.generation or observation.housekeeping or
+                any(s.hot_eligible or s.retirement_eligible or s.continuity or s.floor_changed
+                    for s in observation.scopes)):
+            raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
+        self.last_observation=observation
+        self.arbiter.origin.pop(('archive','__archive_receipt__'),None)
+        needs=self._demands(observation)
+        self.arbiter.choose(generation=self.state.fence.session,
+            as_of=observation.monotonic,now=self.monotonic(),needs=needs,
+            ready=dict(archive=True,retirement=True))
+
 
     def turn(self, flight, submitted):
         """Exactly one fresh owner-entry decision and at most one native side."""
@@ -372,7 +410,13 @@ class MaintenanceRuntime:
             with self.execution_lease(start+self.leases.execution):
                 observation=self.adapter.observe(self.generation)
                 self.observation_total += observation.elapsed
+                previous=self.last_observation
                 self.last_observation=observation
+                if self._newly_eligible_old_evidence(observation,previous):
+                    self._record(dict(reason='cold_recovery_required',at=self.monotonic(),
+                        generation=self.generation,selected=None))
+                    return dict(side=None,archive_pressure=True,retirement_pressure=True,
+                        cold_recovery_required=True)
                 needs=self._demands(observation)
                 now=self.monotonic()
                 # A durable final slice can commit and then yield before its

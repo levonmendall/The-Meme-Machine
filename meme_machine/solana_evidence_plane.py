@@ -690,18 +690,30 @@ class EvidenceWriter:
                 floor=top+1 if floor is None else floor
                 recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
                 if recent is not None:floor=min(floor,recent)
-                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
+                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1',(scope,))]
                 if pins:floor=min(floor,min(pins))
                 account_floor=self._account_floor(scope)
                 if account_floor is not None:floor=min(floor,account_floor)
+                from .solana_maintenance_state import retirement_suffix
+                suffix=retirement_suffix(self,scope,top,before_time)
+                gaps=[r[0] for r in self.db.execute('SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,))]
+                if gaps:floor=min(floor,min(gaps))
                 old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
                 floor=max(int(old[0]) if old else 0,floor)
-                candidates=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,limit+1))]
+                where='scope=? AND slot<?';args=(scope,floor)
+                if suffix is not None:
+                    where='scope=? AND (slot<? OR (slot>=? AND slot<?))';args=(scope,floor,*suffix)
+                candidates=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE '+where+' AND body IS NULL LIMIT ?',(*args,limit+1))]
                 ids=candidates[:limit]
                 # One extra key is a bounded lookahead, not a larger deletion.
                 queries=[('coverage','id','scope=? AND hi<?',(scope,floor)),
                          ('gaps','id','scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))]
                 queries += [(name,'rowid','scope=? AND slot<?',(scope,floor)) for name in continuity_tables]
+                if suffix is not None:
+                    lo,hi=suffix
+                    queries += [('coverage','id','scope=? AND lo>=? AND hi<?',(scope,lo,hi)),
+                        ('gaps','id','scope=? AND lo>=? AND hi<? AND repaired IS NOT NULL',(scope,lo,hi))]
+                    queries += [(name,'rowid','scope=? AND slot>=? AND slot<?',(scope,lo,hi)) for name in continuity_tables]
                 plans=[]
                 for table,key,where,args in queries:
                     keys=[r[0] for r in self.db.execute(

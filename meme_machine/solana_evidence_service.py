@@ -1413,6 +1413,14 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     admission.publish(runtime.generation,result)
                     maintenance_pressure['archive']=result['archive_pressure']
                     maintenance_pressure['retention']=result['retirement_pressure']
+                    if result.get('cold_recovery_required'):
+                        await recover(work,decoder_pool,path,stop,wall=runtime.wall,
+                            monotonic=runtime.monotonic,force=True,flight=flight,
+                            on_complete=lambda state,observation:runtime.cold_completed(observation,flight))
+                        if stop.is_set():break
+                        await work(lambda state:state.fence.count('maintenance_cold_self_recoveries'),
+                            4,label='maintenance_decision')
+                        continue
                     if flight.prepared is not None:
                         snapshot=flight.prepared
                         future=decoder_pool.submit(EvidenceWriter.prepare_and_write_archive,path,snapshot,max_bytes=16*1024*1024)

@@ -34,6 +34,19 @@ raw fold. Replay and economic reconciliation exclude these analysis tables. The
 original authoritative prefixes and active evidence remain the recovery source.
 Cold-start storage cleanup uses the existing owner and archive executor before
 new market ingestion, preserving original evidence times, gaps and references.
+The same bounded cleanup handles newly eligible historical repair data or a
+released lifecycle reference on that owner, finishing any archive already in
+flight. Existing unserviced debt still fails its original deadline. A closed
+unresolved gap protects its range and whole overlapping coverage witnesses;
+it does not pin unrelated later history forever. Disjoint expired ranges lose
+their coverage witnesses with their raw bodies, so an expired query fails closed.
+
+Read-only observers never create SQLite support files on the economic volume.
+If a closed WAL connection leaves support files unavailable, the observer may
+use only a fresh, validated, bounded projection from the existing canonical
+owner. Corruption and reconciliation failures cannot use that fallback. Learning
+usage totals are query-only metadata on the existing supervisor, outside the
+economic lock; expired or incomplete projections are explicitly unavailable.
 
 Whole-volume observations record total/used/free/percent, state-root, main DB,
 WAL, physical archive and compressed learning bytes. Persistent 85 percent use

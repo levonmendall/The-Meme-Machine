@@ -13,6 +13,97 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class StartupStorage(unittest.IsolatedAsyncioTestCase):
+    async def test_late_cleanup_finishes_existing_archive_carrier_before_new_work(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight
+        with native_runtime() as (state,runtime,clock):
+            ingest(state.writer,rows(clock,SCOPES[0],15,age=185))
+            finalized_frontier(state,clock,SCOPES[0])
+            flight=ArchiveFlight()
+            runtime.turn(flight,clock.monotonic())
+            prepared=flight.prepared
+            self.assertIsNotNone(prepared)
+            ingest(state.writer,rows(clock,SCOPES[1],3,age=1800))
+            finalized_frontier(state,clock,SCOPES[1])
+            self.assertTrue(runtime.turn(flight,clock.monotonic())['cold_recovery_required'])
+            async def work(fn,priority,**kwargs):return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,flight=flight,
+                    on_complete=lambda s,o:runtime.cold_completed(o,flight))
+            self.assertTrue(flight.idle)
+            self.assertFalse(state.writer.db.execute('SELECT 1 FROM records').fetchone())
+            self.assertEqual(state.writer.db.execute("SELECT value FROM counters WHERE key='archived_records'").fetchone()[0],18)
+            self.assertIsNone(runtime.arbiter.pending)
+            self.assertIsNone(runtime.failure)
+
+    async def test_newly_eligible_old_data_is_actually_cleaned_without_freshening_it(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight
+        with native_runtime() as (state,runtime,clock):
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+            ingest(state.writer,rows(clock,SCOPES[0],119,age=1800,same_slot=True))
+            finalized_frontier(state,clock,SCOPES[0])
+            original=state.writer.db.execute('SELECT market_time FROM records').fetchall()
+            flight=ArchiveFlight()
+            result=runtime.turn(flight,clock.monotonic())
+            self.assertTrue(result['cold_recovery_required'])
+            self.assertIsNone(runtime.failure)
+            self.assertEqual(state.writer.db.execute('SELECT market_time FROM records').fetchall(),original)
+            async def work(fn,priority,**kwargs):return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,flight=flight,
+                    on_complete=lambda s,o:runtime.cold_completed(o))
+            self.assertTrue(flight.idle)
+            self.assertFalse(state.writer.db.execute('SELECT 1 FROM records').fetchone())
+            self.assertFalse(runtime.episodes)
+            self.assertFalse(runtime.arbiter.origin)
+            self.assertIsNone(runtime.turn(flight,clock.monotonic())['side'])
+
+    async def test_released_candidate_cleans_only_evidence_without_remaining_position_pin(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight
+        with native_runtime() as (state,runtime,clock):
+            values=rows(clock,SCOPES[0],5,age=1800)
+            values=[replace(r,addresses=('protected',) if i==0 else ('unrelated',))
+                    for i,r in enumerate(values)]
+            ingest(state.writer,values);finalized_frontier(state,clock,SCOPES[0])
+            state.writer.interest('candidate',SCOPES[0],lower_slot=0)
+            state.writer.interest('position',SCOPES[0],lower_slot=0,priority=0,lifecycle='open')
+            with state.writer.transaction():
+                state.writer.db.execute('INSERT INTO service_interests VALUES(?,?,?,?)',
+                    ('position',SCOPES[0],'protected','transactions'))
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+            state.writer.release('candidate',SCOPES[0])
+            flight=ArchiveFlight()
+            self.assertTrue(runtime.turn(flight,clock.monotonic())['cold_recovery_required'])
+            async def work(fn,priority,**kwargs):return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,flight=flight,
+                    on_complete=lambda s,o:runtime.cold_completed(o))
+            remaining=state.writer.db.execute('SELECT identity,market_time FROM records WHERE body IS NOT NULL').fetchall()
+            self.assertEqual(remaining,[(values[0].identity,values[0].market_time)])
+            self.assertTrue(state.writer.db.execute('SELECT active FROM interests WHERE owner=?',('position',)).fetchone()[0])
+
+    async def test_existing_unserviced_debt_still_expires(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        with native_runtime() as (state,runtime,clock):
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+            ingest(state.writer,rows(clock,SCOPES[0],10,age=185))
+            finalized_frontier(state,clock,SCOPES[0])
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+            clock.advance(60)
+            with self.assertRaisesRegex(EvidenceUnavailable,'deadline_exhausted'):
+                runtime.turn(ArchiveFlight(),clock.monotonic())
+
     async def test_sparse_address_pin_observation_fits_existing_vm_budget(self):
         from meme_machine.solana_provider_config import AlchemyEndpoint
         from meme_machine.solana_maintenance_state import DebtAgeAdapter, OBSERVATION_VM_STEPS

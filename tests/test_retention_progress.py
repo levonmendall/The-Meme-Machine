@@ -16,6 +16,98 @@ def proof(lo,hi):
                            lineage_hash=digest(['pump',lo,hi])),100)
 
 class RetentionProgressTests(unittest.TestCase):
+ def test_multiple_closed_gaps_protect_their_ranges_without_pinning_history_between_them(self):
+  with tempfile.TemporaryDirectory() as td:
+   writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+   try:
+    writer.gap('pump',10,20)
+    for lo in range(21,201,20):
+     hi=lo+19
+     writer.ingest([replace(record(),identity='between:%d'%s,signature='between:%d'%s,slot=s)
+                    for s in range(lo,hi+1)],proof=proof(lo,hi))
+    writer.gap('pump',190,200)
+    original=writer.db.execute('SELECT * FROM gaps').fetchall()
+    while writer.archive(1000):pass
+    for _ in range(3):writer.retain(1000,archive_first=False)
+    self.assertEqual(writer.db.execute('SELECT slot FROM records ORDER BY slot').fetchall(),[(s,) for s in range(181,201)])
+    self.assertEqual(writer.db.execute('SELECT * FROM gaps').fetchall(),original)
+    self.assertEqual(writer.db.execute('SELECT lo,hi FROM coverage').fetchall(),[(181,200)])
+    reader=EvidenceReader(writer.path)
+    try:self.assertFalse(reader.covered('pump',21,180,as_of=1000))
+    finally:reader.close()
+   finally:writer.close()
+
+ def test_closed_unrepaired_gap_does_not_retain_unrelated_future_raw_history(self):
+  from meme_machine.solana_maintenance_state import DebtAgeAdapter
+  from meme_machine.solana_evidence_service import FinalizedFence
+  with tempfile.TemporaryDirectory() as td:
+   now=[1000];path=Path(td)/'db';writer=EvidenceWriter(path,clock=lambda:now[0])
+   FinalizedFence(writer,endpoint_identity='offline')
+   try:
+    protected=replace(record(),identity='gap-required',slot=15,market_time=10)
+    writer.ingest([protected],proof=proof(10,20));writer.gap('pump',10,20)
+    original_gap=writer.db.execute('SELECT * FROM gaps').fetchall()
+    sizes=[]
+    for hour in range(24):
+     lo=21+hour*200;hi=lo+199
+     values=[replace(record(),identity='future:%d'%slot,signature='future:%d'%slot,
+                     slot=slot,market_time=now[0],observed_at=now[0])
+             for slot in range(lo,hi+1)]
+     writer.ingest(values,proof=replace(proof(lo,hi),observed_at=now[0]))
+     now[0]+=3600
+     while writer.archive(now[0]-180):pass
+     state=DebtAgeAdapter(writer,wall=lambda:now[0]).observe('same-generation')
+     self.assertEqual(next(s for s in state.scopes if s.scope=='pump').retirement_eligible,200)
+     for _ in range(3):writer.retain(now[0]-180,archive_first=False)
+     self.assertEqual(writer.db.execute('SELECT identity FROM records').fetchall(),[('gap-required',)])
+     self.assertEqual(writer.db.execute('SELECT * FROM gaps').fetchall(),original_gap)
+     self.assertEqual(writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+     reader=EvidenceReader(path)
+     try:
+      with self.assertRaisesRegex(EvidenceUnavailable,'unresolved_evidence_gap'):
+       reader.window('pump',lo,hi,as_of=now[0])
+     finally:reader.db.close()
+     self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM archives').fetchone()[0],0)
+     self.assertFalse(list(path.parent.glob(path.name+'.archive/*.jsonl.gz')))
+     writer.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+     sizes.append(sum(p.stat().st_size for p in path.parent.rglob('*') if p.is_file()))
+    self.assertLessEqual(max(sizes[4:])-min(sizes[4:]),65536)
+   finally:writer.close()
+
+ def test_disjoint_retirement_preserves_open_position_and_whole_coverage_witnesses(self):
+  with tempfile.TemporaryDirectory() as td:
+   writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+   try:
+    values=[replace(record(),identity='protected:%d'%s,signature='protected:%d'%s,slot=s)
+            for s in range(10,51)]
+    writer.ingest(values,proof=proof(10,25))
+    writer.ingest([],proof=proof(26,50));writer.gap('pump',10,20)
+    writer.interest('position','pump',lower_slot=30,priority=0,lifecycle='open')
+    while writer.archive(1000):pass
+    writer.retain(1000,archive_first=False)
+    self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],41)
+    self.assertEqual(writer.db.execute('SELECT lo,hi FROM coverage ORDER BY lo').fetchall(),[(10,25),(26,50)])
+    writer.release('position','pump',lifecycle_resolved=True)
+    while writer.archive(1000):pass
+    writer.retain(1000,archive_first=False)
+    self.assertEqual(writer.db.execute('SELECT slot FROM records ORDER BY slot').fetchall(),[(s,) for s in range(10,26)])
+    self.assertEqual(writer.db.execute('SELECT lo,hi FROM coverage').fetchall(),[(10,25)])
+   finally:writer.close()
+
+ def test_open_gap_prevents_disjoint_retirement_until_authenticated_reconnect(self):
+  with tempfile.TemporaryDirectory() as td:
+   writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)
+   try:
+    writer.ingest([replace(record(),slot=30)],proof=proof(21,30))
+    writer.gap('pump',10,20);writer.gap('pump',21)
+    writer.retain(1000)
+    self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],1)
+    writer.reconnect('pump',30)
+    writer.retain(1000)
+    self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],1)
+    self.assertEqual(writer.db.execute('SELECT lo,hi FROM gaps ORDER BY lo').fetchall(),[(10,20),(21,30)])
+   finally:writer.close()
+
  def test_interrupted_begin_cannot_leave_an_open_write_transaction(self):
   with tempfile.TemporaryDirectory() as td:
    writer=EvidenceWriter(Path(td)/'db',clock=lambda:1000)

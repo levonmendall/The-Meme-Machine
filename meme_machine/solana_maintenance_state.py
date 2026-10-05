@@ -28,6 +28,64 @@ OBSERVATION_VM_STEPS = 250_000
 PROGRESS_INTERVAL = 1000
 PROGRAM_SCOPES = ('program:meteora', 'program:pump', 'program:pumpswap')
 
+
+def retirement_suffix(writer,scope,top,before_time):
+    """One expired disjoint range outside required gaps and whole witnesses.
+
+    An unresolved gap does not reference all future history, or the history
+    between separate gaps. Keep open gaps/pins/account floors and the fresh hot
+    tail. Remove each retired range's whole coverage witnesses with its raw rows,
+    so expired history cannot falsely answer a complete query with no records.
+    """
+    db=writer.db
+    gaps=db.execute('SELECT lo,hi FROM gaps WHERE scope=? AND repaired IS NULL AND hi IS NOT NULL ORDER BY lo,hi LIMIT ?',
+                    (scope,MAX_PINS+1)).fetchall()
+    if not gaps:return None
+    if len(gaps)>MAX_PINS:raise EvidenceUnavailable('maintenance_gap_range_bound')
+    merged=[]
+    for lo,hi in gaps:
+        if merged and lo<=merged[-1][1]+1:merged[-1]=(merged[-1][0],max(hi,merged[-1][1]))
+        else:merged.append((lo,hi))
+    bound=top+1
+    for query in ('SELECT MIN(lower_slot) FROM interests WHERE scope=? AND active=1',
+                  'SELECT MIN(lo) FROM gaps WHERE scope=? AND repaired IS NULL AND hi IS NULL'):
+        value=db.execute(query,(scope,)).fetchone()[0]
+        if value is not None:bound=min(bound,value)
+    account=writer._account_floor(scope)
+    if account is not None:bound=min(bound,account)
+    continuity=[row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN ('stream_receipts','stream_deliveries','stream_order')")]
+    for index in range(len(merged)-1,-1,-1):
+        start=merged[index][1]+1
+        end=min(bound,merged[index+1][0] if index+1<len(merged) else top+1)
+        if start>=end:continue
+        hot=db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND slot>=? AND body IS NOT NULL',(scope,start)).fetchone()[0]
+        recent=db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND lo>=? AND available>=?',(scope,start,before_time)).fetchone()[0]
+        for value in (hot,recent):
+            if value is not None:end=min(end,value)
+        if start>=end:continue
+        # Bound overlap-chain work. An unknown interval stays protected.
+        for _ in range(64):
+            cross=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND lo<? AND hi>=?',(scope,start,start)).fetchone()[0]
+            if cross is None:break
+            start=cross+1
+        else:continue
+        for _ in range(64):
+            cross=db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND lo<? AND hi>=?',(scope,end,end)).fetchone()[0]
+            if cross is None:break
+            end=cross
+        else:continue
+        if start>=end:continue
+        # An empty newest interval must not hide older eligible work between
+        # gaps. These indexed lookups match the native retirement predicates.
+        predicates=[('records','slot>=? AND slot<? AND body IS NULL'),
+                    ('coverage','lo>=? AND hi<?'),
+                    ('gaps','lo>=? AND hi<? AND repaired IS NOT NULL')]
+        predicates += [(name,'slot>=? AND slot<?') for name in continuity]
+        if any(db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+predicate+' LIMIT 1',
+                          (scope,start,end)).fetchone() for table,predicate in predicates):
+            return start,end
+    return None
+
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS maintenance_cohorts(
  scope TEXT NOT NULL, slot INTEGER NOT NULL, at REAL NOT NULL,
@@ -407,10 +465,11 @@ class DebtAgeAdapter:
                     floor = min(floor, recent)
                 if pins:
                     floor = min(floor, min(p[1] for p in pins))
-                if gaps:
-                    floor = min(floor, min(g[0] for g in gaps))
                 if account_floor is not None:
                     floor = min(floor, account_floor)
+                suffix=retirement_suffix(writer,scope,top,wall-PRESERVATION_SECONDS)
+                if gaps:
+                    floor = min(floor, min(g[0] for g in gaps))
                 old = db.execute('SELECT value FROM meta WHERE key=?', ('retention_floor:'+scope,)).fetchone()
                 old_floor = int(old[0]) if old else 0
                 if oldest_slot is not None and old_floor > oldest_slot[0]:
@@ -419,8 +478,9 @@ class DebtAgeAdapter:
                 if floor < 0:
                     raise EvidenceUnavailable('maintenance_floor_contradiction')
                 archived = self.bounded('SELECT slot,at,archived FROM maintenance_cohorts INDEXED BY maintenance_archived_slot WHERE scope=? AND archived>0 ORDER BY slot,at', (scope,))
-                eligible = sum(n for slot, _, n in archived if slot < floor)
-                eligible_oldest = min((at for slot, at, n in archived if slot < floor and n), default=None)
+                def removable(slot):return slot<floor or suffix is not None and suffix[0]<=slot<suffix[1]
+                eligible = sum(n for slot, _, n in archived if removable(slot))
+                eligible_oldest = min((at for slot, at, n in archived if removable(slot) and n), default=None)
                 # Pins/coverage may intentionally retain rows. An unpinned hot
                 # floor dependency cannot be ignored merely because retirement
                 # cannot delete those rows yet: it tightens archive safety too.
@@ -435,6 +495,13 @@ class DebtAgeAdapter:
                     # as pending, never as zero or exact record debt.
                     found = db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+field+'<?'+predicate+' LIMIT 1', (scope, floor)).fetchone()
                     continuity += int(found is not None)
+                    if suffix is not None:
+                        # Coverage/gap witnesses are retired only in their
+                        # entirety, matching the native mutation's bounds.
+                        lower='lo' if table in ('coverage','gaps') else field
+                        found=db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+lower+'>=? AND '+field+'<?'+predicate+' LIMIT 1',
+                            (scope,*suffix)).fetchone()
+                        continuity+=int(found is not None)
                 source_at = self._source_frontier(scope, wall)
                 results.append(ScopeState(scope, hot_debt, hot_oldest,
                     sum(n for _, _, n in archived), eligible, eligible_oldest,
