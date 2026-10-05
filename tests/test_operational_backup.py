@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import subprocess
 import tempfile
 import time
 import unittest
@@ -102,5 +103,40 @@ class BackupRestore(unittest.TestCase):
         sentinel=self.base/'existing';sentinel.mkdir();(sentinel/'sentinel').write_text('keep')
         with self.assertRaisesRegex(ValueError,'new_isolated'):backup.copy_state(self.root,sentinel)
         self.assertEqual((sentinel/'sentinel').read_text(),'keep')
+
+    def test_cleanup_of_inactive_or_already_thawed_unit_is_successful(self):
+        with patch.object(backup.subprocess,'check_output',return_value='running\n'), \
+                patch.object(backup.subprocess,'run') as thaw:
+            self.assertFalse(backup.thaw_if_needed()['thawed'])
+        thaw.assert_not_called()
+
+    def test_cleanup_of_frozen_unit_thaws_and_does_not_hide_failure(self):
+        with patch.object(backup.subprocess,'check_output',return_value='frozen\n'), \
+                patch.object(backup.subprocess,'run') as thaw:
+            self.assertTrue(backup.thaw_if_needed()['thawed'])
+        thaw.assert_called_once_with(['systemctl','thaw',backup.PAPER_UNIT],check=True,timeout=5)
+        with patch.object(backup.subprocess,'check_output',return_value='frozen\n'), \
+                patch.object(backup.subprocess,'run',side_effect=subprocess.CalledProcessError(1,'thaw')):
+            with self.assertRaises(subprocess.CalledProcessError):backup.thaw_if_needed()
+
+    def test_abandoned_copies_are_bounded_without_losing_successes_or_unrelated_work(self):
+        from meme_machine.operational.digitalocean_backup import retain_local_points
+        parent=self.base/'points';parent.mkdir()
+        for number in range(6):
+            for kind,marker in (('complete','backup.json'),('failed','backup-failed.json'),
+                                ('killed','backup-incomplete.json')):
+                folder=parent/f'meme-machine-paper-{kind}-{number}';folder.mkdir()
+                (folder/marker).write_text('{}')
+                os.utime(folder,(number,number))
+        unrelated=parent/'other-project';unrelated.mkdir();(unrelated/'keep').write_text('preserve')
+        unknown=parent/'meme-machine-paper-unknown';unknown.mkdir();(unknown/'keep').write_text('preserve')
+        link=parent/'meme-machine-paper-link';link.symlink_to(unrelated,target_is_directory=True)
+        retain_local_points(parent,'meme-machine-paper-',3)
+        complete=[p for p in parent.iterdir() if (p/'backup.json').is_file()]
+        partial=[p for p in parent.iterdir() if (p/'backup-failed.json').is_file() or (p/'backup-incomplete.json').is_file()]
+        self.assertEqual(len(complete),3);self.assertEqual(len(partial),3)
+        self.assertTrue((parent/'meme-machine-paper-complete-5'/'backup.json').is_file())
+        self.assertEqual((unrelated/'keep').read_text(),'preserve')
+        self.assertEqual((unknown/'keep').read_text(),'preserve');self.assertTrue(link.is_symlink())
 
 if __name__=='__main__':unittest.main()

@@ -15,6 +15,22 @@ from .storage_guard import verify_storage
 
 OUTPUT=Path('/var/lib/meme-machine-backup')
 
+def retain_local_points(parent,prefix,keep=3):
+    """Bound complete and interrupted copies separately; ignore unrelated files."""
+    keep=max(2,min(7,int(keep)))
+    groups={True:[],False:[]}
+    for folder in Path(parent).glob(prefix+'*'):
+        if not folder.is_dir() or folder.is_symlink():continue
+        complete=folder/'backup.json'
+        partial=[folder/'backup-incomplete.json',folder/'backup-failed.json']
+        if complete.is_file() and not complete.is_symlink():
+            groups[True].append(folder)
+        elif any(marker.is_file() and not marker.is_symlink() for marker in partial):
+            groups[False].append(folder)
+    for copies in groups.values():
+        for folder in sorted(copies,key=lambda p:p.stat().st_mtime,reverse=True)[keep:]:
+            shutil.rmtree(folder)
+
 def execute(config='/etc/meme-machine/backup.json',output=OUTPUT):
     output=Path(output);output.mkdir(parents=True,exist_ok=True,mode=0o700)
     with (output/'run.lock').open('a') as lock:
@@ -30,6 +46,8 @@ def execute(config='/etc/meme-machine/backup.json',output=OUTPUT):
             raise ValueError('backup_volume_topology')
         name=c['snapshot_prefix']+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+uuid.uuid4().hex[:8]
         if not name.startswith('meme-machine-paper-') or len(name)>100:raise ValueError('backup_snapshot_name')
+        retention=max(2,min(7,int(c.get('retained_snapshots',3))))
+        retain_local_points(parent,c['snapshot_prefix'],retention)
         point=parent/name
         row=dict(status='COPYING',start_time=stamp(),epoch_id=storage['epoch_id'],
             volume_id=c['volume_id'],snapshot_name=name,point=str(point),snapshot_id=None)
@@ -47,7 +65,6 @@ def execute(config='/etc/meme-machine/backup.json',output=OUTPUT):
             row.update(status='SNAPSHOT_READY',end_time=stamp(),off_host=True,
                 restore_relative_point=str(point.relative_to(storage['mount_target'])))
             atomic_json(path,row);atomic_json(point/'off-host.json',row)
-            retention=max(2,min(7,int(c.get('retained_snapshots',3))))
             _,listing=request('GET','/v2/volumes/'+c['volume_id']+'/snapshots?per_page=200')
             ours=[s for s in (listing.get('snapshots') or []) if s.get('resource_id')==c['volume_id'] and s['name'].startswith(c['snapshot_prefix'])]
             for old in sorted(ours,key=lambda s:s['created_at'],reverse=True)[retention:]:
@@ -61,6 +78,8 @@ def execute(config='/etc/meme-machine/backup.json',output=OUTPUT):
             # A timeout can leave a successfully created remote snapshot. Never
             # retry a creation blindly; use this exact snapshot_name to inspect.
             atomic_json(path,row);raise
+        finally:
+            retain_local_points(parent,c['snapshot_prefix'],retention)
 
 def main():
     try:row=execute()

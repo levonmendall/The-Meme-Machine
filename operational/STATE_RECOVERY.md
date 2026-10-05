@@ -21,7 +21,10 @@ an incomplete copy never becomes a restore point. A DigitalOcean Volume snapshot
 retains this coherent point outside the runtime host/storage failure domain.
 Restore the completed point, not arbitrary concurrently changing volume files.
 
-Daily backups retain three snapshots/points. The root-only DigitalOcean credential
+Daily backups retain three snapshots/complete points and at most three failed or
+interrupted disposable points. Successes and partial copies are retained
+separately; failures cannot accumulate or displace every successful local copy.
+Unknown directories and unrelated projects are left untouched. The root-only DigitalOcean credential
 is read only by maintenance. The PAPER service, observers and dashboard never
 receive it. Backup/API failures cannot initialize or replace an epoch.
 

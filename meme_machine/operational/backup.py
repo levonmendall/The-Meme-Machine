@@ -72,6 +72,8 @@ def copy_state(root, target, *, seconds=60):
     if root==target or root in target.parents or target.exists():
         raise ValueError('new_isolated_backup_target_required')
     target.mkdir(parents=True,mode=0o700)
+    # A process killed mid-copy leaves an identifiable disposable partial point.
+    atomic_json(target/'backup-incomplete.json',dict(at=stamp(),usable=False))
     deadline=time.monotonic()+seconds;inventory={}
     baseline=state_identity(root)
     try:
@@ -94,6 +96,7 @@ def copy_state(root, target, *, seconds=60):
         atomic_json(target/'backup.json',dict(at=stamp(),epoch_id=baseline['epoch_id'],portfolio=baseline,
             inventory=inventory,sqlite_consistent=True,application_writers_quiesced=True,
             required_restore='new isolated target; never production root'))
+        (target/'backup-incomplete.json').unlink()
         subprocess.run(['sync','-f',str(target)],check=True,timeout=5)
         return dict(epoch_id=baseline['epoch_id'],files=len(inventory),sqlite_databases=sum(r['sqlite'] for r in inventory.values()),directory=str(target))
     except BaseException:
@@ -185,14 +188,29 @@ def prepare(root,target,*,freeze_seconds=5):
             if supervisor_lock is not None:supervisor_lock.close()
 
 
+def thaw_if_needed(unit=PAPER_UNIT):
+    """Cleanup after process loss without failing for an already running freezer."""
+    state=subprocess.check_output(['systemctl','show',unit,'-p','FreezerState','--value'],
+        text=True,timeout=5).strip()
+    if not state:
+        raise RuntimeError('backup_freezer_state_unavailable')
+    if state!='running':
+        subprocess.run(['systemctl','thaw',unit],check=True,timeout=5)
+    return dict(thawed=state!='running',unit=unit)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',choices=('prepare','verify','replay'))
-    parser.add_argument('target')
+    parser.add_argument('command',choices=('prepare','verify','replay','thaw'))
+    parser.add_argument('target',nargs='?')
     parser.add_argument('--state-root',default=os.environ.get('MM_STATE_ROOT'))
     args=parser.parse_args()
+    if args.command=='thaw' and args.target is not None:
+        parser.error('thaw has no target override')
+    if args.command!='thaw' and args.target is None:
+        parser.error('backup target is required')
     try:
-        result=verify_copy(args.target) if args.command=='verify' else prove_replay(args.target) if args.command=='replay' else prepare(args.state_root,args.target)
+        result=thaw_if_needed() if args.command=='thaw' else verify_copy(args.target) if args.command=='verify' else prove_replay(args.target) if args.command=='replay' else prepare(args.state_root,args.target)
     except Exception as error:
         print(json.dumps(dict(passed=False,error_type=type(error).__name__)))
         return 1

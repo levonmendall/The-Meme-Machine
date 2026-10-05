@@ -11,7 +11,7 @@ WorkingDirectory=/opt/meme-machine
 EnvironmentFile=/etc/meme-machine/paper.env
 Environment=MM_BACKUP_SYSTEMD=1
 ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.digitalocean_backup
-ExecStopPost=/usr/bin/systemctl thaw meme-machine-paper.service
+ExecStopPost=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.backup thaw
 StateDirectory=meme-machine-backup
 StateDirectoryMode=0700
 TimeoutStartSec=180
