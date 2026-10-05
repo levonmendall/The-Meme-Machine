@@ -648,7 +648,13 @@ class NativeGateTests(unittest.IsolatedAsyncioTestCase):
                 if flight.prepared is not None:
                     future=Future()
                     if not worker_pending:
-                        future.set_result(EvidenceWriter.prepare_and_write_archive(state.writer.path,result['snapshot']))
+                        plan,receipt=EvidenceWriter.prepare_and_write_archive(state.writer.path,result['snapshot'])
+                        # Publication and the native fake wall clock share one
+                        # time domain, so a fresh marker is inside its grace.
+                        import os
+                        marker=state.writer.path.parent/(state.writer.path.name+'.archive')/(receipt['name']+'.pending')
+                        os.utime(marker,(clock.time(),clock.time()))
+                        future.set_result((plan,receipt))
                     flight.attach(future,clock.monotonic(),runtime.generation)
                 box.update(state=state,runtime=runtime,flight=flight,returned=result)
                 return state

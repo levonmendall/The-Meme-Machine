@@ -48,7 +48,9 @@ class RetentionTests(unittest.TestCase):
             self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],11)
             with self.assertRaises(EvidenceUnavailable):writer.ingest([rows[0]])
             raw=[json.loads(line) for f in Path(temp).glob('*.archive/*.gz') for line in gzip.open(f,'rt')]
-            self.assertEqual(len(raw),10);self.assertTrue(all(r['lineage'] for r in raw))
+            # No active reference remains to this expired prefix. Long-term
+            # strategy learning lives in compact facts, not discarded raw bodies.
+            self.assertEqual(len(raw),0)
             self.assertGreater(reader.telemetry()['archive_bytes'],0)
             plan=reader.db.execute('EXPLAIN QUERY PLAN SELECT identity FROM addresses WHERE address=? AND slot BETWEEN ? AND ?',('pool',20,30)).fetchall()
             self.assertTrue(any('address_window' in str(r) for r in plan))

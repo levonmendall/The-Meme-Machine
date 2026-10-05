@@ -625,7 +625,11 @@ class M1CompletionSemanticsTests(unittest.TestCase):
             self.assertIsNone(restarted.arbiter.pending)
             self.assertEqual(ledger(state, 'archive')[SCOPES[0]], (5, 5))
             self.assertEqual(restarted.ring[-1]['durable_records'], {})
-            self.assertEqual(len(list((state.writer.path.parent / (state.writer.path.name + '.archive')).glob('*.gz'))), 1)
+            # The original raw prefix has no remaining evidence references;
+            # retention expires it without duplicating the archive receipt or
+            # economic work, and retry cannot recreate a phantom manifest.
+            self.assertEqual(len(list((state.writer.path.parent / (state.writer.path.name + '.archive')).glob('*.gz'))), 0)
+            self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM archives').fetchone()[0],0)
 
     def test_native_archive_worker_remains_pending_without_duplicate_preparation(self):
         with native_runtime() as (state, runtime, clock):

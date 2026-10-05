@@ -4,7 +4,7 @@ The existing prefix anchors retain balances and hash chains. A bounded pending
 receipt joins the two native databases across crashes; raw rows remain in the
 same digest-bound predecessor artifacts used for their journal checkpoints.
 """
-import json
+import json,time
 from meme_machine.runtime.journal import canonical,digest
 from meme_machine.runtime.lifecycle_identity import parsed,archived_scope
 
@@ -45,6 +45,10 @@ def _book_commit(book,plan):
         for identity,expected in plan['positions'].items():
             if book._load(identity)!=expected or anchor['positions'].get(identity)!=expected:
                 raise ValueError('retirement_native_changed')
+            from meme_machine.runtime.learning import lifecycle
+            controller=(anchor.get('controller_snapshots') or {}).get(identity)
+            lifecycle(book.db,identity,book.identity.get('lane','survivor'),time.time(),
+                      dict(expected,controller=controller))
             for key,value in metrics(anchor['journal_proofs'][identity],expected).items():
                 aggregate[key]=aggregate.get(key,0)+value
             for key in ('realized','capital_unit_seconds'):

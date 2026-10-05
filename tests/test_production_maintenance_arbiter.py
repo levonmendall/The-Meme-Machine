@@ -139,7 +139,10 @@ class ProductionServeTests(unittest.IsolatedAsyncioTestCase):
         def before(r,f,b):
             native=r.adapter.observe
             r.adapter.observe=lambda g:replace(native(g),monotonic=b['clock'].monotonic()-10)
-        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=1)
+        # Cold-start observation can yield the owner to source/control work
+        # before this injected observation is read. Permit that bounded retry;
+        # the stale observation must still fail before any archive mutation.
+        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=3)
         self.assertTrue(box['errors'])
         self.assertEqual(box['counters'].get('archived_records',0),0)
         self.assertTrue(box['runtime'].failure)

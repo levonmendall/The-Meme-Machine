@@ -59,7 +59,20 @@ def run_native(root,lane):
         path=Path(root)/lane/'native-genesis.json'
         if path.exists():capital=json.loads(path.read_text())['capital']
         else:
-            value=native_reader(lane)(int(time.time()))
+            while True:
+                try:
+                    value=native_reader(lane)(int(time.time()))
+                    break
+                except ValuationUnavailable:
+                    # Do not mint native capital at an invented price or crash
+                    # repeatedly during legitimate unavailable market liquidity.
+                    # Empty native state is reconciled against the shared epoch;
+                    # existing exposure without native genesis fails closed.
+                    empty_native_reconciliation(root,lane)
+                    status.update('FAIL_CLOSED',reconciled=True,restored_positions=0,
+                        discovery_enabled=False,valuation_available=False,
+                        regimes=dict(current='FAIL_CLOSED',survivor='FAIL_CLOSED'))
+                    if requested.wait(15):return
             with localcontext() as context:
                 context.prec=80
                 capital=int(Decimal('125')*(Decimal(10)**value.decimals)/value.usd_per_unit)
@@ -88,6 +101,29 @@ def run_native(root,lane):
         install_ramses(ramses_extended_test)
         ramses_extended_test.main(campaign=True)
     health(root,lane,'STOPPED',reconciled=True)
+
+
+def empty_native_reconciliation(root,lane):
+    from .observation import database
+    from meme_machine.portfolio_accounting import PortfolioAccounting
+    folder=Path(root)/lane
+    if any(p.is_file() for p in folder.rglob('*.sqlite*')):
+        raise RuntimeError('native_genesis_missing_with_existing_native_store')
+    def check(db):
+        reader=object.__new__(PortfolioAccounting);reader.db=db
+        state=reader._replay();reader._reconcile(state)
+        if state['receipt']['epoch_id']!=os.environ['MM_PAPER_EPOCH']:
+            raise RuntimeError('native_wait_epoch_mismatch')
+        if (any(p['lane']==lane for p in state['positions'].values()) or
+                any(p['lane']==lane for p in state['reservations'].values()) or
+                state['retired'][lane]['count'] or
+                db.execute('SELECT 1 FROM portfolio_native_pending WHERE lane=? LIMIT 1',(lane,)).fetchone()):
+            raise RuntimeError('native_genesis_missing_with_shared_economic_state')
+        return dict(reconciled=True)
+    proof=database(Path(root)/'portfolio.sqlite',check)
+    if proof.get('state')!='CURRENT' or proof.get('reconciled') is not True:
+        raise RuntimeError('empty_native_state_not_reconciled')
+    return proof
 
 
 def main():

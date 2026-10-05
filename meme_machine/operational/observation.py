@@ -147,7 +147,9 @@ def host(root):
     mounts = {}
     for path in ('/', str(root)):
         fs = os.statvfs(path)
-        mounts[path] = dict(free_bytes=fs.f_bavail*fs.f_frsize, total_bytes=fs.f_blocks*fs.f_frsize)
+        total=fs.f_blocks*fs.f_frsize;used=(fs.f_blocks-fs.f_bfree)*fs.f_frsize
+        mounts[path] = dict(free_bytes=fs.f_bavail*fs.f_frsize, total_bytes=total,
+                            used_bytes=used,percent_used=100*used/total if total else 100)
     properties = subprocess.run(['systemctl','show','meme-machine-paper.service',
         '-p','ActiveState','-p','SubState','-p','MainPID','-p','NRestarts','-p','ControlGroup'],
         capture_output=True, text=True, check=True, timeout=3).stdout
@@ -164,8 +166,16 @@ def host(root):
                     threads=int(fields.get('Threads',0))))
             except (OSError, ValueError, KeyError):
                 continue
+    observers={}
+    for name in ('meme-machine-observer','meme-machine-monitor','meme-machine-metrics','meme-machine-uptime-health','do-agent'):
+        folder=Path('/sys/fs/cgroup/system.slice')/(name+'.service')
+        try:
+            stats=dict(line.split() for line in (folder/'cpu.stat').read_text().splitlines())
+            observers[name]=dict(cpu_usage_ns=int(stats['usage_usec'])*1000,
+                                 memory_bytes=int((folder/'memory.current').read_text()))
+        except (OSError,ValueError,KeyError):observers[name]=dict(unavailable=True)
     return dict(memory=memory,cpu_ticks=cpu,load=os.getloadavg(),disks=mounts,
-                service=service,processes=processes)
+                service=service,processes=processes,observation_stack=observers,cpu_count=os.cpu_count())
 
 
 def directional_reports(root, regimes, now=None):
@@ -202,15 +212,33 @@ def directional_reports(root, regimes, now=None):
 def collect(root):
     root = Path(root)
     value = dict(at=stamp(), timestamp=time.time(), host=host(root), storage={}, lanes={})
-    total=0
+    total=0;state_bytes=0;archive_bytes=0;learning_bytes=0;learning_rows=0
+    learning_deadline=time.monotonic()+2
+    learning_complete=True
     for p in root.rglob('*'):
         if not p.is_file() or p.is_symlink():
             continue
         total += 1
         if total > 10000:
             raise ValueError('state_file_observation_bound')
+        size=p.stat().st_size;state_bytes+=size
+        if any(part.endswith('.archive') for part in p.relative_to(root).parts[:-1]):archive_bytes+=size
         if '.sqlite' in p.name:
-            value['storage'][str(p.relative_to(root))] = p.stat().st_size
+            value['storage'][str(p.relative_to(root))] = size
+        if p.name.endswith(('.sqlite','.sqlite3')):
+            if time.monotonic()>=learning_deadline:
+                learning_complete=False;continue
+            def learning(db):
+                if not db.execute("SELECT 1 FROM sqlite_master WHERE name='learning_usage_v1'").fetchone():
+                    return dict(bytes=0,rows=0)
+                rows,body_bytes=db.execute('SELECT records,bytes FROM learning_usage_v1 WHERE id=1').fetchone()
+                return dict(bytes=body_bytes,rows=rows)
+            facts=database(p,learning,seconds=max(.01,learning_deadline-time.monotonic()))
+            learning_complete &= facts.get('state')=='CURRENT'
+            learning_bytes+=facts.get('bytes',0);learning_rows+=facts.get('rows',0)
+    value['storage_totals']=dict(state_root_bytes=state_bytes,archive_bytes=archive_bytes,
+        learning_store_bytes=learning_bytes,learning_rows=learning_rows,
+        learning_measurement_complete=learning_complete,files=total)
     try:
         health = read_json(root/'health.json')
         value['health_at'] = health['at']; value['epoch_id'] = health['epoch_id']

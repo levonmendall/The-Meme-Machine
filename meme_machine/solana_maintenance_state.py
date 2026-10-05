@@ -425,6 +425,8 @@ class DebtAgeAdapter:
             # These are work witnesses, not potentially unbounded garbage scans.
             # Independent of archived_pending; low record debt does not erase GC.
             housekeeping = 0
+            housekeeping += int(db.execute('SELECT 1 FROM archive_gc LIMIT 1').fetchone() is not None)
+            housekeeping += int(self.writer.archive_orphan_probe_due())
             for kind in ('archive','chunk','address'):
                 housekeeping += int(db.execute('SELECT 1 FROM maintenance_orphans WHERE kind=? LIMIT 1',(kind,)).fetchone() is not None)
             recent_progress = tuple(self.bounded('SELECT scope,side,at,units,record_at,records FROM maintenance_progress ORDER BY scope,side', limit=MAX_SCOPES*2+2))

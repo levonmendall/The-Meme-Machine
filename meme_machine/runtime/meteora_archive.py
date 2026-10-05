@@ -6,7 +6,7 @@ remain exact so the existing strategy restore replays its original exit state.
 from contextlib import closing
 from copy import deepcopy
 import hashlib
-import json
+import json,time
 from pathlib import Path
 import sqlite3
 from meme_machine.runtime.journal import canonical,digest
@@ -95,6 +95,11 @@ def compact(book,path,authority,callbacks):
                 raise ValueError('meteora_archive_new_events')
             if current!=original_state:
                 raise ValueError('meteora_archive_source_changed')
+            from meme_machine.runtime.learning import lifecycle
+            for identity in retired:
+                lifecycle(db,identity,'meteora',time.time(),
+                          original_state['positions'][identity],
+                          (event for event in logical if event['identity']==identity))
             db.execute('INSERT OR REPLACE INTO events_archive VALUES(1,?,?)',(canonical(value),digest(value)))
             db.execute('DROP TRIGGER no_delete')
             db.execute('DELETE FROM events WHERE seq>1 AND seq<=?',(state['events'],))

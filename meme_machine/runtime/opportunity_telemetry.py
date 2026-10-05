@@ -24,8 +24,8 @@ def _prefix(db):
 def retain(db):
     """Fold observations only; callers own the transaction and native lock.
 
-    The prefix preserves chain identity and counts, not discarded market facts.
-    An outcome whose interval overlaps it is explicitly incomplete.
+    Compact learning facts survive separately. The prefix preserves raw-ring
+    chain identity. An outcome overlapping missing observations stays incomplete.
     """
     if not db.in_transaction:raise ValueError('opportunity_retention_transaction')
     excess=db.execute('SELECT COUNT(*) FROM opportunity_journal_v1').fetchone()[0]-MAX_JOURNAL_ROWS
@@ -35,6 +35,8 @@ def retain(db):
                 'SELECT * FROM opportunity_journal_v1 ORDER BY seq LIMIT ?',(min(excess,MAX_RETIRE_SLICE),)):
             if seq!=value['events']+1 or previous!=value['final_hash'] or checksum!=digest([seq,event_id,kind,asset,at,body,previous]):
                 raise ValueError('opportunity_journal_corruption')
+            from meme_machine.runtime.learning import opportunity
+            opportunity(db,event_id,kind,asset,at,json.loads(body))
             value['events']=seq;value['final_hash']=checksum
             value['receipts']+=kind=='receipt';value['outcomes']+=kind=='outcome'
             value['maximum_at']=at if value['maximum_at'] is None else max(value['maximum_at'],at)
@@ -209,6 +211,7 @@ def current_receipt(identity,asset,decision_id,status,at,decision):
         ranked_failed_alpha_gates=[g['name'] for g in failed_alpha],
         existing_executable_quote=decision.get('executable_quote'),
         existing_execution_capacity=value_at(vector,'proposed_size.execution_capacity'),
+        feature_vector=vector,
         reference_price=context.get('reference_price'),decision_hash=digest(decision),
         qualification_authority=False,order_authority=False)
     if len(canonical(body).encode())>MAX_RECEIPT_BYTES:raise ValueError('opportunity_receipt_bound')
@@ -221,6 +224,8 @@ def append(db,event_id,kind,asset,at,body):
     if old:
         if old!=(kind,asset,int(at),encoded):raise ValueError('opportunity_journal_conflict')
         return False
+    from meme_machine.runtime.learning import opportunity
+    opportunity(db,event_id,kind,asset,int(at),body)
     last=db.execute('SELECT seq,hash FROM opportunity_journal_v1 ORDER BY seq DESC LIMIT 1').fetchone()
     seq,previous=(last[0]+1,last[1]) if last else (1,'0'*64)
     checksum=digest([seq,event_id,kind,asset,int(at),encoded,previous])
@@ -238,6 +243,12 @@ def install(db,identity):
     db.execute('CREATE INDEX IF NOT EXISTS opportunity_due ON opportunity_targets_v1(next_at,id)')
     db.execute('CREATE TABLE IF NOT EXISTS opportunity_scans_v1(id TEXT PRIMARY KEY,body TEXT NOT NULL)')
     db.execute('CREATE TABLE IF NOT EXISTS opportunity_meta_v1(key TEXT PRIMARY KEY,value TEXT NOT NULL)')
+    from meme_machine.runtime.learning import install as install_learning, opportunity
+    install_learning(db)
+    if not db.execute("SELECT 1 FROM opportunity_meta_v1 WHERE key='learning_backfilled'").fetchone():
+        for event_id,kind,asset,at,body in db.execute('SELECT id,kind,asset,at,body FROM opportunity_journal_v1 WHERE kind!=\'price\' ORDER BY seq').fetchall():
+            opportunity(db,event_id,kind,asset,at,json.loads(body))
+        db.execute("INSERT INTO opportunity_meta_v1 VALUES('learning_backfilled','1')")
     for action in ('UPDATE','DELETE'):
         name='opportunity_journal_no_'+action.lower()
         sql="CREATE TRIGGER "+name+" BEFORE "+action+" ON opportunity_journal_v1 BEGIN SELECT RAISE(ABORT,'append_only_opportunity'); END"
@@ -351,6 +362,8 @@ def enrich(db,*,now,limit=8,event_budget=512,ready_assets=None):
             maximum_adverse_excursion_bps=outcome_return(scan['minimum']),
             terminal_or_last_observable_return_bps=outcome_return(scan['last']),
             last_observation_at=scan['last_at'],observed_samples=scan['observed'],
+            observed_maximum_price=scan['maximum'],observed_minimum_price=scan['minimum'],
+            reference_price=reference,
             evidence_retention_complete=not scan.get('retention_incomplete',False),
             observability='RETAINED_EVIDENCE_INCOMPLETE' if scan.get('retention_incomplete') else 'OBSERVED' if scan['observed'] and reference is not None else
                 ('REFERENCE_UNAVAILABLE' if reference is None else 'NO_PERSISTED_OBSERVATIONS'),

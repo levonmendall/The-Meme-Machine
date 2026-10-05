@@ -116,6 +116,9 @@ def retire_controller(result):
                 if not current.get('retirement_pending'):
                     current.update(genesis=json.loads(db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0]),folded=plan['folded'],retirement_pending=plan,archived_entry_scope=plan['scope'])
                     for identity in plan['retired']:
+                        from meme_machine.runtime.learning import lifecycle
+                        life=next((r for r in result['lifecycles'] if (r.get('final_position') or {}).get('id')==identity),{})
+                        lifecycle(db,identity,'pons-current',time.time(),dict(plan['retired'][identity],lifecycle=life))
                         current.get('positions',{}).pop(identity,None)
                         db.execute('DELETE FROM capital_positions WHERE id=?',(identity,))
                     sql=db.execute("SELECT sql FROM sqlite_master WHERE name='journal_no_delete'").fetchone()[0]
@@ -152,4 +155,3 @@ def retire_controller(result):
                 db.execute('UPDATE capital_archive SET body=?,hash=? WHERE id=1',(canonical(current),digest(current)))
     finally:
         if sleeve:sleeve.close()
-

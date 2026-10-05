@@ -332,6 +332,13 @@ class PaperBook:
                     or (old and old['seq']==seq and old['final_hash']==anchor['final_hash'])
                     or (seq==0 and anchor['final_hash']=='0'*64)):
                 raise ValueError('paper_archive_prefix_conflict')
+            from meme_machine.runtime.learning import lifecycle
+            import time
+            for identity,position in positions.items():
+                lifecycle(self.db,identity,self.identity['lane'],time.time(),
+                          dict(position,risk_state=risk.get(identity)),
+                          (json.loads(raw) for raw, in self.db.execute(
+                           "SELECT body FROM journal WHERE seq<=? AND json_extract(body,'$.position.id')=? ORDER BY seq",(seq,identity))))
             self.db.execute('INSERT OR REPLACE INTO journal_archive VALUES(1,?,?)',(_json(anchor),_hash(anchor)))
             self.db.execute('DROP TRIGGER journal_no_delete')
             self.db.execute('DELETE FROM journal WHERE seq<=?',(seq,))

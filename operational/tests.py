@@ -3,6 +3,7 @@ import argparse,ipaddress,socket,unittest,urllib.request
 
 FAST=[
  'tests.test_canonical_money',
+ 'tests.test_learning_retention','tests.test_startup_storage','tests.test_native_genesis_wait','tests.test_operational_configuration','tests.test_storage_measurement',
  'tests.test_operational_uptime_health',
  'tests.test_operational_backup','tests.test_operational_observation','tests.test_durable_acceptance','tests.test_operational_monitoring','tests.test_operational_acceptance','tests.test_operational_metrics',
  'tests.test_operational_storage_guard',

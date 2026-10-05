@@ -935,6 +935,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 clients.discard(task)
 
     server=None;tasks=[]
+    storage_ready=asyncio.Event()
     try:
         server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
         os.chmod(socket_path,0o600)
@@ -942,6 +943,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             pass
 
         async def source():
+            await storage_ready.wait()
             while not stop.is_set():
                 connection_tasks=[]
                 connection_stop=asyncio.Event()
@@ -1346,6 +1348,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     if connection_tasks:await asyncio.gather(*connection_tasks,return_exceptions=True)
 
         async def repair():
+            await storage_ready.wait()
             while not stop.is_set():
                 try:
                     if repair_rpc is not None:
@@ -1379,7 +1382,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             # READY receipts against fresh debt; no independent retention request
             # can be waiting with an obsolete pre-queue ordering decision.
             from .solana_maintenance_runtime import ArchiveFlight,MaintenanceRuntime
+            from .startup_storage import recover
             runtime=await work(lambda state:MaintenanceRuntime(state),4,label='maintenance_decision')
+            await recover(work,decoder_pool,path,stop,wall=runtime.wall,monotonic=runtime.monotonic)
+            storage_ready.set()
             admission.generation=runtime.generation
             flight=ArchiveFlight()
             while not stop.is_set():

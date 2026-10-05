@@ -8,6 +8,14 @@ def audit_ring(db, table, trigger, *, limit=4096, key='seq'):
     """Ordinary audit rows have no scheduling or capital authority."""
     count=db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]
     if count<=limit:return
+    if table=='progress' and key=='sequence':
+        # Four native pipelines share this existing maintenance hook. Keep all
+        # strategy code unchanged; derive learning before its debug ring folds.
+        from meme_machine.runtime.learning import pipeline,install
+        if not db.in_transaction:db.execute('BEGIN')
+        install(db)
+        for row in db.execute('SELECT * FROM progress WHERE sequence NOT IN (SELECT sequence FROM progress ORDER BY sequence DESC LIMIT ?) ORDER BY sequence',(limit,)).fetchall():
+            pipeline(db,row)
     sql=db.execute('SELECT sql FROM sqlite_master WHERE name=?',(trigger,)).fetchone()
     if sql:db.execute('DROP TRIGGER '+trigger)
     db.execute('DELETE FROM '+table+' WHERE '+key+' NOT IN (SELECT '+key+' FROM '+table+' ORDER BY '+key+' DESC LIMIT ?)',(limit,))
@@ -70,7 +78,13 @@ def compact_pump(book):
             snapshots={}
             for identity, in book.db.execute('SELECT id FROM positions'):
                 life=PumpAccelerationPaperLifecycle.restore(book,identity)
-                saved=life.snapshot();saved['history']=saved['history'][:1]+saved['history'][-64:]
+                saved=life.snapshot()
+                from meme_machine.runtime.learning import lifecycle
+                import time
+                with book.transaction():
+                    lifecycle(book.db,identity,'pump-current',time.time(),
+                              dict(position=saved['position'],reservation=saved['reservation'],entry_features=life.entry_evidence),saved['history'])
+                saved['history']=saved['history'][:1]+saved['history'][-64:]
                 snapshots[identity]=dict(state=saved,entry_evidence=life.entry_evidence)
             book._compact_preserved(*preserved,cost_reader=lambda _:None,risk_reader=lambda *_:None)
             with book.transaction():

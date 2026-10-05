@@ -98,11 +98,13 @@ class Run370StorageTests(unittest.TestCase):
             self.assertEqual({r['identity']:r for r in got},{r.identity:r.body() for r in rows})
             w.interest('position','pump',lower_slot=10,priority=0,lifecycle='open')
             self.assertEqual(w.archive(1000),0)
-            w.release('position','pump',lifecycle_resolved=True);w.retain(1000)
+            w.release('position','pump',lifecycle_resolved=True);w.archive(1000)
             archived=[json.loads(line) for p in Path(tmp).glob('*.archive/*.gz') for line in gzip.open(p,'rt')]
             self.assertEqual({r['body']['identity']:r['body'] for r in archived},{r.identity:r.body() for r in rows})
             self.assertTrue(all(digest(r['body'])==r['hash'] for r in archived))
+            w.retain(1000)
             self.assertEqual(w.db.execute('SELECT COUNT(*) FROM hot_chunks').fetchone()[0],0)
+            self.assertEqual(len(list(Path(tmp).glob('*.archive/*.gz'))),0)
             reader.close();w.close()
 
     def test_legacy_address_migration_and_restart_preserve_full_lookup(self):

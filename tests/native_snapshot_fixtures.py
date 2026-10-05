@@ -14,7 +14,9 @@ def copy_snapshot(source,target,records):
 def native_bytes(db):
     # Separate the economic B-trees from independently bounded observation
     # tables added since the historical fixture's total-file size assertion.
-    return db.execute("SELECT SUM(pgsize) FROM dbstat WHERE name='sqlite_schema' OR name IN (SELECT name FROM sqlite_master WHERE tbl_name NOT LIKE 'opportunity_%')").fetchone()[0]
+    # Learning has independent row/byte limits and a whole-file plateau test;
+    # this measure keeps the original exact economic-prefix size contract.
+    return db.execute("SELECT SUM(pgsize) FROM dbstat WHERE name='sqlite_schema' OR name IN (SELECT name FROM sqlite_master WHERE tbl_name NOT LIKE 'opportunity_%' AND tbl_name NOT LIKE 'learning_%')").fetchone()[0]
 
 def native_counts(book):
     anchor=book._archive() or {}

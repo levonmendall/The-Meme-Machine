@@ -26,7 +26,7 @@ def conditions(sample,epoch,now):
     service=sample.get('host',{}).get('service',{})
     if service.get('ActiveState')!='active':found.add('paper_service_unavailable')
     for disk in sample.get('host',{}).get('disks',{}).values():
-        if disk.get('free_bytes',0)<max(2*1024**3,disk.get('total_bytes',0)*.05):found.add('storage_exhaustion_risk')
+        if disk.get('free_bytes',0)<max(2*1024**3,disk.get('total_bytes',0)*.05) or disk.get('percent_used',0)>=85:found.add('storage_exhaustion_risk')
     s=sample.get('solana',{})
     if s.get('state')!='CURRENT':found.add('evidence_unavailable')
     gap=s.get('repair_backlog',{})

@@ -227,6 +227,7 @@ CREATE TABLE IF NOT EXISTS conflicts(
  incoming TEXT NOT NULL,observed REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS archives(
  name TEXT PRIMARY KEY,hash TEXT NOT NULL,bytes INTEGER NOT NULL,records INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS archive_gc(name TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS counters(key TEXT PRIMARY KEY,value INTEGER NOT NULL);
 '''
 
@@ -581,7 +582,11 @@ class EvidenceWriter:
         compressed=gzip.compress(raw.encode(),compresslevel=1,mtime=0);checksum=hashlib.sha256(compressed).hexdigest()
         require_storage(path, required_bytes=len(compressed) + 32 * 1024 * 1024)
         path=Path(path);directory=path.parent/(path.name+'.archive');directory.mkdir(exist_ok=True)
-        target=directory/(checksum+'.jsonl.gz');publish_bytes(target,compressed)
+        target=directory/(checksum+'.jsonl.gz')
+        # Register publication before the raw file exists. A killed archive
+        # worker cannot leave an unregistered permanent raw payload.
+        publish_bytes(target.with_name(target.name+'.pending'),b'pending\n')
+        publish_bytes(target,compressed)
         return dict(name=target.name,hash=checksum,bytes=len(compressed))
 
     def commit_archive(self,plan,receipt):
@@ -597,7 +602,11 @@ class EvidenceWriter:
         if type(manifest_records) is not int or manifest_records < len(plan) or manifest_records < 0:
             raise EvidenceUnavailable('archive_manifest_record_count')
         with self.transaction():
-            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],manifest_records)).rowcount
+            # A completion retry can follow retirement of its entire prefix.
+            # Its metadata receipt remains idempotent without recreating a
+            # manifest for a raw file whose references have all expired.
+            referenced=any(self.db.execute('SELECT 1 FROM records WHERE identity=?',(row['identity'],)).fetchone() for row in plan)
+            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],manifest_records)).rowcount if referenced else 0
             if added:self._count('archive_bytes',receipt['bytes'])
             for row in plan:
                 # An interest can arrive while compression/fsync is in flight.
@@ -625,6 +634,9 @@ class EvidenceWriter:
             from .solana_maintenance_state import progress
             for scope,count in actual_scope_progress.items():
                 progress(self,scope,'archive',count,count)
+        pending=self.path.parent/(self.path.name+'.archive')/(receipt['name']+'.pending')
+        try:pending.unlink()
+        except FileNotFoundError:pass
         return archived
 
     def _account_floor(self,scope):
@@ -745,25 +757,116 @@ class EvidenceWriter:
         return archived
 
     def _retention_housekeeping(self,max_records,progress):
-        # Skip no-op housekeeping transactions too. Keep immutable archive files;
-        # only unreferenced operational manifests/chunks/dictionary keys retire.
+        # The existing retention floor has already preserved active interests,
+        # gaps and recovery references. Queue physical deletion atomically with
+        # manifest retirement, so a crash cannot strand permanent raw history.
         garbage=[]
         for table,key,sql in (
             ('archives','name','SELECT name FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL) LIMIT ?'),
             ('hot_chunks','hash','SELECT hash FROM hot_chunks c WHERE NOT EXISTS(SELECT 1 FROM hot_refs r WHERE r.hash=c.hash) LIMIT ?'),
             ('address_keys','id','SELECT id FROM address_keys k WHERE NOT EXISTS(SELECT 1 FROM address_refs r WHERE r.address_id=k.id) LIMIT ?')):
-            keys=[r[0] for r in self.db.execute(sql,(max_records+1,))]
-            if len(keys)>max_records:progress.remaining.add('gc:'+table)
-            if keys:garbage.append((table,key,keys[:max_records]))
+            limit=max_records
+            if table=='archives':limit=min(limit,max(0,4096-self.db.execute('SELECT COUNT(*) FROM archive_gc').fetchone()[0]))
+            if not limit:
+                progress.remaining.add('gc:archives');continue
+            keys=[r[0] for r in self.db.execute(sql,(limit+1,))]
+            if len(keys)>limit:progress.remaining.add('gc:'+table)
+            if keys:garbage.append((table,key,keys[:limit]))
         if garbage:
             removed=0
             with self.transaction():
                 for table,key,keys in garbage:
                     marks=','.join('?' for _ in keys)
+                    if table=='archives':
+                        directory=self.path.parent/(self.path.name+'.archive')
+                        owned=[name for name in keys if len(name)==73 and name.endswith('.jsonl.gz') and
+                               all(c in '0123456789abcdef' for c in name[:64]) and (directory/name).exists()]
+                        self.db.executemany('INSERT OR IGNORE INTO archive_gc VALUES(?)',((name,) for name in owned))
                     removed+=self.db.execute('DELETE FROM '+table+' WHERE '+key+' IN ('+marks+')',keys).rowcount
                 from .solana_maintenance_state import progress as maintenance_progress
                 maintenance_progress(self,'__housekeeping__','retirement',removed)
             progress.housekeeping_rows+=removed
+        # At most 32 small unlinks per owner admission; no directory-wide scan,
+        # no deletion of unknown files or of an archive newly referenced again.
+        names=self.db.execute('SELECT name FROM archive_gc ORDER BY name LIMIT ?',
+                              (min(32,max_records),)).fetchall()
+        directory=self.path.parent/(self.path.name+'.archive')
+        expired=[]
+        for name, in names:
+            if (len(name)!=73 or not name.endswith('.jsonl.gz') or
+                    any(c not in '0123456789abcdef' for c in name[:64])):
+                raise EvidenceUnavailable('archive_gc_name')
+            if self.db.execute('SELECT 1 FROM archives WHERE name=? UNION ALL SELECT 1 FROM records WHERE archive=? LIMIT 1',(name,name)).fetchone():
+                expired.append(name)
+                continue
+            target=directory/name
+            if target.is_symlink():raise EvidenceUnavailable('archive_gc_symlink')
+            try:target.unlink()
+            except FileNotFoundError:pass  # Replay after unlink-before-commit.
+            expired.append(name)
+        if expired:
+            with self.transaction():
+                self.db.executemany('DELETE FROM archive_gc WHERE name=?',((name,) for name in expired))
+                self._count('archive_files_expired',len(expired))
+                from .solana_maintenance_state import progress as maintenance_progress
+                maintenance_progress(self,'__housekeeping__','retirement',len(expired))
+            progress.housekeeping_rows+=len(expired)
+        if self.db.execute('SELECT 1 FROM archive_gc LIMIT 1').fetchone():
+            progress.remaining.add('gc:archive_files')
+        self._reclaim_published_orphans()
+
+    def archive_orphan_probe_due(self):
+        directory=self.path.parent/(self.path.name+'.archive')
+        if not directory.exists() or self.clock()<getattr(self,'_next_orphan_probe',0):return False
+        with os.scandir(directory) as entries:
+            for index,entry in enumerate(entries):
+                if index>=10000:raise EvidenceUnavailable('archive_gc_directory_bound')
+                if (entry.name.endswith('.jsonl.gz.pending') and
+                        self.clock()-entry.stat(follow_symlinks=False).st_mtime>=86400):return True
+        return False
+
+    def _reclaim_published_orphans(self):
+        if not self.archive_orphan_probe_due():return
+        self._next_orphan_probe=self.clock()+60
+        directory=self.path.parent/(self.path.name+'.archive')
+        cursor=getattr(self,'_orphan_cursor','');names=[]
+        with os.scandir(directory) as entries:
+            for index,entry in enumerate(entries):
+                if index>=10000:raise EvidenceUnavailable('archive_gc_directory_bound')
+                if entry.name.endswith('.jsonl.gz.pending') and entry.name>cursor:
+                    names.append(entry.name)
+                    if len(names)>4:names=sorted(names)[:4]
+        if not names:self._orphan_cursor='';return
+        for name in sorted(names):
+            self._orphan_cursor=name
+            marker=directory/name;target=directory/name.removesuffix('.pending')
+            if len(target.name)!=73 or any(c not in '0123456789abcdef' for c in target.name[:64]):
+                raise EvidenceUnavailable('archive_gc_name')
+            if marker.is_symlink() or target.is_symlink():raise EvidenceUnavailable('archive_gc_symlink')
+            # Healthy publication/commit needs seconds. One day also preserves
+            # interrupted in-flight support until all original references end.
+            if self.clock()-marker.stat().st_mtime<86400:continue
+            if self.db.execute('SELECT 1 FROM archives WHERE name=?',(target.name,)).fetchone():
+                marker.unlink();continue
+            if target.exists():
+                with target.open('rb') as stream:
+                    if hashlib.file_digest(stream,'sha256').hexdigest()!=target.name[:64]:
+                        raise EvidenceUnavailable('archive_gc_hash')
+                needed=False;size=0
+                with gzip.open(target,'rb') as stream:
+                    for line in stream:
+                        size+=len(line)
+                        if size>32*1024*1024:raise EvidenceUnavailable('archive_gc_body_bound')
+                        row=json.loads(line);body=row['body'];scope=body['scope'];slot=body['slot']
+                        needed=bool(self.db.execute('''SELECT 1 FROM records WHERE identity=?
+                            UNION ALL SELECT 1 FROM interests WHERE scope=? AND active=1 AND lower_slot<=?
+                            UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? AND (hi IS NULL OR hi>=?) LIMIT 1''',
+                            (row['identity'],scope,slot,scope,slot,slot)).fetchone())
+                        if needed:break
+                if needed:continue
+                target.unlink()
+            marker.unlink()
+            with self.transaction():self._count('archive_publication_orphans_expired',1)
 
     @staticmethod
     def checkpoint(path):

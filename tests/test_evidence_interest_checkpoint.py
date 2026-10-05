@@ -99,5 +99,8 @@ class InterestCheckpointTests(unittest.TestCase):
         self.assertLessEqual(max(sizes[4:])-min(sizes[4:]),1024*1024)
         self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM interest_checkpoints').fetchone()[0],1)
         archives=list(self.path.with_name(self.path.name+'.archive').glob('*.gz'))
-        self.assertEqual(len(archives),168)
-        print('168-hour held-pin soak: records peak',max(counts),'hot bytes',min(sizes[4:]),max(sizes[4:]),'raw archives preserved',len(archives))
+        # The owner checkpoint advances its still-active pin. Raw bodies below
+        # that acknowledged reference floor expire, while its required window
+        # and continuity remain readable throughout the entire soak above.
+        self.assertEqual(len(archives),0)
+        print('168-hour held-pin soak: records peak',max(counts),'hot bytes',min(sizes[4:]),max(sizes[4:]),'unreferenced raw archives',len(archives))

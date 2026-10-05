@@ -1,7 +1,7 @@
 """Fold only replayed, preserved Ramses terminals; active command history stays."""
 from copy import deepcopy
 import hashlib
-import json
+import json,time
 from pathlib import Path
 import sqlite3
 from meme_machine.runtime.journal import canonical,digest
@@ -59,6 +59,10 @@ def compact(book,path,authority):
         book.db.execute('INSERT OR REPLACE INTO ramses_terminal_archive VALUES(1,?,?)',(canonical(proof),digest(proof)))
         book.db.execute('DROP TRIGGER ramses_journal_no_delete')
         for identity in retired:
+            from meme_machine.runtime.learning import lifecycle
+            lifecycle(book.db,identity,'ramses',time.time(),retired[identity],
+                (dict(action=action,position=json.loads(raw)) for action,raw in
+                 book.db.execute('SELECT action,body FROM ramses_strategy_journal WHERE id=? ORDER BY seq',(identity,))))
             book.db.execute('DELETE FROM ramses_strategy_journal WHERE id=?',(identity,))
             book.db.execute('DELETE FROM ramses_strategy_position WHERE id=?',(identity,))
         book.db.execute("CREATE TRIGGER ramses_journal_no_delete BEFORE DELETE ON ramses_strategy_journal BEGIN SELECT RAISE(ABORT,'append_only'); END")
@@ -66,4 +70,3 @@ def compact(book,path,authority):
         book.db.execute('COMMIT')
     except BaseException:book.db.execute('ROLLBACK');raise
     return True
-

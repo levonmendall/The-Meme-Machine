@@ -39,20 +39,8 @@ def retain_completed(output,keep=8):
 
 
 def source_identity(source):
-    def git(*args):
-        return subprocess.check_output(['git',*args],cwd=source,text=True,timeout=5).strip()
-    if git('status','--porcelain'):
-        raise ValueError('acceptance_requires_clean_deployed_source')
-    result=dict(commit=git('rev-parse','HEAD'),tree=git('rev-parse','HEAD^{tree}'),
-        environment_sha256=hashlib.sha256(Path('/etc/meme-machine/paper.env').read_bytes()).hexdigest(),
-        storage_sha256=hashlib.sha256(Path('/etc/meme-machine/storage.json').read_bytes()).hexdigest())
-    # Ordinary configuration measurement, with no startup or economic authority.
-    for name,path in (('paper_unit','/etc/systemd/system/meme-machine-paper.service'),
-            ('backup_configuration','/etc/meme-machine/backup.json'),
-            ('backup_unit','/etc/systemd/system/meme-machine-backup.service'),
-            ('backup_timer','/etc/systemd/system/meme-machine-backup.timer')):
-        result[name+'_sha256']=hashlib.sha256(Path(path).read_bytes()).hexdigest()
-    return result
+    from .configuration import capture
+    return capture(source)
 
 
 def observed(observer, epoch, now=None):
@@ -64,6 +52,8 @@ def observed(observer, epoch, now=None):
 
 
 def run_child(command, folder, record, observer=None, pointer=None):
+    from .storage_measurement import Trend
+    trend=Trend()
     """Persist interrupted/failed children as failures, without stopping PAPER."""
     folder=Path(folder)
     started=time.monotonic();samples=0;observation_bytes=0;issues=[]
@@ -83,6 +73,7 @@ def run_child(command, folder, record, observer=None, pointer=None):
                 if observer is not None:
                     try:
                         sample=observed(observer,record['epoch_id'])
+                        trend.add(sample)
                         body=json.dumps(sample,sort_keys=True,allow_nan=False).encode()+b'\n'
                         observation_bytes+=len(body)
                         if observation_bytes>OBSERVATION_BOUND:
@@ -113,6 +104,7 @@ def run_child(command, folder, record, observer=None, pointer=None):
             record.update(end_time=stamp(),end_timestamp=time.time(),elapsed_seconds=elapsed,
                 exit_code=child.poll(),observation_samples=samples,observation_errors=issues,
                 full_duration_completed=full)
+            record['storage_growth']=trend.result()
             if record['status']!='FAIL':
                 record['status']='PASS' if child.poll()==0 and not issues and full else 'FAIL'
             atomic_json(folder/'status.json',record)

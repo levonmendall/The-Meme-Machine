@@ -82,11 +82,14 @@ class History:
         return floor is not None and evidence['at']<floor
 
     def append(self,identity,*,through,events,points,complete,evidence_checkpoint=None):
+        points=list(points)
         with self.transaction():
             row=self.get(identity)
             if row is None or through<row['through']:raise ValueError('survivor_history_watermark')
             if not complete:
                 row['complete']=False;self.save(row);return row
+            from meme_machine.runtime.learning import survivor
+            survivor(self.db,row,points)
             for event in events:
                 if event.get('authenticated') is not True or event['at']>through:
                     raise ValueError('survivor_history_event_authority')
@@ -155,6 +158,8 @@ class History:
                     if digest([identity,at,price])!=checksum:raise ValueError('survivor_price_corruption')
                     older.append(dict(at=at,**json.loads(price)))
                 if len(older)<3:continue
+                from meme_machine.runtime.learning import survivor
+                survivor(self.db,row,((p['at'],p) for p in older))
                 previous=self.get_meta('archive_prefix:'+identity)
                 before=None if previous is None else previous['reducer_state']
                 folded=[p for p in older if previous is None or p['at']>previous['through']]
@@ -201,6 +206,8 @@ class History:
         if expired_before is not None and row['graduation']['at']>=expired_before:
             raise ValueError('survivor_retirement_age')
         with self.transaction():
+            from meme_machine.runtime.learning import survivor
+            survivor(self.db,row,((p['at'],p) for p in self.facts(row['id'],row.get('through',row['last_checked']))[0]))
             if expired_before is not None:
                 previous=self.get_meta('graduation_floor')
                 self.set_meta('graduation_floor',max(expired_before,previous) if previous is not None else expired_before)
