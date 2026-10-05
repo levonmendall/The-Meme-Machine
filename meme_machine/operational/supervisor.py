@@ -64,17 +64,33 @@ class Supervisor:
             self.lock.close();self.lock=None
             raise RuntimeError('one_PAPER_supervisor_already_running') from None
         database=self.root/'portfolio.sqlite'
-        with self.account() as account:
-            binding=account.binding()
-            if binding is None:
-                epoch=('offline-fixture-' if self.offline else 'paper-')+str(time.time_ns())
-                values=identities()
-                account.establish_inception(inception_receipt(epoch,utc(time.time()),epoch+':inception'),portfolio_identities=values['pump'],lane_identities=values)
-                account.configure_family_sleeves()
-            elif self.offline != binding['receipt']['epoch_id'].startswith('offline-fixture-'):
-                raise RuntimeError('offline_and_operational_state_must_be_separate')
-            self.epoch=account.binding()['receipt']['epoch_id']
+        try:
+            existing_state=self.existing_epoch_state()
+            if existing_state and not database.exists():
+                raise RuntimeError('existing_epoch_state_requires_bound_portfolio')
+            with self.account() as account:
+                binding=account.binding()
+                if binding is None:
+                    if existing_state:raise RuntimeError('existing_epoch_state_requires_bound_portfolio')
+                    epoch=('offline-fixture-' if self.offline else 'paper-')+str(time.time_ns())
+                    values=identities()
+                    account.establish_inception(inception_receipt(epoch,utc(time.time()),epoch+':inception'),portfolio_identities=values['pump'],lane_identities=values)
+                    account.configure_family_sleeves()
+                elif self.offline != binding['receipt']['epoch_id'].startswith('offline-fixture-'):
+                    raise RuntimeError('offline_and_operational_state_must_be_separate')
+                self.epoch=account.binding()['receipt']['epoch_id']
+        except BaseException:
+            self.lock.close();self.lock=None
+            raise
         if self.offline:_atomic_json(self.root/'OFFLINE_ONLY.json',dict(offline=True,market_calls=0,epoch_id=self.epoch))
+
+    def existing_epoch_state(self):
+        # These are reset-prevention markers, never replacement capital or
+        # recovery authority. A bound canonical portfolio remains mandatory.
+        return any((self.root/name).exists() for name in
+                   ('inception.json','OFFLINE_ONLY.json','portfolio.sqlite-wal','portfolio.sqlite-shm')) or any(
+            (self.root/lane/'native-genesis.json').exists() or any((self.root/lane).glob('*.sqlite*'))
+            for lane in LANES)
 
     def account(self):
         from contextlib import contextmanager

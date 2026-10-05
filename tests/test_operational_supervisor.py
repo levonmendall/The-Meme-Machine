@@ -1,7 +1,7 @@
 """Offline native process ownership, real SQLite replay and crash delivery."""
 from decimal import Decimal
 from contextlib import closing
-import json,os,signal,subprocess,sys,tempfile,time,unittest
+import hashlib,json,os,signal,subprocess,sys,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,7 +16,7 @@ class NativeDeliveryRecovery(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);self.service=Supervisor(self.root,offline=True)
-        self.service.initialize();self.addCleanup(self.service.lock.close)
+        self.service.initialize();self.addCleanup(lambda: self.service.lock.close() if self.service.lock else None)
         for lane in LANES:(self.root/lane).mkdir()
         self.env=patch.dict(os.environ,{'MM_PAPER_EPOCH':self.service.epoch})
         self.env.start();self.addCleanup(self.env.stop)
@@ -45,6 +45,52 @@ class NativeDeliveryRecovery(unittest.TestCase):
             self.assertEqual(len(state['positions']),4)
             self.assertEqual(len(state['reservations']),0)
             self.assertTrue(account._reconcile(state)['checks']['cash_basis_conservation'])
+
+    def _check_missing_canonical_restart(self, *, empty_replacement):
+        book,_,_=open_native(self.root,'pump',self.service.epoch)
+        native=open_position(book,'pump',self.service.epoch,int(time.time()))
+        close(book,'pump')
+        with self.service.account() as account:
+            original=account.snapshot()
+        self.service.lock.close();self.service.lock=None
+        database=self.root/'portfolio.sqlite'
+        preserved=self.root/'preserved-portfolio.sqlite'
+        database.rename(preserved)
+        # The journal alone must prevent reseeding, before any projection has
+        # been published. An empty replacement is equally unsafe to activate.
+        (self.root/'OFFLINE_ONLY.json').unlink()
+        before={p:hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in (self.root/'pump').glob('*.sqlite*')}
+        if empty_replacement:
+            with closing(PortfolioAccounting(database)) as account:
+                self.assertIsNone(account.binding())
+        failed=Supervisor(self.root,offline=True)
+        try:
+            with self.assertRaisesRegex(RuntimeError,'existing_epoch_state_requires_bound_portfolio'):
+                failed.initialize()
+        finally:
+            if failed.lock:failed.lock.close()
+        self.assertEqual(before,{p:hashlib.sha256(p.read_bytes()).hexdigest() for p in before})
+        if empty_replacement:
+            with closing(PortfolioAccounting(database)) as account:
+                self.assertIsNone(account.binding())
+                self.assertEqual(account.db.execute('SELECT COUNT(*) FROM portfolio_events').fetchone()[0],0)
+            database.rename(self.root/'preserved-empty-portfolio.sqlite')
+        else:self.assertFalse(database.exists())
+        preserved.rename(database)
+        restarted=Supervisor(self.root,offline=True)
+        restarted.initialize();self.addCleanup(restarted.lock.close)
+        self.assertEqual(restarted.epoch,self.service.epoch)
+        with restarted.account() as account:self.assertEqual(account.snapshot(),original)
+        recovered,rows,_=open_native(self.root,'pump',restarted.epoch)
+        self.assertEqual([r['id'] for r in rows],[native])
+        close(recovered,'pump')
+
+    def test_missing_canonical_portfolio_cannot_replace_native_epoch(self):
+        self._check_missing_canonical_restart(empty_replacement=False)
+
+    def test_unbound_canonical_portfolio_cannot_replace_native_epoch(self):
+        self._check_missing_canonical_restart(empty_replacement=True)
 
     def test_uncommitted_native_reserve_releases_usd_without_provider(self):
         book,_,_=open_native(self.root,'pump',self.service.epoch)
