@@ -28,6 +28,7 @@ OPERATIONAL=FAST+[
  'tests.test_meteora_tape',
  'tests.test_meteora_bin_array_neutral','tests.test_meteora_pool_neutral',
  'tests.test_run377_persistence', 'tests.test_run380_atomic_frame', 'tests.test_run380_production_pressure',
+ 'tests.test_run379_transport_backpressure','tests.test_run381_archive_scheduling',
  'tests.test_dispatch_throughput','tests.test_run372_large_frame_runtime',
  'tests.test_retention_outcomes','tests.test_retention_progress',
  'tests.test_orphan_schema_compatibility','tests.test_survivor_bounded_drain','tests.test_ramses_census_connection',
