@@ -1,5 +1,6 @@
 """Actual WAL connections cannot mix journal and projection generations."""
-import tempfile,unittest
+import hashlib,sqlite3,tempfile,unittest
+from unittest.mock import patch
 from pathlib import Path
 from meme_machine.runtime.sleeve_reservations import SleeveReservations
 
@@ -58,3 +59,69 @@ class SleeveReconciliationSnapshotTests(unittest.TestCase):
             finally:
                 # Deliberately corrupt disposable projections cannot reconcile.
                 reader.db.close();writer.db.close()
+
+    def preserved(self,reader,path):
+        db=sqlite3.connect(path)
+        try:reader.db.backup(db)
+        finally:db.close()
+        return dict(snapshot_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),state_hash='existing-preserved-state')
+
+    def test_preserved_snapshot_replay_compacts_without_changing_open_reservation(self):
+        with tempfile.TemporaryDirectory() as td:
+            reader,writer=self.books(Path(td)/'sleeve.sqlite')
+            try:
+                writer.reserve('existing-lifecycle',strategy='current',amount=100,at=1)
+                before=reader.reconcile();path=Path(td)/'preserved.sqlite'
+                authority=self.preserved(reader,path)
+                self.assertTrue(reader._compact_preserved(path,authority))
+                self.assertEqual(reader.reconcile(),before)
+                self.assertEqual(reader.get('existing-lifecycle')['held'],100)
+                self.assertFalse(reader._compact_preserved(path,authority))
+                self.assertEqual(writer.reconcile(),before)
+            finally:reader.close();writer.close()
+
+    def test_interrupted_preserved_compaction_restores_original_journal_and_reservation(self):
+        with tempfile.TemporaryDirectory() as td:
+            reader,writer=self.books(Path(td)/'sleeve.sqlite')
+            try:
+                writer.reserve('existing-lifecycle',strategy='current',amount=100,at=1)
+                before=reader.reconcile();path=Path(td)/'preserved.sqlite'
+                authority=self.preserved(reader,path);original=SleeveReservations._reconcile
+                def interrupted(book):
+                    if book is reader and not book.db.execute('SELECT COUNT(*) FROM sleeve_journal').fetchone()[0] and book.db.execute('SELECT 1 FROM sleeve_archive').fetchone():
+                        raise RuntimeError('interrupted-archive-verification')
+                    return original(book)
+                with patch.object(SleeveReservations,'_reconcile',interrupted):
+                    with self.assertRaisesRegex(RuntimeError,'interrupted-archive-verification'):
+                        reader._compact_preserved(path,authority)
+                self.assertFalse(reader.db.in_transaction)
+                self.assertEqual(reader.reconcile(),before)
+                self.assertEqual(reader.db.execute('SELECT COUNT(*) FROM sleeve_journal').fetchone()[0],1)
+                self.assertIsNone(reader.db.execute('SELECT 1 FROM sleeve_archive').fetchone())
+                self.assertEqual(writer.get('existing-lifecycle')['held'],100)
+            finally:reader.close();writer.close()
+
+    def test_readonly_directional_terminal_replays_existing_books_without_constructor(self):
+        from meme_machine.runtime.directional_accounting import terminal
+        from meme_machine.runtime.directional_sleeve import policies
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.lanes.pump.paper_accounting import PaperBook as CurrentBook
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);folder=root/'pump-survivor';folder.mkdir()
+            approved=policies('pump');survivor=next(k for k in approved if 'survivor' in k)
+            current=next(k for k in approved if k!=survivor)
+            sleeve=SleeveReservations(root/'directional-sleeve.sqlite',lane='pump',capital=1000,policies=approved,cohort='existing-fixed-epoch')
+            sleeve.close()
+            book=PaperBook(folder/'paper.sqlite',run_id='existing-fixed-epoch',lane=survivor,policy_hash=approved[survivor],initial=1000)
+            book.close()
+            history=History(folder/'history.sqlite',policy=approved[survivor]);history.db.close()
+            native=CurrentBook(root/'pump-acceleration-natural-prospective.accounting.sqlite3',run_id='existing-fixed-epoch',lane=current,policy_hash=approved[current],initial=1000)
+            accounting=native.reconcile();native.close()
+            files=list(root.rglob('*.sqlite'))+list(root.rglob('*.sqlite3'))
+            before={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+            result=terminal('pump',root,dict(accounting=accounting,open_positions=0,verified=True))
+            self.assertTrue(result['verified']);self.assertTrue(result['accounting']['one_funded_genesis'])
+            self.assertEqual(result['accounting']['cash'],1000)
+            self.assertEqual(result['survivor']['sleeve']['available'],1000)
+            self.assertEqual(before,{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in files})

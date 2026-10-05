@@ -8,5 +8,10 @@
     "Interleaved independent connection commit observes consistent original snapshot; next read sees committed reservation exactly",
     "Interrupted existing mutation remains uncommitted and rolls back",
     "Real projection corruption still fails and read snapshot closes"
-  ]
+  ],
+  "preserved_snapshot_followup": {
+    "root_cause": "Snapshot proof object bypasses constructor; new reconciliation lock must explicitly exist on this caller-owned readonly replay object.",
+    "repair": "Initialize RLock on both constructor-bypassing readonly replay objects: preserved archive and directional terminal proof. No database, source hash, archive scope or identity change.",
+    "regressions": "Two archive tests reproduced missing-lock AttributeError; readonly directional terminal test independently reproduced same gap. Verify exact reservation/accounting identity, idempotent replay, interrupted-compaction rollback and unchanged bytes of all terminal-read databases."
+  }
 }

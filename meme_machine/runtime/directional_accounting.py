@@ -66,7 +66,7 @@ def terminal(lane,root,current):
         strategy=book.identity['lane'];expected=policies(lane)
         if expected.get(strategy)!=book.identity['policy_hash']:raise ValueError('survivor_terminal_policy')
         replay=book.replay();accounting=book.reconcile()
-        sleeve=SleeveReservations.__new__(SleeveReservations);sleeve.db=allocation
+        sleeve=SleeveReservations.__new__(SleeveReservations);sleeve.db=allocation;sleeve.lock=threading.RLock()
         sleeve.identity=json.loads(allocation.execute('SELECT body FROM sleeve_genesis').fetchone()[0])
         if sleeve.identity['policies']!=expected:raise ValueError('survivor_terminal_sleeve_identity')
         ceiling=sleeve.reconcile()

@@ -364,7 +364,7 @@ class SleeveReservations:
         with Path(path).open('rb') as source:
             if hashlib.file_digest(source,'sha256').hexdigest()!=authority['snapshot_sha256']:
                 raise ValueError('sleeve_archive_snapshot_identity')
-        source=object.__new__(SleeveReservations);source.identity=self.identity
+        source=object.__new__(SleeveReservations);source.identity=self.identity;source.lock=threading.RLock()
         source.db=sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True)
         try:
             source.db.execute('BEGIN')
