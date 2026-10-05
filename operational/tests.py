@@ -24,6 +24,7 @@ OPERATIONAL=FAST+[
  'tests.test_maintenance_batch_fairness','tests.test_maintenance_integrity',
  'tests.test_maintenance_overlap',
  'tests.test_run376_dispatch_pressure', 'tests.test_run381_subscription_progress',
+ 'tests.test_meteora_tape',
  'tests.test_meteora_bin_array_neutral','tests.test_meteora_pool_neutral',
  'tests.test_run377_persistence',
  'tests.test_dispatch_throughput','tests.test_run372_large_frame_runtime',
