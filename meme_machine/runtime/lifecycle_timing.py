@@ -254,8 +254,9 @@ def install_meteora(module):
 
 def _open_meteora_identities(path):
     import sqlite3
+    from contextlib import closing
     rows = {}
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db:
         for (raw,) in db.execute("SELECT body FROM events ORDER BY seq"):
             event = json.loads(raw)
             identity = event.get("identity")
