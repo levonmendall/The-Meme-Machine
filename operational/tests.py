@@ -114,6 +114,8 @@ OPERATIONAL=FAST+[
  'tests.test_survivor_risk_boundaries',
  'tests.test_survivor_terminal_retirement','tests.test_survivor_prefix_recovery',
  'tests.test_sleeve_prefix_recovery','tests.lanes.pump.test_pump_smoke_tail',
+ 'tests.test_native_continuity','tests.test_native_ramses_recovery',
+ 'tests.test_native_pump_continuation','tests.test_native_ramses_long_horizon',
  'tests.test_native_crash_recovery','tests.lanes.pons.test_protocol_foundation',
  'tests.lanes.pons.test_protocol_identity',
  'tests.lanes.ramses.test_native_ramses','tests.lanes.ramses.test_pons_natural_observation',
