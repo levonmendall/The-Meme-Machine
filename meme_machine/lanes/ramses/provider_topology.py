@@ -212,7 +212,7 @@ class PacedRpc(Rpc):
             try:
                 methods=json.loads(Path(capability_path).read_text())['endpoints'][self.evidence_reuse.domain]['methods']
                 self.hash_state_supported={m for m in ('eth_call','eth_getCode') if methods.get('eip1898_'+m,{}).get('supported') is True}
-            except (OSError,ValueError,KeyError):pass
+            except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
         self.pacer = pacer or ProviderPacer(requests_per_second)
         self._injected_transport = transport
         if transport is None:

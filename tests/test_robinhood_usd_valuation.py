@@ -479,6 +479,14 @@ class RobinhoodUSDTests(unittest.TestCase):
                 current=current.replace(property_block,b'').replace(allocation,b'')
                 current=current.replace(b'import sqlite3\nimport threading\n',b'import sqlite3\n')
                 current=current.replace(close_block,b'    def close(self):\n        if self.reader:self.reader.close()\n')
+            if rel in ('meme_machine/lanes/pons/pons_selective_acquisition.py','meme_machine/lanes/pons/provider_topology.py','meme_machine/lanes/ramses/provider_topology.py'):
+                # Optional hint shape fallback only; every other source byte pinned.
+                expanded=b'except (OSError,ValueError,KeyError,TypeError,AttributeError):pass'
+                original=b'except (OSError,ValueError,KeyError):pass'
+                expected=2 if rel.endswith('pons_selective_acquisition.py') else 1
+                self.assertEqual(current.count(expanded),expected,rel)
+                self.assertEqual(baseline(rel).count(original),expected,rel)
+                current=current.replace(expanded,original)
             self.assertEqual(current,baseline(rel),rel)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):

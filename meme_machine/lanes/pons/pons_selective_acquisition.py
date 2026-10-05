@@ -178,9 +178,9 @@ class SelectiveEvidenceContext:
             from . import CHAIN_ID
             domain=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()
             try:self.block_receipts_supported=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_getBlockReceipts']['supported'] is True
-            except (OSError,ValueError,KeyError):pass
+            except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
             try:self.view_batch_state['supported']=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_callMany']['supported'] is True
-            except (OSError,ValueError,KeyError):pass
+            except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
 
     @foreground_work
     def _rotate(self):

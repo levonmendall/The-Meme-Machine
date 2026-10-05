@@ -45,3 +45,5 @@ bodies, policy constants, qualification logic, range logic, cost calculations,
 rebalance decisions, exits or quote denomination.
 
 This finding does not declare migration completeness or authorize CAPACITY.
+
+Optional capability hints are an optimization input. Their exact reader now also falls back for JSON shape TypeError/AttributeError, matching its existing missing-file/key fallback. The economic comparison normalizes only this reader's exact AST body hash and exact five-exception pass handler to the historical three-exception handler. A changed reader body or broader exception handler cannot pass that normalization; the economic reference hashes and frozen policy bytes remain unchanged. Permanent regression checks cover both permitted and forbidden mutations.

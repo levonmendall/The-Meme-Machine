@@ -35,3 +35,20 @@ class RamsesSourceAttributionTests(unittest.TestCase):
             changed=ast.unparse(ast.fix_missing_locations(tree))
             with self.subTest(behavior=function):
                 self.assertNotEqual(economic_sha256(original,path),economic_sha256(changed,path))
+
+    def test_optional_capability_fallback_normalizes_only_exact_reader(self):
+        path='meme_machine/lanes/ramses/provider_topology.py'
+        current=(ROOT/path).read_text()
+        expanded='except (OSError,ValueError,KeyError,TypeError,AttributeError):pass'
+        original='except (OSError,ValueError,KeyError):pass'
+        self.assertEqual(current.count(expanded),1)
+        baseline=current.replace(expanded,original)
+        expected='6c23d1ee23fb5fa7b893e81ab3fd5cc1064268516ff1cd6896ca69bcfd227a7c'
+        self.assertEqual(economic_sha256(baseline,path),expected)
+        self.assertEqual(economic_sha256(current,path),expected)
+        mutations=[current.replace(expanded,'except (OSError,ValueError,KeyError,TypeError,AttributeError,Exception):pass'),
+            current.replace(expanded,'except (OSError,ValueError,KeyError,TypeError,AttributeError,RuntimeError):pass'),
+            current.replace("methods.get('eip1898_'+m,{}).get('supported') is True","methods.get('eip1898_'+m,{}).get('supported') is False")]
+        for changed in mutations:
+            self.assertNotEqual(changed,current)
+            self.assertNotEqual(economic_sha256(changed,path),expected)

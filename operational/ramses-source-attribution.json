@@ -430,7 +430,7 @@
       "origin": "robinhood_research/provider_topology.py",
       "path": "meme_machine/lanes/ramses/provider_topology.py",
       "reconstructed_sha256": "b3f39f95d8cf26ac3b670ca4240928c79c6f4b827da2a6967d74606bb77c091d",
-      "current_sha256": "6b1dc5d637827be278cd307abd404bb15749507ee4ed535131872a5b1b067fe4"
+      "current_sha256": "603e68c650624ee50591d86f07650497856d3a556b91da009c180c2ceae67850"
     },
     {
       "economic_AST_equal": true,
@@ -581,5 +581,12 @@
   "attribution": "PASS",
   "RAMSES_ECONOMICS": "UNCHANGED",
   "authority": "Operational engineering reference and regression baseline; no certification or trading authority.",
-  "normalization": "Whole AST with explicit import namespace resolution and enumerated operational adapters only; see operational/ramses_attribution.py"
+  "normalization": "Whole AST with explicit import namespace resolution and enumerated operational adapters only; see operational/ramses_attribution.py",
+  "operational_repairs": [
+    {
+      "repair": "Optional capability hint malformed JSON shape fallback",
+      "normalization": "Only exact reader body AST hash 2e6f2e74a8be469fecfe98dbb31fbbe71d4d97225be7a876339581a439d453ce with sole pass handler and exact OSError,ValueError,KeyError,TypeError,AttributeError tuple maps to original first three. Changed reader, broad exceptions, strategy and request bounds remain compared.",
+      "economic_reference_unchanged": true
+    }
+  ]
 }
