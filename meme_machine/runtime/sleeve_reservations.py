@@ -400,6 +400,16 @@ class SleeveReservations:
         return True
 
     def reconcile(self):
+        # A separate lifecycle connection can commit between replay queries.
+        # Pin one read snapshot unless the caller already owns a mutation.
+        with self.lock:
+            owned=not self.db.in_transaction
+            if owned:self.db.execute('BEGIN')
+            try:return self._reconcile()
+            finally:
+                if owned:self.db.execute('ROLLBACK')
+
+    def _reconcile(self):
         archive=self._archive()
         positions,candidates,previous,offset=({}, {},'0'*64,0) if archive is None else (
             archive['positions'],archive['candidates'],archive['final_hash'],archive['seq'])

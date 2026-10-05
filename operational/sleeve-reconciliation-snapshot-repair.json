@@ -1,0 +1,12 @@
+{
+  "root_cause": "Reconciliation used multiple autocommit SELECTs; an independent lifecycle WAL connection could commit between journal replay and projection comparison, creating a false corruption diagnostic.",
+  "negative_reproduction": "Actual two WAL-backed SleeveReservations instances, original read cursor retained; writer reservation interleaved after journal SELECT. Two tests in .045s, one sleeve_projection_corruption error on valid committed state.",
+  "repair": "RLock and own deferred read transaction only when caller has no transaction; original replay comparisons unchanged; rollback own read snapshot in finally. Existing mutation transaction remains caller-owned.",
+  "schema_compatibility": "No schema, journal, epoch, reservation, position, sizing or economic rule changes.",
+  "regression": "tests.test_sleeve_reconciliation_snapshot",
+  "coverage": [
+    "Interleaved independent connection commit observes consistent original snapshot; next read sees committed reservation exactly",
+    "Interrupted existing mutation remains uncommitted and rolls back",
+    "Real projection corruption still fails and read snapshot closes"
+  ]
+}
