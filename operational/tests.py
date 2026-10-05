@@ -35,6 +35,7 @@ OPERATIONAL=FAST+[
  'tests.lanes.ramses.test_ramses_dynamic_event_capacity','tests.lanes.ramses.test_ramses_scan_capacity_recovery',
  'tests.test_solana_evidence_plane','tests.test_solana_evidence_broker',
  'tests.test_solana_read_rpc', 'tests.test_solana_retained_raw', 'tests.test_solana_retention_working_set', 'tests.test_run381_repair_pagination',
+ 'tests.test_archive_pipeline','tests.test_coordinated_database','tests.test_evidence_interest_checkpoint',
  'tests.test_solana_checkpoint_owner', 'tests.test_checkpoint_handoff', 'tests.test_run381_archive_canonical', 'tests.test_retention_access_path',
  'tests.test_solana_health_atomicity', 'tests.test_run379_control_pressure', 'tests.test_solana_evidence_transport', 'tests.test_solana_evidence_retention',
  'tests.test_solana_evidence_queries','tests.test_solana_evidence_fences','tests.test_run369_runtime',
