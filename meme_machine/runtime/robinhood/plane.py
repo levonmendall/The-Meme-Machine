@@ -384,8 +384,8 @@ class Plane:
             complete_canonical_decisions=counts.get('canonical_evidence_complete',0),
             observations_superseded=counts.get('superseded',0),obsolete_completions_fenced=obsolete,
             history_archive=None if archive is None else dict(chain_hash=archive['chain_hash'],
-                windows=archive['windows'],transition_high_water=archive['transition_high_water'],
-                reporting_scope=archive['reporting_scope']),
+                windows=archive.get('windows'),transition_high_water=archive.get('transition_high_water'),
+                reporting_scope=archive.get('reporting_scope','runtime_retired_ordering_prefix')),
             database_bytes=Path(self.path).stat().st_size,
             wal_bytes=transient_file_size(Path(self.path+'-wal')))
 
