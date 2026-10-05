@@ -10,6 +10,54 @@ from meme_machine.runtime.journal import canonical,digest
 SCHEMA='directional-opportunity-telemetry-v1'
 WINDOWS=(300,900,3600,21600,86400)
 MAX_RECEIPT_BYTES=65536
+MAX_JOURNAL_ROWS=4096
+MAX_OUTCOME_TARGETS=1024
+MAX_RETIRE_SLICE=512
+
+def _prefix(db):
+    row=db.execute("SELECT value FROM opportunity_meta_v1 WHERE key='journal_prefix'").fetchone()
+    if row is None:return dict(events=0,receipts=0,outcomes=0,final_hash='0'*64,maximum_at=None)
+    value=json.loads(row[0]);checksum=value.pop('checksum')
+    if checksum!=digest(value):raise ValueError('opportunity_prefix_corruption')
+    return value
+
+def retain(db):
+    """Fold observations only; callers own the transaction and native lock.
+
+    The prefix preserves chain identity and counts, not discarded market facts.
+    An outcome whose interval overlaps it is explicitly incomplete.
+    """
+    if not db.in_transaction:raise ValueError('opportunity_retention_transaction')
+    excess=db.execute('SELECT COUNT(*) FROM opportunity_journal_v1').fetchone()[0]-MAX_JOURNAL_ROWS
+    if excess>0:
+        value=_prefix(db)
+        for seq,event_id,kind,asset,at,body,previous,checksum in db.execute(
+                'SELECT * FROM opportunity_journal_v1 ORDER BY seq LIMIT ?',(min(excess,MAX_RETIRE_SLICE),)):
+            if seq!=value['events']+1 or previous!=value['final_hash'] or checksum!=digest([seq,event_id,kind,asset,at,body,previous]):
+                raise ValueError('opportunity_journal_corruption')
+            value['events']=seq;value['final_hash']=checksum
+            value['receipts']+=kind=='receipt';value['outcomes']+=kind=='outcome'
+            value['maximum_at']=at if value['maximum_at'] is None else max(value['maximum_at'],at)
+        value['checksum']=digest(value)
+        db.execute("INSERT OR REPLACE INTO opportunity_meta_v1 VALUES('journal_prefix',?)",(canonical(value),))
+        name='opportunity_journal_no_delete'
+        sql=db.execute('SELECT sql FROM sqlite_master WHERE name=?',(name,)).fetchone()[0]
+        db.execute('DROP TRIGGER '+name)
+        db.execute('DELETE FROM opportunity_journal_v1 WHERE seq<=?',(value['events'],))
+        db.execute(sql)
+    # Unfinished diagnostic scans cannot accumulate without limit. Their loss
+    # is recorded; it grants no strategy/lifecycle permission or outcome claim.
+    excess=db.execute('SELECT COUNT(*) FROM opportunity_targets_v1').fetchone()[0]-MAX_OUTCOME_TARGETS
+    if excess>0:
+        retired=min(excess,MAX_RETIRE_SLICE)
+        db.execute('DELETE FROM opportunity_targets_v1 WHERE id IN (SELECT id FROM opportunity_targets_v1 ORDER BY at,id LIMIT ?)',(retired,))
+        old=db.execute("SELECT value FROM opportunity_meta_v1 WHERE key='unobserved_retired_targets'").fetchone()
+        db.execute("INSERT OR REPLACE INTO opportunity_meta_v1 VALUES('unobserved_retired_targets',?)",(str((int(old[0]) if old else 0)+retired),))
+    db.execute("""DELETE FROM opportunity_scans_v1 WHERE id IN (
+        SELECT s.id FROM opportunity_scans_v1 s WHERE
+        (substr(s.id,1,7)='export:' AND NOT EXISTS(SELECT 1 FROM opportunity_targets_v1 t WHERE t.asset=substr(s.id,8))) OR
+        (substr(s.id,1,7)!='export:' AND NOT EXISTS(SELECT 1 FROM opportunity_targets_v1 t WHERE t.id=json_extract(s.id,'$[0]')))
+        LIMIT ?)""",(MAX_RETIRE_SLICE,))
 
 def value_at(value,path):
     for part in path.split('.'):
@@ -168,6 +216,7 @@ def current_receipt(identity,asset,decision_id,status,at,decision):
 
 def append(db,event_id,kind,asset,at,body):
     encoded=canonical(body)
+    if len(encoded.encode())>MAX_RECEIPT_BYTES:raise ValueError('opportunity_receipt_bound')
     old=db.execute('SELECT kind,asset,at,body FROM opportunity_journal_v1 WHERE id=?',(event_id,)).fetchone()
     if old:
         if old!=(kind,asset,int(at),encoded):raise ValueError('opportunity_journal_conflict')
@@ -177,6 +226,7 @@ def append(db,event_id,kind,asset,at,body):
     checksum=digest([seq,event_id,kind,asset,int(at),encoded,previous])
     db.execute('INSERT INTO opportunity_journal_v1 VALUES(?,?,?,?,?,?,?,?)',
         (seq,event_id,kind,asset,int(at),encoded,previous,checksum))
+    retain(db)
     return True
 
 def install(db,identity):
@@ -198,6 +248,7 @@ def install(db,identity):
     ready=db.execute("SELECT value FROM opportunity_meta_v1 WHERE key='schema'").fetchone()
     if ready:
         if ready[0]!=SCHEMA:raise ValueError('opportunity_schema_drift')
+        retain(db)
         return
     for event_id,asset,at,raw in db.execute('SELECT id,asset,at,body FROM opportunity_receipts ORDER BY at,id').fetchall():
         row=json.loads(raw)
@@ -233,9 +284,11 @@ def record(db,identity,event_id,asset,native_id,regime,status,at,decision,*,outc
         if reference is not None and Fraction(str(reference))<=0:raise ValueError('opportunity_reference_price')
         db.execute('INSERT INTO opportunity_targets_v1 VALUES(?,?,?,?,?,?)',
             ('receipt:'+event_id,asset,int(at),None if reference is None else str(reference),0,int(at)+WINDOWS[0]))
+        retain(db)
 
 def verify(db):
-    previous='0'*64;count=receipts=outcomes=0
+    prefix=_prefix(db)
+    previous=prefix['final_hash'];count=prefix['events'];receipts=prefix['receipts'];outcomes=prefix['outcomes']
     for seq,event_id,kind,asset,at,body,prior,checksum in db.execute('SELECT * FROM opportunity_journal_v1 ORDER BY seq'):
         if seq!=count+1 or prior!=previous or checksum!=digest([seq,event_id,kind,asset,at,body,prior]):
             raise ValueError('opportunity_journal_corruption')
@@ -266,6 +319,9 @@ def enrich(db,*,now,limit=8,event_budget=512,ready_assets=None):
         scan=json.loads(old[0]) if old else dict(cursor=0,cursor_at=start-1,source_watermark=db.execute('SELECT COALESCE(MAX(seq),0) FROM opportunity_journal_v1').fetchone()[0],maximum=None,minimum=None,last=None,
             last_at=None,observed=0,survivor_candidate=False,survivor_qualified=False,
             survivor_filled=False,survivor_terminal=None)
+        prefix=_prefix(db)
+        if prefix['maximum_at'] is not None and prefix['maximum_at']>=start:
+            scan['retention_incomplete']=True
         allowance=min(64,event_budget-processed)
         rows=db.execute("SELECT seq,kind,at,body,id,previous,hash FROM opportunity_journal_v1 WHERE asset=? AND kind IN ('price','link') AND at BETWEEN ? AND ? AND (at,seq)>(?,?) AND seq<=? ORDER BY at,seq LIMIT ?",
             (asset,start,end,scan['cursor_at'],scan['cursor'],scan['source_watermark'],allowance)).fetchall()
@@ -289,16 +345,19 @@ def enrich(db,*,now,limit=8,event_budget=512,ready_assets=None):
             db.execute('INSERT OR REPLACE INTO opportunity_scans_v1 VALUES(?,?)',(scan_id,canonical(scan)))
             continue
         def outcome_return(value):
-            return None if value is None or reference is None else int((Fraction(value)/Fraction(reference)-1)*10000)
+            return None if scan.get('retention_incomplete') or value is None or reference is None else int((Fraction(value)/Fraction(reference)-1)*10000)
         body=dict(schema=SCHEMA,receipt_id=target,window_seconds=WINDOWS[index],window_end=end,
             evaluated_at=int(now),source_journal_watermark=scan['source_watermark'],maximum_favorable_excursion_bps=outcome_return(scan['maximum']),
             maximum_adverse_excursion_bps=outcome_return(scan['minimum']),
             terminal_or_last_observable_return_bps=outcome_return(scan['last']),
             last_observation_at=scan['last_at'],observed_samples=scan['observed'],
-            observability='OBSERVED' if scan['observed'] and reference is not None else
+            evidence_retention_complete=not scan.get('retention_incomplete',False),
+            observability='RETAINED_EVIDENCE_INCOMPLETE' if scan.get('retention_incomplete') else 'OBSERVED' if scan['observed'] and reference is not None else
                 ('REFERENCE_UNAVAILABLE' if reference is None else 'NO_PERSISTED_OBSERVATIONS'),
-            survivor_candidate_created=scan['survivor_candidate'],survivor_qualified=scan['survivor_qualified'],
-            survivor_fill_committed=scan['survivor_filled'],survivor_terminal_outcome=scan['survivor_terminal'],
+            survivor_candidate_created=None if scan.get('retention_incomplete') else scan['survivor_candidate'],
+            survivor_qualified=None if scan.get('retention_incomplete') else scan['survivor_qualified'],
+            survivor_fill_committed=None if scan.get('retention_incomplete') else scan['survivor_filled'],
+            survivor_terminal_outcome=None if scan.get('retention_incomplete') else scan['survivor_terminal'],
             qualification_authority=False,order_authority=False)
         append(db,'outcome:'+target+':'+str(WINDOWS[index]),'outcome',asset,end,body)
         db.execute('DELETE FROM opportunity_scans_v1 WHERE id=?',(scan_id,))
@@ -306,6 +365,7 @@ def enrich(db,*,now,limit=8,event_budget=512,ready_assets=None):
         else:db.execute('UPDATE opportunity_targets_v1 SET next_window=?,next_at=? WHERE id=?',
             (index+1,start+WINDOWS[index+1],target))
         completed+=1
+    retain(db)
     return dict(completed_windows=completed,processed_events=processed)
 
 
