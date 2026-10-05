@@ -148,8 +148,10 @@ class Supervisor:
         for lane,proc in self.processes.items():
             path=self.root/lane/'health.json'
             try:
-                row=json.loads(path.read_text())
-                if path.stat().st_size>262144:raise ValueError('health_bound')
+                with path.open('rb') as stream:body=stream.read(262145)
+                if len(body)>262144:raise ValueError('health_bound')
+                row=json.loads(body)
+                if not isinstance(row,dict):raise ValueError('health_shape')
                 if (row.get('pid')!=proc.pid or row.get('process_instance')!=self.process_instances.get(lane)):
                     raise ValueError('health_predecessor_instance')
             except (OSError,ValueError):row=dict(phase='STARTING')

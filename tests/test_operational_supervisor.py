@@ -94,6 +94,42 @@ class NativeDeliveryRecovery(unittest.TestCase):
         self.service.publish()
         self.assertTrue(json.loads((self.root/'health.json').read_text())['lanes']['pump']['reconciled'])
 
+    def test_malformed_child_health_cannot_stop_supervisor_or_confer_readiness(self):
+        from types import SimpleNamespace
+        path=self.root/'pump'/'health.json'
+        self.service.processes={'pump':SimpleNamespace(pid=200,poll=lambda:None)}
+        self.service.process_instances={'pump':'replacement'}
+        for body in (b'[]',b'null',b'"ready"',b'123',b'\xff',b'{'):
+            with self.subTest(body=body):
+                path.write_bytes(body)
+                self.service.publish()
+                row=json.loads((self.root/'health.json').read_text())['lanes']['pump']
+                self.assertEqual(row['phase'],'STARTING')
+                self.assertFalse(row.get('reconciled',False))
+                self.assertEqual(row['pid'],200)
+
+    def test_child_health_read_is_bounded_before_json_decode(self):
+        from io import BytesIO
+        from types import SimpleNamespace
+        path=self.root/'pump'/'health.json'
+        self.service.processes={'pump':SimpleNamespace(pid=200,poll=lambda:None)}
+        self.service.process_instances={'pump':'replacement'}
+        payload=b'{"pid":200,"process_instance":"replacement","phase":"MANAGING","reconciled":true,"padding":"'+b'x'*300000+b'"}'
+        reads=[]
+        class Tracked(BytesIO):
+            def read(self,size=-1):
+                reads.append(size)
+                return super().read(size)
+        original=Path.open
+        def opened(target,*args,**kwargs):
+            if target==path:return Tracked(payload)
+            return original(target,*args,**kwargs)
+        with patch.object(Path,'open',opened):self.service.publish()
+        self.assertEqual(reads,[262145])
+        row=json.loads((self.root/'health.json').read_text())['lanes']['pump']
+        self.assertEqual(row['phase'],'STARTING')
+        self.assertFalse(row.get('reconciled',False))
+
     def test_publication_failure_cannot_stop_lane_or_supervisor(self):
         from meme_machine.operational.lane import health
         with patch('meme_machine.operational.lane._atomic_json',side_effect=OSError('read_only_dashboard')):
