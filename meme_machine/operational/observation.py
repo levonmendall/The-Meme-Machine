@@ -168,6 +168,37 @@ def host(root):
                 service=service,processes=processes)
 
 
+def directional_reports(root, regimes, now=None):
+    """Read the existing bounded native projections, including each Survivor."""
+    now=time.time() if now is None else now
+    paths={'pump':'pump/pump-acceleration-natural-prospective.json',
+        'pons':'pons/pons-selective-continuation-v1-cohort/cohort-progress.json'}
+    for lane,path in paths.items():
+        current=regimes.setdefault(lane.title()+' Current',dict(lane=lane))
+        survivor=regimes.setdefault(lane.title()+' Survivor',dict(lane=lane))
+        try:
+            p=Path(root)/path
+            if p.is_symlink():raise ValueError('observation_report_symlink')
+            report=read_json(p)
+            age=max(0,now-p.stat().st_mtime)
+            if not isinstance(report,dict):raise ValueError('observation_report_shape')
+            status='CURRENT' if age<=60 else 'STALE'
+            current.update(report_state=status,report_age_seconds=age,
+                machinery=numeric({key:report.get(key) for key in
+                    ('counts','summary','stream','sequencer_discovery','evidence_queue',
+                     'evidence_acquisition','active_provider','active_discovery_provider',
+                     'publication','full_evidence_attempts','canonical_discovery_cursor',
+                     'persisted_candidate_rows','persisted_qualifiers','capacity_censored')}))
+            details=report.get('survivor')
+            survivor.update(report_state=status,report_age_seconds=age,
+                observation_state='CURRENT' if isinstance(details,dict) and details else 'UNAVAILABLE',
+                boundary_present=bool(details.get('last_boundary')) if isinstance(details,dict) else False,
+                machinery=numeric(details) if isinstance(details,dict) else {})
+        except (OSError,ValueError,KeyError,TypeError):
+            current.update(report_state='UNAVAILABLE')
+            survivor.update(report_state='UNAVAILABLE',observation_state='UNAVAILABLE')
+
+
 def collect(root):
     root = Path(root)
     value = dict(at=stamp(), timestamp=time.time(), host=host(root), storage={}, lanes={})
@@ -191,6 +222,7 @@ def collect(root):
              ('Pons Survivor','pons'),('Meteora','meteora'),('Ramses','ramses'))}
     except (OSError, ValueError, KeyError, TypeError):
         value['health_unavailable'] = True
+    directional_reports(root,value.setdefault('six_regimes',{}))
     value['portfolio'] = database(root/'portfolio.sqlite', portfolio)
     value['solana'] = database(root/'shared/solana-evidence.sqlite', evidence)
     for name in ('solana','robinhood'):
@@ -203,7 +235,7 @@ def check_next_database(root,folder,value):
     path=Path(folder)/'database-integrity.json'
     try:previous=read_json(path,limit=SAMPLE_BOUND)
     except (OSError,ValueError):previous={}
-    names=sorted(name for name in value['storage'] if name.endswith('.sqlite'))
+    names=sorted(name for name in value['storage'] if name.endswith(('.sqlite','.sqlite3')))
     if not names:return
     key=min(names,key=lambda name:previous.get(name,{}).get('timestamp',0))
     def check(db):

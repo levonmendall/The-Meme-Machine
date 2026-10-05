@@ -44,6 +44,13 @@ def conditions(sample,epoch,now):
         if row.get('phase')=='VALUATION_UNAVAILABLE':found.add(lane+'_valuation_unavailable')
         if p.get('positions_by_lane',{}).get(lane,0)>0 and now-row.get('progress_at',0)>PERSISTENCE:
             found.add(lane+'_position_management_stalled')
+    for lane in ('pump','pons'):
+        row=sample.get('six_regimes',{}).get(lane.title()+' Survivor',{})
+        details=row.get('machinery') or {}
+        positions=(details.get('accounting') or {}).get('open_positions',0)
+        completed=(details.get('machinery') or {}).get('last_step_completed_at',0)
+        if positions>0 and now-completed>PERSISTENCE:
+            found.add(lane+'_survivor_position_management_stalled')
     return found
 
 def evaluate(sample,previous,epoch,now=None,*,expect_running=True):

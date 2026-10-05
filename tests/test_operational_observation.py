@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sqlite3
 import tempfile
+import os
 import unittest
 
 from meme_machine.operational import observation
@@ -61,6 +62,46 @@ class ReadOnlyObservation(unittest.TestCase):
             self.assertEqual(row['state'],'FAIL_CLOSED')
             self.assertTrue(row['integrity_failure'])
             self.assertEqual(p.read_bytes(),before)
+
+    def test_native_sqlite3_corruption_is_included_in_rotating_integrity_checks(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)/'state';root.mkdir()
+            folder=Path(td)/'observations';folder.mkdir()
+            p=root/'native.accounting.sqlite3';p.write_bytes(b'corrupt native journal')
+            before=p.read_bytes()
+            value={'storage':{p.name:p.stat().st_size}}
+            observation.check_next_database(root,folder,value)
+            self.assertTrue(value['database_integrity'][p.name]['integrity_failure'])
+            self.assertEqual(p.read_bytes(),before)
+
+    def test_survivor_progress_is_distinct_from_current_lane_progress_and_redacted(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);p=root/'pump/pump-acceleration-natural-prospective.json'
+            p.parent.mkdir()
+            p.write_text(json.dumps(dict(counts={'current_qualifiers':5},
+                survivor=dict(active=True,last_boundary='https://rpc.invalid/provider-secret',
+                    candidate_count=7,machinery=dict(completed_steps=11,last_step_completed_at=123)))))
+            os.utime(p,(150,150));before=p.read_bytes();regimes={}
+            observation.directional_reports(root,regimes,now=160)
+            current=regimes['Pump Current'];survivor=regimes['Pump Survivor']
+            self.assertEqual(current['machinery']['counts']['current_qualifiers'],5)
+            self.assertEqual(survivor['machinery']['machinery']['completed_steps'],11)
+            self.assertTrue(survivor['boundary_present'])
+            self.assertNotIn('provider-secret',json.dumps(regimes))
+            self.assertEqual(regimes['Pons Survivor']['observation_state'],'UNAVAILABLE')
+            self.assertEqual(p.read_bytes(),before)
+            observation.directional_reports(root,regimes,now=220)
+            self.assertEqual(regimes['Pump Survivor']['report_state'],'STALE')
+
+    def test_invalid_or_oversized_projection_does_not_break_other_observations(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);p=root/'pump/pump-acceleration-natural-prospective.json'
+            p.parent.mkdir();p.write_text('[]');regimes={}
+            observation.directional_reports(root,regimes)
+            self.assertEqual(regimes['Pump Current']['report_state'],'UNAVAILABLE')
+            p.write_bytes(b' '*(16*1024**2+1))
+            observation.directional_reports(root,regimes)
+            self.assertEqual(regimes['Pump Survivor']['observation_state'],'UNAVAILABLE')
 
 
 if __name__=='__main__':unittest.main()
