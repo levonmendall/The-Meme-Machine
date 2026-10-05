@@ -479,6 +479,12 @@ class RobinhoodUSDTests(unittest.TestCase):
                 current=current.replace(property_block,b'').replace(allocation,b'')
                 current=current.replace(b'import sqlite3\nimport threading\n',b'import sqlite3\n')
                 current=current.replace(close_block,b'    def close(self):\n        if self.reader:self.reader.close()\n')
+            if rel=='meme_machine/lanes/pons/pons_selective_capital.py':
+                # Only a consistent read snapshot for native terminal recovery.
+                added=b"        with closing(sleeve),closing(self._connect()) as db:\n            db.execute('BEGIN')\n"
+                original=b"        with closing(sleeve),closing(self._connect()) as db:\n"
+                self.assertEqual(current.count(added),1,rel)
+                current=current.replace(added,original)
             if rel in ('meme_machine/lanes/pump/pipeline.py','meme_machine/lanes/meteora/pipeline.py','meme_machine/lanes/ramses/pipeline.py'):
                 # Only remove dangling cleanup for a table these lanes never create.
                 removed=b"                    self.db.execute('DELETE FROM progress_sources WHERE sequence<(SELECT MAX(p.sequence) FROM progress_sources p WHERE p.source=progress_sources.source)')\n"

@@ -35,6 +35,7 @@ class CohortCapital:
         sleeve=open_sleeve('pons',self.capital)
         if sleeve is None:return
         with closing(sleeve),closing(self._connect()) as db:
+            db.execute('BEGIN')
             verified=self._reconcile(db)
             native_ids=set()
             for raw, in db.execute('SELECT body FROM capital_positions'):
