@@ -8,11 +8,44 @@ import unittest
 
 from meme_machine.startup_storage import recover
 from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader
-from meme_machine.solana_evidence_service import FinalizedFence
+from meme_machine.solana_evidence_service import FinalizedFence, ServiceState
 from tests.test_solana_evidence_plane import record,proof
 
 
 class StartupStorage(unittest.IsolatedAsyncioTestCase):
+    async def test_sparse_address_pin_observation_fits_existing_vm_budget(self):
+        from meme_machine.solana_provider_config import AlchemyEndpoint
+        from meme_machine.solana_maintenance_state import DebtAgeAdapter, OBSERVATION_VM_STEPS
+        with tempfile.TemporaryDirectory() as td:
+            state=ServiceState(Path(td)/'evidence.sqlite',AlchemyEndpoint.parse(
+                'https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+            writer=state.writer;writer.clock=lambda:1000
+            self.addCleanup(writer.close)
+            rows=[replace(record(),identity='dense'+str(i),signature='s'+str(i),
+                scope='program:meteora',slot=1000+i//20,market_time=800,observed_at=1000,
+                addresses=('protected-pool',) if i%4000==0 else ('unrelated-pool',))
+                for i in range(20000)]
+            for start in range(0,len(rows),1000):writer.ingest(rows[start:start+1000])
+            writer.interest('position','program:meteora',lower_slot=1000,priority=0,lifecycle='open')
+            writer.interest('overlapping-position','program:meteora',lower_slot=1200,priority=0,lifecycle='open')
+            with writer.transaction():
+                writer.db.execute('INSERT INTO service_interests VALUES(?,?,?,?)',
+                    ('position','program:meteora','protected-pool','transactions'))
+                writer.db.execute('INSERT INTO service_interests VALUES(?,?,?,?)',
+                    ('overlapping-position','program:meteora','protected-pool','transactions'))
+            before=writer.db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0]
+            adapter=DebtAgeAdapter(writer,wall=lambda:1000)
+            observation=adapter.observe(state.fence.session)
+            scope=next(s for s in observation.scopes if s.scope=='program:meteora')
+            self.assertEqual(scope.hot_eligible,19995)
+            self.assertEqual(scope.hot_oldest,800)
+            self.assertEqual(scope.pins,2)
+            self.assertLessEqual(adapter.steps,OBSERVATION_VM_STEPS)
+            self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0],before)
+            while writer.archive(820):pass
+            remaining=writer.db.execute('SELECT identity FROM records WHERE body IS NOT NULL').fetchall()
+            self.assertEqual({r[0] for r in remaining},{'dense'+str(i) for i in range(0,20000,4000)})
+
     async def test_old_cold_debt_drains_without_resetting_pins_gaps_or_source_time(self):
         with tempfile.TemporaryDirectory() as td:
             path=Path(td)/'evidence.sqlite';writer=EvidenceWriter(path,clock=lambda:1000)

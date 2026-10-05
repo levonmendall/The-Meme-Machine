@@ -297,6 +297,7 @@ class DebtAgeAdapter:
         self.steps += len(rows)*(1+len(pins)+len(gaps))
         if self.steps > OBSERVATION_VM_STEPS:
             raise EvidenceUnavailable('maintenance_observation_python_bound')
+        eligible = []
         for slot, at, hot in rows:
             if hot <= 0 or not math.isfinite(at):
                 raise EvidenceUnavailable('maintenance_synopsis_contradiction')
@@ -306,17 +307,34 @@ class DebtAgeAdapter:
             applicable = [(owner, lo, addressed) for owner, lo, addressed in pins if slot >= lo]
             if any(not addressed for _, _, addressed in applicable):
                 continue
+            eligible.append((slot, at, hot, bool(applicable)))
+        pinned = defaultdict(int)
+        slots = sorted({slot for slot, _, _, addressed in eligible if addressed})
+        if slots:
+            # Seek the actual pinned addresses through the native address index
+            # once. Scanning every unrelated hot record in every cohort repeats
+            # the same correlated pin lookup and exhausts the bounded VM budget.
+            # DISTINCT retains the original EXISTS semantics for overlapping pins.
+            matches = self.bounded('''SELECT DISTINCT r.identity,r.slot,COALESCE(r.market_time,r.first_seen)
+                FROM interests i INDEXED BY maintenance_interest_bound
+                CROSS JOIN service_interests s CROSS JOIN address_keys k
+                CROSS JOIN address_refs a INDEXED BY address_window CROSS JOIN records r
+                WHERE i.scope=? AND i.active=1 AND s.owner=i.owner AND s.scope=i.scope
+                AND k.address=s.address AND a.address_id=k.id AND a.slot IN ('''+
+                ','.join('?' for _ in slots)+''') AND r.rowid=a.record_id AND r.scope=i.scope
+                AND r.slot>=i.lower_slot AND r.body IS NOT NULL
+                AND COALESCE(r.market_time,r.first_seen)<?''',
+                (scope,*slots,cutoff),MAX_DETAIL_RECORDS-self._details)
+            self._details += len(matches)
+            self.steps += len(matches)
+            if self.steps > OBSERVATION_VM_STEPS:
+                raise EvidenceUnavailable('maintenance_observation_python_bound')
+            for _, slot, at in matches:
+                pinned[slot,at] += 1
+        for slot, at, hot, addressed in eligible:
             count = hot
-            if applicable:
-                # Only address-specific pins require record identity inspection.
-                # Same native predicate; caps and the VM budget cover this path.
-                matches = self.bounded('''SELECT r.identity FROM records r
-                    WHERE r.scope=? AND r.slot=? AND COALESCE(r.market_time,r.first_seen)=? AND r.body IS NOT NULL
-                    AND EXISTS(SELECT 1 FROM interests i WHERE i.scope=r.scope AND i.active=1 AND i.lower_slot<=r.slot
-                        AND EXISTS(SELECT 1 FROM service_interests s JOIN addresses a ON a.address=s.address
-                          WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=r.identity))''', (scope, slot, at), MAX_DETAIL_RECORDS-self._details)
-                self._details += len(matches)
-                count -= len(matches)
+            if addressed:
+                count -= pinned[slot,at]
                 if count < 0:
                     raise EvidenceUnavailable('maintenance_pin_count_contradiction')
             if count:
