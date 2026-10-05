@@ -66,3 +66,12 @@ class RamsesSourceAttributionTests(unittest.TestCase):
                         current.replace('max_logs=5000','max_logs=6000'),
                         current.replace("provider_role='public_observation'", "provider_role='canonical'")):
             self.assertNotEqual(economic_sha256(changed,path),expected)
+
+    def test_approved_strategy_comparison_uses_current_exact_plumbing_rules(self):
+        import subprocess,sys
+        completed=subprocess.run([sys.executable,str(ROOT/'operational/strategy-change-audit.py')],
+                                 cwd=ROOT,env={},capture_output=True,text=True,check=True)
+        result=json.loads(completed.stdout)
+        self.assertEqual(result['result'],'PASS')
+        self.assertEqual(result['ramses_economic_modules_unchanged'],44)
+        self.assertTrue(result['entry_and_survivor_policies_only_approved_deltas'])

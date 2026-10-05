@@ -1,5 +1,5 @@
 """Offline approved-policy comparison against the pre-change commit."""
-import ast,json,subprocess
+import ast,json,subprocess,sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];BASE='e34c38c78061834ad2892a897fcdd52fc438b061'
 def before(path):return subprocess.check_output(['git','show',BASE+':'+path],cwd=ROOT,text=True)
@@ -25,48 +25,14 @@ def scalars(src):
  return {n.target.id:ast.dump(n.value) for n in cls.body if isinstance(n,ast.AnnAssign)}
 a=scalars(before(path));b=scalars((ROOT/path).read_text())
 assert {k for k in a.keys()|b.keys() if a.get(k)!=b.get(k)}=={'version','trailing_drawdown_bps','tail_arm_bps','tail_gain_giveback_bps'}
-class Plumbing(ast.NodeTransformer):
-    """Remove only enumerated operational adapters for economic AST comparison."""
-    def visit_Constant(self,node):
-        if isinstance(node.value,str):
-            for old,new in ENV.items():node.value=node.value.replace(old,new)
-            node.value=node.value.replace('certification.','meme_machine.runtime.')
-        return node
-    def visit_ImportFrom(self,node):
-        if node.module=='meme_machine.runtime.storage' or node.module=='meme_machine.runtime.native_boundary':return None
-        if node.module:node.module=node.module.replace('certification.','meme_machine.runtime.')
-        return node
-    def visit_FunctionDef(self,node):
-        if node.name=='_stop_sleep':return None
-        return self.generic_visit(node)
-    def visit_Expr(self,node):
-        if isinstance(node.value,ast.Constant) and isinstance(node.value.value,str):return None
-        call=node.value
-        if isinstance(call,ast.Call):
-            if isinstance(call.func,ast.Name) and call.func.id=='audit_ring':return None
-            if isinstance(call.func,ast.Attribute) and call.func.attr=='execute' and call.args and isinstance(call.args[0],ast.Constant):
-                sql=call.args[0].value
-                if isinstance(sql,str) and any(sql.startswith('DELETE FROM '+table+' ') for table in ('evidence','gas_quotes')):return None
-        return self.generic_visit(node)
-    def visit_Assign(self,node):
-        if any(isinstance(t,ast.Attribute) and t.attr=='portfolio' for t in node.targets):return None
-        return self.generic_visit(node)
-    def visit_If(self,node):
-        text=ast.unparse(node.test)
-        if text in ("getattr(self, 'portfolio', None)","self.records >= 8192"):return None
-        return self.generic_visit(node)
-    def visit_Call(self,node):
-        if isinstance(node.func,ast.Name) and node.func.id=='_stop_sleep':node.func=ast.Attribute(value=ast.Name(id='time',ctx=ast.Load()),attr='sleep',ctx=ast.Load())
-        node.keywords=[k for k in node.keywords if k.arg!='retention']
-        return self.generic_visit(node)
-ENV={'MM_CERTIFICATION_RUN_ID':'MM_PAPER_EPOCH','MM_CERTIFICATION_LANE':'MM_RUNTIME_LANE',
-     'MM_CERTIFICATION_RPC_CACHE_DB':'MM_RPC_CACHE_DB','MM_CERTIFICATION_RPC_CAPABILITIES':'MM_RPC_CAPABILITIES',
-     'MM_CERTIFICATION_PROVIDER_DB':'MM_PROVIDER_DB'}
-def normalized(source):return ast.dump(Plumbing().visit(ast.parse(source)),include_attributes=False)
+# Use the same exact, mutation-tested physical-plumbing normalization as
+# direct pinned-source attribution; duplicate rules drift after accepted repairs.
+sys.path.insert(0,str(ROOT))
+from operational.ramses_attribution import economic_ast
 checked=[];plumbing=[]
 for p in sorted((ROOT/'meme_machine/lanes/ramses').rglob('*.py')):
  rel=str(p.relative_to(ROOT));old=before(rel);new=p.read_text()
- assert normalized(old)==normalized(new),rel
+ assert economic_ast(old,rel)==economic_ast(new,rel),rel
  checked.append(rel)
  if ast.dump(ast.parse(old))!=ast.dump(ast.parse(new)):plumbing.append(rel)
 for name in ('RAMSES_THETA_HARVEST_V3.json','RAMSES_WIDE_MAKER_V4.json'):
