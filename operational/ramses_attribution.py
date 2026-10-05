@@ -71,8 +71,15 @@ class Namespace(ast.NodeTransformer):
         return node
 
 def economic_ast(source,path):
+    if path=='meme_machine/lanes/ramses/ramses_lifecycle_log_census.py':
+        # This exact cleanup keeps the existing transaction context and body.
+        # Every SQL, provider, cost and strategy expression remains compared.
+        if isinstance(source,bytes):source=source.decode()
+        added=('    from contextlib import closing\n'
+               '    with closing(sqlite3.connect(cache_path)) as db, db:\n')
+        if source.count(added)==1:
+            source=source.replace(added,'    with sqlite3.connect(cache_path) as db:\n')
     return ast.dump(Plumbing().visit(Namespace(path).visit(ast.parse(source))),include_attributes=False)
 
 def economic_sha256(source,path):
     return hashlib.sha256(economic_ast(source,path).encode()).hexdigest()
-

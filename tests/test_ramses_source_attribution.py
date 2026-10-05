@@ -52,3 +52,17 @@ class RamsesSourceAttributionTests(unittest.TestCase):
         for changed in mutations:
             self.assertNotEqual(changed,current)
             self.assertNotEqual(economic_sha256(changed,path),expected)
+
+    def test_census_cleanup_preserves_transaction_and_provider_comparison(self):
+        path='meme_machine/lanes/ramses/ramses_lifecycle_log_census.py'
+        current=(ROOT/path).read_text()
+        added=('    from contextlib import closing\n'
+               '    with closing(sqlite3.connect(cache_path)) as db, db:\n')
+        self.assertEqual(current.count(added),1)
+        old=current.replace(added,'    with sqlite3.connect(cache_path) as db:\n')
+        expected=economic_sha256(old,path)
+        self.assertEqual(economic_sha256(current,path),expected)
+        for changed in (current.replace('as db, db:', 'as db:'),
+                        current.replace('max_logs=5000','max_logs=6000'),
+                        current.replace("provider_role='public_observation'", "provider_role='canonical'")):
+            self.assertNotEqual(economic_sha256(changed,path),expected)

@@ -25,7 +25,8 @@ def collect(start,end,address,*,topics=None,max_logs=5000,cache_path=DEFAULT_CAC
     if len(pages)>MAX_CACHE_PAGES:
         raise BoundaryError('connected_lifecycle_observation_page_capacity')
     cache_path=Path(cache_path)
-    with sqlite3.connect(cache_path) as db:
+    from contextlib import closing
+    with closing(sqlite3.connect(cache_path)) as db, db:
         db.execute('CREATE TABLE IF NOT EXISTS log_pages (identity TEXT PRIMARY KEY, body TEXT NOT NULL)')
         def key(first,last):
             return json.dumps([str(address).lower(),first,last,topics],sort_keys=True,separators=(',',':'))

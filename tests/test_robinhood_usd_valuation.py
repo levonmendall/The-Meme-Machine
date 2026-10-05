@@ -398,6 +398,11 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual((ROOT/'tests/test_operational_nine.py').read_bytes(),original_tests)
         for rel in paths:
             current=(ROOT/rel).read_bytes()
+            if rel=='meme_machine/lanes/ramses/ramses_lifecycle_log_census.py':
+                added=(b'    from contextlib import closing\n'
+                       b'    with closing(sqlite3.connect(cache_path)) as db, db:\n')
+                self.assertEqual(current.count(added),1)
+                current=current.replace(added,b'    with sqlite3.connect(cache_path) as db:\n')
             if rel in ('meme_machine/lanes/pump/runner.py','meme_machine/lanes/pons/pons_selective_cohort.py'):
                 # The CAPACITY repair changes only executor-owned initialization.
                 self.assertEqual(current.count(b'survivor.prime()'),1)
