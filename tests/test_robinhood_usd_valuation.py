@@ -438,6 +438,16 @@ class RobinhoodUSDTests(unittest.TestCase):
             if rel=='meme_machine/lanes/pons/pons_selective_paper.py':
                 # Only the existing scale path and its dedicated reader changed.
                 original=baseline(rel)
+                # Only cleanup nesting changed: preserve reconciliation errors and
+                # every strategy byte while closing the owned store unconditionally.
+                cleanup_start=current.index(b'    finally:\n        try:\n            if capital_guard is not None:')
+                cleanup_end=current.index(b'\n\n\ndef _continuation_facts',cleanup_start)
+                old_cleanup_start=original.index(b'    finally:\n        if capital_guard is not None:')
+                old_cleanup_end=original.index(b'\n\n\ndef _continuation_facts',old_cleanup_start)
+                expected=original[old_cleanup_start:old_cleanup_end].decode().splitlines()
+                expected=['    finally:','        try:']+['    '+line for line in expected[1:6]]+['        finally:']+['    '+line for line in expected[6:]]
+                self.assertEqual(current[cleanup_start:cleanup_end], '\n'.join(expected).encode())
+                current=current[:cleanup_start]+original[old_cleanup_start:old_cleanup_end]+current[cleanup_end:]
                 start=current.index(b'def _ongoing_scale_evidence(')
                 end=current.index(b'\n\n# Public recovery entrypoint',start)
                 old_start=original.index(b'def _attempt_current_scale(')

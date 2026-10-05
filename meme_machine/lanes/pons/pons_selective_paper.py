@@ -1152,16 +1152,17 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 result['cancellation_failure']=type(cleanup).__name__
         return result
     finally:
-        if capital_guard is not None:
-            # Ambiguous native exits keep capital occupied and fail meme_machine.runtime.
-            result["cohort_reconciliation"]=capital_guard.reconcile()
-        if rpc is not None:
-            result["provider_sessions"].append(rpc.telemetry())
-        if store is not None:
-            try:store.close()
-            except Exception:pass
-        result["ended_at"]=time.time()
-
+        try:
+            if capital_guard is not None:
+                # Ambiguous native exits keep capital occupied and fail meme_machine.runtime.
+                result["cohort_reconciliation"]=capital_guard.reconcile()
+            if rpc is not None:
+                result["provider_sessions"].append(rpc.telemetry())
+        finally:
+            if store is not None:
+                try:store.close()
+                except Exception:pass
+            result["ended_at"]=time.time()
 
 
 def _continuation_facts(position,mark,meta,candidate,rbps,*,demand,soft_streak,action):

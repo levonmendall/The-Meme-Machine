@@ -39,3 +39,21 @@ class PonsRecoveryConnectionTests(unittest.TestCase):
                 self.assertCountEqual(closed,opened)
             finally:
                 for db in opened:db.close()
+
+    def test_lifecycle_reconciliation_failure_still_closes_native_store(self):
+        from meme_machine.lanes.pons import pons_selective_paper as runtime
+        from tests.lanes.pons.test_pons_position_provider_recovery import PositionRecoveryTests
+        stores=[]
+        original=runtime.Store
+        def tracked(*args,**kwargs):
+            store=original(*args,**kwargs);stores.append(store);return store
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                with patch.object(runtime,'Store',side_effect=tracked),patch.object(runtime.CohortCapital,'reconcile',side_effect=RuntimeError('reconciliation-failure')):
+                    with self.assertRaisesRegex(RuntimeError,'reconciliation-failure'):
+                        PositionRecoveryTests().run_case(td,'exit')
+                self.assertTrue(stores)
+                for store in stores:
+                    with self.assertRaises(sqlite3.ProgrammingError):store.db.execute('SELECT 1')
+            finally:
+                for store in stores:store.close()
