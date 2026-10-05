@@ -457,6 +457,25 @@ class MaintenanceRuntime:
             # Cooperative priority yields preserve an already durable receipt.
             # They are not successful service and do not invalidate native work.
             cooperative=self._cooperative(exc)
+            if not cooperative and type(exc) is EvidenceUnavailable and needs:
+                # Fixed numeric diagnostics survive worker death without raw
+                # provider text, payloads or another state/authority store.
+                now=self.monotonic()
+                active=[n for n in needs if n.units]
+                if active:
+                    def deadline(n):
+                        return min(n.safety_deadline,
+                            self.arbiter.origin.get((n.side,n.scope),now)+self.leases.drought,
+                            n.recovery_deadline if n.recovery_excess and n.recovery_deadline is not None else math.inf)
+                    need=min(active,key=deadline)
+                    scope=next((s for s in self.last_observation.scopes if s.scope==need.scope),None)
+                    exc.maintenance_failure=dict(side=need.side,units=need.units,
+                        records=need.records,deadline_seconds=deadline(need)-now,
+                        safety_seconds=need.safety_deadline-now,
+                        drought_seconds=self.arbiter.origin.get((need.side,need.scope),now)+self.leases.drought-now,
+                        recovery_seconds=None if need.recovery_deadline is None else need.recovery_deadline-now,
+                        pins=None if scope is None else scope.pins,gaps=None if scope is None else scope.gaps,
+                        vm_steps=self.last_observation.vm_steps)
             if not cooperative:
                 self.failure=type(exc).__name__+':'+str(exc)[:120]
                 self.arbiter.failed=True

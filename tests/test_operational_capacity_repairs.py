@@ -163,6 +163,22 @@ class ValuationRPCBounds(unittest.TestCase):
     def test_ramses_valuation_constructor_bounds_and_pacing(self):self.construct('ramses')
 
 class EvidenceWorkerDiagnosticTests(unittest.TestCase):
+    def test_maintenance_failure_keeps_only_fixed_numeric_fields(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        error=EvidenceUnavailable('maintenance_service_deadline_exhausted')
+        error.maintenance_failure=dict(side='archive',units=23,records=17,
+            deadline_seconds=-4.5,pins=1,gaps=0,vm_steps=19000,
+            provider='https://provider.invalid/v2/private-secret',
+            recovery_seconds=float('inf'),safety_seconds='private-secret')
+        result=failure_diagnostic(error)
+        self.assertIn('"deadline_seconds": -4.5',result)
+        self.assertIn('"records": 17',result)
+        self.assertIn('"side": "archive"',result)
+        self.assertNotIn('provider',result)
+        self.assertNotIn('private-secret',result)
+        self.assertNotIn('Infinity',result)
+
     def test_fixed_reason_visible_and_arbitrary_credentials_redacted(self):
         from meme_machine.runtime.evidence_worker import failure_diagnostic
         from meme_machine.solana_evidence_plane import EvidenceUnavailable

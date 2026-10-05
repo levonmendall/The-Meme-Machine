@@ -195,7 +195,7 @@ def directional_reports(root, regimes, now=None):
             status='CURRENT' if age<=60 else 'STALE'
             current.update(report_state=status,report_age_seconds=age,
                 machinery=numeric({key:report.get(key) for key in
-                    ('counts','summary','stream','sequencer_discovery','evidence_queue',
+                    ('counts','summary','sequencer_discovery','evidence_queue',
                      'evidence_acquisition','active_provider','active_discovery_provider',
                      'publication','full_evidence_attempts','canonical_discovery_cursor',
                      'persisted_candidate_rows','persisted_qualifiers','capacity_censored')}))

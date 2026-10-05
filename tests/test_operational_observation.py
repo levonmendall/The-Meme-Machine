@@ -103,5 +103,18 @@ class ReadOnlyObservation(unittest.TestCase):
             observation.directional_reports(root,regimes)
             self.assertEqual(regimes['Pump Survivor']['observation_state'],'UNAVAILABLE')
 
+    def test_current_projection_does_not_duplicate_shared_stream_telemetry(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);p=root/'pump/pump-acceleration-natural-prospective.json'
+            p.parent.mkdir()
+            stream={f'counter{i}':i for i in range(128)}
+            p.write_text(json.dumps(dict(counts={'current_qualifiers':5},
+                stream=dict(evidence_runtime=stream),evidence_queue={'pending':7})))
+            regimes={};observation.directional_reports(root,regimes)
+            current=regimes['Pump Current']['machinery']
+            self.assertNotIn('stream',current)
+            self.assertEqual(current['counts']['current_qualifiers'],5)
+            self.assertEqual(current['evidence_queue']['pending'],7)
+
 
 if __name__=='__main__':unittest.main()

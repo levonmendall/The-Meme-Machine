@@ -91,6 +91,16 @@ def failure_diagnostic(exc):
             reason=error.args[0]
             if isinstance(reason,str) and reason in SAFE_EVIDENCE_REASONS:
                 result+=':'+reason
+                diagnostic=getattr(error,'maintenance_failure',None)
+                if isinstance(diagnostic,dict):
+                    import math
+                    safe={key:value for key,value in diagnostic.items() if key in
+                        ('units','records','deadline_seconds','safety_seconds','drought_seconds',
+                         'recovery_seconds','pins','gaps','vm_steps') and
+                        (value is None or type(value) in (int,float) and math.isfinite(value))}
+                    if diagnostic.get('side') in ('archive','retirement'):
+                        safe['side']=diagnostic['side']
+                    result+=':'+json.dumps(safe,sort_keys=True,allow_nan=False)
         return result
     result='evidence_worker_failed:'+classification(exc)
     seen={id(exc)}
