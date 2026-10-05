@@ -3,6 +3,14 @@ import os,subprocess,sys,unittest
 from pathlib import Path
 
 class IsolatedMeteoraEvidenceRecoveryTests(unittest.TestCase):
+    def test_native_consumer_retry_and_fresh_read_suite(self):
+        environment={k:v for k,v in os.environ.items() if not k.startswith('MM_')}
+        script="from operational.tests import network_guard; network_guard(); import unittest; unittest.main(module=None, argv=['native', 'tests.lanes.meteora.test_evidence_consumers','tests.lanes.meteora.test_dlmm_endpoint_fresh','tests.lanes.meteora.test_provider_retry'])"
+        result=subprocess.run([sys.executable,'-c',script],cwd=Path(__file__).resolve().parents[1],env=environment,
+            capture_output=True,text=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('Ran 15 tests',result.stderr)
+
     def test_historical_protocol_and_native_evidence_regressions_in_clean_guarded_process(self):
         modules=('tests.lanes.meteora.test_dlmm',
             'tests.lanes.meteora.test_dlmm_broker_census',
