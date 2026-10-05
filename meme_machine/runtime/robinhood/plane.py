@@ -10,6 +10,7 @@ import json
 import math
 import os
 from pathlib import Path
+from meme_machine.runtime.sqlite_files import transient_file_size
 import sqlite3
 import threading
 import time
@@ -386,7 +387,7 @@ class Plane:
                 windows=archive['windows'],transition_high_water=archive['transition_high_water'],
                 reporting_scope=archive['reporting_scope']),
             database_bytes=Path(self.path).stat().st_size,
-            wal_bytes=Path(self.path+'-wal').stat().st_size if Path(self.path+'-wal').exists() else 0)
+            wal_bytes=transient_file_size(Path(self.path+'-wal')))
 
     def close(self):
         with self.lock:self.db.close()

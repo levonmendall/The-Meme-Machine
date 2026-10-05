@@ -2,6 +2,7 @@
 import json
 import sqlite3
 from pathlib import Path
+from meme_machine.runtime.sqlite_files import transient_file_size
 
 HEARTBEAT_SECONDS=15
 FINALIZED_LAG_SECONDS=60
@@ -30,7 +31,7 @@ def evidence_health(reader,scope,now):
         if sealed<parent[0] or not reader.covered(scope,parent[0],sealed,as_of=now):
             return result('DEGRADED','evidence_discontinuous')
         if phase!='ACTIVE':return result('DEGRADED','evidence_source_disconnected')
-        hot=sum(p.stat().st_size for p in (reader.path,Path(str(reader.path)+'-wal')) if p.exists())
+        hot=sum(transient_file_size(p) for p in (reader.path,Path(str(reader.path)+'-wal')))
         if hot>=health.get('hot_limit_bytes',2*1024*1024*1024)*.9:
             return result('DEGRADED','evidence_hot_capacity_pressure')
         return result('USABLE','authoritative_current',frontier_slot=sealed,lag_seconds=lag)

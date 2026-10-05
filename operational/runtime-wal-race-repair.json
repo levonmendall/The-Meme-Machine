@@ -1,0 +1,18 @@
+{
+  "root_cause": "SQLite checkpoint may unlink WAL between Path.exists and stat. Original Run375 provider regression revealed family siblings in Solana ingestion/telemetry/health and Robinhood candidate snapshot.",
+  "sites": 13,
+  "namespaces": [
+    "meme_machine",
+    "meme_machine.lanes.pump",
+    "meme_machine.lanes.meteora",
+    "meme_machine.runtime.robinhood.plane"
+  ],
+  "repair": "Single stat; only FileNotFoundError means zero transient bytes. Main database telemetry remains ordinary stat. Other OSError visible; health still fail-closed.",
+  "before": "4tests .297s FAILED3 health subtests ERROR7 ingestion/telemetry/candidate subtests",
+  "focused_after": "35tests PASS1.736s including evidence integrity/retention/health atomicity and existing Run375 provider test.",
+  "new_tests": "tests/test_runtime_wal_races.py",
+  "strategy_change": false,
+  "schema_change": false,
+  "provider_calls": false,
+  "state": "Only temporary test state touched; preserved PAPER untouched."
+}

@@ -487,6 +487,18 @@ class RobinhoodUSDTests(unittest.TestCase):
                 self.assertEqual(current.count(expanded),expected,rel)
                 self.assertEqual(baseline(rel).count(original),expected,rel)
                 current=current.replace(expanded,original)
+            if rel in ('meme_machine/lanes/pump/solana_evidence_health.py','meme_machine/lanes/meteora/solana_evidence_health.py','meme_machine/lanes/pump/solana_evidence_plane.py','meme_machine/lanes/meteora/solana_evidence_plane.py'):
+                # Only single-stat disappearing-WAL size accounting is permitted.
+                added=b'from meme_machine.runtime.sqlite_files import transient_file_size\n'
+                self.assertEqual(current.count(added),1,rel)
+                current=current.replace(added,b'')
+                pairs=[(b"sum(transient_file_size(p) for p in (reader.path,Path(str(reader.path)+'-wal')))",b"sum(p.stat().st_size for p in (reader.path,Path(str(reader.path)+'-wal')) if p.exists())")] if rel.endswith('solana_evidence_health.py') else [
+                    (b"sum(transient_file_size(p) for p in (self.path,Path(str(self.path)+'-wal')))",b"sum(p.stat().st_size for p in (self.path,Path(str(self.path)+'-wal')) if p.exists())"),
+                    (b"sum(transient_file_size(p) for p in (self.path, Path(str(self.path)+'-wal')))",b"sum(p.stat().st_size for p in (self.path, Path(str(self.path)+'-wal')) if p.exists())"),
+                    (b"transient_file_size(Path(str(self.path)+'-wal'))",b"(Path(str(self.path)+'-wal').stat().st_size if Path(str(self.path)+'-wal').exists() else 0)")]
+                for changed,original in pairs:
+                    self.assertEqual(current.count(changed),1,rel)
+                    current=current.replace(changed,original)
             self.assertEqual(current,baseline(rel),rel)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):

@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from meme_machine.runtime.sqlite_files import transient_file_size
 import queue
 import sqlite3
 import threading
@@ -371,7 +372,7 @@ class EvidenceWriter:
             raise
         if sum(row.byte_count for row in prepared)>16*1024*1024:
             raise EvidenceUnavailable('ingestion_payload_bound')
-        hot_bytes=sum(p.stat().st_size for p in (self.path,Path(str(self.path)+'-wal')) if p.exists())
+        hot_bytes=sum(transient_file_size(p) for p in (self.path,Path(str(self.path)+'-wal')))
         if hot_bytes >= self.max_hot_bytes:
             with self.transaction():
                 for scope,slot in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
@@ -928,9 +929,9 @@ class EvidenceReader:
             unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
             consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],
             counters=dict(self.db.execute('SELECT * FROM counters')), local_queries=self.queries,
-            hot_bytes=sum(p.stat().st_size for p in (self.path, Path(str(self.path)+'-wal')) if p.exists()),
+            hot_bytes=sum(transient_file_size(p) for p in (self.path, Path(str(self.path)+'-wal'))),
             db_bytes=self.path.stat().st_size,
-            wal_bytes=(Path(str(self.path)+'-wal').stat().st_size if Path(str(self.path)+'-wal').exists() else 0),
+            wal_bytes=transient_file_size(Path(str(self.path)+'-wal')),
             interests=[dict(owner=o,scope=s,priority=p,lower_slot=l,lifecycle=k,updated=t) for o,s,p,l,k,a,t in self.db.execute('SELECT * FROM interests WHERE active=1')],
             retention_floors={k.split(':',1)[1]:int(v) for k,v in self.db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'")},
             archive_bytes=(self.db.execute("SELECT value FROM counters WHERE key='archive_bytes'").fetchone() or [0])[0])
