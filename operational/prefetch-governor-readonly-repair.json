@@ -1,0 +1,8 @@
+{
+  "root_cause": "Optional Pump prefetch governor observer checked existence then opened SQLite in default read/write/create mode. Disappearance between operations recreated an empty provider state file.",
+  "negative_reproduction": "Actual SQLite with stale successful existence observation: two tests, one failure .008s; absent governor file recreated.",
+  "repair": "URI mode=ro for existing configured governor, same .1s timeout, queries, pacing and fail-closed absent/busy behavior. No provider admission/freshness/strategy change.",
+  "schema_compatibility": "No schema or journal migration; permanent test verifies existing idle governor bytes unchanged.",
+  "regression": "tests.test_prefetch_governor_readonly",
+  "source_guard": "All other Pump lane source bytes pinned."
+}

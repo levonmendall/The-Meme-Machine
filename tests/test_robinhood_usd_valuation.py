@@ -479,6 +479,12 @@ class RobinhoodUSDTests(unittest.TestCase):
                 current=current.replace(property_block,b'').replace(allocation,b'')
                 current=current.replace(b'import sqlite3\nimport threading\n',b'import sqlite3\n')
                 current=current.replace(close_block,b'    def close(self):\n        if self.reader:self.reader.close()\n')
+            if rel=='meme_machine/lanes/pump/solana_evidence_consumers.py':
+                # Optional provider observation may never initialize missing state.
+                added=b"            from pathlib import Path\n            db=sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,timeout=.1)\n"
+                original=b'            db=sqlite3.connect(path,timeout=.1)\n'
+                self.assertEqual(current.count(added),1,rel)
+                current=current.replace(added,original)
             if rel=='meme_machine/lanes/pons/pons_selective_capital.py':
                 # Only a consistent read snapshot for native terminal recovery.
                 added=b"        with closing(sleeve),closing(self._connect()) as db:\n            db.execute('BEGIN')\n"

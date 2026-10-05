@@ -222,7 +222,8 @@ class StreamEvidenceService:
         if not os.path.exists(path):
             return False
         try:
-            db=sqlite3.connect(path,timeout=.1)
+            from pathlib import Path
+            db=sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,timeout=.1)
             try:
                 row=db.execute("SELECT next_at,cooldown FROM pressure WHERE provider='solana'").fetchone()
                 queued=db.execute("SELECT COUNT(*) FROM queue WHERE provider='solana'").fetchone()[0]
