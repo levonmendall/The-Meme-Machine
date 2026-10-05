@@ -1,0 +1,16 @@
+{
+  "historical_source_commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+  "historical_path": "tests/lanes/meteora/test_dlmm_safe_token2022.py",
+  "historical_sha256": "f95532d055ddfa0ab292be1da7311032d83e120ed24d09249d62bb749e4875ba",
+  "current_path": "tests/test_meteora_safe_token2022.py",
+  "adaptation": "None; original full source byte-for-byte.",
+  "coverage": [
+    "Classic mint authority surfaced while freeze authority remains fail-closed",
+    "Metadata-only Token2022 mint supported",
+    "Behavioral transfer-fee/hook/pausable/confidential extensions remain fail-closed",
+    "Immutable-owner vault supported; transfer-fee amount vault rejected",
+    "Authenticated Token2022 transfer_checked decoded with exact amount and mint"
+  ],
+  "suite": "OPERATIONAL",
+  "authority": "Synthetic protocol bytes only; no trading eligibility broadening, strategy economics, provider calls or PAPER state."
+}
