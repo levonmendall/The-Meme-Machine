@@ -53,3 +53,29 @@ is authoritative in [Pons ongoing scale requalification](owner-decisions/pons-on
 It creates a separate rolling 15-minute scale-only qualification path and grants
 no new-entry authority. Initial-entry timing, sizing and all other economics remain
 unchanged.
+
+## OPERATIONAL_REFERENCE: economic evidence interpretation
+
+Historical v12, v13 and v14 profitability protocols used completed natural
+observation blocks, not individual trades within one block, as statistical samples.
+Synthetic, forced, censored or incomplete paths cannot become natural profitability
+evidence. Preserve pre-outcome membership, full after-cost lifecycle joins, native
+quote denomination and realized return divided by funded capital and accepted
+observation hours. Evaluate Ramses quote-asset sleeves separately; unlike quote
+units cannot be summed. Engineering tests and natural lifecycle completion alone
+do not establish profitability. An insufficient correlation sample remains incomplete.
+
+Their historical research thresholds were 24 completed blocks, 24 observation hours,
+168 calendar hours, 20 natural settlements and eight active blocks per lane, at
+most 10% infrastructure censoring; positive mean hourly return minus 1.96 standard
+errors, lane profit factor 1.2, drawdown at most 15% and block return at least -5%.
+The normalized four-lane research portfolio used profit factor 1.25, drawdown at
+most 10% and block return at least -4%; correlation used 12 joint nonzero blocks
+and absolute correlation at most 0.85. These are preserved historical research
+criteria, classified SUPERSEDED for operating admission. They add no new strategy,
+capital allocation, permit, state-reset, deployment or runtime gate.
+
+The shadow registry required every registered score, the original frozen pre-entry
+range and no retrospectively selected winner. Missing forward paths remain censored.
+No automatic research promotion survives. The required future right-tail capture
+audit remains the explicit owner mandate above and is not performed by migration.

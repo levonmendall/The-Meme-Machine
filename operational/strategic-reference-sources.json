@@ -7,7 +7,7 @@
       "source_commit": "16f7dcefb9632be278c10c9377fed5fe847089af",
       "source_path": "certification/strategy-prep/post-stage-e-strategy-activation-v1.json",
       "source_sha256": "5dc16b46415a64f1858cc4c6ce8c42037876b714ddbb62da959066d6f5957c43",
-      "conclusion": "active summaries retained; detailed contracts missing current reference"
+      "conclusion": "Approved detailed contracts are summarized in STRATEGIC_REFERENCE and nine-change-implementation; current code and permanent regressions implement all nine, subject to final independent reachability audit."
     },
     {
       "item": "right-tail calibration and limits",
@@ -23,7 +23,7 @@
       "source_commit": "16f7dcefb9632be278c10c9377fed5fe847089af",
       "source_path": "certification/strategy-prep/right-tail-market-evidence-20261001.json",
       "source_sha256": "e966cfb237830465f3b152748b7560bcf64f1cbb2c9b1f21c7fb037a0ab18e9b",
-      "conclusion": "no current research reference; preserve limitations and no trading authority"
+      "conclusion": "Source evidence and limitations are preserved in STRATEGIC_REFERENCE with no trading authority."
     },
     {
       "item": "Pump rejected winner enrichment and unacceptable downside",
@@ -63,7 +63,7 @@
       "source_commit": "16f7dcefb9632be278c10c9377fed5fe847089af",
       "source_path": "docs/DIRECTIONAL_OPPORTUNITY_PRESERVATION_V1_IMPLEMENTATION_CONTRACT.md",
       "source_sha256": "9143c6cbdda239e292db4ebd34a9f8ef3f0ef3e4d6a869e725098594423d7c7d",
-      "conclusion": "independent observation and duplicate fill fence retained; outcome windows and receipt knowledge require complete telemetry review"
+      "conclusion": "Independent eligibility, durable duplicate-fill fencing and read-only opportunity telemetry have active regression coverage; future strategic audit remains separate."
     },
     {
       "item": "Run 373 dispatch saturation failure mechanism",
@@ -71,7 +71,7 @@
       "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
       "source_path": "docs/run373-solana-dispatch-throughput-repair.md",
       "source_sha256": "17d9fee27c74c225ce38644395b0aceefa1c2ad1cc36748918c1f8cf28f0dda7",
-      "conclusion": "engineering survives; standalone throughput regression excluded from permanent gates"
+      "conclusion": "Dispatch throughput engineering and the standalone throughput regression are retained in permanent OPERATIONAL."
     },
     {
       "item": "Run 381 retention/archive starvation and infrastructural censoring",
@@ -96,6 +96,38 @@
       "source_path": "certification/directional_sleeve.py",
       "source_sha256": "4df4edd8cd6479cb2cbae6eba883bb7fee2c2d09247dc1b41ecf31e6006aec86",
       "conclusion": "shared USD authority integrated; durable pending delivery retained"
+    },
+    {
+      "item": "Historical economic evidence and shadow interpretation",
+      "classification": "SUPERSEDED",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/profitability_protocol.json",
+      "source_sha256": "996d367d230276c3b9ab02816eeba9cfbcea4af953363a121bb4a777db99fe42",
+      "conclusion": "Statistical interpretation and historical thresholds explicitly retained in STRATEGIC_REFERENCE as information; obsolete certification/runtime admission removed. No new economic rule or audit performed."
+    },
+    {
+      "item": "Historical economic evidence and shadow interpretation",
+      "classification": "SUPERSEDED",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/cohorts/prospective-four-lane-six-regime-v13-20260926.json",
+      "source_sha256": "00a342d395cdc45db13b1ed497dce94dfd92fda16b0d9034e3fe6f3af680d90b",
+      "conclusion": "Statistical interpretation and historical thresholds explicitly retained in STRATEGIC_REFERENCE as information; obsolete certification/runtime admission removed. No new economic rule or audit performed."
+    },
+    {
+      "item": "Historical economic evidence and shadow interpretation",
+      "classification": "SUPERSEDED",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/cohorts/prospective-four-lane-v12-pump-counterfactual-ramses-v4-20260924.json",
+      "source_sha256": "35dc3d305dcfbb07bea99926eee67bdedf1de47e80a0726d96763512ea27f4c5",
+      "conclusion": "Statistical interpretation and historical thresholds explicitly retained in STRATEGIC_REFERENCE as information; obsolete certification/runtime admission removed. No new economic rule or audit performed."
+    },
+    {
+      "item": "Historical economic evidence and shadow interpretation",
+      "classification": "RESEARCH_ONLY",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/shadow_registry.json",
+      "source_sha256": "840ca2c42dc5e93f202e5abf1d1c721b55ec6d0f71ab4e348749efe9230b507e",
+      "conclusion": "Statistical interpretation and historical thresholds explicitly retained in STRATEGIC_REFERENCE as information; obsolete certification/runtime admission removed. No new economic rule or audit performed."
     }
   ]
 }

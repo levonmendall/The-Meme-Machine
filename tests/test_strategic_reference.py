@@ -18,6 +18,8 @@ class StrategicReferenceTests(unittest.TestCase):
             'research/PUMP_REJECTED_WINNER_TRAJECTORY_V1.json':'RESEARCH_ONLY',
             'research/public-market-7d-20261001/REPORT.md':'RESEARCH_ONLY',
             'docs/RESET_RECOVERY_V1_RESEARCH_CONTRACT.md':'DEFERRED_IMPLEMENTATION',
+            'certification/profitability_protocol.json':'SUPERSEDED',
+            'certification/shadow_registry.json':'RESEARCH_ONLY',
         }
         for path,category in expected.items():
             self.assertEqual(by_path[path]['classification'],category)
@@ -40,3 +42,15 @@ class StrategicReferenceTests(unittest.TestCase):
         self.assertIn('Research has no allocation authority',text)
         self.assertIn('73.33%',text)
         self.assertIn('Future outcomes cannot create candidate membership',text)
+
+    def test_incident_references_point_to_permanent_current_regressions(self):
+        from operational.tests import OPERATIONAL
+        data=json.loads((ROOT/'operational/incident-reference-sources.json').read_text())
+        self.assertEqual(data['classification'],'OPERATIONAL_REFERENCE')
+        for path in data['current_tests']:
+            self.assertTrue((ROOT/path).is_file(),path)
+            self.assertIn(path[:-3].replace('/','.'),OPERATIONAL)
+        limits=' '.join(data['preserved_limits'])
+        self.assertNotIn('Run380 pressure regression remains pending',limits)
+        self.assertIn('permanent OPERATIONAL regressions',limits)
+        self.assertIn('Information and engineering invariants only',data['authority'])

@@ -133,3 +133,32 @@ preserving original record order and the 2,048-record / 16 MiB ingestion bounds.
 Multi-event fanout retains its existing partitioning when that count is exceeded.
 Byte-equivalence and late-failure rollback regressions accompany the pressure test.
 These offline regressions do not attribute the cause of historical market failures.
+
+## Measurement and evidence interpretation
+
+Provider RPC latency does not measure end-to-end hydration latency. Batching does
+not reduce billed compute units; the CU schedule is an estimate, not an invoice.
+Count authenticated identities separately from request parameters, pool interests,
+logical consumers and overlapping stages. Never add shared-broker counts across
+lanes. Expirations and infrastructure censoring do not establish rejected economic
+opportunities. Marginal gate survival does not establish sequential gate survival.
+
+Missing measurements remain null. Classify only bodies actually obtained and
+response members actually returned. Batch exceptions cannot invent per-member
+attribution. Auxiliary sequencer header time does not establish L2 block time;
+authenticated L2 response members do. Mixed-role archived logs do not establish a
+discovery gap. Native lifecycle journals establish realized cash flows; projection
+counters, open marks and stale observer reports cannot override them.
+
+Retained-shape synthetic pressure, captured-data replay, short smoke observations
+and market workload each establish their stated scope. They cannot establish one
+another's latency, natural opportunity, sustained capacity or profitability claims.
+Keep failure-time DB/WAL measurements separate from later checkpointed artifacts.
+Do not infer undocumented connection-close causes, zero returns for missing paths,
+or counterfactual economics for missing intervals. Different strategy cohorts and
+market intervals confound performance and efficiency comparisons.
+
+Source-pinned historic run summaries preserve observations, not current operating
+instructions. Their obsolete hosted-certificate and campaign-dispatch requirements
+have no authority over the ordinary supervisor. The current fixed-source pressure,
+large-frame, fairness, archive and recovery regressions test the engineering directly.
