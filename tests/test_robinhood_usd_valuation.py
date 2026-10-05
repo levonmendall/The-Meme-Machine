@@ -479,6 +479,14 @@ class RobinhoodUSDTests(unittest.TestCase):
                 current=current.replace(property_block,b'').replace(allocation,b'')
                 current=current.replace(b'import sqlite3\nimport threading\n',b'import sqlite3\n')
                 current=current.replace(close_block,b'    def close(self):\n        if self.reader:self.reader.close()\n')
+            if rel in ('meme_machine/lanes/pump/pipeline.py','meme_machine/lanes/meteora/pipeline.py','meme_machine/lanes/ramses/pipeline.py'):
+                # Only remove dangling cleanup for a table these lanes never create.
+                removed=b"                    self.db.execute('DELETE FROM progress_sources WHERE sequence<(SELECT MAX(p.sequence) FROM progress_sources p WHERE p.source=progress_sources.source)')\n"
+                anchor=b"                    audit_ring(self.db,'progress','progress_no_delete',key='sequence')\n"
+                self.assertEqual(current.count(removed),0,rel)
+                self.assertEqual(baseline(rel).count(removed),1,rel)
+                self.assertEqual(current.count(anchor),1,rel)
+                current=current.replace(anchor,anchor+removed)
             if rel in ('meme_machine/lanes/pons/pons_selective_acquisition.py','meme_machine/lanes/pons/provider_topology.py','meme_machine/lanes/ramses/provider_topology.py'):
                 # Optional hint shape fallback only; every other source byte pinned.
                 expanded=b'except (OSError,ValueError,KeyError,TypeError,AttributeError):pass'

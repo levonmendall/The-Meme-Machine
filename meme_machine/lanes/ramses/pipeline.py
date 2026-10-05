@@ -42,7 +42,6 @@ class Pipeline:
                 from meme_machine.runtime.storage import audit_ring
                 with self.db:
                     audit_ring(self.db,'progress','progress_no_delete',key='sequence')
-                    self.db.execute('DELETE FROM progress_sources WHERE sequence<(SELECT MAX(p.sequence) FROM progress_sources p WHERE p.source=progress_sources.source)')
                 self.stages.clear();self.classes.clear();self.reasons.clear();self.records=0
                 for row in self.db.execute('SELECT candidate,stage,reason,classification,at,monotonic FROM progress ORDER BY sequence'):self._index(*row)
         self.write_seconds+=time.monotonic()-mono

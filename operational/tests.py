@@ -7,7 +7,7 @@ FAST=[
  'tests.test_robinhood_usd_valuation','tests.test_native_valuation_completion',
  'tests.test_opportunity_telemetry','tests.test_pons_ongoing_scale','tests.test_strategic_reference','tests.test_current_survivor_independence',
  'tests.test_portfolio_accounting','tests.test_portfolio_lane_integration',
- 'tests.test_provider_retry','tests.test_provider_usage_wal_race','tests.test_runtime_wal_races','tests.test_lifecycle_snapshot_connection','tests.test_optional_capability_shapes',
+ 'tests.test_provider_retry','tests.test_provider_usage_wal_race','tests.test_runtime_wal_races','tests.test_lifecycle_snapshot_connection','tests.test_pipeline_retention_boundary','tests.test_optional_capability_shapes',
  'tests.lanes.pump.test_pump_acceleration_strategy','tests.lanes.pump.test_pump_acceleration_paper',
  'tests.lanes.pump.test_pumpswap_survivor','tests.lanes.pump.test_paper_accounting',
  'tests.lanes.meteora.test_solana_dlmm_independent_v1',

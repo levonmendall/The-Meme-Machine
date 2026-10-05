@@ -331,7 +331,7 @@
       "origin": "robinhood_research/pipeline.py",
       "path": "meme_machine/lanes/ramses/pipeline.py",
       "reconstructed_sha256": "315564b7bb84db1c9829312ad9d60b16480154337fd6bb3ef62259dfa22ad083",
-      "current_sha256": "4367ba307b150fc17119c47cc0efb9ae0ad69b3fdf305d4b904fb9201af0f9a9"
+      "current_sha256": "2c9fc76419e2943854c52e058678aaef4ff7be4309fd2f8b29e1a22551b9e95b"
     },
     {
       "economic_AST_equal": true,
@@ -587,6 +587,11 @@
       "repair": "Optional capability hint malformed JSON shape fallback",
       "normalization": "Only exact reader body AST hash 2e6f2e74a8be469fecfe98dbb31fbbe71d4d97225be7a876339581a439d453ce with sole pass handler and exact OSError,ValueError,KeyError,TypeError,AttributeError tuple maps to original first three. Changed reader, broad exceptions, strategy and request bounds remain compared.",
       "economic_reference_unchanged": true
+    },
+    {
+      "path": "meme_machine/lanes/ramses/pipeline.py",
+      "repair": "Remove nonexistent progress_sources cleanup from observation-only Pipeline retention; Pons source deduplication unchanged. Existing enumerated retention block economic normalization and every economic reference hash remain unchanged.",
+      "regression": "tests.test_pipeline_retention_boundary"
     }
   ]
 }
