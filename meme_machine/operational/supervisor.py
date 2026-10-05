@@ -254,9 +254,9 @@ class Supervisor:
             if self.lock:self.lock.close();self.lock=None
 
     @staticmethod
-    def stop_process(proc,timeout=15):
+    def stop_process(proc,timeout=15,*,signal_sent=False):
         if proc.poll() is not None:return
-        os.killpg(proc.pid,signal.SIGTERM)
+        if not signal_sent:os.killpg(proc.pid,signal.SIGTERM)
         try:proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             os.killpg(proc.pid,signal.SIGKILL);proc.wait(timeout=5)
@@ -265,4 +265,4 @@ class Supervisor:
         for proc in self.processes.values():
             if proc.poll() is None:os.killpg(proc.pid,signal.SIGTERM)
         deadline=time.monotonic()+15
-        for proc in self.processes.values():self.stop_process(proc,max(.1,deadline-time.monotonic()))
+        for proc in self.processes.values():self.stop_process(proc,max(.1,deadline-time.monotonic()),signal_sent=True)

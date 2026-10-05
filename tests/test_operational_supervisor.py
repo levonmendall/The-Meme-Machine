@@ -242,6 +242,37 @@ class ProcessSupervisor(unittest.TestCase):
                 if process.poll() is None:process.terminate();process.wait(timeout=20)
                 log.close()
 
+    def _check_single_shutdown_signal(self, *, timeout):
+        from types import SimpleNamespace
+        events=[]
+        def child(pid):
+            calls=[0]
+            def wait(*,timeout):
+                calls[0]+=1;events.append(('wait',pid))
+                if calls[0]==1 and pid==11 and fail_wait:
+                    raise subprocess.TimeoutExpired('fixture-lane',timeout)
+                return 0
+            return SimpleNamespace(pid=pid,poll=lambda:None,wait=wait)
+        fail_wait=timeout
+        service=Supervisor('/unused-fixture',offline=True)
+        service.processes={'pump':child(11),'pons':child(22)}
+        def send(pid,signum):events.append((signum,pid))
+        with patch('meme_machine.operational.supervisor.os.killpg',side_effect=send):
+            service.stop_lanes()
+        # Both lanes receive their cooperative stop before waiting for either.
+        # A second SIGTERM could kill CPython after it restores the handler.
+        self.assertEqual(events[:2],[(signal.SIGTERM,11),(signal.SIGTERM,22)])
+        self.assertEqual([e for e in events if e[0]==signal.SIGTERM],
+                         [(signal.SIGTERM,11),(signal.SIGTERM,22)])
+        self.assertEqual([e for e in events if e[0]==signal.SIGKILL],
+                         [(signal.SIGKILL,11)] if timeout else [])
+
+    def test_parallel_shutdown_sends_one_term_to_each_lane(self):
+        self._check_single_shutdown_signal(timeout=False)
+
+    def test_shutdown_timeout_escalates_once_without_repeating_term(self):
+        self._check_single_shutdown_signal(timeout=True)
+
     def test_paper_boundary_and_missing_anchor_create_no_epoch(self):
         with self.assertRaisesRegex(ValueError,'PAPER_only'):validate_environment(offline=True,environ={'MM_MODE':'LIVE'})
         with self.assertRaisesRegex(ValueError,'wallet'):validate_environment(offline=True,environ={'WALLET_PRIVATE_KEY':'forbidden-fixture'})
