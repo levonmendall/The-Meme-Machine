@@ -57,6 +57,9 @@ class Supervisor:
 
     def initialize(self):
         validate_environment(offline=self.offline)
+        if not self.offline:
+            from .storage_guard import verify_storage
+            verify_storage(self.root)
         self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
         self.lock=(self.root/'supervisor.lock').open('a')
         try:fcntl.flock(self.lock,fcntl.LOCK_EX|fcntl.LOCK_NB)

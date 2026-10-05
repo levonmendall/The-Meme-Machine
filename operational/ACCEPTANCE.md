@@ -5,9 +5,13 @@ is resolved through the verified read-only Chainlink feed; production `check`
 validates configuration without network I/O or inception.
 
 1. Select the exact accepted operational commit containing the USDG/USD repair.
-2. On Droplet **605465049**, verify the existing persistent volume's actual mount;
-   bind `MM_STATE_ROOT` there with a new empty `paper-v1` directory. Do not import
-   campaign balances, positions or P&L. Keep an existing epoch on later updates.
+2. On Droplet **605465049**, preserve the existing PAPER epoch and every native
+   journal. Never create a replacement directory or reseed capital when storage
+   is missing. Verify the actual persistent mount and filesystem UUID. Configure
+   root-owned, non-writable-by-others `/etc/meme-machine/storage.json` with exactly
+   `mount_target`, `state_root`, `filesystem_uuid`, `epoch_id`, and
+   `inception_sha256` from the preserved canonical portfolio inception. The service
+   requires the mount and checks that identity before economic initialization.
 3. Prepare `/opt/meme-machine` at that exact commit, CPython **3.12.14** and
    `websockets==17.1`. Verify SQLite **3.45.1** or the tested compatible successor.
    Run `python -m operational.tests FAST`, then `python -m operational.tests OPERATIONAL`.

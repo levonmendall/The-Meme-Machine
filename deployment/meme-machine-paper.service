@@ -2,6 +2,10 @@
 Description=Meme Machine autonomous PAPER service
 Wants=network-online.target
 After=network-online.target
+RequiresMountsFor=/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1
+BindsTo=mnt-volume_nyc1_1790918115030.mount
+After=mnt-volume_nyc1_1790918115030.mount
+AssertPathIsMountPoint=/mnt/volume_nyc1_1790918115030
 
 [Service]
 Type=simple
@@ -9,6 +13,7 @@ User=meme-machine
 Group=meme-machine
 WorkingDirectory=/opt/meme-machine
 EnvironmentFile=/etc/meme-machine/paper.env
+ExecStartPre=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.storage_guard
 ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational run
 Restart=on-failure
 RestartSec=5
