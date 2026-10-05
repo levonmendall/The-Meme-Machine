@@ -113,6 +113,7 @@ OPERATIONAL=FAST+[
  'tests.test_survivor_commit',
  'tests.test_survivor_history',
  'tests.test_survivor_risk_boundaries',
+ 'tests.test_pons_native_retirement',
  'tests.test_survivor_terminal_retirement','tests.test_survivor_prefix_recovery',
  'tests.test_sleeve_prefix_recovery','tests.lanes.pump.test_pump_smoke_tail',
  'tests.test_native_continuity','tests.test_native_ramses_recovery',

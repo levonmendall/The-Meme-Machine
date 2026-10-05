@@ -377,7 +377,7 @@ class SleeveReservations:
                 candidates={i:json.loads(b) for i,_,b in source.db.execute('SELECT * FROM sleeve_candidates')},
                 authority=authority,previous_archive_hash=digest(prior) if prior else None)
             if prior:
-                for key in ('folded','archived_entry_scopes'):
+                for key in ('folded','archived_entry_scopes','retirement_receipt'):
                     if key in prior:anchor[key]=prior[key]
         finally:source.db.close()
         with self.transaction():
