@@ -1,0 +1,16 @@
+{
+  "root_cause": "Run 375's disappearing SQLite WAL regression was omitted from current suites; current runtime retains the correct race-safe stat behavior.",
+  "historical_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "historical_path": "certification/tests/test_provider_usage_wal_race.py",
+  "historical_sha256": "8277c2dc56632ea06e81f0d1270b677a7da6c0fccf79e24a195ba6fbc04abe65",
+  "current_path": "tests/test_provider_usage_wal_race.py",
+  "current_sha256": "7d20736f1bceeadc22bbdc1fe71d5c67f3215c1f4c463452e21bca8bf4c0a62c",
+  "adaptation": "Only provider_usage import changes to current runtime namespace. Original deterministic exists/stat race and assertions unchanged.",
+  "suite": "FAST and OPERATIONAL",
+  "focused_validation": {
+    "tests": 1,
+    "result": "PASS",
+    "seconds": 0.01
+  },
+  "state_compatibility": "Regression uses disposable SQLite state only. No runtime, schema, epoch or strategy changes."
+}
