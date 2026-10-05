@@ -112,6 +112,8 @@ OPERATIONAL=FAST+[
  'tests.test_survivor_commit',
  'tests.test_survivor_history',
  'tests.test_survivor_risk_boundaries',
+ 'tests.test_survivor_terminal_retirement','tests.test_survivor_prefix_recovery',
+ 'tests.test_sleeve_prefix_recovery','tests.lanes.pump.test_pump_smoke_tail',
  'tests.lanes.ramses.test_native_ramses','tests.lanes.ramses.test_pons_natural_observation',
  'tests.lanes.ramses.test_provider_topology','tests.lanes.ramses.test_ramses_active_wide_maker',
  'tests.lanes.ramses.test_ramses_candidate_plane','tests.lanes.ramses.test_ramses_census_budget_regression',
