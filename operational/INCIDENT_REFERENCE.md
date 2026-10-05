@@ -125,5 +125,11 @@ rollback, retention outcomes/progress, actual Run 372 spawned large-frame execut
 dispatch/subscription fairness, Ramses scan recovery and the Run 375 WAL race.
 Their exact mappings are source-pinned in the companion manifest.
 Current runtime closure and complete removed-file review remain separate mandatory
-migration gates. The pending restored Run 380 fixed-source pressure regression
-has a lag failure; this reference does not mark it accepted.
+migration gates. The restored Run 380 fixed-source pressure regression exercises
+240 production-sized frames, original source cadence, a 45-second lag limit,
+ordered FULL-durable commits, control progress and complete gap-free coverage.
+Prepared census records share one bounded ingestion unit per program scope,
+preserving original record order and the 2,048-record / 16 MiB ingestion bounds.
+Multi-event fanout retains its existing partitioning when that count is exceeded.
+Byte-equivalence and late-failure rollback regressions accompany the pressure test.
+These offline regressions do not attribute the cause of historical market failures.

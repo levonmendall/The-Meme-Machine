@@ -190,6 +190,10 @@ def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,i
             if rows:batches.append(tuple(prepare(row) for row in rows))
             deliveries.append((signature,digest(log)))
         elif subscription.evidence_class=='transactions':deliveries.append((signature,digest(tx)))
+    # Prepared scopes already share the 16 MiB frame budget. Group their exact
+    # ordered records when the existing ingestion count bound permits it.
+    if len(batches)>1 and sum(map(len,batches))<=2048:
+        batches=[tuple(row for batch in batches for row in batch)]
     return dict(signatures=signatures,batches=tuple(batches),deliveries=tuple(deliveries),
                 endpoint_identity=endpoint_identity,observed_at=seen,slot=slot)
 

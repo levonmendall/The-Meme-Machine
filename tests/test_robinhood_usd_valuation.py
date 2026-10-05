@@ -467,6 +467,12 @@ class RobinhoodUSDTests(unittest.TestCase):
 
 
             if rel in ('meme_machine/lanes/pump/solana_evidence_service.py','meme_machine/lanes/meteora/solana_evidence_service.py'):
+                grouping=(b'    # Prepared scopes already share the 16 MiB frame budget. Group their exact\n'
+                          b'    # ordered records when the existing ingestion count bound permits it.\n'
+                          b'    if len(batches)>1 and sum(map(len,batches))<=2048:\n'
+                          b'        batches=[tuple(row for batch in batches for row in batch)]\n')
+                self.assertEqual(current.count(grouping),1,rel)
+                current=current.replace(grouping,b'')
                 # Exactly reviewed pre-entry expiry; every other source byte pinned.
                 gate=b"                        # Refuse an expired queued command before native arbitration.\n                        # FIFO, debt deadlines and the owner lease stay unchanged.\n                        if time.monotonic()-submitted>runtime.leases.owner:\n                            raise EvidenceUnavailable('evidence_command_expired')\n"
                 reject=b"if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable'):\n                        continue"

@@ -27,7 +27,7 @@ OPERATIONAL=FAST+[
  'tests.test_meteora_host_fee','tests.test_meteora_discovery_scheduler','tests.test_meteora_safe_token2022','tests.test_meteora_missing_fee_context','tests.test_meteora_mint_supply','tests.test_meteora_evidence_recovery_isolated','tests.test_meteora_market_scope_efficiency',
  'tests.test_meteora_tape',
  'tests.test_meteora_bin_array_neutral','tests.test_meteora_pool_neutral',
- 'tests.test_run377_persistence',
+ 'tests.test_run377_persistence', 'tests.test_run380_atomic_frame', 'tests.test_run380_production_pressure',
  'tests.test_dispatch_throughput','tests.test_run372_large_frame_runtime',
  'tests.test_retention_outcomes','tests.test_retention_progress',
  'tests.test_orphan_schema_compatibility','tests.test_survivor_bounded_drain','tests.test_ramses_census_connection',
