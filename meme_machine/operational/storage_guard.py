@@ -31,7 +31,7 @@ def bounded_json(path, limit=16384):
     return json.loads(body)
 
 
-def verify_storage(root, config=None):
+def verify_storage(root, config=None, *, require_writable=True):
     """Never mkdir, open a writer, migrate a schema, or initialize an epoch."""
     try:
         path = Path(config or os.environ.get('MM_STORAGE_GUARD_CONFIG', DEFAULT_CONFIG))
@@ -61,7 +61,7 @@ def verify_storage(root, config=None):
                 rows[0]['uuid'] != expected['filesystem_uuid'] or
                 rows[0]['maj:min'] != device_identity(expected['volume_device']) or
                 rows[0]['fstype'] != 'ext4' or
-                'rw' not in rows[0]['options'].split(',')):
+                (require_writable and 'rw' not in rows[0]['options'].split(','))):
             raise StorageGuardError('expected_persistent_volume_not_mounted')
         database = root / 'portfolio.sqlite'
         if not root.is_dir() or not database.is_file() or database.is_symlink():

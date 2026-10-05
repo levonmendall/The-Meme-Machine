@@ -130,7 +130,9 @@ def execute(phase, output=OUTPUT, observer=OBSERVER):
     try:
         retain_completed(output)
         from .storage_guard import verify_storage
-        root=Path(os.environ['MM_STATE_ROOT']).resolve();storage=verify_storage(root)
+        # This unit deliberately bind-mounts economic storage read-only. The
+        # runtime's default guard still requires a writable original volume.
+        root=Path(os.environ['MM_STATE_ROOT']).resolve();storage=verify_storage(root,require_writable=False)
         source=Path(__file__).resolve().parents[2]
         identity=source_identity(source)
         expected=dict(commit=os.environ['MM_ACCEPTANCE_COMMIT'],tree=os.environ['MM_ACCEPTANCE_TREE'])

@@ -1,0 +1,38 @@
+[Unit]
+Description=Meme Machine read-only public health status for DigitalOcean Uptime
+Wants=meme-machine-monitor.service
+After=meme-machine-monitor.service
+
+[Service]
+Type=exec
+User=do-agent
+Group=do-agent
+WorkingDirectory=/opt/meme-machine
+ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.uptime_health
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectProc=invisible
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+InaccessiblePaths=/mnt/volume_nyc1_1790918115030 /etc/meme-machine /var/lib/meme-machine-observer
+RestrictAddressFamilies=AF_INET
+SocketBindDeny=any
+SocketBindAllow=ipv4:tcp:9102
+SystemCallFilter=~connect
+SystemCallErrorNumber=EPERM
+Nice=10
+CPUQuota=5%
+MemoryMax=64M
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

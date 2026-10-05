@@ -41,6 +41,18 @@ DigitalOcean agent. The email rule is not verified merely by API creation: its
 application metric must reach the alert evaluator. Missing external delivery
 keeps G03 incomplete and prevents acceptance candidate freeze.
 
+When the documented Insights regional query service is unavailable, the
+DigitalOcean-native fallback is one owner-authorized Uptime HTTP check. Its
+isolated `meme-machine-uptime-health.service` reads only the bounded public monitor
+metrics projection and returns a constant HTTP 200/503 status at `/healthz`.
+Persisted owner-action conditions, a stale/dead monitor or missing/invalid
+projection return 503. The unprivileged endpoint cannot read economic state or
+credentials, initiate outbound connections, or write the monitor projection.
+DigitalOcean independently evaluates a five-minute downtime rule bound to the
+existing verified account email. Verify the external check state and email rule
+before G03 PASS. This fallback does not change trading behavior or provider
+topology; its separately billed check requires the owner's capability choice.
+
 Durable acceptance uses `meme-machine-acceptance@PHASE.service`, one shared flock,
 and ordinary status/results/logs under `/var/lib/meme-machine-acceptance`. Source,
 environment, storage configuration and epoch measurements must agree across all

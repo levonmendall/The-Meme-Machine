@@ -1,10 +1,13 @@
-# Later acceptance on the existing Droplet
+# Operational acceptance on the existing Droplet
 
 Do not execute these steps during consolidation or the oracle repair. USDG/USD
 is resolved through the verified read-only Chainlink feed; production `check`
 validates configuration without network I/O or inception.
 
-1. Select the exact accepted operational commit containing the USDG/USD repair.
+1. Begin only from an explicit independent migration completeness PASS with its
+   exact pushed commit/tree. Close volume/epoch protection, durable acceptance
+   and observation, off-host backup/isolated recovery, and independent actionable
+   email monitoring before freezing the acceptance candidate.
 2. On Droplet **605465049**, preserve the existing PAPER epoch and every native
    journal. Never create a replacement directory or reseed capital when storage
    is missing. Verify the actual persistent mount and filesystem UUID. Configure
@@ -20,18 +23,42 @@ validates configuration without network I/O or inception.
 3. Prepare `/opt/meme-machine` at that exact commit, CPython **3.12.14** and
    `websockets==17.1`. Verify SQLite **3.45.1** or the tested compatible successor.
    Run `python -m operational.tests FAST`, then `python -m operational.tests OPERATIONAL`.
-4. Install the two existing read-only provider URLs once in the protected env file.
+4. Preserve the two existing read-only provider URLs in the protected env file.
    Install `deployment/meme-machine-paper.service`; configure bounded journald
    retention (for example `SystemMaxUse=256M`, `MaxRetentionSec=7day`). Run
-   `python -m meme_machine.operational check`, then start the PAPER service once.
-   That future start establishes the genuine $500.00 epoch.
-5. Run, in this exact order from the service checkout with its environment:
+   `python -m meme_machine.operational check`. Never initialize another epoch.
+   Reverify the original storage device, inception and full portfolio replay
+   before starting the preserved PAPER service.
+5. Deploy one exact pushed commit/tree. Install the observer, monitor and
+   localhost metrics services and verify their read-only filesystem isolation.
+   Keep external alert delivery verified independently of acceptance. Record
+   `MM_ACCEPTANCE_COMMIT`, `MM_ACCEPTANCE_TREE`, and `MM_ACCEPTANCE_EPOCH` in
+   root:root 0600 `/etc/meme-machine/acceptance.env`; these are acceptance
+   measurements, not runtime startup controls. Install the acceptance template.
+   Start each unit only after the prior phase's durable result is PASS:
 
    ```sh
-   python -m meme_machine.operational.acceptance CAPACITY --seconds 3600
-   python -m meme_machine.operational.acceptance RECOVERY
-   python -m meme_machine.operational.acceptance AUTONOMY --seconds 129600
+   sudo systemctl start meme-machine-acceptance@CAPACITY.service
+   sudo systemctl start meme-machine-acceptance@RECOVERY.service
+   sudo systemctl start meme-machine-acceptance@AUTONOMY.service
    ```
+
+The units execute the acceptance CLI with full durations of 3600 and 129600
+seconds. One shared flock prevents overlapping phases. Candidate, environment,
+runtime unit/storage/backup configuration, epoch, start/end times, exit code,
+stdout/stderr, result and continuous observations persist under
+`/var/lib/meme-machine-acceptance`. Inspect `latest-PHASE.json`, the referenced
+directory's `status.json` and `result.json`, and
+`journalctl -u meme-machine-acceptance@PHASE.service`. A short, disconnected,
+interrupted or failed run cannot count as PASS. The observer and condition
+monitor continue independently of this process.
+
+Freeze the trading runtime configuration through AUTONOMY. A material repair
+requires FAST, OPERATIONAL, the configured check, affected startup/backup/monitor/
+observation revalidation, a newly pushed/deployed candidate, and a fresh complete
+CAPACITY run. Do not combine results from different runtime candidates. Keep an
+ordinary operational handoff outside Git with exact identities, epoch, unit,
+timestamps, paths, results and next action.
 
 CAPACITY requires continued target evidence acquisition, bounded queues/storage
 and memory within the existing 2 dedicated vCPU / 8 GiB host. Inspect CPU,

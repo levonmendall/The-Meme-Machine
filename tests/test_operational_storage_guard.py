@@ -87,6 +87,22 @@ class StorageStartup(unittest.TestCase):
         self.assert_startup_rejected(dict(self.mounted, options='ro,noatime'),
                                      'expected_persistent_volume_not_mounted')
 
+    def test_observer_can_verify_readonly_mount_without_relaxing_startup(self):
+        before = self.hashes()
+        with self.run_mount(dict(self.mounted, options='ro,noatime')):
+            self.assertEqual(verify_storage(self.root, require_writable=False)['epoch_id'],
+                             'paper-preserved')
+            with self.assertRaisesRegex(StorageGuardError, 'expected_persistent_volume_not_mounted'):
+                verify_storage(self.root)
+        self.assertEqual(self.hashes(), before)
+
+    def test_readonly_observer_still_rejects_cloned_wrong_volume(self):
+        before = self.hashes()
+        with self.run_mount(dict(self.mounted, options='ro,noatime', **{'maj:min':'8:1'})):
+            with self.assertRaisesRegex(StorageGuardError, 'expected_persistent_volume_not_mounted'):
+                verify_storage(self.root, require_writable=False)
+        self.assertEqual(self.hashes(), before)
+
     def test_missing_portfolio_cannot_reseed(self):
         (self.root/'portfolio.sqlite').unlink()
         self.assert_startup_rejected(self.mounted, 'existing_portfolio_required')
