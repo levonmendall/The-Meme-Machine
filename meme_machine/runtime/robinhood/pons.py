@@ -267,20 +267,21 @@ def restore_position_needs(path,capital_path):
     A reserved native position keeps the existing fail-closed recovery boundary.
     """
     import sqlite3
-    db=sqlite3.connect('file:'+str(Path(capital_path).resolve())+'?mode=ro',uri=True)
-    plane=Plane(path)
-    try:
-        rows=[json.loads(r[0]) for r in db.execute('SELECT body FROM capital_positions')]
-        for row in rows:
-            if row['status']=='settled':continue
-            position=row.get('native_position') or {}
-            plane.checkpoint('position_safety:'+row['id'],dict(priority=0,lane='pons',
-                position_id=row['id'],native_version=position.get('version'),
-                trial_path=row['trial_path'],policy=row['policy_hash'],
-                authority='native_paper_ledger_replay_required',
-                state='open_position_recovery_required',reservation=row))
-        return sum(row['status']!='settled' for row in rows)
-    finally:db.close();plane.close()
+    from contextlib import closing
+    with closing(sqlite3.connect('file:'+str(Path(capital_path).resolve())+'?mode=ro',uri=True)) as db:
+        plane=Plane(path)
+        try:
+            rows=[json.loads(r[0]) for r in db.execute('SELECT body FROM capital_positions')]
+            for row in rows:
+                if row['status']=='settled':continue
+                position=row.get('native_position') or {}
+                plane.checkpoint('position_safety:'+row['id'],dict(priority=0,lane='pons',
+                    position_id=row['id'],native_version=position.get('version'),
+                    trial_path=row['trial_path'],policy=row['policy_hash'],
+                    authority='native_paper_ledger_replay_required',
+                    state='open_position_recovery_required',reservation=row))
+            return sum(row['status']!='settled' for row in rows)
+        finally:plane.close()
 
 
 def provider_totals(context):
