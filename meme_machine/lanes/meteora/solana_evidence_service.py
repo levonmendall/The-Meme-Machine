@@ -1384,6 +1384,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 submitted=time.monotonic()
                 try:
                     def turn(state):
+                        # Refuse an expired queued command before native arbitration.
+                        # FIFO, debt deadlines and the owner lease stay unchanged.
+                        if time.monotonic()-submitted>runtime.leases.owner:
+                            raise EvidenceUnavailable('evidence_command_expired')
                         admission.entry(offer)
                         try:
                             result=runtime.turn(flight,submitted)
@@ -1411,7 +1415,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         continue
                 except EvidenceUnavailable as exc:
                     admission.refused(offer,exc)
-                    if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable'):
+                    if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable','evidence_command_expired'):
+                        await asyncio.sleep(0)
                         continue
                     if str(exc)!='evidence_background_yield':
                         admission.failed=True

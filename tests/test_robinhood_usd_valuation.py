@@ -443,6 +443,16 @@ class RobinhoodUSDTests(unittest.TestCase):
                 old_start=original.index(b'def _attempt_current_scale(')
                 old_end=original.index(b'\n\n# Public recovery entrypoint',old_start)
                 current=current[:start]+original[old_start:old_end]+current[end:]
+
+
+            if rel in ('meme_machine/lanes/pump/solana_evidence_service.py','meme_machine/lanes/meteora/solana_evidence_service.py'):
+                # Exactly reviewed pre-entry expiry; every other source byte pinned.
+                gate=b"                        # Refuse an expired queued command before native arbitration.\n                        # FIFO, debt deadlines and the owner lease stay unchanged.\n                        if time.monotonic()-submitted>runtime.leases.owner:\n                            raise EvidenceUnavailable('evidence_command_expired')\n"
+                reject=b"if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable'):\n                        continue"
+                retry=b"if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable','evidence_command_expired'):\n                        await asyncio.sleep(0)\n                        continue"
+                for part in (gate,retry):
+                    self.assertEqual(current.count(part),1,rel)
+                current=current.replace(gate,b'').replace(retry,reject)
             if rel in ('meme_machine/lanes/pump/solana_evidence_runtime.py','meme_machine/lanes/meteora/solana_evidence_runtime.py'):
                 # Admit only the exact reviewed reader-ownership plumbing.
                 # Every existing query, control and policy byte remains pinned.
