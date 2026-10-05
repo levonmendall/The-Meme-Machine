@@ -91,6 +91,7 @@ OPERATIONAL=FAST+[
  'tests.lanes.pons.test_native_pons',
  'tests.lanes.pons.test_captured_pons_lineage',
  'tests.lanes.pons.test_captured',
+ 'tests.lanes.pump.test_pump_acceleration_confirmations','tests.lanes.pump.test_pump_acceleration_evidence',
  'tests.lanes.pump.test_postgrad',
  'tests.lanes.pump.test_directional_capacity',
  'tests.lanes.pump.test_evidence_attribution',
