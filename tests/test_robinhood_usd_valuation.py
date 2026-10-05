@@ -403,6 +403,12 @@ class RobinhoodUSDTests(unittest.TestCase):
                 self.assertEqual(current.count(b'survivor.prime()'),1)
                 current=current.replace(b'survivor.prime()',b'survivor._step(False)')
             if rel=='meme_machine/lanes/pump/runner.py':
+                # Explicitly close only the SELECT-only old-epoch startup reader.
+                added=(b"        from contextlib import closing\n"
+                       b"        with closing(sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True)) as prior:\n")
+                original_reader=b"        with sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True) as prior:\n"
+                self.assertEqual(current.count(added),1)
+                current=current.replace(added,original_reader)
                 # Receipt context consumes existing snapshots only. Every byte
                 # outside its observation block and added argument is pinned.
                 original=baseline(rel)

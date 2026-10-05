@@ -1000,7 +1000,8 @@ def main(*,campaign=False,discovery_seconds=None):
     accounting_path=REPORT.with_suffix(".accounting.sqlite3")
     if accounting_path.exists():
         import sqlite3
-        with sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True) as prior:
+        from contextlib import closing
+        with closing(sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True)) as prior:
             genesis=json.loads(prior.execute('SELECT body FROM genesis').fetchone()[0])
         if os.environ.get('MM_PAPER_EPOCH') not in (None,genesis['run_id']):
             raise RuntimeError('paper_recovery_run_identity_mismatch')
