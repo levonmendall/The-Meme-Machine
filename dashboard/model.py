@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
-from decimal import Decimal, localcontext
+from decimal import Decimal
+from meme_machine.exact_money import money, arithmetic, exact
 import hashlib
 import json
 from pathlib import Path
@@ -33,9 +34,7 @@ METRICS = MONEY_FIELDS + ('return_pct', 'contribution_pct', 'trades_taken',
 def decimal(value):
     if isinstance(value, bool) or not isinstance(value, (str, int)):
         raise ValueError('exact_decimal_required')
-    if len(str(value)) > 70 or not re.fullmatch(r'-?\d{1,40}(\.\d{1,24})?', str(value)):
-        raise ValueError('invalid_decimal')
-    return Decimal(value)
+    return money(value)
 
 
 def worse(left, right):
@@ -142,6 +141,7 @@ def native_accounting(row, lane):
     return out
 
 
+@exact
 def position(row, epoch, observed):
     """Only canonical lifecycle summaries, never individual fills, are accepted."""
     entered = stamp(row['entered_at'])
@@ -182,7 +182,7 @@ def position(row, epoch, observed):
             at, until = stamp(valuation['as_of']), stamp(valuation['valid_until'])
             if value < 0 or not entered <= at <= observed or until < at:
                 raise ValueError('mark_clock')
-            mark.update(value=str(value), as_of=valuation['as_of'], valid_until=valuation['valid_until'])
+            mark.update(value=format(value, 'f'), as_of=valuation['as_of'], valid_until=valuation['valid_until'])
     lifecycle = []
     allowed = ('qualification', 'authorization', 'paper_entry', 'monitoring',
                'partial_realization', 'rebalance', 'runner', 'exit', 'settlement')
@@ -205,14 +205,15 @@ def position(row, epoch, observed):
         optional['in_range'] = row['in_range']
     for key in ('remaining_runner_exposure',):
         if row.get(key) is not None:
-            optional[key] = str(decimal(row[key]))
+            optional[key] = format(decimal(row[key]), 'f')
     return dict(id=identity(row['id']), lane=row['lane'], asset=identity(row['asset']),
                 state=state, entered_at=row['entered_at'], settled_at=settled_at,
                 strategy_id=strategy_identity(row['strategy_id']) if row.get('strategy_id') else None,
                 identities=safe_identities(row), lifecycle=lifecycle, mark=mark,
-                **{k: str(v) if v is not None else None for k, v in money.items()}, **optional)
+                **{k: format(v, 'f') if v is not None else None for k, v in money.items()}, **optional)
 
 
+@exact
 def validate_export(raw, epoch, mode):
     if raw.get('schema') != 'meme-machine-portfolio-export-v1' or raw.get('mode') != mode:
         raise ValueError('export_mode_or_schema')
@@ -253,7 +254,7 @@ def validate_export(raw, epoch, mode):
         value = decimal(row['value']) if row.get('value') is not None else None
         if series == 'portfolio' and value is not None and value < 0:
             raise ValueError('negative_equity')
-        histories[series].append(dict(at=row['at'], value=str(value) if value is not None else None))
+        histories[series].append(dict(at=row['at'], value=format(value, 'f') if value is not None else None))
     for rows in histories.values():
         rows.sort(key=lambda x: stamp(x['at']))
         if len({r['at'] for r in rows}) != len(rows):
@@ -452,8 +453,7 @@ class Reader:
             return deepcopy(view)
 
     def _view(self):
-        with self._lock, localcontext() as context:
-            context.prec = 80
+        with self._lock, arithmetic(exact=False):
             data, state = self._load()
             now = self.clock()
             system = self.system()
@@ -477,8 +477,8 @@ class Reader:
                 for lane in LANES:
                     lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state,data['retired'].get(lane)), as_of=data['as_of'])
                 retired=dict(count=sum(r['count'] for r in data['retired'].values()),
-                    realized_pnl=str(sum((decimal(r['realized_pnl']) for r in data['retired'].values()),Decimal(0))),
-                    fees=str(sum((decimal(r['fees']) for r in data['retired'].values()),Decimal(0))))
+                    realized_pnl=format(sum((decimal(r['realized_pnl']) for r in data['retired'].values()),Decimal(0)), 'f'),
+                    fees=format(sum((decimal(r['fees']) for r in data['retired'].values()),Decimal(0)), 'f'))
                 metrics = performance(positions, now, state,retired)
                 balance = data['balances']
                 for key, value in balance.items():
@@ -548,6 +548,6 @@ class Reader:
                     elif d['completed_net_pnl'] is not None:
                         d['completed_net_pnl'] += decimal(p['realized_pnl'])
             daily = [dict(day=day, entries=row['entries'], settlements=row['settlements'],
-                          completed_net_pnl=str(row['completed_net_pnl']) if row['completed_net_pnl'] is not None else None) for day,row in sorted(daily.items())]
+                          completed_net_pnl=format(row['completed_net_pnl'], 'f') if row['completed_net_pnl'] is not None else None) for day,row in sorted(daily.items())]
             return dict(portfolio=portfolio, lanes=lanes, positions=positions, history=history, daily=daily,
                         system=system, mode=self.mode, state=portfolio['state'])

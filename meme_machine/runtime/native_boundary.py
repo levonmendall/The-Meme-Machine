@@ -4,7 +4,8 @@ This is accounting plumbing. Native strategy decisions, quantities, quotes and
 clocks remain authoritative. An entry obtains USD capital before its journal
 commit; restart proves every retained delivery against that same journal.
 """
-from decimal import Decimal, localcontext
+from decimal import Decimal
+from meme_machine.exact_money import exact, proportional_basis_release
 import json
 import os
 import time
@@ -65,6 +66,7 @@ class NativeBoundary:
         from meme_machine.runtime.status import update
         update('MANAGING',reconciled=True,accounting_reconciled=True)
 
+    @exact
     def record(self, native, action, position, previous, *, at, checksum, quote=None, data=None):
         if action not in ('reserved','reserve','filled','entry','open','partial_harvest','exit','settled','settle','cancelled','cancel','scale_add','mark','monitor','liquidity_writeoff','writeoff'):
             return
@@ -111,9 +113,7 @@ class NativeBoundary:
             old_basis = (previous or {}).get("basis", (previous or {}).get("remaining_cost", (previous or {}).get("reserved",0)))
             new_basis = position.get("basis",position.get("remaining_cost",0))
             if kind == "exit" and position.get("reason") is not None:return
-            with localcontext() as context:
-                context.prec = 80
-                released = remaining if terminal else remaining * Decimal(old_basis-new_basis)/Decimal(old_basis)
+            released = remaining if terminal else proportional_basis_release(remaining, old_basis-new_basis, old_basis)
             if self.lane == "meteora":
                 mark = data.get("mark") or {}
                 proceeds = 0 if kind == "writeoff" else mark["ending_sol_lamports"]-position.get("exit_cost",0)

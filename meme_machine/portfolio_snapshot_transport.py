@@ -14,6 +14,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
+from .exact_money import money
 import hashlib
 import json
 import os
@@ -128,6 +129,28 @@ def _source_identity(export):
 
 def _validate_export(export, receipt):
     _reject_float(export)
+    # Monetary admission is the same fixed-point contract as journal replay and
+    # the dashboard Reader, including the composed Pons USD conversion.
+    try:
+        for value in export.get('balances', {}).values():
+            if value is not None:
+                money(value)
+        for row in export.get('positions', []):
+            for key in ('capital', 'remaining_basis', 'realized_pnl', 'fees',
+                        'gross_result', 'entry_value', 'exit_value', 'remaining_runner_exposure'):
+                if row.get(key) is not None:
+                    money(row[key])
+            mark = row.get('mark') or {}
+            if mark.get('state') == 'CURRENT':
+                money(mark['net_liquidation_value'], nonnegative=True)
+        for row in export.get('history', []):
+            if row.get('value') is not None:
+                money(row['value'])
+        for row in export.get('retired_lane_totals', {}).values():
+            money(row['realized_pnl'])
+            money(row['fees'], nonnegative=True)
+    except (ValueError, KeyError, TypeError) as error:
+        raise SnapshotTransportError('snapshot_decimal_contract') from error
     if export.get("schema") != SCHEMA_EXPORT or export.get("mode") != "canonical":
         raise SnapshotTransportError("canonical_export_required")
     receipt_hash = _digest(receipt)

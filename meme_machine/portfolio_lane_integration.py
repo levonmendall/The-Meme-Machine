@@ -16,6 +16,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal
+from .exact_money import amount as _money
 import json
 import os
 from pathlib import Path
@@ -39,7 +40,6 @@ KINDS = {
 _ID = re.compile(r"[A-Za-z0-9_.:-]{1,120}")
 _STRATEGY_ID = re.compile(r"[A-Za-z0-9_.:/-]{1,180}")
 _HASH = re.compile(r"[a-f0-9]{40}|[a-f0-9]{64}")
-_MONEY = re.compile(r"-?\d{1,40}(?:\.\d{1,24})?")
 
 
 def _id(value, name="identity"):
@@ -58,18 +58,6 @@ def _strategy_id(value):
     if not isinstance(value, str) or "://" in value or not _STRATEGY_ID.fullmatch(value):
         raise ValueError("invalid_strategy_id")
     return value
-
-
-def _money(value, *, positive=False, nonnegative=False):
-    if isinstance(value, bool) or not isinstance(value, (str, int, Decimal)):
-        raise ValueError("exact_decimal_required")
-    text = format(value, "f") if isinstance(value, Decimal) else str(value)
-    if not _MONEY.fullmatch(text):
-        raise ValueError("invalid_decimal")
-    amount = Decimal(text)
-    if positive and amount <= 0 or nonnegative and amount < 0:
-        raise ValueError("invalid_monetary_sign")
-    return format(amount, "f")
 
 
 def _no_float(value):

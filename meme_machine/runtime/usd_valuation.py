@@ -1,7 +1,8 @@
 """Reuse authenticated native market evidence; never synthesize a USD rate."""
 from dataclasses import dataclass
 from datetime import datetime,timezone
-from decimal import Decimal,localcontext
+from decimal import Decimal
+from meme_machine.exact_money import arithmetic, money, exact
 import re
 import time
 
@@ -29,9 +30,8 @@ class USDValue:
         if type(raw) is not int or raw<0 or not self.observed_at<=at<=self.valid_until:
             raise ValuationUnavailable('native_USD_value_missing_or_stale')
         if self.usd_per_unit<=0:raise ValuationUnavailable('invalid_USD_rate')
-        with localcontext() as context:
-            context.prec=80
-            return Decimal(raw)*self.usd_per_unit/(Decimal(10)**self.decimals)
+        with arithmetic():
+            return money(Decimal(raw)*self.usd_per_unit/(Decimal(10)**self.decimals))
 
     def evidence(self,at):
         self.amount(0,at)
@@ -39,6 +39,7 @@ class USDValue:
         return usd_evidence(self.evidence_id,self.evidence_hash,utc(self.observed_at),utc(self.valid_until))
 
 
+@exact
 def sol_usd(account,*,now,slot,evidence_hash):
     from meme_machine.lanes.pump.pumpswap_survivor_evidence import sol_usd_lower_micros,SOL_USD_ACCOUNT
     micros=sol_usd_lower_micros(account,now=now,slot=slot)
@@ -105,8 +106,7 @@ def _round(raw,decimals,now):
     if answer<=0:raise _unavailable('nonpositive_answer')
     if now-updated>USDG_HEARTBEAT:raise _unavailable('stale_round')
     if decimals!=8:raise _unavailable('wrong_feed_decimals')
-    with localcontext() as context:
-        context.prec=80
+    with arithmetic():
         price=Decimal(answer)/(Decimal(10)**decimals)
     return rid,price,updated
 
@@ -176,8 +176,7 @@ def _pons_usd(rpc,value,now,state,block_info):
     route=max(routes,key=lambda item:item['amount_out'])
     output=route['amount_out']
     if type(output) is not int or output<=0:raise _unavailable('native_USDG_invalid_quote')
-    with localcontext() as context:
-        context.prec=80
+    with arithmetic():
         price=Decimal(output)*Decimal(10**18)*value.usd_per_unit/(Decimal(probe)*Decimal(10**6))
     result=USDValue('ETH',18,price,max(value.observed_at,timestamp),
         min(value.valid_until,timestamp+5),

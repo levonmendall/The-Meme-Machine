@@ -14,7 +14,8 @@ from __future__ import annotations
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
-from decimal import Decimal, localcontext
+from decimal import Decimal
+from .exact_money import money as _money, amount as _amount, arithmetic, exact, validate_decimals
 import fcntl
 import hashlib
 import json
@@ -34,13 +35,12 @@ MAX_POSITIONS = 5000
 MAX_HISTORY_POINTS = 2000
 _ID = re.compile(r"[A-Za-z0-9_.:-]{1,120}")
 _STRATEGY_ID = re.compile(r"[A-Za-z0-9_.:/-]{1,180}")
-_MONEY = re.compile(r"-?\d{1,40}(?:\.\d{1,24})?")
 _HASH = re.compile(r"[a-f0-9]{40}|[a-f0-9]{64}")
 
 
 def _encode_checkpoint(value):
     if isinstance(value, Decimal):
-        return {"decimal": format(value, "f")}
+        return {"decimal": _amount(value)}
     if isinstance(value, dict):
         return {k: _encode_checkpoint(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -51,7 +51,7 @@ def _encode_checkpoint(value):
 def _decode_checkpoint(value):
     if isinstance(value, dict):
         if set(value) == {"decimal"}:
-            return Decimal(value["decimal"])
+            return _money(value["decimal"])
         return {k: _decode_checkpoint(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_decode_checkpoint(v) for v in value]
@@ -92,22 +92,6 @@ def _stamp(value):
     if parsed.utcoffset() is None or parsed.utcoffset().total_seconds() != 0:
         raise ValueError("utc_timestamp_required")
     return parsed.timestamp()
-
-
-def _money(value, *, nonnegative=False, positive=False):
-    if isinstance(value, bool) or not isinstance(value, (str, int, Decimal)):
-        raise ValueError("exact_decimal_required")
-    text = format(value, "f") if isinstance(value, Decimal) else str(value)
-    if len(text) > 70 or not _MONEY.fullmatch(text):
-        raise ValueError("invalid_decimal")
-    result = Decimal(text)
-    if nonnegative and result < 0 or positive and result <= 0:
-        raise ValueError("invalid_monetary_sign")
-    return result
-
-
-def _amount(value):
-    return format(value, "f") if isinstance(value, Decimal) else format(_money(value), "f")
 
 
 def inception_receipt(epoch_id, inception_at, canonical_event_id):
@@ -509,8 +493,7 @@ class PortfolioAccounting:
         row = self.db.execute("SELECT genesis FROM portfolio_sleeves WHERE lane=?", (lane,)).fetchone()
         if row is None:
             return None
-        with localcontext() as context:
-            context.prec = 80
+        with arithmetic():
             return Decimal(row[0]) + state["retired"][lane]["realized_pnl"] + sum(
                 (p["realized_pnl"] for p in state["positions"].values() if p["lane"] == lane), Decimal(0))
 
@@ -530,6 +513,13 @@ class PortfolioAccounting:
             state = _decode_checkpoint(encoded)
             if state["receipt"] != inception[0] or state["identities"] != inception[2]:
                 raise PortfolioIntegrityError("portfolio_checkpoint_binding")
+            for position in state["positions"].values():
+                if position["state"] != "OPEN" or (position.get("mark") or {}).get("state") != "CURRENT":
+                    continue
+                ordered = [row["stage"] for row in position["lifecycle"]
+                           if row["stage"] in ("paper_entry", "monitoring", "partial_realization", "rebalance")]
+                if ordered and ordered[-1] in ("partial_realization", "rebalance"):
+                    position["mark"] = {"state": "UNAVAILABLE"}
             self._reconcile(state)
         previous = state["journal_hash"]
         start_sequence = state["sequence"]
@@ -580,6 +570,7 @@ class PortfolioAccounting:
                 raise PortfolioIntegrityError("canonical_source_or_config_mismatch")
         return checked
 
+    @exact
     def _apply(self, state, event):
         action, data = event["action"], event["data"]
         self._require_epoch(state, event["epoch_id"], event["at"],native=bool(data.get('provenance',{}).get('native_sequence')))
@@ -715,6 +706,7 @@ class PortfolioAccounting:
             raise PortfolioIntegrityError("terminal_lifecycle_immutable")
         return position
 
+    @exact
     def _apply_enter(self, state, event):
         data = event["data"]
         lifecycle_id = _identity(data["lifecycle_id"])
@@ -773,6 +765,7 @@ class PortfolioAccounting:
             **_lane_state(lane, data.get("lane_state")),
         }
 
+    @exact
     def _apply_realization(self, state, event):
         data, action = event["data"], event["action"]
         position = self._open_position(state, data["lifecycle_id"])
@@ -797,6 +790,7 @@ class PortfolioAccounting:
         position["gross_result"] += gross_proceeds - released
         position["fees"] += fee
         position["realized_pnl"] += gross_proceeds - released - fee
+        position["mark"] = {"state": "UNAVAILABLE"}
         position["provenance"].append(provenance)
         position["lifecycle"].append({
             "stage": "partial_realization" if action in ("partial_realization", "harvest") else "exit",
@@ -817,6 +811,7 @@ class PortfolioAccounting:
                 position["runner_state"] = "SETTLED"
             position["lifecycle"].append({"stage": "settlement", "at": event["at"]})
 
+    @exact
     def _apply_rebalance(self, state, event):
         data = event["data"]
         position = self._open_position(state, data["lifecycle_id"])
@@ -848,6 +843,9 @@ class PortfolioAccounting:
         position["gross_result"] += gross_proceeds - released
         position["fees"] += fee
         position["realized_pnl"] += gross_proceeds - released - fee
+        # Any release/add changes exposure, including a mixed rebalance with
+        # unchanged net basis. A prior value describes the previous exposure.
+        position["mark"] = {"state": "UNAVAILABLE"}
         position["rebalance_count"] += 1
         position["rebalance_state"] = "MONITORING"
         position.update(_lane_state(position["lane"], data.get("lane_state")))
@@ -855,8 +853,8 @@ class PortfolioAccounting:
         position["lifecycle"].append({"stage": "rebalance", "at": event["at"]})
 
     def _reconcile(self, state):
-        with localcontext() as context:
-            context.prec = 80
+        validate_decimals(state)
+        with arithmetic():
             positions = list(state["positions"].values())
             lane_realized = sum((row["realized_pnl"] for row in positions), Decimal(0)) + sum((r["realized_pnl"] for r in state["retired"].values()), Decimal(0))
             realized = lane_realized - state["shared_costs"]
@@ -882,6 +880,8 @@ class PortfolioAccounting:
                     raise PortfolioIntegrityError("terminal_remaining_basis")
                 if row["state"] == "OPEN" and row["remaining_basis"] <= 0:
                     raise PortfolioIntegrityError("open_without_basis")
+            validate_decimals([lane_realized, realized, reserved, deployed, attributable_fees,
+                               attributable_fees + state["shared_costs"], STARTING_CAPITAL + realized])
             return {
                 "lane_realized": lane_realized,
                 "realized": realized,
@@ -1036,6 +1036,7 @@ class PortfolioAccounting:
         }
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="shared_cost", data=data)
 
+    @exact
     def _values_at(self, state, at):
         reconciliation = self._reconcile(state)
         unrealized = Decimal(0)
@@ -1107,6 +1108,7 @@ class PortfolioAccounting:
         result["mark"] = deepcopy(mark)
         return result
 
+    @exact
     def _export(self, state):
         published = state["last_publish"]
         if published is None:
@@ -1163,6 +1165,7 @@ class PortfolioAccounting:
         }
         return result
 
+    @exact
     def compact(self, *, keep_closed=256):
         """Atomically replace a verified prefix with its exact durable state.
 

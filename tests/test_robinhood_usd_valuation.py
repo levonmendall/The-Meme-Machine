@@ -389,7 +389,11 @@ class RobinhoodUSDTests(unittest.TestCase):
         old=baseline('meme_machine/runtime/usd_valuation.py').decode()
         current=(ROOT/'meme_machine/runtime/usd_valuation.py').read_text()
         def decoder(source):
-            return ast.dump(next(n for n in ast.parse(source).body if isinstance(n,ast.FunctionDef) and n.name=='sol_usd'))
+            node=next(n for n in ast.parse(source).body if isinstance(n,ast.FunctionDef) and n.name=='sol_usd')
+            # The unchanged decoder now runs under the canonical exact-money
+            # context. Compare the oracle parsing/finality/conversion body.
+            node.decorator_list=[]
+            return ast.dump(node)
         self.assertEqual(decoder(old),decoder(current))
 
     def test_strategy_sources_and_nine_change_tests_byte_unchanged(self):

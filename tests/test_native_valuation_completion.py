@@ -1,6 +1,6 @@
 """Delayed evidence is valued at acquisition without extending its expiry."""
 from contextlib import closing
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -56,3 +56,33 @@ class NativeValuationCompletionTests(unittest.TestCase):
                 with self.assertRaises(ValuationUnavailable):
                     boundary.record('expired','reserved',{'reserved':1000000},None,at=NOW,checksum='b'*64)
             self.assertFalse(boundary.client.pending());self.assertFalse(boundary.prepared)
+
+    def test_recurring_basis_release_is_persisted_once_and_pending_replay_is_exact(self):
+        from fractions import Fraction
+        from meme_machine.runtime.portfolio import NativePortfolio
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'portfolio.sqlite';self.initialize(path)
+            client=NativePortfolio(path,'pons')
+            evidence=USDValue('ETH',18,Decimal('1e18'),NOW,NOW+120,'offline','e'*64).evidence(NOW)
+            for kind,data in [('reserve',{'amount':'1'}),('enter',{'asset':'ETH','basis':'1','fee':'0','strategy_id':'pons'}),
+                              ('mark',{'state':'CURRENT','net_liquidation_value':'1.1'})]:
+                client.deliver('native',event_key=kind,journal_hash='b'*64,kind=kind,at=utc(NOW),
+                    data=data,value_evidence=evidence if kind!='reserve' else None)
+            value=USDValue('ETH',18,Decimal('1e18'),NOW,NOW+120,'offline','e'*64)
+            boundary=NativeBoundary(path,'pons',SimpleNamespace(),value_reader=lambda at:value)
+            with localcontext() as context,patch('meme_machine.runtime.native_boundary.time.time',return_value=NOW+1):
+                context.prec=3
+                boundary.record('native','partial_harvest',dict(basis=2,realized=0),dict(basis=3,realized=0),
+                    at=NOW+1,checksum='c'*64)
+            fact=boundary.prepared[0][1]
+            self.assertEqual(fact.data['basis_released'],'0.33333333333333333333333333334')
+            restarted=NativeBoundary(path,'pons',SimpleNamespace(),value_reader=lambda at: (_ for _ in ()).throw(AssertionError('no revaluation on replay')))
+            with patch.object(restarted,'journal_hashes',return_value={'c'*64}):restarted.recover();restarted.recover()
+            self.assertFalse(restarted.client.pending())
+            with closing(PortfolioAccounting(path)) as account:
+                state=account.snapshot();row=next(iter(state['positions'].values()))
+                self.assertEqual(row['mark'],{'state':'UNAVAILABLE'})
+                self.assertEqual(state['available'],Decimal('500'))
+                self.assertLessEqual(Fraction(row['realized_pnl']),Fraction(2,3))
+                self.assertEqual(row['fees'],0)
+                self.assertTrue(all(account._reconcile(state)['checks'].values()))
