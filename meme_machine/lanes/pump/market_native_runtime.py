@@ -114,6 +114,7 @@ class MarketNativeRuntime:
         self.full_evidence_attempted = 0
         self.qualified = 0
         self.qualified_unfunded = 0
+        self.qualified_execution_blocked = 0
         self.capacity_losses = 0
         self.provider_failures = 0
         self.last_qualified_mint = None
@@ -279,9 +280,13 @@ class MarketNativeRuntime:
             self.last_qualified_mint = candidate['mint']
             funding_reason=vector.get('allocator_reason')
             if funding_reason:
-                self.qualified_unfunded += 1
+                funding_status=vector.get('funding_status') or 'qualified_but_execution_unavailable'
+                if funding_status=='qualified_but_capital_unavailable':
+                    self.qualified_unfunded += 1
+                else:
+                    self.qualified_execution_blocked += 1
                 self._update_attempt(
-                    'qualified_but_capital_unavailable',
+                    funding_status,
                     canonical_result='qualified',
                     funding_reason=funding_reason,
                     order_id=nomination['id'],
@@ -488,6 +493,7 @@ class MarketNativeRuntime:
             full_reason_distribution=dict(self.full_reasons),
             qualified=self.qualified,
             qualified_unfunded=self.qualified_unfunded,
+            qualified_execution_blocked=self.qualified_execution_blocked,
             last_qualified_mint=self.last_qualified_mint,
             diagnostic_last_attempt=self.last_attempt,
             capacity_losses=self.capacity_losses,
