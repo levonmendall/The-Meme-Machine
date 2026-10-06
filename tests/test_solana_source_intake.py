@@ -38,9 +38,14 @@ class SourceIntakeTests(unittest.TestCase):
         cls.templates=json.loads(gzip.decompress(path.read_bytes()))['templates']
         cls.subs=[s for s in service.program_subscriptions() if s.evidence_class!='logs']
         cls.targets=tuple(sorted({s.address for s in cls.subs}))
+        cls.transaction_targets=tuple(sorted(
+            {s.address for s in cls.subs if s.evidence_class=='transactions'}))
 
     def select(self,value,*,bound=service.STREAM_MAX_MESSAGE_BYTES):
-        return select_frame(encode(value),'',self.targets,max_bytes=bound)
+        # Match production source routing: Pump/PumpSwap keep only canonical
+        # log/census fields; only Meteora receives the economic transaction vector.
+        return select_frame(encode(value),'',self.targets,max_bytes=bound,
+                            full_transaction_addresses=self.transaction_targets)
 
     def parity(self,value):
         selected=self.select(value)
