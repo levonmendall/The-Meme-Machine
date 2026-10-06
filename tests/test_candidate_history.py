@@ -98,6 +98,44 @@ class CandidateHistoryTests(unittest.TestCase):
         finally:
             second.close()
 
+    def test_pump_promotion_replays_ordered_pregraduation_economics(self):
+        from meme_machine.lanes.pump import runner
+        prior=runner.CANDIDATE_HISTORY;runner.CANDIDATE_HISTORY=self.history
+        class Stream:
+            def __init__(self):self.pools=[]
+            def add_address(self,pool):self.pools.append(pool);return pool
+        class Confirmations:
+            def __init__(self):self.created=[];self.graduated=[]
+            def observe_creation(self,row):self.created.append(row["mint"])
+            def observe_graduation(self,mint,at):self.graduated.append((mint,at))
+        try:
+            rows=[
+                dict(identity="create",slot=10,transaction_index=2,event_index=0,market_time=1000,
+                     event=dict(event_type="create",mint="mint",market_time=1000,creator="creator")),
+                dict(identity="trade",slot=11,transaction_index=1,event_index=3,market_time=1005,
+                     event=dict(event_type="trade",mint="mint",market_time=1005,wallet="buyer",
+                                real_token_reserves=5)),
+                dict(identity="migration",slot=12,transaction_index=0,event_index=1,market_time=1010,
+                     event=dict(event_type="migration",mint="mint",market_time=1010,pool="POOL")),
+            ]
+            self.assertEqual(runner._retain_pump_source_history(rows),3)
+            persisted=self.history.events("pump","mint")
+            self.assertEqual([r["kind"] for r in persisted],
+                             ["pump_create","pump_trade","pump_migration"])
+            self.assertTrue(all("transaction" not in r["payload"] and "meta" not in r["payload"]
+                                for r in persisted))
+            created={};postgrad={};stream=Stream();confirm=Confirmations()
+            self.assertEqual(runner._restore_observed_pump_candidates(
+                created,postgrad,stream,object(),confirm,1020),1)
+            self.assertEqual(created["mint"]["pregrad_wallets"],{"buyer"})
+            self.assertTrue(created["mint"]["graduated"])
+            self.assertEqual(postgrad["mint"]["pool"],"POOL")
+            self.assertEqual(stream.pools,["POOL"])
+            self.assertEqual(confirm.created,["mint"])
+            self.assertEqual(confirm.graduated,[("mint",1010)])
+        finally:
+            runner.CANDIDATE_HISTORY=prior
+
 
 if __name__=="__main__":
     unittest.main()
