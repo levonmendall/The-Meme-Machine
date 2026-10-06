@@ -425,6 +425,12 @@ class CampaignAttemptBudget:
         if len(self.admitted)>=self.limit:return False
         self.admitted.append(now);return True
 
+def _attempt_budget_state(budget,now,campaign):
+    """Capacity accounting may signal pressure but never reject a candidate."""
+    pressure=bool(campaign and not budget.take(now))
+    return dict(pressure=pressure,evaluate=True)
+
+
 
 def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
     from meme_machine.lanes.meteora.dlmm_discovery import CampaignDiscovery
@@ -1955,7 +1961,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     checkpoint("compatibility_rejection")
                     continue
 
-                capacity_pressure=(campaign and not attempt_budget.take(time.monotonic()))
+                budget_state=_attempt_budget_state(
+                    attempt_budget,time.monotonic(),campaign)
+                capacity_pressure=budget_state['pressure']
                 if capacity_pressure:
                     # The historical attempt budget is now pressure telemetry only.
                     # It may reveal that the machine/provider cannot keep up, but it
