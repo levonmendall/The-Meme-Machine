@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The isolated feature's source-equivalence check reads its parent tree.
+          fetch-depth: 2
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12.14'

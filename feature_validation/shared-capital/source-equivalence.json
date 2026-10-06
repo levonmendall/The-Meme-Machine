@@ -1,0 +1,19 @@
+{
+  "allowed_existing_changes": [
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    "operational/tests.py"
+  ],
+  "base_files_verified": 711,
+  "changed_base_files": [],
+  "digest_encoding": "SHA256 of git-ls-tree-order path/mode/git_blob_sha records, canonical JSON",
+  "nine_change_contract": "operational/nine-change-implementation.json",
+  "preserved_paths": [
+    "all source-tracked paths except the three declared build/test changes"
+  ],
+  "preserved_tree_entries_sha256": "b62a32f2b957071c90d79decc299600a4555d7e0b2583d655653d30c38650a9e",
+  "provider_topology_changes": 0,
+  "source_commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "source_tree": "d6f5964acaf2269571a8446a8f74fbca00c4a69e",
+  "strategy_changes": 0
+}

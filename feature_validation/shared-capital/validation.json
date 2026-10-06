@@ -1,0 +1,180 @@
+{
+  "acceptance_phases_started": [],
+  "activation_authorized": false,
+  "baseline_suites": {
+    "FAST": {
+      "log": "logs/baseline-FAST.log",
+      "log_sha256": "489ecd2c59d1068f4aa9a7ec1542f843a031344f749e87532524c6d408887bf7",
+      "outcome": "PASS",
+      "seconds": 30.346,
+      "tests": 480
+    },
+    "OPERATIONAL": {
+      "log": "logs/baseline-OPERATIONAL.log",
+      "log_sha256": "15efbd1fe03c99b09a4938141f792e17edb1fead446a31c2520d6da647125f0d",
+      "outcome": "PRE_EXISTING_ENVIRONMENT_FAILURES",
+      "seconds": 651.882,
+      "tests": 1910
+    }
+  },
+  "coverage": [
+    "All six regimes, every pair, all 63 nonempty subsets, six concurrent processes",
+    "Atomic cash conservation, nonnegative free cash, request identity, deterministic replay, idempotent retries",
+    "Fault injection and real process death before/after commit; entry, scale, cancel, partial realization and settlement",
+    "Preserved-epoch read-only migration, complete attribution, pending commitments, native aliases and retirement frontier",
+    "Current/Survivor independence and unchanged native staged-scaling gates",
+    "Native integer sizing and FX equivalence; capitalized fee comparison with existing accountant"
+  ],
+  "current_paper_migration_executed": false,
+  "deployed": false,
+  "economics_aggregate": {
+    "A_HARD_SLEEVES": {
+      "allocation_changes": 0,
+      "granted": 1252,
+      "mean_capital_time_utilization_pct": 39.4223,
+      "mean_realized_return_pct": 15.4684,
+      "mean_requested_position_usd": 8.993026,
+      "mean_stranded_idle_sleeve_usd": 312.3178,
+      "mean_utilization_pct": 36.7783,
+      "peak_regime_exposure_pct": 32.4484,
+      "qualified_unfunded": 1321,
+      "worst_drawdown_pct": 11.4145
+    },
+    "B_SHARED_FIXED": {
+      "allocation_changes": 0,
+      "granted": 1751,
+      "mean_capital_time_utilization_pct": 52.8492,
+      "mean_realized_return_pct": 19.3929,
+      "mean_requested_position_usd": 9.239282,
+      "mean_stranded_idle_sleeve_usd": 0.0,
+      "mean_utilization_pct": 49.2207,
+      "peak_regime_exposure_pct": 53.7872,
+      "qualified_unfunded": 822,
+      "worst_drawdown_pct": 21.0445
+    },
+    "B_SHARED_PORTFOLIO_SIZING": {
+      "allocation_changes": 0,
+      "granted": 620,
+      "mean_capital_time_utilization_pct": 54.334,
+      "mean_realized_return_pct": 28.3004,
+      "mean_requested_position_usd": 26.456124,
+      "mean_stranded_idle_sleeve_usd": 0.0,
+      "mean_utilization_pct": 51.0388,
+      "peak_regime_exposure_pct": 108.526,
+      "qualified_unfunded": 1953,
+      "worst_drawdown_pct": 22.2706
+    },
+    "C_SHARED_ADAPTIVE": {
+      "allocation_changes": 22,
+      "granted": 1706,
+      "mean_capital_time_utilization_pct": 53.0127,
+      "mean_realized_return_pct": 19.9699,
+      "mean_requested_position_usd": 9.242679,
+      "mean_stranded_idle_sleeve_usd": 0.0,
+      "mean_utilization_pct": 49.3981,
+      "peak_regime_exposure_pct": 55.8107,
+      "qualified_unfunded": 867,
+      "worst_drawdown_pct": 21.3869
+    }
+  },
+  "economics_command": "python -m experiments.shared_capital --output feature_validation/shared-capital/economics.json",
+  "economics_gate": {
+    "drawdown_and_concentration_bounded": true,
+    "no_new_lane_starvation": true,
+    "utilization_and_return_improve": false
+  },
+  "economics_recommendation": "B_SHARED_FIXED",
+  "economics_sha256": "90fcd0bc9ff8ad6691e5bbd2ed5512a2c1c8728034e6fcd54b0bfade993aa3c5",
+  "feature_branch": "feature/shared-capital-pool",
+  "final_suites": {
+    "FAST": {
+      "log": "logs/feature-FAST.log",
+      "log_sha256": "828caecea5ed0551c4b2e7ba636107e1c8a85f82be696b2e81a8dd9882aef238",
+      "outcome": "PASS",
+      "seconds": 72.198,
+      "tests": 534
+    },
+    "OPERATIONAL": {
+      "log": "logs/feature-OPERATIONAL.log",
+      "log_sha256": "36960327ddd82b9ef25d756e6c69cc49208bcbcd9876e17feaffc0f015130edf",
+      "outcome": "PASS",
+      "seconds": 667.116,
+      "tests": 1964
+    }
+  },
+  "focused_tests_in_each_suite": 54,
+  "implementation_digest": "88c042641819649f0140a91a29875de5c51b2b0f7ee7f07dd479bf1b3215fd6a",
+  "implementation_file_sha256": {
+    ".github/workflows/ci.yml": "200762bf17e05ecd589bacd5f0a0bd4c2fb0f71f482705e8d107927bd6b9541e",
+    ".gitignore": "914bec36e6cca1a0686fbc5b12abee775f5d6b336a3f8396a352c707ef955af6",
+    "experiments/__init__.py": "033766a742dc509a705fa8ae5e773a8c96368d83cb002c06c8c8b1053d0a9c16",
+    "experiments/shared_capital.py": "65542070c450cd19257b72b6ac11ba279bbdf6238e07d45cd38eb2a2f29eb7cb",
+    "experiments/shared_capital_race.py": "6456429843af9753ea30017f93bfb34029e173b63a296f85df8a02bbd82ae12f",
+    "meme_machine/shared_capital/__init__.py": "5f4bfaa5de09a9d67cd37faf8da36088dc347292d2c9c3fb21617361beec9aae",
+    "meme_machine/shared_capital/adapter.py": "a225c8eb2efff84e559a75912c1e1a28afdf99fcba11252d8c0c62d40bc85d2f",
+    "meme_machine/shared_capital/authority.py": "f742c6ec2498687fb36d162771a3a25f954bd209d3cbe83bcd48cdf0b16136c0",
+    "meme_machine/shared_capital/migration.py": "e3adf1d1ca444fdf18c6f7ba499fb992fbbb5627a1c42e80bbace7063b76fed1",
+    "meme_machine/shared_capital/model.py": "b940254f5594d55da10557b4667c37d9843fe006e56a1563dc4c2ee856e5a336",
+    "meme_machine/shared_capital/performance.py": "3dff3f4ba6b23423c4321de7150e8a87c326e15fe17aa299118fbb0aa7a05add",
+    "operational/tests.py": "98126406873b4354464c99dbd06b7d48ae8ed4fd37d390e8d517781c5fd7a30c",
+    "tests/shared_capital_support.py": "577d0b23de6b83824efe72b5526678a0f472d915e0499fa6062f412334b9bbb8",
+    "tests/test_shared_capital.py": "235ead309d9004c0e9f4c4adc9a0760e4484b7aa8b02ddcd8c262faa81c5a4d0",
+    "tests/test_shared_capital_concurrency.py": "817e9d73b31074850392e279f9e29c6d3cdb0bacf172b7fcfa442227e1290213",
+    "tests/test_shared_capital_economics.py": "3df1b634c9a08505af18e8370fbe3ba1c4288b2b45df6dfed849269e26f9fc80",
+    "tests/test_shared_capital_migration.py": "940cf55ffd6b1c989c811b97fcbb9b87a8ab4fdb407105f1b18316cb20385fdc",
+    "tests/test_shared_capital_performance.py": "a5c3d5da15b7badcac9c19f5689975e2f150ade037d153d2b596082529c346a9",
+    "tests/test_shared_capital_recovery.py": "8ea4584159b75566272181847f19dfcb2de859cbe435e70100a5c58ed02984fd",
+    "tests/test_shared_capital_strategy.py": "70cdfe82c942393c534d963da735e448aa49f5fbf8395768feb2b1228ad2ad22"
+  },
+  "log_sha256": {
+    "baseline-FAST.log": "489ecd2c59d1068f4aa9a7ec1542f843a031344f749e87532524c6d408887bf7",
+    "baseline-OPERATIONAL.log": "15efbd1fe03c99b09a4938141f792e17edb1fead446a31c2520d6da647125f0d",
+    "cross-authority.log": "c7604a1bc8fbee0684ad01896f860d62582c2dd27797d596f80fb331c8c7ac7e",
+    "economics.log": "f2bc8cb43e57f723e4644234c9b167d7aacbe577c84a014a000543fb44648f06",
+    "feature-FAST.log": "828caecea5ed0551c4b2e7ba636107e1c8a85f82be696b2e81a8dd9882aef238",
+    "feature-OPERATIONAL.log": "36960327ddd82b9ef25d756e6c69cc49208bcbcd9876e17feaffc0f015130edf"
+  },
+  "merged": false,
+  "new_failures": 0,
+  "paper_only": true,
+  "pre_existing_environment_failures": [
+    {
+      "cause": "Single-branch clone omitted historical commit 3c9553afb3caa92ab5f3db769f870df033a9630f.",
+      "resolution": "Fetched only into isolated clone; final OPERATIONAL passes. Included in recovery bundle.",
+      "test": "tests.lanes.pump.test_directional_capacity.CurrentPumpCapacity.test_entry_alpha_functions_unchanged_from_preserved_source"
+    },
+    {
+      "cause": "Baseline source-clock lag 54.37314462661743 seconds exceeded 45-second limit.",
+      "resolution": "Source unchanged; final OPERATIONAL passes. No timing threshold changed.",
+      "test": "tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain"
+    }
+  ],
+  "source_commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "source_equivalence": {
+    "allowed_existing_changes": [
+      ".github/workflows/ci.yml",
+      ".gitignore",
+      "operational/tests.py"
+    ],
+    "base_files_verified": 711,
+    "changed_base_files": [],
+    "digest_encoding": "SHA256 of git-ls-tree-order path/mode/git_blob_sha records, canonical JSON",
+    "nine_change_contract": "operational/nine-change-implementation.json",
+    "preserved_paths": [
+      "all source-tracked paths except the three declared build/test changes"
+    ],
+    "preserved_tree_entries_sha256": "b62a32f2b957071c90d79decc299600a4555d7e0b2583d655653d30c38650a9e",
+    "provider_topology_changes": 0,
+    "source_commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+    "source_tree": "d6f5964acaf2269571a8446a8f74fbca00c4a69e",
+    "strategy_changes": 0
+  },
+  "source_tree": "d6f5964acaf2269571a8446a8f74fbca00c4a69e",
+  "supplemental_independent_authority_race": {
+    "command": "python -m experiments.shared_capital_race",
+    "independent_connections": 2,
+    "log": "logs/cross-authority.log",
+    "outcome": "PASS: 15 lane pairs; two independent SQLite connections, identical allocation receipts, one grant, restart conservation.",
+    "pairs": 15
+  }
+}

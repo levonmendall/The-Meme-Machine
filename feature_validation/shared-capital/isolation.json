@@ -1,0 +1,27 @@
+{
+  "acceptance_phases_started": [],
+  "active_work_untouched": true,
+  "deployed": false,
+  "feature_branch": "feature/shared-capital-pool",
+  "feature_worktree": "/root/Documents/Codex/2026-10-06/the-meme-machine-parallel-shared-capital/feature-worktree",
+  "isolated_git_directory": "/root/Documents/Codex/2026-10-06/the-meme-machine-parallel-shared-capital/repository.git",
+  "merged": false,
+  "paper_database_opened": false,
+  "paper_runtime_opened": false,
+  "protected_checkout": "/root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/repo",
+  "protected_checkout_head": "5c52b55208bfd6d8dc507eb89f2ad39402a67e3b",
+  "protected_diff_sha256_after": "202391fb31a838a8d58f95f2edd581074c93a8587b7f47369af7451fbe130313",
+  "protected_diff_sha256_before": "202391fb31a838a8d58f95f2edd581074c93a8587b7f47369af7451fbe130313",
+  "protected_status": [
+    " M meme_machine/solana_maintenance_state.py",
+    " M tests/test_production_maintenance_arbiter.py"
+  ],
+  "python": "3.12.14 (main, Aug 13 2026, 02:47:42) [GCC 13.3.0]",
+  "requirements": {
+    "pysimdjson": "7.0.2",
+    "websockets": "17.1"
+  },
+  "source_commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "source_tree": "d6f5964acaf2269571a8446a8f74fbca00c4a69e",
+  "sqlite": "3.45.1"
+}

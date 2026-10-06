@@ -5,5 +5,8 @@ __pycache__/
 *.db
 *.db-*
 *.db.lock
+*.sqlite
+*.sqlite-*
+*.sqlite.lock
 config.local.json
 .venv/
