@@ -1384,7 +1384,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             from .solana_maintenance_runtime import ArchiveFlight,MaintenanceRuntime
             from .startup_storage import recover
             runtime=await work(lambda state:MaintenanceRuntime(state),4,label='maintenance_decision')
-            await recover(work,decoder_pool,path,stop,wall=runtime.wall,monotonic=runtime.monotonic)
+            await recover(work,decoder_pool,path,stop,wall=runtime.wall,
+                monotonic=runtime.monotonic,force=True,clock=runtime.clock)
             storage_ready.set()
             admission.generation=runtime.generation
             flight=ArchiveFlight()

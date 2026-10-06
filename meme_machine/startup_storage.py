@@ -22,6 +22,22 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
                   force=False,flight=None,on_complete=None,clock=None):
     wall=wall or time.time;monotonic=monotonic or time.monotonic
     started=monotonic();deadline=started+60
+    async def owned(fn,label):
+        while True:
+            if stop.is_set():raise asyncio.CancelledError
+            if monotonic()>=deadline:
+                raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
+            try:
+                result=await work(fn,4,label=label)
+                if monotonic()>=deadline:
+                    raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
+                return result
+            except EvidenceUnavailable as exc:
+                if str(exc)!='evidence_background_yield':raise
+                # Keep this carrier and the original deadline across an urgent
+                # SQL yield. Returning to normal arbitration would strand a
+                # partially acknowledged archive and overdue recovery work.
+                await asyncio.sleep(0)
     def overdue(state):
         observation=DebtAgeAdapter(state.writer,wall=wall,monotonic=monotonic).observe(state.fence.session)
         # A live source need not become entirely idle. Clean the newly overdue
@@ -31,7 +47,7 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
         return pending
     async def commit(plan,receipt):
         while plan:
-            plan=await work(lambda state:state.archive_commit_slice(plan,receipt),4,label='archive_commit_plan')
+            plan=await owned(lambda state:state.archive_commit_slice(plan,receipt),'archive_commit_plan')
             if monotonic()>=deadline:raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
     # Finish the existing carrier first; never start a second archive worker or
     # discard a durable receipt while an older operation is still in flight.
@@ -45,16 +61,32 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
             plan,receipt=await asyncio.wait_for(asyncio.wrap_future(future),15)
             await commit(plan,receipt)
         flight.future=flight.pending=flight.prepared=flight.submitted=flight.generation=None
-    initial=await work(overdue,4,label='maintenance_decision')
-    if not initial:return
+    def select(state):
+        pending=overdue(state)
+        return pending,state.archive_plan() if pending else None
+    pending,snapshot=await owned(select,'maintenance_decision')
+    if not pending:return
     while not stop.is_set():
         if monotonic()>=deadline:raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
-        snapshot=await work(lambda state:state.archive_plan(),4,label='archive_plan')
         if snapshot:
             future=pool.submit(EvidenceWriter.prepare_and_write_archive,path,snapshot,max_bytes=16*1024*1024)
             plan,receipt=await asyncio.wait_for(asyncio.wrap_future(future),15)
-            await commit(plan,receipt)
-        await work(lambda state:state.retention(),4,label='retention')
-        if not await work(overdue,4,label='maintenance_decision'):
-            return
+            while plan:
+                def advance(state):
+                    remaining=state.archive_commit_slice(plan,receipt)
+                    if remaining:return remaining,None,None
+                    # Source still interleaves between the unchanged 512-row
+                    # commits. Dependent cleanup, observation and successor
+                    # selection use their final slice's existing owner turn,
+                    # rather than queuing three additional round trips.
+                    state.retention()
+                    pending=overdue(state)
+                    return remaining,pending,state.archive_plan() if pending else None
+                plan,pending,snapshot=await owned(advance,'archive_commit_plan')
+        else:
+            def cleanup(state):
+                state.retention()
+                return select(state)
+            pending,snapshot=await owned(cleanup,'retention')
+        if not pending:return
         await asyncio.sleep(0)

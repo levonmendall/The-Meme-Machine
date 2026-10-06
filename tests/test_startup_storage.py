@@ -13,6 +13,78 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class StartupStorage(unittest.IsolatedAsyncioTestCase):
+    async def test_cooperative_yields_do_not_restart_the_recovery_window(self):
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        elapsed=[0]
+        async def work(fn,priority,**kwargs):
+            elapsed[0]+=1
+            raise EvidenceUnavailable('evidence_background_yield')
+        with self.assertRaisesRegex(EvidenceUnavailable,'maintenance_startup_recovery_incomplete'):
+            await recover(work,None,None,asyncio.Event(),monotonic=lambda:elapsed[0])
+        self.assertEqual(elapsed[0],60)
+
+    async def test_dense_released_evidence_recovers_with_bounded_source_queue_waits(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight
+        with native_runtime() as (state,runtime,clock):
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+            values=rows(clock,SCOPES[0],18000,age=1800,same_slot=True)
+            ingest(state.writer,values);finalized_frontier(state,clock,SCOPES[0])
+            flight=ArchiveFlight()
+            self.assertTrue(runtime.turn(flight,clock.monotonic())['cold_recovery_required'])
+            started=clock.monotonic()
+            async def work(fn,priority,**kwargs):
+                # Bounded ordinary source work ahead of every owner admission.
+                # The prior separate observe/plan/retention round trips exhaust
+                # the same real 60-second recovery window for this finite burst.
+                clock.advance(.8)
+                return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,flight=flight,clock=runtime.clock,
+                    on_complete=lambda s,o:runtime.cold_completed(o,flight))
+            self.assertLess(clock.monotonic()-started,60)
+            self.assertFalse(state.writer.db.execute('SELECT 1 FROM records').fetchone())
+            self.assertEqual(state.writer.db.execute(
+                "SELECT value FROM counters WHERE key='archived_records'").fetchone()[0],len(values))
+            self.assertEqual(state.writer.db.execute('PRAGMA quick_check').fetchone()[0],'ok')
+            self.assertTrue(flight.idle)
+            self.assertIsNone(runtime.arbiter.pending)
+
+    async def test_committed_final_slice_yield_keeps_receipt_and_recovery_deadline(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight
+        with native_runtime() as (state,runtime,clock):
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+            values=rows(clock,SCOPES[0],700,age=1800)
+            ingest(state.writer,values);finalized_frontier(state,clock,SCOPES[0])
+            flight=ArchiveFlight()
+            self.assertTrue(runtime.turn(flight,clock.monotonic())['cold_recovery_required'])
+            original=state.archive_commit_slice;yielded=[False]
+            def commit(plan,receipt):
+                remaining=original(plan,receipt)
+                if not remaining and not yielded[0]:
+                    yielded[0]=True
+                    raise EvidenceUnavailable('evidence_background_yield')
+                return remaining
+            state.archive_commit_slice=commit
+            async def work(fn,priority,**kwargs):
+                clock.advance(.8)
+                return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,flight=flight,clock=runtime.clock,
+                    on_complete=lambda s,o:runtime.cold_completed(o,flight))
+            self.assertTrue(yielded[0])
+            self.assertEqual(state.writer.db.execute(
+                "SELECT value FROM counters WHERE key='archived_records'").fetchone()[0],len(values))
+            self.assertFalse(state.writer.db.execute('SELECT 1 FROM records').fetchone())
+            self.assertTrue(flight.idle)
+            self.assertIsNone(runtime.arbiter.pending)
+
     async def test_cold_cleanup_uses_the_same_conservative_clock_margin_as_completion(self):
         from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
         from tests.maintenance_production_harness import rows,ingest,SCOPES
@@ -44,12 +116,16 @@ class StartupStorage(unittest.IsolatedAsyncioTestCase):
             finalized_frontier(state,clock,SCOPES[0]);flight=ArchiveFlight()
             self.assertTrue(runtime.turn(flight,clock.monotonic())['cold_recovery_required'])
             added=[False]
-            async def work(fn,priority,**kwargs):
-                result=fn(state)
-                if kwargs['label']=='retention' and not added[0]:
+            retention=state.retention
+            def ongoing_retention():
+                result=retention()
+                if not added[0]:
                     ingest(state.writer,rows(clock,SCOPES[0],5,age=185,start=3000,tag='ongoing'))
                     added[0]=True
                 return result
+            state.retention=ongoing_retention
+            async def work(fn,priority,**kwargs):
+                return fn(state)
             with ThreadPoolExecutor(max_workers=1) as pool:
                 await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
                     monotonic=clock.monotonic,force=True,flight=flight,
