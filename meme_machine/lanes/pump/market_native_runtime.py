@@ -113,11 +113,13 @@ class MarketNativeRuntime:
         self.preflight_selected = 0
         self.full_evidence_attempted = 0
         self.qualified = 0
+        self.qualified_unfunded = 0
         self.capacity_losses = 0
         self.provider_failures = 0
         self.last_qualified_mint = None
 
         self.evidence_enqueued = 0
+        self.evidence_queue_capacity_pressure = 0
         self.evidence_processed = 0
         self.evidence_expired_before_preflight = 0
         self.evidence_deadline_insufficient = 0
@@ -270,11 +272,25 @@ class MarketNativeRuntime:
                 self._update_attempt('full_rejection', reason=reason)
                 return
 
+            # Strategy qualification is authoritative independently of funding.
+            # Capital availability determines execution only; an unfunded qualified
+            # opportunity remains durable/observable for later analysis and Survivor.
+            self.qualified += 1
+            self.last_qualified_mint = candidate['mint']
+            funding_reason=vector.get('allocator_reason')
+            if funding_reason:
+                self.qualified_unfunded += 1
+                self._update_attempt(
+                    'qualified_but_capital_unavailable',
+                    canonical_result='qualified',
+                    funding_reason=funding_reason,
+                    order_id=nomination['id'],
+                )
+                return
+
             canonical = self.authority.consider(nomination, evidence, qualified_at)
             if canonical != 'qualified':
                 raise RuntimeError('market_native_qualification_authority_mismatch')
-            self.qualified += 1
-            self.last_qualified_mint = candidate['mint']
             self._update_attempt(
                 'qualified',
                 canonical_result=canonical,
@@ -343,17 +359,10 @@ class MarketNativeRuntime:
             deadline=deadline,
         )
         if len(self.evidence_queue) >= self.evidence_queue_limit:
-            worst_mint,worst=max(
-                self.evidence_queue.items(),
-                key=lambda item:self._queue_key(item[1]),
-            )
-            if self._queue_key(row) >= self._queue_key(worst):
-                self.evidence_queue_capacity_skips += 1
-                self.capacity_losses += 1
-                return
-            del self.evidence_queue[worst_mint]
-            self.evidence_queue_capacity_skips += 1
-            self.capacity_losses += 1
+            # This is a scheduling-pressure threshold, never an opportunity cap.
+            # Candidates remain retained until their real strategy deadline; the
+            # runtime exposes pressure instead of silently dropping market breadth.
+            self.evidence_queue_capacity_pressure += 1
         self.evidence_queue[candidate['mint']]=row
         self.evidence_enqueued += 1
 
@@ -466,6 +475,7 @@ class MarketNativeRuntime:
             evidence_deadline_insufficient=self.evidence_deadline_insufficient,
             evidence_cancelled_on_gap=self.evidence_cancelled_on_gap,
             evidence_queue_capacity_skips=self.evidence_queue_capacity_skips,
+            evidence_queue_capacity_pressure=self.evidence_queue_capacity_pressure,
             preflight_rpc_free_rejections=self.preflight_rpc_free_rejections,
             next_evidence_deadline_seconds=(
                 None if next_deadline is None else max(0,next_deadline-now)
@@ -476,6 +486,7 @@ class MarketNativeRuntime:
             full_evidence_attempted=self.full_evidence_attempted,
             full_reason_distribution=dict(self.full_reasons),
             qualified=self.qualified,
+            qualified_unfunded=self.qualified_unfunded,
             last_qualified_mint=self.last_qualified_mint,
             diagnostic_last_attempt=self.last_attempt,
             capacity_losses=self.capacity_losses,
