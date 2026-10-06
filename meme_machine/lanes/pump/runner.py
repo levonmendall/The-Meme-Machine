@@ -1329,9 +1329,41 @@ def main(*,campaign=False,discovery_seconds=None):
                             stage="incomplete",qualified=False,
                             limitation=str(exc) or type(exc).__name__))
 
-            # Natural post-graduation and second-leg entries may occur during the
-            # follow-up because their decision time is necessarily after migration.
-            for mint,state in list(postgrad.items()):
+            # Natural post-graduation and second-leg candidates are retained
+            # without a count cap. Only expensive PumpSwap watch/qualification work
+            # is serialized through the shared earliest-deadline-first scheduler.
+            postgrad_work=None;scheduled_mint=None
+            if CANDIDATE_HISTORY is not None:
+                from meme_machine.runtime.candidate_history import CandidateDeadlineMissed
+                for queued_mint,queued_state in list(postgrad.items()):
+                    grad=int(queued_state["graduation_time"])
+                    deadline_at=grad+max(POLICY.max_postgrad_entry_age_s,600)
+                    CANDIDATE_HISTORY.observe(
+                        'pump',queued_mint,surface='pumpswap',observed_at=grad,
+                        decision_deadline=deadline_at,
+                        metadata=dict(pool=queued_state["pool"],source='pump_graduation'))
+                    CANDIDATE_HISTORY.enqueue(
+                        'pump',queued_mint,kind='pumpswap_watch',
+                        ready_at=grad+5,deadline=deadline_at,estimate_seconds=15,
+                        priority=20,payload=dict(mint=queued_mint),
+                        identity='pump:pumpswap_watch:'+queued_mint+':'+str(grad))
+                try:
+                    postgrad_work=CANDIDATE_HISTORY.claim(
+                        'pump-postgrad:'+str(os.getpid()),lane='pump',
+                        capacity=MAX_EXPENSIVE_POSTGRAD_PER_TURN)
+                except CandidateDeadlineMissed:
+                    report['infrastructure_failure']='candidate_decision_deadline_missed'
+                    break
+                if postgrad_work is not None:
+                    scheduled_mint=postgrad_work['candidate']
+                    postgrad_items=(
+                        [(scheduled_mint,postgrad[scheduled_mint])]
+                        if scheduled_mint in postgrad else [])
+                else:
+                    postgrad_items=[]
+            else:
+                postgrad_items=list(postgrad.items())
+            for mint,state in postgrad_items:
                 _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
                 _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
                 now=int(time.time())
@@ -1450,6 +1482,19 @@ def main(*,campaign=False,discovery_seconds=None):
                             state["history"].status(now)
                             if state.get("history") is not None else None)))
                     report["postgrad"]=report["postgrad"][-300:]
+
+            if CANDIDATE_HISTORY is not None and postgrad_work is not None:
+                mint=postgrad_work['candidate']
+                state=postgrad.get(mint)
+                horizon=(None if state is None else
+                    int(state["graduation_time"])+max(POLICY.max_postgrad_entry_age_s,600))
+                owns_position=any(key[0]==mint for key in (*pending,*active))
+                if state is None or owns_position or (horizon is not None and int(time.time())>=horizon):
+                    CANDIDATE_HISTORY.complete(postgrad_work['id'],status='complete')
+                else:
+                    CANDIDATE_HISTORY.complete(
+                        postgrad_work['id'],status='deferred',
+                        details=dict(delay_seconds=10))
 
             # Paper entries use the repository-standard two-second delay and a fresh
             # executable quote. This is execution realism, not a strategy threshold.
