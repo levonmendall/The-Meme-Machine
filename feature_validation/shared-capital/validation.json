@@ -103,9 +103,12 @@
     }
   },
   "focused_tests_in_each_suite": 54,
-  "implementation_digest": "88c042641819649f0140a91a29875de5c51b2b0f7ee7f07dd479bf1b3215fd6a",
+  "github_ci_environment_comparison": "github-ci.json",
+  "github_ci_new_failure_identities": [],
+  "implementation_commit": "0a80588cdcb7123f6b608b1b84d7accc5d180966",
+  "implementation_digest": "a73a72bcdc7819d243d5bd5b6e80ef7cacb3a88b5fb4984ad301e3b3c0573d61",
   "implementation_file_sha256": {
-    ".github/workflows/ci.yml": "200762bf17e05ecd589bacd5f0a0bd4c2fb0f71f482705e8d107927bd6b9541e",
+    ".github/workflows/ci.yml": "47da8d81c3f8e496d6a4028f6b7a7c1c88da6e561288033585d021d7fc0f4902",
     ".gitignore": "914bec36e6cca1a0686fbc5b12abee775f5d6b336a3f8396a352c707ef955af6",
     "experiments/__init__.py": "033766a742dc509a705fa8ae5e773a8c96368d83cb002c06c8c8b1053d0a9c16",
     "experiments/shared_capital.py": "65542070c450cd19257b72b6ac11ba279bbdf6238e07d45cd38eb2a2f29eb7cb",
@@ -132,7 +135,9 @@
     "cross-authority.log": "c7604a1bc8fbee0684ad01896f860d62582c2dd27797d596f80fb331c8c7ac7e",
     "economics.log": "f2bc8cb43e57f723e4644234c9b167d7aacbe577c84a014a000543fb44648f06",
     "feature-FAST.log": "828caecea5ed0551c4b2e7ba636107e1c8a85f82be696b2e81a8dd9882aef238",
-    "feature-OPERATIONAL.log": "36960327ddd82b9ef25d756e6c69cc49208bcbcd9876e17feaffc0f015130edf"
+    "feature-OPERATIONAL.log": "36960327ddd82b9ef25d756e6c69cc49208bcbcd9876e17feaffc0f015130edf",
+    "github-baseline-FAST.log": "1f83dbf847556f0581871b3f20e73e205b37a771bb720936b5f930def87f4fcf",
+    "github-feature-FAST.log": "73e51efd7cad3c8abf2fe844bc887a306eb3bfe12363da66558b7596d9f65d87"
   },
   "merged": false,
   "new_failures": 0,

@@ -1,0 +1,183 @@
+fast	Run python -m operational.tests FAST	﻿2026-10-06T17:59:02.8505809Z ##[group]Run python -m operational.tests FAST
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8506053Z [36;1mpython -m operational.tests FAST[0m
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8563681Z shell: /usr/bin/bash -e {0}
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8563843Z env:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8564002Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8564244Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8564483Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8564700Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8564917Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8565166Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:02.8565352Z ##[endgroup]
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:34.2678812Z .....................................................................................Executing <Task pending name='Task-12' coro=<StartupStorage.test_cold_records_retire_under_continuously_queued_source_work() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:33> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.311 seconds
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:34.7325025Z Executing <Task pending name='Task-12' coro=<StartupStorage.test_cold_records_retire_under_continuously_queued_source_work() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:33> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.206 seconds
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:35.0163703Z .Executing <Task pending name='Task-17' coro=<StartupStorage.test_cold_return_discharges_expired_source_debt_without_renewing_deadline() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:56> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.137 seconds
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:35.1836278Z .Executing <Task pending name='Task-22' coro=<StartupStorage.test_committed_final_slice_yield_keeps_receipt_and_recovery_deadline() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:152> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.100 seconds
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:36.1145865Z ..Executing <Task pending name='Task-32' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:118> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.874 seconds
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:37.5700940Z Executing <Task finished name='Task-32' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() done, defined at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:100> result=None created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.144 seconds
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:39.8368930Z ........Executing <Task finished name='Task-72' coro=<StartupStorage.test_sparse_address_pin_observation_fits_existing_vm_budget() done, defined at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:304> result=None created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 1.939 seconds
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:41.5607511Z opportunity publication failed: IntegrityError
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:42.9870282Z opportunity schema unavailable: RuntimeError
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:42.9914842Z opportunity schema unavailable: RuntimeError
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:43.0274265Z opportunity publication failed: ValueError
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6249661Z .........................................................F.FFFEFF.FEFF...............................................................ss..............................................................................................................................................................................................................................................................................................................
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6252255Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6254179Z ERROR: test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6255338Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6255754Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6262728Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 93, in test_observer_can_verify_readonly_mount_without_relaxing_startup
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6263877Z     self.assertEqual(verify_storage(self.root, require_writable=False)['epoch_id'],
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6264347Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6265038Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/operational/storage_guard.py", line 40, in verify_storage
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6285718Z ##[error]    raise StorageGuardError('storage_configuration_permissions')
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6291764Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6292136Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6292243Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6292844Z ERROR: test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6293618Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6293931Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6294580Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 55, in test_valid_existing_identity_is_read_only
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6295674Z     self.assertEqual(verify_storage(self.root)['epoch_id'], 'paper-preserved')
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6296026Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6296536Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/operational/storage_guard.py", line 40, in verify_storage
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6297703Z ##[error]    raise StorageGuardError('storage_configuration_permissions')
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6298601Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6298920Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6299022Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6299654Z FAIL: test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6300311Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6300754Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6301096Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6301254Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6301493Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6301582Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6302198Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 83, in test_cloned_filesystem_uuid_on_wrong_volume_is_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6302867Z     self.assert_startup_rejected(dict(self.mounted, **{'maj:min':'8:1'}),
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6303619Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6304187Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6304483Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6304919Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6305278Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6305379Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6305978Z FAIL: test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6306608Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6307050Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6307362Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6307517Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6307741Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6307832Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6308430Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 70, in test_missing_mount_never_creates_replacement_epoch
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6309130Z     self.assert_startup_rejected(dict(self.mounted, target='/', uuid='root-disk'),
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6309787Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6310344Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6310640Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6311062Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6311417Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6311509Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6312042Z FAIL: test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6312586Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6313174Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6313711Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6313874Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6314111Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6314198Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6314761Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 108, in test_missing_portfolio_cannot_reseed
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6315514Z     self.assert_startup_rejected(self.mounted, 'existing_portfolio_required')
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6316145Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6316714Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6317002Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6317395Z AssertionError: "existing_portfolio_required" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6317723Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6317817Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6318273Z FAIL: test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6318764Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6319209Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6319520Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6319675Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6319900Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6319988Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6320527Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 79, in test_nested_mount_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6321136Z     self.assert_startup_rejected(dict(self.mounted, target=str(self.root)),
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6321789Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6322424Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6322724Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6323306Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6323656Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6323747Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6324220Z FAIL: test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6324719Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6325149Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6325462Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6325619Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6325847Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6325933Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6326484Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 87, in test_readonly_mount_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6327092Z     self.assert_startup_rejected(dict(self.mounted, options='ro,noatime'),
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6327724Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6328277Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6328561Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6328986Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6329335Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6329430Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6330204Z FAIL: test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6330871Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6331397Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6331712Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6331860Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6332085Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6332170Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6332782Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 102, in test_readonly_observer_still_rejects_cloned_wrong_volume
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6333644Z     with self.assertRaisesRegex(StorageGuardError, 'expected_persistent_volume_not_mounted'):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6334067Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6334531Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6334882Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6334974Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6335514Z FAIL: test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6336071Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6336521Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6336836Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6337003Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6337230Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6337319Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6337886Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 113, in test_unbound_portfolio_cannot_reseed
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6338560Z     self.assert_startup_rejected(self.mounted, 'existing_portfolio_inception_required')
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6339229Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6339798Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6340085Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6340511Z AssertionError: "existing_portfolio_inception_required" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6340855Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6340947Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6341571Z FAIL: test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6342241Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6342669Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6343085Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6343239Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6343468Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6343554Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6344165Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 118, in test_wrong_epoch_leaves_valid_existing_database_untouched
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6344878Z     self.assert_startup_rejected(self.mounted, 'existing_PAPER_epoch_identity_mismatch')
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6345539Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6346111Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6346537Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6346967Z AssertionError: "existing_PAPER_epoch_identity_mismatch" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6347335Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6347431Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6348117Z FAIL: test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6348758Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6349205Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6349518Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6349673Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6349904Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6349987Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6350572Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 75, in test_wrong_volume_rejected_before_any_writer
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6351227Z     self.assert_startup_rejected(dict(self.mounted, uuid='wrong-filesystem'),
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6351844Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6352409Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6352699Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6353243Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6353591Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6353714Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6353994Z Ran 534 tests in 44.000s
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6354117Z 
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6354210Z FAILED (failures=9, errors=2, skipped=2)
+fast	Run python -m operational.tests FAST	2026-10-06T17:59:47.6925232Z ##[error]Process completed with exit code 1.

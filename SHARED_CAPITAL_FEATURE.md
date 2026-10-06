@@ -318,6 +318,13 @@ conservation; it does not rely on one object's in-process mutex.
 See [validation receipt](feature_validation/shared-capital/validation.json) for final
 counts and baseline/environment failures, and
 [source equivalence](feature_validation/shared-capital/source-equivalence.json) for
-the preserved strategy, runtime, provider and operational bytes. Publication records
+the preserved strategy, runtime, provider and operational bytes.
+[GitHub CI comparison](feature_validation/shared-capital/github-ci.json) records the
+same nine failures and two errors in existing storage-guard fixtures on the source
+and feature commits: the guard requires root-owned configuration, while the GitHub
+runner creates non-root-owned fixtures. The 54 allocator tests introduce no new
+CI failure. Local FAST and OPERATIONAL pass under the pinned root verification
+environment. No guard, fixture or failure threshold is relaxed by this feature.
+Publication records
 the feature commit/tree/parent, clean worktree, independent GitHub readback and a
 verified recoverable Git bundle. Only `feature/shared-capital-pool` is pushed.
