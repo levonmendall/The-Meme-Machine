@@ -252,10 +252,9 @@ class Runtime:
                 if row.get('position'):
                     self._position(row,admit=admit)
             if admit:
-                # A bounded full hot set must still age/evaluate/retire. Repeating
-                # discovery's capacity exception before that work deadlocks it.
-                discovery_deferred=len(self.history.rows())>=self.history.maximum_candidates
-                if not discovery_deferred:self.discover()
+                # Cheap candidate retention has no count ceiling. Expensive state
+                # hydration/qualification remains one candidate per step below.
+                self.discover()
             rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
                 row=rows[0];row['last_checked']=self.now();self.history.save(row)
