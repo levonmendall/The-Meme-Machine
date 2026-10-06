@@ -41,10 +41,16 @@ class CandidateHistoryTests(unittest.TestCase):
                                         reason="capital_occupied")
         decision=self.history.record_decision("pump","mint",mode="current",observed_at=1001,
             qualified=True,decision={"score":91,"reasons":[]})
-        self.history.record_funding(decision,"pump","mint",status="denied",at=1002,
+        first=self.history.record_funding(decision,"pump","mint",status="denied",at=1002,
                                     reason="capital_occupied",details={"available":0})
-        row=self.history.db.execute("SELECT status,reason FROM funding WHERE decision_id=?",(decision,)).fetchone()
-        self.assertEqual(row,("denied","capital_occupied"))
+        # Retries cannot manufacture a second outcome or mutate qualification.
+        self.assertEqual(first,self.history.record_funding(
+            decision,"pump","mint",status="denied",at=1003,
+            reason="capital_occupied",details={"available":0}))
+        with self.assertRaisesRegex(ValueError,"funding_outcome_conflict"):
+            self.history.record_funding(decision,"pump","mint",status="funded",at=1004)
+        row=self.history.funding_outcome(decision)
+        self.assertEqual((row["status"],row["reason"]),("denied","capital_occupied"))
         qualified=self.history.db.execute("SELECT qualified FROM decisions WHERE id=?",(decision,)).fetchone()[0]
         self.assertEqual(qualified,1)
 
@@ -66,6 +72,31 @@ class CandidateHistoryTests(unittest.TestCase):
                              estimate_seconds=2)
         with self.assertRaises(CandidateDeadlineMissed):
             self.history.claim("worker",now=1006)
+
+    def test_saturation_fails_before_a_candidate_can_be_starved_past_deadline(self):
+        self.history.enqueue("meteora","occupier",kind="warmup",ready_at=1000,deadline=1100,
+                             estimate_seconds=40)
+        self.history.claim("worker-a",now=1000)
+        urgent=self.history.enqueue("pump","urgent",kind="deep_watch",ready_at=1000,
+                                    deadline=1010,estimate_seconds=20)
+        with self.assertRaises(CandidateDeadlineMissed) as caught:
+            self.history.claim("worker-b",now=1000)
+        self.assertEqual(caught.exception.work["id"],urgent)
+        self.assertEqual(self.history.db.execute(
+            "SELECT status FROM work WHERE id=?",(urgent,)).fetchone()[0],"pending")
+
+    def test_candidate_metadata_merges_across_promotion_and_reopens_concurrently(self):
+        self.history.observe("pump","mint",surface="pump.fun",observed_at=1000,
+                             metadata={"creator":"c"})
+        self.history.observe("pump","mint",surface="pumpswap",observed_at=1010,
+                             decision_deadline=1600,metadata={"pool":"p"})
+        row=self.history.candidate("pump","mint")
+        self.assertEqual(row["metadata"],{"creator":"c","pool":"p"})
+        second=CandidateHistory(self.path,clock=lambda:self.now[0],worker_capacity=1)
+        try:
+            self.assertEqual(second.candidates(lane="pump")[0]["surface"],"pumpswap")
+        finally:
+            second.close()
 
 
 if __name__=="__main__":
