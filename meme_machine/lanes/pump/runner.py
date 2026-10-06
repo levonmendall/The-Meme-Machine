@@ -11,7 +11,7 @@ import json
 import os
 import threading
 import time
-from collections import Counter,deque
+from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -48,7 +48,6 @@ REPORT=Path(os.environ.get("MM_PUMP_ACCELERATION_REPORT","pump-acceleration-natu
 DISCOVERY_SECONDS=max(600,min(int(os.environ.get("MM_PUMP_ACCELERATION_DISCOVERY_SECONDS","3300")),3300))
 FOLLOWUP_SECONDS=max(300,min(int(os.environ.get("MM_PUMP_ACCELERATION_FOLLOWUP_SECONDS","1000")),1200))
 MAX_CREATED=5000
-MAX_FULL_ATTEMPTS=120
 MAX_EXPENSIVE_POSTGRAD_PER_TURN=1
 GENESIS_SOL_USD_MICROS=97_840_000
 INITIAL_USD_MICROS=500_000_000
@@ -967,16 +966,6 @@ def _scale_current(life,row,current,qualification,snapshot,facts,now):
         raise
     native_sync(life.book,life.sleeve,life.lifecycle_id)
     return life.snapshot()
-
-
-class RollingAttemptBudget:
-    def __init__(self,limit=MAX_FULL_ATTEMPTS,window=3300):
-        self.limit=limit;self.window=window;self.admitted=deque()
-
-    def take(self,now):
-        while self.admitted and self.admitted[0]<=now-self.window:self.admitted.popleft()
-        if len(self.admitted)>=self.limit:return False
-        self.admitted.append(now);return True
 
 
 def _terminal(report,row):
