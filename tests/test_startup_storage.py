@@ -13,6 +13,55 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class StartupStorage(unittest.IsolatedAsyncioTestCase):
+    async def test_cold_return_discharges_expired_source_debt_without_renewing_deadline(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        from meme_machine.solana_maintenance_runtime import ArchiveFlight,PIPELINE_SLACK_RECORDS
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        with native_runtime() as (state,runtime,clock):
+            ingest(state.writer,rows(clock,SCOPES[0],2000,age=185))
+            finalized_frontier(state,clock,SCOPES[0],at=int(clock.time())-130)
+            observation=runtime.adapter.observe(runtime.generation);runtime._demands(observation)
+            original=runtime.episodes[('archive',SCOPES[0])]
+            self.assertTrue(runtime.cold_record_required(observation))
+            with self.assertRaisesRegex(EvidenceUnavailable,'maintenance_startup_recovery_incomplete'):
+                runtime.cold_completed(observation)
+            async def work(fn,priority,**kwargs):return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,clock=runtime.clock,
+                    record_required=runtime.cold_record_required,
+                    on_complete=lambda s,o:runtime.cold_completed(o))
+            current=runtime.adapter.observe(runtime.generation)
+            self.assertLessEqual(next(s for s in current.scopes if s.scope==SCOPES[0]).hot_eligible,PIPELINE_SLACK_RECORDS)
+            self.assertNotIn(('archive',SCOPES[0]),runtime.episodes)
+            self.assertEqual(original[0],int(clock.time())-130+120)
+            self.assertIsNone(runtime.failure)
+            runtime.turn(ArchiveFlight(),clock.monotonic())
+
+    async def test_cold_housekeeping_is_not_stranded_by_urgent_scope_yields(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier,orphan_chunk
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        with native_runtime() as (state,runtime,clock):
+            ingest(state.writer,rows(clock,SCOPES[0],1,age=1))
+            finalized_frontier(state,clock,SCOPES[0])
+            state.writer._interest('open-position',SCOPES[0],lower_slot=0,priority=0,lifecycle='open')
+            before=state.writer.db.execute('SELECT identity,hash,body FROM records ORDER BY identity').fetchall()
+            orphan_chunk(state.writer,'a'*64)
+            # A live urgent request repeatedly preempts scope retirement. Cold
+            # recovery must still finish its existing bounded garbage slice;
+            # merely looping ordinary scope-first retention strands it for 60s.
+            state.writer._retention_yield_requested=lambda:'urgent'
+            began=clock.monotonic()
+            async def work(fn,priority,**kwargs):
+                clock.advance(1);return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,clock=runtime.clock)
+            self.assertLess(clock.monotonic()-began,60)
+            self.assertFalse(state.writer.db.execute('SELECT 1 FROM maintenance_orphans').fetchone())
+            self.assertEqual(state.writer.db.execute('SELECT identity,hash,body FROM records ORDER BY identity').fetchall(),before)
+
     async def test_cooperative_yields_do_not_restart_the_recovery_window(self):
         from meme_machine.solana_evidence_plane import EvidenceUnavailable
         elapsed=[0]
@@ -271,11 +320,13 @@ class StartupStorage(unittest.IsolatedAsyncioTestCase):
             original_interests=writer.db.execute('SELECT * FROM interests').fetchall()
             original_gaps=writer.db.execute('SELECT * FROM gaps').fetchall()
             class State:
+                housekeeping_retention=ServiceState.housekeeping_retention
                 def __init__(self):self.writer=writer;self.fence=SimpleNamespace(session='cold-generation')
                 def archive_plan(self):return writer.archive_snapshot(820,max_records=1000)
                 def archive_commit_slice(self,plan,receipt):
                     writer.commit_archive(plan[:512],receipt);return plan[512:]
-                def retention(self):return writer.retain(820,archive_first=False,checkpoint=False)
+                def retention(self):return writer.retain(820,archive_first=False,checkpoint=False,
+                    housekeeping_first=getattr(self,'_housekeeping_retention',False))
             state=State();calls=[]
             async def work(fn,priority,**kwargs):
                 calls.append(kwargs['label']);return fn(state)

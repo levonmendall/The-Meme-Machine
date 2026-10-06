@@ -203,6 +203,19 @@ class NativeDeliveryRecovery(unittest.TestCase):
             self.assertEqual(latest['sequence'],account.snapshot()['sequence'])
         self.assertGreater(latest['sequence'],previous)
 
+    def test_owner_observation_timestamp_follows_reconciliation_not_cycle_start(self):
+        from meme_machine.operational import observation
+        clock=[time.time()];began=clock[0];original=observation.portfolio_summary
+        def delayed_summary(*args):
+            result=original(*args);clock[0]+=12;return result
+        with patch('meme_machine.operational.supervisor.time.time',side_effect=lambda:clock[0]), \
+                patch.object(observation,'portfolio_summary',side_effect=delayed_summary):
+            self.service.publish()
+        health=json.loads((self.root/'health.json').read_text());facts=health['portfolio_observation']
+        self.assertEqual(facts['timestamp'],clock[0])
+        self.assertEqual(facts['valid_until'],utc(began+30))
+        self.assertEqual(facts['reconciliation'],'PASS')
+
     def test_failed_incremental_delivery_keeps_original_native_and_usd_position(self):
         book,_,_=open_native(self.root,'pump',self.service.epoch)
         native=open_position(book,'pump',self.service.epoch,int(time.time()))

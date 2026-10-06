@@ -19,7 +19,7 @@ def needs_recovery(observation,clock=None,*,housekeeping=False):
 
 
 async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
-                  force=False,flight=None,on_complete=None,clock=None):
+                  force=False,flight=None,on_complete=None,clock=None,record_required=None):
     wall=wall or time.time;monotonic=monotonic or time.monotonic
     started=monotonic();deadline=started+60
     async def owned(fn,label):
@@ -42,9 +42,11 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
         observation=DebtAgeAdapter(state.writer,wall=wall,monotonic=monotonic).observe(state.fence.session)
         # A live source need not become entirely idle. Clean the newly overdue
         # evidence, then let the unchanged arbiter service ordinary young debt.
-        pending=needs_recovery(observation,clock,housekeeping=force)
+        records=needs_recovery(observation,clock)
+        if record_required is not None:records=records or record_required(observation)
+        pending=records or force and bool(observation.housekeeping)
         if not pending and on_complete is not None:on_complete(state,observation)
-        return pending
+        return pending,records
     async def commit(plan,receipt):
         while plan:
             plan=await owned(lambda state:state.archive_commit_slice(plan,receipt),'archive_commit_plan')
@@ -62,8 +64,13 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
             await commit(plan,receipt)
         flight.future=flight.pending=flight.prepared=flight.submitted=flight.generation=None
     def select(state):
-        pending=overdue(state)
-        return pending,state.archive_plan() if pending else None
+        pending,records=overdue(state)
+        # Garbage alone needs its bounded cleanup slice, not a new archive of
+        # otherwise healthy young records. Expired source debt is record work.
+        return pending,state.archive_plan() if records else None
+    def retire(state):
+        # Preserve the same zero-argument hooks used by normal arbitration.
+        with state.housekeeping_retention():state.retention()
     pending,snapshot=await owned(select,'maintenance_decision')
     if not pending:return
     while not stop.is_set():
@@ -79,13 +86,15 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
                     # commits. Dependent cleanup, observation and successor
                     # selection use their final slice's existing owner turn,
                     # rather than queuing three additional round trips.
-                    state.retention()
-                    pending=overdue(state)
-                    return remaining,pending,state.archive_plan() if pending else None
+                    # Cold recovery must finish garbage witnesses even when
+                    # urgent source work preempts ordinary scope retirement.
+                    retire(state)
+                    pending,snapshot=select(state)
+                    return remaining,pending,snapshot
                 plan,pending,snapshot=await owned(advance,'archive_commit_plan')
         else:
             def cleanup(state):
-                state.retention()
+                retire(state)
                 return select(state)
             pending,snapshot=await owned(cleanup,'retention')
         if not pending:return

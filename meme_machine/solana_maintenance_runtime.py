@@ -372,12 +372,30 @@ class MaintenanceRuntime:
                 found=True
         return found
 
+    def cold_record_required(self,observation):
+        """Discharge the original source obligation before leaving recovery.
+
+        Young eligible records may still exceed the finite pipeline allowance
+        with an expired latched source deadline. Age-only cleanup cannot safely
+        return that debt to normal service. No episode or clock is renewed here.
+        """
+        for scope in observation.scopes:
+            for side,debt in (('archive',scope.hot_eligible),('retirement',scope.retirement_eligible)):
+                if debt<=PIPELINE_SLACK_RECORDS:continue
+                prior=self.episodes.get((side,scope.scope))
+                deadline=prior[0] if prior else (
+                    scope.source_time+RECOVERY_SOURCE_SECONDS if scope.source_time is not None else None)
+                if deadline is not None and self.clock.project(deadline)<=observation.monotonic+self.leases.execution:
+                    return True
+        return False
+
     def cold_completed(self,observation,flight=None):
         """Resume only after real overdue cleanup, crediting committed work."""
         from .startup_storage import needs_recovery
         if (flight is not None and not flight.idle or
                 observation.generation!=self.generation or
-                needs_recovery(observation,self.clock,housekeeping=True)):
+                needs_recovery(observation,self.clock,housekeeping=True) or
+                self.cold_record_required(observation)):
             raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
         self.last_observation=observation
         self.arbiter.origin.pop(('archive','__archive_receipt__'),None)

@@ -188,9 +188,12 @@ class Supervisor:
                     account.compact()
                 from .observation import portfolio_summary
                 state=account.snapshot()
-                self.portfolio_observation=dict(state='CURRENT',timestamp=now,
-                    valid_until=account._export(state)['valid_until'],
-                    **portfolio_summary(account,state,utc(now)))
+                summary=portfolio_summary(account,state,utc(now))
+                valid_until=account._export(state)['valid_until']
+                # Diagnostic capture time follows reconciliation. Market/report
+                # validity retains its original bound; this cannot renew a mark.
+                self.portfolio_observation=dict(state='CURRENT',timestamp=time.time(),
+                    valid_until=valid_until,**summary)
             from meme_machine.portfolio_snapshot_transport import publish_snapshot
             publish_snapshot(self.root/'inception.json',self.root/'portfolio.json',self.root/'dashboard-snapshot.json')
         except (OSError,ValueError,RuntimeError):
@@ -201,10 +204,11 @@ class Supervisor:
             self.learning_observation=owner_learning_observation(self.root)
         except (OSError,ValueError,RuntimeError):self.learning_observation=None
         try:
+            providers=self.provider_health()
             # Publish this cycle's already-reconciled facts. Publishing before
             # building them inserted a full extra cycle of age under load; a
             # healthy portfolio then failed the observer's unchanged 15s TTL.
-            _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(time.time()),stopping=self.stop_requested,lanes=health,providers=self.provider_health(),python=sys.version.split()[0],sqlite=sqlite3.sqlite_version,
+            _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(time.time()),stopping=self.stop_requested,lanes=health,providers=providers,python=sys.version.split()[0],sqlite=sqlite3.sqlite_version,
                 portfolio_observation=getattr(self,'portfolio_observation',None),
                 learning_observation=getattr(self,'learning_observation',None)))
         except OSError as error:
