@@ -1,0 +1,42 @@
+name: Temporary observability focused validation
+on:
+  push:
+    branches:
+      - strategy/observability-opportunity-preservation-v1
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install -r requirements.txt
+      - name: Run affected observability and lifecycle tests
+        shell: bash
+        run: |
+          python - <<'PY'
+          import unittest
+          from operational.tests import network_guard
+          network_guard()
+          names=[
+            'tests.test_strategy_observability_runtime',
+            'tests.test_strategic_reference',
+            'tests.test_current_survivor_independence',
+            'tests.test_survivor_history',
+            'tests.lanes.pump.test_pump_continuous_campaign',
+            'tests.lanes.pump.test_pump_campaign_tail_drain',
+            'tests.lanes.pump.test_pump_shared_survivor',
+            'tests.lanes.pump.test_market_scope_efficiency',
+            'tests.lanes.pump.test_opportunity_coverage',
+            'tests.lanes.pump.test_directional_capacity',
+            'tests.test_meteora_discovery_scheduler',
+            'tests.test_meteora_market_scope_efficiency',
+            'tests.lanes.meteora.test_solana_dlmm_independent_v1',
+          ]
+          suite=unittest.defaultTestLoader.loadTestsFromNames(names)
+          result=unittest.TextTestRunner(verbosity=2).run(suite)
+          raise SystemExit(0 if result.wasSuccessful() else 1)
+          PY
