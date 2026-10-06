@@ -12,7 +12,7 @@ transport.
 from __future__ import annotations
 
 import argparse
-from collections import Counter,deque
+from collections import Counter
 from copy import deepcopy
 from dataclasses import asdict
 import uuid
@@ -416,15 +416,6 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                 yield item
             if len(rows)<DISCOVERY_PAGE_SIZE:
                 break
-
-
-class CampaignAttemptBudget:
-    """Same default-study attempt capacity per 20 minutes, without a lifetime stop."""
-    def __init__(self,limit,window=1200):self.limit=limit;self.window=window;self.admitted=deque()
-    def take(self,now):
-        while self.admitted and self.admitted[0]<=now-self.window:self.admitted.popleft()
-        if len(self.admitted)>=self.limit:return False
-        self.admitted.append(now);return True
 
 
 def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
