@@ -205,7 +205,12 @@ class LocalPumpHistory:
     def status(self,now):return dict(complete=self._history_complete,decision_window=self.decision_window_status(now),events=len(self.rows),historical_provider_calls=0)
 
 class LocalPumpTape:
-    def __init__(self,plane):self.plane=plane
+    def __init__(self,plane):
+        self.plane=plane
+        # Ordered normalized rows from the most recent cursor advance. Strategy
+        # callers keep their existing event shape; candidate-history persistence
+        # consumes this side channel so promotion has complete pre-grad economics.
+        self.candidate_history_rows=[]
     def window(self,mint,now,max_slot=None):
         rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
         return [e for e in rows if e.get('event_type') not in ('create','migration')]
@@ -227,15 +232,21 @@ class LocalPumpTape:
         # archive GC runs. Release it before any control acknowledgement.
         db=self.plane.reader.db;db.execute('BEGIN')
         try:
-            rows=db.execute('''SELECT rowid,body,slot FROM records WHERE scope=? AND kind='event'
+            rows=db.execute('''SELECT rowid,body,slot,identity,signature,transaction_index,
+                    event_index,market_time FROM records WHERE scope=? AND kind='event'
                 AND rowid>? AND slot<=? AND first_seen<=? ORDER BY rowid LIMIT 5000''',
                 (PUMP_SCOPE,sequence,hi,self.plane.clock())).fetchall()
-            events=[]
-            for seq,raw,slot in rows:
+            events=[];history_rows=[]
+            for seq,raw,slot,identity,signature,transaction_index,event_index,market_time in rows:
                 if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
-                event=decode_body(raw,db)['payload']['event']
+                event=dict(decode_body(raw,db)['payload']['event'])
+                history_rows.append(dict(
+                    identity=identity,signature=signature,slot=int(slot),
+                    transaction_index=transaction_index,event_index=int(event_index),
+                    market_time=int(market_time),event=event))
                 if event.get('event_type') not in ('create','migration'):events.append(event)
                 sequence=seq
+            self.candidate_history_rows=history_rows
         finally:db.execute('ROLLBACK')
         if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
         return events,sequence
