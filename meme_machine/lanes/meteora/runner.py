@@ -41,6 +41,7 @@ from meme_machine.lanes.meteora.provider import Unavailable
 from meme_machine.lanes.meteora.solana_evidence_runtime import RuntimeEvidence,METEORA_SCOPE
 
 EVIDENCE_PLANE=None
+CANDIDATE_HISTORY=None
 
 def _evidence_plane():
     global EVIDENCE_PLANE
@@ -427,20 +428,46 @@ class CampaignAttemptBudget:
 
 
 def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
+    """Retain every cheap candidate; schedule only bounded expensive warming.
+
+    The public discovery producer owns an unlimited-by-count on-disk spool.  After
+    cheap public-context screening, candidates enter the shared EDF queue.  A busy
+    worker never converts a candidate into a rejection: the work remains durable
+    and the earliest decision deadline is always claimed first.
+    """
     from meme_machine.lanes.meteora.dlmm_discovery import CampaignDiscovery
+    from meme_machine.runtime.candidate_history import CandidateDeadlineMissed
     source=source or CampaignDiscovery(OUT.with_suffix('.discovery.sqlite'),
         api=_api,candidate=_candidate,eligible=_sol_pair,sorts=DISCOVERY_SORTS,
         pages=DISCOVERY_PAGES_PER_SORT,page_size=DISCOVERY_PAGE_SIZE,deadline=deadline)
     for key in ('rejections','errors','qualified'):telemetry.setdefault(key,[])
     for key in ('seen','history_reads','snapshot_context_candidates'):telemetry.setdefault(key,0)
-    source.start()
+    source.start();source_done=False
+    worker='meteora-warmup:'+str(os.getpid())
+    history=CANDIDATE_HISTORY
     try:
         while not _runtime_expired(deadline):
+            if history is not None:
+                try:claimed=history.claim(worker,lane='meteora')
+                except CandidateDeadlineMissed as exc:
+                    raise Unavailable('candidate_decision_deadline_missed') from exc
+                if claimed is not None:
+                    item=dict(claimed['payload']['candidate'])
+                    item['_candidate_work_id']=claimed['id']
+                    yield item
+                    continue
+                if source_done:
+                    if history.pending(lane='meteora')<=0:break
+                    _stop_sleep(min(.05,_runtime_remaining(deadline)))
+                    continue
+            if source_done:break
             item=source.next_candidate()
             stats=source.snapshot();telemetry['seen']=stats['first_seen']
             telemetry['census_cycles']=stats['census_cycles']
             telemetry['source_acquisition']=stats
-            if item is None:break
+            if item is None:
+                source_done=True
+                continue
             address=item['address'];observed_at=item['signal_observed_at']
             if source.on_discovered is None:_stage(address,'discovered')
             telemetry['snapshot_context_candidates']+=1
@@ -462,7 +489,24 @@ def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
                 checkpoint('discovery_rejection');continue
             telemetry['qualified'].append(item)
             checkpoint('discovery_signal')
-            yield item
+            if history is None:
+                yield item
+                continue
+            decision_deadline=int(getattr(source,'deadline_wall',
+                time.time()+_runtime_remaining(deadline)))
+            history.observe('meteora',address,surface='meteora-dlmm',
+                observed_at=int(observed_at),decision_deadline=decision_deadline,
+                metadata=dict(source='meteora_public_ranking',
+                    discovery_sort=item.get('discovery_sort'),
+                    discovery_page=item.get('discovery_page'),
+                    discovery_raw_rank=item.get('discovery_raw_rank')))
+            history.enqueue('meteora',address,kind='warmup',
+                ready_at=time.time(),deadline=decision_deadline,
+                estimate_seconds=FRESH_SWAP_TRIGGER_MAX_SECONDS+
+                    int(policy['range']['warmup_seconds'])+15,
+                priority=30,payload=dict(candidate=item),
+                identity='meteora:warmup:'+address+':'+str(int(observed_at)))
+            checkpoint('candidate_retained')
     finally:
         try:source.close()
         finally:
