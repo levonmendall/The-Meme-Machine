@@ -2165,7 +2165,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                 PROGRESS_HOOK=None
                 stream_stop.set();wake_thread.join(timeout=5)
                 try:pipeline.close()
-                finally:broker.close()
+                finally:
+                    broker.close()
+                    if CANDIDATE_HISTORY is not None:
+                        CANDIDATE_HISTORY.close();CANDIDATE_HISTORY=None
 
 
 
@@ -2229,6 +2232,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
     report["evidence_broker"]=broker.telemetry()
     broker.close()
+    if CANDIDATE_HISTORY is not None:
+        CANDIDATE_HISTORY.close();CANDIDATE_HISTORY=None
     PROGRESS_HOOK=None;pipeline.close()
     print(json.dumps(dict(
         conclusion=report["conclusion"],attempted=attempted,complete=complete,
