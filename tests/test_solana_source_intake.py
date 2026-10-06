@@ -48,8 +48,12 @@ class SourceIntakeTests(unittest.TestCase):
         self.assertEqual(total,len(value['params']['result']['value']['block']['transactions']))
         self.assertEqual(retained,len(selected.normalized_keys))
         for sub in self.subs:
-            # Independent original broad-scope decoder, without the new selector.
-            expected=service.prepare_block_scope(sub,value,2000000000.,'a'*64,
+            # Pump/PumpSwap remain byte-equivalent to the original broad source.
+            # Meteora intentionally consumes the narrow economic projection, so
+            # compare the canonical decoder against that projected source instead.
+            expected_source=(
+                selected.message if sub.evidence_class=='transactions' else value)
+            expected=service.prepare_block_scope(sub,expected_source,2000000000.,'a'*64,
                 service.program_decoders(),include_logs=True,budget=[16*1024*1024])
             self.assertEqual(prepared.scopes[sub.scope],expected)
         transferred=pickle.loads(pickle.dumps(selected))
@@ -70,10 +74,12 @@ class SourceIntakeTests(unittest.TestCase):
         cross['transaction']['message']['accountKeys']+=list(self.targets)
         selected,_=self.parity(frame(txs+[unrelated(),cross]))
         self.assertEqual(selected.retained_transactions,4)
-        self.assertEqual(selected.message['params']['result']['value']['block']['transactions'],txs+[cross])
+        bodies=selected.message['params']['result']['value']['block']['transactions']
+        self.assertEqual([b['transaction']['signatures'][0] for b in bodies],
+                         [t['transaction']['signatures'][0] for t in txs]+['cross'])
         self.assertTrue(all(3 in selected.members[address] for address in self.targets))
 
-    def test_log_projection_keeps_exact_records_and_full_cross_program_body(self):
+    def test_log_and_economic_projection_keep_required_records_without_full_bodies(self):
         txs=[copy.deepcopy(self.templates[k][0]) for k in ('pump','pumpswap','meteora')]
         cross=copy.deepcopy(txs[0]);cross['transaction']['signatures']=['cross']
         cross['transaction']['message']['accountKeys']+=list(self.targets)
@@ -83,13 +89,22 @@ class SourceIntakeTests(unittest.TestCase):
                               full_transaction_addresses=full_targets)
         prepared,_,_=service.prepare_selected_source(selected,'a'*64,2000000000.)
         for sub in self.subs:
-            expected=service.prepare_block_scope(sub,value,2000000000.,'a'*64,
+            expected_source=(
+                selected.message if sub.evidence_class=='transactions' else value)
+            expected=service.prepare_block_scope(sub,expected_source,2000000000.,'a'*64,
                 service.program_decoders(),include_logs=True,budget=[16*1024*1024])
             self.assertEqual(prepared.scopes[sub.scope],expected)
         bodies=selected.message['params']['result']['value']['block']['transactions']
-        self.assertEqual(bodies[2:],txs[2:]+[cross])
         self.assertEqual(set(bodies[0]['meta']),{'err','logMessages'})
-        self.assertEqual((selected.full_body_transactions,selected.log_projection_transactions),(2,2))
+        for body in bodies[2:]:
+            self.assertEqual(set(body['transaction']['message']),{'accountKeys','instructions'})
+            self.assertEqual(set(body['meta']),
+                {'err','logMessages','innerInstructions','preTokenBalances','postTokenBalances'})
+            self.assertNotIn('preBalances',body['meta'])
+            self.assertNotIn('postBalances',body['meta'])
+        self.assertEqual(
+            (selected.full_body_transactions,selected.log_projection_transactions,
+             selected.economic_projection_transactions),(0,2,2))
         self.assertEqual(service.prepare_selected_source(pickle.loads(pickle.dumps(selected)),'a'*64,2000000000.)[0].scopes,prepared.scopes)
 
     def test_loaded_addresses_and_account_objects_are_not_omitted(self):
@@ -186,7 +201,8 @@ class SourceIntakeTests(unittest.TestCase):
     def test_native_u64_and_escaped_keys_preserve_exact_values(self):
         tx=copy.deepcopy(self.templates['meteora'][0]);tx['meta']['preBalances']=[2**64-1]
         selected,_=self.parity(frame([tx]))
-        self.assertEqual(selected.message['params']['result']['value']['block']['transactions'][0]['meta']['preBalances'],[2**64-1])
+        projected=selected.message['params']['result']['value']['block']['transactions'][0]
+        self.assertNotIn('preBalances',projected['meta'])
         tx=copy.deepcopy(self.templates['pump'][0]);raw=encode(frame([tx]))
         target=self.targets[0];escaped=''.join('\\u%04x'%ord(c) for c in target)
         raw=raw.replace(target.encode(),escaped.encode())
