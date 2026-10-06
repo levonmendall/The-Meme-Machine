@@ -75,7 +75,7 @@ class SourceIntakeTests(unittest.TestCase):
 
     def test_mixed_scopes_order_and_cross_program_transaction(self):
         txs=[copy.deepcopy(self.templates[k][0]) for k in ('pump','meteora','pumpswap')]
-        cross=copy.deepcopy(txs[0]);cross['transaction']['signatures']=['cross']
+        cross=copy.deepcopy(txs[2]);cross['transaction']['signatures']=['cross']
         cross['transaction']['message']['accountKeys']+=list(self.targets)
         selected,_=self.parity(frame(txs+[unrelated(),cross]))
         self.assertEqual(selected.retained_transactions,4)
@@ -86,7 +86,7 @@ class SourceIntakeTests(unittest.TestCase):
 
     def test_log_and_economic_projection_keep_required_records_without_full_bodies(self):
         txs=[copy.deepcopy(self.templates[k][0]) for k in ('pump','pumpswap','meteora')]
-        cross=copy.deepcopy(txs[0]);cross['transaction']['signatures']=['cross']
+        cross=copy.deepcopy(txs[2]);cross['transaction']['signatures']=['cross']
         cross['transaction']['message']['accountKeys']+=list(self.targets)
         value=frame(txs+[unrelated(),cross])
         full_targets=tuple(s.address for s in self.subs if s.evidence_class=='transactions')
@@ -218,7 +218,8 @@ class SourceIntakeTests(unittest.TestCase):
         tx=copy.deepcopy(self.templates['pump'][0]);raw=encode(frame([tx]))
         target=self.targets[0];escaped=''.join('\\u%04x'%ord(c) for c in target)
         raw=raw.replace(target.encode(),escaped.encode())
-        selected=select_frame(raw,'',self.targets,max_bytes=len(raw)+1)
+        selected=select_frame(raw,'',self.targets,max_bytes=len(raw)+1,
+                              full_transaction_addresses=self.transaction_targets)
         self.assertEqual(selected.retained_transactions,1)
 
     def test_no_native_proxy_or_parser_state_escapes_concurrent_calls(self):
