@@ -252,13 +252,22 @@ class Runtime:
                 if row.get('position'):
                     self._position(row,admit=admit)
             if admit:
-                # A bounded full hot set must still age/evaluate/retire. Repeating
-                # discovery's capacity exception before that work deadlocks it.
-                discovery_deferred=len(self.history.rows())>=self.history.maximum_candidates
-                if not discovery_deferred:self.discover()
+                # Candidate count is never observation authority. Discovery always
+                # continues; the historical limit is retained only as pressure
+                # telemetry. Expensive evaluation remains one candidate per turn.
+                rows_now=self.history.rows()
+                discovery_deferred=False
+                if (self.history.maximum_candidates is not None
+                        and len(rows_now)>=self.history.maximum_candidates):
+                    self.last_error='survivor_candidate_capacity_pressure'
+                self.discover()
             rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
-                row=rows[0];row['last_checked']=self.now();self.history.save(row)
+                # Fair, lossless scheduling: oldest checked candidate first so a
+                # quiet older row cannot permanently starve later graduations.
+                row=min(rows,key=lambda r:(int(r.get('last_checked') or 0),
+                                           int(r['graduation']['at']),r['id']))
+                row['last_checked']=self.now();self.history.save(row)
                 age=self.now()-row['graduation']['at']
                 if age>POLICY['maximum_age_seconds']:
                     self.history.retire(row,expired_before=self.now()-POLICY['maximum_age_seconds'])
@@ -304,6 +313,8 @@ class Runtime:
         return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
                     candidate_count=len(self.history.rows()),last_boundary=self.last_error,
                     discovery_capacity_deferred=discovery_deferred,
+                    candidate_capacity_pressure=(
+                        self.history.get_meta('candidate_capacity_pressure') or 0),
                     accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
                     policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
                     durable_handoff=handoff_ready(self.book,self.history.rows()))
