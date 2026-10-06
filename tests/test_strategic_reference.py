@@ -43,6 +43,23 @@ class StrategicReferenceTests(unittest.TestCase):
         self.assertIn('73.33%',text)
         self.assertIn('Future outcomes cannot create candidate membership',text)
 
+    def test_active_observability_contract_preserves_strategy_breadth(self):
+        text=(ROOT/'operational/STRATEGY_OBSERVABILITY_CONTRACT.md').read_text()
+        for required in (
+            'observable market is a superset of the trading strategy',
+            'Capital-independent qualification',
+            'Candidate counts are scheduling pressure, not strategy authority',
+            'Current and Survivor are independent',
+            'Open positions leave economy mode',
+            'Strategy recall',
+            'Opportunity-awareness recall',
+            'Reduce observation depth, not opportunity breadth',
+        ):
+            self.assertIn(required,text)
+        reference=(ROOT/'operational/STRATEGIC_REFERENCE.md').read_text()
+        self.assertIn('STRATEGY_OBSERVABILITY_CONTRACT.md',reference)
+        self.assertIn('nine approved trading economics remain unchanged',reference)
+
     def test_incident_references_point_to_permanent_current_regressions(self):
         from operational.tests import OPERATIONAL
         data=json.loads((ROOT/'operational/incident-reference-sources.json').read_text())
