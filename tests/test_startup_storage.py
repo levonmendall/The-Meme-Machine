@@ -13,6 +13,31 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class StartupStorage(unittest.IsolatedAsyncioTestCase):
+    async def test_cold_records_retire_under_continuously_queued_source_work(self):
+        from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
+        from tests.maintenance_production_harness import rows,ingest,SCOPES
+        with native_runtime() as (state,runtime,clock):
+            ingest(state.writer,rows(clock,SCOPES[0],6000,age=1800,same_slot=True))
+            protected=rows(clock,SCOPES[0],1,start=1_000_000,age=1800,tag='open-position')
+            ingest(state.writer,protected)
+            state.writer._interest('open-position',SCOPES[0],lower_slot=1_000_000,priority=0,lifecycle='open')
+            finalized_frontier(state,clock,SCOPES[0])
+            before=state.writer.db.execute('SELECT identity,hash,body FROM records WHERE identity=?',
+                (protected[0].identity,)).fetchone()
+            state.writer._retention_yield_requested=lambda:'source'
+            started=clock.monotonic()
+            async def work(fn,priority,**kwargs):
+                clock.advance(.8)
+                return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,clock=runtime.clock)
+            self.assertLess(clock.monotonic()-started,60)
+            self.assertEqual(state.writer.db.execute('SELECT identity,hash,body FROM records').fetchall(),[before])
+            self.assertEqual(state.writer.db.execute(
+                "SELECT value FROM counters WHERE key='compacted_records'").fetchone()[0],6000)
+            self.assertEqual(state.writer.db.execute('PRAGMA integrity_check').fetchone()[0],'ok')
+
     async def test_cold_return_discharges_expired_source_debt_without_renewing_deadline(self):
         from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
         from tests.maintenance_production_harness import rows,ingest,SCOPES

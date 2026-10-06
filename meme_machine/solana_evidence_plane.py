@@ -669,7 +669,10 @@ class EvidenceWriter:
             self._retention_housekeeping(max_records,progress)
             should_yield=getattr(self,'_retention_yield_requested',None)
             yield_class=should_yield() if should_yield else None
-            if yield_class:
+            # An urgent lifecycle still wins immediately. A queued source may
+            # yield after real housekeeping, but an empty promoted slice must
+            # not starve the ordinary bounded record retirement below.
+            if yield_class and (yield_class=='urgent' or progress.housekeeping_rows):
                 progress.interrupted=True;progress.yield_reason=yield_class
                 return archived
         source_yield_budget=[2]  # existing three separate 256-record transactions

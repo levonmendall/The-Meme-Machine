@@ -60,6 +60,33 @@ class RetentionOutcomeTests(unittest.TestCase):
                 self.assertFalse(outcome.pressure)
                 self.assertEqual(outcome.examined_scopes,3)
 
+    def test_empty_promoted_housekeeping_does_not_starve_record_retirement(self):
+        with self.state() as state:
+            seed(state,2000)
+            state.writer._retention_yield_requested=lambda:'source'
+            with state.housekeeping_retention():outcome=state.retention()
+            self.assertEqual(outcome.housekeeping_rows,0)
+            self.assertEqual(outcome.retired_records,768)
+            self.assertEqual(outcome.committed_slices,3)
+            self.assertEqual(outcome.yield_reason,'source')
+
+    def test_promoted_housekeeping_preserves_urgent_and_real_gc_priority(self):
+        with self.state() as state:
+            seed(state,2000)
+            state.writer._retention_yield_requested=lambda:'urgent'
+            with state.housekeeping_retention():urgent=state.retention()
+            self.assertEqual(urgent.retired_records,0)
+            self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],2000)
+            with state.writer.transaction():
+                state.writer.db.execute('INSERT INTO hot_chunks VALUES(?,?)',('real-orphan',b'orphan'))
+            state.writer._retention_yield_requested=lambda:'source'
+            with state.housekeeping_retention():gc=state.retention()
+            self.assertGreater(gc.housekeeping_rows,0)
+            self.assertEqual(gc.retired_records,0)
+            self.assertFalse(state.writer.db.execute('SELECT 1 FROM hot_chunks').fetchone())
+            with state.housekeeping_retention():records=state.retention()
+            self.assertEqual(records.retired_records,768)
+
     def test_exactly_full_final_slice_is_not_a_backlog_signal(self):
         with self.state() as state:
             seed(state,256)
