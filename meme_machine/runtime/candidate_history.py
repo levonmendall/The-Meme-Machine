@@ -225,7 +225,7 @@ class CandidateHistory:
             self.db.execute("""INSERT INTO work
                 (id,lane,candidate,kind,ready_at,deadline,estimate_seconds,priority,status,
                  worker,lease_until,created_at,updated_at,body,hash)
-                VALUES(?,?,?,?,?,?,?,?,? ,NULL,NULL,?,?,?,?,?)""",
+                VALUES(?,?,?,?,?,?,?,?,?,NULL,NULL,?,?,?,?)""",
                 (identity,lane,candidate,kind,ready_at,deadline,estimate,priority,"pending",
                  now,now,encoded,checksum))
         return identity
