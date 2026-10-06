@@ -697,8 +697,14 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
     )
     if extra:
         row.update(extra)
-    from meme_machine.runtime.directional_sleeve import open_sleeve
     from dataclasses import asdict
+    if CANDIDATE_HISTORY is not None:
+        row['decision_id']=CANDIDATE_HISTORY.record_decision(
+            'pump',signal.mint,mode=signal.phase,
+            observed_at=int(signal.observed_at),qualified=bool(q.qualified),
+            decision=dict(vector=asdict(signal),qualification=asdict(q),
+                          policy_hash=policy_hash(),stage=stage))
+    from meme_machine.runtime.directional_sleeve import open_sleeve
     sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
     if sleeve is not None:
         try:
@@ -725,6 +731,7 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
         report["full_evidence_candidates"].append(dict(row))
     report["attempts"].append(row)
     report["attempts"]=report["attempts"][-1000:]
+    return row
 
 
 @position_work
