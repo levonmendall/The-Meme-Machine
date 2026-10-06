@@ -48,7 +48,7 @@ class Pipeline:
 
     def snapshot(self):
         with self.lock:
-            stages=('discovered','screened','admitted','evidence_requested','evidence_complete',
+            stages=('discovered','reactivated','screened','admitted','evidence_requested','evidence_complete',
                     'trigger_observed','trigger_authenticated','fresh_state','warmup_started','warmup_complete',
                     'reconstruction_started','reconstruction_complete','prospective_range','economic_vector',
                     'trigger_terminal','evaluated','rejected','qualified','entry_reserved','entry_filled','entry_cancelled',
