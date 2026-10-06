@@ -822,6 +822,20 @@ def _capture_chunk(
         start,end_snapshot,signatures,transactions,int(time.time()),cursor)
     _stage(start["pool"],"reconstruction_complete",lineage=tape.lineage)
     actions=ordered_tape_actions(tape)
+    if CANDIDATE_HISTORY is not None:
+        # Persist only the normalized economics required by later promotion.
+        # Raw transaction bodies remain evidence-plane material, not candidate history.
+        for kind,item,_order in actions:
+            order=list(item.get('cursor') or [item.get('slot',0),0,0])
+            if len(order)!=3:raise Unavailable('candidate_history_meteora_order')
+            identity=str(item.get('signature') or digest(
+                [start['pool'],kind,order,item]))
+            CANDIDATE_HISTORY.append_event(
+                'meteora',start['pool'],identity=identity+':'+str(order[2]),
+                slot=int(order[0]),transaction_index=int(order[1]),
+                event_index=int(order[2]),
+                market_time=int(item.get('time') or tape.terminal['time']),
+                kind='meteora_'+str(kind),payload=dict(item))
     next_cursor=(list(actions[-1][1].get("cursor") or cursor)
                  if actions else list(cursor))
     return tape,next_cursor,census
