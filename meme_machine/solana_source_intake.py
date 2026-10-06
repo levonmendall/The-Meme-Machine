@@ -21,6 +21,7 @@ class SelectedFrame:
     members: dict
     full_body_transactions: int=0
     log_projection_transactions: int=0
+    economic_projection_transactions: int=0
 
     def counters(self):
         return dict(source_bytes=self.source_bytes,
@@ -28,7 +29,8 @@ class SelectedFrame:
                     materialized_transactions=self.retained_transactions,
                     discarded_transactions=self.source_transactions-self.retained_transactions,
                     full_body_transactions=self.full_body_transactions,
-                    log_projection_transactions=self.log_projection_transactions)
+                    log_projection_transactions=self.log_projection_transactions,
+                    economic_projection_transactions=self.economic_projection_transactions)
 
 
 def _object(value, reason):
@@ -81,6 +83,30 @@ def _keys(message, meta):
     return normalized
 
 
+def _economic_projection(transaction,message,meta,normalized):
+    """Materialize exactly the fields required by canonical DLMM economics.
+
+    Account keys are normalized once, including loaded addresses.  Instructions,
+    inner instructions, logs and token balances are the only transaction-body
+    fields consumed by the Meteora tape.  Rewards, generic balance arrays, return
+    data and unrelated provider metadata never cross the intake boundary.
+    """
+    instructions=message.get('instructions')
+    signatures=transaction.get('signatures')
+    if not isinstance(instructions,simdjson.Array) or not isinstance(signatures,simdjson.Array):
+        raise EvidenceUnavailable('source_transaction_shape')
+    projected_meta={}
+    for key in ('err','logMessages','innerInstructions','preTokenBalances','postTokenBalances'):
+        value=meta.get(key)
+        projected_meta[key]=_plain(value)
+    return dict(
+        transaction=dict(
+            signatures=signatures.as_list(),
+            message=dict(accountKeys=list(normalized),instructions=instructions.as_list())),
+        meta=projected_meta,
+    )
+
+
 def select_frame(raw, credential, program_addresses, *, max_bytes, full_transaction_addresses=None):
     """Select losslessly; never decode events, hash bodies, write state or use RPC.
 
@@ -109,7 +135,8 @@ def select_frame(raw, credential, program_addresses, *, max_bytes, full_transact
             raise EvidenceUnavailable('source_block_shape')
         targets=set(program_addresses)
         full_targets=targets if full_transaction_addresses is None else set(full_transaction_addresses)
-        kept=[];normalizations=[];members={};full_count=log_count=0
+        kept=[];normalizations=[];members={}
+        full_count=log_count=economic_count=0
         for tx in transactions:
             tx=_object(tx,'source_transaction_shape')
             transaction=_object(tx['transaction'],'source_transaction_shape')
@@ -120,9 +147,11 @@ def select_frame(raw, credential, program_addresses, *, max_bytes, full_transact
             if not matched:continue
             index=len(kept)
             if matched.intersection(full_targets):
-                # Preserve the full exact Meteora body, including cross-program
-                # transactions. Its tape requires instructions and balances.
-                body=tx.as_dict();full_count+=1
+                # Meteora requires transaction economics, not the provider's
+                # unrelated full body. Retain only its canonical reconstruction
+                # vector and let later qualification hydrate nothing it already has.
+                body=_economic_projection(transaction,message,meta,normalized)
+                economic_count+=1
             else:
                 # The frozen Pump/PumpSwap census path only consumes signature,
                 # account membership, err and logs. Their canonical event body
@@ -140,7 +169,8 @@ def select_frame(raw, credential, program_addresses, *, max_bytes, full_transact
         selected_params=_except(params,'result');selected_params['result']=selected_result
         selected_root=_except(root,'params');selected_root['params']=selected_params
         return SelectedFrame(selected_root,source_bytes,len(transactions),len(kept),
-                             tuple(normalizations),members,full_count,log_count)
+                             tuple(normalizations),members,full_count,log_count,
+                             economic_count)
     except EvidenceUnavailable:raise
     except (KeyError,TypeError,AttributeError):
         raise EvidenceUnavailable('source_transaction_shape') from None
