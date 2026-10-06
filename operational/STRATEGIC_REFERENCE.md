@@ -42,6 +42,17 @@ Future promotion requires an explicit separate strategy ID and policy hash, exis
 
 The approved nine-rule contract, right-tail calibration, Current-to-Survivor opportunity preservation and staged-winner contract remain applicable. Current rejection or exit must not suppress subsequent Survivor observation or eligibility; simultaneous duplicate economic exposure remains fenced. An approved scaling add requires full fresh qualification, winner proof, first realization, persistence, proximity to high, execution and capital limits; research breakout signals cannot substitute for those conditions.
 
+## ACTIVE_STRATEGY — observability and opportunity preservation
+
+[Strategy Observability & Opportunity Preservation Contract v1](STRATEGY_OBSERVABILITY_CONTRACT.md)
+is active strategy infrastructure. It changes observation/evidence scheduling only:
+the observable market must remain a superset of qualification; recoverable candidates
+remain visible; qualification is independent of funding; candidate limits are
+capacity-pressure telemetry rather than economic rejection; Current cannot suppress
+Survivor; selective warming must finish before admission; and open positions retain
+full evidence priority. Discovery/promotion signals have no trading authority and the
+nine approved trading economics remain unchanged.
+
 ## OPERATIONAL_REFERENCE — engineering lessons
 
 Run 373 established large-frame dispatch saturation and durable batching requirements. Run 381 established retention/archive starvation: zero local reads caused by infrastructure cannot establish poor strategy economics. Permanent current regressions must retain these lessons. Dashboard snapshots remain read-only, and publication failure must not stop position management. Shared Decimal accounting, family sleeves and pending delivery preserve the existing $500 inception and recovery identity.
