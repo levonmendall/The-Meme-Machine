@@ -1,6 +1,8 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from meme_machine.runtime.candidate_history import CandidateDeadlineMissed,CandidateHistory
 
@@ -97,6 +99,46 @@ class CandidateHistoryTests(unittest.TestCase):
             self.assertEqual(second.candidates(lane="pump")[0]["surface"],"pumpswap")
         finally:
             second.close()
+
+    def test_pump_qualification_is_durable_before_zero_capital_denial(self):
+        from meme_machine.lanes.pump import runner
+        signal=runner.SignalVector(
+            mint="funding-independent",observed_at=1000,surface="pump.fun",
+            phase=runner.MODE_LATE_CURVE,curve_progress_bps=8200,
+            curve_velocity_bps_per_s=80,curve_acceleration_bps_per_s2=5,
+            independent_buyer_clusters=30,buyer_growth=8,
+            repeat_buyer_clusters=4,repeat_buy_share_bps=3000,
+            net_buy_share_bps=8500,concentration_bps=1500,extension_bps=2500,
+            immediate_roundtrip_loss_bps=300,skilled_wallet_clusters=2,
+            creator_quality_bps=7000,creator_history_launches=10,
+            quote_relative_return_bps=800)
+        qualified=runner.qualify(signal)
+        self.assertTrue(qualified.qualified)
+        prior=runner.CANDIDATE_HISTORY;runner.CANDIDATE_HISTORY=self.history
+        try:
+            decision=self.history.record_decision(
+                "pump",signal.mint,mode=signal.phase,observed_at=signal.observed_at,
+                qualified=True,decision={"qualification":"same-regardless-of-capital"})
+            with patch.object(runner,"_current_pump_sizing",return_value=dict(
+                    realized_equity=500,target=25,allocatable_target=0,available=0)):
+                admitted=runner._reserve_position(
+                    {"qualifiers":[],"funding_denials":[]},{},{},signal,qualified,
+                    {"available_time":1001},runner.MODE_LATE_CURVE,1500,
+                    decision_id=decision)
+            self.assertFalse(admitted)
+            self.assertEqual(self.history.funding_outcome(decision)["status"],"denied")
+            stored=self.history.db.execute(
+                "SELECT qualified FROM decisions WHERE id=?",(decision,)).fetchone()[0]
+            self.assertEqual(stored,1)
+            # Qualification itself has no capital input and remains byte-for-byte
+            # identical under zero/normal/fully-committed funding snapshots.
+            for available in (0,25,500):
+                with patch.object(runner,"_current_pump_sizing",return_value=dict(
+                        realized_equity=500,target=25,allocatable_target=min(25,available),
+                        available=available)):
+                    self.assertEqual(runner.qualify(signal),qualified)
+        finally:
+            runner.CANDIDATE_HISTORY=prior
 
     def test_pump_promotion_replays_ordered_pregraduation_economics(self):
         from meme_machine.lanes.pump import runner
