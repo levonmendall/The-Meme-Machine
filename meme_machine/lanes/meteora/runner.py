@@ -1922,27 +1922,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
             if (_runtime_expired(deadline)
                     or (not campaign and (attempted>=max_attempted or complete>=target))):
                 break
-            if book.reconcile()['unsettled']:
-                # During the one-hour certification campaign, an already-filled
-                # multi-hour position owns capital but must not stop market observation.
-                # New admission is capacity-censored until the durable continuation
-                # settles; smoke/standalone behavior remains unchanged.
-                if os.environ.get('MM_OPERATIONAL_PHASE')=='continuous':
-                    failure_counts['paper_capital_occupied']+=1
-                    report['attempts'].append(dict(
-                        pool=candidate['address'],candidate=candidate,
-                        terminal_classification='paper_capital_occupied',
-                        economic_rejection=False,
-                    ))
-                    _stage(candidate['address'],'evidence_not_required','paper_capital_occupied',
-                           scope='new_candidate_admission',capital_constraint_preserved=True)
-                    _stage(candidate['address'],'terminal','paper_capital_occupied')
-                    checkpoint('paper_capital_occupied')
-                    continue
-                report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
-                checkpoint('unresolved_position_blocks_new_admission')
-                stream_stop.set();wake_thread.join(timeout=5);broker.close()
-                raise Unavailable(report['fatal_boundary'])
+            # Capital state is execution authority only.  Candidate observation,
+            # warming and strategy qualification continue even while another
+            # position owns the paper capital.
             plane=_evidence_plane()
             admission=plane.admit_candidate(METEORA_SCOPE,
                 addresses=[candidate['address']],owner='meteora:candidate:'+candidate['address'])
@@ -2030,6 +2012,21 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                         report["attempts"].append(attempt)
                         _stage(candidate["address"],"terminal","qualification_rejection",failed=decision["failed"])
                         checkpoint("qualification_rejection")
+                        continue
+                    if book.reconcile()['unsettled']:
+                        # Preserve the complete qualified opportunity while refusing
+                        # only the funding/execution step.
+                        failure_counts['paper_capital_occupied']+=1
+                        attempt["terminal_classification"]="qualified_but_capital_unavailable"
+                        attempt["economic_rejection"]=False
+                        attempt["strategy_qualified"]=True
+                        attempt["funding_reason"]="paper_capital_occupied"
+                        attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+                        report["attempts"].append(attempt)
+                        _stage(candidate["address"],"evidence_not_required",
+                               "paper_capital_occupied",scope="execution_only",
+                               strategy_qualified=True,capital_constraint_preserved=True)
+                        checkpoint("qualified_but_capital_unavailable")
                         continue
                     lifecycle,adapter=_lifecycle(
                         adapter,candidate["address"],entry,features,policy,pacer,
