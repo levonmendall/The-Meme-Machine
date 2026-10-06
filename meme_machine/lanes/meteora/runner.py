@@ -1281,7 +1281,7 @@ def _eligible_exit_reasons(reasons, *, elapsed_seconds, collapse_streaks, policy
     return eligible
 
 
-def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
+def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None,decision_id=None):
     identity=book.identity() if book is not None else None
     if EVIDENCE_PLANE is not None:
         EVIDENCE_PLANE.interest(METEORA_SCOPE,lower_slot=entry['slot'],addresses=[address],
@@ -1289,6 +1289,10 @@ def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,br
     if book is not None:
         book.append(identity,'reserve',dict(amount=CAPITAL+ROUND_TRIP_NETWORK_COST,
             pool=address,policy_hash=digest(policy),strategy_evidence_hash=digest(dict(entry=entry,features=features))))
+        if CANDIDATE_HISTORY is not None and decision_id is not None:
+            CANDIDATE_HISTORY.record_funding(decision_id,'meteora',address,
+                status='funded',at=int(time.time()),details=dict(
+                    lifecycle_id=identity,amount=CAPITAL+ROUND_TRIP_NETWORK_COST))
     _stage(address,'entry_reserved',lifecycle_id=identity)
     try:
         return _position_lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline,broker,book,identity)
@@ -2038,10 +2042,19 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     _stage(candidate["address"],"economic_vector")
                     _stage(candidate["address"],"evidence_complete")
                     decision=qualify(features,policy)
+                    decision_id=None
+                    if CANDIDATE_HISTORY is not None:
+                        decision_id=CANDIDATE_HISTORY.record_decision(
+                            'meteora',candidate["address"],mode='dlmm',
+                            observed_at=int(entry.get('available_time') or time.time()),
+                            qualified=bool(decision["passes"]),decision=dict(
+                                features=features,qualification=decision,
+                                policy_hash=digest(policy)))
                     _stage(candidate["address"],"evaluated")
                     _stage(candidate["address"],"qualified" if decision["passes"] else "rejected")
                     attempt["pre_entry_features"]=features
                     attempt["qualification"]=decision
+                    attempt["decision_id"]=decision_id
                     for failed in decision["failed"]:failure_counts[failed]+=1
                     if not decision["passes"]:
                         attempt["terminal_classification"]="qualification_rejection"
@@ -2050,10 +2063,30 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                         _stage(candidate["address"],"terminal","qualification_rejection",failed=decision["failed"])
                         checkpoint("qualification_rejection")
                         continue
+                    capital_state=book.reconcile()
+                    if capital_state['unsettled']:
+                        reason='paper_capital_occupied'
+                        if CANDIDATE_HISTORY is not None and decision_id is not None:
+                            CANDIDATE_HISTORY.record_funding(
+                                decision_id,'meteora',candidate["address"],
+                                status='denied',at=int(time.time()),reason=reason,
+                                details=capital_state)
+                        attempt["funding"]=dict(status='denied',reason=reason,capital=capital_state)
+                        attempt["terminal_classification"]="funding_denied"
+                        attempt["economic_rejection"]=False
+                        attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+                        report["attempts"].append(attempt)
+                        failure_counts['funding_denied']+=1
+                        _stage(candidate["address"],"funding_denied",reason,
+                            qualification_preserved=True,decision_id=decision_id)
+                        _stage(candidate["address"],"terminal",reason,
+                            qualification_preserved=True,decision_id=decision_id)
+                        checkpoint("funding_denied")
+                        continue
                     lifecycle,adapter=_lifecycle(
                         adapter,candidate["address"],entry,features,policy,pacer,
                         candidate_rpcs,(deadline+int(policy['range']['max_holding_seconds'])+300
-                            if campaign else deadline),broker,book)
+                            if campaign else deadline),broker,book,decision_id=decision_id)
                     for rpc in candidate_rpcs:
                         if rpc not in rpcs:rpcs.append(rpc)
                     attempt["lifecycle"]=lifecycle
@@ -2073,6 +2106,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     checkpoint("lifecycle_terminal")
                 except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
                     classification='paper_capital_capacity' if str(exc)=='dlmm_accounting_capital_exhausted' else 'exception'
+                    if (classification=='paper_capital_capacity'
+                            and CANDIDATE_HISTORY is not None
+                            and attempt.get('decision_id') is not None):
+                        CANDIDATE_HISTORY.record_funding(
+                            attempt['decision_id'],'meteora',candidate["address"],
+                            status='denied',at=int(time.time()),
+                            reason='dlmm_accounting_capital_exhausted',
+                            details=book.reconcile())
+                        attempt['funding']=dict(status='denied',
+                            reason='dlmm_accounting_capital_exhausted',
+                            capital=book.reconcile())
                     attempt["terminal_classification"]=classification
                     attempt["reason"]=str(exc)[:200]
                     failure_counts[classification]+=1
@@ -2086,6 +2130,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                 plane.command(op='release',owner='meteora:candidate:'+candidate['address'],
                     scope=METEORA_SCOPE,resolved=False)
                 plane.count('meteora.candidate_interests_released')
+                work_id=candidate.get('_candidate_work_id')
+                if CANDIDATE_HISTORY is not None and work_id is not None:
+                    CANDIDATE_HISTORY.complete(work_id,status='complete')
 
     finally:
         try:
