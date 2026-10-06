@@ -1302,12 +1302,6 @@ def main(*,campaign=False,discovery_seconds=None):
                         _progress(mint,"evidence_required",mode=MODE_LATE_CURVE,
                                   decision_at=pre_signal.observed_at,
                                   remaining_evidence="concentration")
-                        if (not attempt_budget.take(time.monotonic()) if campaign else full_attempts>=MAX_FULL_ATTEMPTS):
-                            _terminal(report,dict(mint=mint,observed_at=now,
-                                terminal_reason='full_evidence_attempt_cap',economic_rejection=False))
-                            if "full_evidence_attempt_cap" not in report["limitations"]:
-                                report["limitations"].append("full_evidence_attempt_cap")
-                            continue
                         full_attempts+=1
                         _progress(mint,"full_evidence_requested",mode=MODE_LATE_CURVE,
                                   decision_at=pre_signal.observed_at,
@@ -1316,7 +1310,7 @@ def main(*,campaign=False,discovery_seconds=None):
                         signal,trajectory,confirmation=_late_signal(
                             creation,ev,snapshot,concentration,confirmations)
                         q=qualify(signal)
-                        _record_attempt(
+                        decision_row=_record_attempt(
                             report,signal,q,"full_point_in_time",
                             {"concentration_source":meta.get("source"),
                              "trajectory":trajectory,
@@ -1326,7 +1320,8 @@ def main(*,campaign=False,discovery_seconds=None):
                                 for x in report["qualifiers"]):
                             _reserve_position(
                                 report,pending,active,signal,q,snapshot,
-                                MODE_LATE_CURVE,concentration)
+                                MODE_LATE_CURVE,concentration,
+                                decision_id=decision_row.get('decision_id'))
                     except (Unavailable,ValueError,KeyError,TypeError) as exc:
                         _progress(mint,"terminal",str(exc),mode=MODE_LATE_CURVE)
                         report["attempts"].append(dict(
@@ -1418,7 +1413,7 @@ def main(*,campaign=False,discovery_seconds=None):
                         signal,confirmation=_volume_price_signal(
                             state,snapshot,decision_events,MODE_POSTGRAD,concentration,confirmations)
                         q=qualify(signal)
-                        _record_attempt(
+                        decision_row=_record_attempt(
                             report,signal,q,"full_point_in_time",
                             {"history_status":state["history"].status(now),
                              "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
@@ -1427,13 +1422,14 @@ def main(*,campaign=False,discovery_seconds=None):
                                 for x in report["qualifiers"]):
                             _reserve_position(
                                 report,pending,active,signal,q,snapshot,
-                                MODE_POSTGRAD,concentration)
+                                MODE_POSTGRAD,concentration,
+                                decision_id=decision_row.get('decision_id'))
 
                     if second_q0 is not None and second_q0.qualified:
                         second,confirmation2=_volume_price_signal(
                             state,snapshot,events,MODE_SECOND_LEG,concentration,confirmations)
                         q2=qualify(second)
-                        _record_attempt(
+                        decision_row2=_record_attempt(
                             report,second,q2,"full_point_in_time",
                             {"history_status":state["history"].status(now),
                              "confirmation_evidence":_confirmation_meta(confirmation2)},snapshot=snapshot)
@@ -1442,7 +1438,8 @@ def main(*,campaign=False,discovery_seconds=None):
                                 for x in report["qualifiers"]):
                             _reserve_position(
                                 report,pending,active,second,q2,snapshot,
-                                MODE_SECOND_LEG,concentration)
+                                MODE_SECOND_LEG,concentration,
+                                decision_id=decision_row2.get('decision_id'))
                 except (Unavailable,ValueError,KeyError,TypeError) as exc:
                     _progress(mint,"terminal",str(exc),mode=MODE_POSTGRAD,
                               decision_at=now,history=state["history"].status(now))
