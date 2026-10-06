@@ -417,16 +417,34 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
 
 
 def _reserve_position(
-    report,pending,active,signal,qualification,snapshot,mode,concentration=0
+    report,pending,active,signal,qualification,snapshot,mode,concentration=0,
+    *,decision_id=None
 ):
     key=(qualification.mint,mode)
     if key in pending or key in active:
-        return
+        return False
     if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
-        return
-    # Availability is evidence time, not the time the reservation is written.
-    # Slow reconstruction must not backdate the reservation and consume its delay.
+        return False
+    # Qualification is already final and durable at this point.  Capital is an
+    # execution admission input only; it must never change the qualification.
     reserved_at=max(int(snapshot["available_time"]),int(time.time()))
+    sizing=_current_pump_sizing()
+    intended=min(sizing['target'],max(0,sizing['available']-GAS))
+    if intended<=0:
+        reason='directional_realized_equity_unavailable'
+        denial=dict(
+            mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
+            decision_id=decision_id,status='denied',reason=reason,
+            at=reserved_at,sizing=sizing,economic_rejection=False)
+        report.setdefault('funding_denials',[]).append(denial)
+        if CANDIDATE_HISTORY is not None and decision_id is not None:
+            CANDIDATE_HISTORY.record_funding(
+                decision_id,'pump',qualification.mint,status='denied',
+                at=reserved_at,reason=reason,details=sizing)
+        _progress(qualification.mint,'funding_denied',reason,mode=mode,
+                  decision_id=decision_id,qualification_preserved=True)
+        return False
+
     import uuid
     lifecycle_id=(ACCOUNTING.identity["run_id"] if ACCOUNTING else "research")+":"+uuid.uuid4().hex
     from meme_machine.runtime.lifecycle_identity import issue
@@ -443,19 +461,47 @@ def _reserve_position(
         state={k:sorted(v) if isinstance(v,set) else v for k,v in native_state.items()
                if k not in ('history','history_status')},execution=execution)
     evidence=dict(snapshot,_runtime_recovery=recovery)
+    interest_acquired=False
     if context.get('plane') is not None:
         if execution is None:raise Unavailable('reservation_execution_interest_missing')
         context['plane'].interest(execution['scope'],lower_slot=int(snapshot['slot']),
             addresses=execution['addresses'],owner=lifecycle_id,lifecycle='reserved',priority=1)
+        interest_acquired=True
     life=PumpAccelerationPaperLifecycle(book=ACCOUNTING,lifecycle_id=lifecycle_id,
                                        entry_evidence=evidence)
-    sizing=_current_pump_sizing()
-    intended=min(sizing['target'],max(0,sizing['available']-GAS))
-    if intended<=0:raise ValueError('directional_realized_equity_unavailable')
-    life.reserve(qualification,intended+GAS,reserved_at)
+    try:
+        life.reserve(qualification,intended+GAS,reserved_at)
+    except ValueError as exc:
+        reason=str(exc)
+        if reason not in ('sleeve_capital_exhausted','paper_capital_exhausted'):
+            raise
+        denial=dict(
+            mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
+            decision_id=decision_id,status='denied',reason=reason,
+            at=reserved_at,sizing=sizing,economic_rejection=False)
+        report.setdefault('funding_denials',[]).append(denial)
+        if CANDIDATE_HISTORY is not None and decision_id is not None:
+            CANDIDATE_HISTORY.record_funding(
+                decision_id,'pump',qualification.mint,status='denied',
+                at=reserved_at,reason=reason,details=sizing)
+        if getattr(life,'sleeve',None) is not None:
+            life.sleeve.close();life.sleeve=None
+        if interest_acquired:
+            try:context['plane'].command(
+                op='release',owner=lifecycle_id,scope=execution['scope'],resolved=False)
+            except Exception:pass
+        _progress(qualification.mint,'funding_denied',reason,mode=mode,
+                  decision_id=decision_id,qualification_preserved=True)
+        return False
+
+    if CANDIDATE_HISTORY is not None and decision_id is not None:
+        CANDIDATE_HISTORY.record_funding(
+            decision_id,'pump',qualification.mint,status='funded',
+            at=reserved_at,details=dict(lifecycle_id=lifecycle_id,
+                intended=intended,gas=GAS,sizing=sizing))
     _progress(qualification.mint,"entry_reserved",lifecycle_id=lifecycle_id)
     qrow=dict(
-        lifecycle_id=lifecycle_id,
+        lifecycle_id=lifecycle_id,decision_id=decision_id,
         mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
         score=qualification.score,reasons=list(qualification.reasons),
         confirmations=list(qualification.confirmations),
@@ -473,6 +519,7 @@ def _reserve_position(
         decision_slot=int(snapshot["slot"]),qualifier_row=qrow,
         last_concentration=int(concentration),decision_signal=signal,execution_context=execution,
     )
+    return True
 
 
 @position_work
