@@ -10,6 +10,7 @@ from meme_machine.lanes.pump.market_native_shadow import discover_market_native
 from meme_machine.lanes.pump.research import qualification_vector
 from meme_machine.lanes.pump import runner as pump_runner
 from meme_machine.runtime.survivor_history import History
+from meme_machine.lanes.pump.store import Store
 
 
 class _Allocator:
@@ -118,6 +119,17 @@ class StrategyObservabilityRuntimeTests(unittest.TestCase):
             report['qualified_unfunded'][0]['entry_status'],
             'qualified_but_capital_unavailable')
         self.assertEqual(report['qualifiers'],[])
+
+    def test_execution_count_limit_does_not_masquerade_as_storage_exhaustion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store=Store(tmp+'/pump.sqlite','prospective',100_000_000,'test')
+            try:
+                store.state['entry_count']=100
+                self.assertTrue(store.experiment_limit_reached())
+                self.assertFalse(store.storage_pressure())
+                self.assertTrue(store.pressure())
+            finally:
+                store.close()
 
     def test_survivor_candidate_limit_is_pressure_not_rejection(self):
         with tempfile.TemporaryDirectory() as tmp:
