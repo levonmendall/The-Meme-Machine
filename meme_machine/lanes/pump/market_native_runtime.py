@@ -106,6 +106,8 @@ class MarketNativeRuntime:
 
         self.coverage_ready_at = None
         self.discovered = set()
+        self.discovery_observations = 0
+        self.discovery_identity_evictions = 0
         self.evidence_queue = {}
         self.stream_rejections = Counter()
         self.preflight_reasons = Counter()
@@ -441,11 +443,15 @@ class MarketNativeRuntime:
         if fresh:
             native = discover_market_native(fresh, tape, now, self.discovered)
             for candidate in native:
-                if len(self.discovered) >= MAX_DISCOVERED_MINTS:
-                    # Historical bound is a memory/capacity pressure threshold,
-                    # never market-discovery authority.
-                    self.stream_rejections['discovery_capacity_pressure'] += 1
                 mint = candidate['mint']
+                self.discovery_observations += 1
+                if mint not in self.discovered and len(self.discovered) >= MAX_DISCOVERED_MINTS:
+                    # Bound diagnostic identity memory only. Eviction can change a
+                    # later label from "reactivation" to "first discovery", but it
+                    # can never prevent the later candidate from being evaluated.
+                    self.discovered.pop()
+                    self.discovery_identity_evictions += 1
+                    self.stream_rejections['discovery_identity_memory_pressure'] += 1
                 self.discovered.add(mint)
                 metric = stream_feasibility(candidate, tape, now)
                 if not metric.possible:
@@ -471,7 +477,9 @@ class MarketNativeRuntime:
             scout_storage_active=False,
             configured_scouts=len(self.engine.seeds),
             evidence_scheduler='adaptive_deadline_queue_v1',
-            discovered=len(self.discovered),
+            discovered_identity_memory=len(self.discovered),
+            discovery_observations=self.discovery_observations,
+            discovery_identity_evictions=self.discovery_identity_evictions,
             stream_guaranteed_rejections=dict(self.stream_rejections),
             evidence_queue_depth=len(self.evidence_queue),
             evidence_queue_limit=self.evidence_queue_limit,
