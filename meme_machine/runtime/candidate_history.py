@@ -230,8 +230,9 @@ class CandidateHistory:
                  now,now,encoded,checksum))
         return identity
 
-    def claim(self,worker,*,now=None,capacity=None):
+    def claim(self,worker,*,now=None,capacity=None,lane=None):
         worker=self._required(worker,"worker")
+        lane=None if lane is None else self._required(lane,"lane")
         now=float(self.clock() if now is None else now)
         capacity=self.worker_capacity if capacity is None else int(capacity)
         if not 1<=capacity<=32:raise ValueError("candidate_history_worker_capacity")
@@ -241,10 +242,13 @@ class CandidateHistory:
             active=self.db.execute(
                 "SELECT COUNT(*) FROM work WHERE status='active' AND lease_until>?",(now,)).fetchone()[0]
             if active>=capacity:return None
+            where="status='pending' AND ready_at<=?"
+            args=[now]
+            if lane is not None:
+                where+=" AND lane=?";args.append(lane)
             row=self.db.execute("""SELECT id,lane,candidate,kind,ready_at,deadline,estimate_seconds,
-                    priority,created_at,body,hash
-                FROM work WHERE status='pending' AND ready_at<=?
-                ORDER BY deadline,priority,created_at,id LIMIT 1""",(now,)).fetchone()
+                    priority,created_at,body,hash FROM work WHERE """+where+
+                " ORDER BY deadline,priority,created_at,id LIMIT 1",args).fetchone()
             if row is None:return None
             keys=("id","lane","candidate","kind","ready_at","deadline","estimate_seconds",
                   "priority","created_at","body","hash")
@@ -279,6 +283,11 @@ class CandidateHistory:
                 self.db.execute("""UPDATE work SET status=?,worker=NULL,lease_until=NULL,
                     updated_at=? WHERE id=?""",(status,now,str(identity)))
         return dict(id=str(identity),status=status,details=dict(details or {}))
+
+    def pending(self,*,lane=None):
+        if lane is None:
+            return self.db.execute("SELECT COUNT(*) FROM work WHERE status='pending'").fetchone()[0]
+        return self.db.execute("SELECT COUNT(*) FROM work WHERE status='pending' AND lane=?",(str(lane),)).fetchone()[0]
 
     def telemetry(self,*,now=None):
         now=float(self.clock() if now is None else now)
