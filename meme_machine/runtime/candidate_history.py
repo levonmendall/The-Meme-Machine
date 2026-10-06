@@ -23,6 +23,24 @@ class CandidateDeadlineMissed(RuntimeError):
         super().__init__("candidate_decision_deadline_missed:"+str(work["id"]))
 
 
+def _enable_wal(db,*,seconds=30.0,monotonic=time.monotonic,sleeper=time.sleep):
+    """Make concurrent Pump/Meteora opens safe without retrying strategy work."""
+    deadline=monotonic()+float(seconds)
+    db.execute("PRAGMA busy_timeout=0")
+    try:
+        while True:
+            try:return db.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+            except sqlite3.OperationalError as exc:
+                code=getattr(exc,"sqlite_errorcode",None)
+                if code is None or (code & 255) not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):
+                    raise
+                remaining=deadline-monotonic()
+                if remaining<=0:raise
+                sleeper(min(.05,remaining))
+    finally:
+        db.execute("PRAGMA busy_timeout=30000")
+
+
 class CandidateHistory:
     def __init__(self,path=None,*,clock=time.time,worker_capacity=None):
         value=path or os.environ.get("MM_SOLANA_CANDIDATE_HISTORY_DB")
@@ -34,7 +52,7 @@ class CandidateHistory:
         if not 1<=self.worker_capacity<=32:raise ValueError("candidate_history_worker_capacity")
         self.db=sqlite3.connect(str(self.path),timeout=30,isolation_level=None,check_same_thread=False)
         self.db.execute("PRAGMA busy_timeout=30000")
-        self.db.execute("PRAGMA journal_mode=WAL")
+        _enable_wal(self.db)
         self.db.execute("PRAGMA synchronous=FULL")
         self.db.executescript("""
         CREATE TABLE IF NOT EXISTS candidates(
@@ -198,12 +216,33 @@ class CandidateHistory:
         with self.transaction():
             if self.db.execute("SELECT 1 FROM decisions WHERE id=?",(decision_id,)).fetchone() is None:
                 raise ValueError("candidate_history_funding_without_decision")
+            # One qualification decision has exactly one funding disposition.
+            # A retry of the same disposition is idempotent; funded->denied (or
+            # denied->funded) would rewrite economic history and is rejected.
+            prior=self.db.execute(
+                "SELECT id,status,body,hash FROM funding WHERE decision_id=? ORDER BY at,id LIMIT 1",
+                (decision_id,)).fetchone()
+            if prior:
+                prior_body=json.loads(prior[2])
+                if digest(prior_body)!=prior[3]:raise ValueError("candidate_history_corruption")
+                if prior[1]!=status:
+                    raise ValueError("candidate_history_funding_outcome_conflict")
+                return prior[0]
             old=self.db.execute("SELECT body,hash FROM funding WHERE id=?",(identity,)).fetchone()
             if old:
                 if old[0]!=encoded or old[1]!=checksum:raise ValueError("candidate_history_funding_conflict")
             else:self.db.execute("INSERT INTO funding VALUES(?,?,?,?,?,?,?,?,?)",
                 (identity,decision_id,lane,candidate,status,at,body["reason"],encoded,checksum))
         return identity
+
+    def funding_outcome(self,decision_id):
+        row=self.db.execute(
+            "SELECT id,status,body,hash FROM funding WHERE decision_id=? ORDER BY at,id LIMIT 1",
+            (str(decision_id),)).fetchone()
+        if row is None:return None
+        body=json.loads(row[2])
+        if digest(body)!=row[3]:raise ValueError("candidate_history_corruption")
+        return dict(id=row[0],status=row[1],**body)
 
     def enqueue(self,lane,candidate,*,kind,ready_at,deadline,estimate_seconds,
                 payload=None,priority=50,identity=None):
@@ -241,7 +280,26 @@ class CandidateHistory:
                 WHERE status='active' AND lease_until IS NOT NULL AND lease_until<=?""",(now,now))
             active=self.db.execute(
                 "SELECT COUNT(*) FROM work WHERE status='active' AND lease_until>?",(now,)).fetchone()[0]
-            if active>=capacity:return None
+            # If all worker slots are occupied, fail explicitly as soon as the
+            # oldest ready job can no longer finish by its deadline.  Saturation
+            # is infrastructure truth, never a strategy rejection or silent drop.
+            if active>=capacity:
+                where="status='pending' AND ready_at<=?"
+                args=[now]
+                if lane is not None:
+                    where+=" AND lane=?";args.append(lane)
+                urgent=self.db.execute("""SELECT id,lane,candidate,kind,ready_at,deadline,
+                        estimate_seconds,priority,created_at,body,hash FROM work WHERE """+where+
+                    " ORDER BY deadline,priority,created_at,id LIMIT 1",args).fetchone()
+                if urgent is not None and now+float(urgent[6])>float(urgent[5]):
+                    keys=("id","lane","candidate","kind","ready_at","deadline","estimate_seconds",
+                          "priority","created_at","body","hash")
+                    work=dict(zip(keys,urgent))
+                    body=json.loads(work.pop("body"));checksum=work.pop("hash")
+                    if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
+                    work["payload"]=body["payload"]
+                    raise CandidateDeadlineMissed(work)
+                return None
             where="status='pending' AND ready_at<=?"
             args=[now]
             if lane is not None:
@@ -256,7 +314,8 @@ class CandidateHistory:
             body=json.loads(work.pop("body"));checksum=work.pop("hash")
             if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
             work["payload"]=body["payload"]
-            if work["deadline"]<now:raise CandidateDeadlineMissed(work)
+            if work["deadline"]<now or now+float(work["estimate_seconds"])>work["deadline"]:
+                raise CandidateDeadlineMissed(work)
             lease=min(work["deadline"],now+max(1.0,work["estimate_seconds"]*2.0))
             if lease<=now:raise CandidateDeadlineMissed(work)
             self.db.execute("""UPDATE work SET status='active',worker=?,lease_until=?,updated_at=?
