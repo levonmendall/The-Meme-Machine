@@ -200,10 +200,14 @@ def qualification_vector(engine, nomination, evidence, now):
             'spot', amount, snap['mint'], engine.group(c.creator), now)
     except (ValueError, KeyError, TypeError):
         vector['allocator_reason'] = 'allocator_unavailable'
-    vector['funding_status'] = (
-        'available' if vector['allocator_reason'] is None
-        else 'qualified_but_capital_unavailable'
-    )
+    if vector['allocator_reason'] is None:
+        vector['funding_status'] = 'available'
+    elif vector['allocator_reason'] == 'capital_or_gas_reserve':
+        vector['funding_status'] = 'qualified_but_capital_unavailable'
+    else:
+        # Risk/conflict/evidence/capacity gates are execution authority, not
+        # capital authority and never rewrite the strategy qualification result.
+        vector['funding_status'] = 'qualified_but_execution_unavailable'
 
     vector['margins'] = dict(
         concentration_bps=(None if vector['concentration_bps'] is None else
