@@ -301,11 +301,34 @@ class Runtime:
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime)
                         if decision['candidate']:
-                            from meme_machine.runtime.lifecycle_identity import issue
-                            row['position']=issue(self.run_id+':'+digest([STRATEGY_ID,row['id'],regime]))
-                            row['state']='reserved';self.history.save(row)
-                            self._enter(row,decision,observed['generation'],regime,row['position'])
-                            row=self.history.get(row['id']);row['state']='filled'
+                            sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
+                            if int(sizing.get('allocatable_target',0)) < GAS*2+1:
+                                # Qualification remains durable even when funding is
+                                # unavailable. Do not mint a fake reserved position.
+                                row['position']=None
+                                row['state']='qualified_but_capital_unavailable'
+                                self.sleeve.opportunity(
+                                    row['id'],identity=row['id'],regime='survivor',
+                                    status=row['state'],at=state.get('market_time',state.get('at')),
+                                    decision=dict(decision,funding_reason='survivor_minimum_capital'))
+                            else:
+                                from meme_machine.runtime.lifecycle_identity import issue
+                                row['position']=issue(self.run_id+':'+digest([STRATEGY_ID,row['id'],regime]))
+                                row['state']='reserved';self.history.save(row)
+                                try:
+                                    self._enter(row,decision,observed['generation'],regime,row['position'])
+                                except ValueError as exc:
+                                    if str(exc)!='survivor_minimum_capital':
+                                        raise
+                                    row=self.history.get(row['id'])
+                                    row['position']=None
+                                    row['state']='qualified_but_capital_unavailable'
+                                    self.sleeve.opportunity(
+                                        row['id'],identity=row['id'],regime='survivor',
+                                        status=row['state'],at=state.get('market_time',state.get('at')),
+                                        decision=dict(decision,funding_reason='survivor_minimum_capital'))
+                                else:
+                                    row=self.history.get(row['id']);row['state']='filled'
                         self.history.save(row)
             self.last_error=None
         except (ValueError,Unavailable) as exc:
