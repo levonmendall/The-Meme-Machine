@@ -18,7 +18,12 @@ PUMPSWAP_SELL_EVENT=bytes([62,47,55,10,165,3,220,42])
 
 MIGRATION_DISC=hashlib.sha256(b'event:CompletePumpAmmMigrationEvent').digest()[:8]
 
-def migration_events(tx):
+def _program_data(line,index,decoded):
+    if decoded is None:return base64.b64decode(line[14:],validate=True)
+    if index not in decoded:decoded[index]=base64.b64decode(line[14:],validate=True)
+    return decoded[index]
+
+def migration_events(tx,*,_decoded=None):
     if not tx or not tx.get('meta') or tx['meta'].get('err'):return []
     stack=[];out=[]
     for index,line in enumerate(tx['meta'].get('logMessages') or []):
@@ -26,7 +31,7 @@ def migration_events(tx):
         elif line.startswith('Program ') and (' success' in line or ' failed:' in line):
             if stack:stack.pop()
         elif line.startswith('Program data: ') and stack and stack[-1]==pump.PROGRAM:
-            raw=base64.b64decode(line[14:],validate=True)
+            raw=_program_data(line,index,_decoded)
             if raw[:8]!=MIGRATION_DISC:continue
             if len(raw) not in (168,200):raise ValueError('migration_event_layout')
             mint=pump.b58(raw[40:72]);quantity,quote,fee=struct.unpack_from('<QQQ',raw,72)
@@ -44,10 +49,11 @@ def migration_events(tx):
     return out
 
 def pump_events(tx):
+    decoded={}
     return (
-        [dict(e,event_type='trade') for e in _pump_trade_events(tx)]
-        +[dict(e,event_type='create') for e in _pump_create_events(tx)]
-        +migration_events(tx)
+        [dict(e,event_type='trade') for e in _pump_trade_events(tx,_decoded=decoded)]
+        +[dict(e,event_type='create') for e in _pump_create_events(tx,_decoded=decoded)]
+        +migration_events(tx,_decoded=decoded)
     )
 
 
@@ -108,7 +114,7 @@ def pumpswap_trade_events(tx):
 
 # Protocol-only copies of the certified Pump event codecs. Keeping these in the
 # shared plane avoids dependence on a lane-specific legacy decoder revision.
-def _pump_create_events(tx):
+def _pump_create_events(tx,*,_decoded=None):
     """Decode prospectively observed Pump CreateEvent launch parameters."""
     if not tx or not tx.get('meta') or tx['meta']['err']:
         return []
@@ -120,7 +126,7 @@ def _pump_create_events(tx):
             if stack:
                 stack.pop()
         elif line.startswith('Program data: ') and stack and stack[-1] == pump.PROGRAM:
-            raw=base64.b64decode(line[14:],validate=True)
+            raw=_program_data(line,index,_decoded)
             if raw[:8] != bytes([27,114,169,77,222,235,99,118]):
                 continue
             offset=8
@@ -159,7 +165,7 @@ def _pump_create_events(tx):
     return out
 
 
-def _pump_trade_events(tx):
+def _pump_trade_events(tx,*,_decoded=None):
     """Only successful finalized RPC transactions; verify actual invocation stack."""
     if not tx or not tx.get('meta') or tx['meta']['err']:
         return []
@@ -171,7 +177,7 @@ def _pump_trade_events(tx):
             if stack:
                 stack.pop()
         elif line.startswith('Program data: ') and stack and stack[-1] == pump.PROGRAM:
-            raw = base64.b64decode(line[14:], validate=True)
+            raw = _program_data(line,index,_decoded)
             if raw[:8] != bytes([189,219,127,211,78,230,97,238]):
                 continue
             if len(raw) < 225:

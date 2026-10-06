@@ -59,7 +59,7 @@ def retirement_suffix(writer,scope,top,before_time):
         end=min(bound,merged[index+1][0] if index+1<len(merged) else top+1)
         if start>=end:continue
         hot=db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND slot>=? AND body IS NOT NULL',(scope,start)).fetchone()[0]
-        recent=db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND lo>=? AND available>=?',(scope,start,before_time)).fetchone()[0]
+        recent=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND lo>=? AND available>=?',(scope,start,before_time)).fetchone()[0]
         for value in (hot,recent):
             if value is not None:end=min(end,value)
         if start>=end:continue
@@ -77,11 +77,14 @@ def retirement_suffix(writer,scope,top,before_time):
         if start>=end:continue
         # An empty newest interval must not hide older eligible work between
         # gaps. These indexed lookups match the native retirement predicates.
+        # Native intervals have lo<=hi. Give the slot index both ends instead
+        # of scanning every later protected interval for a failed hi predicate.
         predicates=[('records','slot>=? AND slot<? AND body IS NULL'),
-                    ('coverage','lo>=? AND hi<?'),
-                    ('gaps','lo>=? AND hi<? AND repaired IS NOT NULL')]
+                    ('coverage','lo>=? AND lo<? AND hi<?'),
+                    ('gaps','lo>=? AND lo<? AND hi<? AND repaired IS NOT NULL')]
         predicates += [(name,'slot>=? AND slot<?') for name in continuity]
         if any(db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+predicate+' LIMIT 1',
+                          (scope,start,end,end) if table in ('coverage','gaps') else
                           (scope,start,end)).fetchone() for table,predicate in predicates):
             return start,end
     return None
@@ -460,7 +463,9 @@ class DebtAgeAdapter:
                 hot_debt, hot_oldest = self._hot(scope, wall-PRESERVATION_SECONDS, pins, gaps, account_floor)
                 oldest_slot = db.execute('SELECT slot FROM records INDEXED BY records_hot_scope_slot WHERE scope=? AND body IS NOT NULL ORDER BY slot LIMIT 1', (scope,)).fetchone()
                 floor = oldest_slot[0] if oldest_slot else top+1
-                recent = db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?', (scope, wall-PRESERVATION_SECONDS)).fetchone()[0]
+                # MIN(lo)'s slot index can scan expired history for every gap.
+                # Seek the existing availability index within the same VM bound.
+                recent = db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND available>=?', (scope, wall-PRESERVATION_SECONDS)).fetchone()[0]
                 if recent is not None:
                     floor = min(floor, recent)
                 if pins:

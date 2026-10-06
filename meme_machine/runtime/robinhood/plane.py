@@ -5,6 +5,7 @@ Observation bodies never constitute authenticated evidence. Every decision is bo
 both to its generation and to the exact evidence watermark and interpretation.
 """
 from contextlib import contextmanager
+from collections import OrderedDict
 import hashlib
 import json
 import math
@@ -54,6 +55,12 @@ class Plane:
         self.clock = clock
         self.owner = process_identity()
         self.lock = threading.RLock()
+        # Only immutable authenticated facts are cached. Mutable candidates,
+        # generations, deadlines, quotes and checkpoints always read SQLite.
+        self._immutable = OrderedDict()
+        self._immutable_bytes = 0
+        self._immutable_version = None
+        self._maintenance_stamp = None
         self.db = sqlite3.connect(self.path, timeout=10, isolation_level=None, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.execute('PRAGMA journal_mode=WAL')
@@ -73,6 +80,7 @@ class Plane:
           priority INTEGER NOT NULL,rank REAL NOT NULL,deadline REAL NOT NULL,queued REAL NOT NULL,
           claim TEXT,owner TEXT,claim_generation INTEGER,claim_until REAL,result TEXT);
         CREATE INDEX IF NOT EXISTS candidate_pending ON candidates(lane,pending,priority,deadline);
+        CREATE INDEX IF NOT EXISTS candidate_retirement ON candidates(observed) WHERE pending=0 AND claim IS NULL;
         CREATE TABLE IF NOT EXISTS observations(
           candidate TEXT NOT NULL,observation TEXT NOT NULL,body TEXT NOT NULL,at REAL NOT NULL,
           PRIMARY KEY(candidate,observation));
@@ -86,6 +94,7 @@ class Plane:
         CREATE TABLE IF NOT EXISTS rolling(
           candidate TEXT,identity TEXT,at INTEGER,block INTEGER,body TEXT,provenance TEXT,
           PRIMARY KEY(candidate,identity));
+        CREATE INDEX IF NOT EXISTS rolling_retirement ON rolling(at);
         CREATE TABLE IF NOT EXISTS service(lane TEXT,seconds REAL,logical INTEGER,physical INTEGER,at REAL);
         CREATE TABLE IF NOT EXISTS runtime(key TEXT PRIMARY KEY,body TEXT);
         CREATE TABLE IF NOT EXISTS result_consumption(candidate TEXT,generation INTEGER,at REAL,
@@ -106,9 +115,10 @@ class Plane:
     def transaction(self):
         with self.lock:
             self.db.execute('BEGIN IMMEDIATE')
+            before = self.db.total_changes
             try:
                 yield
-                self.db.execute('COMMIT')
+                self.db.execute('COMMIT' if self.db.total_changes != before else 'ROLLBACK')
             except BaseException:
                 self.db.execute('ROLLBACK')
                 raise
@@ -133,21 +143,28 @@ class Plane:
     def maintain(self):
         """Port cache eviction and ordering fences without observer artifacts."""
         from meme_machine.runtime.storage import audit_ring
+        with self.lock:
+            now = self.clock()
+            stamp = (self.db.total_changes, self.db.execute('PRAGMA data_version').fetchone()[0])
+            if self._maintenance_stamp == stamp and self._maintenance_at <= now < self._maintenance_due:
+                return
         with self.transaction():
+            version = self.db.execute('PRAGMA data_version').fetchone()[0]
+            evidence_evicted = False
             audit_ring(self.db,'observations','observations_no_delete',key='rowid')
             self.db.execute('DELETE FROM result_consumption WHERE NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
             self.db.execute('DELETE FROM rolling WHERE at<?',(self.clock()-86400,))
             for namespace, in self.db.execute('SELECT DISTINCT namespace FROM evidence').fetchall():
                 limit=8192 if namespace.endswith(':receipt') else 4096
-                self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?)',(namespace,namespace,limit))
+                evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?)',(namespace,namespace,limit)).rowcount > 0
             protected=set()
-            for key,raw in self.db.execute('SELECT key,body FROM runtime'):
+            for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE key LIKE 'native_position:%' OR key='pons_cohort'"):
                 value=json.loads(raw)
                 if key.startswith('native_position:') and value['position']['status']!='settled':protected.add(value['candidate'])
                 if key=='pons_cohort':
                     for kind in ('qualifiers','lifecycles'):
                         protected.update(r['curve'].lower() for r in value['result'].get(kind,[]) if r.get('curve'))
-            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates')]
+            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
             archive=self.history_archive() or dict(schema='robinhood-window-history-v1')
             floors=archive.setdefault('retired_ordering',{})
             for row in rows:
@@ -164,7 +181,17 @@ class Plane:
                 if value['position']['status']=='settled' and value['candidate'] not in protected:
                     self.db.execute('DELETE FROM runtime WHERE key=?',(key,))
             archive['chain_hash']=digest({k:v for k,v in archive.items() if k!='chain_hash'})
-            self.db.execute('INSERT OR REPLACE INTO runtime VALUES(?,?)',('window_history_archive',canonical(archive)))
+            self.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body',('window_history_archive',canonical(archive)))
+        with self.lock:
+            # Eviction must also evict the warm view. Another writer invalidates
+            # the stamp; clock rollback and the next age boundary force a sweep.
+            if evidence_evicted:self._immutable.clear();self._immutable_bytes = 0
+            next_candidate = self.db.execute('SELECT MIN(observed) FROM candidates WHERE pending=0 AND claim IS NULL AND observed>=?',(now-86400,)).fetchone()[0]
+            next_rolling = self.db.execute('SELECT MIN(at) FROM rolling').fetchone()[0]
+            deadlines = [now+60] + [x+86400+.000001 for x in (next_candidate,next_rolling) if x is not None]
+            self._maintenance_at = now
+            self._maintenance_due = min(deadlines)
+            self._maintenance_stamp = (self.db.total_changes, version)
 
     def observe(self, key, lane, observation, payload, *, ordering, watermark,
                 interpretation, observed, deadline, priority, rank=0, needs_work=True):
@@ -322,14 +349,42 @@ class Plane:
 
     def put(self,namespace,key,value,provenance):
         body=canonical(value);proof=canonical(provenance)
-        with self.transaction():
-            old=self.db.execute('SELECT body,provenance FROM evidence WHERE namespace=? AND key=?',(namespace,key)).fetchone()
-            if old and (old[0]!=body or old[1]!=proof):raise ValueError('canonical_evidence_conflict')
-            self.db.execute('INSERT OR IGNORE INTO evidence VALUES(?,?,?,?,?)',(namespace,key,body,proof,self.clock()))
+        with self.lock:
+            self._refresh_immutable()
+            old=self._immutable.get((namespace,key))
+            if old is not None:
+                if old!=(body,proof):raise ValueError('canonical_evidence_conflict')
+                self._immutable.move_to_end((namespace,key))
+                return
+            with self.transaction():
+                old=self.db.execute('SELECT body,provenance FROM evidence WHERE namespace=? AND key=?',(namespace,key)).fetchone()
+                if old and tuple(old)!=(body,proof):raise ValueError('canonical_evidence_conflict')
+                if old is None:self.db.execute('INSERT INTO evidence VALUES(?,?,?,?,?)',(namespace,key,body,proof,self.clock()))
+            self._remember_immutable((namespace,key),(body,proof))
+
+    def _remember_immutable(self,key,row):
+        size=sum(len(x.encode()) for x in row)+sum(len(x.encode()) for x in key)
+        if size>16*1024*1024:return
+        if key in self._immutable:return
+        self._immutable[key]=tuple(row);self._immutable_bytes+=size
+        while len(self._immutable)>1024 or self._immutable_bytes>16*1024*1024:
+            old,value=self._immutable.popitem(last=False)
+            self._immutable_bytes-=sum(len(x.encode()) for x in old+value)
+
+    def _refresh_immutable(self):
+        version=self.db.execute('PRAGMA data_version').fetchone()[0]
+        if version!=self._immutable_version:
+            self._immutable.clear();self._immutable_bytes=0
+            self._immutable_version=version
 
     def evidence(self,namespace,key):
         with self.lock:
-            row=self.db.execute('SELECT body,provenance FROM evidence WHERE namespace=? AND key=?',(namespace,key)).fetchone()
+            self._refresh_immutable()
+            row=self._immutable.get((namespace,key))
+            if row is None:
+                row=self.db.execute('SELECT body,provenance FROM evidence WHERE namespace=? AND key=?',(namespace,key)).fetchone()
+                if row is not None:self._remember_immutable((namespace,key),tuple(row))
+            else:self._immutable.move_to_end((namespace,key))
         return (json.loads(row[0]),json.loads(row[1])) if row else None
 
     def rolling_put(self,candidate,identity,at,block,value,provenance,*,retention_seconds=60,limit=400):
@@ -352,7 +407,7 @@ class Plane:
 
     def checkpoint(self,key,value):
         with self.transaction():
-            self.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body',(key,canonical(value)))
+            self.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body',(key,canonical(value)))
 
     def checkpoint_read(self,key):
         with self.lock:

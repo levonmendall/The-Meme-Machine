@@ -133,9 +133,9 @@ class PreparedRecord:
     chunks: tuple
 
 
-def prepare_record(record):
+def prepare_record(record,*,log_cache=None):
     body,raw=record.serialized_body()
-    encoded,chunks=prepare_storage(body,canonical_body=raw)
+    encoded,chunks=prepare_storage(body,canonical_body=raw,log_cache=log_cache)
     return PreparedRecord(record,tuple(body['addresses']),hashlib.sha256(raw.encode()).hexdigest(),
                           len(raw.encode()),encoded,chunks)
 

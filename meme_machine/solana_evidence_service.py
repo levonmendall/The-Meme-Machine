@@ -95,7 +95,7 @@ def decode_source_message(raw,credential,program_addresses=(),endpoint_identity=
     message=json.loads(raw)
     if not isinstance(message,dict):
         raise EvidenceUnavailable('source_message_shape')
-    total=retained=0
+    total=retained=0;normalized_keys={};members={}
     if message.get('method')=='blockNotification':
         try:
             value=message['params']['result']['value'];block=value.get('block')
@@ -119,8 +119,11 @@ def decode_source_message(raw,credential,program_addresses=(),endpoint_identity=
             except (KeyError,TypeError,AttributeError):
                 raise EvidenceUnavailable('source_transaction_shape') from None
             total+=1
-            if targets.intersection(normalized):
+            matched=targets.intersection(normalized)
+            if matched:
                 kept.append(tx)
+                normalized_keys[id(tx)]=normalized
+                for address in matched:members.setdefault(address,[]).append(tx)
         retained=len(kept)
         block=dict(block);block['transactions']=kept
         value=dict(value);value['block']=block
@@ -128,11 +131,12 @@ def decode_source_message(raw,credential,program_addresses=(),endpoint_identity=
         params=dict(message['params']);params['result']=result
         message=dict(message);message['params']=params
     if endpoint_identity is not None and observed_at is not None and message.get('method')=='blockNotification':
-        scopes={};prepared_bytes=0;budget=[STREAM_PREPARED_MAX_BYTES]
+        scopes={};prepared_bytes=0;budget=[STREAM_PREPARED_MAX_BYTES];log_cache={}
         for sub in program_subscriptions():
             if sub.evidence_class=='logs':continue
             try:
-                scoped=prepare_block_scope(sub,message,observed_at,endpoint_identity,program_decoders(),include_logs=True,budget=budget)
+                scoped=prepare_block_scope(sub,message,observed_at,endpoint_identity,program_decoders(),include_logs=True,budget=budget,
+                    normalized_keys=normalized_keys,members=members,log_cache=log_cache)
             except PreparationBudgetExceeded:
                 # An unusual multi-event block may expand beyond the preparation
                 # budget. Retain its exact former serial path, never drop content.
@@ -169,11 +173,11 @@ def restore_prepared_source(message,scopes,prepared_bytes):
 
 class PreparationBudgetExceeded(Exception):pass
 
-def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,include_logs,budget):
+def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,include_logs,budget,normalized_keys=None,members=None,log_cache=None):
     """Pure decode/hash/compression, with no database or authority publication."""
     from .solana_evidence_plane import prepare_record
     def prepare(record):
-        result=prepare_record(record)
+        result=prepare_record(record,log_cache=log_cache)
         budget[0]-=result.byte_count
         if budget[0]<0:raise PreparationBudgetExceeded()
         return result
@@ -181,9 +185,10 @@ def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,i
     transactions=block.get('transactions')
     if not isinstance(transactions,list):raise EvidenceUnavailable('filtered_block_bound')
     def keys(tx):
+        if normalized_keys is not None and id(tx) in normalized_keys:return normalized_keys[id(tx)]
         values=tx['transaction']['message']['accountKeys'];loaded=tx['meta'].get('loadedAddresses') or {}
         return [k if isinstance(k,str) else k['pubkey'] for k in values]+list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
-    transactions=[tx for tx in transactions if subscription.address in keys(tx)]
+    transactions=members.get(subscription.address,[]) if members is not None else [tx for tx in transactions if subscription.address in keys(tx)]
     if len(transactions)>2048:raise EvidenceUnavailable('filtered_block_bound')
     signatures=[tx['transaction']['signatures'][0] for tx in transactions]
     scoped=dict(method='blockNotification',params=dict(result=dict(value=dict(value,block=dict(block,transactions=transactions)))))

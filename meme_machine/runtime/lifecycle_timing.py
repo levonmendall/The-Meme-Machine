@@ -380,6 +380,10 @@ def install_ramses(extended_module):
         return
     extended_module._continuation_attached = True
 
+    from meme_machine.lanes.ramses import ramses_universe
+    from meme_machine.runtime.robinhood.ramses_window import install
+    install(ramses_universe)
+
     from meme_machine.lanes.ramses import ramses_all_pool_lifecycle as lifecycle
     from meme_machine.lanes.ramses.ramses_strategy_ledger import RamsesStrategyLedger
 

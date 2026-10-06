@@ -378,6 +378,32 @@ class HousekeepingRestartTests(unittest.TestCase):
 
 
 class FrontierCurrentnessTests(unittest.TestCase):
+    def test_expired_coverage_with_many_gaps_keeps_freshness_reads_bounded(self):
+        from meme_machine.solana_evidence_plane import canonical,digest
+        with native_runtime() as (state,r,clock):
+            scope=SCOPES[0];writer=state.writer
+            ingest(writer,rows(clock,scope,1,start=1005,age=1800))
+            writer.archive(clock.time()-180)
+            ingest(writer,rows(clock,scope,1,start=1_000_000,age=0,tag='protected'))
+            writer._interest('open-position',scope,lower_slot=100_000,priority=0,lifecycle='open')
+            finalized_frontier(state,clock,scope,slot=1_000_000)
+            with writer.transaction():
+                for i in range(32):writer._gap(scope,1050+1000*i,1055+1000*i,'offline-gap')
+                writer.db.executemany('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    [(scope,200_000+i,200_000+i,clock.time()-3600,canonical(dict(
+                        finalized=True,complete=True,scope=scope,lower_slot=200_000+i,
+                        upper_slot=200_000+i,lineage_hash=digest(['old',i])))) for i in range(6000)])
+            before=writer.db.execute('SELECT identity,body,hash FROM records ORDER BY identity').fetchall()
+            observation=r.adapter.observe(r.generation)
+            selected=next(s for s in observation.scopes if s.scope==scope)
+            self.assertLessEqual(observation.vm_steps,250_000)
+            self.assertEqual(selected.gaps,32)
+            self.assertEqual(selected.pins,1)
+            self.assertEqual(selected.floor,1050)
+            self.assertEqual(selected.hot_eligible,0)
+            self.assertEqual(selected.retirement_eligible,1)
+            self.assertEqual(writer.db.execute('SELECT identity,body,hash FROM records ORDER BY identity').fetchall(),before)
+
     def test_missing_current_frontier_cannot_borrow_prior_observation(self):
         with native_runtime() as (state,r,clock):
             ingest(state.writer,rows(clock,SCOPES[0],1500,same_slot=True))
