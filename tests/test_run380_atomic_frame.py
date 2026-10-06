@@ -130,7 +130,17 @@ class PreparedSourceTests(unittest.TestCase):
   msg=json.loads(Wire().template);size=len(json.dumps(msg).encode())
   raw=json.dumps(msg).encode();targets=tuple(s.address for s in service.program_subscriptions())
   prepared,_,_=service.decode_source_message(raw,config.credential,targets,config.identity,seen)
-  prepared=pickle.loads(pickle.dumps(prepared))
+  original=prepared
+  prepared=pickle.loads(pickle.dumps(original))
+  original_rows=[row for scope in original.scopes.values() for batch in scope['batches'] for row in batch]
+  wire_rows=[row for scope in prepared.scopes.values() for batch in scope['batches'] for row in batch]
+  self.assertTrue(any(row.record.payload for row in original_rows))
+  self.assertTrue(all(row.record.payload=={} for row in wire_rows))
+  # IPC drops only the redundant parsed tree. The authoritative native bytes,
+  # hashes, chunk bodies and record metadata are exactly preserved.
+  from dataclasses import replace
+  self.assertEqual(wire_rows,[replace(row,record=replace(row.record,payload={})) for row in original_rows])
+  self.assertLess(len(pickle.dumps(prepared)),len(pickle.dumps((dict(original),original.__dict__))))
   self.assertIsInstance(prepared,service.PreparedSource)
   self.assertLessEqual(prepared.prepared_bytes,service.STREAM_MAX_MESSAGE_BYTES)
   self.assertEqual(prepared['params']['result']['value']['block']['transactions'],[])
@@ -183,6 +193,8 @@ class PreparedSourceTests(unittest.TestCase):
   sub,msg,seen,size=frame(1000);raw=json.dumps(msg).encode()
   with patch.object(service,'STREAM_PREPARED_MAX_BYTES',1):
    prepared,_,_=service.decode_source_message(raw,config.credential,tuple(s.address for s in service.program_subscriptions()),config.identity,seen)
+  import pickle
+  prepared=pickle.loads(pickle.dumps(prepared))
   self.assertIsNone(prepared.scopes)
   self.assertEqual(prepared,msg)
   with tempfile.TemporaryDirectory() as td:

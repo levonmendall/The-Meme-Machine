@@ -176,12 +176,6 @@ class Supervisor:
             except (OSError,ValueError):row=dict(phase='STARTING')
             health[lane]=dict(row,pid=proc.pid,exit_code=proc.poll(),restarts=self.restarts[lane])
         try:
-            _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(now),stopping=self.stop_requested,lanes=health,providers=self.provider_health(),python=sys.version.split()[0],sqlite=sqlite3.sqlite_version,
-                portfolio_observation=getattr(self,'portfolio_observation',None),
-                learning_observation=getattr(self,'learning_observation',None)))
-        except OSError as error:
-            print('health publication failed:',type(error).__name__,flush=True)
-        try:
             with self.account() as account:
                 sequence=account.snapshot()['sequence']
                 account.export_path=self.root/'portfolio.json'
@@ -206,6 +200,15 @@ class Supervisor:
             from .observation import owner_learning_observation
             self.learning_observation=owner_learning_observation(self.root)
         except (OSError,ValueError,RuntimeError):self.learning_observation=None
+        try:
+            # Publish this cycle's already-reconciled facts. Publishing before
+            # building them inserted a full extra cycle of age under load; a
+            # healthy portfolio then failed the observer's unchanged 15s TTL.
+            _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(time.time()),stopping=self.stop_requested,lanes=health,providers=self.provider_health(),python=sys.version.split()[0],sqlite=sqlite3.sqlite_version,
+                portfolio_observation=getattr(self,'portfolio_observation',None),
+                learning_observation=getattr(self,'learning_observation',None)))
+        except OSError as error:
+            print('health publication failed:',type(error).__name__,flush=True)
         self.last_publish=time.monotonic()
 
     def provider_health(self):

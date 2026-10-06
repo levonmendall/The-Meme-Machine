@@ -183,6 +183,26 @@ class NativeDeliveryRecovery(unittest.TestCase):
         with patch('meme_machine.operational.supervisor._atomic_json',side_effect=OSError('read_only_dashboard')):
             self.service.publish()
 
+    def test_health_contains_this_cycles_reconciled_portfolio_without_extended_validity(self):
+        self.service.portfolio_observation={'state':'UNAVAILABLE','timestamp':0}
+        self.service.publish()
+        health=json.loads((self.root/'health.json').read_text())
+        with self.service.account() as account:
+            exported=account._export(account.snapshot())
+        facts=health['portfolio_observation']
+        self.assertEqual(facts['state'],'CURRENT')
+        self.assertEqual(facts['sequence'],exported['sequence'])
+        self.assertEqual(facts['valid_until'],exported['valid_until'])
+        self.assertEqual(facts['reconciliation'],'PASS')
+        self.assertEqual(facts['marked_equity'],'500.00')
+        # The next cycle must publish its own facts too, rather than reuse this
+        # cycle's sequence or extend an old mark's validity to the health time.
+        previous=facts['sequence'];self.service.publish()
+        latest=json.loads((self.root/'health.json').read_text())['portfolio_observation']
+        with self.service.account() as account:
+            self.assertEqual(latest['sequence'],account.snapshot()['sequence'])
+        self.assertGreater(latest['sequence'],previous)
+
     def test_failed_incremental_delivery_keeps_original_native_and_usd_position(self):
         book,_,_=open_native(self.root,'pump',self.service.epoch)
         native=open_position(book,'pump',self.service.epoch,int(time.time()))

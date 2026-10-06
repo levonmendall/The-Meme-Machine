@@ -151,7 +151,20 @@ def decode_source_message(raw,credential,program_addresses=(),endpoint_identity=
 
 class PreparedSource(dict):
     """Local process-pool product, impossible to forge through provider JSON."""
-    pass
+    def __reduce__(self):
+        if self.scopes is None:return PreparedSource,(dict(self),),self.__dict__
+        # The SQL owner consumes trusted prepared bytes, not a second parsed
+        # payload tree. Keep every original byte/hash/chunk and all native
+        # record metadata, while avoiding duplicate raw IPC and parent GC work.
+        scopes={key:dict(value,batches=tuple(tuple(
+            replace(row,record=replace(row.record,payload={})) for row in batch)
+            for batch in value['batches'])) for key,value in self.scopes.items()}
+        return restore_prepared_source,(dict(self),scopes,self.prepared_bytes)
+
+
+def restore_prepared_source(message,scopes,prepared_bytes):
+    result=PreparedSource(message);result.scopes=scopes;result.prepared_bytes=prepared_bytes
+    return result
 
 
 class PreparationBudgetExceeded(Exception):pass
