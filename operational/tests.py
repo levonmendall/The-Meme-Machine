@@ -15,7 +15,7 @@ FAST=[
  'tests.test_provider_retry','tests.test_provider_usage_wal_race','tests.test_runtime_wal_races','tests.test_robinhood_archive_snapshot','tests.test_lifecycle_snapshot_connection','tests.test_pump_restart_connection','tests.test_pons_recovery_connection','tests.test_pons_capital_recovery_snapshot','tests.test_sleeve_reconciliation_snapshot','tests.test_pipeline_retention_boundary','tests.test_optional_capability_shapes','tests.test_prefetch_governor_readonly',
  'tests.lanes.pump.test_pump_acceleration_strategy','tests.lanes.pump.test_pump_acceleration_paper',
  'tests.lanes.pump.test_pumpswap_survivor','tests.lanes.pump.test_paper_accounting',
- 'tests.lanes.meteora.test_solana_dlmm_independent_v1',
+ 'tests.lanes.meteora.test_solana_dlmm_independent_v1','tests.test_meteora_discovery_scheduler',
  'tests.lanes.pons.test_pons_selective_continuation','tests.lanes.pons.test_pons_partial_accounting',
  'tests.lanes.pons.test_pons_postgrad_survivor',
  'tests.lanes.ramses.test_ramses_strategy','tests.lanes.ramses.test_ramses_capital_replay',
