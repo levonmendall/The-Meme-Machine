@@ -37,6 +37,7 @@ jobs:
             'tests.test_meteora_discovery_scheduler',
             'tests.test_meteora_market_scope_efficiency',
             'tests.lanes.meteora.test_solana_dlmm_independent_v1',
+            'tests.lanes.meteora.test_meteora_continuous_campaign',
           ]
           suite=unittest.defaultTestLoader.loadTestsFromNames(names)
           result=unittest.TextTestRunner(verbosity=2).run(suite)
