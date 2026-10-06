@@ -1118,7 +1118,7 @@ def main(*,campaign=False,discovery_seconds=None):
         started=int(time.time()),stream={},sessions=[],counts={},limitations=[],
         run_id=run_id,accounting_path=str(accounting_path),
         confirmation_evidence=confirmations.status(),
-        attempts=[],full_evidence_candidates=[],qualifiers=[],settled=[],
+        attempts=[],full_evidence_candidates=[],qualifiers=[],funding_denials=[],settled=[],
         open_positions=[],postgrad=[],
     )
     report['operational_configuration']=dict(campaign=campaign,discovery_seconds=discovery_seconds,
@@ -1165,7 +1165,6 @@ def main(*,campaign=False,discovery_seconds=None):
     )
     last_eval={};last_postgrad_eval={};last_save=0
     discovery_end=int(time.time())+discovery_seconds
-    attempt_budget=RollingAttemptBudget()
     end=discovery_end+FOLLOWUP_SECONDS
     report["discovery_deadline"]=discovery_end
 
@@ -1349,8 +1348,7 @@ def main(*,campaign=False,discovery_seconds=None):
                         identity='pump:pumpswap_watch:'+queued_mint+':'+str(grad))
                 try:
                     postgrad_work=CANDIDATE_HISTORY.claim(
-                        'pump-postgrad:'+str(os.getpid()),lane='pump',
-                        capacity=MAX_EXPENSIVE_POSTGRAD_PER_TURN)
+                        'pump-postgrad:'+str(os.getpid()),lane='pump')
                 except CandidateDeadlineMissed:
                     report['infrastructure_failure']='candidate_decision_deadline_missed'
                     break
@@ -1507,6 +1505,8 @@ def main(*,campaign=False,discovery_seconds=None):
                 report["full_evidence_attempts"]=full_attempts
                 report["active_provider"]=sessions.rpc.provider_telemetry()
                 report["evidence_broker"]=broker.telemetry()
+                if CANDIDATE_HISTORY is not None:
+                    report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
                 counts=Counter()
                 for attempt in report["attempts"]:
                     counts[f'{attempt.get("mode")}:{attempt.get("stage")}']+=1
@@ -1554,9 +1554,13 @@ def main(*,campaign=False,discovery_seconds=None):
                  marks=dict(v["marks"]),snapshot=v["lifecycle"].snapshot())
             for k,v in active.items()]
         report["threshold_changes_made"]=False
+        if CANDIDATE_HISTORY is not None:
+            report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
         _save(report)
         broker.close();plane.close()
         FILL_PERSISTENCE_CONTEXT=None
+        if CANDIDATE_HISTORY is not None:
+            CANDIDATE_HISTORY.close();CANDIDATE_HISTORY=None
         ACCOUNTING.close();ACCOUNTING=None
         PIPELINE.close();PIPELINE=None
     print(json.dumps(report,sort_keys=True))
