@@ -344,6 +344,31 @@ def _refresh_pool_events(
     events=history.refresh(
         None,now,research=research,hydration_kind=hydration_kind)
     state["history_status"]=history.status(now)
+    if CANDIDATE_HISTORY is not None:
+        from meme_machine.runtime.journal import digest as receipt_digest
+        mint=str(state["mint"])
+        CANDIDATE_HISTORY.observe(
+            'pump',mint,surface='pumpswap',
+            observed_at=int(state["graduation_time"]),
+            decision_deadline=int(state["graduation_time"])+
+                max(POLICY.max_postgrad_entry_age_s,600),
+            metadata=dict(pool=state["pool"],source='pump_graduation'))
+        for event in events:
+            identity=str(event.get("id") or receipt_digest(event))
+            signature=str(event.get("evidence_signature") or identity.rsplit(":",1)[0])
+            slot=int(event.get("slot") or 0)
+            tx_index=None
+            reader=getattr(sessions.plane,"reader",None)
+            if reader is not None and signature:
+                proof=reader.db.execute(
+                    'SELECT rank FROM stream_order WHERE scope=? AND slot=? AND signature=?',
+                    (SWAP_SCOPE,slot,signature)).fetchone()
+                if proof is not None:tx_index=int(proof[0])
+            CANDIDATE_HISTORY.append_event(
+                'pump',mint,identity=identity,slot=slot,
+                transaction_index=tx_index,event_index=int(event.get("index") or 0),
+                market_time=int(event.get("market_time") or now),
+                kind='pumpswap_trade',payload=dict(event))
     return events
 
 
