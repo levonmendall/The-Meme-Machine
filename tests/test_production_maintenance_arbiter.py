@@ -414,10 +414,14 @@ class AdapterServeCorrectionsTests(unittest.IsolatedAsyncioTestCase):
         def seed(state,clock):
             state.writer.clock=clock.time
             orphan_chunk(state.writer,'initial')
-        def after(runtime,flight,result,box):
+        def before(runtime,flight,box):
+            # Startup may already consume the seed. Supply real work before
+            # every one of the 30 counted decisions, including the first; an
+            # empty observation cannot count as a serviced housekeeping unit.
             orphan_chunk(runtime.writer,'turn-'+str(box['turns']))
+        def after(runtime,flight,result,box):
             box['clock'].advance(2)
-        box=await run_case(seed=seed,after=after,turns=30)
+        box=await run_case(seed=seed,before=before,after=after,turns=30)
         self.assertFalse(box['errors'],[str(e) for e in box['errors']])
         self.assertGreater(box['clock'].monotonic(),box['runtime'].leases.drought)
         progress=[row for row in box['native_progress'] if row[:2]==('__housekeeping__','retirement')]

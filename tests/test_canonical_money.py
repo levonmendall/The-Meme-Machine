@@ -20,6 +20,42 @@ from tests.test_robinhood_usd_valuation import ReadRPC, NOW
 
 
 class ExactMoneyContract(unittest.TestCase):
+    def test_checkpoint_checks_money_even_inside_historical_collections(self):
+        from meme_machine.portfolio_accounting import _decode_checkpoint
+        valid = {"history": [{"value": {"decimal": "0." + "0" * 28 + "1"}}]}
+        self.assertEqual(_encode_checkpoint(_decode_checkpoint(valid)), valid)
+        for collection in ("history", "delivery_receipts"):
+            for value in ("0." + "0" * 29 + "1", "1" + "0" * 40):
+                with self.subTest(collection=collection, value=value), self.assertRaises(ValueError):
+                    _decode_checkpoint({collection: [{"value": {"decimal": value}}]})
+
+    def test_mutation_validation_work_does_not_rescan_retained_history(self):
+        import meme_machine.exact_money as contract
+        t = accounting_fixture.SharedPortfolioAccountingTests(); t.setUp()
+        try:
+            t.activate()
+            state = t.account.snapshot()
+            state["history"] = [{"at": "historical", "value": "0", "labels": ["immutable"] * 32}
+                                for _ in range(2000)]
+            state["delivery_receipts"] = {str(i): {"body": {"data": ["validated"] * 32}}
+                                          for i in range(512)}
+            original = contract.validate_decimals
+            visits = 0
+            def bounded(value):
+                nonlocal visits
+                visits += 1
+                if visits > 256:
+                    raise AssertionError("mutation rescanned immutable history/receipts")
+                return original(value)
+            with patch.object(contract, "validate_decimals", bounded):
+                self.assertTrue(all(t.account._reconcile(state)["checks"].values()))
+            for key in ("available", "shared_costs"):
+                invalid = deepcopy(state); invalid[key] = Decimal("1e40")
+                with self.subTest(key=key), self.assertRaises(ValueError):
+                    t.account._reconcile(invalid)
+        finally:
+            t.tearDown()
+
     def test_boundary_envelope_is_shared_without_rounding(self):
         maximum='9'*INTEGER_DIGITS+'.'+'9'*FRACTIONAL_PLACES
         inside=('0.'+'0'*(FRACTIONAL_PLACES-1)+'1',maximum,'-'+maximum,

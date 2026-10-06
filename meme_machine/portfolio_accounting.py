@@ -856,7 +856,12 @@ class PortfolioAccounting:
         position["lifecycle"].append({"stage": "rebalance", "at": event["at"]})
 
     def _reconcile(self, state):
-        validate_decimals(state)
+        # Check monetary components that mutations can change. Checkpoint
+        # decoding validates every Decimal once, and history/receipt facts are
+        # already validated at their boundaries; rescanning those immutable
+        # collections at every replayed event makes writer ownership quadratic.
+        validate_decimals({key: state[key] for key in
+                           ("available", "shared_costs", "positions", "reservations", "retired")})
         with arithmetic():
             positions = list(state["positions"].values())
             lane_realized = sum((row["realized_pnl"] for row in positions), Decimal(0)) + sum((r["realized_pnl"] for r in state["retired"].values()), Decimal(0))
