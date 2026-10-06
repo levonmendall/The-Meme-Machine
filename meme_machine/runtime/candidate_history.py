@@ -123,17 +123,14 @@ class CandidateHistory:
         metadata=dict(metadata or {})
         with self.transaction():
             prior=self.db.execute(
-                "SELECT first_observed,last_observed,decision_deadline,body FROM candidates WHERE lane=? AND candidate=?",
+                "SELECT first_observed,last_observed,decision_deadline,body,hash FROM candidates WHERE lane=? AND candidate=?",
                 (lane,candidate)).fetchone()
             first=observed_at if prior is None else min(observed_at,int(prior[0]))
             last=observed_at if prior is None else max(observed_at,int(prior[1]))
             prior_deadline=None if prior is None else prior[2]
             if prior is not None:
                 prior_body=json.loads(prior[3])
-                if digest(prior_body)!=self.db.execute(
-                        "SELECT hash FROM candidates WHERE lane=? AND candidate=?",
-                        (lane,candidate)).fetchone()[0]:
-                    raise ValueError("candidate_history_corruption")
+                if digest(prior_body)!=prior[4]:raise ValueError("candidate_history_corruption")
                 metadata=dict(prior_body.get("metadata") or {},**metadata)
             if deadline is None:deadline=prior_deadline
             elif prior_deadline is not None:deadline=min(int(prior_deadline),deadline)
