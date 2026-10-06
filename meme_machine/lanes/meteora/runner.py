@@ -1868,6 +1868,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
     report["attempt_budget_window_seconds"]=1200 if campaign else None
     report['operational_configuration']=dict(campaign=campaign,census_interval_seconds=60 if campaign else None,
         attempt_limit=max_attempted,attempt_window_seconds=1200 if campaign else None,
+        attempt_limit_is_pressure_only=True,
         first_sighting_scope='entire_process',paper_starting_capital_lamports=1_000_000_000,
         runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
     report['operational_configuration_hash']=digest(report['operational_configuration'])
@@ -1954,13 +1955,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     checkpoint("compatibility_rejection")
                     continue
 
-                if campaign and not attempt_budget.take(time.monotonic()):
-                    failure_counts['capacity_attempt_window_budget']+=1
-                    report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
-                        terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
-                    _stage(candidate["address"],"terminal","capacity_attempt_window_budget")
-                    checkpoint('capacity_censoring')
-                    continue
+                capacity_pressure=(campaign and not attempt_budget.take(time.monotonic()))
+                if capacity_pressure:
+                    # The historical attempt budget is now pressure telemetry only.
+                    # It may reveal that the machine/provider cannot keep up, but it
+                    # may not silently discard an otherwise recoverable candidate.
+                    failure_counts['capacity_attempt_window_pressure']+=1
+                    report['attempt_budget_pressure_count']=(
+                        report.get('attempt_budget_pressure_count',0)+1)
+                    _stage(candidate["address"],"capacity_pressure",
+                           "capacity_attempt_window_pressure",
+                           economic_rejection=False)
+                    checkpoint('capacity_pressure')
                 attempted+=1
                 _stage(candidate["address"],"admitted")
                 _stage(candidate["address"],"trigger_evidence_requested")
