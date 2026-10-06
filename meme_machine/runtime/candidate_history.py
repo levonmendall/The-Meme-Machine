@@ -128,6 +128,13 @@ class CandidateHistory:
             first=observed_at if prior is None else min(observed_at,int(prior[0]))
             last=observed_at if prior is None else max(observed_at,int(prior[1]))
             prior_deadline=None if prior is None else prior[2]
+            if prior is not None:
+                prior_body=json.loads(prior[3])
+                if digest(prior_body)!=self.db.execute(
+                        "SELECT hash FROM candidates WHERE lane=? AND candidate=?",
+                        (lane,candidate)).fetchone()[0]:
+                    raise ValueError("candidate_history_corruption")
+                metadata=dict(prior_body.get("metadata") or {},**metadata)
             if deadline is None:deadline=prior_deadline
             elif prior_deadline is not None:deadline=min(int(prior_deadline),deadline)
             body=dict(lane=lane,candidate=candidate,surface=surface,first_observed=first,
@@ -146,6 +153,19 @@ class CandidateHistory:
         body=json.loads(row[0])
         if digest(body)!=row[1]:raise ValueError("candidate_history_corruption")
         return body
+
+    def candidates(self,*,lane=None):
+        sql="SELECT body,hash FROM candidates"
+        args=()
+        if lane is not None:
+            sql+=" WHERE lane=?";args=(str(lane),)
+        sql+=" ORDER BY first_observed,lane,candidate"
+        result=[]
+        for raw,checksum in self.db.execute(sql,args):
+            body=json.loads(raw)
+            if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
+            result.append(body)
+        return result
 
     def append_event(self,lane,candidate,*,identity,slot,transaction_index,event_index,
                      market_time,kind,payload):
