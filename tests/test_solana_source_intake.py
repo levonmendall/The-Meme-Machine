@@ -96,12 +96,19 @@ class SourceIntakeTests(unittest.TestCase):
             self.assertEqual(prepared.scopes[sub.scope],expected)
         bodies=selected.message['params']['result']['value']['block']['transactions']
         self.assertEqual(set(bodies[0]['meta']),{'err','logMessages'})
+        originals={
+            tx['transaction']['signatures'][0]:tx
+            for tx in txs+[cross]
+        }
         for body in bodies[2:]:
             self.assertEqual(set(body['transaction']['message']),{'accountKeys','instructions'})
             self.assertEqual(set(body['meta']),
                 {'err','logMessages','innerInstructions','preTokenBalances','postTokenBalances'})
             self.assertNotIn('preBalances',body['meta'])
             self.assertNotIn('postBalances',body['meta'])
+            original=originals[body['transaction']['signatures'][0]]
+            if original.get('transactionIndex') is not None:
+                self.assertEqual(body.get('transactionIndex'),original['transactionIndex'])
         self.assertEqual(
             (selected.full_body_transactions,selected.log_projection_transactions,
              selected.economic_projection_transactions),(0,2,2))
