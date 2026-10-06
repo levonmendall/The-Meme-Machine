@@ -14,6 +14,37 @@ from meme_machine.operational.supervisor import identities
 
 
 class ReadOnlyObservation(unittest.TestCase):
+    def test_delayed_read_refreshes_same_epoch_owner_facts_without_extending_validity(self):
+        from meme_machine.operational.supervisor import Supervisor
+        from meme_machine.runtime.usd_valuation import utc
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);supervisor=Supervisor(root,offline=True)
+            supervisor.initialize();self.addCleanup(supervisor.lock.close)
+            supervisor.publish();supervisor.publish()
+            now=time.time();health=json.loads((root/'health.json').read_text())
+            latest=json.loads(json.dumps(health))
+            health['portfolio_observation']['timestamp']=now-20
+            latest['portfolio_observation']['timestamp']=now-1
+            latest['portfolio_observation']['valid_until']=utc(now+29)
+            latest['at']=utc(now-1)
+            latest['providers']['solana']=dict(state='CURRENT',queue_depth=1,oldest_wait_seconds=.1)
+            (root/'health.json').write_text(json.dumps(latest))
+            before=(root/'portfolio.sqlite').read_bytes()
+            missing=dict(state='UNAVAILABLE',sqlite_code=sqlite3.SQLITE_INTERRUPT,observation_deadline_exhausted=True)
+            with patch.object(observation,'database',return_value=missing),patch.object(observation.time,'time',return_value=now):
+                row=observation.observed_portfolio(root,health)
+                self.assertEqual(row['state'],'CURRENT')
+                self.assertEqual(row['valid_until'],latest['portfolio_observation']['valid_until'])
+                self.assertEqual(row['reconciliation'],'PASS')
+                self.assertEqual(observation.observed_provider(root,health,'solana')['queue_depth'],1)
+                latest['portfolio_observation']['valid_until']=utc(now-1)
+                (root/'health.json').write_text(json.dumps(latest))
+                self.assertEqual(observation.observed_portfolio(root,health),missing)
+                latest['epoch_id']='different-epoch'
+                (root/'health.json').write_text(json.dumps(latest))
+                self.assertEqual(observation.observed_provider(root,health,'solana'),missing)
+            self.assertEqual((root/'portfolio.sqlite').read_bytes(),before)
+
     def test_only_the_observers_own_sqlite_read_deadline_allows_projection(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'data.sqlite'

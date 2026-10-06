@@ -123,9 +123,22 @@ def projection_allowed(result):
         result.get('sqlite_code')==sqlite3.SQLITE_INTERRUPT and result.get('observation_deadline_exhausted') is True)
 
 
-def observed_portfolio(root,health,now):
+def fresh_health(root,health):
+    """Refresh only a bounded read-only projection from the same epoch."""
+    try:
+        latest=read_json(Path(root)/'health.json')
+        return latest if isinstance(latest,dict) and latest.get('epoch_id')==health.get('epoch_id') else {}
+    except (OSError,ValueError,TypeError):return health
+
+
+def observed_portfolio(root,health,now=None):
     result=database(Path(root)/'portfolio.sqlite',portfolio)
     if not projection_allowed(result):return result
+    if now is None:
+        # Diagnostic collection and the bounded SQL attempt can age the copy
+        # captured at sample start. Re-read the existing owner's atomic facts;
+        # neither the projection TTL nor its validity window is extended.
+        health=fresh_health(root,health);now=time.time()
     # A genuinely read-only mount cannot create missing WAL support files
     # between short-lived writer connections. Use the existing owner's bounded
     # atomic health projection; never mark the live database immutable, write
@@ -160,10 +173,11 @@ def observed_portfolio(root,health,now):
     except (KeyError,TypeError,ValueError):return result
 
 
-def observed_provider(root,health,provider_name,now):
+def observed_provider(root,health,provider_name,now=None):
     result=database(Path(root)/'shared'/f'{provider_name}-provider.sqlite',
         lambda db:provider(db,provider_name=='solana'))
     if not projection_allowed(result):return result
+    if now is None:health=fresh_health(root,health);now=time.time()
     try:
         from meme_machine.portfolio_accounting import _stamp
         row=health['providers'][provider_name]
@@ -383,10 +397,10 @@ def collect(root):
             ('learning_rows','learning_store_bytes','learning_measurement_complete')})
         value['storage_totals']['learning_observation_source']='canonical_health_projection'
     directional_reports(root,value.setdefault('six_regimes',{}))
-    value['portfolio'] = observed_portfolio(root,health,time.time())
+    value['portfolio'] = observed_portfolio(root,health)
     value['solana'] = database(root/'shared/solana-evidence.sqlite', evidence)
     for name in ('solana','robinhood'):
-        value[name+'_provider'] = observed_provider(root,health,name,time.time())
+        value[name+'_provider'] = observed_provider(root,health,name)
     return value
 
 
