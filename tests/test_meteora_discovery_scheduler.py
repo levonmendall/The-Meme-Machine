@@ -51,6 +51,33 @@ class DiscoverySchedulerTests(unittest.TestCase):
                 self.assertEqual(source.snapshot()['pending'],0)
             finally:source.close()
 
+    def test_same_pool_reactivates_once_per_later_census_cycle(self):
+        clock=[0.];cycles=[threading.Event(),threading.Event()]
+        release=threading.Event();counter=[0]
+        def api(path,p):
+            return {'data':[row('pool')]}
+        def wait(delay):
+            index=counter[0];counter[0]+=1
+            if index<2:cycles[index].set()
+            while not release.wait(.01):
+                if source.stop.is_set():return True
+            release.clear();clock[0]+=delay
+        with tempfile.TemporaryDirectory() as td:
+            source=self.source(Path(td)/'spool.sqlite',api,clock,wait=wait).start()
+            try:
+                self.assertTrue(cycles[0].wait(2))
+                first=source.next_candidate()
+                self.assertFalse(first['reactivated'])
+                self.assertEqual(first['discovery_cycle'],1)
+                release.set();self.assertTrue(cycles[1].wait(2))
+                second=source.next_candidate()
+                self.assertTrue(second['reactivated'])
+                self.assertEqual(second['discovery_cycle'],2)
+                self.assertEqual(second['address'],'pool')
+                self.assertEqual(source.snapshot()['reactivations'],1)
+            finally:
+                source.close()
+
     def test_first_handoff_precedes_full_census_and_discovery_record_precedes_handoff(self):
         clock=[0.];in_second=threading.Event();release_second=threading.Event()
         recording=threading.Event();release_record=threading.Event();received=threading.Event()
