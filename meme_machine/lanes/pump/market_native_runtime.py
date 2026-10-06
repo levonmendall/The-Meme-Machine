@@ -437,8 +437,9 @@ class MarketNativeRuntime:
             native = discover_market_native(fresh, tape, now, self.discovered)
             for candidate in native:
                 if len(self.discovered) >= MAX_DISCOVERED_MINTS:
-                    self.capacity_losses += 1
-                    break
+                    # Historical bound is a memory/capacity pressure threshold,
+                    # never market-discovery authority.
+                    self.stream_rejections['discovery_capacity_pressure'] += 1
                 mint = candidate['mint']
                 self.discovered.add(mint)
                 metric = stream_feasibility(candidate, tape, now)
