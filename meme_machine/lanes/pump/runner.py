@@ -49,7 +49,7 @@ DISCOVERY_SECONDS=max(600,min(int(os.environ.get("MM_PUMP_ACCELERATION_DISCOVERY
 FOLLOWUP_SECONDS=max(300,min(int(os.environ.get("MM_PUMP_ACCELERATION_FOLLOWUP_SECONDS","1000")),1200))
 MAX_CREATED=5000
 MAX_FULL_ATTEMPTS=120
-MAX_POSTGRAD_CANDIDATES=12
+MAX_EXPENSIVE_POSTGRAD_PER_TURN=1
 GENESIS_SOL_USD_MICROS=97_840_000
 INITIAL_USD_MICROS=500_000_000
 INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
@@ -69,6 +69,7 @@ FROZEN_POLICY_HASH="89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5
 FILL_PERSISTENCE_CONTEXT=None
 ACCOUNTING=None
 PIPELINE=None
+CANDIDATE_HISTORY=None
 
 def _progress(candidate,stage,reason=None,**details):
     if PIPELINE is not None:
@@ -984,7 +985,7 @@ def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
 
 
 def main(*,campaign=False,discovery_seconds=None):
-    global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT
+    global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT,CANDIDATE_HISTORY
     from meme_machine.lanes.pump.paper_accounting import PaperBook
     import uuid
     if type(campaign) is not bool:raise ValueError('pump_campaign_flag')
@@ -993,6 +994,8 @@ def main(*,campaign=False,discovery_seconds=None):
         raise ValueError('pump_discovery_runtime_bound')
     smoke_flat_tail=bool(campaign and os.environ.get('MM_OPERATIONAL_PHASE')=='smoke')
     actual_policy_hash=policy_hash()
+    from meme_machine.runtime.candidate_history import open_candidate_history
+    CANDIDATE_HISTORY=open_candidate_history()
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
     confirmations=ConfirmationBook.from_files()
@@ -1040,8 +1043,11 @@ def main(*,campaign=False,discovery_seconds=None):
         open_positions=[],postgrad=[],
     )
     report['operational_configuration']=dict(campaign=campaign,discovery_seconds=discovery_seconds,
-        full_attempt_limit=MAX_FULL_ATTEMPTS,full_attempt_window_seconds=3300 if campaign else None,
-        concurrent_postgrad_limit=MAX_POSTGRAD_CANDIDATES,followup_seconds=FOLLOWUP_SECONDS,
+        full_attempt_limit=None,full_attempt_window_seconds=None,
+        cheap_postgrad_candidate_limit=None,
+        expensive_postgrad_per_turn=MAX_EXPENSIVE_POSTGRAD_PER_TURN,
+        expensive_scheduler='shared_edf',
+        followup_seconds=FOLLOWUP_SECONDS,
         open_positions_before_candidate_hydration=True)
     import hashlib
     report['operational_configuration_hash']=hashlib.sha256(json.dumps(
@@ -1126,21 +1132,23 @@ def main(*,campaign=False,discovery_seconds=None):
                     state["graduation_time"]=int(event["market_time"])
                     confirmations.observe_graduation(
                         event["mint"],int(event.get("available_time") or now))
-                    position_needs_stream=any(key[0]==event['mint'] for key in (*pending,*active))
-                    if len(postgrad)<MAX_POSTGRAD_CANDIDATES or position_needs_stream:
-                        pool=pumpswap_pool(event["mint"])
-                        stream_key=pumpswap_stream.add_address(pool)
-                        postgrad[event["mint"]]=dict(
-                            mint=event["mint"],creation=state["creation"],
-                            graduation_time=int(event["market_time"]),
-                            pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
-                            history=LocalPumpHistory(
-                                plane,pool,int(event["market_time"])),
-                            history_status={},graduation_price=None,
-                        )
-                    else:
-                        _terminal(report,dict(mint=event['mint'],observed_at=now,
-                            terminal_reason='postgrad_candidate_capacity',economic_rejection=False))
+                    pool=pumpswap_pool(event["mint"])
+                    stream_key=pumpswap_stream.add_address(pool)
+                    postgrad[event["mint"]]=dict(
+                        mint=event["mint"],creation=state["creation"],
+                        graduation_time=int(event["market_time"]),
+                        pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
+                        history=LocalPumpHistory(
+                            plane,pool,int(event["market_time"])),
+                        history_status={},graduation_price=None,
+                    )
+                    if CANDIDATE_HISTORY is not None:
+                        CANDIDATE_HISTORY.observe(
+                            'pump',event["mint"],surface='pumpswap',
+                            observed_at=int(event["market_time"]),
+                            decision_deadline=int(event["market_time"])+
+                                max(POLICY.max_postgrad_entry_age_s,600),
+                            metadata=dict(pool=pool,source='pump_graduation'))
 
             # New late-curve entries stop at discovery_end; follow-up never backfills
             # another pre-graduation decision.
