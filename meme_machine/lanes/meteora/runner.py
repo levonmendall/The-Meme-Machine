@@ -425,6 +425,12 @@ class CampaignAttemptBudget:
         if len(self.admitted)>=self.limit:return False
         self.admitted.append(now);return True
 
+def _attempt_budget_state(budget,now,campaign):
+    """Capacity accounting may signal pressure but never reject a candidate."""
+    pressure=bool(campaign and not budget.take(now))
+    return dict(pressure=pressure,evaluate=True)
+
+
 
 def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
     from meme_machine.lanes.meteora.dlmm_discovery import CampaignDiscovery
@@ -432,7 +438,7 @@ def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
         api=_api,candidate=_candidate,eligible=_sol_pair,sorts=DISCOVERY_SORTS,
         pages=DISCOVERY_PAGES_PER_SORT,page_size=DISCOVERY_PAGE_SIZE,deadline=deadline)
     for key in ('rejections','errors','qualified'):telemetry.setdefault(key,[])
-    for key in ('seen','history_reads','snapshot_context_candidates'):telemetry.setdefault(key,0)
+    for key in ('seen','history_reads','snapshot_context_candidates','reactivated'):telemetry.setdefault(key,0)
     source.start()
     try:
         while not _runtime_expired(deadline):
@@ -443,6 +449,11 @@ def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
             if item is None:break
             address=item['address'];observed_at=item['signal_observed_at']
             if source.on_discovered is None:_stage(address,'discovered')
+            if item.get('reactivated'):
+                telemetry['reactivated']+=1
+                _stage(address,'reactivated',
+                       discovery_cycle=item.get('discovery_cycle'),
+                       source_observed_at=item.get('source_observed_at'))
             telemetry['snapshot_context_candidates']+=1
             if item.get('missing_5m_context') and item['tvl_usd']>0:
                 telemetry['history_reads']+=1
@@ -1868,6 +1879,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
     report["attempt_budget_window_seconds"]=1200 if campaign else None
     report['operational_configuration']=dict(campaign=campaign,census_interval_seconds=60 if campaign else None,
         attempt_limit=max_attempted,attempt_window_seconds=1200 if campaign else None,
+        attempt_limit_is_pressure_only=True,
         first_sighting_scope='entire_process',paper_starting_capital_lamports=1_000_000_000,
         runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
     report['operational_configuration_hash']=digest(report['operational_configuration'])
@@ -1922,27 +1934,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
             if (_runtime_expired(deadline)
                     or (not campaign and (attempted>=max_attempted or complete>=target))):
                 break
-            if book.reconcile()['unsettled']:
-                # During the one-hour certification campaign, an already-filled
-                # multi-hour position owns capital but must not stop market observation.
-                # New admission is capacity-censored until the durable continuation
-                # settles; smoke/standalone behavior remains unchanged.
-                if os.environ.get('MM_OPERATIONAL_PHASE')=='continuous':
-                    failure_counts['paper_capital_occupied']+=1
-                    report['attempts'].append(dict(
-                        pool=candidate['address'],candidate=candidate,
-                        terminal_classification='paper_capital_occupied',
-                        economic_rejection=False,
-                    ))
-                    _stage(candidate['address'],'evidence_not_required','paper_capital_occupied',
-                           scope='new_candidate_admission',capital_constraint_preserved=True)
-                    _stage(candidate['address'],'terminal','paper_capital_occupied')
-                    checkpoint('paper_capital_occupied')
-                    continue
-                report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
-                checkpoint('unresolved_position_blocks_new_admission')
-                stream_stop.set();wake_thread.join(timeout=5);broker.close()
-                raise Unavailable(report['fatal_boundary'])
+            # Capital state is execution authority only.  Candidate observation,
+            # warming and strategy qualification continue even while another
+            # position owns the paper capital.
             plane=_evidence_plane()
             admission=plane.admit_candidate(METEORA_SCOPE,
                 addresses=[candidate['address']],owner='meteora:candidate:'+candidate['address'])
@@ -1972,13 +1966,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     checkpoint("compatibility_rejection")
                     continue
 
-                if campaign and not attempt_budget.take(time.monotonic()):
-                    failure_counts['capacity_attempt_window_budget']+=1
-                    report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
-                        terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
-                    _stage(candidate["address"],"terminal","capacity_attempt_window_budget")
-                    checkpoint('capacity_censoring')
-                    continue
+                budget_state=_attempt_budget_state(
+                    attempt_budget,time.monotonic(),campaign)
+                capacity_pressure=budget_state['pressure']
+                if capacity_pressure:
+                    # The historical attempt budget is now pressure telemetry only.
+                    # It may reveal that the machine/provider cannot keep up, but it
+                    # may not silently discard an otherwise recoverable candidate.
+                    failure_counts['capacity_attempt_window_pressure']+=1
+                    report['attempt_budget_pressure_count']=(
+                        report.get('attempt_budget_pressure_count',0)+1)
+                    _stage(candidate["address"],"capacity_pressure",
+                           "capacity_attempt_window_pressure",
+                           economic_rejection=False)
+                    checkpoint('capacity_pressure')
                 attempted+=1
                 _stage(candidate["address"],"admitted")
                 _stage(candidate["address"],"trigger_evidence_requested")
@@ -2030,6 +2031,21 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                         report["attempts"].append(attempt)
                         _stage(candidate["address"],"terminal","qualification_rejection",failed=decision["failed"])
                         checkpoint("qualification_rejection")
+                        continue
+                    if book.reconcile()['unsettled']:
+                        # Preserve the complete qualified opportunity while refusing
+                        # only the funding/execution step.
+                        failure_counts['paper_capital_occupied']+=1
+                        attempt["terminal_classification"]="qualified_but_capital_unavailable"
+                        attempt["economic_rejection"]=False
+                        attempt["strategy_qualified"]=True
+                        attempt["funding_reason"]="paper_capital_occupied"
+                        attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+                        report["attempts"].append(attempt)
+                        _stage(candidate["address"],"evidence_not_required",
+                               "paper_capital_occupied",scope="execution_only",
+                               strategy_qualified=True,capital_constraint_preserved=True)
+                        checkpoint("qualified_but_capital_unavailable")
                         continue
                     lifecycle,adapter=_lifecycle(
                         adapter,candidate["address"],entry,features,policy,pacer,

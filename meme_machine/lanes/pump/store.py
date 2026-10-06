@@ -193,10 +193,18 @@ class Store:
                     rotations=int(self.state.get('journal_rotations',0)),
                     db_bytes=db_bytes,wal_bytes=wal_bytes)
 
-    def pressure(self):
+    def storage_pressure(self):
         size = sum(os.path.getsize(self.path+x) for x in ('','-wal') if os.path.exists(self.path+x))
         free = shutil.disk_usage(os.path.dirname(os.path.abspath(self.path))).free
-        return free < 16*1024*1024 or size > 32*1024*1024 or self.state['entry_count'] >= 100
+        return free < 16*1024*1024 or size > 32*1024*1024
+
+    def experiment_limit_reached(self):
+        return self.state['entry_count'] >= 100
+
+    def pressure(self):
+        # Allocation remains blocked by either condition. Observation can
+        # distinguish real storage danger from a historical execution-count limit.
+        return self.storage_pressure() or self.experiment_limit_reached()
 
     def close(self):
         self.db.close()

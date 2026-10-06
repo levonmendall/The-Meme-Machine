@@ -29,6 +29,7 @@ class CampaignDiscovery:
                 sequence INTEGER PRIMARY KEY, invocation TEXT NOT NULL,
                 pool TEXT NOT NULL, observed_at REAL NOT NULL, observed_mono REAL NOT NULL,
                 body TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0,
+                queue_order INTEGER, last_cycle INTEGER,
                 UNIQUE(invocation,pool));
             CREATE TABLE IF NOT EXISTS segments(
                 sequence INTEGER PRIMARY KEY, invocation TEXT NOT NULL,
@@ -37,6 +38,16 @@ class CampaignDiscovery:
             CREATE TABLE IF NOT EXISTS shutdown(invocation TEXT PRIMARY KEY, snapshot TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS candidate_fifo ON candidates(invocation,consumed,sequence);
         ''')
+        columns={row[1] for row in self.db.execute('PRAGMA table_info(candidates)')}
+        with self.db:
+            if 'queue_order' not in columns:
+                self.db.execute('ALTER TABLE candidates ADD COLUMN queue_order INTEGER')
+                self.db.execute('UPDATE candidates SET queue_order=sequence WHERE queue_order IS NULL')
+            if 'last_cycle' not in columns:
+                self.db.execute('ALTER TABLE candidates ADD COLUMN last_cycle INTEGER')
+                self.db.execute('UPDATE candidates SET last_cycle=0 WHERE last_cycle IS NULL')
+        row=self.db.execute('SELECT COALESCE(MAX(queue_order),0) FROM candidates').fetchone()
+        self.queue_order=int(row[0] or 0);self.reactivations=0
         self.thread=threading.Thread(target=self._produce,name='meteora-public-census',daemon=True)
 
     def start(self):
@@ -87,10 +98,29 @@ class CampaignDiscovery:
                                 signal_observed_at=int(observed_at),source_observed_at=observed_at,
                                 discovery_sort=sort,discovery_page=page,discovery_raw_rank=rank)
                             with self.lock,self.db:
-                                inserted=self.db.execute('INSERT OR IGNORE INTO candidates(invocation,pool,observed_at,observed_mono,body) VALUES(?,?,?,?,?)',
-                                    (self.invocation,pool,observed_at,observed_mono,json.dumps(item,sort_keys=True))).rowcount
-                                if inserted and self.on_discovered:
-                                    self.on_discovered(pool,observed_at,sort,page,rank)
+                                existing=self.db.execute(
+                                    'SELECT sequence,last_cycle FROM candidates WHERE invocation=? AND pool=?',
+                                    (self.invocation,pool)).fetchone()
+                                if existing is None:
+                                    self.queue_order+=1
+                                    item['reactivated']=False;item['discovery_cycle']=cycle
+                                    inserted=self.db.execute(
+                                        'INSERT INTO candidates(invocation,pool,observed_at,observed_mono,body,consumed,queue_order,last_cycle) VALUES(?,?,?,?,?,0,?,?)',
+                                        (self.invocation,pool,observed_at,observed_mono,
+                                         json.dumps(item,sort_keys=True),self.queue_order,cycle)).rowcount
+                                    if inserted and self.on_discovered:
+                                        self.on_discovered(pool,observed_at,sort,page,rank)
+                                elif int(existing[1] or 0)<cycle:
+                                    # Cheap census reactivation: one fresh handoff per
+                                    # pool per census cycle. This preserves recovery
+                                    # from temporary weakness without duplicate
+                                    # handoffs from the three ranking sorts.
+                                    self.queue_order+=1;self.reactivations+=1
+                                    item['reactivated']=True;item['discovery_cycle']=cycle
+                                    self.db.execute(
+                                        'UPDATE candidates SET observed_at=?,observed_mono=?,body=?,consumed=0,queue_order=?,last_cycle=? WHERE sequence=?',
+                                        (observed_at,observed_mono,json.dumps(item,sort_keys=True),
+                                         self.queue_order,cycle,existing[0]))
                             self.changed.set()
                         exhausted=len(rows)<self.page_size
                 with self.lock:self.cycles=cycle
@@ -108,7 +138,7 @@ class CampaignDiscovery:
             if self.fatal:raise RuntimeError('solana_dlmm_discovery_producer:'+self.fatal)
             if self.stop.is_set() or self.clock()>=self.deadline:return None
             with self.lock,self.db:
-                row=self.db.execute('SELECT sequence,body,observed_mono FROM candidates WHERE invocation=? AND consumed=0 ORDER BY sequence LIMIT 1',(self.invocation,)).fetchone()
+                row=self.db.execute('SELECT sequence,body,observed_mono FROM candidates WHERE invocation=? AND consumed=0 ORDER BY queue_order,sequence LIMIT 1',(self.invocation,)).fetchone()
                 if row:
                     self.db.execute('UPDATE candidates SET consumed=1 WHERE sequence=?',(row[0],))
                     item=json.loads(row[1]);item['discovery_queue_wait_seconds']=max(0.,self.clock()-row[2])
@@ -125,7 +155,8 @@ class CampaignDiscovery:
                 oldest_pending_wait_seconds=None if oldest is None else max(0.,self.clock()-oldest),
                 planned_segments_per_cycle=len(self.sorts)*self.pages,segment_status_counts=states,
                 latest_cycle_segments=last_cycle,producer_running=self.thread.is_alive(),producer_done=self.done.is_set(),
-                fatal_error=self.fatal,spool='solana-dlmm-independent-v1-live.discovery.sqlite',
+                fatal_error=self.fatal,reactivations=self.reactivations,
+                spool='solana-dlmm-independent-v1-live.discovery.sqlite',
                 target_universe_count=None,coverage='coverage_unknown',census_interval_seconds=60 if self.repeat else None,
                 observation_deadline_at=self.deadline_wall)
 

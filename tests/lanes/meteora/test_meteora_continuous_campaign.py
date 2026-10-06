@@ -15,6 +15,13 @@ class ContinuousCampaignTests(unittest.TestCase):
         self.assertTrue(budget.take(1200));self.assertFalse(budget.take(1200.5))
         self.assertTrue(budget.take(1201))
 
+    def test_attempt_budget_pressure_never_rejects_candidate_evaluation(self):
+        budget=strategy.CampaignAttemptBudget(1)
+        first=strategy._attempt_budget_state(budget,0,True)
+        pressured=strategy._attempt_budget_state(budget,1,True)
+        self.assertEqual(first,dict(pressure=False,evaluate=True))
+        self.assertEqual(pressured,dict(pressure=True,evaluate=True))
+
     def test_campaign_handoff_uses_snapshot_context_and_closes_source(self):
         import time
         telemetry={};phases=[]

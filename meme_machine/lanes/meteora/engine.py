@@ -152,7 +152,7 @@ class Engine:
             s['progress']+=1
         return nominations
 
-    def qualify(self, nomination, evidence, now):
+    def strategy_qualify(self, nomination, evidence, now):
         snap=evidence['snapshot']
         c,rates=self.validate_snapshot(snap,now)
         if nomination['mint']!=snap['mint'] or nomination['wallet'] not in self.seeds:
@@ -204,6 +204,16 @@ class Engine:
         proceeds,_=pump.sell(c,tokens,rates)
         if (cost+2*GAS-proceeds)*10000 > cost*500:
             return 'roundtrip_cost'
+        return 'qualified'
+
+    def qualify(self, nomination, evidence, now):
+        """Execution qualification: strategy decision first, funding second."""
+        reason=self.strategy_qualify(nomination,evidence,now)
+        if reason!='qualified':
+            return reason
+        snap=evidence['snapshot']
+        c,_=self.validate_snapshot(snap,now)
+        amount=self.store.state['initial']//20
         return self.allocator.allowed('spot',amount,snap['mint'],self.group(c.creator),now) or 'qualified'
 
     def consider(self, nomination, evidence, now):

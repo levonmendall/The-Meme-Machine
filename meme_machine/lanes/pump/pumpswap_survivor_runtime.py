@@ -252,13 +252,22 @@ class Runtime:
                 if row.get('position'):
                     self._position(row,admit=admit)
             if admit:
-                # A bounded full hot set must still age/evaluate/retire. Repeating
-                # discovery's capacity exception before that work deadlocks it.
-                discovery_deferred=len(self.history.rows())>=self.history.maximum_candidates
-                if not discovery_deferred:self.discover()
+                # Candidate count is never observation authority. Discovery always
+                # continues; the historical limit is retained only as pressure
+                # telemetry. Expensive evaluation remains one candidate per turn.
+                rows_now=self.history.rows()
+                discovery_deferred=False
+                if (self.history.maximum_candidates is not None
+                        and len(rows_now)>=self.history.maximum_candidates):
+                    self.last_error='survivor_candidate_capacity_pressure'
+                self.discover()
             rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
-                row=rows[0];row['last_checked']=self.now();self.history.save(row)
+                # Fair, lossless scheduling: oldest checked candidate first so a
+                # quiet older row cannot permanently starve later graduations.
+                row=min(rows,key=lambda r:(int(r.get('last_checked') or 0),
+                                           int(r['graduation']['at']),r['id']))
+                row['last_checked']=self.now();self.history.save(row)
                 age=self.now()-row['graduation']['at']
                 if age>POLICY['maximum_age_seconds']:
                     self.history.retire(row,expired_before=self.now()-POLICY['maximum_age_seconds'])
@@ -292,11 +301,34 @@ class Runtime:
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime)
                         if decision['candidate']:
-                            from meme_machine.runtime.lifecycle_identity import issue
-                            row['position']=issue(self.run_id+':'+digest([STRATEGY_ID,row['id'],regime]))
-                            row['state']='reserved';self.history.save(row)
-                            self._enter(row,decision,observed['generation'],regime,row['position'])
-                            row=self.history.get(row['id']);row['state']='filled'
+                            sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
+                            if int(sizing.get('allocatable_target',0)) < GAS*2+1:
+                                # Qualification remains durable even when funding is
+                                # unavailable. Do not mint a fake reserved position.
+                                row['position']=None
+                                row['state']='qualified_but_capital_unavailable'
+                                self.sleeve.opportunity(
+                                    row['id'],identity=row['id'],regime='survivor',
+                                    status=row['state'],at=state.get('market_time',state.get('at')),
+                                    decision=dict(decision,funding_reason='survivor_minimum_capital'))
+                            else:
+                                from meme_machine.runtime.lifecycle_identity import issue
+                                row['position']=issue(self.run_id+':'+digest([STRATEGY_ID,row['id'],regime]))
+                                row['state']='reserved';self.history.save(row)
+                                try:
+                                    self._enter(row,decision,observed['generation'],regime,row['position'])
+                                except ValueError as exc:
+                                    if str(exc)!='survivor_minimum_capital':
+                                        raise
+                                    row=self.history.get(row['id'])
+                                    row['position']=None
+                                    row['state']='qualified_but_capital_unavailable'
+                                    self.sleeve.opportunity(
+                                        row['id'],identity=row['id'],regime='survivor',
+                                        status=row['state'],at=state.get('market_time',state.get('at')),
+                                        decision=dict(decision,funding_reason='survivor_minimum_capital'))
+                                else:
+                                    row=self.history.get(row['id']);row['state']='filled'
                         self.history.save(row)
             self.last_error=None
         except (ValueError,Unavailable) as exc:
@@ -304,6 +336,8 @@ class Runtime:
         return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
                     candidate_count=len(self.history.rows()),last_boundary=self.last_error,
                     discovery_capacity_deferred=discovery_deferred,
+                    candidate_capacity_pressure=(
+                        self.history.get_meta('candidate_capacity_pressure') or 0),
                     accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
                     policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
                     durable_handoff=handoff_ready(self.book,self.history.rows()))

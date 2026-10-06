@@ -106,6 +106,8 @@ class MarketNativeRuntime:
 
         self.coverage_ready_at = None
         self.discovered = set()
+        self.discovery_observations = 0
+        self.discovery_identity_evictions = 0
         self.evidence_queue = {}
         self.stream_rejections = Counter()
         self.preflight_reasons = Counter()
@@ -113,11 +115,14 @@ class MarketNativeRuntime:
         self.preflight_selected = 0
         self.full_evidence_attempted = 0
         self.qualified = 0
+        self.qualified_unfunded = 0
+        self.qualified_execution_blocked = 0
         self.capacity_losses = 0
         self.provider_failures = 0
         self.last_qualified_mint = None
 
         self.evidence_enqueued = 0
+        self.evidence_queue_capacity_pressure = 0
         self.evidence_processed = 0
         self.evidence_expired_before_preflight = 0
         self.evidence_deadline_insufficient = 0
@@ -125,6 +130,8 @@ class MarketNativeRuntime:
         self.evidence_queue_capacity_skips = 0
         self.provider_headroom_deferrals = 0
         self.preflight_rpc_free_rejections = 0
+        self.storage_pressure_blocks = 0
+        self.execution_limit_observation_ticks = 0
 
         # Bounded diagnostic-only evidence for the most recent selected preflight.
         # It never participates in qualification or order authority.
@@ -270,11 +277,29 @@ class MarketNativeRuntime:
                 self._update_attempt('full_rejection', reason=reason)
                 return
 
+            # Strategy qualification is authoritative independently of funding.
+            # Capital availability determines execution only; an unfunded qualified
+            # opportunity remains durable/observable for later analysis and Survivor.
+            self.qualified += 1
+            self.last_qualified_mint = candidate['mint']
+            funding_reason=vector.get('allocator_reason')
+            if funding_reason:
+                funding_status=vector.get('funding_status') or 'qualified_but_execution_unavailable'
+                if funding_status=='qualified_but_capital_unavailable':
+                    self.qualified_unfunded += 1
+                else:
+                    self.qualified_execution_blocked += 1
+                self._update_attempt(
+                    funding_status,
+                    canonical_result='qualified',
+                    funding_reason=funding_reason,
+                    order_id=nomination['id'],
+                )
+                return
+
             canonical = self.authority.consider(nomination, evidence, qualified_at)
             if canonical != 'qualified':
                 raise RuntimeError('market_native_qualification_authority_mismatch')
-            self.qualified += 1
-            self.last_qualified_mint = candidate['mint']
             self._update_attempt(
                 'qualified',
                 canonical_result=canonical,
@@ -343,17 +368,10 @@ class MarketNativeRuntime:
             deadline=deadline,
         )
         if len(self.evidence_queue) >= self.evidence_queue_limit:
-            worst_mint,worst=max(
-                self.evidence_queue.items(),
-                key=lambda item:self._queue_key(item[1]),
-            )
-            if self._queue_key(row) >= self._queue_key(worst):
-                self.evidence_queue_capacity_skips += 1
-                self.capacity_losses += 1
-                return
-            del self.evidence_queue[worst_mint]
-            self.evidence_queue_capacity_skips += 1
-            self.capacity_losses += 1
+            # This is a scheduling-pressure threshold, never an opportunity cap.
+            # Candidates remain retained until their real strategy deadline; the
+            # runtime exposes pressure instead of silently dropping market breadth.
+            self.evidence_queue_capacity_pressure += 1
         self.evidence_queue[candidate['mint']]=row
         self.evidence_enqueued += 1
 
@@ -399,8 +417,19 @@ class MarketNativeRuntime:
     def tick(self, tape, now, cursor):
         """Advance discovery/evidence once; caller monitors existing exposure first."""
         status = tape.status(now)
-        if self.engine.store.pressure():
+        storage_pressure=getattr(
+            self.engine.store,'storage_pressure',self.engine.store.pressure)()
+        if storage_pressure:
+            # True storage exhaustion is a valid fail-visible observation bound:
+            # there is nowhere safe to persist more state.
+            self.storage_pressure_blocks += 1
             return cursor
+        experiment_limit=getattr(
+            self.engine.store,'experiment_limit_reached',lambda:False)()
+        if experiment_limit:
+            # The historical execution-count limit may block new funding through
+            # Allocator.allowed(), but it has no discovery/qualification authority.
+            self.execution_limit_observation_ticks += 1
 
         if not status['covered']:
             with self.engine.store.transaction('market_native_stream_coverage'):
@@ -427,10 +456,15 @@ class MarketNativeRuntime:
         if fresh:
             native = discover_market_native(fresh, tape, now, self.discovered)
             for candidate in native:
-                if len(self.discovered) >= MAX_DISCOVERED_MINTS:
-                    self.capacity_losses += 1
-                    break
                 mint = candidate['mint']
+                self.discovery_observations += 1
+                if mint not in self.discovered and len(self.discovered) >= MAX_DISCOVERED_MINTS:
+                    # Bound diagnostic identity memory only. Eviction can change a
+                    # later label from "reactivation" to "first discovery", but it
+                    # can never prevent the later candidate from being evaluated.
+                    self.discovered.pop()
+                    self.discovery_identity_evictions += 1
+                    self.stream_rejections['discovery_identity_memory_pressure'] += 1
                 self.discovered.add(mint)
                 metric = stream_feasibility(candidate, tape, now)
                 if not metric.possible:
@@ -457,6 +491,9 @@ class MarketNativeRuntime:
             configured_scouts=len(self.engine.seeds),
             evidence_scheduler='adaptive_deadline_queue_v1',
             discovered=len(self.discovered),
+            discovered_identity_memory=len(self.discovered),
+            discovery_observations=self.discovery_observations,
+            discovery_identity_evictions=self.discovery_identity_evictions,
             stream_guaranteed_rejections=dict(self.stream_rejections),
             evidence_queue_depth=len(self.evidence_queue),
             evidence_queue_limit=self.evidence_queue_limit,
@@ -466,6 +503,7 @@ class MarketNativeRuntime:
             evidence_deadline_insufficient=self.evidence_deadline_insufficient,
             evidence_cancelled_on_gap=self.evidence_cancelled_on_gap,
             evidence_queue_capacity_skips=self.evidence_queue_capacity_skips,
+            evidence_queue_capacity_pressure=self.evidence_queue_capacity_pressure,
             preflight_rpc_free_rejections=self.preflight_rpc_free_rejections,
             next_evidence_deadline_seconds=(
                 None if next_deadline is None else max(0,next_deadline-now)
@@ -476,6 +514,8 @@ class MarketNativeRuntime:
             full_evidence_attempted=self.full_evidence_attempted,
             full_reason_distribution=dict(self.full_reasons),
             qualified=self.qualified,
+            qualified_unfunded=self.qualified_unfunded,
+            qualified_execution_blocked=self.qualified_execution_blocked,
             last_qualified_mint=self.last_qualified_mint,
             diagnostic_last_attempt=self.last_attempt,
             capacity_losses=self.capacity_losses,
@@ -484,6 +524,8 @@ class MarketNativeRuntime:
             provider_rotation_due=self.provider_rotation_due(),
             provider_headroom_deferrals=self.provider_headroom_deferrals,
             provider_rotations=self.provider_rotations,
+            storage_pressure_blocks=self.storage_pressure_blocks,
+            execution_limit_observation_ticks=self.execution_limit_observation_ticks,
             prior_provider_sessions=list(self.provider_sessions),
             order_authority='unchanged_engine_after_continuation_v1',
             dlmm_enabled=False,

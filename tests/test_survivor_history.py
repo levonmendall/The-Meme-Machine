@@ -22,10 +22,11 @@ class HistoryTests(unittest.TestCase):
   self.graduate();self.h.append('a',through=3,events=[],points=[],complete=False)
   self.h.append('a',through=4,events=[],points=[(4,'10')],complete=True)
   self.assertFalse(self.h.get('a')['complete'])
- def test_bounded_active_set_retains_identity_tombstone(self):
-  a=self.graduate();self.graduate('b')
-  with self.assertRaisesRegex(ValueError,'capacity'):self.graduate('c')
-  self.h.retire(a);self.graduate('c')
+ def test_candidate_capacity_is_pressure_not_opportunity_loss(self):
+  a=self.graduate();self.graduate('b');self.graduate('c')
+  self.assertEqual(len(self.h.rows()),3)
+  self.assertEqual(self.h.get_meta('candidate_capacity_pressure'),1)
+  self.h.retire(a)
   self.assertEqual(len(self.h.rows()),2);self.assertEqual(self.h.get('a')['state'],'retired')
   self.assertEqual(len(self.h.rows(include_retired=True)),3)
  def test_all_lifecycle_states_reopen_exactly(self):
