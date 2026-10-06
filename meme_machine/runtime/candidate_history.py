@@ -242,7 +242,7 @@ class CandidateHistory:
         if row is None:return None
         body=json.loads(row[2])
         if digest(body)!=row[3]:raise ValueError("candidate_history_corruption")
-        return dict(id=row[0],status=row[1],**body)
+        return dict(body,id=row[0])
 
     def enqueue(self,lane,candidate,*,kind,ready_at,deadline,estimate_seconds,
                 payload=None,priority=50,identity=None):
