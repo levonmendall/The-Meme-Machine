@@ -81,55 +81,25 @@ STREAM_COMMIT_STALL_SECONDS=15
 
 
 def decode_source_message(raw,credential,program_addresses=(),endpoint_identity=None,observed_at=None):
-    """Decode and authority-preservingly compact one provider frame.
+    """Synchronous compatibility entrypoint; live intake precedes process IPC."""
+    from .solana_source_intake import select_frame
+    selected=select_frame(raw,credential,program_addresses,max_bytes=STREAM_MAX_MESSAGE_BYTES,
+        full_transaction_addresses=tuple(s.address for s in program_subscriptions() if s.evidence_class=='transactions'))
+    return prepare_selected_source(selected,endpoint_identity,observed_at)
 
-    This function is process-safe. For full block notifications it inspects every
-    transaction's static and loaded account keys before dropping unrelated bodies.
-    The parent receives only the union relevant to Pump, PumpSwap, or Meteora.
-    """
-    if not isinstance(raw,(str,bytes)) or len(raw)>STREAM_MAX_MESSAGE_BYTES:
-        raise EvidenceUnavailable('source_message_size_limit')
-    needle=credential.encode() if isinstance(raw,bytes) else credential
-    if needle and needle in raw:
-        raise ValueError('provider_credential_publication_rejected')
-    message=json.loads(raw)
-    if not isinstance(message,dict):
+
+def prepare_selected_source(selected,endpoint_identity=None,observed_at=None):
+    """Canonical work receives only the locally selected, lossless transactions."""
+    from .solana_source_intake import SelectedFrame
+    if not isinstance(selected,SelectedFrame):
         raise EvidenceUnavailable('source_message_shape')
-    total=retained=0;normalized_keys={};members={}
+    message=selected.message;total=selected.source_transactions;retained=selected.retained_transactions
+    normalized_keys={};members={}
     if message.get('method')=='blockNotification':
-        try:
-            value=message['params']['result']['value'];block=value.get('block')
-            transactions=block.get('transactions') if isinstance(block,dict) else None
-        except (KeyError,TypeError,AttributeError):
-            raise EvidenceUnavailable('source_block_shape') from None
-        if not isinstance(transactions,list):
-            raise EvidenceUnavailable('source_block_shape')
-        targets=set(program_addresses);kept=[]
-        for tx in transactions:
-            try:
-                keys=tx['transaction']['message']['accountKeys']
-                meta=tx['meta']
-                if not isinstance(keys,list) or not isinstance(meta,dict):
-                    raise TypeError()
-                normalized=[k if isinstance(k,str) else k['pubkey'] for k in keys]
-                loaded=meta.get('loadedAddresses') or {}
-                normalized+=list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
-                if any(not isinstance(k,str) for k in normalized):
-                    raise TypeError()
-            except (KeyError,TypeError,AttributeError):
-                raise EvidenceUnavailable('source_transaction_shape') from None
-            total+=1
-            matched=targets.intersection(normalized)
-            if matched:
-                kept.append(tx)
-                normalized_keys[id(tx)]=normalized
-                for address in matched:members.setdefault(address,[]).append(tx)
-        retained=len(kept)
-        block=dict(block);block['transactions']=kept
-        value=dict(value);value['block']=block
-        result=dict(message['params']['result']);result['value']=value
-        params=dict(message['params']);params['result']=result
-        message=dict(message);message['params']=params
+        value=message['params']['result']['value'];block=value['block']
+        transactions=block['transactions']
+        normalized_keys={id(tx):keys for tx,keys in zip(transactions,selected.normalized_keys)}
+        members={address:[transactions[i] for i in indexes] for address,indexes in selected.members.items()}
     if endpoint_identity is not None and observed_at is not None and message.get('method')=='blockNotification':
         scopes={};prepared_bytes=0;budget=[STREAM_PREPARED_MAX_BYTES];log_cache={}
         for sub in program_subscriptions():
@@ -141,10 +111,12 @@ def decode_source_message(raw,credential,program_addresses=(),endpoint_identity=
                 # An unusual multi-event block may expand beyond the preparation
                 # budget. Retain its exact former serial path, never drop content.
                 result=PreparedSource(message);result.scopes=None;result.prepared_bytes=0
+                result.intake_counts=selected.counters()
                 return result,total,retained
             prepared_bytes=STREAM_PREPARED_MAX_BYTES-budget[0]
             scopes[sub.scope]=scoped
         result=PreparedSource(message);result.scopes=scopes;result.prepared_bytes=prepared_bytes
+        result.intake_counts=selected.counters()
         # Economic bodies now live only in the prepared records. Do not retain
         # a second full transaction tree while waiting for the ordered commit.
         result['params']=dict(message['params'],result=dict(message['params']['result'],
@@ -163,11 +135,11 @@ class PreparedSource(dict):
         scopes={key:dict(value,batches=tuple(tuple(
             replace(row,record=replace(row.record,payload={})) for row in batch)
             for batch in value['batches'])) for key,value in self.scopes.items()}
-        return restore_prepared_source,(dict(self),scopes,self.prepared_bytes)
+        return restore_prepared_source,(dict(self),scopes,self.prepared_bytes,getattr(self,'intake_counts',{}))
 
 
-def restore_prepared_source(message,scopes,prepared_bytes):
-    result=PreparedSource(message);result.scopes=scopes;result.prepared_bytes=prepared_bytes
+def restore_prepared_source(message,scopes,prepared_bytes,intake_counts=None):
+    result=PreparedSource(message);result.scopes=scopes;result.prepared_bytes=prepared_bytes;result.intake_counts=intake_counts or {}
     return result
 
 
@@ -1097,21 +1069,38 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                     await decoded.put(('worker_done',worker_id))
                                     return
                                 sequence,raw,seen,size,received_at=item
+                                item=None
                                 try:
                                     decode_started=time.monotonic()
                                     queue_wait_us=int(max(0.0,decode_started-received_at)*1_000_000)
                                     counts['stream.decode_queue_wait_peak_microseconds']=max(
                                         counts.get('stream.decode_queue_wait_peak_microseconds',0),queue_wait_us)
-                                    if size>=STREAM_PROCESS_DECODE_MIN_BYTES:
+                                    from .solana_source_intake import select_frame
+                                    intake_started=time.monotonic()
+                                    selected=await asyncio.to_thread(select_frame,raw,config.credential,
+                                        source_program_addresses,max_bytes=STREAM_MAX_MESSAGE_BYTES,
+                                        full_transaction_addresses=tuple(s.address for s in program_subscriptions() if s.evidence_class=='transactions'))
+                                    # The full source frame stays inside this process.
+                                    # Release it before submitting only relevant content
+                                    # for canonical decoding/hash/compression in workers.
+                                    raw=None
+                                    intake_us=int((time.monotonic()-intake_started)*1_000_000)
+                                    counts['stream.intake_total_microseconds']=counts.get('stream.intake_total_microseconds',0)+intake_us
+                                    counts['stream.intake_peak_microseconds']=max(counts.get('stream.intake_peak_microseconds',0),intake_us)
+                                    for key,n in selected.counters().items():
+                                        name='stream.intake_'+key
+                                        counts[name]=counts.get(name,0)+n
+                                    if size>=STREAM_PROCESS_DECODE_MIN_BYTES and selected.retained_transactions:
                                         future=decoder_pool.submit(
-                                            decode_source_message,raw,config.credential,source_program_addresses,config.identity,seen)
+                                            prepare_selected_source,selected,config.identity,seen)
                                         message,source_transactions,retained_transactions=await asyncio.shield(
                                             asyncio.wrap_future(future))
                                         counts['stream.decode_process_messages']=counts.get('stream.decode_process_messages',0)+1
                                     else:
                                         message,source_transactions,retained_transactions=await asyncio.to_thread(
-                                            decode_source_message,raw,config.credential,source_program_addresses,config.identity,seen)
+                                            prepare_selected_source,selected,config.identity,seen)
                                         counts['stream.decode_thread_messages']=counts.get('stream.decode_thread_messages',0)+1
+                                    selected=None
                                     if isinstance(message,PreparedSource):
                                         key='stream.prepared_messages' if message.scopes is not None else 'stream.preparation_fallbacks'
                                         counts[key]=counts.get(key,0)+1

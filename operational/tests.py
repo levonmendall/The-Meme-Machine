@@ -22,6 +22,7 @@ FAST=[
 ]
 OPERATIONAL=FAST+[
  'tests.test_workload_efficiency',
+ 'tests.test_solana_source_intake',
  'tests.test_operational_supervisor','tests.test_operational_storage',
  'tests.test_operational_dashboard','tests.test_portfolio_snapshot_transport',
  'tests.lanes.pons.test_pons_current_recovery','tests.lanes.pons.test_pons_position_provider_recovery',
