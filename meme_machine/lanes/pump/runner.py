@@ -371,6 +371,87 @@ def _refresh_pool_events(
     return events
 
 
+def _retain_pump_source_history(rows):
+    """Persist normalized Pump economics before any Current->PumpSwap promotion."""
+    if CANDIDATE_HISTORY is None:return 0
+    retained=0
+    for record in rows or ():
+        event=dict(record.get('event') or {})
+        mint=str(event.get('mint') or '')
+        if not mint:continue
+        at=int(event.get('market_time') or record['market_time'])
+        prior=CANDIDATE_HISTORY.candidate('pump',mint)
+        event_type=str(event.get('event_type') or 'economic')
+        promoted=event_type=='migration' or (prior is not None and prior.get('surface')=='pumpswap')
+        deadline=(at+max(POLICY.max_postgrad_entry_age_s,600)
+                  if event_type=='migration' else None)
+        metadata=dict(source='solana_finalized_evidence_plane')
+        if event.get('creator'):metadata['creator']=str(event['creator'])
+        if event.get('pool'):metadata['pool']=str(event['pool'])
+        CANDIDATE_HISTORY.observe(
+            'pump',mint,surface='pumpswap' if promoted else 'pump.fun',
+            observed_at=at,decision_deadline=deadline,metadata=metadata)
+        CANDIDATE_HISTORY.append_event(
+            'pump',mint,identity='pump-source:'+str(record['identity']),
+            slot=int(record['slot']),transaction_index=record.get('transaction_index'),
+            event_index=int(record['event_index']),market_time=at,
+            kind='pump_'+event_type,payload=event)
+        retained+=1
+    return retained
+
+
+def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,confirmations,now):
+    """Rebuild cheap observation state from the shared ordered history after restart."""
+    if CANDIDATE_HISTORY is None:return 0
+    restored=0
+    for candidate in CANDIDATE_HISTORY.candidates(lane='pump'):
+        mint=candidate['candidate']
+        if mint in created:continue
+        economic=[
+            row for row in CANDIDATE_HISTORY.events('pump',mint)
+            if str(row.get('kind','')).startswith('pump_')
+            and not str(row.get('kind','')).startswith('pumpswap_')
+        ]
+        if not economic:continue
+        events=[dict(row['payload']) for row in economic]
+        creation=next((row for row in events if row.get('event_type')=='create'),None)
+        if creation is None:continue
+        confirmations.observe_creation(creation)
+        graduation_rows=[
+            row for row in events
+            if row.get('event_type')=='migration'
+            or (row.get('event_type')=='trade'
+                and int(row.get('real_token_reserves',-1))==0)
+        ]
+        graduation_time=(None if not graduation_rows else
+            min(int(row['market_time']) for row in graduation_rows))
+        pregrad_wallets=set()
+        for row in events:
+            if (row.get('wallet')
+                    and (graduation_time is None or int(row.get('market_time',0))<=graduation_time)
+                    and len(pregrad_wallets)<500):
+                pregrad_wallets.add(row['wallet'])
+        state=dict(creation=creation,pregrad_wallets=pregrad_wallets,
+                   graduated=graduation_time is not None)
+        if graduation_time is not None:
+            state['graduation_time']=graduation_time
+            confirmations.observe_graduation(mint,graduation_time)
+        created[mint]=state;restored+=1
+        if (graduation_time is None
+                or int(now)-graduation_time>max(POLICY.max_postgrad_entry_age_s,600)
+                or mint in postgrad):
+            continue
+        migration=next((row for row in graduation_rows if row.get('event_type')=='migration'),None)
+        pool=str((migration or {}).get('pool') or pumpswap_pool(mint))
+        pumpswap_stream.add_address(pool)
+        postgrad[mint]=dict(
+            mint=mint,creation=creation,graduation_time=graduation_time,
+            pregrad_wallets=set(pregrad_wallets),pool=pool,
+            history=LocalPumpHistory(plane,pool,graduation_time),
+            history_status={},graduation_price=None)
+    return restored
+
+
 def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_book):
     now=int(snapshot["market_time"])
     creator=str((state.get("creation") or {}).get("creator") or snapshot.get("creator") or "")
@@ -1145,6 +1226,8 @@ def main(*,campaign=False,discovery_seconds=None):
         report['active_regimes']=[STRATEGY_ID,'pumpswap-survivor-momentum-v1']
     cursor=0;full_attempts=0
     created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
+    report['restored_observed_candidates']=_restore_observed_pump_candidates(
+        created,postgrad,pumpswap_stream,plane,confirmations,int(time.time()))
     if survivor is not None:survivor.prime()
     from meme_machine.runtime.status import update
     update('MANAGING' if active or pending else 'DISCOVERING',reconciled=True,restored_positions=len(active)+len(pending))
@@ -1176,7 +1259,10 @@ def main(*,campaign=False,discovery_seconds=None):
                 report['smoke_tail_exit']='flat_after_discovery'
                 report['discovery_completed_at']=now
                 break
-            try:fresh,cursor=tape.events_since(cursor)
+            try:
+                fresh,cursor=tape.events_since(cursor)
+                report['pump_history_events_retained']=report.get('pump_history_events_retained',0)+\
+                    _retain_pump_source_history(tape.candidate_history_rows)
             except ValueError as exc:
                 report["evidence_plane_wait"]=str(exc)
                 if now-last_save>=2:
