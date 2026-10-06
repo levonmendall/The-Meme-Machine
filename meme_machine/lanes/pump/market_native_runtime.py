@@ -477,6 +477,7 @@ class MarketNativeRuntime:
             scout_storage_active=False,
             configured_scouts=len(self.engine.seeds),
             evidence_scheduler='adaptive_deadline_queue_v1',
+            discovered=len(self.discovered),
             discovered_identity_memory=len(self.discovered),
             discovery_observations=self.discovery_observations,
             discovery_identity_evictions=self.discovery_identity_evictions,
