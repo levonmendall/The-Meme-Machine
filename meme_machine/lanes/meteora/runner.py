@@ -438,7 +438,7 @@ def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
         api=_api,candidate=_candidate,eligible=_sol_pair,sorts=DISCOVERY_SORTS,
         pages=DISCOVERY_PAGES_PER_SORT,page_size=DISCOVERY_PAGE_SIZE,deadline=deadline)
     for key in ('rejections','errors','qualified'):telemetry.setdefault(key,[])
-    for key in ('seen','history_reads','snapshot_context_candidates'):telemetry.setdefault(key,0)
+    for key in ('seen','history_reads','snapshot_context_candidates','reactivated'):telemetry.setdefault(key,0)
     source.start()
     try:
         while not _runtime_expired(deadline):
@@ -449,6 +449,11 @@ def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
             if item is None:break
             address=item['address'];observed_at=item['signal_observed_at']
             if source.on_discovered is None:_stage(address,'discovered')
+            if item.get('reactivated'):
+                telemetry['reactivated']+=1
+                _stage(address,'reactivated',
+                       discovery_cycle=item.get('discovery_cycle'),
+                       source_observed_at=item.get('source_observed_at'))
             telemetry['snapshot_context_candidates']+=1
             if item.get('missing_5m_context') and item['tvl_usd']>0:
                 telemetry['history_reads']+=1
