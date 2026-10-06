@@ -75,7 +75,7 @@ class SourceIntakeTests(unittest.TestCase):
 
     def test_mixed_scopes_order_and_cross_program_transaction(self):
         txs=[copy.deepcopy(self.templates[k][0]) for k in ('pump','meteora','pumpswap')]
-        cross=copy.deepcopy(txs[2]);cross['transaction']['signatures']=['cross']
+        cross=copy.deepcopy(self.templates['meteora'][0]);cross['transaction']['signatures']=['cross']
         cross['transaction']['message']['accountKeys']+=list(self.targets)
         selected,_=self.parity(frame(txs+[unrelated(),cross]))
         self.assertEqual(selected.retained_transactions,4)
