@@ -1,5 +1,6 @@
 """Observability strategy invariants: breadth and qualification survive capacity pressure."""
 from types import SimpleNamespace
+import inspect
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -9,6 +10,7 @@ from meme_machine.lanes.pump.market_native_runtime import MarketNativeRuntime
 from meme_machine.lanes.pump.market_native_shadow import discover_market_native
 from meme_machine.lanes.pump.research import qualification_vector
 from meme_machine.lanes.pump import runner as pump_runner
+from meme_machine.lanes.meteora import runner as meteora_runner
 from meme_machine.runtime.survivor_history import History
 from meme_machine.lanes.pump.store import Store
 
@@ -130,6 +132,24 @@ class StrategyObservabilityRuntimeTests(unittest.TestCase):
                 self.assertTrue(store.pressure())
             finally:
                 store.close()
+
+    def test_meteora_attempt_pressure_never_becomes_candidate_rejection(self):
+        budget=meteora_runner.CampaignAttemptBudget(1)
+        self.assertEqual(
+            meteora_runner._attempt_budget_state(budget,0,True),
+            dict(pressure=False,evaluate=True))
+        self.assertEqual(
+            meteora_runner._attempt_budget_state(budget,1,True),
+            dict(pressure=True,evaluate=True))
+
+    def test_meteora_capital_check_occurs_after_strategy_qualification(self):
+        source=inspect.getsource(meteora_runner.run_live)
+        qualified=source.index('decision=qualify(features,policy)')
+        funding=source.index("book.reconcile()['unsettled']",qualified)
+        self.assertLess(qualified,funding)
+        self.assertNotIn(
+            "if book.reconcile()['unsettled']:\n                # During",
+            source[:qualified])
 
     def test_survivor_candidate_limit_is_pressure_not_rejection(self):
         with tempfile.TemporaryDirectory() as tmp:
