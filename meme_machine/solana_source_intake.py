@@ -149,8 +149,14 @@ def select_frame(raw, credential, program_addresses, *, max_bytes, full_transact
             if matched.intersection(full_targets):
                 # Meteora requires transaction economics, not the provider's
                 # unrelated full body. Retain only its canonical reconstruction
-                # vector and let later qualification hydrate nothing it already has.
+                # vector and the real chain transaction index used for ordering.
+                # Later qualification hydrates nothing this vector already has.
                 body=_economic_projection(transaction,message,meta,normalized)
+                tx_index=tx.get('transactionIndex')
+                if tx_index is not None:
+                    if type(tx_index) is not int or tx_index<0:
+                        raise EvidenceUnavailable('source_transaction_shape')
+                    body['transactionIndex']=tx_index
                 economic_count+=1
             else:
                 # The frozen Pump/PumpSwap census path only consumes signature,
