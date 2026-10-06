@@ -44,7 +44,7 @@ class StrategyObservabilityRuntimeTests(unittest.TestCase):
             for i in range(3)
         ]
         evidence=dict(
-            snapshot=dict(mint='mint',accounts=[b'x'],slot=1),
+            snapshot=dict(mint='mint',accounts=[b'x'],slot=1,market_time=100),
             events=events,covered=True,concentration_bps=1000)
         return nomination,evidence
 
