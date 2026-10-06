@@ -1828,10 +1828,12 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
 
 
 def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=False):
-    global PROGRESS_HOOK
+    global PROGRESS_HOOK,CANDIDATE_HISTORY
     from meme_machine.lanes.meteora.pipeline import Pipeline,censor_class
     assert_independence()
     policy=load_policy()
+    from meme_machine.runtime.candidate_history import open_candidate_history
+    CANDIDATE_HISTORY=open_candidate_history()
     target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
     max_attempted=int(max_attempted or policy["prospective_test"]["max_attempted_pools"])
     if not 1<=target<=int(policy["prospective_test"]["target_complete_lifecycles"]):
@@ -1906,12 +1908,11 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
         evidence_broker=broker.telemetry(),
     )
     attempted=0;complete=0;failure_counts=Counter()
-    attempt_budget=CampaignAttemptBudget(max_attempted)
     report['policy_hash']=digest(policy)
     report["continuous_campaign"]=campaign
-    report["attempt_budget_window_seconds"]=1200 if campaign else None
+    report["attempt_budget_window_seconds"]=None
     report['operational_configuration']=dict(campaign=campaign,census_interval_seconds=60 if campaign else None,
-        attempt_limit=max_attempted,attempt_window_seconds=1200 if campaign else None,
+        attempt_limit=None if campaign else max_attempted,attempt_window_seconds=None,
         first_sighting_scope='entire_process',paper_starting_capital_lamports=1_000_000_000,
         runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
     report['operational_configuration_hash']=digest(report['operational_configuration'])
@@ -1935,6 +1936,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
             DLMM_WAKE_STREAM_KEY,int(time.time()),0)
         report["evidence_broker"]=broker.telemetry()
         report["evidence_plane"]=_evidence_plane().telemetry()
+        if CANDIDATE_HISTORY is not None:
+            report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
         _atomic_checkpoint(
             report,stage,rpcs,pacer,
             attempted_pool_count=attempted,
@@ -1966,27 +1969,6 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
             if (_runtime_expired(deadline)
                     or (not campaign and (attempted>=max_attempted or complete>=target))):
                 break
-            if book.reconcile()['unsettled']:
-                # During the one-hour certification campaign, an already-filled
-                # multi-hour position owns capital but must not stop market observation.
-                # New admission is capacity-censored until the durable continuation
-                # settles; smoke/standalone behavior remains unchanged.
-                if os.environ.get('MM_OPERATIONAL_PHASE')=='continuous':
-                    failure_counts['paper_capital_occupied']+=1
-                    report['attempts'].append(dict(
-                        pool=candidate['address'],candidate=candidate,
-                        terminal_classification='paper_capital_occupied',
-                        economic_rejection=False,
-                    ))
-                    _stage(candidate['address'],'evidence_not_required','paper_capital_occupied',
-                           scope='new_candidate_admission',capital_constraint_preserved=True)
-                    _stage(candidate['address'],'terminal','paper_capital_occupied')
-                    checkpoint('paper_capital_occupied')
-                    continue
-                report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
-                checkpoint('unresolved_position_blocks_new_admission')
-                stream_stop.set();wake_thread.join(timeout=5);broker.close()
-                raise Unavailable(report['fatal_boundary'])
             plane=_evidence_plane()
             admission=plane.admit_candidate(METEORA_SCOPE,
                 addresses=[candidate['address']],owner='meteora:candidate:'+candidate['address'])
@@ -2016,13 +1998,6 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     checkpoint("compatibility_rejection")
                     continue
 
-                if campaign and not attempt_budget.take(time.monotonic()):
-                    failure_counts['capacity_attempt_window_budget']+=1
-                    report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
-                        terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
-                    _stage(candidate["address"],"terminal","capacity_attempt_window_budget")
-                    checkpoint('capacity_censoring')
-                    continue
                 attempted+=1
                 _stage(candidate["address"],"admitted")
                 _stage(candidate["address"],"trigger_evidence_requested")
