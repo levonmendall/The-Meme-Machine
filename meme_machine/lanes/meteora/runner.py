@@ -2114,14 +2114,22 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     if (classification=='paper_capital_capacity'
                             and CANDIDATE_HISTORY is not None
                             and attempt.get('decision_id') is not None):
-                        CANDIDATE_HISTORY.record_funding(
-                            attempt['decision_id'],'meteora',candidate["address"],
-                            status='denied',at=int(time.time()),
-                            reason='dlmm_accounting_capital_exhausted',
-                            details=book.reconcile())
-                        attempt['funding']=dict(status='denied',
-                            reason='dlmm_accounting_capital_exhausted',
-                            capital=book.reconcile())
+                        prior_funding=CANDIDATE_HISTORY.funding_outcome(
+                            attempt['decision_id'])
+                        if prior_funding is None:
+                            CANDIDATE_HISTORY.record_funding(
+                                attempt['decision_id'],'meteora',candidate["address"],
+                                status='denied',at=int(time.time()),
+                                reason='dlmm_accounting_capital_exhausted',
+                                details=book.reconcile())
+                            attempt['funding']=dict(status='denied',
+                                reason='dlmm_accounting_capital_exhausted',
+                                capital=book.reconcile())
+                        else:
+                            # A successful reserve is already a durable funded
+                            # disposition. A later accounting failure cannot rewrite
+                            # that qualified decision into a funding denial.
+                            attempt['funding']=prior_funding
                     attempt["terminal_classification"]=classification
                     attempt["reason"]=str(exc)[:200]
                     failure_counts[classification]+=1
