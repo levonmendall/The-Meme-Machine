@@ -1041,7 +1041,8 @@ def main(*,campaign=False,discovery_seconds=None):
     )
     report['operational_configuration']=dict(campaign=campaign,discovery_seconds=discovery_seconds,
         full_attempt_limit=MAX_FULL_ATTEMPTS,full_attempt_window_seconds=3300 if campaign else None,
-        concurrent_postgrad_limit=MAX_POSTGRAD_CANDIDATES,followup_seconds=FOLLOWUP_SECONDS,
+        concurrent_postgrad_limit=MAX_POSTGRAD_CANDIDATES,
+        candidate_limits_are_pressure_only=True,followup_seconds=FOLLOWUP_SECONDS,
         open_positions_before_candidate_hydration=True)
     import hashlib
     report['operational_configuration_hash']=hashlib.sha256(json.dumps(
@@ -1127,20 +1128,25 @@ def main(*,campaign=False,discovery_seconds=None):
                     confirmations.observe_graduation(
                         event["mint"],int(event.get("available_time") or now))
                     position_needs_stream=any(key[0]==event['mint'] for key in (*pending,*active))
-                    if len(postgrad)<MAX_POSTGRAD_CANDIDATES or position_needs_stream:
-                        pool=pumpswap_pool(event["mint"])
-                        stream_key=pumpswap_stream.add_address(pool)
-                        postgrad[event["mint"]]=dict(
-                            mint=event["mint"],creation=state["creation"],
-                            graduation_time=int(event["market_time"]),
-                            pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
-                            history=LocalPumpHistory(
-                                plane,pool,int(event["market_time"])),
-                            history_status={},graduation_price=None,
-                        )
-                    else:
-                        _terminal(report,dict(mint=event['mint'],observed_at=now,
-                            terminal_reason='postgrad_candidate_capacity',economic_rejection=False))
+                    if len(postgrad)>=MAX_POSTGRAD_CANDIDATES and not position_needs_stream:
+                        # The historical count is a pressure threshold only.  A
+                        # recoverable graduation may not disappear because the
+                        # deep-watch set is busy.
+                        report['postgrad_candidate_capacity_pressure']=(
+                            report.get('postgrad_candidate_capacity_pressure',0)+1)
+                        _progress(event['mint'],'capacity_pressure',
+                                  'postgrad_candidate_capacity_pressure',
+                                  economic_rejection=False)
+                    pool=pumpswap_pool(event["mint"])
+                    stream_key=pumpswap_stream.add_address(pool)
+                    postgrad[event["mint"]]=dict(
+                        mint=event["mint"],creation=state["creation"],
+                        graduation_time=int(event["market_time"]),
+                        pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
+                        history=LocalPumpHistory(
+                            plane,pool,int(event["market_time"])),
+                        history_status={},graduation_price=None,
+                    )
 
             # New late-curve entries stop at discovery_end; follow-up never backfills
             # another pre-graduation decision.
@@ -1215,12 +1221,19 @@ def main(*,campaign=False,discovery_seconds=None):
                         _progress(mint,"evidence_required",mode=MODE_LATE_CURVE,
                                   decision_at=pre_signal.observed_at,
                                   remaining_evidence="concentration")
-                        if (not attempt_budget.take(time.monotonic()) if campaign else full_attempts>=MAX_FULL_ATTEMPTS):
-                            _terminal(report,dict(mint=mint,observed_at=now,
-                                terminal_reason='full_evidence_attempt_cap',economic_rejection=False))
-                            if "full_evidence_attempt_cap" not in report["limitations"]:
-                                report["limitations"].append("full_evidence_attempt_cap")
-                            continue
+                        capacity_pressure=(
+                            not attempt_budget.take(time.monotonic())
+                            if campaign else full_attempts>=MAX_FULL_ATTEMPTS)
+                        if capacity_pressure:
+                            # Preserve opportunity breadth.  The old cap is now
+                            # telemetry that exposes a capacity deficit; it never
+                            # converts an otherwise evaluable candidate to terminal.
+                            report['full_evidence_attempt_pressure']=(
+                                report.get('full_evidence_attempt_pressure',0)+1)
+                            _progress(mint,'capacity_pressure',
+                                      'full_evidence_attempt_pressure',
+                                      mode=MODE_LATE_CURVE,
+                                      economic_rejection=False)
                         full_attempts+=1
                         _progress(mint,"full_evidence_requested",mode=MODE_LATE_CURVE,
                                   decision_at=pre_signal.observed_at,
