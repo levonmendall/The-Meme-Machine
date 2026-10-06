@@ -149,7 +149,15 @@ awareness layer even when the active strategy ultimately rejects them. A strateg
 rejection is a strategy/research result; failure to see the developing asset is an
 observability defect.
 
-## 12. Acceptance rule
+## 12. Activation safety
+
+This contract is active strategy infrastructure, but it does not by itself authorize
+starting PAPER, resuming CAPACITY, or accepting a more expensive provider topology.
+Correctness-first retention may temporarily increase observation work until the
+tiered evidence plane is validated. The runtime remains stopped until the normal
+operational integration/freeze path explicitly adopts a measured implementation.
+
+## 13. Acceptance rule
 
 An optimized evidence plane is acceptable only if it preserves:
 
