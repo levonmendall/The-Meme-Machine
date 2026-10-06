@@ -14,6 +14,9 @@ from .engine import MAYHEM_AGENT_WALLET, SIGNAL_WINDOW
 # discovery cutoff.
 PROMOTION_WINDOW_EVENTS = 3
 PROMOTION_DISTINCT_NON_SYSTEM_WALLETS = 3
+# Compatibility names for diagnostics/importers. They are promotion context only.
+MIN_WINDOW_EVENTS = PROMOTION_WINDOW_EVENTS
+MIN_DISTINCT_NON_SYSTEM_WALLETS = PROMOTION_DISTINCT_NON_SYSTEM_WALLETS
 TRIGGER_LABEL = 'fresh_non_system_buy'
 REACTIVATION_LABEL = 'fresh_non_system_buy_reactivation'
 
