@@ -130,6 +130,8 @@ class MarketNativeRuntime:
         self.evidence_queue_capacity_skips = 0
         self.provider_headroom_deferrals = 0
         self.preflight_rpc_free_rejections = 0
+        self.storage_pressure_blocks = 0
+        self.execution_limit_observation_ticks = 0
 
         # Bounded diagnostic-only evidence for the most recent selected preflight.
         # It never participates in qualification or order authority.
@@ -415,8 +417,19 @@ class MarketNativeRuntime:
     def tick(self, tape, now, cursor):
         """Advance discovery/evidence once; caller monitors existing exposure first."""
         status = tape.status(now)
-        if self.engine.store.pressure():
+        storage_pressure=getattr(
+            self.engine.store,'storage_pressure',self.engine.store.pressure)()
+        if storage_pressure:
+            # True storage exhaustion is a valid fail-visible observation bound:
+            # there is nowhere safe to persist more state.
+            self.storage_pressure_blocks += 1
             return cursor
+        experiment_limit=getattr(
+            self.engine.store,'experiment_limit_reached',lambda:False)()
+        if experiment_limit:
+            # The historical execution-count limit may block new funding through
+            # Allocator.allowed(), but it has no discovery/qualification authority.
+            self.execution_limit_observation_ticks += 1
 
         if not status['covered']:
             with self.engine.store.transaction('market_native_stream_coverage'):
@@ -511,6 +524,8 @@ class MarketNativeRuntime:
             provider_rotation_due=self.provider_rotation_due(),
             provider_headroom_deferrals=self.provider_headroom_deferrals,
             provider_rotations=self.provider_rotations,
+            storage_pressure_blocks=self.storage_pressure_blocks,
+            execution_limit_observation_ticks=self.execution_limit_observation_ticks,
             prior_provider_sessions=list(self.provider_sessions),
             order_authority='unchanged_engine_after_continuation_v1',
             dlmm_enabled=False,
