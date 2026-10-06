@@ -312,7 +312,10 @@ class PortfolioAccounting:
 
     def close(self):
         self._replay()
-        self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        # FULL-synchronous commits are already durable. A read-only observer
+        # must not make closing the writer wait for its snapshot while holding
+        # the shared writer fence; PASSIVE checkpoints never wait for readers.
+        self.db.execute("PRAGMA wal_checkpoint(PASSIVE)")
         self.db.close()
         self._lock_file.close()
 
@@ -1213,7 +1216,7 @@ class PortfolioAccounting:
             self.db.execute("DELETE FROM portfolio_events")
             self.db.execute("CREATE TRIGGER portfolio_events_no_delete BEFORE DELETE ON portfolio_events BEGIN SELECT RAISE(ABORT,'append_only'); END")
         self._state = self._replay()
-        self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        self.db.execute("PRAGMA wal_checkpoint(PASSIVE)")
         self.db.execute("VACUUM")
 
     def recover_projections(self):
