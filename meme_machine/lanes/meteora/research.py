@@ -50,7 +50,8 @@ def qualification_vector(engine, nomination, evidence, now):
         margins={},
     )
     try:
-        actual_reason = engine.qualify(nomination, evidence, now)
+        strategy_qualify=getattr(engine,'strategy_qualify',engine.qualify)
+        actual_reason = strategy_qualify(nomination, evidence, now)
     except (ValueError, KeyError, TypeError) as exc:
         actual_reason = 'unavailable_executable_evidence'
         vector['evaluation_error'] = str(exc) or type(exc).__name__
@@ -89,6 +90,7 @@ def qualification_vector(engine, nomination, evidence, now):
         roundtrip_loss_bps=None,
         roundtrip_loss_lamports=None,
         allocator_reason=None,
+        funding_status='unchecked',
     )
     vector['signal_fresh'] = bool(
         nomination.get('market_time') is not None and
@@ -189,7 +191,10 @@ def qualification_vector(engine, nomination, evidence, now):
             'spot', amount, snap['mint'], engine.group(c.creator), now)
     except (ValueError, KeyError, TypeError):
         vector['allocator_reason'] = 'allocator_unavailable'
-    _ordered_add(failures, vector['allocator_reason'])
+    vector['funding_status'] = (
+        'available' if vector['allocator_reason'] is None
+        else 'qualified_but_capital_unavailable'
+    )
 
     vector['margins'] = dict(
         concentration_bps=(None if vector['concentration_bps'] is None else
@@ -224,7 +229,6 @@ def _passes_thresholds(vector, overrides):
         vector.get('independent_net_buy_lamports') is not None,
         vector.get('price_extension_bps') is not None,
         vector.get('roundtrip_loss_bps') is not None,
-        vector.get('allocator_reason') is None,
     )
     if not all(required):
         return False
