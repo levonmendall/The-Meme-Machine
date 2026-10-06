@@ -8,6 +8,7 @@ from meme_machine.lanes.pump.engine import Engine
 from meme_machine.lanes.pump.market_native_runtime import MarketNativeRuntime
 from meme_machine.lanes.pump.market_native_shadow import discover_market_native
 from meme_machine.lanes.pump.research import qualification_vector
+from meme_machine.lanes.pump import runner as pump_runner
 from meme_machine.runtime.survivor_history import History
 
 
@@ -99,6 +100,24 @@ class StrategyObservabilityRuntimeTests(unittest.TestCase):
         self.assertEqual(set(runtime.evidence_queue),{'a','b'})
         self.assertEqual(runtime.evidence_queue_capacity_pressure,1)
         self.assertEqual(runtime.capacity_losses,0)
+
+    def test_current_qualification_survives_zero_allocatable_capital(self):
+        qualification=SimpleNamespace(
+            mint='mint',observed_at=100,policy_hash='policy',score=1,
+            reasons=(),confirmations=())
+        signal=SimpleNamespace(repeat_buyer_clusters=3,repeat_buy_share_bps=5000)
+        report={'qualifiers':[]}
+        with patch.object(pump_runner,'_current_pump_sizing',
+                          return_value=dict(realized_equity=100,target=5,
+                                            allocatable_target=0,available=0)):
+            reserved=pump_runner._reserve_position(
+                report,{}, {},signal,qualification,
+                {'available_time':100,'slot':1},'postgrad')
+        self.assertFalse(reserved)
+        self.assertEqual(
+            report['qualified_unfunded'][0]['entry_status'],
+            'qualified_but_capital_unavailable')
+        self.assertEqual(report['qualifiers'],[])
 
     def test_survivor_candidate_limit_is_pressure_not_rejection(self):
         with tempfile.TemporaryDirectory() as tmp:
