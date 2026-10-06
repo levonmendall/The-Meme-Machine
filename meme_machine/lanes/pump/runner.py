@@ -401,6 +401,25 @@ def _reserve_position(
     # Availability is evidence time, not the time the reservation is written.
     # Slow reconstruction must not backdate the reservation and consume its delay.
     reserved_at=max(int(snapshot["available_time"]),int(time.time()))
+    sizing=_current_pump_sizing()
+    intended=min(sizing['target'],max(0,sizing['available']-GAS))
+    if intended<=0:
+        # Strategy qualification already completed. Funding is a later execution
+        # decision and may not erase the opportunity or suppress Survivor.
+        unfunded=dict(
+            mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
+            policy_hash=qualification.policy_hash,
+            entry_status='qualified_but_capital_unavailable',
+            funding_reason='directional_realized_equity_unavailable',
+            sizing=dict(sizing),
+        )
+        report.setdefault('qualified_unfunded',[]).append(unfunded)
+        _progress(qualification.mint,'qualified_but_capital_unavailable',
+                  'directional_realized_equity_unavailable',
+                  mode=mode,qualified_at=qualification.observed_at,
+                  economic_rejection=False)
+        return False
+
     import uuid
     lifecycle_id=(ACCOUNTING.identity["run_id"] if ACCOUNTING else "research")+":"+uuid.uuid4().hex
     from meme_machine.runtime.lifecycle_identity import issue
@@ -417,16 +436,34 @@ def _reserve_position(
         state={k:sorted(v) if isinstance(v,set) else v for k,v in native_state.items()
                if k not in ('history','history_status')},execution=execution)
     evidence=dict(snapshot,_runtime_recovery=recovery)
+    interest_installed=False
     if context.get('plane') is not None:
         if execution is None:raise Unavailable('reservation_execution_interest_missing')
         context['plane'].interest(execution['scope'],lower_slot=int(snapshot['slot']),
             addresses=execution['addresses'],owner=lifecycle_id,lifecycle='reserved',priority=1)
+        interest_installed=True
     life=PumpAccelerationPaperLifecycle(book=ACCOUNTING,lifecycle_id=lifecycle_id,
                                        entry_evidence=evidence)
-    sizing=_current_pump_sizing()
-    intended=min(sizing['target'],max(0,sizing['available']-GAS))
-    if intended<=0:raise ValueError('directional_realized_equity_unavailable')
-    life.reserve(qualification,intended+GAS,reserved_at)
+    try:
+        life.reserve(qualification,intended+GAS,reserved_at)
+    except ValueError as exc:
+        if str(exc)!='sleeve_capital_exhausted':
+            raise
+        if interest_installed:
+            context['plane'].command(op='release',owner=lifecycle_id,
+                                     scope=execution['scope'],resolved=False)
+        unfunded=dict(
+            mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
+            policy_hash=qualification.policy_hash,
+            entry_status='qualified_but_capital_unavailable',
+            funding_reason='sleeve_capital_exhausted',
+            sizing=dict(sizing),
+        )
+        report.setdefault('qualified_unfunded',[]).append(unfunded)
+        _progress(qualification.mint,'qualified_but_capital_unavailable',
+                  'sleeve_capital_exhausted',mode=mode,
+                  qualified_at=qualification.observed_at,economic_rejection=False)
+        return False
     _progress(qualification.mint,"entry_reserved",lifecycle_id=lifecycle_id)
     qrow=dict(
         lifecycle_id=lifecycle_id,
@@ -447,6 +484,7 @@ def _reserve_position(
         decision_slot=int(snapshot["slot"]),qualifier_row=qrow,
         last_concentration=int(concentration),decision_signal=signal,execution_context=execution,
     )
+    return True
 
 
 @position_work
