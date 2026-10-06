@@ -71,8 +71,12 @@ class History:
             if old['graduation']!=evidence:raise ValueError('conflicting_survivor_graduation')
             return old
         if self.expired(evidence):raise ValueError('survivor_graduation_expired')
-        if len(self.rows())>=self.maximum_candidates:
-            raise ValueError('survivor_candidate_capacity')
+        if self.maximum_candidates is not None and len(self.rows())>=self.maximum_candidates:
+            # A candidate-count limit is scheduling/storage pressure, not strategy
+            # authority.  Preserve the graduation and expose the pressure durably
+            # instead of deleting the 65th (or later) recoverable opportunity.
+            pressure=self.get_meta('candidate_capacity_pressure') or 0
+            self.set_meta('candidate_capacity_pressure',int(pressure)+1)
         row=dict(id=identity,graduation=evidence,state='graduated',through=evidence['at'],
                  complete=True,last_checked=0,position=None)
         self.save(row);return row
