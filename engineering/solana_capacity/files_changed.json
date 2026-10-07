@@ -1,0 +1,301 @@
+{
+  "against": "fe86d9a8b60a36de0f47a234f7d2291c2a33c629",
+  "files": [
+    {
+      "path": "engineering/solana_capacity/REPORT.md",
+      "bytes": 24441,
+      "sha256": "b29cfc5fde34de7361f1500e8fea576cf514e1115a502d3adf00bfc22680bc8b"
+    },
+    {
+      "path": "engineering/solana_capacity/__init__.py",
+      "bytes": 83,
+      "sha256": "d0844bfc9ffed04d0fec176a54c9845c59dc6e530820c76f3fe1e1dcc5bdbde7"
+    },
+    {
+      "path": "engineering/solana_capacity/analyze.py",
+      "bytes": 24981,
+      "sha256": "d7f80e842213ccc625775654894cd667a79e01142545570541938340ed8c2e7b"
+    },
+    {
+      "path": "engineering/solana_capacity/budget.json",
+      "bytes": 65149,
+      "sha256": "e429e34085d97d6db1deaf59bdd22bfd3b2ecdc407de84938f8da2d549e8ca98"
+    },
+    {
+      "path": "engineering/solana_capacity/capture_manifest.json",
+      "bytes": 3386,
+      "sha256": "48e974189c3f10ca379020af8f20045ed598f75fd42a6e3e114aeb670f18be9a"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/audit.json",
+      "bytes": 282127,
+      "sha256": "8dbfe19dd8ad636ff55a93d3445511952d8c89d6f326bdf4f90a469632f6af7b"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part00",
+      "bytes": 16777216,
+      "sha256": "853b5fcc1b0dc0c1fd04beb0e30d1a0408ecc849ad7f954ce7781b34f6232c0a"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part01",
+      "bytes": 16777216,
+      "sha256": "7b9f41545ef918ee478b2ea3b60766e040cef95158c6db00ac2ad254e70028c3"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part02",
+      "bytes": 16777216,
+      "sha256": "299b8ff6e125a332d85265c821e7e13874b0669a14d83847e6c35dbe24497731"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part03",
+      "bytes": 16777216,
+      "sha256": "68771ebb07a54cd1c134a35003be342c2cbab195a0c09b7b4c92caec6e705391"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part04",
+      "bytes": 16777216,
+      "sha256": "a9b75df5ae4b928faf67ba7baa2148e6043a1468815e9bcaa7d9a878e5c663ba"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part05",
+      "bytes": 16777216,
+      "sha256": "81a17c6469e759e5fabb070ba821298a19688d4e018ad0daa8ad6cf34f7ea18d"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part06",
+      "bytes": 6531600,
+      "sha256": "7a42d4b87c0a132e8d4251a9f072a0a6d0113343d727c7eb461062c2f75c96a1"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/http_manifest.json",
+      "bytes": 338,
+      "sha256": "372df9e24750338ca086d0d6c9a48d6d8dca1c4f92fea59f542f4158443002e1"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/provider.frames.zlib",
+      "bytes": 9435217,
+      "sha256": "421c115307ba3baa30c291483423c065321e7017d47bb5534cab028ed66c0349"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared13/result.json",
+      "bytes": 25935344,
+      "sha256": "79591a4666c9eb44f2f79d6507f0e3fff0ba0cf36c59945d2eec76aebb75fa8f"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared14/audit.json",
+      "bytes": 212278,
+      "sha256": "0f77922fd2aedf9a1f8592214a8f9497c299ae49d2a5f4a9167bfe52839f0980"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared14/http.ndjson.zlib.part00",
+      "bytes": 16777216,
+      "sha256": "c6f1540e3c903017c0b423f63bb4383b7a130fb0795b8667a6201805b199a61d"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared14/http.ndjson.zlib.part01",
+      "bytes": 8388700,
+      "sha256": "15caa8f82c96f992dccb443084a0ed3a7b4f0dccf6bc851e93381033d857a8d7"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared14/http_manifest.json",
+      "bytes": 337,
+      "sha256": "c3d22fa0449cee7db0ccfc0ab455214bfb69f9a55a587007669df722dcad303b"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared14/provider.frames.zlib",
+      "bytes": 6136928,
+      "sha256": "673822d151d81b34cc21b8e5009ceadf45f885117221e4f4c432e45c1c2486e4"
+    },
+    {
+      "path": "engineering/solana_capacity/captures/final-shared14/result.json",
+      "bytes": 4740744,
+      "sha256": "72999e7a6d68e4e7b625e5cf6a45937d89bcfa1bf29e541c42caf2371126257a"
+    },
+    {
+      "path": "engineering/solana_capacity/certification_plan.json",
+      "bytes": 2918,
+      "sha256": "8d439db70541f7e39d830c72053dc9198d7055ac2aa7551841bb2232407e88e2"
+    },
+    {
+      "path": "engineering/solana_capacity/certify.py",
+      "bytes": 35713,
+      "sha256": "bf9a15c635eac39ae1b43dfd79cc872cdaa57af44ab2a3d269994a8715602ed5"
+    },
+    {
+      "path": "engineering/solana_capacity/cost_model.json",
+      "bytes": 41792,
+      "sha256": "e4b83bf7548fcd118d1fffccb57604abd95535cd01d2875e23d70b85a3410397"
+    },
+    {
+      "path": "engineering/solana_capacity/cost_model.py",
+      "bytes": 10932,
+      "sha256": "8f53131d35c62f1b4204ad862b498f2144f666ae467437b95d9fb79157e4434f"
+    },
+    {
+      "path": "engineering/solana_capacity/files_changed.json",
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "engineering/solana_capacity/phase0.json",
+      "bytes": 2483,
+      "sha256": "d218ef31f7ee242196f7f4d98761e6ca135ca342aaa89cc7acdc417cc624fabc"
+    },
+    {
+      "path": "engineering/solana_capacity/pricing.json",
+      "bytes": 785,
+      "sha256": "952fe5fdfce1831b1bd5c7d0117c1f5c5f677d151ea7a3fb46c6fc7eb431eba2"
+    },
+    {
+      "path": "engineering/solana_capacity/publication_check.json",
+      "bytes": 216,
+      "sha256": "d87699c43a23dbccd88a1c03b95bb02f3ea4962f41c9237dac29ca30ce67c66b"
+    },
+    {
+      "path": "engineering/solana_capacity/pump_candidates.py",
+      "bytes": 7917,
+      "sha256": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13"
+    },
+    {
+      "path": "engineering/solana_capacity/source_identities.json",
+      "bytes": 5496,
+      "sha256": "ca9acaa10f22001ad2de6962d796b751d1bd766f4b675c13781f4a219e47d622"
+    },
+    {
+      "path": "engineering/solana_capacity/transport_meter.py",
+      "bytes": 4211,
+      "sha256": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+    },
+    {
+      "path": "engineering/solana_capacity/validation.json",
+      "bytes": 18651,
+      "sha256": "920f4daa79c28f33bf4b2723c4a8d6c9f8a2b54592a9bc88ccaa87ad600a7438"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/affected-operational.log",
+      "bytes": 1876,
+      "sha256": "cb0f112d2a999725af96855aebc17b297e83d992145732156c0fc201e7d91b70"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/fast.log",
+      "bytes": 4534,
+      "sha256": "ec4c09e03ea166f8b7ddbe6ae3bc3b0e3b066a699b19e48abb07b56897087d43"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/focused.log",
+      "bytes": 21905,
+      "sha256": "f4f3a8b0937fd9773edf3dfcd27b82bc2a1551ba77102af2a9fe8469afeed23e"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/github-37616525528-attempt1.log",
+      "bytes": 49802,
+      "sha256": "69abbc0637c3c36a361a549bfdfca5307567c6f58b548bb655e28b6c129daa14"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/github-37616530525-attempt1.log",
+      "bytes": 56664,
+      "sha256": "ebc53466232063e4c921cc7b2be08a76fb652ffab6442534b7f5570f1f7c06d4"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/github-37616530525-attempt2.log",
+      "bytes": 51112,
+      "sha256": "e34e82a406aceb8cc10ed6c6efd57099f44ce33fb4dcd2c17159315d0a52680b"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/maintenance-backup.log",
+      "bytes": 8004,
+      "sha256": "f628314d324745944b58044d94d59ac176b557c8695d65d371f99de1bd948ccd"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/operational-boundary.log",
+      "bytes": 6974,
+      "sha256": "b94e3de305e20f21e1c83cf6807aeff4961e53ece1ad071c63c6451ee1e1adee"
+    },
+    {
+      "path": "engineering/solana_closure/REPORT.md",
+      "bytes": 25995,
+      "sha256": "1a3dd99a6039f77c952fc18c78b5f19d6fc45e5fb32b25b01b70ea56468adb4e"
+    },
+    {
+      "path": "engineering/solana_finalization/cost_model.json",
+      "bytes": 41792,
+      "sha256": "e4b83bf7548fcd118d1fffccb57604abd95535cd01d2875e23d70b85a3410397"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/runner.py",
+      "bytes": 113419,
+      "sha256": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_runtime.py",
+      "bytes": 21037,
+      "sha256": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0"
+    },
+    {
+      "path": "meme_machine/runtime/candidate_history.py",
+      "bytes": 32943,
+      "sha256": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a"
+    },
+    {
+      "path": "meme_machine/runtime/evidence_worker.py",
+      "bytes": 13423,
+      "sha256": "9b1b4b1e23156325dfff6a26d5c0ec0b87e3ffe0039ef282d044f3fffc939d1e"
+    },
+    {
+      "path": "meme_machine/runtime/governor.py",
+      "bytes": 12166,
+      "sha256": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53"
+    },
+    {
+      "path": "meme_machine/runtime/lifecycle_timing.py",
+      "bytes": 33745,
+      "sha256": "1ceeae9b384768afc2c6a7faf1ddbb7913b59dc371381adb5770d72280c48070"
+    },
+    {
+      "path": "meme_machine/runtime/solana_warming.py",
+      "bytes": 6200,
+      "sha256": "526a67a618fc9bbea84992f56670a308ed195328fb09dd442d6566ef2b005a6d"
+    },
+    {
+      "path": "meme_machine/solana_candidate_join.py",
+      "bytes": 16585,
+      "sha256": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230"
+    },
+    {
+      "path": "meme_machine/solana_candidate_lifecycle.py",
+      "bytes": 22999,
+      "sha256": "a633c99a1ab3efe8a252a78a3f72a3d32bcbe68cc96a07ba4b886c884b450cd8"
+    },
+    {
+      "path": "meme_machine/solana_scoped_retirement.py",
+      "bytes": 15682,
+      "sha256": "2dde4a82f13188a44123c162f39e82fffcffc2b3773647985e329825432a408c"
+    },
+    {
+      "path": "meme_machine/solana_selective_history.py",
+      "bytes": 40818,
+      "sha256": "2cf0f338e22a3a82b7a924957ce2af4a08d95ab38b7e43453317ede76ddf89f8"
+    },
+    {
+      "path": "meme_machine/solana_selective_source.py",
+      "bytes": 48598,
+      "sha256": "e759b00a56b678c0381162751fd9588470b6393dbe763427cc81d68b208505cc"
+    },
+    {
+      "path": "meme_machine/solana_stable_shards.py",
+      "bytes": 1911,
+      "sha256": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55"
+    },
+    {
+      "path": "operational/tests.py",
+      "bytes": 12255,
+      "sha256": "ded5323d0a589262b9cac843ebd78c36a0699dee9c1d59be7c893d58a59b5556"
+    },
+    {
+      "path": "tests/test_solana_shared_capacity.py",
+      "bytes": 37006,
+      "sha256": "9b1739c68f2b860747fcf9e18776012a5d2c86e88579a8f960e97e64f2c086b4"
+    }
+  ],
+  "self_hash_excluded": true
+}

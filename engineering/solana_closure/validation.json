@@ -1,0 +1,109 @@
+{
+  "FOCUSED": {
+    "tests": 122,
+    "seconds": 91.44,
+    "failure_identities": [],
+    "log_sha256": "99285a27f44b40e1ea304f8fe588441c02c9743cfea443e1e8006caf8655cab0",
+    "result": "PASS"
+  },
+  "FAST": {
+    "tests": 590,
+    "seconds": 121.378,
+    "failure_identities": [],
+    "log_sha256": "8b2eeaf9e904dccfeb838580f8b75b5d62b7620d6ac7a8e397e5c54fba9b7465",
+    "result": "PASS"
+  },
+  "AFFECTED_OPERATIONAL": {
+    "tests": 114,
+    "seconds": 73.817,
+    "failure_identities": [],
+    "log_sha256": "5059861cf863ee8e37e3bb10e1488c8f12a2e52ba3caf4420b5ce347b0ea09d8",
+    "result": "PASS"
+  },
+  "FULL_OPERATIONAL": {
+    "tests": 1997,
+    "seconds": 601.273,
+    "failure_identities": [],
+    "log_sha256": "db122ab62333e080ac19401eab0dd97f7e1e96c022a6739e5003c8523a6b2a46",
+    "result": "PASS"
+  },
+  "GATE1_AFTER_RETIREMENT": {
+    "tests": 79,
+    "seconds": 91.159,
+    "failure_identities": [],
+    "log_sha256": "42fd0c8c8ed76dd702ab4c7d38b043e1aac150bd84a242901a54ffaa029b100d",
+    "result": "PASS",
+    "note": "Includes final curve-to-mint identity upgrade and pin/coverage restart counterexamples."
+  },
+  "accepted_base_failure_comparison": {
+    "base_commit": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+    "base_github_run": 37548780045,
+    "accepted_identities": [
+      [
+        "ERROR",
+        "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+      ],
+      [
+        "ERROR",
+        "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+      ],
+      [
+        "FAIL",
+        "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+      ],
+      [
+        "FAIL",
+        "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+      ],
+      [
+        "FAIL",
+        "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+      ],
+      [
+        "FAIL",
+        "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+      ],
+      [
+        "FAIL",
+        "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+      ],
+      [
+        "FAIL",
+        "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+      ]
+    ],
+    "current_local_identities": [],
+    "new_identities": [],
+    "no_new_identity": true,
+    "exact_same_failure_set": false,
+    "note": "Accepted CI baseline has 11 storage/environment failure identities. Local focused/FAST/operational suites have zero; this does not claim the inherited CI environment was repaired."
+  },
+  "gates": {
+    "METEORA_STRUCTURAL_PROMOTION": "PASS",
+    "CANDIDATE_REACTIVATION": "PASS",
+    "SCOPED_COLD_RETIREMENT": "PASS",
+    "SIMULTANEOUS_PROVIDER_CAPACITY": "FAIL",
+    "ACK_REPLAY_HANDOFF": "PASS",
+    "CANDIDATE_RESTART_RECOVERY": "PASS",
+    "METEORA_POSITIVE_PARITY": "PASS",
+    "MEASURED_COST_MODEL": "FAIL"
+  },
+  "final_classification": "ALCHEMY_SOLANA_NOT_READY",
+  "remaining_blocker": {
+    "name": "SIMULTANEOUS_PROVIDER_CAPACITY",
+    "issue_class": "B: execution/certification blocker",
+    "smallest_proof": "One bounded run through the actual shared governed provider machinery, covering both complete position evidence paths plus retained promotion/hydration demand, with original deadlines and no opportunity loss. The cost incidence measurements follow that passing run."
+  }
+}

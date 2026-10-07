@@ -1,0 +1,46 @@
+{
+  "focused": {
+    "source_commit": "476bad205014c8c3d586f45d87f84ec44306817a",
+    "result": "PASS",
+    "tests_run": 176,
+    "passed": 175,
+    "archived_skips": 1,
+    "seconds": 54.464,
+    "log": "captures/final-476bad20/final4-focused.log.gz"
+  },
+  "FAST": {
+    "source_commit": "458d9e01ab1d2763ed26ae05fba898cd911c5e0f",
+    "result": "PASS",
+    "passed": 665,
+    "seconds": 109.107
+  },
+  "affected_OPERATIONAL": {
+    "source_commit": "458d9e01ab1d2763ed26ae05fba898cd911c5e0f",
+    "result": "PASS",
+    "passed": 780,
+    "archived_skips": 8,
+    "seconds": 185.163
+  },
+  "validation_scope_note": "Full suites cover the final runtime repair/census. The later observer-only native error change has final focused coverage and exact-source GitHub failure parity. Full suites were not needlessly repeated.",
+  "GitHub": [
+    {
+      "run": 37677933024,
+      "source": "476bad205014c8c3d586f45d87f84ec44306817a",
+      "identities": 11,
+      "new": [],
+      "missing": [],
+      "baseline_errors": 2,
+      "baseline_failures": 9
+    },
+    {
+      "run": 37677941466,
+      "source": "476bad205014c8c3d586f45d87f84ec44306817a",
+      "identities": 11,
+      "new": [],
+      "missing": [],
+      "baseline_errors": 2,
+      "baseline_failures": 9
+    }
+  ],
+  "new_local_product_failure_identities": 0
+}

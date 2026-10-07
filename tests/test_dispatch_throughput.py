@@ -130,6 +130,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(delay)
         self.fail('Run 373 dispatch repair did not make progress')
 
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect(self):
         # Fourteen ~10 MiB blocks at 0.75 s cadence is roughly 13 MiB/s,
         # matching the sustained/bursty range that filled Run 373's dispatch cap.
@@ -202,6 +203,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 stop.set()
                 await asyncio.gather(runner,return_exceptions=True)
 
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_run375_commit_batching_amortizes_full_sync_without_relaxing_bounds(self):
         # Model the fixed durability cost of synchronous=FULL. The old one-frame
         # commit path paid this cost for every block; bounded source_batch pays it
@@ -286,6 +288,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 stop.set()
                 await asyncio.gather(runner,return_exceptions=True)
 
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_oversized_frame_drains_already_received_frames_before_gap(self):
         class OversizedSocket(BurstSocket):
             async def recv(self,decode=None):

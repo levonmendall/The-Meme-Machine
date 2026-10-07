@@ -6,6 +6,7 @@ from meme_machine.solana_evidence_service import ServiceState
 from meme_machine.solana_evidence_transport import Subscription
 from meme_machine.solana_provider_config import AlchemyEndpoint
 from meme_machine.solana_evidence_plane import EvidenceReader,EvidenceUnavailable
+from tests.solana_economic_reference import economic_source_reference
 
 def frame(slot):
  path=Path(__file__).parent/'fixtures/solana_evidence_plane/run380-production-templates.json.gz'
@@ -149,7 +150,8 @@ class PreparedSourceTests(unittest.TestCase):
    try:
     # Preparation has no authority: only the ordered owner may publish coverage.
     self.assertEqual(b.writer.db.execute('select count(*) from records').fetchone()[0],0)
-    a.source_batch([(sub,msg,seen,size)]);b.source_batch([(sub,prepared,seen,size)])
+    reference=economic_source_reference(msg,service.program_subscriptions())
+    a.source_batch([(sub,reference,seen,size)]);b.source_batch([(sub,prepared,seen,size)])
     for table,columns in [('records','identity,hash'),('stream_deliveries','scope,slot,signature,hash'),('addresses','address,identity,slot')]:
      self.assertEqual(a.writer.db.execute('select '+columns+' from '+table+' order by 1,2,3' if table!='records' else 'select '+columns+' from '+table+' order by 1').fetchall(),
                       b.writer.db.execute('select '+columns+' from '+table+' order by 1,2,3' if table!='records' else 'select '+columns+' from '+table+' order by 1').fetchall())
@@ -196,7 +198,7 @@ class PreparedSourceTests(unittest.TestCase):
   import pickle
   prepared=pickle.loads(pickle.dumps(prepared))
   self.assertIsNone(prepared.scopes)
-  self.assertEqual(prepared,msg)
+  self.assertEqual(prepared,economic_source_reference(msg,service.program_subscriptions()))
   with tempfile.TemporaryDirectory() as td:
    state=service.ServiceState(Path(td)/'db',config)
    try:

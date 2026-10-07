@@ -16,7 +16,7 @@ from meme_machine.runtime.journal import canonical,digest
 
 
 class History:
-    def __init__(self,path,*,policy,maximum_candidates=64,maximum_points=100000):
+    def __init__(self,path,*,policy,maximum_candidates=None,maximum_points=100000):
         self.path=Path(path)
         self.initial_file_sha256=None
         if self.path.is_file():
@@ -30,6 +30,10 @@ class History:
         CREATE INDEX IF NOT EXISTS recent_events ON events(candidate,at);
         CREATE TABLE IF NOT EXISTS points(candidate TEXT,at INTEGER,price TEXT,hash TEXT,PRIMARY KEY(candidate,at));
         ''')
+        # Candidate retention is not a work-admission mechanism.  The legacy
+        # count bound is accepted for recovery/test-call compatibility but is
+        # deliberately not enforced; storage pressure is handled by the shared
+        # operational storage guard and terminal-history compaction.
         self.maximum_candidates=maximum_candidates;self.maximum_points=maximum_points
         old=self.get_meta('policy')
         if old is not None and old!=policy:raise ValueError('survivor_history_policy_drift')

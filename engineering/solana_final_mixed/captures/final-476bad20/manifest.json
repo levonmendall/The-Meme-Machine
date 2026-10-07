@@ -1,0 +1,98 @@
+{
+  "source_commit": "476bad205014c8c3d586f45d87f84ec44306817a",
+  "source_tree": "e9158889bd78b42ffd93b9fe563d0a64b54b5928",
+  "files": {
+    "provider.frames.zlib": {
+      "sha256": "176acc39997fafa1cd4e1d3f5aec4f33515fc950f1b51e53170968d1a4cdb583",
+      "bytes": 82297087
+    },
+    "http.ndjson.zlib": {
+      "sha256": "019880f8f101ce345e656ed30715b6bf47ef7f952a273373fbeff0c35dbdf3d3",
+      "bytes": 16422686
+    },
+    "owner.samples.ndjson.zlib": {
+      "sha256": "602844e0a8629c2b1fab480c35327bb9ef398c4b5a17ce6e09ce6008deb2dbb4",
+      "bytes": 303826
+    },
+    "result.json.gz": {
+      "sha256": "cefccdffeac6d492ee1833f2499afbb8668e338eebfc52d9af23712a6f105c40",
+      "original_sha256": "17d1d632ea6609a53deadaf104bf68dd9046c3363637b35d20b348654bfa1815",
+      "original_bytes": 21194484,
+      "bytes": 4185715
+    },
+    "audit.json.gz": {
+      "sha256": "1240dac4b3e98139edba6b6f88a169ce58bc4ac68f41c5d917024977cdc9325e",
+      "original_sha256": "1c8ca38422e6f245127401f2d38980958b687769c485fb96efb3c8363b2bd4c0",
+      "original_bytes": 341887,
+      "bytes": 38487
+    },
+    "reconciliation.json.gz": {
+      "sha256": "ad2e8d934a0265dfd5ccdea9c8a79904f9708d3907e6f532bc3669c7219e6ce5",
+      "original_sha256": "a4d38212dc8173abc2d82feec71dd3943248316169e835ed15b8c2b566ea9d2c",
+      "original_bytes": 292,
+      "bytes": 202
+    },
+    "owner-stacks.raw.gz": {
+      "sha256": "fd923dc2c36f5febfa611706ff0011f66c6a9a9d85b7c9569d9f5a14b7623d61",
+      "original_sha256": "3a1e6420e40cb57abf26238fe4cf599ea17dc47e507d40699d1e75040b90aab0",
+      "original_bytes": 93362,
+      "bytes": 4907
+    },
+    "owner-profile.log.gz": {
+      "sha256": "feff4cdfdf6af0b76f1ef1919394233f0c7def5880b2886b68c8b5bfcc295247",
+      "original_sha256": "57932496a396231a73881c1791bdcefeaa1d76da843a4840d3854f0da4d62ff1",
+      "original_bytes": 320,
+      "bytes": 242
+    },
+    "boundary-stacks.txt.gz": {
+      "sha256": "e5d367dbe78de0fe3e85f01fdaeb668854fd278a3856643d01c8a2ed3f88d4ef",
+      "original_sha256": "9e06cadbf87b72a5056af22a99b90eee3b4228959d3beed79ec6377c779aef5f",
+      "original_bytes": 175,
+      "bytes": 127
+    },
+    "canonical.sqlite.gz": {
+      "sha256": "d3418640bcb46e8e84eb2ac9a6d6eaf36be4570c606161b540a1515e2d0d566d",
+      "original_sha256": "e2a832a8ea8e8bc2d49ac013ea2c04329922c7dd4742112430db14641f18a3f7",
+      "original_bytes": 218365952,
+      "bytes": 46371943
+    },
+    "candidate.sqlite.gz": {
+      "sha256": "875d6c8894cfb2e51ade44a2b537b1d3aad85ae1f5d3356641c748333d043a41",
+      "original_sha256": "d5fa8fca98632358fc6719262b80a6e245740ddc48b0340991d6270d38d7adc9",
+      "original_bytes": 56287232,
+      "bytes": 15982533
+    },
+    "final4-preflight.json.gz": {
+      "sha256": "ef2c6e70ed47248ffccfbea57dd9c0bd84514171169f46fdefb4c01baf8645be",
+      "original_sha256": "2d62058c66ce203fed014b38670f5ef8fafb0d40adfc6b7be22781d7b7cadbf9",
+      "original_bytes": 1538,
+      "bytes": 733
+    },
+    "final4-focused.log.gz": {
+      "sha256": "61079ec65ba388e573b3c8721b1d2a10de1d3cd419db6ada8aadf2e4c220726f",
+      "original_sha256": "55e873b17e8e3a86a040ce20d8f327c916eaead6fd82cd3ef5e82a87323962b3",
+      "original_bytes": 3503,
+      "bytes": 734
+    },
+    "final4-github-parity.json.gz": {
+      "sha256": "a512a97196c04b29522c2fd519ba83227e8812a8aaa96e84c3b5f82b6ee90eec",
+      "original_sha256": "a4e10613338d38cdaeba69a502dd43360aa9ccb2f482a225eb8c8c9d682cc02a",
+      "original_bytes": 403,
+      "bytes": 171
+    },
+    "model-b-final4-console.log.gz": {
+      "sha256": "37c3c58c0058ef121df8fc17709048586a2d03746b4fb5678d2c62bef55fdf18",
+      "original_sha256": "d948f904da6a116802d064436f40980710fbd94b1c53ea75d0e2ea850b4590d1",
+      "original_bytes": 6032,
+      "bytes": 838
+    },
+    "tested-source.tar.gz": {
+      "sha256": "a7814259d850d3dd6abed267cfc41e973e0080f9f7cbe864c65ecf05440f41a8",
+      "bytes": 154660
+    },
+    "native-origin.json": {
+      "sha256": "f8bb5c3229d9fb5d2321728e308aa90cf56c3d485983df306c6881b1e08988a1",
+      "bytes": 1258
+    }
+  }
+}

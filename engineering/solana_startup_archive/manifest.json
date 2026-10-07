@@ -1,0 +1,61 @@
+{
+  "status": "LEGACY_STARTUP_IS_NOT_AN_ACTIVE_RUNTIME_PATH",
+  "model": "MODEL_A_LEGACY_COLD_RECONSTRUCTION_STARTUP",
+  "commit": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "tree": "348ad500e397f53e3eff33c6412c138a6d7ceb2d",
+  "branch": "repair/final-alchemy-solana-20261007",
+  "pr": 121,
+  "source_archive_sha256": "100add3ee23186d339b69313b0eb190f523ad9d2aaa7de19ba4d99931a42099d",
+  "files": {
+    "meme_machine/solana_selective_source.py": "e759b00a56b678c0381162751fd9588470b6393dbe763427cc81d68b208505cc",
+    "meme_machine/solana_selective_history.py": "2cf0f338e22a3a82b7a924957ce2af4a08d95ab38b7e43453317ede76ddf89f8",
+    "meme_machine/solana_candidate_lifecycle.py": "a633c99a1ab3efe8a252a78a3f72a3d32bcbe68cc96a07ba4b886c884b450cd8",
+    "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+    "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+    "meme_machine/runtime/solana_warming.py": "526a67a618fc9bbea84992f56670a308ed195328fb09dd442d6566ef2b005a6d",
+    "meme_machine/runtime/evidence_worker.py": "9b1b4b1e23156325dfff6a26d5c0ec0b87e3ffe0039ef282d044f3fffc939d1e",
+    "meme_machine/solana_evidence_service.py": "de650e6d080632532cf27210e3cfeabdad5719eec9489727402a7e30c2c4710b",
+    "meme_machine/solana_scoped_retirement.py": "2dde4a82f13188a44123c162f39e82fffcffc2b3773647985e329825432a408c",
+    "tests/test_solana_shared_capacity.py": "9b1739c68f2b860747fcf9e18776012a5d2c86e88579a8f960e97e64f2c086b4",
+    "tests/test_solana_closure.py": "24e27ff0ac05d7fa30f4d437e737fb427f88bda84d624db3a680f1c8f0ead478",
+    "tests/test_solana_source_intake.py": "22d2199258e78abd02d02cf60e94b20736e14156ade97b2fd511136949712832",
+    "engineering/solana_capacity/certify.py": "bf9a15c635eac39ae1b43dfd79cc872cdaa57af44ab2a3d269994a8715602ed5",
+    "engineering/solana_capacity/cost_model.json": "e4b83bf7548fcd118d1fffccb57604abd95535cd01d2875e23d70b85a3410397"
+  },
+  "preserved_capture": "engineering/solana_capacity/captures/final-shared14",
+  "capture_commit": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "cost_status": "UNCERTIFIED",
+  "workers": 2,
+  "history_workers": 8,
+  "owner_queue": 64,
+  "provider_queue": 256,
+  "known_failure": {
+    "pending_history_jobs": 43,
+    "unresolved_gaps": 127,
+    "mandatory_jobs_expired": 18,
+    "scoped_transaction_bodies": 22503,
+    "complete_qualification_vectors": 0,
+    "peak_expensive_workers": 1,
+    "capacity": 2,
+    "provider_429": 0
+  },
+  "comparison_oracle_archive_sha256": "ca7fc648e0c5b847d91dd95cb12e7b01ec5485f2be3dc1e4b069417893e07d26",
+  "comparison_oracle_status": "ARCHIVED_STUDY_ONLY_NOT_ACTIVE",
+  "additional_characterization_archive": {
+    "path": "additional-legacy-characterization-tests.tar.gz",
+    "sha256": "d26ca8a9dc8396b01eb74e6ec64a9fff0fb30d19a6e6426c0ee23843cd9435d9",
+    "files": {
+      "tests/test_work_admission.py": "e006a82fde378b93a4d8c804cf8d041298715d3a3c385ad969ea7ee8c9b0a762",
+      "tests/test_production_maintenance_arbiter.py": "b3d200b84bf9a622a1b6f5fc5175d9f4ab5f0f123396fd74d9513435b63c3b23",
+      "tests/maintenance_production_harness.py": "78359695a0dd4195c0f6ee3bcb2f8adecad48b5f03dce07efcaef1b3fcc73f2b"
+    }
+  },
+  "lane_producer_archive": {
+    "path": "legacy-lane-producers.tar.gz",
+    "sha256": "9aec87d811ef0dbf420e645a95b60be55425a599c518c8b1f4ad6c6dbc79318d",
+    "files": {
+      "meme_machine/lanes/pump/solana_evidence_service.py": "e5a5017fe1d741291d6bd8ab8e50ef48435dcc461fc320a6d2f27f8247f5924c",
+      "meme_machine/lanes/meteora/solana_evidence_service.py": "e5a5017fe1d741291d6bd8ab8e50ef48435dcc461fc320a6d2f27f8247f5924c"
+    }
+  }
+}

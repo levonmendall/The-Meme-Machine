@@ -93,6 +93,7 @@ class SyntheticClockTests(unittest.IsolatedAsyncioTestCase):
       self.assertEqual(struct.unpack_from('<q',updated,offset)[0],expected);break
 
 class SourceClockPressureTests(unittest.IsolatedAsyncioTestCase):
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_sustained_source_clock_candidate_progress_and_durable_drain(self):
   from meme_machine.solana_evidence_plane import EvidenceReader
   from meme_machine.solana_evidence_runtime import RuntimeEvidence

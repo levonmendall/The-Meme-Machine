@@ -48,8 +48,10 @@ REPORT=Path(os.environ.get("MM_PUMP_ACCELERATION_REPORT","pump-acceleration-natu
 DISCOVERY_SECONDS=max(600,min(int(os.environ.get("MM_PUMP_ACCELERATION_DISCOVERY_SECONDS","3300")),3300))
 FOLLOWUP_SECONDS=max(300,min(int(os.environ.get("MM_PUMP_ACCELERATION_FOLLOWUP_SECONDS","1000")),1200))
 MAX_CREATED=5000
-MAX_FULL_ATTEMPTS=120
+MAX_EXPENSIVE_POSTGRAD_PER_TURN=1
+# Legacy thresholds expose pressure only; neither controls cheap retention.
 MAX_POSTGRAD_CANDIDATES=12
+MAX_FULL_ATTEMPTS=120
 GENESIS_SOL_USD_MICROS=97_840_000
 INITIAL_USD_MICROS=500_000_000
 INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
@@ -69,6 +71,7 @@ FROZEN_POLICY_HASH="89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5
 FILL_PERSISTENCE_CONTEXT=None
 ACCOUNTING=None
 PIPELINE=None
+CANDIDATE_HISTORY=None
 
 def _progress(candidate,stage,reason=None,**details):
     if PIPELINE is not None:
@@ -205,7 +208,10 @@ def _late_roundtrip_loss_bps(snapshot, budget=ENTRY_BUDGET):
 
 
 def _capacity(snapshot, turnover, intended=None):
-    if intended is None:intended=_current_pump_sizing()["allocatable_target"]
+    # Qualification tests the strategy's ordinary target. Available funding is
+    # consulted only at reservation; a committed sleeve cannot erase downside
+    # evidence. Fill/scaling callers pass their actual execution budget explicitly.
+    if intended is None:intended=_current_pump_sizing()["target"]
     cap=turnover_capacity(turnover,authenticated=turnover is not None)
     def loss(n):
         try:
@@ -343,7 +349,79 @@ def _refresh_pool_events(
     events=history.refresh(
         None,now,research=research,hydration_kind=hydration_kind)
     state["history_status"]=history.status(now)
+    if CANDIDATE_HISTORY is not None:
+        mint=str(state["mint"])
+        CANDIDATE_HISTORY.observe(
+            'pump',mint,surface='pumpswap',
+            observed_at=int(state["graduation_time"]),
+            decision_deadline=int(state["graduation_time"])+
+                max(POLICY.max_postgrad_entry_age_s,600),
+            metadata=dict(pool=state["pool"],source='pump_graduation'))
+        records=getattr(history,'candidate_history_rows',None)
+        if records is None or len(records)!=len(events):
+            raise Unavailable('candidate_history_canonical_record_missing')
+        for record,order in records:
+            CANDIDATE_HISTORY.retain_pumpswap_record(mint,record,order)
     return events
+
+
+def _retain_pump_source_history(rows):
+    """Persist normalized Pump economics before any Current->PumpSwap promotion."""
+    if CANDIDATE_HISTORY is None:return 0
+    return CANDIDATE_HISTORY.retain_pump_source_history(
+        rows,graduation_horizon=max(POLICY.max_postgrad_entry_age_s,600))
+
+
+def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,confirmations,now):
+    """Rebuild cheap observation state from the shared ordered history after restart."""
+    if CANDIDATE_HISTORY is None:return 0
+    restored=0
+    for candidate in CANDIDATE_HISTORY.candidates(lane='pump'):
+        mint=candidate['candidate']
+        if mint in created:continue
+        economic=[
+            row for row in CANDIDATE_HISTORY.events('pump',mint)
+            if str(row.get('kind','')).startswith('pump_')
+            and not str(row.get('kind','')).startswith('pumpswap_')
+        ]
+        if not economic:continue
+        events=[dict(row['payload']) for row in economic]
+        creation=next((row for row in events if row.get('event_type')=='create'),None)
+        if creation is None:continue
+        confirmations.observe_creation(creation)
+        graduation_rows=[
+            row for row in events
+            if row.get('event_type')=='migration'
+            or (row.get('event_type')=='trade'
+                and int(row.get('real_token_reserves',-1))==0)
+        ]
+        graduation_time=(None if not graduation_rows else
+            min(int(row['market_time']) for row in graduation_rows))
+        pregrad_wallets=set()
+        for row in events:
+            if (row.get('wallet')
+                    and (graduation_time is None or int(row.get('market_time',0))<=graduation_time)
+                    and len(pregrad_wallets)<500):
+                pregrad_wallets.add(row['wallet'])
+        state=dict(creation=creation,pregrad_wallets=pregrad_wallets,
+                   graduated=graduation_time is not None)
+        if graduation_time is not None:
+            state['graduation_time']=graduation_time
+            confirmations.observe_graduation(mint,graduation_time)
+        created[mint]=state;restored+=1
+        if (graduation_time is None
+                or int(now)-graduation_time>max(POLICY.max_postgrad_entry_age_s,600)
+                or mint in postgrad):
+            continue
+        migration=next((row for row in graduation_rows if row.get('event_type')=='migration'),None)
+        pool=str((migration or {}).get('pool') or pumpswap_pool(mint))
+        pumpswap_stream.add_address(pool)
+        postgrad[mint]=dict(
+            mint=mint,creation=creation,graduation_time=graduation_time,
+            pregrad_wallets=set(pregrad_wallets),pool=pool,
+            history=LocalPumpHistory(plane,pool,graduation_time),
+            history_status={},graduation_price=None)
+    return restored
 
 
 def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_book):
@@ -391,15 +469,16 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
 
 
 def _reserve_position(
-    report,pending,active,signal,qualification,snapshot,mode,concentration=0
+    report,pending,active,signal,qualification,snapshot,mode,concentration=0,
+    *,decision_id=None
 ):
     key=(qualification.mint,mode)
     if key in pending or key in active:
-        return
+        return False
     if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
-        return
-    # Availability is evidence time, not the time the reservation is written.
-    # Slow reconstruction must not backdate the reservation and consume its delay.
+        return False
+    # Qualification is already final and durable at this point.  Capital is an
+    # execution admission input only; it must never change the qualification.
     reserved_at=max(int(snapshot["available_time"]),int(time.time()))
     sizing=_current_pump_sizing()
     intended=min(sizing['target'],max(0,sizing['available']-GAS))
@@ -418,6 +497,18 @@ def _reserve_position(
                   'directional_realized_equity_unavailable',
                   mode=mode,qualified_at=qualification.observed_at,
                   economic_rejection=False)
+        reason='directional_realized_equity_unavailable'
+        denial=dict(
+            mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
+            decision_id=decision_id,status='denied',reason=reason,
+            at=reserved_at,sizing=sizing,economic_rejection=False)
+        report.setdefault('funding_denials',[]).append(denial)
+        if CANDIDATE_HISTORY is not None and decision_id is not None:
+            CANDIDATE_HISTORY.record_funding(
+                decision_id,'pump',qualification.mint,status='denied',
+                at=reserved_at,reason=reason,details=sizing)
+        _progress(qualification.mint,'funding_denied',reason,mode=mode,
+                  decision_id=decision_id,qualification_preserved=True)
         return False
 
     import uuid
@@ -436,22 +527,35 @@ def _reserve_position(
         state={k:sorted(v) if isinstance(v,set) else v for k,v in native_state.items()
                if k not in ('history','history_status')},execution=execution)
     evidence=dict(snapshot,_runtime_recovery=recovery)
-    interest_installed=False
+    interest_acquired=False
     if context.get('plane') is not None:
         if execution is None:raise Unavailable('reservation_execution_interest_missing')
         context['plane'].interest(execution['scope'],lower_slot=int(snapshot['slot']),
             addresses=execution['addresses'],owner=lifecycle_id,lifecycle='reserved',priority=1)
-        interest_installed=True
+        interest_acquired=True
     life=PumpAccelerationPaperLifecycle(book=ACCOUNTING,lifecycle_id=lifecycle_id,
                                        entry_evidence=evidence)
     try:
         life.reserve(qualification,intended+GAS,reserved_at)
     except ValueError as exc:
-        if str(exc)!='sleeve_capital_exhausted':
+        reason=str(exc)
+        if reason not in ('sleeve_capital_exhausted','paper_capital_exhausted'):
             raise
-        if interest_installed:
-            context['plane'].command(op='release',owner=lifecycle_id,
-                                     scope=execution['scope'],resolved=False)
+        denial=dict(
+            mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
+            decision_id=decision_id,status='denied',reason=reason,
+            at=reserved_at,sizing=sizing,economic_rejection=False)
+        report.setdefault('funding_denials',[]).append(denial)
+        if CANDIDATE_HISTORY is not None and decision_id is not None:
+            CANDIDATE_HISTORY.record_funding(
+                decision_id,'pump',qualification.mint,status='denied',
+                at=reserved_at,reason=reason,details=sizing)
+        if getattr(life,'sleeve',None) is not None:
+            life.sleeve.close();life.sleeve=None
+        if interest_acquired:
+            try:context['plane'].command(
+                op='release',owner=lifecycle_id,scope=execution['scope'],resolved=False)
+            except Exception:pass
         unfunded=dict(
             mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
             policy_hash=qualification.policy_hash,
@@ -463,10 +567,18 @@ def _reserve_position(
         _progress(qualification.mint,'qualified_but_capital_unavailable',
                   'sleeve_capital_exhausted',mode=mode,
                   qualified_at=qualification.observed_at,economic_rejection=False)
+        _progress(qualification.mint,'funding_denied',reason,mode=mode,
+                  decision_id=decision_id,qualification_preserved=True)
         return False
+
+    if CANDIDATE_HISTORY is not None and decision_id is not None:
+        CANDIDATE_HISTORY.record_funding(
+            decision_id,'pump',qualification.mint,status='funded',
+            at=reserved_at,details=dict(lifecycle_id=lifecycle_id,
+                intended=intended,gas=GAS,sizing=sizing))
     _progress(qualification.mint,"entry_reserved",lifecycle_id=lifecycle_id)
     qrow=dict(
-        lifecycle_id=lifecycle_id,
+        lifecycle_id=lifecycle_id,decision_id=decision_id,
         mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
         score=qualification.score,reasons=list(qualification.reasons),
         confirmations=list(qualification.confirmations),
@@ -709,8 +821,14 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
     )
     if extra:
         row.update(extra)
-    from meme_machine.runtime.directional_sleeve import open_sleeve
     from dataclasses import asdict
+    if CANDIDATE_HISTORY is not None:
+        row['decision_id']=CANDIDATE_HISTORY.record_decision(
+            'pump',signal.mint,mode=signal.phase,
+            observed_at=int(signal.observed_at),qualified=bool(q.qualified),
+            decision=dict(vector=asdict(signal),qualification=asdict(q),
+                          policy_hash=policy_hash(),stage=stage))
+    from meme_machine.runtime.directional_sleeve import open_sleeve
     sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
     if sleeve is not None:
         try:
@@ -737,6 +855,7 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
         report["full_evidence_candidates"].append(dict(row))
     report["attempts"].append(row)
     report["attempts"]=report["attempts"][-1000:]
+    return row
 
 
 @position_work
@@ -928,6 +1047,7 @@ def _scale_current(life,row,current,qualification,snapshot,facts,now):
 
 
 class RollingAttemptBudget:
+    """Legacy work pressure telemetry; never candidate admission authority."""
     def __init__(self,limit=MAX_FULL_ATTEMPTS,window=3300):
         self.limit=limit;self.window=window;self.admitted=deque()
 
@@ -1022,7 +1142,7 @@ def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
 
 
 def main(*,campaign=False,discovery_seconds=None):
-    global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT
+    global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT,CANDIDATE_HISTORY
     from meme_machine.lanes.pump.paper_accounting import PaperBook
     import uuid
     if type(campaign) is not bool:raise ValueError('pump_campaign_flag')
@@ -1031,6 +1151,8 @@ def main(*,campaign=False,discovery_seconds=None):
         raise ValueError('pump_discovery_runtime_bound')
     smoke_flat_tail=bool(campaign and os.environ.get('MM_OPERATIONAL_PHASE')=='smoke')
     actual_policy_hash=policy_hash()
+    from meme_machine.runtime.candidate_history import open_candidate_history
+    CANDIDATE_HISTORY=open_candidate_history()
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
     confirmations=ConfirmationBook.from_files()
@@ -1074,13 +1196,16 @@ def main(*,campaign=False,discovery_seconds=None):
         started=int(time.time()),stream={},sessions=[],counts={},limitations=[],
         run_id=run_id,accounting_path=str(accounting_path),
         confirmation_evidence=confirmations.status(),
-        attempts=[],full_evidence_candidates=[],qualifiers=[],settled=[],
+        attempts=[],full_evidence_candidates=[],qualifiers=[],funding_denials=[],settled=[],
         open_positions=[],postgrad=[],
     )
     report['operational_configuration']=dict(campaign=campaign,discovery_seconds=discovery_seconds,
-        full_attempt_limit=MAX_FULL_ATTEMPTS,full_attempt_window_seconds=3300 if campaign else None,
-        concurrent_postgrad_limit=MAX_POSTGRAD_CANDIDATES,
-        candidate_limits_are_pressure_only=True,followup_seconds=FOLLOWUP_SECONDS,
+        full_attempt_limit=None,full_attempt_window_seconds=None,
+        cheap_postgrad_candidate_limit=None,
+        expensive_postgrad_per_turn=MAX_EXPENSIVE_POSTGRAD_PER_TURN,
+        expensive_scheduler='shared_edf',
+        followup_seconds=FOLLOWUP_SECONDS,
+        candidate_limits_are_pressure_only=True,
         open_positions_before_candidate_hydration=True)
     import hashlib
     report['operational_configuration_hash']=hashlib.sha256(json.dumps(
@@ -1109,7 +1234,10 @@ def main(*,campaign=False,discovery_seconds=None):
         survivor=Worker(lambda:Runtime(REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))
         report['active_regimes']=[STRATEGY_ID,'pumpswap-survivor-momentum-v1']
     cursor=0;full_attempts=0
+    attempt_budget=RollingAttemptBudget()
     created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
+    report['restored_observed_candidates']=_restore_observed_pump_candidates(
+        created,postgrad,pumpswap_stream,plane,confirmations,int(time.time()))
     if survivor is not None:survivor.prime()
     from meme_machine.runtime.status import update
     update('MANAGING' if active or pending else 'DISCOVERING',reconciled=True,restored_positions=len(active)+len(pending))
@@ -1119,7 +1247,6 @@ def main(*,campaign=False,discovery_seconds=None):
     )
     last_eval={};last_postgrad_eval={};last_save=0
     discovery_end=int(time.time())+discovery_seconds
-    attempt_budget=RollingAttemptBudget()
     end=discovery_end+FOLLOWUP_SECONDS
     report["discovery_deadline"]=discovery_end
 
@@ -1142,7 +1269,10 @@ def main(*,campaign=False,discovery_seconds=None):
                 report['smoke_tail_exit']='flat_after_discovery'
                 report['discovery_completed_at']=now
                 break
-            try:fresh,cursor=tape.events_since(cursor)
+            try:
+                fresh,cursor=tape.events_since(cursor)
+                report['pump_history_events_retained']=report.get('pump_history_events_retained',0)+\
+                    _retain_pump_source_history(tape.candidate_history_rows)
             except ValueError as exc:
                 report["evidence_plane_wait"]=str(exc)
                 if now-last_save>=2:
@@ -1185,6 +1315,13 @@ def main(*,campaign=False,discovery_seconds=None):
                             plane,pool,int(event["market_time"])),
                         history_status={},graduation_price=None,
                     )
+                    if CANDIDATE_HISTORY is not None:
+                        CANDIDATE_HISTORY.observe(
+                            'pump',event["mint"],surface='pumpswap',
+                            observed_at=int(event["market_time"]),
+                            decision_deadline=int(event["market_time"])+
+                                max(POLICY.max_postgrad_entry_age_s,600),
+                            metadata=dict(pool=pool,source='pump_graduation'))
 
             # New late-curve entries stop at discovery_end; follow-up never backfills
             # another pre-graduation decision.
@@ -1213,10 +1350,10 @@ def main(*,campaign=False,discovery_seconds=None):
                     _progress(mint,"prospect_observed",mode=MODE_LATE_CURVE)
                     try:
                         stream_time=int(event["market_time"])
+                        from meme_machine.runtime.candidate_history import economic_event_cursor
                         stream_events=[row for row in tape.window(
                             mint,stream_time,max_slot=int(event["slot"]))
-                            if (int(row["slot"]),int(row.get("index",0))) <=
-                               (int(event["slot"]),int(event.get("index",0)))]
+                            if economic_event_cursor(row)<=economic_event_cursor(event)]
                         prospect,prospect_trajectory,prospect_confirmation=_late_stream_signal(
                             creation,stream_events,event,confirmations)
                         prospect_q,prospect_reasons=_late_stream_prospect(prospect)
@@ -1280,7 +1417,7 @@ def main(*,campaign=False,discovery_seconds=None):
                         signal,trajectory,confirmation=_late_signal(
                             creation,ev,snapshot,concentration,confirmations)
                         q=qualify(signal)
-                        _record_attempt(
+                        decision_row=_record_attempt(
                             report,signal,q,"full_point_in_time",
                             {"concentration_source":meta.get("source"),
                              "trajectory":trajectory,
@@ -1290,7 +1427,8 @@ def main(*,campaign=False,discovery_seconds=None):
                                 for x in report["qualifiers"]):
                             _reserve_position(
                                 report,pending,active,signal,q,snapshot,
-                                MODE_LATE_CURVE,concentration)
+                                MODE_LATE_CURVE,concentration,
+                                decision_id=decision_row.get('decision_id'))
                     except (Unavailable,ValueError,KeyError,TypeError) as exc:
                         _progress(mint,"terminal",str(exc),mode=MODE_LATE_CURVE)
                         report["attempts"].append(dict(
@@ -1298,9 +1436,44 @@ def main(*,campaign=False,discovery_seconds=None):
                             stage="incomplete",qualified=False,
                             limitation=str(exc) or type(exc).__name__))
 
-            # Natural post-graduation and second-leg entries may occur during the
-            # follow-up because their decision time is necessarily after migration.
-            for mint,state in list(postgrad.items()):
+            # Natural post-graduation and second-leg candidates are retained
+            # without a count cap. Only expensive PumpSwap watch/qualification work
+            # is serialized through the shared earliest-deadline-first scheduler.
+            postgrad_work=None;scheduled_mint=None
+            if CANDIDATE_HISTORY is not None:
+                from meme_machine.runtime.candidate_history import CandidateDeadlineMissed
+                for queued_mint,queued_state in list(postgrad.items()):
+                    grad=int(queued_state["graduation_time"])
+                    deadline_at=grad+max(POLICY.max_postgrad_entry_age_s,600)
+                    CANDIDATE_HISTORY.observe(
+                        'pump',queued_mint,surface='pumpswap',observed_at=grad,
+                        decision_deadline=deadline_at,
+                        metadata=dict(pool=queued_state["pool"],source='pump_graduation'))
+                    CANDIDATE_HISTORY.enqueue(
+                        'pump',queued_mint,kind='pumpswap_watch',
+                        ready_at=grad+5,deadline=deadline_at,estimate_seconds=15,
+                        priority=20,payload=dict(mint=queued_mint),
+                        identity='pump:pumpswap_watch:'+queued_mint+':'+str(grad))
+                try:
+                    postgrad_work=CANDIDATE_HISTORY.claim(
+                        'pump-postgrad:'+str(os.getpid()),lane='pump')
+                except CandidateDeadlineMissed as exc:
+                    report.setdefault('candidate_deadline_misses',[]).append(exc.work)
+                    _progress(exc.work['candidate'],'evidence_incomplete',
+                              'candidate_decision_deadline_missed',economic_rejection=False)
+                    # A missed candidate deadline cannot stop position management
+                    # or prevent other retained candidates from being serviced.
+                    postgrad_work=None
+                if postgrad_work is not None:
+                    scheduled_mint=postgrad_work['candidate']
+                    postgrad_items=(
+                        [(scheduled_mint,postgrad[scheduled_mint])]
+                        if scheduled_mint in postgrad else [])
+                else:
+                    postgrad_items=[]
+            else:
+                postgrad_items=list(postgrad.items())
+            for mint,state in postgrad_items:
                 _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
                 _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
                 now=int(time.time())
@@ -1382,7 +1555,7 @@ def main(*,campaign=False,discovery_seconds=None):
                         signal,confirmation=_volume_price_signal(
                             state,snapshot,decision_events,MODE_POSTGRAD,concentration,confirmations)
                         q=qualify(signal)
-                        _record_attempt(
+                        decision_row=_record_attempt(
                             report,signal,q,"full_point_in_time",
                             {"history_status":state["history"].status(now),
                              "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
@@ -1391,13 +1564,14 @@ def main(*,campaign=False,discovery_seconds=None):
                                 for x in report["qualifiers"]):
                             _reserve_position(
                                 report,pending,active,signal,q,snapshot,
-                                MODE_POSTGRAD,concentration)
+                                MODE_POSTGRAD,concentration,
+                                decision_id=decision_row.get('decision_id'))
 
                     if second_q0 is not None and second_q0.qualified:
                         second,confirmation2=_volume_price_signal(
                             state,snapshot,events,MODE_SECOND_LEG,concentration,confirmations)
                         q2=qualify(second)
-                        _record_attempt(
+                        decision_row2=_record_attempt(
                             report,second,q2,"full_point_in_time",
                             {"history_status":state["history"].status(now),
                              "confirmation_evidence":_confirmation_meta(confirmation2)},snapshot=snapshot)
@@ -1406,7 +1580,8 @@ def main(*,campaign=False,discovery_seconds=None):
                                 for x in report["qualifiers"]):
                             _reserve_position(
                                 report,pending,active,second,q2,snapshot,
-                                MODE_SECOND_LEG,concentration)
+                                MODE_SECOND_LEG,concentration,
+                                decision_id=decision_row2.get('decision_id'))
                 except (Unavailable,ValueError,KeyError,TypeError) as exc:
                     _progress(mint,"terminal",str(exc),mode=MODE_POSTGRAD,
                               decision_at=now,history=state["history"].status(now))
@@ -1417,6 +1592,19 @@ def main(*,campaign=False,discovery_seconds=None):
                             state["history"].status(now)
                             if state.get("history") is not None else None)))
                     report["postgrad"]=report["postgrad"][-300:]
+
+            if CANDIDATE_HISTORY is not None and postgrad_work is not None:
+                mint=postgrad_work['candidate']
+                state=postgrad.get(mint)
+                horizon=(None if state is None else
+                    int(state["graduation_time"])+max(POLICY.max_postgrad_entry_age_s,600))
+                owns_position=any(key[0]==mint for key in (*pending,*active))
+                if state is None or owns_position or (horizon is not None and int(time.time())>=horizon):
+                    CANDIDATE_HISTORY.complete(postgrad_work['id'],status='complete')
+                else:
+                    CANDIDATE_HISTORY.complete(
+                        postgrad_work['id'],status='deferred',
+                        details=dict(delay_seconds=10))
 
             # Paper entries use the repository-standard two-second delay and a fresh
             # executable quote. This is execution realism, not a strategy threshold.
@@ -1429,6 +1617,8 @@ def main(*,campaign=False,discovery_seconds=None):
                 report["full_evidence_attempts"]=full_attempts
                 report["active_provider"]=sessions.rpc.provider_telemetry()
                 report["evidence_broker"]=broker.telemetry()
+                if CANDIDATE_HISTORY is not None:
+                    report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
                 counts=Counter()
                 for attempt in report["attempts"]:
                     counts[f'{attempt.get("mode")}:{attempt.get("stage")}']+=1
@@ -1476,9 +1666,13 @@ def main(*,campaign=False,discovery_seconds=None):
                  marks=dict(v["marks"]),snapshot=v["lifecycle"].snapshot())
             for k,v in active.items()]
         report["threshold_changes_made"]=False
+        if CANDIDATE_HISTORY is not None:
+            report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
         _save(report)
         broker.close();plane.close()
         FILL_PERSISTENCE_CONTEXT=None
+        if CANDIDATE_HISTORY is not None:
+            CANDIDATE_HISTORY.close();CANDIDATE_HISTORY=None
         ACCOUNTING.close();ACCOUNTING=None
         PIPELINE.close();PIPELINE=None
     print(json.dumps(report,sort_keys=True))

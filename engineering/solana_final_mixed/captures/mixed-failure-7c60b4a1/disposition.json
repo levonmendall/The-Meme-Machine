@@ -1,0 +1,22 @@
+{
+  "classification": "NEW_STARTUP_MEASURED_DEFECT",
+  "source_commit": "7c60b4a183779776a55abc2b55358210348dbeb7",
+  "source_tree": "f96fc89bd820e3845401da2ff3420e677be29c11",
+  "normal_running_queue_drain": false,
+  "queue_peak": 60,
+  "depth_p50": 57,
+  "depth_p95": 59,
+  "oldest_wait_seconds": 52.028397176996805,
+  "expired_candidate_work": 11,
+  "feasible_deadline_misses": "UNPROVEN: individual dispositions cannot be inferred zero",
+  "pending_acquisitions": 4,
+  "full_position_readiness": {
+    "pump": 0,
+    "pumpswap": 0,
+    "meteora": 13
+  },
+  "ordinary_startup_history_RPC": 0,
+  "workers": 2,
+  "provider_429s": 0,
+  "root_cause_status": "Frozen failure; diagnosing long owner service under simultaneous pressure. No resource limit increase or strategy change."
+}

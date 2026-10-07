@@ -17,6 +17,29 @@ MAX_COMMAND_BYTES=32768
 MAX_RECEIPTS=8192
 
 
+async def admit(owner,fn,**options):
+    """Lossless pre-admission wait for one bounded producer command.
+
+    Only a full queue retries. Expiry/owner failures remain fail-closed. Accepted
+    work returns its original future exactly once and outlives its waiter.
+    """
+    import asyncio
+    started=time.monotonic();refusals=0
+    while True:
+        try:future=owner.submit(fn,**options);break
+        except EvidenceUnavailable as exc:
+            if str(exc)!='evidence_control_overloaded':raise
+            refusals+=1;await asyncio.sleep(min(.2,.01*2**min(refusals-1,5)))
+    if refusals:
+        micros=int((time.monotonic()-started)*1_000_000)
+        with owner.cv:
+            m=owner.metrics;m['admission_waited']=m.get('admission_waited',0)+1
+            m['admission_refusals']=m.get('admission_refusals',0)+refusals
+            m['admission_wait_total_us']=m.get('admission_wait_total_us',0)+micros
+            m['admission_wait_peak_us']=max(m.get('admission_wait_peak_us',0),micros)
+    return future
+
+
 def command_envelope(request,now):
     consumer=request.get('consumer');identity=request.get('request_id');expiry=request.get('expires_at')
     if (not isinstance(consumer,str) or not consumer or len(consumer)>128

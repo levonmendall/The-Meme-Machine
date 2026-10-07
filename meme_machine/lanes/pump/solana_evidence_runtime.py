@@ -17,7 +17,7 @@ PUMP_SCOPE='program:pump'
 SWAP_SCOPE='program:pumpswap'
 METEORA_SCOPE='program:meteora'
 
-class RuntimeEvidence:
+class BaseRuntimeEvidence:
     def __init__(self,path=None,*,owner,clock=time.time,command=None):
         path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
         if not path:raise EvidenceUnavailable('shared_evidence_plane_required')
@@ -125,8 +125,10 @@ class RuntimeEvidence:
             self.require_usable(scope)
             self.count('pump.local_evidence_reads')
             lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
-            events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
+            view=PumpEvidenceView(self.reader,scope)
+            events=view.events(address,lower_slot=lo,upper_slot=hi,
                 lower_time=lower_time,upper_time=upper_time,as_of=self.clock())
+            self._thread_readers.pump_ordered_records=view.ordered_records
             self.acknowledge(scope,hi)
             self.count('pump.complete_local_reads')
             self._repair_assisted('pump',scope,lo,hi)
@@ -175,21 +177,28 @@ class RuntimeEvidence:
         if reader:reader.close()
         self._thread_readers.reader=None
 
+from meme_machine.solana_selective_runtime import SelectiveRuntime
+
+class RuntimeEvidence(SelectiveRuntime,BaseRuntimeEvidence):
+    pass
+
 class LocalPumpHistory:
     """Adapter for the real Pump runner's frozen history/decision interface."""
     def __init__(self,plane,pool,graduation_time):
         self.plane=plane;self.pool=pool;self.graduation_time=int(graduation_time)
-        self.snapshot=None;self.rows=[];self._window_complete=False;self._history_complete=False
+        self.snapshot=None;self.rows=[];self.candidate_history_rows=[];self._window_complete=False;self._history_complete=False
     def bind_snapshot(self,snapshot):self.snapshot=snapshot
     def refresh(self,rpc,now,*,research=False,hydration_kind=None):
         if self.snapshot is None:raise EvidenceUnavailable('pump_local_snapshot_boundary_required')
         at=int(self.snapshot['market_time']);upper=self.snapshot['slot']
         self._window_complete=self._history_complete=False
         self.rows=self.plane.pump_events(SWAP_SCOPE,self.pool,at-30,at,upper_slot=upper)
+        self.candidate_history_rows=list(getattr(self.plane._thread_readers,'pump_ordered_records',[]))
         self._window_complete=True
         if research:
             try:
                 self.rows=self.plane.pump_events(SWAP_SCOPE,self.pool,self.graduation_time,at,upper_slot=upper)
+                self.candidate_history_rows=list(getattr(self.plane._thread_readers,'pump_ordered_records',[]))
                 self._history_complete=True
             except EvidenceUnavailable:
                 # Momentum can use its covered window; the independent second-leg
@@ -205,41 +214,112 @@ class LocalPumpHistory:
     def status(self,now):return dict(complete=self._history_complete,decision_window=self.decision_window_status(now),events=len(self.rows),historical_provider_calls=0)
 
 class LocalPumpTape:
-    def __init__(self,plane):self.plane=plane
+    def __init__(self,plane):
+        self.plane=plane
+        # Ordered normalized rows from the most recent cursor advance. Strategy
+        # callers keep their existing event shape; candidate-history persistence
+        # consumes this side channel so promotion has complete pre-grad economics.
+        self.candidate_history_rows=[]
     def window(self,mint,now,max_slot=None):
-        rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
+        try:rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
+        except EvidenceUnavailable:
+            from contextlib import closing
+            from meme_machine.runtime.candidate_history import open_candidate_history
+            history=open_candidate_history()
+            if history is None:raise
+            try:
+                with closing(history):rows=history.covered_events(
+                    'pump',mint,PUMP_SCOPE,int(now)-60,int(now),upper_slot=max_slot)
+            except ValueError as exc:raise EvidenceUnavailable(str(exc)) from exc
         return [e for e in rows if e.get('event_type') not in ('create','migration')]
     def creation(self,mint):
         db=self.plane.reader.db;db.execute('BEGIN')
         try:
             rows=db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
-                WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY a.slot DESC LIMIT 1000''',
+                WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY r.slot DESC LIMIT 1000''',
                 (mint,PUMP_SCOPE,self.plane.clock())).fetchall()
             for raw,seen in rows:
                 if raw:
                     event=decode_body(raw,db)['payload'].get('event',{})
                     if event.get('event_type')=='create':return dict(event,available_time=int(seen))
+            from contextlib import closing
+            from meme_machine.runtime.candidate_history import open_candidate_history
+            history=open_candidate_history()
+            if history is not None:
+                with closing(history):
+                    for record in history.events('pump',mint):
+                        event=record['payload']
+                        if event.get('event_type')=='create':return dict(event,available_time=int(event.get('available_time',event['market_time'])))
             return None
         finally:db.execute('ROLLBACK')
     def events_since(self,sequence):
+        from meme_machine.solana_selective_runtime import selective,consume_pump_discovery
+        if hasattr(self.plane,'_selective_reader') and selective(self.plane._selective_reader()):return consume_pump_discovery(self,sequence)
         hi=self.plane.frontier(PUMP_SCOPE)
         # Keep body and shared material on the same bounded read snapshot while
         # archive GC runs. Release it before any control acknowledgement.
         db=self.plane.reader.db;db.execute('BEGIN')
         try:
-            rows=db.execute('''SELECT rowid,body,slot FROM records WHERE scope=? AND kind='event'
+            rows=db.execute('''SELECT rowid,body,slot,identity,signature,transaction_index,
+                    event_index,market_time,first_seen FROM records WHERE scope=? AND kind='event'
                 AND rowid>? AND slot<=? AND first_seen<=? ORDER BY rowid LIMIT 5000''',
                 (PUMP_SCOPE,sequence,hi,self.plane.clock())).fetchall()
-            events=[]
-            for seq,raw,slot in rows:
+            from meme_machine.runtime.candidate_history import order_economic_records
+            source_records=[decode_body(row[1],db) for row in rows if row[1] is not None]
+            if len(source_records)!=len(rows):raise EvidenceUnavailable('pump_consumer_backlog_archived')
+            try:ordered=order_economic_records(source_records,db,PUMP_SCOPE)
+            except ValueError as exc:raise EvidenceUnavailable(str(exc)) from exc
+            economic_orders={row['identity']:order for row,order in ordered}
+            events=[];history_rows=[]
+            for seq,raw,slot,identity,signature,transaction_index,event_index,market_time,first_seen in rows:
                 if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
-                event=decode_body(raw,db)['payload']['event']
+                event=dict(decode_body(raw,db)['payload']['event'])
+                event['_economic_order']=economic_orders[identity]
+                event['available_time']=int(first_seen)
+                history_rows.append(dict(
+                    identity=identity,signature=signature,slot=int(slot),
+                    transaction_index=transaction_index,event_index=int(event_index),
+                    market_time=int(market_time),event=event))
                 if event.get('event_type') not in ('create','migration'):events.append(event)
                 sequence=seq
+            self.candidate_history_rows=history_rows
         finally:db.execute('ROLLBACK')
-        if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
+        if rows or hi>=0:
+            # Commit normalized history before relinquishing the source pin.
+            # A crash between the commit and ack replays idempotently; the
+            # reverse order could let retention erase uncommitted economics.
+            from contextlib import closing
+            from meme_machine.runtime.candidate_history import open_candidate_history
+            last_sequence=sequence;complete_slot=hi
+            unread=db.execute("SELECT MIN(slot) FROM records WHERE scope=? AND kind='event' AND rowid>? AND slot<=?",
+                              (PUMP_SCOPE,last_sequence,hi)).fetchone()[0]
+            if unread is not None:complete_slot=int(unread)-1
+            history=open_candidate_history()
+            if history is not None:
+                with closing(history):
+                    history.retain_pump_source_history(history_rows)
+                    # Do not certify the last slot if the bounded page stopped
+                    # within it. Earlier complete slots may be checkpointed.
+                    coverage=db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available<=?',
+                                        (PUMP_SCOPE,self.plane.clock())).fetchone()[0]
+                    if coverage is not None and complete_slot>=coverage:
+                        if not self.plane.reader.covered(PUMP_SCOPE,coverage,complete_slot,as_of=self.plane.clock()):
+                            raise EvidenceUnavailable('candidate_history_continuity_missing')
+                        first=db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot=?',
+                                         (PUMP_SCOPE,coverage)).fetchone()
+                        last=db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot=?',
+                                        (PUMP_SCOPE,complete_slot)).fetchone()
+                        if first and last:
+                            from meme_machine.runtime.journal import digest
+                            witnesses=db.execute('SELECT lo,hi,proof FROM coverage WHERE scope=? AND available<=? ORDER BY lo,hi',
+                                                (PUMP_SCOPE,self.plane.clock())).fetchall()
+                            history.commit_coverage(PUMP_SCOPE,int(coverage),int(complete_slot),int(first[0]),int(last[0]),
+                                                    proof_hash=digest(witnesses))
+            if complete_slot>=0:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=complete_slot)
         return events,sequence
     def covered(self,now=None):
+        from meme_machine.solana_selective_runtime import selective
+        if hasattr(self.plane,'_selective_reader') and selective(self.plane._selective_reader()):return self.plane.health(PUMP_SCOPE)['usable']
         try:
             hi=self.plane.frontier(PUMP_SCOPE)
             row=self.plane.reader.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',(PUMP_SCOPE,hi)).fetchone()

@@ -32,7 +32,8 @@ def checkpoint_and_reclaim(path):
 
 async def reclaim_at_boundary(owner,path):
     """One accepted handoff and one worker, fully joined even on cancellation."""
-    accepted=asyncio.wrap_future(owner.submit(
+    from .solana_evidence_control import admit
+    accepted=asyncio.wrap_future(await admit(owner,
         lambda state:owner.checkpoint_handoff_after_current(),priority=2))
     cancelled=False;token=None;pending=None
     try:

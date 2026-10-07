@@ -13,6 +13,7 @@ from meme_machine.runtime.robinhood.plane import Plane, canonical
 from meme_machine.runtime.robinhood.ramses_window import Window, KEY
 from meme_machine import solana_program_decoders as codecs
 from meme_machine.solana_evidence_service import decode_source_message, program_subscriptions, prepare_block_scope, program_decoders
+from tests.solana_economic_reference import economic_source_reference
 
 
 class ImmutableEfficiency(unittest.TestCase):
@@ -130,8 +131,9 @@ class LocalSolanaEfficiency(unittest.TestCase):
         subs=[s for s in program_subscriptions() if s.evidence_class!='logs']
         prepared,total,retained=decode_source_message(json.dumps(msg),'',[s.address for s in subs],'0'*64,2000000000.)
         self.assertEqual(total,len(txs));self.assertEqual(retained,len(txs))
+        reference=economic_source_reference(msg,subs)
         for sub in subs:
-            standalone=prepare_block_scope(sub,msg,2000000000.,'0'*64,program_decoders(),include_logs=True,budget=[16*1024*1024])
+            standalone=prepare_block_scope(sub,reference,2000000000.,'0'*64,program_decoders(),include_logs=True,budget=[16*1024*1024])
             self.assertEqual(prepared.scopes[sub.scope],standalone)
         transferred=pickle.loads(pickle.dumps(prepared))
         for scope,value in prepared.scopes.items():

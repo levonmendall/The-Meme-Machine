@@ -1,0 +1,289 @@
+{
+  "status": "NEW_STARTUP_PROMISING_ONE_PROOF_REMAINS",
+  "active_model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+  "legacy_startup": "ARCHIVED_NON_ACTIVE",
+  "measured_cost_model": "NOT_CERTIFIED",
+  "remaining_proof": "Complete simultaneous steady-state normalized publication and all candidate/position prerequisites through the actual shared governor on final source, preserving original deadlines.",
+  "pricing": {
+    "verified_UTC": "2026-10-07T16:46:39Z",
+    "sources": [
+      "https://www.alchemy.com/pricing",
+      "https://www.alchemy.com/solana-grpc",
+      "https://www.alchemy.com/docs/reference/compute-unit-costs"
+    ],
+    "yellowstone_USD_per_decimal_TB": 75,
+    "PAYG_USD_per_million_CU": 0.525,
+    "Solana_WebSocket_CU_per_delivered_byte": 0.0002,
+    "getSlot_CU": 20,
+    "getTransactionsForAddress_CU": 100,
+    "getTransaction_CU": 40,
+    "getBlock_CU": 40,
+    "getSignaturesForAddress_CU": 40,
+    "getMultipleAccounts_CU": 20,
+    "PAYG_included_CU_per_second": 10000,
+    "PAYG_included_RPS": 300,
+    "additional_5000_CU_per_second_block_monthly_USD": 160,
+    "free_plan_allowance_not_applied_as_PAYG_credit": true,
+    "HTTP_bytes_not_priced_as_Yellowstone": true,
+    "getAccountInfo_CU": 10
+  },
+  "pricing_note": "Official pricing rechecked at this timestamp; applied to diagnostic payload only, no monthly production extrapolation.",
+  "startup": {
+    "window_seconds": 16.20401692390442,
+    "HTTP_bytes": 210,
+    "RPC_calls": 4,
+    "RPC_CU": 70,
+    "selective_transaction_bodies": 0,
+    "scoped_archive_transaction_bodies": 0,
+    "blocks": 0,
+    "yellowstone_bytes": 1924534,
+    "cross_shard_duplicate_bytes": 14067,
+    "websocket_bytes": 51068151,
+    "raw_provider_payload_bytes": 52992895,
+    "HTTP_response_samples": 4,
+    "yellowstone_delivery_samples": 17535,
+    "websocket_delivery_samples": 17594
+  },
+  "steady": {
+    "window_seconds": 123.61113977432251,
+    "HTTP_bytes": 66586389,
+    "RPC_calls": 863,
+    "RPC_CU": 26670,
+    "selective_transaction_bodies": 24,
+    "scoped_archive_transaction_bodies": 7822,
+    "blocks": 0,
+    "history_or_missing_field_RPC_calls": 142,
+    "recovery_HTTP_bytes": 61435296,
+    "yellowstone_bytes": 14905274,
+    "cross_shard_duplicate_bytes": 805603,
+    "websocket_bytes": 167527377,
+    "raw_provider_payload_bytes": 249019040,
+    "HTTP_response_samples": 863,
+    "yellowstone_delivery_samples": 39241,
+    "websocket_delivery_samples": 47310
+  },
+  "steady_hour_normalization": {
+    "HTTP_bytes": 1939234609.741821,
+    "RPC_calls": 25133.65709330163,
+    "RPC_CU": 776726.1120259032,
+    "selective_transaction_bodies": 698.9661300570557,
+    "scoped_archive_transaction_bodies": 227804.7112210954,
+    "blocks": 0.0,
+    "history_or_missing_field_RPC_calls": 4135.54960283758,
+    "recovery_HTTP_bytes": 1789216295.5845714,
+    "yellowstone_bytes": 434095070.2175021,
+    "cross_shard_duplicate_bytes": 23462050.469681427,
+    "websocket_bytes": 4878998432.512475,
+    "raw_provider_payload_bytes": 7252328112.471798
+  },
+  "model_B_monthly": {
+    "alchemy_low_USD": null,
+    "alchemy_expected_USD": null,
+    "alchemy_serviceable_production_high_USD": null,
+    "recovery_envelope_USD": null,
+    "total_expected_infrastructure_USD": null,
+    "savings_USD": null,
+    "savings_percent": null
+  },
+  "host_storage_USD_per_month": 73,
+  "old_broad_model_USD_per_month": 1332.83,
+  "model_A": "UNCERTIFIED_ARCHIVED",
+  "target_bands_USD": [
+    10,
+    25,
+    50,
+    100,
+    250
+  ],
+  "target_classification": "UNCLASSIFIED: production incidence and serviceability unproven",
+  "retired_assumptions": [
+    "6700 promotions/day",
+    "5000 selective transaction fetches/day"
+  ],
+  "inputs": {
+    "startup.HTTP_bytes": {
+      "value": 210,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE"
+    },
+    "startup.RPC_calls": {
+      "value": 4,
+      "unit": "calls",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE"
+    },
+    "startup.RPC_CU": {
+      "value": 70,
+      "unit": "CU",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 4,
+      "classification": "DERIVED",
+      "source_note": "Measured RPC method counts multiplied by current official CU prices."
+    },
+    "startup.selective_transaction_bodies": {
+      "value": 0,
+      "unit": "count",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE"
+    },
+    "startup.scoped_archive_transaction_bodies": {
+      "value": 0,
+      "unit": "count",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE"
+    },
+    "startup.blocks": {
+      "value": 0,
+      "unit": "count",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE"
+    },
+    "startup.yellowstone_bytes": {
+      "value": 1924534,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 17535,
+      "classification": "MEASURED_LIVE"
+    },
+    "startup.cross_shard_duplicate_bytes": {
+      "value": 14067,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 17535,
+      "classification": "MEASURED_LIVE"
+    },
+    "startup.websocket_bytes": {
+      "value": 51068151,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 17594,
+      "classification": "MEASURED_LIVE"
+    },
+    "startup.raw_provider_payload_bytes": {
+      "value": 52992895,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 16.20401692390442,
+      "sample_count": 35133,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.HTTP_bytes": {
+      "value": 66586389,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 863,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.RPC_calls": {
+      "value": 863,
+      "unit": "calls",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 863,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.RPC_CU": {
+      "value": 26670,
+      "unit": "CU",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 863,
+      "classification": "DERIVED",
+      "source_note": "Measured RPC method counts multiplied by current official CU prices."
+    },
+    "steady.selective_transaction_bodies": {
+      "value": 24,
+      "unit": "count",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 863,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.scoped_archive_transaction_bodies": {
+      "value": 7822,
+      "unit": "count",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 863,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.blocks": {
+      "value": 0,
+      "unit": "count",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 863,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.history_or_missing_field_RPC_calls": {
+      "value": 142,
+      "unit": "calls",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 863,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.recovery_HTTP_bytes": {
+      "value": 61435296,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 863,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.yellowstone_bytes": {
+      "value": 14905274,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 39241,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.cross_shard_duplicate_bytes": {
+      "value": 805603,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 39241,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.websocket_bytes": {
+      "value": 167527377,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 47310,
+      "classification": "MEASURED_LIVE"
+    },
+    "steady.raw_provider_payload_bytes": {
+      "value": 249019040,
+      "unit": "bytes",
+      "source": "engineering/solana_prewarm/captures/startup-b6/startup_audit.json.zlib",
+      "window_seconds": 123.61113977432251,
+      "sample_count": 87414,
+      "classification": "MEASURED_LIVE"
+    }
+  },
+  "billing_rules": [
+    "All raw provider bytes count, including overlapping-shard duplicates.",
+    "HTTP response bytes are separately measured; RPC is priced by CU.",
+    "Local normalization, deduplication and compression receive no provider-cost credit.",
+    "Startup stock and censored dispositions are not production arrival or zero-hydration rates."
+  ]
+}

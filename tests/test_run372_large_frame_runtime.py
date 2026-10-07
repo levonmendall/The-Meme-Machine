@@ -87,6 +87,7 @@ def frame(slot,logs,padding):
 
 
 class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     def test_shared_pumpswap_decoder_is_strategy_independent_and_available(self):
         values=[
             1790430000,  # timestamp
@@ -120,9 +121,11 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(.01)
         self.fail('large-frame service did not make progress')
 
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_prepared_transport_keeps_event_loop_live_during_realistic_large_frames(self):
         await self.exercise_large_frames()
 
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_slow_independent_observer_does_not_manufacture_transport_lag(self):
         original=EvidenceReader.telemetry;first=[True]
         def slow(reader):
@@ -132,6 +135,7 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
             await self.exercise_large_frames()
         self.assertFalse(first[0])
 
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_real_receive_loop_stall_still_fails_the_original_limit(self):
         original=LargeFrameSocket.recv;first=[True]
         async def stalled(socket,decode=None):

@@ -1,0 +1,16 @@
+[
+  {
+    "file": "canonical.sqlite",
+    "bytes": 97304576,
+    "sha256": "3060a2737c8e580b5271811f2887314b1674d52d58f5ac110f496c3962a28b5f",
+    "archive": "canonical.sqlite.zlib",
+    "lossless_verified": true
+  },
+  {
+    "file": "candidate.sqlite",
+    "bytes": 23298048,
+    "sha256": "99b56325a886539efa1b958951877ce5690e54f973bfb9fd4821696f29ac3ad1",
+    "archive": "candidate.sqlite.zlib",
+    "lossless_verified": true
+  }
+]

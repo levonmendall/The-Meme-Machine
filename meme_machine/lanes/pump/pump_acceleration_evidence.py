@@ -73,7 +73,8 @@ def late_curve_trajectory(creation, events, curve, snapshot_time):
         rows.append((t,progress,event))
     latest_progress=curve_progress_bps(initial,int(curve.real_token))
     latest_t=now
-    rows.sort(key=lambda row:(row[0],int(row[2].get("slot",0)),int(row[2].get("index",0))))
+    rows.sort(key=lambda row:(row[0],int(row[2].get("slot",0)),
+                             int(row[2].get("_economic_order",0)),int(row[2].get("index",0))))
     # Keep one terminal state per second so zero-duration event bursts cannot create
     # artificial infinite velocity.
     by_time={}
