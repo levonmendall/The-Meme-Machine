@@ -1,0 +1,163 @@
+{
+  "branch": "engineering/pons-finalization-20261007",
+  "files": [
+    {
+      "bytes": 8666,
+      "file": "meme_machine/lanes/pons/pons_attempts.py",
+      "sha256": "439feb9dcfdb41d81a302e5eae15a446b966eed7e39b42c2c0cea20f5c15175a"
+    },
+    {
+      "bytes": 7404,
+      "file": "meme_machine/lanes/pons/pons_current_history.py",
+      "sha256": "f5f91bfdc457873a6f12a2318a83b7ebc1216e477b41859ce7a9404a2bb0f459"
+    },
+    {
+      "bytes": 3145,
+      "file": "meme_machine/lanes/pons/pons_current_window.py",
+      "sha256": "faade32e556f044c23a3244108089e808ea768d5ef83f8785edc08676b942de2"
+    },
+    {
+      "bytes": 12860,
+      "file": "meme_machine/lanes/pons/pons_history.py",
+      "sha256": "b1627c4a0785b3120a0f14aeeae5afe6b84ad3564370becf77753333fd74e95b"
+    },
+    {
+      "bytes": 3619,
+      "file": "meme_machine/lanes/pons/pons_quotes.py",
+      "sha256": "00ef6b5e02c2c5406d0de6ad71abd281c9f7ed889a94e6c8c50a7753fc5d85fe"
+    },
+    {
+      "bytes": 56074,
+      "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+      "sha256": "ad5b052eb272eb5ec38e15280dd132050d1d0c39c9fcb5c0f47e968fc334448f"
+    },
+    {
+      "bytes": 58703,
+      "file": "meme_machine/lanes/pons/pons_selective_cohort.py",
+      "sha256": "e4605781be19a1b1e7c83b6842f19e5daffad57c857e61f2b16884e5a25cbdcc"
+    },
+    {
+      "bytes": 45709,
+      "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+      "sha256": "aec2863ebb5b89c0bfeb923ddffbb68e6bc992d2c477205b6df482c4459bb183"
+    },
+    {
+      "bytes": 83843,
+      "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+      "sha256": "87bbfca33537e5bde9646e2a32621750f161371610920d1136315886048594a1"
+    },
+    {
+      "bytes": 8523,
+      "file": "meme_machine/lanes/pons/pons_selective_v4.py",
+      "sha256": "55adfa50954a1f096332ec54859d9058f0c181d2a84906790028cb49db06611f"
+    },
+    {
+      "bytes": 37264,
+      "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+      "sha256": "9dc886b33ed7bf11df3fafff97ac365176719e3257916dc25024cf5e83e19d72"
+    },
+    {
+      "bytes": 13255,
+      "file": "meme_machine/lanes/pons/provider_admission.py",
+      "sha256": "ca3d0cebef3dff24943f79f41165acb2d70d5d1d5c37d997c6deed0d86c16938"
+    },
+    {
+      "bytes": 17439,
+      "file": "meme_machine/runtime/robinhood/pons.py",
+      "sha256": "a856c02b883382dfde681f53bd5b556f37e606013609a237689c73e48027732c"
+    },
+    {
+      "file": "operational/pons-finalization/PONS_CHANGED_FILES.json",
+      "hash_note": "Manifest cannot embed its own hash; Git blob/tree covers this file.",
+      "sha256": null
+    },
+    {
+      "bytes": 40118,
+      "file": "operational/pons-finalization/PONS_CURRENT_WINNER_RECALL.json",
+      "sha256": "eacd5375670face6d9a55830a7de2b150ef15f1972f29a4220c1cab532051256"
+    },
+    {
+      "bytes": 53890,
+      "file": "operational/pons-finalization/PONS_EVIDENCE_LIFECYCLE_MAP.json",
+      "sha256": "eb93cb28f434fd0dbbad3e1cf22426ef00800b31444730c9b95b415d2e6b2bd2"
+    },
+    {
+      "bytes": 28499,
+      "file": "operational/pons-finalization/PONS_EVIDENCE_LIFECYCLE_MAP.md",
+      "sha256": "1ce47900855cd0076a2212e9a93738010b72593a5903892aed4e2ff96565728f"
+    },
+    {
+      "bytes": 4932,
+      "file": "operational/pons-finalization/PONS_FINALIZATION_STATUS.json",
+      "sha256": "26088b71f1e0ff5a613a3804517977577cf2551cdeba4c690d8669d88d0ee85a"
+    },
+    {
+      "bytes": 32506,
+      "file": "operational/pons-finalization/PONS_FINAL_REPORT.md",
+      "sha256": "eb4afcaf7b1fd769939d8dcd390c389d1cdd6c44c423adc50fb7dee2b20f2508"
+    },
+    {
+      "bytes": 390708,
+      "file": "operational/pons-finalization/PONS_HISTORICAL_AUDIT.json",
+      "sha256": "dcc075197061a024fc3d79ee385d019a6ecb033740103fdab4f7bc4bc280494f"
+    },
+    {
+      "bytes": 52349,
+      "file": "operational/pons-finalization/PONS_VERIFICATION.json",
+      "sha256": "dff5a160385389a7d469478446521fd8f3feb4ec421301d0db4680915d67f2c6"
+    },
+    {
+      "bytes": 19004,
+      "file": "operational/pons_finalization.py",
+      "sha256": "d60ad9f06954328613f1e9e7bc1fb81e5e33cfea383aabdcdeb9882ff2a1380b"
+    },
+    {
+      "bytes": 27334,
+      "file": "operational/pons_finalization_map.py",
+      "sha256": "e858dd467bf066737b8e7ff6273f6558e896d4be9ba56725e5c0810c72eb48a6"
+    },
+    {
+      "bytes": 12045,
+      "file": "operational/tests.py",
+      "sha256": "735f683c1a024a1e738838a873b4ff7c822ceb3e0d3ebf99d0977a8f73391c1e"
+    },
+    {
+      "bytes": 6420,
+      "file": "tests/lanes/pons/test_coverage_acquisition.py",
+      "sha256": "a63926aef160cbca7cf8f3eb6fd17097b4d05a6be45eb3f56e04eac7281e7db2"
+    },
+    {
+      "bytes": 7888,
+      "file": "tests/lanes/pons/test_discovery_range_batching.py",
+      "sha256": "85b498142f22c6817f50fe21b1b8ca2cdc8af3ee5f35ca9df16da11c0bda6c46"
+    },
+    {
+      "bytes": 12434,
+      "file": "tests/lanes/pons/test_pons_evidence_reconstruction_semantics.py",
+      "sha256": "0bb9d1aae49654018b4b0f56036f97127407cca48d0debfc5cfa028602440a22"
+    },
+    {
+      "bytes": 12069,
+      "file": "tests/lanes/pons/test_pons_execution_acquisition.py",
+      "sha256": "aac469cfd61136620684a4323fcfecd4ab8f1f6a4ce37f01f9cc12b02ecea712"
+    },
+    {
+      "bytes": 59125,
+      "file": "tests/lanes/pons/test_pons_finalization.py",
+      "sha256": "9250d5ba1cc83a4979cfb01b7615cf49a35374e6928726b56bef11bf08a6af7c"
+    },
+    {
+      "bytes": 2300,
+      "file": "tests/lanes/pons/test_run377_survivor_provider.py",
+      "sha256": "4e806e694cc4fc8e9060aa4fd1806898e12dcf7528b57746dfb6a981052f6758"
+    },
+    {
+      "bytes": 3557,
+      "file": "tests/lanes/pons/test_run379_survivor_graduation.py",
+      "sha256": "926e51544c83d2fe1ac7ee4d56a063c42fc1bff8c1cd554f30620bcf26e03072"
+    }
+  ],
+  "files_changed": 31,
+  "schema": "pons-finalization-files-v1",
+  "source_commit": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0"
+}

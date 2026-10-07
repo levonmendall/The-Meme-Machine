@@ -52,7 +52,6 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events):
         values,telem=_batched(endpoint,calls[offset:offset+4],"pons_selective_v4")
         sessions.extend(telem)
         for value in values:raw.extend(value)
-        if len(raw)>int(max_events):raise BoundaryError("selective_v4_event_capacity")
     for event in raw:
         if (event.get('address','').lower()!=manager or len(event.get('topics',[]))<2
                 or event['topics'][1] not in pool_ids
@@ -103,7 +102,6 @@ def collect_v4_activity(
     shared=_shared or _transport(endpoint,pool_ids=[_pool_topic(pool_id)],
         start_block=start_block,end_block=end_block,max_events=max_events)
     raw=[e for e in shared['raw'] if e['topics'][1]==pool_id]
-    if len(raw)>int(max_events):raise BoundaryError("selective_v4_event_capacity")
     sessions=shared['sessions'];headers=shared['headers'];receipts=shared['receipts'];txs=shared['txs']
 
     preholders={str(x).lower() for x in preholder_groups}
@@ -154,6 +152,7 @@ def collect_v4_activity(
         rows.append(dict(
             identity=f'{row["block"]}:{tx}:{row["log_index"]}',
             block=row["block"],event_at=row["event_at"],group=group,
+            transaction_index=int(event['transactionIndex'],16),log_index=row['log_index'],
             side=side,quote=int(quote),tokens=int(tokens),
             sqrt_price_x96=sqrt_price,price_index=price_index,
         ))

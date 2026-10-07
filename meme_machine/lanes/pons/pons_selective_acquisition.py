@@ -152,6 +152,15 @@ class ImmutableEvidenceCache:
             **dict(self.counts),
         )
 
+    def numeric_tip(self):
+        return self.headers_by_number[max(self.headers_by_number)] if self.headers_by_number else None
+
+    def invalidate_canonical_aliases(self):
+        # Bodies addressed by hash remain immutable audit facts. A block-number
+        # alias, launch time or identity first observed on a fork is not authority.
+        self.headers_by_number.clear();self.launch_at.clear();self.real_quote.clear()
+        self.counts['canonical_reorg_invalidation']+=1
+
 
 class SelectiveEvidenceContext:
     """Reuse one bounded authoritative RPC lane and immutable evidence across candidates."""
@@ -173,6 +182,7 @@ class SelectiveEvidenceContext:
         self.receipt_pins={}
         self.block_receipts_supported=False
         self.view_batch_state={"supported":False}
+        self.live_membership=False;self.membership_verified=False
         cap=os.environ.get('MM_RPC_CAPABILITIES')
         if cap:
             from . import CHAIN_ID
@@ -215,12 +225,25 @@ class SelectiveEvidenceContext:
         if self.generation_guard is not None and not self.generation_guard():
             raise BoundaryError("candidate_generation_superseded")
         calls=list(calls);requested=len(calls)
+        membership=self.live_membership and not self.membership_verified and scope=='pons_natural'
+        forced=set();witnesses={}
+        if membership:
+            for index,(method,params) in enumerate(calls):
+                if method=='eth_getBlockByNumber' and params[0]==hex(self.pin[0]):forced.add(index)
+            tip=self.cache.numeric_tip()
+            if tip:
+                number=int(tip['number'],16)
+                witness=next((i for i,(m,p) in enumerate(calls)
+                    if m=='eth_getBlockByNumber' and p[0]==hex(number)),None)
+                if witness is None:
+                    witness=len(calls);calls.append(('eth_getBlockByNumber',[hex(number),False]))
+                forced.add(witness);witnesses[witness]=tip
         out=[None]*len(calls);missing=[];keys=[];seen={};followers={}
         # Only exact block-scoped reads can cross candidates. Never cache gasPrice,
         # latest/pending state, provider errors, or a read from a different block hash.
         for index,(method,params) in enumerate(calls):
             key=None;cached=None
-            if hasattr(self.cache,'immutable_curve') and method in ('eth_getCode','eth_call') and isinstance(params[-1],str) and params[-1].startswith('0x'):
+            if index not in forced and hasattr(self.cache,'immutable_curve') and method in ('eth_getCode','eth_call') and isinstance(params[-1],str) and params[-1].startswith('0x'):
                 from .abi import calldata
                 address=params[0] if method=='eth_getCode' else params[0].get('to','')
                 immutable=self.cache.immutable_curve(address,int(params[-1],16))
@@ -229,7 +252,8 @@ class SelectiveEvidenceContext:
                     cached='0x'+immutable['token'][2:].zfill(64)
             if cached is not None:
                 out[index]=cached;continue
-            if method=='eth_getBlockByNumber' and params and str(params[0]).startswith('0x'):
+            if index in forced:pass
+            elif method=='eth_getBlockByNumber' and params and str(params[0]).startswith('0x'):
                 cached=self.cache.header_by_number(int(params[0],16))
             elif method=='eth_getBlockByHash' and params:
                 cached=self.cache.header_by_hash(params[0])
@@ -252,6 +276,8 @@ class SelectiveEvidenceContext:
             rpc.evidence_deadline=self.deadline
             rpc.evidence_pins={hex(n):h['hash'] for n,h in self.cache.headers_by_number.items()}
             if self.pin:rpc.evidence_pins[hex(self.pin[0])]=self.pin[1]
+            for index,(_,params),_ in group:
+                if index in forced:rpc.evidence_pins.pop(params[0],None)
             rpc.evidence_receipts=self.receipt_pins
             original=self.timing.get('first_observation_monotonic')
             rpc.evidence_cost_epoch=(self.pin[1],original,self.deadline) if self.pin and original is not None and self.deadline is not None else None
@@ -270,6 +296,25 @@ class SelectiveEvidenceContext:
         if self.generation_guard is not None and not self.generation_guard():
             raise BoundaryError('candidate_generation_superseded')
         for index,source in followers.items():out[index]=out[source]
+        if membership:
+            for index in forced:
+                header=out[index]
+                if (not isinstance(header,dict) or not header.get('hash')
+                        or header.get('number')!=calls[index][1][0]):
+                    raise BoundaryError('selective_canonical_membership_identity')
+            fork=any(out[index]['hash']!=old['hash'] for index,old in witnesses.items())
+            if fork:
+                self.cache.invalidate_canonical_aliases()
+                self.block_reads.clear();self.factory_hints.clear()
+            pin_header=next((out[i] for i in forced if calls[i][1][0]==hex(self.pin[0])),None)
+            if pin_header is None or pin_header['hash']!=self.pin[1]:
+                raise BoundaryError('candidate_canonical_membership_disagreement')
+            self.membership_verified=True
+            for index in forced:self.cache.remember_header(out[index])
+            if fork:
+                # Repeat only this bounded authentication batch with the same
+                # original deadline; no invalid cached state authorizes a veto.
+                return self.batch(calls[:requested],scope)
         return out[:requested]
 
     def prefetch_adjacent_headers(self,calls):
@@ -380,7 +425,7 @@ def _window_events(candidate,tape):
     end_block=int(candidate['block']);curve=candidate['curve'].lower()
     raw=[event for event in tape if event.get('address','').lower()==curve
          and int(event['blockNumber'],16)<=end_block]
-    return raw[-ENTRY_THRESHOLDS['max_market_events']*4:]
+    return raw
 
 
 def _window_prefetch(cache,candidate,tape,limit):
@@ -480,9 +525,6 @@ def _authenticate_window(
         int(e["transactionIndex"],16),
         int(e["logIndex"],16),
     ))
-    if len(selected)>ENTRY_THRESHOLDS["max_market_events"]:
-        raise BoundaryError("selective_event_capacity")
-
     observed=int(time.time())
     normalized=[]
     for event in selected:
@@ -909,6 +951,7 @@ def evaluate_candidate(
     sessions=[]
     ctx=evidence_context or SelectiveEvidenceContext(endpoint)
     ctx.boundary_evidence=None
+    ctx.live_membership=True;ctx.membership_verified=False
     started=time.monotonic()
     ctx.timing=dict(evidence_started_monotonic=started,first_observation_monotonic=evidence_observed_monotonic,
         queue_wait_seconds=None if evidence_observed_monotonic is None else started-float(evidence_observed_monotonic),
@@ -1075,9 +1118,21 @@ def evaluate_candidate(
         on_stage('trajectory_admitted');on_stage('evidence_required')
         on_stage('admitted');on_stage('evidence_requested')
     window_started=time.monotonic()
+    from .pons_current_window import canonical_window
+    covered=canonical_window(ctx,candidate,seconds=60)
+    ctx.receipt_pins.update({e['transactionHash']:e['blockHash'] for e in covered})
     market,market_sessions=_authenticate_window(
-        endpoint,candidate,list(tape),seconds=60,evidence_context=ctx
+        endpoint,candidate,covered,seconds=60,evidence_context=ctx
     )
+    from meme_machine.runtime.robinhood.plane import Plane
+    plane=getattr(ctx.cache,'plane',None)
+    if isinstance(plane,Plane):
+        from .pons_current_history import CurrentHistory
+        ordering={f"{int(e['blockNumber'],16)}:{e['transactionHash']}:{int(e['logIndex'],16)}":
+            [int(e[k],16) for k in ('blockNumber','transactionIndex','logIndex')] for e in covered}
+        history=CurrentHistory(plane,endpoint)
+        history.remember(candidate['curve'],candidate['header'],
+            [dict(e,canonical_order=ordering[e['identity']]) for e in market],from_time=max(0,asof-60))
     sessions.extend(market_sessions)
     ctx.timing["receipt_window_authentication_seconds"]=time.monotonic()-window_started
 
@@ -1125,6 +1180,7 @@ def evaluate_candidate(
         source_block=candidate["block"],
         source_log_index=int(event["logIndex"],16),
         candidate=candidate,market_events=market,
+        window_coverage=dict(ctx.window_coverage),
         trajectory_snapshots=snapshots,launch_at=launch_at,
         vector=vector,provider_sessions=sessions,
         timing=dict(ctx.timing),

@@ -18,7 +18,7 @@ from meme_machine.runtime.robinhood.pons import Broker, durable_cache, plane_pat
 from .pipeline import Pipeline,censor_class
 from .provider_admission import foreground_work
 from .pons_natural_observation import (
-    _current_curve_events, _next_discovery_end as _next_single_discovery_end,
+    _next_discovery_end as _next_single_discovery_end,
 )
 from .provider_topology import configured_discovery_rpc
 from .sequencer_feed import SequencerBlockClock, SequencerTransportError
@@ -33,6 +33,7 @@ from .pons_selective_paper import (
     STRATEGY_CAPITAL_QUOTE, STRATEGY_NAMESPACE, run_lifecycle,
 )
 from .pons_selective_wallets import WalletSkillBook
+from .pons_attempts import Attempts, decision_category, failure_category
 
 REPORT=Path(os.environ.get(
     "MM_PONS_SELECTIVE_COHORT_REPORT","pons-selective-continuation-v1-cohort.json"
@@ -365,6 +366,44 @@ def _next_discovery_end(feed,cursor,discovery,*,timeout):
     return end if end>int(cursor) else None
 
 
+def _current_curve_events(rpc,start,end):
+    """Pons campaign discovery retains every member of bounded log ranges."""
+    if end<start:return []
+    signatures=[topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)'),
+        topic('CurveSell(address,address,uint256,uint256,uint256,uint256)')]
+    rows=[]
+    for first in range(start,end+1,DISCOVERY_RANGE_BLOCKS):
+        page=rpc.call('eth_getLogs',[dict(fromBlock=hex(first),
+            toBlock=hex(min(end,first+DISCOVERY_RANGE_BLOCKS-1)),topics=[signatures])],scope='pons_natural')
+        if not isinstance(page,list):raise BoundaryError('selective_discovery_log_shape')
+        if any(e.get('removed') or not first<=int(e['blockNumber'],16)<=min(end,first+DISCOVERY_RANGE_BLOCKS-1) for e in page):
+            raise BoundaryError('selective_discovery_log_range_identity')
+        rows.extend(page)
+    rows.sort(key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),int(e['logIndex'],16)))
+    return rows
+
+
+def _start_observation(endpoint,feed,*,saved=None,maintenance=None):
+    """Observation startup cannot suspend already-owned native positions."""
+    while True:
+        try:
+            rpc=_discovery(endpoint);feed.connect()
+            cursor=feed.wait_for_after(-1,timeout=5.0)
+            if cursor is None:raise BoundaryError('selective_sequencer_start_timeout')
+            at=feed.state.latest_header_timestamp
+            if at is None:raise BoundaryError('selective_sequencer_timestamp_missing')
+            if saved is not None:
+                old=saved.get('cursor')
+                if type(old) is not int or old>cursor:raise BoundaryError('selective_discovery_recovery_watermark')
+                cursor=old
+            return rpc,cursor,at
+        except (BoundaryError,SequencerTransportError,OSError) as exc:
+            if maintenance is None or not maintenance(str(exc)):
+                raise BoundaryError(str(exc)) from None
+            feed.close()
+            _stop_sleep(POLL_SECONDS)
+
+
 def _discovery_curve_events(rpc,start,end):
     """One physical batch of separate, bounded, contiguous log queries."""
     if end<start:
@@ -389,11 +428,12 @@ def _discovery_curve_events(rpc,start,end):
     if not isinstance(pages,list) or len(pages)!=len(calls):
         raise BoundaryError("selective_discovery_batch_shape")
     rows=[]
-    for page in pages:
+    for (_,params),page in zip(calls,pages):
         if not isinstance(page,list):
             raise BoundaryError("selective_discovery_log_shape")
-        if len(page)>DISCOVERY_RANGE_EVENTS:
-            raise BoundaryError("natural_event_capacity")
+        q=params[0]
+        if any(e.get('removed') or not int(q['fromBlock'],16)<=int(e['blockNumber'],16)<=int(q['toBlock'],16) for e in page):
+            raise BoundaryError('selective_discovery_log_range_identity')
         rows.extend(page)
     rows.sort(key=lambda event:(
         int(event["blockNumber"],16),int(event["transactionIndex"],16),
@@ -577,7 +617,7 @@ def run(endpoint,*,campaign=False):
         cohort_accounting=initial_accounting,
         operational_configuration=dict(campaign=campaign,discovery_seconds=DISCOVERY_SECONDS,
             max_concurrent_lifecycles=MAX_CONCURRENT_LIFECYCLES,
-            observation_capacity=MAX_ENROLLED,exhausted_capacity='continue_authenticated_discovery_and_censor'),
+            observation_capacity=None if campaign else MAX_ENROLLED,exhausted_capacity='bounded_evaluation_non_lossy_retention'),
         market_observation_scope="all authenticated Pons V2 buy/sell logs for observability",
         selection_rule=(
             "distinct Pons V2 buys receive minimal current-state authentication; "
@@ -613,10 +653,12 @@ def run(endpoint,*,campaign=False):
     pipeline=Pipeline(ROOT/"opportunity-pipeline.sqlite","pons",POLICY_HASH)
     queue=None
     def coverage(*,drain=False):
-        if queue is not None:queue.report_to(pipeline,drain=drain)
+        if queue is not None:
+            queue.report_to(pipeline,drain=drain)
+            attempts.maintain(time.time())
         result["opportunity_coverage"]=pipeline.snapshot()
         result['capacity_censored']=result['opportunity_coverage']['unique_classes']['capacity_censored']
-    rpc=_discovery(endpoint)
+    rpc=None
     survivor=None
     if os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')=='1':
         from meme_machine.runtime.survivor_history import Worker
@@ -624,20 +666,13 @@ def run(endpoint,*,campaign=False):
         run_id=os.environ['MM_PAPER_EPOCH']
         survivor=Worker(lambda:Runtime(ROOT/'pons-survivor',STRATEGY_CAPITAL_QUOTE,run_id,endpoint))
         result['active_regimes']=['pons-selective-continuation-v1','pons-postgrad-survivor-momentum-v1']
-    feed=SequencerBlockClock();feed.connect()
-    cursor=feed.wait_for_after(-1,timeout=5.0)
-    if cursor is None:
-        coverage();pipeline.close()
-        skill.close();feed.close()
-        raise BoundaryError("selective_sequencer_start_timeout")
-
-    start_ts=feed.state.latest_header_timestamp
-    if start_ts is None:
-        coverage();pipeline.close()
-        skill.close();feed.close()
-        raise BoundaryError("selective_sequencer_timestamp_missing")
+    feed=SequencerBlockClock();cursor=0;start_ts=None
     tape=[]
     queue=Broker(plane_path(ROOT/'candidate-evidence.sqlite'),POLICY_HASH,clock=time.time,source=endpoint,config=result['operational_configuration_hash'])
+    attempts=Attempts(queue.plane)
+    saved=queue.plane.checkpoint_read('pons_cohort') if recovered else None
+    if recovered and saved is None:raise BoundaryError('selective_discovery_recovery_watermark')
+    if saved is not None and type(saved.get('cursor')) is int:cursor=saved['cursor']
     def record_work(identity,stage,reason=None,classification=None,**details):
         queue.report_to(pipeline,drain=True)
         generation=scheduled['work']['generation']
@@ -716,11 +751,24 @@ def run(endpoint,*,campaign=False):
         from meme_machine.runtime.status import update
         update('MANAGING' if futures else 'DISCOVERING',reconciled=True,restored_positions=len(futures))
 
+        def startup_maintenance(reason):
+            result['observation_start_boundary']=reason
+            for curve in list(active_curve_futures):collect_curve_future(curve)
+            current=any(not future.done() for _,future in futures)
+            survivor_pending=False
+            if survivor is not None:
+                result['survivor']=survivor.tick(time.time(),admit=False)
+                native=(result['survivor'] or {}).get('accounting') or {}
+                survivor_pending=bool(native.get('open_positions') or native.get('reserved'))
+            if current or survivor_pending:update('MANAGING',reconciled=True,observation_deferred=True)
+            return current or survivor_pending
+        rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)
+
         warm_started=time.monotonic()
         warm_min_deadline=warm_started+TAPE_WARM_SECONDS
         warm_hard_deadline=warm_started+TAPE_WARM_MAX_SECONDS
         covered=0
-        while time.monotonic()<warm_hard_deadline:
+        while not campaign and time.monotonic()<warm_hard_deadline:
             warm_state=_warmup_state(
                 start_ts,feed.state.latest_header_timestamp,
                 time.monotonic()-warm_started,
@@ -728,7 +776,7 @@ def run(endpoint,*,campaign=False):
             covered=warm_state["covered_seconds"]
             if warm_state["ready"]:
                 break
-            rpc,cursor,_=_poll(
+            rpc,cursor,_=_discover_observations(
                 endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
                 result["sequencer_recoveries"],
                 on_provider_failure=_checkpoint_provider_failure,
@@ -744,9 +792,10 @@ def run(endpoint,*,campaign=False):
             required_chain_seconds=TAPE_WARM_REQUIRED_CHAIN_SECONDS,
             maximum_wall_seconds=TAPE_WARM_MAX_SECONDS,
             ready=warm_state["ready"],exhausted=warm_state["exhausted"],
+            qualification_coverage='canonical_selected_curve_windows' if campaign else 'public_nomination_warmup',
         )
         _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete")
-        if covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
+        if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
             raise BoundaryError("selective_tape_warmup_incomplete")
 
         if 'discovery_ends_at' not in result:result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS
@@ -800,7 +849,11 @@ def run(endpoint,*,campaign=False):
                 committed=next(queue.committed(),None)
                 if committed is not None:
                     scheduled,value=committed
+                    attempts.record(scheduled['key'],scheduled['work']['generation'],'qualification',
+                        decision_category(value),at=value.get('evaluation_completed_at',scheduled['queued_at']),decision=value['vector'])
                     if queue.clock()>=scheduled['deadline']:
+                        attempts.record(scheduled['key'],scheduled['work']['generation'],'funding','DEADLINE_MISSED',
+                            at=scheduled['deadline'],reason='committed_result_expired_before_consumer')
                         queue.plane.decision(scheduled['key'],scheduled['work']['generation'],
                             'freshness_deadline_censored','committed_result_expired_before_consumer')
                         queue.acknowledge(scheduled)
@@ -821,9 +874,6 @@ def run(endpoint,*,campaign=False):
                 identity=queue.identity(event)
                 sequence=_enrolled_count(result)
                 dispatch=time.monotonic()
-                if campaign and _window_observations(result)>=MAX_ENROLLED:
-                    queue.failure(scheduled,'selective_campaign_observation_capacity')
-                    continue
                 evidence_context.adjacent=list(queue.rows.values())
                 evidence_context.generation_guard=lambda work=scheduled['work']:queue.plane.current(work)
                 hydration_stages=[]
@@ -868,18 +918,24 @@ def run(endpoint,*,campaign=False):
                 delta=[None if a is None or b is None else max(0,a-b) for a,b in zip(provider_after,provider_before)] if not replayed else [None,None]
                 if not replayed and not queue.finish(scheduled,evaluation,time.monotonic()-hydration_started,logical=delta[0],physical=delta[1]):
                     continue
+                category=decision_category(evaluation)
+                attempts.record(identity,scheduled['work']['generation'],'qualification',category,
+                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),decision=evaluation['vector'])
                 for stage in hydration_stages:record_work(identity,stage)
                 if evaluation.get("screened_out"):
                     screen=(evaluation.get("trajectory_preflight")
                             if evaluation.get("screened_stage")=="trajectory"
                             else evaluation.get("prospect_preflight")) or {}
                     reasons=screen.get("reasons") or ["strategy_prospect"]
-                    queue.plane.decision(identity,scheduled["work"]["generation"],"strategy_rejected",",".join(reasons))
+                    queue.plane.decision(identity,scheduled["work"]["generation"],
+                        'strategy_rejected' if category=='STRATEGY_REJECT' else category.lower(),",".join(reasons))
                     stage=evaluation.get("screened_stage") or "current_state"
                     reason="strategy_"+stage+":"+",".join(reasons)
-                    record_work(identity,"prospect_screened",reason,"strategy_rejection")
-                    record_work(identity,"evidence_not_required")
-                    record_work(identity,"rejected",reason,"strategy_rejection")
+                    if category=='STRATEGY_REJECT':
+                        record_work(identity,"prospect_screened",reason,"strategy_rejection")
+                        record_work(identity,"evidence_not_required")
+                    record_work(identity,"rejected" if category=='STRATEGY_REJECT' else 'terminal',reason,
+                        'strategy_rejection' if category=='STRATEGY_REJECT' else 'reconstruction_incomplete')
                     coverage()
                     public=public_evaluation(evaluation)
                     public["candidate_identity"]=identity
@@ -896,9 +952,10 @@ def run(endpoint,*,campaign=False):
                     record_work(identity,'terminal',evaluation['stale_stage'],censor_class(evaluation['stale_stage']),timing=evaluation.get('timing'))
                 elif evaluation['vector'].get('current_threshold_pass'):
                     record_work(identity,'qualified')
-                else:record_work(identity,'rejected','strategy_rejection:'+','.join(evaluation['vector'].get('all_rejections') or ['unspecified']),'strategy_rejection')
+                elif category=='STRATEGY_REJECT':record_work(identity,'rejected','strategy_rejection:'+','.join(evaluation['vector'].get('all_rejections') or ['unspecified']),'strategy_rejection')
+                else:record_work(identity,'terminal',','.join(evaluation['vector'].get('all_rejections') or ['incomplete_evidence']),'reconstruction_incomplete')
                 coverage()
-                decision_state='qualified' if evaluation['vector'].get('current_threshold_pass') else 'strategy_rejected'
+                decision_state='qualified' if category=='QUALIFIED' else 'strategy_rejected' if category=='STRATEGY_REJECT' else category.lower()
                 if not queue.plane.decision(identity,scheduled['work']['generation'],decision_state):continue
                 overlay=_attach_wallet_overlay(evaluation["vector"],skill)
                 public=public_evaluation(evaluation)
@@ -957,6 +1014,8 @@ def run(endpoint,*,campaign=False):
                     )
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
                     if len(futures)>=MAX_CONCURRENT_LIFECYCLES:
+                        attempts.record(identity,scheduled['work']['generation'],'funding','OTHER_EXPLICIT_REASON',
+                            at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),reason='selective_concurrent_position_capacity')
                         life=dict(index=qindex,status='capacity_censored',
                             boundary='selective_concurrent_position_capacity',economic_rejection=False)
                         result['lifecycles'].append(life)
@@ -978,6 +1037,10 @@ def run(endpoint,*,campaign=False):
             except BoundaryError as exc:
                 screen=authenticated_early_rejection(str(exc),getattr(evidence_context,'boundary_evidence',None))
                 queue.failure(scheduled,str(exc),screen=screen)
+                attempts.record(identity,scheduled['work']['generation'],'evidence',
+                    ('STRUCTURAL_INELIGIBLE' if screen.get('causal_bucket')=='valid_early_structural_rejection'
+                        else 'STRATEGY_REJECT') if screen and screen.get('authenticated_evidence') else failure_category(str(exc)),
+                    at=scheduled['queued_at'],reason=str(exc))
                 queue.report_to(pipeline,drain=True)
                 if str(exc)=='candidate_generation_superseded' or queue.plane.get(identity)['generation']!=scheduled['work']['generation']:continue
                 incomplete=_record_candidate_boundary(
@@ -1003,7 +1066,7 @@ def run(endpoint,*,campaign=False):
 
     except BoundaryError as exc:
         result["boundary"]=str(exc)
-        terminal_provider=rpc.telemetry()
+        terminal_provider=rpc.telemetry() if rpc is not None else {}
         result["discovery_sessions"].append(terminal_provider)
         _append_jsonl(PROVIDER_LOG,terminal_provider)
     finally:
@@ -1058,9 +1121,8 @@ def run(endpoint,*,campaign=False):
         result["evidence_acquisition"]=evidence_context.telemetry()
         result["sequencer_discovery"]=feed.status()
         coverage(drain=True)
-        _checkpoint(
-            result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing"
-        )
+        if rpc is not None:
+            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing")
         pipeline.close()
         feed.close();skill.close();queue.close()
 

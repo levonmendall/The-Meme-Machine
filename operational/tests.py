@@ -17,7 +17,7 @@ FAST=[
  'tests.lanes.pump.test_pumpswap_survivor','tests.lanes.pump.test_paper_accounting',
  'tests.lanes.meteora.test_solana_dlmm_independent_v1','tests.test_meteora_discovery_scheduler',
  'tests.lanes.pons.test_pons_selective_continuation','tests.lanes.pons.test_pons_partial_accounting',
- 'tests.lanes.pons.test_pons_postgrad_survivor',
+ 'tests.lanes.pons.test_pons_postgrad_survivor','tests.lanes.pons.test_pons_finalization',
  'tests.lanes.ramses.test_ramses_strategy','tests.lanes.ramses.test_ramses_capital_replay',
 ]
 OPERATIONAL=FAST+[

@@ -37,7 +37,7 @@ ENTRY_THRESHOLDS = dict(
     max_creator_tax_bps=200,
     max_roundtrip_loss_bps=600,
     max_entry_impact_bps=400,
-    capital_size_bps=500,          # 0.25% of strategy capital
+    capital_size_bps=500,          # 5% of applicable realized sleeve equity
     real_quote_size_bps=200,      # 2% of real quote liquidity
     independent_net_size_bps=1000,# 10% of independent net demand
     max_state_age_seconds=5,
@@ -190,8 +190,8 @@ def normalized_trade(decoded, *, identity, event_at, group=None):
 
 
 def demand_metrics(events, *, asof, creator_groups=()):
-    if len(events) > ENTRY_THRESHOLDS["max_market_events"]:
-        raise BoundaryError("selective_event_capacity")
+    # Event population is not an economic veto. Acquisition bounds each RPC
+    # batch and retains the complete fixed time window before this reduction.
     creator = {str(x).lower() for x in creator_groups if x}
     seen = {}
     valid = []

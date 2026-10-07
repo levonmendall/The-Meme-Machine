@@ -41,8 +41,18 @@ class Broker:
         key=self.identity(event)
         previous=self.plane.get(key)
         priority=2 if previous and previous['priority']<=2 else 4
-        obs=event['transactionHash']+':'+event['logIndex']
+        # Public variants are nominations, never an immutable authority conflict.
+        # Bind their full raw body/hash; canonical receipt authentication still
+        # decides which (if any) is valid. A bad nomination cannot tombstone a
+        # curve and suppress every later independently authenticated generation.
+        obs=event['transactionHash']+':'+event['logIndex']+':'+digest(event)
         order=tuple(int(event[k],16) for k in ('blockNumber','transactionIndex','logIndex'))
+        if previous and previous['reason']=='conflicting_observation':
+            with self.plane.transaction():
+                old=self.plane._row(key)
+                if old['reason']=='conflicting_observation':
+                    self.plane._audit(old,'watching','pons_public_conflict_requires_fresh_canonical_evidence')
+                    self.plane.db.execute("UPDATE candidates SET reason='pons_public_conflict_awaiting_canonical' WHERE id=?",(key,))
         result=self.plane.observe(key,'pons',obs,event,ordering=order,
             watermark=dict(block=order[0],hash=event['blockHash'],log=order[2],finality='confirmed'),
             interpretation=self.policy,observed=observed,
@@ -133,6 +143,19 @@ def durable_cache(plane,domain):
         def immutable_curve(self,curve,block):
             row=self._load('compiled_create2_curve',curve.lower())
             return row if row and int(block)>=row['origin_block'] else None
+        def numeric_tip(self):
+            with plane.lock:
+                row=plane.db.execute('SELECT body FROM evidence WHERE namespace=? ORDER BY length(key) DESC,key DESC LIMIT 1',
+                    (domain+':header_number',)).fetchone()
+            durable=json.loads(row[0]) if row else None
+            memory=super().numeric_tip()
+            return max((h for h in (memory,durable) if h),key=lambda h:int(h['number'],16),default=None)
+        def invalidate_canonical_aliases(self):
+            super().invalidate_canonical_aliases()
+            with plane.transaction():
+                kinds=('header_number','launch','real_quote','compiled_create2_curve')
+                plane.db.executemany('DELETE FROM evidence WHERE namespace=?',((domain+':'+kind,) for kind in kinds))
+                plane._immutable.clear();plane._immutable_bytes=0
         def remember_compiled(self,curve,token,code,block,header,auth):
             # Verified CREATE2 deployer + exact non-proxy runtime; token() is
             # initialized once. Current factory record remains a fresh read.
