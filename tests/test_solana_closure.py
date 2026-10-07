@@ -137,6 +137,26 @@ class ClosureTests(unittest.TestCase):
         w.max_hot_bytes=w.path.stat().st_size
         self.assertEqual(cold.retire()['retired_records'],0)
 
+    def test_oldest_unacknowledged_retained_identity_matches_the_join_oracle(self):
+        address,rows=self.ingest_fixture('meteora');cold=ScopedRetirement(self.h)
+        # A missing durable receipt prohibits retirement and exercises the
+        # fallback metric, rather than the already-pinned branch.
+        self.life.demote('meteora',address,reason='quiet');self.drain()
+        self.now[0]+=self.h.rolling.retention('meteora',address)['window_seconds']+1
+        self.state.writer.db.execute("DELETE FROM candidate_history_outbox WHERE kind='canonical'")
+        # Multiple consumer views must not change the oldest economic identity.
+        for n in range(20):
+            self.h.bind('meteora','consumer-'+str(n),market_address=address)
+        expected=self.state.writer.db.execute('''SELECT MIN(r.slot) FROM canonical_evidence r
+            JOIN canonical_addresses a ON a.identity=r.identity JOIN evidence_bindings b
+            ON b.market_address=a.address AND b.canonical_scope=r.scope WHERE r.body IS NOT NULL''').fetchone()[0]
+        # No consumer can advance during this read-only retirement check.
+        result=cold.retire()
+        self.assertEqual(result['retired_records'],0)
+        self.assertEqual(result['oldest_unretired_scope']['slot'],expected)
+        self.assertEqual(result['oldest_unretired_scope']['reason'],'batch_bound_or_unacknowledged_consumer')
+        self.assertEqual(self.state.writer.db.execute('SELECT COUNT(*) FROM canonical_evidence WHERE body IS NOT NULL').fetchone()[0],len(rows))
+
     def test_duplicate_after_retirement_or_restore_keeps_original_identity_and_availability(self):
         for cache_only in (False,True):
             with self.subTest(cache_only=cache_only):

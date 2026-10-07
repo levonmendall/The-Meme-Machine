@@ -164,6 +164,59 @@ class NativeLogJoinTests(unittest.TestCase):
         with self.assertRaisesRegex(EvidenceUnavailable,'candidate_late_log_content'):
             self.join.feed_log(slot,sig,['different'],None,1791400001.)
 
+    def status(self,slot,index,raw):
+        u=pb.SubscribeUpdate(filters=[scope_labels({self.address:self.scope})[self.scope]])
+        u.transaction_status.slot=slot;u.transaction_status.index=index;u.transaction_status.signature=raw
+        return self.feed(u)
+
+    def close_header(self,slot,count):
+        u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=slot;m.parent_slot=slot-1
+        m.blockhash='hash';m.parent_blockhash='parent';m.block_time.timestamp=self.tx['blockTime'];m.executed_transaction_count=count
+        self.feed(u)
+        u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=slot;u.slot.parent=slot-1;u.slot.status=pb.SLOT_FINALIZED
+        return self.feed(u)
+
+    def test_delayed_logs_do_not_rescan_or_reconvert_the_status_census(self):
+        from unittest.mock import patch
+        from meme_machine.solana_candidate_join import signature
+        tx=self.setup_join();slot=tx['slot'];count=1000
+        raw=[i.to_bytes(8,'big')+b'0'*56 for i in range(count)]
+        texts=[signature(s) for s in raw]
+        with patch('meme_machine.solana_candidate_join.signature',wraps=signature) as convert:
+            for i,sig in enumerate(raw):self.assertIsNone(self.status(slot,i,sig))
+            self.assertIsNone(self.close_header(slot,count))
+            for _ in range(100):
+                self.assertIsNone(self.join.drain())
+                self.assertEqual(len(list(self.join.missing_log_keys(slot))),count)
+            for i in reversed(range(count)):
+                frame=self.join.feed_log(slot,texts[i],['authenticated log'],None,1791400000.+i/1000)
+                if i:self.assertIsNone(frame)
+            self.assertEqual(convert.call_count,count)
+        self.assertEqual([r['transactionIndex'] for r in frame.log_transactions],list(range(count)))
+        self.assertEqual(len(frame.candidate_statuses),count)
+        self.assertEqual(frame.observed_at[texts[-1]],1791400000.+(count-1)/1000)
+        self.assertFalse(list(self.join.missing_log_keys(slot)))
+
+    def test_new_status_during_publication_wait_adds_its_missing_log(self):
+        from meme_machine.solana_candidate_join import signature
+        tx=self.setup_join();slot=tx['slot'];first=b'1'*64;second=b'2'*64
+        self.status(slot,0,first);self.assertIsNone(self.close_header(slot,2))
+        self.status(slot,1,second)
+        self.assertIsNone(self.join.feed_log(slot,signature(first),['first'],None,1791400000.))
+        self.assertEqual(list(self.join.missing_log_keys(slot)),[(slot,signature(second))])
+        frame=self.join.feed_log(slot,signature(second),['second'],None,1791400001.)
+        self.assertEqual(len(frame.log_transactions),2)
+
+    def test_early_logs_need_no_recovery_and_conflicting_logs_still_fail_closed(self):
+        from meme_machine.solana_candidate_join import signature
+        tx=self.setup_join();slot=tx['slot'];raw=b'1'*64;text=signature(raw)
+        self.join.feed_log(slot,text,['early'],None,1791400000.)
+        self.status(slot,0,raw)
+        self.assertFalse(list(self.join.missing_log_keys(slot)))
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_content_conflict'):
+            self.join.feed_log(slot,text,['changed'],None,1791400000.)
+        self.assertIsNotNone(self.close_header(slot,1))
+
 class SourceIntegrationTests(SelectiveEvidenceTests):
     # Reuse the real temporary canonical writer, never operational state.
     def setUp(self):

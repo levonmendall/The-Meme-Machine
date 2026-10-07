@@ -194,13 +194,23 @@ class ScopedRetirement:
                     # Address/index/history metadata remains durable. Cache-only
                     # records keep their address table even after the body leaves.
                     self.db.execute('DELETE FROM shared_history_cache WHERE identity=?',(row[0],))
-        elapsed=time.monotonic()-started;after=self.hot_bytes()
+        after=self.hot_bytes()
         if oldest is None and after:
-            row=self.db.execute('''SELECT b.coverage_scope,r.slot FROM canonical_evidence r
-                JOIN canonical_addresses a ON a.identity=r.identity
-                JOIN evidence_bindings b ON b.market_address=a.address AND b.canonical_scope=r.scope
-                WHERE r.body IS NOT NULL ORDER BY r.slot,r.identity LIMIT 1''').fetchone()
-            if row:oldest=dict(scope=row[0],slot=row[1],reason='batch_bound_or_unacknowledged_consumer')
+            # A many-to-many join sorts one row per candidate/event binding.
+            # Existence is enough to locate the same oldest retained identity;
+            # resolve its scope only after the ordered LIMIT, without exploding
+            # the rolling reservoir by the number of consumers.
+            row=self.db.execute('''SELECT r.identity,r.scope,r.slot FROM canonical_evidence r
+                WHERE r.body IS NOT NULL AND EXISTS(SELECT 1 FROM canonical_addresses a
+                    JOIN evidence_bindings b ON b.market_address=a.address AND b.canonical_scope=r.scope
+                    WHERE a.identity=r.identity)
+                ORDER BY r.slot,r.identity LIMIT 1''').fetchone()
+            if row:
+                scope=self.db.execute('''SELECT MIN(b.coverage_scope) FROM canonical_addresses a
+                    JOIN evidence_bindings b ON b.market_address=a.address AND b.canonical_scope=?
+                    WHERE a.identity=?''',(row[1],row[0])).fetchone()[0]
+                oldest=dict(scope=scope,slot=row[2],reason='batch_bound_or_unacknowledged_consumer')
+        elapsed=time.monotonic()-started
         result=dict(hot_bytes_before=before,hot_bytes_after=after,retired_records=len(content),
             retired_logical_bytes=hot_bytes,pinned_bytes=sum(pinned.values()),oldest_unretired_scope=oldest,
             retirement_seconds=elapsed,records_per_second=len(content)/max(elapsed,1e-9),

@@ -113,6 +113,8 @@ class CandidateTransactionJoin:
         if len(self.early_logs)>=32768 or self.early_log_bytes+size>MAX_PENDING_BYTES:
             raise EvidenceUnavailable('candidate_log_buffer_pressure')
         self.early_logs[key]=fact;self.early_log_bytes+=size
+        pending=self.pending.get(slot)
+        if pending is not None:pending['missing_logs'].discard(sig)
         return self.drain()
 
     def feed(self,update,size,seen):
@@ -147,7 +149,7 @@ class CandidateTransactionJoin:
                         fact=(bytes(item.signature),item.is_vote,bytes(item.err.err) if item.HasField('err') else None,scopes,item.bank_id)
                         if old['statuses'].get(item.index)==fact:return None
             raise EvidenceUnavailable('yellowstone_late_census_content')
-        s=self.pending.setdefault(slot,dict(started=now,statuses={},bodies={},body_seen={},status_seen={},banks=set(),meta=None,finality=None,expected=None,bytes=0,status_bytes=0,content_bytes=0,continuity_bytes=0))
+        s=self.pending.setdefault(slot,dict(started=now,statuses={},bodies={},body_seen={},status_seen={},banks=set(),meta=None,finality=None,expected={},required={},log_required={},signature_text={},missing_logs=set(),relevant_count=0,max_index=-1,bytes=0,status_bytes=0,content_bytes=0,continuity_bytes=0))
         s['last_seen']=seen
         if item.bank_id:s['banks'].add(item.bank_id)
         if len(s['banks'])>1:raise EvidenceUnavailable('yellowstone_finalized_bank_mismatch')
@@ -170,7 +172,18 @@ class CandidateTransactionJoin:
             fact=(bytes(item.signature),item.is_vote,err,scopes,item.bank_id)
             old=s['statuses'].get(item.index)
             if old is not None and old!=fact:raise EvidenceUnavailable('yellowstone_conflicting_status_census')
+            if old is None and scopes:
+                s['relevant_count']+=1
+                if s['relevant_count']>MAX_RELEVANT_TRANSACTIONS:raise EvidenceUnavailable('yellowstone_census_buffer_bound')
+                if err is None:
+                    s['expected'][item.index]=fact
+                    if self.full_scopes.intersection(scopes):s['required'][item.index]=fact
+                    else:
+                        s['log_required'][item.index]=fact
+                        text=signature(fact[0]);s['signature_text'][item.index]=text
+                        if (slot,text) not in self.early_logs:s['missing_logs'].add(text)
             s['statuses'][item.index]=fact;s['status_seen'].setdefault(item.index,seen)
+            s['max_index']=max(s['max_index'],item.index)
             s['status_bytes']+=size
         elif kind=='transaction':
             tx=item.transaction;failed=tx.meta.HasField('err')
@@ -180,6 +193,7 @@ class CandidateTransactionJoin:
             if old is not None and old!=tx:
                 raise EvidenceUnavailable('yellowstone_conflicting_content')
             if old is None:s['bodies'][tx.index]=tx
+            s['max_index']=max(s['max_index'],tx.index)
             s['body_seen'].setdefault(tx.index,seen);s['content_bytes']+=size
             if len(s['bodies'])>MAX_RELEVANT_TRANSACTIONS:raise EvidenceUnavailable('yellowstone_census_buffer_bound')
         elif kind=='block_meta':
@@ -205,23 +219,18 @@ class CandidateTransactionJoin:
             raise EvidenceUnavailable('yellowstone_finalized_block_shape')
         if len(s['statuses'])>count:raise EvidenceUnavailable('yellowstone_content_census_mismatch')
         if self.filtered_from_slot is None and len(s['statuses'])!=count:return None
-        if s['expected'] is None:
-            if self.filtered_from_slot is None:
-                if set(s['statuses'])!=set(range(count)):raise EvidenceUnavailable('yellowstone_transaction_index_shape')
-            elif any(i>=count for i in set(s['statuses'])|set(s['bodies'])):
-                raise EvidenceUnavailable('yellowstone_transaction_index_shape')
-            relevant={i:r for i,r in s['statuses'].items() if r[3]}
-            if len(relevant)>MAX_RELEVANT_TRANSACTIONS:raise EvidenceUnavailable('yellowstone_census_buffer_bound')
-            s['expected']={i:r for i,r in relevant.items() if r[2] is None}
-        successful=s['expected']
-        required={i:r for i,r in successful.items() if self.full_scopes.intersection(r[3])}
-        log_required={i:r for i,r in successful.items() if not self.full_scopes.intersection(r[3])}
+        if s['max_index']>=count:raise EvidenceUnavailable('yellowstone_transaction_index_shape')
+        required=s['required'];log_required=s['log_required']
         if len(s['bodies'])<len(required):return None
+        # Late logs and newer slots repeatedly revisit this oldest interval.
+        # Track readiness incrementally: waiting is constant work, not a scan
+        # and base58 conversion of the entire successful status census.
+        if s['missing_logs']:return None
         if not set(s['bodies']).issubset(required):raise EvidenceUnavailable('yellowstone_unfiltered_transaction')
         if set(required)!=set(s['bodies']):return None
         failed=[];seen_by_signature={};identities=set();log_transactions=[];candidate_statuses=[]
         for index,fact in log_required.items():
-            sig=signature(fact[0]);log=self.early_logs.get((slot,sig))
+            sig=s['signature_text'][index];log=self.early_logs.get((slot,sig))
             if log is None:return None
             if log[1] is not None:raise EvidenceUnavailable('candidate_log_status_conflict')
             log_transactions.append(dict(slot=slot,blockTime=meta.block_time.timestamp,
@@ -232,7 +241,8 @@ class CandidateTransactionJoin:
             if sig in identities:raise EvidenceUnavailable('yellowstone_duplicate_signature')
             identities.add(sig)
             if not scopes:continue
-            text=signature(sig)
+            text=s['signature_text'].get(index)
+            if text is None:text=signature(sig);s['signature_text'][index]=text
             seen_by_signature[text]=s['body_seen'][index] if index in required else (
                 max(s['status_seen'][index],self.early_logs[(slot,text)][2]) if index in log_required else s['status_seen'][index])
             candidate_statuses.append((text,index,scopes,None if err is None else transaction_error(err),seen_by_signature[text]))
@@ -256,7 +266,7 @@ class CandidateTransactionJoin:
         block.transactions.extend(s['bodies'][i] for i in sorted(s['bodies']))
         result=YellowstoneTransactionFrame(out,s['bytes'],seen,tuple(failed),seen_by_signature,len(s['statuses']),s['continuity_bytes'],s['status_bytes'],s['content_bytes'],self.filtered_from_slot or 0,tuple(log_transactions),tuple(candidate_statuses))
         for index,fact in log_required.items():
-            key=(slot,signature(fact[0]));old=self.early_logs.pop(key)
+            key=(slot,s['signature_text'][index]);old=self.early_logs.pop(key)
             self.recent_logs[key]=digest([old[0],old[1]])
             self.early_log_bytes-=len(str(old[0]).encode())
         self.pending_bytes-=s['bytes'];del self.pending[slot];self.completed=slot
@@ -266,3 +276,13 @@ class CandidateTransactionJoin:
                 oldest=min(self.recent);self.recent_bytes-=self.recent.pop(oldest)['bytes']
                 self.recent_logs={key:value for key,value in self.recent_logs.items() if key[0]>oldest}
         return result
+
+    def missing_log_keys(self,through):
+        """Only authenticated successful identities missing their log field.
+
+        The recovery caller bounds concurrency and its durable replay interval.
+        No signatures are reconverted while a provider request is outstanding.
+        """
+        for slot in sorted(self.pending):
+            if slot>through:break
+            for sig in sorted(self.pending[slot]['missing_logs']):yield slot,sig

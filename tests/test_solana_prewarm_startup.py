@@ -172,6 +172,27 @@ class StartupTests(unittest.TestCase):
 
 
 class StartupAsyncTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cold_maintenance_cannot_compete_with_initial_publication(self):
+        from unittest.mock import MagicMock
+        from meme_machine.solana_selective_source import SelectiveSource
+        with tempfile.TemporaryDirectory() as directory:
+            state,h=state_at(Path(directory)/'canonical.sqlite')
+            source=SelectiveSource(MagicMock(),MagicMock(),token='offline')
+            source.canonical_path=state.writer.path;source.stop=asyncio.Event();calls=[]
+            async def work(fn,priority,**kwargs):
+                calls.append(priority);value=fn(state);source.stop.set();return value
+            source.work=work
+            task=asyncio.create_task(source.cold_maintenance())
+            try:
+                await asyncio.sleep(.02);self.assertEqual(calls,[])
+                h.startup.begin()
+                for family in ('pump','pumpswap'):h.startup.feed_ack(family,100,100)
+                h.startup.native(('pump','pumpswap'));seal(h,100,100);h.startup.advance()
+                await task
+                self.assertEqual(calls,[4])
+            finally:
+                task.cancel();await asyncio.gather(task,return_exceptions=True);state.writer.close()
+
     async def test_last_websocket_log_can_complete_native_join_and_release_startup(self):
         import copy,json,based58
         from meme_machine.solana_selective_source import SelectiveSource

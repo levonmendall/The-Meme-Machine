@@ -617,6 +617,9 @@ class SelectiveSource:
 
     async def cold_maintenance(self):
         from .solana_scoped_retirement import ScopedRetirement
+        # Retirement is not a prerequisite for initial evidence convergence.
+        # Keep its telemetry and disk work out of the startup release barrier.
+        await self.wait_startup()
         while not self.stop.is_set():
             def retire(state):
                 h=install(state);h.lifecycle.publish()
@@ -963,12 +966,10 @@ class SelectiveSource:
                         while not self.stop.is_set() and not local_stop.is_set():
                             for task in list(pending):
                                 if task.done():task.result();pending.remove(task)
-                            for slot,item in list(join.pending.items()):
-                                if slot>tip:continue
-                                for fact in list(item['statuses'].values()):
-                                    sig=signature(fact[0]);key=(slot,sig)
-                                    if fact[2] is None and key not in join.early_logs and key not in inflight and len(pending)<8:
-                                        inflight.add(key);pending.add(asyncio.create_task(one(slot,sig)))
+                            for key in join.missing_log_keys(tip):
+                                if len(pending)>=8:break
+                                if key not in inflight:
+                                    inflight.add(key);pending.add(asyncio.create_task(one(*key)))
                             await asyncio.sleep(.01)
                     finally:
                         for task in pending:task.cancel()
