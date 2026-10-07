@@ -4,7 +4,7 @@ from unittest.mock import patch
 from meme_machine.lanes.pons import BoundaryError
 from meme_machine.lanes.pons.identity import load
 from meme_machine.lanes.pons.protocols import PoolKey
-from meme_machine.lanes.pons.pons_survivor_runtime import Runtime,ZERO
+from meme_machine.lanes.pons.pons_survivor_runtime import Runtime,ZERO,_event_topic
 
 TOKEN='0x'+'11'*20
 CURVE='0x'+'22'*20
@@ -14,10 +14,12 @@ class GraduationRPC:
  def __init__(self):self.logs=0
  def batch(self,calls,scope):return [self.call(m,p,scope) for m,p in calls]
  def call(self,method,params,scope):
-  if method=='eth_getBlockByNumber':return dict(number='0x64')
+  if method=='eth_getBlockByNumber':return dict(number='0x64',hash='block100',timestamp=hex(int(time.time())))
   if method=='eth_getLogs':
    self.logs+=1
-   return [dict(topics=['graduation','0x'+'0'*24+TOKEN[2:]],blockNumber='0x64')] if self.logs==1 else []
+   return [dict(address=load('pons_v2_factory')['address'].lower(),
+       topics=[_event_topic('pons_v2_factory','PoolGraduated'),'0x'+'0'*24+TOKEN[2:]],
+       blockNumber='0x64')] if self.logs==1 else []
   if method=='eth_call':
    spec=next(x for x in load('pons_v2_factory')['abi'] if x.get('name')=='getLaunchedToken')
    values={'token':int(TOKEN,16),'curve':int(CURVE,16)}
@@ -47,9 +49,11 @@ class SurvivorGraduationTests(unittest.TestCase):
      self.assertEqual(len(points),1);self.assertEqual(events,[])
      runtime.discover();self.assertEqual(len(runtime.history.rows()),1)
     else:
-     # Real lineage helper sees no authenticated graduation; cursor cannot advance.
+     # The discovery cursor may advance only with the raw nomination durably
+     # retained. Missing lineage never advances authenticated candidate history.
      with self.assertRaisesRegex(BoundaryError,'survivor_graduation_missing'):runtime.discover()
-     self.assertEqual(runtime.history.get_meta('discovery_block'),99)
+     self.assertEqual(runtime.history.get_meta('discovery_block'),100)
+     self.assertEqual(runtime.history.pending_graduations(),1)
      self.assertEqual(runtime.history.rows(),[])
     self.assertEqual(runtime.book.reconcile()['open_positions'],0)
     self.assertTrue(runtime.sleeve.reconcile()['reconciled'])

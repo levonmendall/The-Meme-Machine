@@ -141,7 +141,10 @@ class Admission:
             db.execute('BEGIN IMMEDIATE')
             db.execute('DELETE FROM queue WHERE deadline<=?',(started,))
             db.execute('DELETE FROM queue_meta WHERE id NOT IN (SELECT id FROM queue)')
-            if db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]>=256:
+            if (db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]>=256
+                    and priority(scope)!=0):
+                # Candidate backlog cannot refuse admission to an existing
+                # position's safety work. The transport ceiling is unchanged.
                 raise BoundaryError('provider_shared_queue_capacity')
             db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(ticket,self.endpoint,priority(scope),started,deadline))
             db.execute('INSERT INTO queue_meta VALUES(?,?)',(ticket,self.lane))

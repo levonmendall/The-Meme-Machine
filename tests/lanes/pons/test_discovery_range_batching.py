@@ -121,13 +121,25 @@ class DiscoveryBatchTests(unittest.TestCase):
         self.assertEqual(len(tape),40)
         self.assertEqual(tape,fresh)
 
-    def test_malformed_batch_and_per_range_overflow_fail_closed(self):
-        for pages,reason in (([[]],"batch_shape"),([None,[]],"log_shape"),
-                             ([[],[event(111)]*1001],"natural_event_capacity")):
+    def test_malformed_batch_fail_closed(self):
+        for pages,reason in (([[]],"batch_shape"),([None,[]],"log_shape")):
             rpc=Rpc()
             with self.subTest(reason=reason),patch.object(rpc,"batch",return_value=pages):
                 with self.assertRaisesRegex(BoundaryError,reason):
                     cohort._discovery_curve_events(rpc,101,120)
+
+    def test_removed_or_future_log_never_advances_the_original_range(self):
+        for bad in (event(121),dict(event(101),removed=True)):
+            rpc=Rpc();tape=[]
+            with patch.object(rpc,'batch',return_value=[[bad],[]]),patch.object(cohort.time,'monotonic',return_value=100.):
+                with self.assertRaisesRegex(BoundaryError,'log_range_identity'):
+                    cohort._poll('unused',rpc,100,tape,Feed(120),[])
+            self.assertEqual(tape,[])
+
+    def test_more_than_one_thousand_events_in_one_range_are_retained(self):
+        rpc=Rpc();pages=[[],[event(111,i) for i in range(1025)]]
+        with patch.object(rpc,'batch',return_value=pages):
+            self.assertEqual(cohort._discovery_curve_events(rpc,101,120),pages[1])
 
     def test_batch_capacity_is_checked_before_transport(self):
         rpc=Rpc()

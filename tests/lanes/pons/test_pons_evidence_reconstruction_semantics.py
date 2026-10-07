@@ -118,6 +118,7 @@ class AuthenticatedEarlyRejectionTests(unittest.TestCase):
 class FullEvidenceRequestTests(unittest.TestCase):
     def evaluate(self,launch=50,*,trajectory=None,window_error=None):
         ctx=MagicMock();ctx.telemetry.return_value={}
+        ctx.window_coverage=dict(complete=True)
         ctx.cache=acquisition.ImmutableEvidenceCache()
         if launch is not None:ctx.cache.remember_launch('curve',launch)
         candidate=dict(token='token',curve='curve',block=1,
@@ -128,6 +129,7 @@ class FullEvidenceRequestTests(unittest.TestCase):
         event=dict(blockNumber='0x1',blockHash='hash',transactionHash='tx',logIndex='0x0')
         stages=[]
         with patch.object(acquisition,'_authenticate_candidate',return_value=candidate), \
+             patch('meme_machine.lanes.pons.pons_current_window.canonical_window',return_value=[]), \
              patch.object(acquisition,'_trajectory',return_value=(
                  snapshots() if trajectory is None else trajectory,
                  50 if launch is None else launch,{})) as acquire_trajectory, \

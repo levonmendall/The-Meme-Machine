@@ -46,7 +46,9 @@ class CachedLaunchAgeTests(unittest.TestCase):
             ctx=self.context(launch)
             snap=[dict(r,at=r['at']+asof-200) for r in snapshots()]
             market=[dict(r,event_at=r['event_at']+asof-200) for r in events()]
+            ctx.window_coverage=dict(complete=True)
             with patch.object(acquisition,'_trajectory',return_value=(snap,50 if launch is None else launch,{})) as trajectory, \
+                 patch('meme_machine.lanes.pons.pons_current_window.canonical_window',return_value=[]), \
                  patch.object(acquisition,'_authenticate_window',return_value=(market,[])) as window, \
                  patch.object(acquisition.time,'time',return_value=asof+2), \
                  patch.object(acquisition,'qualification_vector',wraps=acquisition.qualification_vector) as qualify:

@@ -33,9 +33,10 @@ from .pons import CurveState, curve_abi, raw_event
 from .pons_natural_observation import _latest_header, _curve_state
 from .pons_natural_paper import (
     _curve_quote as _native_curve_quote, _gas_quote, _gas_units, _graduation_transition,
-    _rpc as paper_rpc, _v4_quote, _wait_curve_quote as _native_wait_curve_quote,
+    _rpc as paper_rpc, _wait_curve_quote as _native_wait_curve_quote,
     RESEARCH_RECIPIENT, _fresh_stamp, _ledger_for_quote,
 )
+from .pons_quotes import v4_quote as _v4_quote
 from .pons_selective_acquisition import (
     _batched, _header_search, _rpc as evidence_rpc, _trajectory, SelectiveEvidenceContext,
 )
@@ -48,6 +49,7 @@ from .pons_selective_continuation import (
     runner_soft_deterioration, trajectory_metrics,
 )
 from .pons_selective_v4 import collect_v4_activity
+from .pons_current_history import with_history
 
 STRATEGY_NAMESPACE="pons-selective-continuation-v1"
 STRATEGY_CAPITAL_QUOTE=10**18
@@ -181,15 +183,51 @@ def _position_return_bps(position,quote):
 
 
 def _curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None):
+    from .pons_current_history import _active
+    history=_active.get()
+    if history is None or after_block is not None:
+        return _read_curve_logs(endpoint,curve,current_header,seconds,after_block=after_block)
+    old=history.get(curve);block=int(current_header['number'],16);at=int(current_header['timestamp'],16)
+    if old and block==old['block'] and current_header['hash']!=old['block_hash']:
+        history.invalidate(curve,'pons_current_history_reorg')
+        old=None
+    if old is None:
+        if seconds>60:raise BoundaryError('pons_current_history_not_caught_up')
+        events,sessions=_read_curve_logs(endpoint,curve,current_header,seconds)
+        history.remember(curve,current_header,events,from_time=max(0,at-seconds))
+    elif block-old['block']>40 or at-old['through']>60:
+        # A restart/provider gap never triggers a large urgent reconstruction.
+        # Resume current safety flow immediately; the add's 900-second window
+        # must accumulate again before it can grant scaling authority.
+        history.invalidate(curve,'pons_current_history_observation_gap')
+        events,sessions=_read_curve_logs(endpoint,curve,current_header,60)
+        history.remember(curve,current_header,events,from_time=max(0,at-60))
+    elif block>old['block']:
+        try:
+            events,sessions=_read_curve_logs(endpoint,curve,current_header,900,
+                after_block=old['block'],expected_previous_hash=old['block_hash'])
+        except BoundaryError as exc:
+            if str(exc)!='pons_current_history_reorg':raise
+            history.invalidate(curve,str(exc))
+            events,sessions=_read_curve_logs(endpoint,curve,current_header,60)
+            history.remember(curve,current_header,events,from_time=max(0,at-60))
+        else:
+            history.remember(curve,current_header,events,from_time=old['through'],delta_from=old['block'])
+    else:sessions=[]
+    result=history.facts(curve,current_header,seconds)
+    history.maintain(time.time())
+    return result,sessions
+
+
+def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None,expected_previous_hash=None):
     current_block=int(current_header["number"],16)
     current_at=int(current_header["timestamp"],16)
     if after_block is None:
         locator=evidence_rpc(endpoint)
         cache={current_block:current_header}
-        start_header=_header_search(
-            locator,current_block,current_at,max(0,current_at-int(seconds)),cache
-        )
-        start_block=int(start_header["number"],16)
+        lower=max(0,current_at-int(seconds))
+        start_block=(0 if lower==0 else int(_header_search(
+            locator,current_block,current_at,lower-1,cache)['number'],16)+1)
         locator_telemetry=locator.telemetry()
     else:
         # One exact, bounded delta; never a new historical window or head search.
@@ -203,18 +241,26 @@ def _curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None):
         topic("CurveSell(address,address,uint256,uint256,uint256,uint256)"),
     ]
     calls=[]
-    chunk=10 if after_block is None else 256
+    if expected_previous_hash is not None:
+        # Numeric, deliberately unpinned: an immutable old hash cannot prove
+        # that the retained prefix still belongs to today's canonical chain.
+        calls.append(('eth_getBlockByNumber',[hex(after_block),False]))
+    chunk=10
     for first in range(start_block,current_block+1,chunk):
         calls.append(("eth_getLogs",[dict(
             fromBlock=hex(first),toBlock=hex(min(current_block,first+chunk-1)),
             address=curve,topics=[sigs],
         )]))
     batches,sessions=_batched(endpoint,calls,"pons_selective_monitor") if calls else ([],[])
+    if expected_previous_hash is not None:
+        previous=batches.pop(0)
+        if (int(previous['number'],16)!=after_block or previous['hash']!=expected_previous_hash):
+            raise BoundaryError('pons_current_history_reorg')
+    if any(not isinstance(rows,list) for rows in batches):
+        raise BoundaryError('selective_monitor_range_incomplete')
     raw=[]
     for rows in batches:
         raw.extend(rows)
-    if len(raw)>(512 if after_block is None else 32):
-        raise BoundaryError("selective_monitor_event_capacity")
 
     if after_block is not None and any(
             not start_block<=int(e["blockNumber"],16)<=current_block or e.get("removed")
@@ -255,11 +301,13 @@ def _curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None):
         )
         at=int(row["event_at"])
         if current_at-int(seconds)<=at<=current_at:
-            out.append(normalized_trade(
+            normalized=normalized_trade(
                 row["decoded"],
                 identity=f'{row["block"]}:{row["transaction_hash"]}:{row["log_index"]}',
                 event_at=at,
-            ))
+            )
+            normalized['canonical_order']=[row['block'],row['transaction_index'],row['log_index']]
+            out.append(normalized)
     return out,[locator_telemetry]+sessions
 
 
@@ -453,6 +501,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
 
 
 @position_work
+@with_history
 def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None):
     deadline=time.monotonic()+slice_seconds if slice_seconds is not None else None
     vector=evaluation["vector"]
@@ -1400,7 +1449,21 @@ from .pons_selective_recovery import resume_lifecycle,exclusive_lifecycle
 
 @exclusive_lifecycle
 def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
-    return _run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path)
+    result=_run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path)
+    if evaluation.get('candidate_plane_path') and evaluation.get('candidate_broker_identity'):
+        from meme_machine.runtime.robinhood.plane import Plane
+        from .pons_attempts import Attempts,failure_category
+        plane=Plane(evaluation['candidate_plane_path'])
+        try:
+            position=result.get('final_position') or {}
+            funded=int(position.get('entry_tokens',0))>0
+            reason='paper_filled' if funded else result.get('entry_failure') or result.get('boundary') or result['status']
+            Attempts(plane).record(evaluation['candidate_broker_identity'],evaluation['candidate_broker_generation'],
+                'funding','OTHER_EXPLICIT_REASON' if funded else failure_category(reason,qualified=True),
+                at=evaluation['vector'].get('asof',evaluation['vector'].get('evidence_available_at')),
+                reason=reason,execution=dict(lifecycle_id=result.get('lifecycle_id'),funded=funded))
+        finally:plane.close()
+    return result
 
 
 def _stop_sleep(seconds):

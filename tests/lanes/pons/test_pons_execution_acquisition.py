@@ -155,10 +155,10 @@ class MonitorReceiptReuseRegression(unittest.TestCase):
             self.assertEqual(ctx.receipt_pins,{'tx':'block'})
             return ctx.batch(calls,scope),[]
         with patch.object(paper,'evidence_rpc') as locator, \
-                patch.object(paper,'_header_search',return_value=header), \
+                patch.object(paper,'_header_search',return_value=dict(number='0x0',hash='previous',timestamp='0x27')), \
                 patch.object(paper,'_batched',side_effect=batched), \
                 patch.object(paper,'SelectiveEvidenceContext',side_effect=context), \
-                patch.object(paper,'raw_event',return_value=dict(event_at=100,decoded={},block=1,transaction_hash='tx',log_index=0)), \
+                patch.object(paper,'raw_event',return_value=dict(event_at=100,decoded={},block=1,transaction_hash='tx',transaction_index=0,log_index=0)), \
                 patch.object(paper,'normalized_trade',return_value={'trade':'authenticated'}):
             first=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline','curve',header)
             second=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline','curve',header)

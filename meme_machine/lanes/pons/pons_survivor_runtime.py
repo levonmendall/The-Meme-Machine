@@ -15,7 +15,8 @@ from meme_machine.runtime.directional_sleeve import open_sleeve
 from meme_machine.runtime.execution_capacity import resize,buyer_persistence
 from meme_machine.runtime.journal import digest
 from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,scale
-from meme_machine.runtime.survivor_history import History
+from .pons_history import PonsHistory
+from .pons_attempts import Attempts, decision_category, failure_category
 from meme_machine.runtime.survivor_paper_book import PaperBook
 from meme_machine.runtime.robinhood.plane import Plane
 from meme_machine.runtime.robinhood.pons import plane_path
@@ -39,36 +40,63 @@ def price_index(sqrt,token,key):
 
 
 class Quotes:
-    """A bounded ladder, quoted at one authenticated block in two RPC batches.
+    """Exact bounded probes, quoted at one authenticated block.
 
 Each ladder point has its exact 2x probe. No interpolation invents executable
 capacity. Searching cached quotes issues zero additional provider calls.
 """
     def __init__(self,runtime,state,budget):
         self.runtime=runtime;self.state=state;self.cache={};self.budget=budget;self.acquired=time.monotonic()
+        self.prepared=set();self.prepared_ladder=False;self.gas_price=None
+
+    def _fetch(self,sizes):
+        from .pons_quotes import quote_deadline
+        with quote_deadline(self.runtime.rpc,self.state['acquired']):
+            return self._acquire(sizes)
+
+    def _acquire(self,sizes):
+        runtime=self.runtime;state=self.state
         rpc=runtime.rpc;key=PoolKey(**runtime.current['graduation']['key'])
-        block=hex(state['block']);minimum=runtime.sleeve.sizing_basis(500,minimum_bps=5)["minimum"]
-        sizes={budget,minimum}
-        for i in range(1,4):sizes.add(max(minimum,budget//2**i))
-        sizes={n for n in sizes if minimum<=n<=budget};sizes|={2*n for n in sizes}
+        from .pons_quotes import pinned_block
+        header=dict(number=hex(state['block']),hash=state['block_hash'])
+        block=pinned_block(rpc,'eth_call',header);minimum=runtime.sleeve.sizing_basis(500,minimum_bps=5)["minimum"]
+        sizes={n for n in sizes if n>=minimum and n not in self.prepared}
+        if not sizes:return
+        # A requested probe is execution evidence, not a reservation. The
+        # strategy's nominal target and the funding amount remain independent.
+        if len(self.prepared|sizes)>256:raise BoundaryError('provider_survivor_quote_probe_work_bound')
+        if not 0<=time.monotonic()-state['acquired']<=5:raise BoundaryError('survivor_stale_quote')
         # Gas is an explicit conservative reservation, checked against each
         # quoter simulation. If it is inadequate the quote fails closed.
         units=max(500000,2*runtime.current['graduation']['transition']['graduation_gas_used'])
-        gas_price=int(rpc.call('eth_gasPrice',[],scope='pons_survivor'),16)
+        if self.gas_price is None:
+            values=rpc.batch([
+                ('eth_getCode',[V4_QUOTER,pinned_block(rpc,'eth_getCode',header)]),
+                ('eth_call',[dict(to=V4_QUOTER,data=calldata('poolManager()')),block]),
+                ('eth_gasPrice',[])],scope='pons_survivor')
+            if len(values)!=3:raise BoundaryError('survivor_quote_cost_identity_incomplete')
+            code,manager,gas=values;self.gas_price=int(gas,16)
+            if not code or code=='0x' or _one_word(manager,'address')!=load('uniswap_v4_manager')['address'].lower():
+                raise BoundaryError('survivor_quoter_authority')
+        gas_price=self.gas_price
         buffer=units*gas_price
-        code,manager=rpc.batch([
-            ('eth_getCode',[V4_QUOTER,block]),
-            ('eth_call',[dict(to=V4_QUOTER,data=calldata('poolManager()')),block])],scope='pons_survivor')
-        if not code or code=='0x' or _one_word(manager,'address')!=load('uniswap_v4_manager')['address'].lower():
-            raise BoundaryError('survivor_quoter_authority')
+        self.prepared.update(sizes)
         ordered=sorted(n for n in sizes if n>buffer)
         if not ordered:return
         buys=rpc.batch([('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(key,key.currency0==ZERO,n-buffer)),block])
                         for n in ordered],scope='pons_survivor')
+        if len(buys)!=len(ordered):raise BoundaryError('survivor_buy_quote_incomplete')
         decoded=[tuple(scalar('uint256',w) for w in words(raw)) for raw in buys]
         if any(len(v)!=2 or v[0]<=0 for v in decoded):raise BoundaryError('survivor_buy_quote_shape')
-        sells=rpc.batch([('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(key,key.currency0!=ZERO,v[0])),block])
-                         for v in decoded],scope='pons_survivor')
+        calls=[('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(key,key.currency0!=ZERO,v[0])),block]) for v in decoded]
+        calls.append(('eth_getBlockByNumber',[header['number'],False]))
+        previous=getattr(rpc,'evidence_pins',{});rpc.evidence_pins={}
+        try:values=rpc.batch(calls,scope='pons_survivor')
+        finally:rpc.evidence_pins=previous
+        if len(values)!=len(calls):raise BoundaryError('survivor_sell_quote_incomplete')
+        if values[-1]['number']!=header['number'] or values[-1]['hash']!=header['hash']:
+            raise BoundaryError('pons_quote_canonical_membership_disagreement')
+        sells=values[:-1]
         for n,b,raw in zip(ordered,decoded,sells):
             s=tuple(scalar('uint256',w) for w in words(raw))
             if len(s)!=2 or s[0]<=0:continue
@@ -80,7 +108,14 @@ capacity. Searching cached quotes issues zero additional provider calls.
                 block=state['block'],block_hash=state['block_hash'],acquired=time.monotonic(),
                 loss_bps=max(0,(cost-max(0,s[0]-exit_gas))*10000//cost))
 
-    def loss(self,n):return self.cache.get(n,{}).get('loss_bps')
+    def loss(self,n):
+        if not 0<=time.monotonic()-self.state['acquired']<=5:raise BoundaryError('survivor_stale_quote')
+        if not self.prepared_ladder:
+            minimum=self.runtime.sleeve.sizing_basis(500,minimum_bps=5)['minimum']
+            sizes={n,minimum}|{max(minimum,n//2**i) for i in range(1,4)}
+            self._fetch(sizes|{2*x for x in sizes});self.prepared_ladder=True
+        elif n not in self.prepared:self._fetch({n,2*n})
+        return self.cache.get(n,{}).get('loss_bps')
     def entry(self,n):
         if n not in self.cache:raise BoundaryError('survivor_executable_size_missing')
         return dict(self.cache[n])
@@ -92,7 +127,7 @@ class Runtime:
         self.capital=capital;self.run_id=run_id;self.endpoint=endpoint
         self.sleeve=open_sleeve('pons',capital)
         if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
-        self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+        self.history=PonsHistory(str(self.root/'history.sqlite'),policy=POLICY_HASH)
         from meme_machine.runtime.survivor_history import compact_restored_history
         compact_restored_history(self.history,lane='pons')
         self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_VERSION,
@@ -100,6 +135,7 @@ class Runtime:
         from meme_machine.runtime.survivor_terminal_archive import compact
         compact(self.book,self.sleeve,self.history)
         self.plane=Plane(plane_path(self.root/'candidate-evidence.sqlite'))
+        self.attempts=Attempts(self.plane)
         self.rpc=None;self.current=None;self.last_error=None
 
     def now(self):return int(time.time())
@@ -116,33 +152,96 @@ class Runtime:
     def discover(self):
         header=_latest_header(self.rpc);top=int(header['number'],16)
         cursor=self.history.get_meta('discovery_block')
-        if cursor is None:self.history.set_meta('discovery_block',top);return
-        if top<=cursor:return
-        end=min(top,cursor+40);factory=load('pons_v2_factory')['address'].lower()
-        calls=[('eth_getLogs',[dict(address=factory,fromBlock=hex(first),toBlock=hex(min(end,first+9)),
-            topics=[_event_topic('pons_v2_factory','PoolGraduated')])]) for first in range(cursor+1,end+1,10)]
-        batches=self.rpc.batch(calls,scope='pons_survivor')
-        if sum(map(len,batches))>32:raise BoundaryError('survivor_graduation_batch_capacity')
-        events=sorted((event for batch in batches for event in batch),key=lambda e:(int(e['blockNumber'],16),int(e.get('logIndex','0x0'),16)))
-        for event in events:
+        if cursor is None:
+            cursor=self._bootstrap_cursor(header)
+            if cursor is None:return
+        expected=self.history.get_meta('discovery_block_hash')
+        if top==cursor and expected and header['hash']!=expected:
+            self.history.invalidate_discovery()
+            raise BoundaryError('survivor_discovery_reorg')
+        if top>cursor:
+            end=min(top,cursor+40);factory=load('pons_v2_factory')['address'].lower()
+            calls=[('eth_getLogs',[dict(address=factory,fromBlock=hex(first),toBlock=hex(min(end,first+9)),
+                topics=[_event_topic('pons_v2_factory','PoolGraduated')])]) for first in range(cursor+1,end+1,10)]
+            count=len(calls)
+            if end!=top:calls.append(('eth_getBlockByNumber',[hex(end),False]))
+            if expected:calls.append(('eth_getBlockByNumber',[hex(cursor),False]))
+            values=self.rpc.batch(calls,scope='pons_survivor')
+            if len(values)!=len(calls):raise BoundaryError('survivor_graduation_range_incomplete')
+            boundary=header if end==top else values[count]
+            if int(boundary['number'],16)!=end or not boundary.get('hash'):
+                raise BoundaryError('survivor_discovery_boundary_identity')
+            if expected and (int(values[-1]['number'],16)!=cursor or values[-1]['hash']!=expected):
+                self.history.invalidate_discovery()
+                raise BoundaryError('survivor_discovery_reorg')
+            batches=values[:count]
+            if len(batches)!=len(calls) or any(not isinstance(b,list) for b in batches):
+                raise BoundaryError('survivor_graduation_range_incomplete')
+            events=[]
+            for (_,params),batch in zip(calls,batches):
+                q=params[0]
+                for event in batch:
+                    if (event.get('removed') or event.get('address','').lower()!=factory
+                            or not int(q['fromBlock'],16)<=int(event['blockNumber'],16)<=int(q['toBlock'],16)
+                            or not event.get('topics') or event['topics'][0]!=q['topics'][0]):
+                        raise BoundaryError('survivor_graduation_log_identity')
+                    events.append(event)
+            events.sort(key=lambda e:(int(e['blockNumber'],16),int(e.get('transactionIndex','0x0'),16),int(e.get('logIndex','0x0'),16)))
+            self.history.retain_graduations(events,end,block_hash=boundary['hash'])
+        # Authentication is scheduling work. Even a burst larger than 32 remains
+        # durable; a failed member rotates rather than blocking every later one.
+        for nomination,event in self.history.graduation_batch():
             if len(event['topics'])<2:raise BoundaryError('survivor_graduation_token')
             token='0x'+event['topics'][1][-40:].lower();block=int(event['blockNumber'],16)
             report={'reads':[]};record=_factory_record_at(self.rpc,token,block,report)
             result=_graduation_transition(self.rpc,dict(token=token,curve=record['curve']),block,block,report)
             if result is None:raise BoundaryError('survivor_graduation_missing')
             transition,key,h,record=result
-            if record['pairToken']!=ZERO:continue
+            canonical=self.rpc.call('eth_getBlockByNumber',[hex(block),False],scope='pons_survivor')
+            if int(canonical['number'],16)!=block or canonical['hash']!=h['hash']:
+                raise BoundaryError('survivor_graduation_canonical_membership_disagreement')
+            if record['pairToken']!=ZERO:
+                self.attempts.record(token,0,'graduation','STRUCTURAL_INELIGIBLE',at=transition['graduation_at'],reason='non_native_quote')
+                self.history.graduation_complete(nomination);continue
             evidence=dict(at=transition['graduation_at'],block=block,block_hash=h['hash'],
                 transition=transition,key=asdict(key),record=record,
                 source='robinhood_authenticated_candidate_evidence_plane')
-            if self.history.get(token) is None and self.history.expired(evidence):continue
-            row=self.history.graduate(token,evidence)
-            if row['state']=='retired':continue
+            if (self.history.get(token) is None and (self.history.expired(evidence)
+                    or self.now()-evidence['at']>POLICY['universe']['max_seconds_after_graduation'])):
+                self.attempts.record(token,0,'graduation','EXPIRED_BY_STRATEGY_HORIZON',at=evidence['at'],reason='strategy_horizon_expired')
+                self.history.graduation_complete(nomination);continue
+            old=self.history.get(token)
+            if old and old['graduation']!=evidence and old.get('recovery')!='graduation_membership_unavailable':
+                anchor=self.rpc.call('eth_getBlockByNumber',[hex(old['graduation']['block']),False],scope='pons_survivor')
+                if anchor['hash']!=old['graduation']['block_hash']:
+                    old['complete']=False;old['recovery']='graduation_membership_unavailable';self.history.save(old)
+            if old and old.get('recovery')=='graduation_membership_unavailable':
+                p=price_index(transition['initialization_sqrt_price_x96'],token,key)
+                row=self.history.replace_orphaned_graduation(token,evidence,anchor_price=p)
+            else:row=self.history.graduate(token,evidence)
+            if row['state']=='retired':self.history.graduation_complete(nomination);continue
             if row.get('block') is None:
                 row['block']=block;self.history.save(row)
                 p=price_index(transition['initialization_sqrt_price_x96'],token,key)
                 self.history.append(token,through=evidence['at'],events=[],points=[(evidence['at'],str(p))],complete=True)
-        self.history.set_meta('discovery_block',end)
+            self.history.graduation_complete(nomination)
+
+    def _bootstrap_cursor(self,header):
+        """One header per step finds the full seven-day domain on a cold start."""
+        top=int(header['number'],16);at=int(header['timestamp'],16)
+        search=self.history.get_meta('discovery_bootstrap')
+        if search is None:
+            search=dict(low=-1,high=top,cutoff=max(0,at-POLICY['universe']['max_seconds_after_graduation']))
+        if search['low']+1<search['high']:
+            mid=(search['low']+search['high'])//2
+            witness=self.rpc.call('eth_getBlockByNumber',[hex(mid),False],scope='pons_survivor')
+            if int(witness['number'],16)!=mid:raise BoundaryError('survivor_bootstrap_header_identity')
+            search['low' if int(witness['timestamp'],16)<search['cutoff'] else 'high']=mid
+            self.history.set_meta('discovery_bootstrap',search)
+        if search['low']+1==search['high']:
+            self.history.set_meta('discovery_block',search['low'])
+            return search['low']
+        return None
 
     def _increment(self,row,end):
         start=row['block']+1
@@ -156,19 +255,34 @@ class Runtime:
         # at the last watermark. A fork never becomes clean historical evidence.
         previous=self.rpc.call('eth_getBlockByNumber',[hex(row['block']),False],scope='pons_survivor')
         expected=row.get('block_hash',row['graduation']['block_hash'])
-        if previous['hash']!=expected:raise BoundaryError('survivor_history_reorg')
+        if previous['hash']!=expected:
+            self._recover_reorg(row)
+            raise BoundaryError('survivor_history_reorg')
         self._append_tape(row,end,h,tape)
+
+    def _recover_reorg(self,row):
+        graduation=row['graduation'];block=graduation['block']
+        header=self.rpc.call('eth_getBlockByNumber',[hex(block),False],scope='pons_survivor')
+        if int(header['number'],16)!=block:raise BoundaryError('survivor_recovery_anchor_identity')
+        key=PoolKey(**graduation['key'])
+        price=price_index(graduation['transition']['initialization_sqrt_price_x96'],row['id'],key)
+        self.history.reset_after_reorg(row['id'],canonical_graduation_hash=header['hash'],anchor_price=price)
 
     def _append_tape(self,row,end,h,tape):
         at=int(h['timestamp'],16);events=[];points={}
         for e in tape['swaps']:
             events.append(dict(id=e['identity'],at=e['event_at'],group=e['group'],buy=e['side']=='buy',
-                quote=e['quote'],tokens=e['tokens'],authenticated=True))
-            points[e['event_at']]=str(e['price_index'])
-        self.history.append(row['id'],through=at,events=events,points=sorted(points.items()),complete=True)
-        updated=self.history.get(row['id']);updated.update(block=end,block_hash=h['hash']);self.history.save(updated)
+                quote=e['quote'],tokens=e['tokens'],authenticated=True,
+                block=e['block'],transaction_index=e.get('transaction_index'),log_index=e.get('log_index')))
+            p=str(e['price_index']);old=points.get(e['event_at'])
+            points[e['event_at']]=dict(price=p,low=str(min(int(p),int(old['low']))) if old else p,
+                high=str(max(int(p),int(old['high']))) if old else p)
+        self.history.append_block(row['id'],block=end,header=h,events=events,points=sorted(points.items()))
 
     def _increment_candidates(self,rows,top):
+        if not rows:return
+        population=len(rows)
+        rows=self.history.history_batch(rows,top)
         if not rows:return
         start=min(row['block'] for row in rows)+1;end=min(top,start+39)
         if end<start:return
@@ -177,36 +291,50 @@ class Runtime:
             key=PoolKey(**r['graduation']['key']),token=r['id']) for r in active]
         tapes=collect_v4_activities(self.endpoint,markets=markets,start_block=start,end_block=end)
         blocks=sorted({end}|{r['block'] for r in active})
-        headers=dict(zip(blocks,self.rpc.batch([('eth_getBlockByNumber',[hex(b),False]) for b in blocks],scope='pons_survivor')))
+        values=[]
+        for offset in range(0,len(blocks),50):
+            self._provider()
+            values.extend(self.rpc.batch([('eth_getBlockByNumber',[hex(b),False]) for b in blocks[offset:offset+50]],scope='pons_survivor'))
+        headers=dict(zip(blocks,values))
         if any(int(headers[b]['number'],16)!=b for b in blocks):raise BoundaryError('survivor_header_number')
+        valid=[];reorgs=[]
         for row in active:
             if headers[row['block']]['hash']!=row.get('block_hash',row['graduation']['block_hash']):
-                raise BoundaryError('survivor_history_reorg')
-        for row in active:
+                self._recover_reorg(row);reorgs.append(row['id'])
+            else:valid.append(row)
+        for row in valid:
             tape=dict(tapes[row['id']]);tape['swaps']=[e for e in tape['swaps'] if e['block']>row['block']]
             self._append_tape(row,end,headers[end],tape)
         self.acquisition=dict(observed_at=self.now(),head_block=top,through_block=end,
-            advanced_candidates=len(active),maximum_lag_blocks=max(top-self.history.get(r['id'])['block'] for r in rows))
+            retained_candidates=population,scheduled_candidates=len(rows),advanced_candidates=len(valid),
+            reorg_recoveries=reorgs,
+            maximum_lag_blocks=max(top-self.history.get(r['id'])['block'] for r in rows))
 
     def fresh_state(self,candidate):
         self._provider();self.current=self.history.get(candidate)
-        header=_latest_header(self.rpc);block=int(header['number'],16)
+        from .pons_quotes import pinned_block,quote_deadline
+        acquired=time.monotonic()
+        with quote_deadline(self.rpc,acquired):header=_latest_header(self.rpc)
+        block=int(header['number'],16)
         if block-self.current['block']>40:raise BoundaryError('survivor_monitoring_not_caught_up')
         pool=self.current['graduation']['transition']['market'];manager=load('uniswap_v4_manager')['address'].lower()
         slot=keccak256(bytes.fromhex(pool[2:])+(6).to_bytes(32,'big'))
         data='0x'+keccak256(b'extsload(bytes32)').hex()[:8]+slot.hex()
-        raw=self.rpc.call('eth_call',[dict(to=manager,data=data),hex(block)],scope='pons_survivor')
+        with quote_deadline(self.rpc,acquired):
+            raw=self.rpc.call('eth_call',[dict(to=manager,data=data),pinned_block(self.rpc,'eth_call',header)],scope='pons_survivor')
+        if time.monotonic()-acquired>5:raise BoundaryError('survivor_stale_state')
         value=words(raw)
         if len(value)!=1:raise BoundaryError('survivor_v4_state_shape')
         sqrt=scalar('uint256',value[0])&((1<<160)-1)
         key=PoolKey(**self.current['graduation']['key'])
         return dict(block=block,block_hash=header['hash'],at=int(header['timestamp'],16),
-                    price_index=price_index(sqrt,candidate,key),acquired=time.monotonic())
+                    price_index=price_index(sqrt,candidate,key),acquired=acquired)
 
     def fresh_quotes(self,state,budget):return Quotes(self,state,budget)
 
     def reconstruct(self,state,quotes):
         row=self.current;self._increment(row,state['block'])
+        self.history.finish_recovery(row['id'],block=state['block'],block_hash=state['block_hash'])
         self.history.append(row['id'],through=state['at'],events=[],points=[(state['at'],str(state['price_index']))],complete=True)
         points,events=self.history.facts(row['id'],state['at']);now=state['at']
         record=row['graduation']['record'];creators={str(record[k]).lower() for k in ('deployer','creatorFeeRecipient') if record.get(k)}
@@ -222,22 +350,29 @@ class Runtime:
                 buy_quote_by_group=dict(groups),largest_buyer_flow_bps=0 if not total else max(groups.values())*10000//total,
                 creator_sell_quote=sum(e['quote'] for e in events if lower<=e['at']<upper and not e['buy'] and e['group'] in creators))
         sizing=self.sleeve.sizing_basis(500,minimum_bps=5)
-        cap=min(quotes.budget,sizing['allocatable_target'],flow['turnover']//POLICY['execution']['min_turnover_multiple'])
+        # Available cash is tested only after the durable decision. Identical
+        # market evidence is qualified against the same realized-equity target.
+        cap=min(sizing['target'],flow['turnover']//POLICY['execution']['min_turnover_multiple'])
         capacity=resize(cap,sizing["minimum"],quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
         self.facts=dict(now=now,graduation_at=row['graduation']['at'],lineage_proven=True,native_quote=True,
+            evidence_acquired_monotonic=state['acquired'],
             price_points=[dict(at=p['at'],price_index=int(p['price'])) for p in points],
             flow_30m=window(now-1800,now+1),flow_previous_30m=window(now-3600,now-1800),
-            capital_quote=self.capital,continuity_complete=self.history.get(row['id'])['complete'],
+            capital_quote=sizing['realized_equity'],continuity_complete=self.history.get(row['id'])['complete'],
             execution=dict(roundtrip_loss_bps=capacity.ordinary_loss_bps,
                 double_size_roundtrip_loss_bps=capacity.double_loss_bps,capacity=capacity.telemetry()),
             organic_flow=flow)
         return self.facts
 
     def qualify(self,facts):
+        acquired=facts.get('evidence_acquired_monotonic')
+        if acquired is not None and not 0<=time.monotonic()-acquired<=5:
+            raise BoundaryError('survivor_stale_qualification')
         result=evaluate_entry(facts)
         result['features'].update(independent_buyers=result['features']['independent_buyers_30m'])
         if facts.get('continuity_complete') is not True:
             result['candidate']=False;result['all_rejections'].append('incomplete_continuity')
+        if acquired is not None and time.monotonic()-acquired>5:raise BoundaryError('survivor_stale_qualification')
         return result
 
     def turnover_cap(self,facts,decision):return decision['features']['turnover_quote_30m']//POLICY['execution']['min_turnover_multiple']
@@ -254,35 +389,56 @@ class Runtime:
         return not 0<=time.monotonic()-state['acquired']<=5
 
     def validate_current(self,state,execution,now):
+        from .pons_quotes import canonical_boundary
+        canonical_boundary(self.rpc,dict(number=hex(state['block']),hash=state['block_hash']),'pons_survivor')
         if execution['block_hash']!=state['block_hash'] or not 0<=time.monotonic()-state['acquired']<=5:
             raise BoundaryError('survivor_stale_commit')
 
     @position_work
     def exit_quote(self,qty):
-        from .pons_natural_paper import _v4_quote
+        from .pons_quotes import v4_quote as _v4_quote
         from .evidence import Store
         grad=self.current['graduation'];key=PoolKey(**grad['key'])
         store=Store(str(self.root/'quote-evidence.sqlite'))
+        acquired=time.monotonic()
         try:
             q,meta,ledger=_v4_quote(self.rpc,key,grad['transition']['market'],qty,
                 grad['transition']['graduation_gas_used'],store,'survivor_exit',local_freshness=True)
             q.check(self.now(),q.market,'sell',qty,q.stamp.kind,finality_ledger=ledger)
             return dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
-                acquired=time.monotonic(),block_hash=meta['block_hash'],gas=q.gas_quote)
+                acquired=acquired,block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
         except BoundaryError:return None
         finally:store.close()
 
     def validate_exit(self,execution,qty,now):
+        from .pons_quotes import canonical_boundary
+        canonical_boundary(self.rpc,dict(number=hex(execution['block']),hash=execution['block_hash']),'pons_survivor')
         if execution['quantity']!=qty or not 0<=time.monotonic()-execution['acquired']<=5:
             raise BoundaryError('survivor_exit_quote_stale')
 
     @decision_work(1)
     def _enter(self,row):
         sizing=self.sleeve.sizing_basis(500,minimum_bps=5)
-        return commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
-            strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,decision=row['decision'],regime=row['regime'],at=self.now(),
-            target=sizing["target"],minimum=sizing["minimum"],retention_bps=5000,
-            ordinary_limit=450,stress_limit=650,adapter=self,qualify=self.qualify)
+        try:
+            result=commit(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],generation=row['generation'],
+                strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,decision=row['decision'],regime=row['regime'],at=self.now(),
+                target=sizing["target"],minimum=sizing["minimum"],retention_bps=5000,
+                ordinary_limit=450,stress_limit=650,adapter=self,qualify=self.qualify)
+        except (ValueError,BoundaryError) as exc:
+            self._failure(row,str(exc),phase='funding');raise
+        self.attempts.record(row['id'],row['generation'],'funding','OTHER_EXPLICIT_REASON',at=row['regime']['at'],
+            reason=result['status'],execution=dict(position=row['position']))
+        return result
+
+    def _failure(self,row,reason,*,phase='evidence'):
+        category=failure_category(reason,qualified=bool((row.get('decision') or {}).get('candidate')))
+        self.attempts.record(row['id'],row.get('generation',0),phase,category,
+            at=row.get('regime',{}).get('at',row.get('through',self.now())),reason=reason,
+            execution=dict(position=row.get('position')))
+        current=self.history.get(row['id'])
+        if current is not None:
+            current['last_failure']=dict(category=category,reason=reason,at=self.now())
+            self.history.save(current)
 
     @position_work
     def _position(self,row,*,admit=True):
@@ -290,6 +446,11 @@ class Runtime:
         try:p=self.book._load(row['position'])
         except ValueError:
             if not admit:raise BoundaryError('survivor_continuation_unfilled_controller')
+            # Qualified-unfunded candidates remain history work. A capital
+            # denial must not strand their block pin while they wait for cash.
+            header=_latest_header(self.rpc)
+            self._increment(row,min(int(header['number'],16),row['block']+40))
+            row=self.history.get(row['id'])
             return self._enter(row)
         if p['status'] in ('settled','cancelled'):
             self.sleeve.release(row['position'],pnl=p['realized'],at=max(self.now(),p['last_at']),
@@ -297,6 +458,9 @@ class Runtime:
             row.update(position=None,state='settled');self.history.save(row);return
         if p['status']=='reserved':
             if not admit:raise BoundaryError('survivor_continuation_reservation')
+            header=_latest_header(self.rpc)
+            self._increment(row,min(int(header['number'],16),row['block']+40))
+            row=self.history.get(row['id'])
             return self._enter(row)
         q=self.exit_quote(p['tokens']);net=None if q is None else q['net_proceeds']
         events=[];flow=None;header=None
@@ -324,18 +488,25 @@ class Runtime:
 
     @decision_work(4)
     def step(self,*,admit):
-        discovery_deferred=False
+        errors=[]
         try:
             from meme_machine.runtime.storage import compact_survivor
             compact_survivor(self,'pons')
             self._provider()
-            for row in self.history.rows():
-                if row.get('position'):self._position(row,admit=admit)
+            def position_priority(row):
+                if not row.get('position'):return 2
+                try:position=self.book._load(row['position'])
+                except ValueError:return 1
+                return 0 if position['status']=='open' and position['tokens']>0 else 1
+            for row in sorted(self.history.rows(),key=position_priority):
+                if row.get('position'):
+                    try:self._position(row,admit=admit)
+                    except (ValueError,BoundaryError) as exc:
+                        errors.append(str(exc));self._failure(row,str(exc),phase='position')
             if admit:
-                # A bounded full hot set must still age/evaluate/retire. Repeating
-                # discovery's capacity exception before that work deadlocks it.
-                discovery_deferred=len(self.history.rows())>=self.history.maximum_candidates
-                if not discovery_deferred:self.discover()
+                # Discovery never depends on population or allocatable capital.
+                try:self.discover()
+                except (ValueError,BoundaryError) as exc:errors.append(str(exc))
             rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
                 for expired in list(rows):
@@ -343,10 +514,11 @@ class Runtime:
                         self.history.retire(expired,expired_before=self.now()-POLICY['universe']['max_seconds_after_graduation']);rows.remove(expired)
                 if rows:
                     top=int(_latest_header(self.rpc)['number'],16)
-                    self._increment_candidates(rows,top)
+                    try:self._increment_candidates(rows,top)
+                    except (ValueError,BoundaryError) as exc:errors.append(str(exc))
                     rows=[self.history.get(r['id']) for r in rows]
             if admit and rows:
-                row=rows[0];row['last_checked']=self.now();self.history.save(row)
+                row=self.history.qualification_turn(rows,self.now())
                 age=self.now()-row['graduation']['at']
                 if age>POLICY['universe']['max_seconds_after_graduation']:self.history.retire(row,expired_before=self.now()-POLICY['universe']['max_seconds_after_graduation'])
                 else:
@@ -363,25 +535,39 @@ class Runtime:
                         self.plane.observe(key,'pons',state['block_hash'],decision,ordering=(state['block'],),
                             watermark=dict(block=state['block'],hash=state['block_hash']),interpretation=dict(policy=POLICY_HASH),
                             observed=time.time(),deadline=None,priority=4,needs_work=False)
+                        self.attempts.record(row['id'],row.get('qualification_attempt',0),'qualification',
+                            decision_category(decision),at=state['at'],decision=decision)
                         observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
                             state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
                         self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
                             status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
+                        # Qualification is durable before any funding attempt,
+                        # including before the position-limit execution block.
+                        self.history.save(row)
                         if decision['candidate'] and sum(bool(r.get('position')) for r in self.history.rows())<POLICY['execution']['max_open_positions']:
                             from meme_machine.runtime.lifecycle_identity import issue
                             row['position']=issue(self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime]))
                             row['state']='reserved';self.history.save(row);self._enter(row)
                             row=self.history.get(row['id']);row['state']='filled'
+                        elif decision['candidate']:
+                            self.attempts.record(row['id'],row['generation'],'funding','OTHER_EXPLICIT_REASON',
+                                at=state['at'],reason='survivor_open_position_limit')
                         self.history.save(row)
-            self.last_error=None
-        except (ValueError,BoundaryError) as exc:self.last_error=str(exc)
+            self.last_error=errors[0] if errors else None
+        except (ValueError,BoundaryError) as exc:
+            self.last_error=str(exc)
+            if 'row' in locals() and row and row.get('id'):
+                self._failure(row,str(exc))
         from meme_machine.runtime.directional_accounting import execution_cost
+        self.attempts.maintain(self.now(),protected=(r['id'] for r in self.history.rows()))
         return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
                     native_execution_cost=execution_cost(self.book),
                     candidate_count=len(self.history.rows()),last_boundary=self.last_error,
-                    discovery_capacity_deferred=discovery_deferred,
+                    discovery_capacity_deferred=False,
+                    pending_graduations=self.history.pending_graduations(),
+                    deferred_boundaries=errors,
                     acquisition=getattr(self,'acquisition',None),
                     accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
                     policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
