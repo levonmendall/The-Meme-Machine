@@ -3,8 +3,8 @@
   "files": [
     {
       "path": "engineering/solana_capacity/REPORT.md",
-      "bytes": 23451,
-      "sha256": "baa0589545de16e5e3304e0b064dd5a6688b4340cfe921b3fca4be24a6b42224"
+      "bytes": 24441,
+      "sha256": "b29cfc5fde34de7361f1500e8fea576cf514e1115a502d3adf00bfc22680bc8b"
     },
     {
       "path": "engineering/solana_capacity/__init__.py",
@@ -132,6 +132,11 @@
       "sha256": "8f53131d35c62f1b4204ad862b498f2144f666ae467437b95d9fb79157e4434f"
     },
     {
+      "path": "engineering/solana_capacity/files_changed.json",
+      "bytes": null,
+      "sha256": null
+    },
+    {
       "path": "engineering/solana_capacity/phase0.json",
       "bytes": 2483,
       "sha256": "d218ef31f7ee242196f7f4d98761e6ca135ca342aaa89cc7acdc417cc624fabc"
@@ -153,8 +158,8 @@
     },
     {
       "path": "engineering/solana_capacity/source_identities.json",
-      "bytes": 5356,
-      "sha256": "08542c40a2f65c55f714aacac522c8f5eef4941f69e09c2a3240b3e58b1798f4"
+      "bytes": 5496,
+      "sha256": "ca9acaa10f22001ad2de6962d796b751d1bd766f4b675c13781f4a219e47d622"
     },
     {
       "path": "engineering/solana_capacity/transport_meter.py",
@@ -163,8 +168,13 @@
     },
     {
       "path": "engineering/solana_capacity/validation.json",
-      "bytes": 4527,
-      "sha256": "69445e92e23fac52e5187064419105f0e7cbf4acf33c168222d07a3e47698a39"
+      "bytes": 18651,
+      "sha256": "920f4daa79c28f33bf4b2723c4a8d6c9f8a2b54592a9bc88ccaa87ad600a7438"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/affected-operational.log",
+      "bytes": 1876,
+      "sha256": "cb0f112d2a999725af96855aebc17b297e83d992145732156c0fc201e7d91b70"
     },
     {
       "path": "engineering/solana_capacity/validation/fast.log",
@@ -175,6 +185,26 @@
       "path": "engineering/solana_capacity/validation/focused.log",
       "bytes": 21905,
       "sha256": "f4f3a8b0937fd9773edf3dfcd27b82bc2a1551ba77102af2a9fe8469afeed23e"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/github-37616525528-attempt1.log",
+      "bytes": 49802,
+      "sha256": "69abbc0637c3c36a361a549bfdfca5307567c6f58b548bb655e28b6c129daa14"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/github-37616530525-attempt1.log",
+      "bytes": 56664,
+      "sha256": "ebc53466232063e4c921cc7b2be08a76fb652ffab6442534b7f5570f1f7c06d4"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/github-37616530525-attempt2.log",
+      "bytes": 51112,
+      "sha256": "e34e82a406aceb8cc10ed6c6efd57099f44ce33fb4dcd2c17159315d0a52680b"
+    },
+    {
+      "path": "engineering/solana_capacity/validation/maintenance-backup.log",
+      "bytes": 8004,
+      "sha256": "f628314d324745944b58044d94d59ac176b557c8695d65d371f99de1bd948ccd"
     },
     {
       "path": "engineering/solana_capacity/validation/operational-boundary.log",

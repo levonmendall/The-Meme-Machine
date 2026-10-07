@@ -57,5 +57,7 @@
       "final": "bf9a15c635eac39ae1b43dfd79cc872cdaa57af44ab2a3d269994a8715602ed5"
     }
   },
-  "source_limitations": "Four files changed after the last live capture: three Meteora observation scheduling files to preserve protected native AST, guard absent fixture adapters and avoid a fixture timestamp lookup; the meter uses the reverified 10 CU getAccountInfo price. Final source is validated offline. No simultaneous post-correction live certification is claimed."
+  "source_limitations": "Four files changed after the last live capture: three Meteora observation scheduling files to preserve protected native AST, guard absent fixture adapters and avoid a fixture timestamp lookup; the meter uses the reverified 10 CU getAccountInfo price. Final source is validated offline. No simultaneous post-correction live certification is claimed.",
+  "implementation_commit": "eb24401e622da28dfd5f46243cbf146edc7ba1ee",
+  "implementation_tree": "07ba1083d5ef72fa72e31ea974abc44c10b61c4b"
 }

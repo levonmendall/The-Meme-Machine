@@ -253,3 +253,7 @@ Strategy/economic policy hashes are unchanged: Pump `89d2e6ac286e82f3d645feecc4d
 PAPER remained inactive. CAPACITY had its pre-existing failed, stopped state; RECOVERY and AUTONOMY remained inactive. No protected service was started, no deployment or merge occurred, and existing durable portfolio state was not opened by the certification. Disposable measurement SQLite and credentials remain outside Git; authenticated provider captures contain neither. [publication_check.json](publication_check.json) records the credential check.
 
 ALCHEMY_SOLANA_NOT_READY
+
+Final validation: focused 107 PASS; FAST 617 PASS; affected OPERATIONAL 724 PASS over 88 modules; native continuity/source-pressure boundary checks 6 PASS; maintenance/backup rerun 41 PASS. Full OPERATIONAL (2031 tests) had one transient maintenance fixture timeout; the prior full attempt had the corrected absent-adapter error and an IPC timeout. Those attempts are retained in validation.json and are not relabeled as passes. GitHub push run 37616525528 and PR run 37616530525 attempt 2 match the accepted 9 FAIL / 2 ERROR identities exactly: NEW FAILURE IDENTITIES 0, MISSING/CHANGED BASELINE IDENTITIES 0. The PR first attempt also had a sync-f timeout; that original result remains recorded.
+
+Final implementation commit: `eb24401e622da28dfd5f46243cbf146edc7ba1ee`; implementation tree: `07ba1083d5ef72fa72e31ea974abc44c10b61c4b`. Later commits record validation only. Final PR head/tree are published in the PR description and final response, avoiding a self-referential tree hash.
