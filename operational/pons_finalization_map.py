@@ -33,12 +33,12 @@ FILES=dict(
 CURRENT=[
     ('discovery','All-address CurveBuy/CurveSell public log ranges; sequencer supplies only block clock.',
      ['cohort.run','cohort._start_observation','cohort._poll','cohort._discovery_curve_events','feed.SequencerBlockClock.wait_for_range_after']),
-    ('candidate_retention','Independent curve identity and fenced generation; cash does not gate observation.',
-     ['broker.Broker.enqueue','broker.Broker.pop','plane.Plane.observe','plane.Plane.claim','plane.Plane.recover']),
+    ('candidate_retention','Independent curve identity and fenced generation; durable quiet-market watch preserves original observation and real-event ordering through projection retirement. Fair fresh-head probes alternate with raw nominations; cash does not gate observation.',
+     ['broker.Broker.enqueue','broker.Broker._remember_watch','broker.Broker._sync_watch_order','broker.Broker.reactivate_one','broker.Broker.pop','plane.Plane.observe','plane.Plane.claim','plane.Plane.recover']),
     ('market_observation','Public nominations never supply authoritative strategy fields.',
      ['cohort._current_curve_events','window.canonical_window']),
     ('evidence_acquisition','Canonical chain 4663, exact compiled CREATE2 identity, receipt/header and current ABI state.',
-     ['acquisition.evaluate_candidate','natural._authenticate_candidate','protocol.authenticate_curve','acquisition._trajectory','acquisition._authenticate_window']),
+     ['acquisition.evaluate_candidate','acquisition.refreshed_current_candidate','natural._authenticate_candidate','protocol.authenticate_curve','acquisition._trajectory','acquisition._authenticate_window']),
     ('qualification','Frozen progress/age/trajectory/demand/concentration/creator/cost vector; realized-equity target.',
      ['current.qualification_vector','current.trajectory_metrics','current.demand_metrics','current.entry_size','current.roundtrip_loss_bps']),
     ('durable_decision','Full normalized evidence and qualification commit before any funding disposition.',
@@ -64,7 +64,7 @@ CURRENT=[
     ('exit_settlement','Authenticated executable exit or durable pending intent; exact realized P&L and native verification before release.',
      ['paper._delayed_exit','paper._complete_pending_v4_exit','ledger.SelectivePaper.advance','ledger.SelectivePaper.accounting','capital.CohortCapital.settle']),
     ('restart','Native reconciliation precedes discovery; original evidence/clock/controller/reservation retained; stale quotes reacquired.',
-     ['recovery.LifecycleState.restore','recovery.resume_lifecycle','recovery.submit_existing_lifecycles','broker.save_cohort_checkpoint','current_history.CurrentHistory.get'])]
+     ['recovery.LifecycleState.restore','recovery.resume_lifecycle','recovery.submit_existing_lifecycles','broker.Broker.release_orphan_entry_guards','broker.save_cohort_checkpoint','current_history.CurrentHistory.get'])]
 
 SURVIVOR=[
     ('discovery','Canonical Pons V2 factory PoolGraduated; independent seven-day bootstrap and hashed cursor.',
@@ -103,9 +103,9 @@ EVIDENCE=[
      'Hash bodies reusable only after fresh numeric canonical membership; compiled identity has verified non-proxy CREATE2 provenance.',
      ['natural._authenticate_candidate','protocol.authenticate_curve','acquisition.SelectiveEvidenceContext.batch']),
     ('freshness',['stale_state_after_evidence'],
-     'Original first observation -> complete evidence <=5s monotonic; chain timestamp lag separately reported; never reset by retries/restart.',
+     'Each observation -> complete evidence <=5s monotonic; chain timestamp lag separately reported. Redelivery/restart never renews old evidence. A timer creates a separately bound fresh canonical head observation while retaining original nominee/time; every mutable fact and complete window is reacquired at that head.',
      'All calls retain original evidence_deadline; fresh numeric membership and current quote.',
-     'No latest-state cache or reused old observation clock.', ['acquisition.evaluate_candidate','current.qualification_vector']),
+     'No latest-state cache or reused old observation clock.', ['acquisition.evaluate_candidate','acquisition.refreshed_current_candidate','current.qualification_vector']),
     ('price_progress_launch_trajectory',['curve_progress','token_age','trajectory_history','curve_velocity','curve_deceleration','graduation_eta'],
      'Current real quote/threshold; launch zero-to-positive boundary; exact <=asof 15s/30s snapshots; age90..900s, progress45..88%, velocity>=200bps, ETA15..120s.',
      'Pinned eth_call realQuoteReserve; canonical eth_getBlockByNumber search.',
@@ -139,7 +139,7 @@ BOUNDS=[
     ('A','Current/Suv entry and reentry quality, executable cost/impact, maxSurvivor positions2 and add ceilings','Economic/exposure rules; position limit applies after durable qualification.','unchanged'),
     ('B','Current window900s, Survivor exactlast24h+originalanchor+olderboundary; flowlast1h','Only facts outside future qualification windows are folded; proof prefix retained. Dense100001-price regression keeps whole vector identical.','repaired'),
     ('B','Immutable4096headers/launches/static,8192receipts/sharedRPC, plane diagnostic512rolling events and4096debug rows','Cache/debug eviction cannot evict candidate identity or decide strategy. Miss reacquires canonical fact. Hash bodies survive fork-alias invalidation.','separated'),
-    ('B','Candidate-plane24h maintenance; Pons attempt audit7d maintenance','Pending/claim/outbox/native-position and Survivor controllers protect live identities; only explicit past horizon audit rows fold.','protected'),
+    ('B','Candidate-plane24h maintenance; Pons attempt audit7d maintenance','Pending/claim/outbox/native-position and Survivor controllers protect live work. Independent Current watch restores an aged projection with original nominee/time/generation and latest real ordering; only authoritative strategy horizon can stop its probes. Audit rows fold only outside the stated protection/horizon.','protected'),
     ('C','Survivor64candidate work batch,40blocks/turn,onegraduation authentication/turn,onequalification/turn','Durable attempt sequence rotates before provider work; bounded catch-up may be slow, never a count rejection.','repaired'),
     ('C','Current expensive worker and native lifecycle concurrency; sessions rotate at180requests','Cheap identity persists; position work has higher provider priority. Actual deadline throughput remains unproven.','retained'),
     ('D','10-block log pages,4V4log calls/physical batch,50RPC members,256candidate provider queue,0.5s admission interval','Transport shapes; priorityzero position admission cannot be refused because candidate queue is full. Requests/candidates defer under pressure.','repaired'),
@@ -148,6 +148,7 @@ BOUNDS=[
     ('E','Survivor64population discovery stop/32graduationburst cap and lowest-block starvation','No population stop; raw intake+cursor atomic, all nominees retained; failed batches rotate and another reorged candidate cannot skip valid candidates.','repaired'),
     ('E','Current campaign20000 attempt cap and65s blocking startup warmup','Campaign cap removed; complete canonical demand replaces warmup; restored positions serviced before observation startup. Bounded research modes remain isolated.','repaired'),
     ('E','Survivor qualification using allocatable cash; discovery suspended bycash; original unfilled-controller history lag','Fixed qualification target is realized equity; qualification durable first; unfunded controllers continue bounded history.','repaired'),
+    ('E','Current retry depended on another public buy; stale service estimate could prevent all later work','Durable quiet-market watch; fresh canonical head/state/census/receipt; fair alternating probe/nomination turns; one bounded probe can remeasure provider recovery under the original new five-second deadline. In-flight native entry and unconsumed decision stay protected.','repaired'),
     ('E','Non-atomic history block pin and cached canonical-number aliases acrossforks','Observations+checkpoint atomic; numeric canonical membership revalidated, invalid aliases cleared; old observations cannot authorize fresh qualification/add.','repaired'),
     ('E','Survivor fixed quote ladder omitting exact turnover/funding sizes; quote completion restarting freshness','Exact requested and double-size probes are bought on demand; cached quote access retains the original state clock. Current/Survivor V4 reads batch state/cost with a fresh numeric membership boundary.','repaired')]
 

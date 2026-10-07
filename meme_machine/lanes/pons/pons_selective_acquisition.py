@@ -6,7 +6,7 @@ Robinhood/Pons transport, ABI, protocol-authentication and evidence primitives.
 from __future__ import annotations
 
 from collections import Counter, OrderedDict
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import time
 import json
 import os
@@ -940,12 +940,84 @@ def strategy_trajectory_preflight(candidate,snapshots,launch_at):
     )
 
 
+def refreshed_current_candidate(ctx,event,report,**kwargs):
+    """Authenticate the nominee, but acquire mutable facts at a fresh head.
+
+    A receipt/log is an immutable locator. Timer rechecks never relabel that
+    event as new, nor reuse its old price/window as current qualification.
+    """
+    from types import SimpleNamespace
+    from .abi import topic
+    from .pons_current_window import canonical_window
+    # The original public nominee is a locator, including when it was orphaned
+    # or incorrect. It cannot veto a fresh canonical observation of this curve.
+    ctx.pin=None
+    header=ctx.call('eth_getBlockByNumber',['latest',False],'pons_selective_current_recheck')
+    try:
+        block=int(header['number'],16);at=int(header['timestamp'],16)
+        if block<0 or at<0 or not header['hash']:raise ValueError()
+    except (KeyError,ValueError,TypeError):raise BoundaryError('pons_current_recheck_head_identity') from None
+    if at>int(time.time()):raise BoundaryError('future_current_head')
+    ctx.pin=(block,header['hash']);ctx.membership_verified=False
+    # Invalidate old numeric aliases before searching the current window. This
+    # also proves membership of the new head without renewing the probe clock.
+    ctx.batch([('eth_getBlockByNumber',[hex(block),False])],'pons_natural')
+    identity=(ctx.cache.immutable_curve(event['address'],block)
+        if hasattr(ctx.cache,'immutable_curve') else None)
+    if identity:
+        launch=ctx.cache.launch(event['address'])
+        if launch is None:
+            launch=_one_word(ctx.call('eth_call',[dict(to=event['address'],data=calldata('launchedAt()')),
+                hex(block)],'pons_selective_current_recheck'))
+            if not 0<=launch<=at:raise BoundaryError('invalid_curve_launch_time')
+            ctx.cache.remember_launch(event['address'],launch)
+        if at>launch+ENTRY_THRESHOLDS['max_token_age_seconds']:
+            if time.monotonic()-float(kwargs['evidence_observed_monotonic'])>ENTRY_THRESHOLDS['max_state_age_seconds']:
+                raise BoundaryError('stale_evidence_acquisition')
+            report['authenticated_rejection']=dict(boundary='strategy_horizon_expired',
+                curve=event['address'].lower(),launch_at=launch,asof=at,
+                block=block,block_hash=header['hash'],identity=identity,authentication_complete=True)
+            raise BoundaryError('strategy_horizon_expired')
+    raw=canonical_window(ctx,dict(curve=event['address'],block=block,header=header,
+        stamp=SimpleNamespace(event_at=at)))
+    buys=[e for e in raw if e['topics'][0].lower()==topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')]
+    if not buys:raise BoundaryError('pons_current_recheck_no_recent_canonical_buy')
+    nominee=buys[-1]
+    ctx.receipt_pins.update({e['transactionHash']:e['blockHash'] for e in raw})
+    class CurrentReads:
+        def __getattr__(self,name):return getattr(ctx,name)
+        def batch(self,calls,scope):
+            bound=[(m,[*p[:-1],header['number']] if m in ('eth_call','eth_getCode') else p) for m,p in calls]
+            return ctx.batch(bound,scope)
+        def remember_compiled_identity(self,curve,token,code,nomination_block,nomination_header,auth):
+            return ctx.remember_compiled_identity(curve,token,code,block,header,auth)
+    try:candidate=_authenticate_candidate(CurrentReads(),nominee,report,**kwargs)
+    except BoundaryError:
+        rejection=report.get('authenticated_rejection')
+        if rejection is not None:
+            rejection.update(nomination_block=int(nominee['blockNumber'],16),
+                block=block,block_hash=header['hash'])
+        raise
+    candidate.update(original_nomination=event,nomination_block=int(nominee['blockNumber'],16),
+        nomination_header=candidate['header'],block=block,header=header,_canonical_window_raw=raw,
+        stamp=replace(candidate['stamp'],block=block,block_hash=header['hash'],event_at=int(header['timestamp'],16)),
+        state=replace(candidate['state'],timestamp=int(header['timestamp'],16),launched_at=int(header['timestamp'],16)))
+    candidate['chain_timestamp_lag_seconds']=float(kwargs['evidence_observed_at'])-int(header['timestamp'],16)
+    # The primitive's batch records name the nominee block. Make the mutable
+    # read authority explicit rather than attributing current state to that log.
+    for read in report.get('reads',[]):read['mutable_state_block']=block
+    report['current_recheck']=dict(original_nomination_block=int(event['blockNumber'],16),
+        nomination_block=int(nominee['blockNumber'],16),mutable_state_block=block,
+        mutable_state_hash=header['hash'],authority='fresh_canonical_current_state')
+    return candidate
+
+
 @decision_work(4)
 def evaluate_candidate(
     endpoint,event,tape,*,strategy_capital_quote,wallet_histories=None,
     creator_history=None,quote_relative_strength_bps=None,
     evidence_observed_at=None,evidence_observed_monotonic=None,
-    evidence_context=None,on_stage=None,
+    evidence_context=None,on_stage=None,canonical_refresh=False,
 ):
     """Freeze one outcome-blind qualification vector from Pons-only evidence."""
     sessions=[]
@@ -970,7 +1042,8 @@ def evaluate_candidate(
     auth_started=time.monotonic()
     report=dict(reads=[],timing=ctx.timing)
     try:
-        candidate=_authenticate_candidate(
+        authenticate=refreshed_current_candidate if canonical_refresh else _authenticate_candidate
+        candidate=authenticate(
             ctx,event,report,
             evidence_observed_at=evidence_observed_at,
             evidence_observed_monotonic=evidence_observed_monotonic,
@@ -980,6 +1053,8 @@ def evaluate_candidate(
         ctx.boundary_evidence=report.get('authenticated_rejection')
         raise
     ctx.timing["header_receipt_quote_authentication_seconds"]=time.monotonic()-auth_started
+    if canonical_refresh:event=candidate['source_event']
+    window_nominees=candidate.pop('_canonical_window_raw',None)
     candidate["report"]=report
     ctx.remember_candidate(candidate)
     sessions.append(rpc.telemetry())
@@ -1119,7 +1194,8 @@ def evaluate_candidate(
         on_stage('admitted');on_stage('evidence_requested')
     window_started=time.monotonic()
     from .pons_current_window import canonical_window
-    covered=canonical_window(ctx,candidate,seconds=60)
+    covered=window_nominees
+    if covered is None:covered=canonical_window(ctx,candidate,seconds=60)
     ctx.receipt_pins.update({e['transactionHash']:e['blockHash'] for e in covered})
     market,market_sessions=_authenticate_window(
         endpoint,candidate,covered,seconds=60,evidence_context=ctx
@@ -1204,6 +1280,9 @@ def public_evaluation(row):
         source_transaction=row["source_transaction"],
         source_block=row["source_block"],
         source_log_index=row["source_log_index"],
+        canonical_refresh='original_nomination' in candidate,
+        nomination_block=candidate.get('nomination_block',row['source_block']),
+        original_nomination=candidate.get('original_nomination'),
         market_events=row["market_events"],
         trajectory_snapshots=row["trajectory_snapshots"],
         launch_at=row["launch_at"],vector=row["vector"],

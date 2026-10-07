@@ -62,6 +62,9 @@ class ContinuousCampaignTests(unittest.TestCase):
         self.assertEqual(queue.telemetry()['max_depth'],1)
 
     def test_discovery_failure_drains_admitted_future_and_initializes_one_book(self):
+        self._campaign_probe()
+
+    def _campaign_probe(self,blocked=False):
         from meme_machine.lanes.pons import BoundaryError
         future=Future();clock_reads=[0]
         class State:
@@ -89,6 +92,8 @@ class ContinuousCampaignTests(unittest.TestCase):
             polls[0]+=1
             if polls[0]==1:return rpc,2,[event]
             if polls[0]==2:return rpc,2,[]
+            if blocked and polls[0]==3:return rpc,3,[dict(event,blockNumber='0x2',blockHash='block2',transactionHash='transaction2')]
+            if blocked and polls[0]==4:return rpc,3,[]
             future.set_result(dict(status='settled',final_position=dict(status='settled',entry_tokens=2),
                 reconciliation=dict(open_exposure=0)))
             raise BoundaryError('injected_discovery_failure')
@@ -113,6 +118,20 @@ class ContinuousCampaignTests(unittest.TestCase):
             self.assertEqual(len((root/'completed-lifecycles.jsonl').read_text().splitlines()),1)
             self.assertTrue(result['cohort_accounting']['conservation'])
             self.assertEqual(result['cohort_accounting']['genesis'],cohort.STRATEGY_CAPITAL_QUOTE)
+            if blocked:
+                from meme_machine.runtime.robinhood.plane import Plane
+                from meme_machine.lanes.pons.pons_attempts import Attempts
+                plane=Plane(result['candidate_plane_path'])
+                try:
+                    rows=Attempts(plane).rows()
+                    qualification=[r for r in rows if r['phase']=='qualification']
+                    funding=[r for r in rows if r['phase']=='funding']
+                    self.assertEqual([r['category'] for r in qualification],['QUALIFIED','QUALIFIED'])
+                    self.assertEqual([(r['category'],r['reason']) for r in funding],
+                        [('OTHER_EXPLICIT_REASON','same_curve_lifecycle_active')])
+                    self.assertTrue(result['rows'][-1]['vector']['current_threshold_pass'])
+                    self.assertEqual(result['rows'][-1]['authorization_rejection'],'same_curve_lifecycle_active')
+                finally:plane.close()
 
     def test_terminal_boundary_retains_original_ledger_identity(self):
         life=dict(index=1,status='boundary',boundary='provider_shared_admission_deadline',

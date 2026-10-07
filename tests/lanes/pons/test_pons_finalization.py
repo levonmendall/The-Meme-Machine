@@ -160,6 +160,98 @@ class RetentionTests(unittest.TestCase):
             broker.close()
 
 
+class QuietCurrentTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.path=Path(self.tmp.name)/'plane.sqlite';self.now=100.
+        self.broker=Broker(self.path,CURRENT_HASH,clock=lambda:self.now,source=ENDPOINT)
+        self.addCleanup(lambda:self.broker.close())
+
+    def reopen(self):
+        self.broker.close();self.broker=Broker(self.path,CURRENT_HASH,clock=lambda:self.now,source=ENDPOINT)
+
+    def test_provider_failure_restarts_and_rechecks_without_a_new_buy_or_renewed_source_clock(self):
+        raw=observation(1);self.broker.enqueue(raw);work=self.broker.pop()
+        self.broker.failure(work,'provider_http_429');self.reopen();self.now=106.
+        self.assertFalse(self.broker.enqueue(raw))
+        self.assertEqual(self.broker.plane.get(work['key'])['deadline'],105.)
+        # A failed service estimate cannot become permanent eligibility authority.
+        self.broker.plane.db.execute('INSERT INTO service VALUES(?,?,?,?,?)',('pons',10.,0,0,self.now))
+        fresh=self.broker.pop();self.assertTrue(fresh['canonical_refresh'])
+        self.assertEqual((fresh['queued_at'],fresh['deadline']),(106.,111.))
+        self.assertEqual(fresh['event'],raw)
+        self.assertEqual(json.loads(fresh['work']['desired'])['first_observed_at'],100.)
+        self.assertEqual(fresh['work']['ordering'],work['work']['ordering'])
+        self.assertEqual(fresh['work']['latest_id'],work['work']['latest_id'])
+        self.assertEqual(fresh['work']['generation'],work['work']['generation']+1)
+        self.assertIsNone(fresh['work']['result'])
+
+    def test_every_quiet_identity_gets_a_turn_under_continuous_new_buy_pressure(self):
+        for n in range(1,POPULATION+1):self.broker.enqueue(observation(n))
+        self.now=106.;self.assertIsNone(self.broker.plane.claim(lane='pons',estimate_seconds=10.))
+        seen=set();turns=0
+        while len(seen)<POPULATION and turns<2*POPULATION+1:
+            self.broker.enqueue(dict(observation(20000+turns,block=int(self.now)),address=address(20000)))
+            work=self.broker.pop();self.assertIsNotNone(work)
+            if work['canonical_refresh'] and int(work['event']['address'],16)<=POPULATION:
+                seen.add(int(work['event']['address'],16))
+            self.broker.failure(work,'provider_http_429');self.now+=.5;turns+=1
+        self.assertEqual(seen,set(range(1,POPULATION+1)))
+        self.assertLessEqual(turns,2*POPULATION)
+        self.assertEqual(self.broker.plane.db.execute('SELECT COUNT(*) FROM pons_current_watch WHERE candidate LIKE ?',
+            ('%'+address(1024),)).fetchone()[0],1)
+
+    def test_restart_repairs_observation_watch_gap_and_retirement_keeps_the_nominee(self):
+        raw=observation(1);self.broker.enqueue(raw)
+        # Representative death between durable observe and watch projection.
+        self.broker.plane.db.execute('DELETE FROM pons_current_watch');self.reopen()
+        work=self.broker.pop();self.broker.failure(work,'provider_transport_failure')
+        self.broker.enqueue(observation(1,101),needs_work=False)
+        last=self.broker.plane.get(work['key'])
+        self.now=100.+86401;self.broker.plane.maintain()
+        self.assertIsNone(self.broker.plane.get(work['key']))
+        self.reopen();fresh=self.broker.pop()
+        self.assertTrue(fresh['canonical_refresh']);self.assertEqual(fresh['event'],raw)
+        self.assertEqual(json.loads(fresh['work']['desired'])['first_observed_at'],100.)
+        self.assertGreater(fresh['work']['generation'],work['work']['generation'])
+        self.assertGreater(fresh['work']['generation'],last['generation'])
+        self.assertEqual(fresh['work']['ordering'],last['ordering'])
+        self.assertEqual(fresh['work']['latest_id'],last['latest_id'])
+
+    def test_unconsumed_decision_and_pending_native_confirmation_are_not_superseded_by_timer(self):
+        self.broker.enqueue(observation(1));work=self.broker.pop()
+        self.assertTrue(self.broker.finish(work,dict(candidate={},vector=vector()),.1))
+        self.now=106.;self.assertIsNone(self.broker.pop())
+        self.assertEqual(self.broker.plane.get(work['key'])['generation'],work['work']['generation'])
+        self.now=100.;self.assertTrue(self.broker.plane.decision(work['key'],work['work']['generation'],'entry_confirmation'))
+        self.broker.acknowledge(work);self.now=106.;self.assertIsNone(self.broker.pop())
+        self.broker.release_entry_guard(address(1));fresh=self.broker.pop()
+        self.assertTrue(fresh['canonical_refresh']);self.assertGreaterEqual(fresh['work']['priority'],2)
+
+    def test_real_new_buy_supersedes_timer_and_old_timer_completion_has_no_authority(self):
+        self.broker.enqueue(observation(1));work=self.broker.pop();self.broker.failure(work,'provider_http_429')
+        self.now=106.;timer=self.broker.pop()
+        self.assertTrue(self.broker.enqueue(observation(1,107)))
+        self.assertFalse(self.broker.plane.current(timer['work']))
+        self.assertFalse(self.broker.finish(timer,dict(candidate={},vector=vector()),.1))
+        fresh=self.broker.pop();self.assertFalse(fresh['canonical_refresh'])
+        self.assertEqual(fresh['event'],observation(1,107))
+
+    def test_restart_orphan_confirmation_releases_only_without_native_ownership(self):
+        for n in (1,2,3):
+            self.broker.enqueue(observation(n));work=self.broker.pop()
+            self.assertTrue(self.broker.finish(work,dict(candidate={},vector=vector()),.1))
+            self.assertTrue(self.broker.plane.decision(work['key'],work['work']['generation'],'entry_confirmation'))
+            self.broker.acknowledge(work)
+        key=self.broker.identity(observation(3))
+        self.broker.plane.checkpoint('native_position:pons:owned',dict(candidate=key,position=dict(status='reserved')))
+        self.reopen();self.now=106.;self.broker.release_orphan_entry_guards([address(2)])
+        self.assertEqual(self.broker.plane.get(self.broker.identity(observation(2)))['state'],'entry_confirmation')
+        self.assertEqual(self.broker.plane.get(key)['state'],'entry_confirmation')
+        fresh=self.broker.pop();self.assertTrue(fresh['canonical_refresh'])
+        self.assertEqual(fresh['event']['address'],address(1))
+
+
 class SurvivorSchedulingTests(RuntimeCase):
     def seed(self):
         for n in range(1,POPULATION+1):
@@ -475,6 +567,140 @@ class PinnedQuoteTests(unittest.TestCase):
         self.assertEqual(failure_category('survivor_exit_quote_stale'),'DEADLINE_MISSED')
 
 
+class CurrentRecheckEvidenceTests(unittest.TestCase):
+    def setUp(self):
+        from meme_machine.lanes.pons import CHAIN_ID
+        from meme_machine.lanes.pons.abi import calldata
+        from meme_machine.lanes.pons import pons_selective_acquisition as acquisition
+        from tests.lanes.pons.test_pons_selective_continuation import events,CREATOR
+        self.acquisition=acquisition;self.head=197;self.records=[];self.fork=False
+        self.raw=[]
+        trades=events()+[dict(side='buy',group=address(25),quote=10**15,tokens=10**20,event_at=197)]
+        for index,event in enumerate(trades):
+            self.raw.append(dict(observation(index+1,event['event_at']),address=address(1),
+                topics=[topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)'),
+                    '0x'+event['group'][2:].zfill(64),'0x'+event['group'][2:].zfill(64)],
+                data='0x'+''.join(f'{n:064x}' for n in [event['quote'],event['tokens'],0,0])))
+        test=self
+        class RPC:
+            used=0;counts=Counter();per_scope=200
+            def telemetry(self):return dict(used=self.used)
+            def batch(self,calls,scope):
+                self.used+=len(calls);self.counts[scope]+=len(calls)
+                return [self.call(m,p,scope) for m,p in calls]
+            def call(self,m,p,scope):
+                test.records.append((m,p,scope))
+                if m=='eth_chainId':return hex(CHAIN_ID)
+                if m=='eth_gasPrice':return '0x1'
+                if m=='eth_getBlockByNumber':
+                    n=test.head if p[0]=='latest' else int(p[0],16)
+                    return dict(block_header(n),hash='fork') if test.fork and p[0]!='latest' and n==test.head else block_header(n)
+                if m=='eth_getBlockByHash':return block_header(int(p[0],16))
+                if m=='eth_getLogs':
+                    q=p[0];return [r for r in reversed(test.raw) if int(q['fromBlock'],16)<=int(r['blockNumber'],16)<=int(q['toBlock'],16)]
+                if m=='eth_getTransactionReceipt':
+                    r=next(r for r in test.raw if r['transactionHash']==p[0])
+                    return dict(transactionHash=r['transactionHash'],blockHash=r['blockHash'],
+                        transactionIndex=r['transactionIndex'],gasUsed=hex(100000),status='0x1',logs=[r])
+                if m in ('eth_call','eth_getCode'):
+                    test.assertEqual(p[-1],hex(test.head),'every mutable fact must be at the actual current head')
+                    if m=='eth_getCode':return '0x6000'
+                    data=p[0]['data'];values={calldata('token()'):int(address(2),16),
+                        calldata('realQuoteReserve()'):8*10**17,calldata('reservedTokens()'):100*10**24,
+                        calldata('graduated()'):0,calldata('launchedAt()'):110}
+                    if data==calldata('getReserves()'):return '0x'+f'{2*10**18:064x}'+f'{800*10**24:064x}'
+                    if data.startswith(calldata('getLaunchedToken(address)',address(2))[:10]):return '0xdead'
+                    if data.startswith(calldata('currentSnipeTaxBps(address)',address(2))[:10]):return '0x'+64*'0'
+                    return '0x'+f'{values[data]:064x}'
+                raise AssertionError(m)
+        self.context=acquisition.SelectiveEvidenceContext(ENDPOINT);self.context.rpc=RPC()
+        self.context.cache.remember_launch(address(1),110)
+        module='meme_machine.lanes.pons.pons_natural_observation.'
+        self.enterContext(patch(module+'authenticate_curve',return_value=dict(runtime_sha256='proved_runtime',
+            immutables=dict(feeBps=100,creatorTaxBps=50))))
+        self.enterContext(patch(module+'factory_record',return_value=dict(token=address(2),curve=address(1),
+            pairToken=ZERO,deployer=CREATOR,creatorFeeRecipient=CREATOR,graduationThreshold=10**18,exists=True)))
+        self.enterContext(patch.object(acquisition.time,'time',return_value=202.))
+        self.enterContext(patch.object(acquisition.time,'monotonic',return_value=100.))
+
+    def evaluate(self,event=None,refresh=True):
+        from tests.lanes.pons.test_pons_selective_continuation import snapshots
+        with patch.object(self.acquisition,'_trajectory',return_value=(snapshots(),110,{})):
+            return self.acquisition.evaluate_candidate(ENDPOINT,event or self.raw[-1],[],
+                strategy_capital_quote=10**18,evidence_context=self.context,canonical_refresh=refresh,
+                evidence_observed_at=202.,evidence_observed_monotonic=100.)
+
+    def test_age_gate_reopens_without_new_trade_using_real_receipt_decoder_and_current_state(self):
+        with tempfile.TemporaryDirectory() as td:
+            now=[197.];broker=Broker(Path(td)/'plane.sqlite',CURRENT_HASH,clock=lambda:now[0],source=ENDPOINT)
+            try:
+                broker.enqueue(self.raw[-1]);work=broker.pop();early=self.evaluate(refresh=False)
+                self.assertEqual(early['vector']['all_rejections'],['token_age'])
+                self.assertEqual(early['vector']['token_age_seconds'],87)
+                self.assertTrue(broker.finish(work,early,.1));broker.acknowledge(work)
+                now[0]=202.;self.head=200;self.records.clear()
+                fresh=broker.pop();self.assertTrue(fresh['canonical_refresh'])
+                row=self.evaluate(fresh['event'],fresh['canonical_refresh'])
+                self.assertTrue(row['vector']['complete']);self.assertTrue(row['vector']['current_threshold_pass'],row['vector']['all_rejections'])
+                self.assertEqual(row['vector']['token_age_seconds'],90)
+                self.assertEqual(row['candidate']['nomination_block'],197)
+                self.assertEqual(row['candidate']['receipt']['blockHash'],block_header(197)['hash'])
+                self.assertEqual(row['candidate']['stamp'].block,200)
+                self.assertEqual(row['candidate']['stamp'].event_at,200)
+                self.assertEqual(row['candidate']['state'].timestamp,200)
+                self.assertEqual(row['candidate']['original_nomination'],self.raw[-1])
+                self.assertEqual(len(row['market_events']),len(self.raw))
+                self.assertTrue(all(e['event_at']<=200 for e in row['market_events']))
+                ranges=[p[0] for m,p,s in self.records if m=='eth_getLogs']
+                self.assertEqual({n for q in ranges for n in range(int(q['fromBlock'],16),int(q['toBlock'],16)+1)},set(range(140,201)))
+                self.assertEqual(sum(int(q['toBlock'],16)-int(q['fromBlock'],16)+1 for q in ranges),61,
+                    'the complete range is acquired once and reused for authentication')
+                public=self.acquisition.public_evaluation(row)
+                self.assertTrue(public['canonical_refresh']);self.assertEqual(public['nomination_block'],197)
+            finally:broker.close()
+
+    def test_orphan_or_false_old_nominee_cannot_override_new_canonical_membership(self):
+        self.head=200
+        raw=dict(self.raw[-1],blockNumber=hex(3000),blockHash='orphan')
+        self.context.cache.remember_receipt(raw['transactionHash'],'orphan',
+            dict(transactionHash=raw['transactionHash'],blockHash='orphan'))
+        row=self.evaluate(raw)
+        self.assertTrue(row['vector']['current_threshold_pass'],row['vector']['all_rejections'])
+        self.assertEqual(row['candidate']['original_nomination'],raw)
+        self.assertEqual(row['source_transaction'],self.raw[-1]['transactionHash'])
+        self.assertEqual(row['candidate']['receipt']['blockHash'],block_header(197)['hash'])
+
+    def test_fork_and_missing_buy_fail_closed_without_economic_rejection(self):
+        self.head=203
+        with self.assertRaisesRegex(BoundaryError,'future_current_head'):self.evaluate()
+        self.head=200;self.fork=True
+        with self.assertRaisesRegex(BoundaryError,'canonical_membership_disagreement'):self.evaluate()
+        self.fork=False;event=self.raw[-1];self.raw=[]
+        with self.assertRaisesRegex(BoundaryError,'no_recent_canonical_buy'):self.evaluate(event)
+        self.assertEqual(failure_category('pons_current_recheck_no_recent_canonical_buy'),'INCOMPLETE_EVIDENCE')
+
+    def test_only_authenticated_chain_age_expires_watch_without_affecting_survivor(self):
+        from meme_machine.runtime.robinhood.pons import durable_cache
+        with tempfile.TemporaryDirectory() as td:
+            now=[197.];path=Path(td)/'plane.sqlite';broker=Broker(path,CURRENT_HASH,clock=lambda:now[0],source=ENDPOINT)
+            history=PonsHistory(Path(td)/'history.sqlite',policy=SURVIVOR_HASH)
+            try:
+                history.graduate(address(1),graduation(1));broker.enqueue(self.raw[-1]);work=broker.pop()
+                broker.failure(work,'provider_http_429');now[0]=202.;timer=broker.pop()
+                cache=durable_cache(broker.plane,'recheck_authority');self.context.cache=cache
+                cache.remember_compiled(address(1),address(2),'0x6000',197,block_header(197),dict(runtime_sha256='proved_runtime'))
+                cache.remember_launch(address(1),110);self.head=1011
+                with patch.object(self.acquisition.time,'time',return_value=1013.),self.assertRaisesRegex(BoundaryError,'strategy_horizon_expired'):
+                    self.evaluate(timer['event'])
+                proof=self.context.boundary_evidence
+                self.assertEqual((proof['launch_at'],proof['asof']),(110,1011))
+                broker.failure(timer,'strategy_horizon_expired',evidence=proof)
+                self.assertEqual(broker.plane.db.execute('SELECT COUNT(*) FROM pons_current_watch').fetchone()[0],0)
+                broker.close();broker=Broker(path,CURRENT_HASH,clock=lambda:now[0],source=ENDPOINT)
+                self.assertIsNone(broker.pop());self.assertIsNotNone(history.get(address(1)))
+            finally:broker.close();history.close()
+
+
 class WindowContext:
     def __init__(self,events):self.cache=ImmutableEvidenceCache();self.events=events;self.calls=[];self.windows=[]
     def header(self,n):return block_header(n)
@@ -564,6 +790,10 @@ class CanonicalWindowTests(unittest.TestCase):
 
 
 class DispositionTests(unittest.TestCase):
+    def test_current_active_position_blocks_execution_after_durable_qualification_with_explicit_reason(self):
+        from tests.lanes.pons.test_pons_continuous_campaign import ContinuousCampaignTests
+        ContinuousCampaignTests()._campaign_probe(blocked=True)
+
     def test_operational_failures_are_explicit_and_do_not_become_strategy_rejections(self):
         examples={'provider_http_429':'PROVIDER_UNAVAILABLE','provider_shared_queue_capacity':'PROVIDER_UNAVAILABLE',
             'selective_window_event_capacity':'INCOMPLETE_EVIDENCE','survivor_history_reorg':'INCOMPLETE_EVIDENCE',

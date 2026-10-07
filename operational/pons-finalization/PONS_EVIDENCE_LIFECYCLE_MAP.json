@@ -27,7 +27,7 @@
     {
       "bound": "Candidate-plane24h maintenance; Pons attempt audit7d maintenance",
       "category": "B",
-      "classification": "Pending/claim/outbox/native-position and Survivor controllers protect live identities; only explicit past horizon audit rows fold.",
+      "classification": "Pending/claim/outbox/native-position and Survivor controllers protect live work. Independent Current watch restores an aged projection with original nominee/time/generation and latest real ordering; only authoritative strategy horizon can stop its probes. Audit rows fold only outside the stated protection/horizon.",
       "status": "protected"
     },
     {
@@ -79,6 +79,12 @@
       "status": "repaired"
     },
     {
+      "bound": "Current retry depended on another public buy; stale service estimate could prevent all later work",
+      "category": "E",
+      "classification": "Durable quiet-market watch; fresh canonical head/state/census/receipt; fair alternating probe/nomination turns; one bounded probe can remeasure provider recovery under the original new five-second deadline. In-flight native entry and unconsumed decision stay protected.",
+      "status": "repaired"
+    },
+    {
       "bound": "Non-atomic history block pin and cached canonical-number aliases acrossforks",
       "category": "E",
       "classification": "Observations+checkpoint atomic; numeric canonical membership revalidated, invalid aliases cleared; old observations cannot authorize fresh qualification/add.",
@@ -124,16 +130,31 @@
       "stage": "discovery"
     },
     {
-      "authority": "Independent curve identity and fenced generation; cash does not gate observation.",
+      "authority": "Independent curve identity and fenced generation; durable quiet-market watch preserves original observation and real-event ordering through projection retirement. Fair fresh-head probes alternate with raw nominations; cash does not gate observation.",
       "refs": [
         {
           "file": "meme_machine/runtime/robinhood/pons.py",
-          "line": 38,
+          "line": 89,
           "symbol": "Broker.enqueue"
         },
         {
           "file": "meme_machine/runtime/robinhood/pons.py",
-          "line": 71,
+          "line": 67,
+          "symbol": "Broker._remember_watch"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 80,
+          "symbol": "Broker._sync_watch_order"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 129,
+          "symbol": "Broker.reactivate_one"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 197,
           "symbol": "Broker.pop"
         },
         {
@@ -175,8 +196,13 @@
       "refs": [
         {
           "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
-          "line": 944,
+          "line": 1016,
           "symbol": "evaluate_candidate"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 943,
+          "symbol": "refreshed_current_candidate"
         },
         {
           "file": "meme_machine/lanes/pons/pons_natural_observation.py",
@@ -237,7 +263,7 @@
       "refs": [
         {
           "file": "meme_machine/runtime/robinhood/pons.py",
-          "line": 91,
+          "line": 230,
           "symbol": "Broker.finish"
         },
         {
@@ -252,7 +278,7 @@
         },
         {
           "file": "meme_machine/runtime/robinhood/pons.py",
-          "line": 98,
+          "line": 246,
           "symbol": "Broker.committed"
         }
       ],
@@ -558,7 +584,12 @@
         },
         {
           "file": "meme_machine/runtime/robinhood/pons.py",
-          "line": 215,
+          "line": 184,
+          "symbol": "Broker.release_orphan_entry_guards"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 375,
           "symbol": "save_cohort_checkpoint"
         },
         {
@@ -604,8 +635,13 @@
       "refs": [
         {
           "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
-          "line": 944,
+          "line": 1016,
           "symbol": "evaluate_candidate"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 943,
+          "symbol": "refreshed_current_candidate"
         },
         {
           "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
@@ -617,7 +653,7 @@
         "stale_state_after_evidence"
       ],
       "reuse_failure": "No latest-state cache or reused old observation clock.",
-      "window_authority": "Original first observation -> complete evidence <=5s monotonic; chain timestamp lag separately reported; never reset by retries/restart."
+      "window_authority": "Each observation -> complete evidence <=5s monotonic; chain timestamp lag separately reported. Redelivery/restart never renews old evidence. A timer creates a separately bound fresh canonical head observation while retaining original nominee/time; every mutable fact and complete window is reacquired at that head."
     },
     {
       "field": "price_progress_launch_trajectory",
@@ -815,7 +851,7 @@
         },
         {
           "file": "meme_machine/runtime/robinhood/pons.py",
-          "line": 134,
+          "line": 294,
           "symbol": "durable_cache"
         }
       ],
@@ -995,7 +1031,7 @@
     "meme_machine/lanes/pons/continuation_robinhood_sample.py": "b6553e7ef8b1b831a170f932b6d9cda36164f419c4d920e6d0987a8314203be2",
     "meme_machine/lanes/pons/immutable_rpc.py": "96b92abb0566f7c4125c56fd24620ec728aa52f0f482558c40f7c9b1b5e52285",
     "meme_machine/lanes/pons/pons.py": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233",
-    "meme_machine/lanes/pons/pons_attempts.py": "439feb9dcfdb41d81a302e5eae15a446b966eed7e39b42c2c0cea20f5c15175a",
+    "meme_machine/lanes/pons/pons_attempts.py": "a00eba385cb6382b99b7f52fadea23b869d0819dc86608382cbc2b1e51154515",
     "meme_machine/lanes/pons/pons_breakout_sample.py": "03784e532e65d8648c24a9508a8c2a0ed418f885ef1f560f6b97fdf86eb3bf2d",
     "meme_machine/lanes/pons/pons_current_history.py": "f5f91bfdc457873a6f12a2318a83b7ebc1216e477b41859ce7a9404a2bb0f459",
     "meme_machine/lanes/pons/pons_current_window.py": "faade32e556f044c23a3244108089e808ea768d5ef83f8785edc08676b942de2",
@@ -1005,9 +1041,9 @@
     "meme_machine/lanes/pons/pons_postgrad_survivor.py": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
     "meme_machine/lanes/pons/pons_quotes.py": "00ef6b5e02c2c5406d0de6ad71abd281c9f7ed889a94e6c8c50a7753fc5d85fe",
     "meme_machine/lanes/pons/pons_relative_sample.py": "9b7ea137b1739bb199015dc7482f1ae3ae8ffb2b653f5db34ff54a57ed5022d9",
-    "meme_machine/lanes/pons/pons_selective_acquisition.py": "ad5b052eb272eb5ec38e15280dd132050d1d0c39c9fcb5c0f47e968fc334448f",
+    "meme_machine/lanes/pons/pons_selective_acquisition.py": "9671df69f7e61ec60c223cce888f1c843b194527b6e5d7c3c3572823fd459f13",
     "meme_machine/lanes/pons/pons_selective_capital.py": "cad8273a5f48482f18130fc5b3e0333edfa69bdcd58d3cdee659cc8a5059f609",
-    "meme_machine/lanes/pons/pons_selective_cohort.py": "e4605781be19a1b1e7c83b6842f19e5daffad57c857e61f2b16884e5a25cbdcc",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "759ea6ae59fb3c3329ff45975cb3d13399c3e6ec118a4556c9590a259142ea10",
     "meme_machine/lanes/pons/pons_selective_continuation.py": "aec2863ebb5b89c0bfeb923ddffbb68e6bc992d2c477205b6df482c4459bb183",
     "meme_machine/lanes/pons/pons_selective_ledger.py": "b9305ccef3d996ae078629656de97f8c3c63db3fb58f5f3777a6ff2cb77d67e1",
     "meme_machine/lanes/pons/pons_selective_paper.py": "87bbfca33537e5bde9646e2a32621750f161371610920d1136315886048594a1",
@@ -1022,7 +1058,7 @@
     "meme_machine/runtime/directional_sleeve.py": "356507894be2ee943f57866d6a55fa5075f54191c32210022f98ea9ac9234836",
     "meme_machine/runtime/execution_capacity.py": "6a0f25cd252d5cc45cf9d59d897bba574a45d47ec6365d147b3d08e0e1a7fc15",
     "meme_machine/runtime/robinhood/plane.py": "df941b0695ba40a4414636d5d16733da98077c79be2465d9e8865205c932f597",
-    "meme_machine/runtime/robinhood/pons.py": "a856c02b883382dfde681f53bd5b556f37e606013609a237689c73e48027732c",
+    "meme_machine/runtime/robinhood/pons.py": "49f03fdea9e1b935a67eae57afa2380e38b50d6e4c25106605cbb1caf801ed97",
     "meme_machine/runtime/robinhood/provider_authority.py": "1c5ae9f6dbdf23332abfca321ec02f266f455b565a42f81031419d479f919877",
     "meme_machine/runtime/sleeve_reservations.py": "39cc74c98d8706c6753cc92fb4abe967817d75deee0616edfb9658a3d97da3db",
     "meme_machine/runtime/survivor_commit.py": "eefde5d2210fc9a8cf894a583ffb385ed13dbe9ee4ce6ecaff9f6d589c156b22",

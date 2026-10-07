@@ -404,6 +404,64 @@ def _start_observation(endpoint,feed,*,saved=None,maintenance=None):
             _stop_sleep(POLL_SECONDS)
 
 
+def _prime_current_nominations(rpc,cursor,queue,result,*,maintenance=None,checkpoint=None):
+    """Cold-start only the existing demand window, before expensive work.
+
+    Every possible Current qualifier needs recent positive buying. Older quiet
+    curves need another buy to qualify; continuous discovery then nominates it.
+    Public headers/logs locate work, never supply a strategy field. Timestamp
+    search is logarithmic and each log slice stays within the proved provider
+    range. Cursor commits follow complete cheap retention of each slice.
+    """
+    if checkpoint is None:checkpoint=lambda value:None
+    def call(method,params):
+        if maintenance is not None:maintenance('pons_cold_start_observation')
+        return rpc.call(method,params,scope='pons_current_discovery_start')
+    cold=result.get('cold_start_nomination_scan')
+    if cold is None:
+        head=call('eth_getBlockByNumber',['latest',False])
+        try:
+            end=int(head['number'],16);at=int(head['timestamp'],16)
+            if end<0 or at<0 or not head['hash']:raise ValueError()
+        except (TypeError,ValueError,KeyError):raise BoundaryError('pons_current_discovery_head_identity') from None
+        lower=max(0,at-60);headers={end:head}
+        def header(n):
+            if n not in headers:headers[n]=call('eth_getBlockByNumber',[hex(n),False])
+            value=headers[n]
+            if (not isinstance(value,dict) or value.get('number')!=hex(n)
+                    or not value.get('hash') or not 0<=int(value['timestamp'],16)<=at):
+                raise BoundaryError('pons_current_discovery_header_identity')
+            return value
+        low=0;high=end
+        while low<high:
+            mid=(low+high)//2
+            if int(header(mid)['timestamp'],16)<lower:low=mid+1
+            else:high=mid
+        first=low
+        if int(header(first)['timestamp'],16)<lower or first and int(header(first-1)['timestamp'],16)>=lower:
+            raise BoundaryError('pons_current_discovery_boundary_incomplete')
+        cold=dict(from_block=first,through_block=end,through_hash=head['hash'],from_time=lower,
+            through_time=at,window_seconds=60,authority='discovery_nomination_only',complete=False)
+        result['cold_start_nomination_scan']=cold;cursor=first-1
+        checkpoint(cursor)
+    if cold['complete']:return rpc,cursor
+    if not cold['from_block']-1<=cursor<=cold['through_block']:
+        raise BoundaryError('pons_current_discovery_recovery_watermark')
+    while cursor<cold['through_block']:
+        if maintenance is not None:maintenance('pons_cold_start_observation')
+        end=min(cold['through_block'],cursor+DISCOVERY_BATCH_RANGES*DISCOVERY_RANGE_BLOCKS)
+        rows=_discovery_curve_events(rpc,cursor+1,end)
+        observed=time.time()
+        for event in rows:
+            buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
+                'CurveBuy(address,address,uint256,uint256,uint256,uint256)'))
+            queue.enqueue(event,now=observed,needs_work=buy,canonical_refresh=buy)
+        cursor=end
+        checkpoint(cursor)
+    cold['complete']=True;checkpoint(cursor)
+    return rpc,cursor
+
+
 def _discovery_curve_events(rpc,start,end):
     """One physical batch of separate, bounded, contiguous log queries."""
     if end<start:
@@ -709,7 +767,9 @@ def run(endpoint,*,campaign=False):
         for event in discovered[2]:
             is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
                 'CurveBuy(address,address,uint256,uint256,uint256,uint256)'))
-            queue.enqueue(event,now=observed,needs_work=is_buy)
+            cold=result.get('cold_start_nomination_scan') or {}
+            queue.enqueue(event,now=observed,needs_work=is_buy,canonical_refresh=is_buy and
+                int(event['blockNumber'],16)<=cold.get('through_block',-1))
         return discovered
 
     pool=None;futures=[]
@@ -738,6 +798,7 @@ def run(endpoint,*,campaign=False):
             life["index"]=qindex
             _record_completed_lifecycle(result,life)
             last_terminal_by_curve[curve]=life
+            queue.release_entry_guard(curve)
             collected_futures.add(id(future))
             active_curve_futures.pop(curve,None)
             return life
@@ -746,13 +807,14 @@ def run(endpoint,*,campaign=False):
             for qindex,curve,future in submit_existing_lifecycles(endpoint,ROOT,
                     result['qualifiers'],result['lifecycles'],pool=pool):
                 futures.append((qindex,future));active_curve_futures[curve]=(qindex,future)
+            queue.release_orphan_entry_guards(active_curve_futures)
 
         if survivor is not None:survivor.prime()
         from meme_machine.runtime.status import update
         update('MANAGING' if futures else 'DISCOVERING',reconciled=True,restored_positions=len(futures))
 
         def startup_maintenance(reason):
-            result['observation_start_boundary']=reason
+            if reason!='pons_cold_start_observation':result['observation_start_boundary']=reason
             for curve in list(active_curve_futures):collect_curve_future(curve)
             current=any(not future.done() for _,future in futures)
             survivor_pending=False
@@ -763,6 +825,10 @@ def run(endpoint,*,campaign=False):
             if current or survivor_pending:update('MANAGING',reconciled=True,observation_deferred=True)
             return current or survivor_pending
         rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)
+        cold=result.get('cold_start_nomination_scan')
+        if campaign and (saved is None or cold is not None and not cold['complete']):
+            rpc,cursor=_prime_current_nominations(rpc,cursor,queue,result,maintenance=startup_maintenance,
+                checkpoint=lambda current_cursor:save_cohort_checkpoint(result,current_cursor,'current_cold_start_nomination'))
 
         warm_started=time.monotonic()
         warm_min_deadline=warm_started+TAPE_WARM_SECONDS
@@ -832,7 +898,7 @@ def run(endpoint,*,campaign=False):
                 queue.enqueue(event,now=now,needs_work=is_buy)
                 queue.report_to(pipeline,drain=True)
                 current=queue.plane.get(queue.identity(event))
-                if is_buy and current['latest_id']==event['transactionHash']+':'+event['logIndex']:
+                if is_buy and current['latest_id']==queue.observation_id(event):
                     pipeline.record(queue.identity(event),'screened',candidate_generation=current['generation'])
                     pipeline.record(queue.identity(event),'current_state_queued',candidate_generation=current['generation'],first_observed_at=now,
                         original_deadline=now+5,sequencer_last_received_at=getattr(feed.state,'last_received_at',None))
@@ -892,6 +958,7 @@ def run(endpoint,*,campaign=False):
                     evidence_observed_at=observed_at,
                     evidence_observed_monotonic=observed_monotonic,
                     evidence_context=evidence_context,
+                    canonical_refresh=scheduled.get('canonical_refresh',False),
                     on_stage=hydration_stage)
                 continue
             if not hydration.done():continue
@@ -985,6 +1052,8 @@ def run(endpoint,*,campaign=False):
                         ):
                             authorization_rejection="reentry_regime_not_reset"
                 if authorization_rejection is not None:
+                    attempts.record(identity,scheduled['work']['generation'],'funding','OTHER_EXPLICIT_REASON',
+                        at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),reason=authorization_rejection)
                     public["live_authorization"]="rejected"
                     public["authorization_rejection"]=authorization_rejection
                 elif evaluation["vector"].get("current_threshold_pass"):
@@ -1036,7 +1105,7 @@ def run(endpoint,*,campaign=False):
                     last_authorized_vector[curve]=evaluation["vector"]
             except BoundaryError as exc:
                 screen=authenticated_early_rejection(str(exc),getattr(evidence_context,'boundary_evidence',None))
-                queue.failure(scheduled,str(exc),screen=screen)
+                queue.failure(scheduled,str(exc),screen=screen,evidence=getattr(evidence_context,'boundary_evidence',None))
                 attempts.record(identity,scheduled['work']['generation'],'evidence',
                     ('STRUCTURAL_INELIGIBLE' if screen.get('causal_bucket')=='valid_early_structural_rejection'
                         else 'STRATEGY_REJECT') if screen and screen.get('authenticated_evidence') else failure_category(str(exc)),
