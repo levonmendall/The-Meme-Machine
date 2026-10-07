@@ -122,6 +122,14 @@
       "skipped": 0,
       "tests": 813
     },
+    "verified-candidate-boundary": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "8ad19da1526826579bbb6a2624deb0911de533198ae736d0ce6c21bb5dbc538e",
+      "seconds": 2.946,
+      "skipped": 0,
+      "tests": 101
+    },
     "verified-health-boundary": {
       "errors": [],
       "failures": [],
@@ -138,5 +146,6 @@
       "skipped": 1,
       "tests": 163
     }
-  }
+  },
+  "validation_order_note": "Final 813-test FAST was followed by 67 health-boundary tests and 101 candidate-boundary tests for the last shared-process and live queue telemetry changes; no additional full FAST repetition."
 }

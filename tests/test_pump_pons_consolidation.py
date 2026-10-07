@@ -64,6 +64,8 @@ class ConsolidationTests(unittest.TestCase):
             h.lifecycle.refresh();h.lifecycle.flush();h.rolling.resume_boundaries();h.rolling.resume_publication()
             jobs=h.plan();live=plan_live(state)
             self.assertIsNotNone(jobs);self.assertEqual(jobs[0]['family'],'pump')
+            self.assertEqual(h.telemetry()['jobs'],{'pending':100})
+            self.assertEqual(h.telemetry()['candidates'],100)
             self.assertFalse(any(r['family']=='meteora' for r in live))
             self.assertEqual(state.writer.db.execute("SELECT COUNT(*) FROM market_observations WHERE family='pump'").fetchone()[0],100)
             for t,rows in before.items():
@@ -87,6 +89,8 @@ class ConsolidationTests(unittest.TestCase):
                     h.enqueue(lane,lane,kind='candidate',ready_at=NOW,deadline=NOW+150,estimate_seconds=1)
                 selected=[h.claim('one'),h.claim('two')]
                 self.assertEqual({r['lane'] for r in selected},{'pump','pons'})
+                self.assertEqual(h.telemetry()['work'],{'active':2})
+                self.assertEqual(h.pending(),0)
                 self.assertIsNone(h.claim('third'))
                 self.assertEqual(h.db.execute("SELECT * FROM work WHERE lane IN ('meteora','ramses') ORDER BY lane").fetchall(),sorted(paused,key=lambda r:r[1]))
                 for lane in ('meteora','ramses'):

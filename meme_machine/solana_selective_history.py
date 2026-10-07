@@ -503,9 +503,11 @@ class SelectiveHistory:
                 (day,family,transport,*values))
 
     def telemetry(self):
-        jobs=dict(self.db.execute('SELECT status,COUNT(*) FROM acquisition_jobs GROUP BY status'))
-        oldest=self.db.execute("SELECT MIN(created) FROM acquisition_jobs WHERE status='pending'").fetchone()[0]
-        return dict(candidates=self.db.execute('SELECT COUNT(*) FROM market_observations').fetchone()[0],
+        from .runtime.operating_families import active_sql
+        live=active_sql('family',solana=True)
+        jobs=dict(self.db.execute('SELECT status,COUNT(*) FROM acquisition_jobs WHERE '+live+' GROUP BY status'))
+        oldest=self.db.execute("SELECT MIN(created) FROM acquisition_jobs WHERE "+live+" AND status='pending'").fetchone()[0]
+        return dict(candidates=self.db.execute('SELECT COUNT(*) FROM market_observations WHERE '+live).fetchone()[0],
             jobs=jobs,oldest_queued_seconds=0 if oldest is None else max(0,self.clock()-oldest),
             deadline_misses=self.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='deadline_missed'").fetchone()[0],
             capacity_pressure=self.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='capacity_pressure'").fetchone()[0])

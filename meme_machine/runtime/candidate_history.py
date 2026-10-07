@@ -712,15 +712,18 @@ class CandidateHistory:
         return dict(id=str(identity),status=status,details=dict(details or {}))
 
     def pending(self,*,lane=None):
+        from .operating_families import active_sql
         if lane is None:
-            return self.db.execute("SELECT COUNT(*) FROM work WHERE status='pending'").fetchone()[0]
+            return self.db.execute("SELECT COUNT(*) FROM work WHERE "+active_sql('lane')+" AND status='pending'").fetchone()[0]
         return self.db.execute("SELECT COUNT(*) FROM work WHERE status='pending' AND lane=?",(str(lane),)).fetchone()[0]
 
     def telemetry(self,*,now=None):
+        from .operating_families import active_sql
+        live=active_sql('lane')
         now=float(self.clock() if now is None else now)
-        states=dict(self.db.execute("SELECT status,COUNT(*) FROM work GROUP BY status"))
-        oldest=self.db.execute("SELECT MIN(deadline) FROM work WHERE status='pending'").fetchone()[0]
-        queued=self.db.execute("SELECT MIN(created_at),COUNT(*) FROM work WHERE status='pending'").fetchone()
+        states=dict(self.db.execute("SELECT status,COUNT(*) FROM work WHERE "+live+" GROUP BY status"))
+        oldest=self.db.execute("SELECT MIN(deadline) FROM work WHERE "+live+" AND status='pending'").fetchone()[0]
+        queued=self.db.execute("SELECT MIN(created_at),COUNT(*) FROM work WHERE "+live+" AND status='pending'").fetchone()
         pressure=self.work_observations(kind='capacity_pressure')
         return dict(capacity_pressure=len(pressure),
                     deadline_misses=len(self.work_observations(kind='deadline_missed')),
