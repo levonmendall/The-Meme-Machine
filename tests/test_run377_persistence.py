@@ -53,6 +53,7 @@ class PersistenceWorkTests(unittest.TestCase):
    reader.close();w.close()
 
 class StopDrainTests(unittest.IsolatedAsyncioTestCase):
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_stop_drains_every_admitted_frame_before_process_close(self):
   socket=BurstSocket(frames=48);stop=asyncio.Event();original=service.ServiceState.source_batch
   def delayed(state,items):time.sleep(.08);return original(state,items)
@@ -102,6 +103,7 @@ class ProductionSocket:
   return raw.encode() if decode is False else raw
 
 class ProductionPressureTests(unittest.IsolatedAsyncioTestCase):
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_retained_dense_transaction_workload_drains_with_original_bounds(self):
   socket=ProductionSocket();stop=asyncio.Event()
   with tempfile.TemporaryDirectory() as td,patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
@@ -127,6 +129,7 @@ class ProductionPressureTests(unittest.IsolatedAsyncioTestCase):
    self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',));db.close()
 
 class StopSchedulingTests(unittest.IsolatedAsyncioTestCase):
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_subscription_exit_before_stop_waiter_still_drains_admitted_frames(self):
   class DelayedWaiter(asyncio.Event):
    async def wait(self):

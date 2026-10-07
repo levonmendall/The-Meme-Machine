@@ -246,6 +246,7 @@ class SourceIntakeTests(unittest.TestCase):
 
 
 class LiveIntakeBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_real_dispatch_never_submits_raw_unrelated_body_to_process_pool(self):
         from tests.test_run372_large_frame_runtime import LargeFrameSocket,local_server,frame as wire_frame,observe
         real_factory=concurrent.futures.ProcessPoolExecutor;submissions=[]

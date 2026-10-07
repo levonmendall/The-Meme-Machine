@@ -7,13 +7,18 @@ class TransportMeter:
         self.file=path.open('wb');self.compress=zlib.compressobj(6)
         self.active={};self.subscriptions=[];self.delivery=Counter();self.messages=Counter()
         self.duplicates=Counter();self.recent={};self.latencies=defaultdict(list)
-        self.timestamps_missing=Counter();self.events=[];self.peak_shards=0
+        self.timestamps_missing=Counter();self.events=[];self.peak_shards=0;self.control=Counter();self.producer_waits=[]
     def write(self,metadata,raw=b''):
         header=json.dumps(metadata,separators=(',',':')).encode()
         self.file.write(self.compress.compress(struct.pack('!II',len(header),len(raw))+header+raw))
     def __call__(self,kind,value):
         from meme_machine.yellowstone import geyser_pb2 as pb
-        at=time.time();sid=value['stream_id']
+        at=time.time()
+        if kind=='rolling_retry' or kind.startswith('membership_') or kind=='owner_backpressure':
+            self.control[kind]+=1
+            if kind=='owner_backpressure':self.producer_waits.append(value)
+            self.write(dict(kind=kind,at=at,**value));return
+        sid=value['stream_id']
         if kind=='subscribe':
             r=value['request'];names=('accounts','transactions','transactions_status','blocks','blocks_meta','slots')
             counts={name:len(getattr(r,name)) for name in names}
@@ -55,6 +60,7 @@ class TransportMeter:
         self.write(metadata,raw)
     def summary(self):
         return dict(delivery=[dict(transport=t,family=f,bytes=b,messages=self.messages[t,f],duplicate_bytes=self.duplicates[t,f]) for (t,f),b in self.delivery.items()],
+                    control=dict(self.control),producer_waits=self.producer_waits,
                     subscriptions=self.subscriptions,peak_native_streams=self.peak_shards,
                     provider_timestamp_missing=dict(self.timestamps_missing))
     def close(self):

@@ -235,7 +235,10 @@ class ClosureTests(unittest.TestCase):
                     async def rpc(method,params,family,priority=4):
                         if method=='getSlot':source.stop.set();return hi
                         return dict(data=copy.deepcopy(txs))
-                    source.work=work;source.measured_rpc=rpc;await source.acquire()
+                    source.work=work;source.measured_rpc=rpc
+                    from tests.test_solana_prewarm_startup import quiet_model_b
+                    boot_done=asyncio.Event();boot_done.set();await quiet_model_b(work,boot_done)
+                    await source.acquire()
                 asyncio.run(acquire());self.drain();self.restart()
                 actual=self.h.scope_for('pump',curve)
                 self.assertEqual(self.h.bind('pump',mint),actual)
@@ -281,7 +284,10 @@ class StructuralCensusTests(unittest.TestCase):
                     else:
                         self.assertNotIn('paginationKey',options);rows=[account('quiet-y',pump.PROGRAM,WSOL)]
                     return dict(context=dict(slot=101),value=dict(accounts=rows))
-                source.work=work;source.measured_rpc=rpc;await source.structural_census()
+                source.work=work;source.measured_rpc=rpc;source.canonical_path=str(h.writer.path)
+                from tests.test_solana_prewarm_startup import quiet_model_b
+                boot_done=asyncio.Event();boot_done.set();await quiet_model_b(work,boot_done)
+                await source.structural_census()
             asyncio.run(census())
             self.assertEqual(state.writer.db.execute('SELECT cursor,status FROM structural_census WHERE label=\'m\'').fetchone(),('resume-me','pending'))
             state.writer.close();state,h=state_at(Path(d)/'canonical.sqlite')

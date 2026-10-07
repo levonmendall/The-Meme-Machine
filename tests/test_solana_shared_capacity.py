@@ -238,12 +238,14 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                     return result
                 async def rpc(method,*args):return dict(data=[tx]) if method=='getTransactionsForAddress' else tx['slot']
                 source.work=work;source.measured_rpc=rpc
+                from tests.test_solana_prewarm_startup import quiet_model_b
+                boot_done=asyncio.Event();boot_done.set();await quiet_model_b(work,boot_done)
                 await source.acquire()
                 self.assertEqual(h.db.execute('SELECT status,deadline,error FROM acquisition_jobs WHERE id=?',(identity,)).fetchone(),('failed',NOW+150,'candidate_archive_decoder_unavailable'))
                 self.assertEqual(h.db.execute('SELECT state FROM candidate_lifecycle WHERE address=?',(mint,)).fetchone(),('cheap_retained',))
                 self.assertEqual(h.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE repaired IS NULL').fetchone()[0],1)
                 self.assertEqual(h.db.execute("SELECT active FROM interests WHERE owner='position'").fetchone()[0],1)
-                self.assertEqual(h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+                self.assertEqual(h.db.execute('SELECT COUNT(*) FROM candidate_coverage WHERE scope=?',(h.scope_for('pump',mint),)).fetchone()[0],0)
             finally:state.writer.close()
 
     async def test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools(self):
@@ -271,6 +273,9 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                     if updated>count:chunks.append(updated-count)
                     return result
                 source.work=work;source.measured_rpc=rpc
+                source.canonical_path=str(h.writer.path)
+                from tests.test_solana_prewarm_startup import quiet_model_b
+                boot_done=asyncio.Event();boot_done.set();await quiet_model_b(work,boot_done)
                 with self.assertRaisesRegex(RuntimeError,'injected_partial_page_crash'):await source.structural_census()
                 self.assertEqual(h.db.execute('SELECT COUNT(*) FROM structural_census').fetchone()[0],0)
                 state.writer.close();state,h=state_at(Path(d)/'c.sqlite',lambda:NOW)
@@ -345,7 +350,7 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
         async def forever(*a):await stop.wait()
         async def rpc(*a):return 100
         async def work(*a,**kw):return None
-        with patch('meme_machine.solana_selective_source.grpc.aio.secure_channel',return_value=Channel()),patch.object(source,'measured_rpc',rpc),patch.object(source,'structural_census',finite),patch.object(source,'stream',forever),patch.object(source,'acquire',forever),patch.object(source,'live_manager',forever),patch.object(source,'activity_manager',forever),patch.object(source,'cold_maintenance',forever):
+        with patch('meme_machine.solana_selective_source.grpc.aio.secure_channel',return_value=Channel()),patch.object(source,'measured_rpc',rpc),patch.object(source,'structural_census',finite),patch.object(source,'stream',forever),patch.object(source,'acquire',forever),patch.object(source,'live_manager',forever),patch.object(source,'rolling_programs',forever),patch.object(source,'activity_manager',forever),patch.object(source,'cold_maintenance',forever):
             task=asyncio.create_task(source.run(work,stop))
             await census.wait();await asyncio.sleep(.01)
             self.assertFalse(task.done())
@@ -383,11 +388,11 @@ class DurableBatchTests(unittest.TestCase):
             state,h=state_at(Path(d)/'c.sqlite',lambda:seen)
             try:
                 rows=economic_records('pump',creation['mint'],tx,endpoint_identity='a'*64,seen=seen,source='alchemy_finalized_repair')
-                h.ingest(rows);h.db.execute('UPDATE records SET body=NULL')
+                h.ingest(rows);h.db.execute('UPDATE rolling_economic_events SET body=NULL')
                 state.writer.close();state,h=state_at(Path(d)/'c.sqlite',lambda:seen+100)
                 h.ingest([replace(r,observed_at=seen+100) for r in rows])
-                self.assertEqual(h.db.execute('SELECT hash,first_seen FROM shared_history_cache ORDER BY identity').fetchall(),
-                    [(digest(r.body()),seen) for r in sorted(rows,key=lambda r:r.identity)])
+                self.assertEqual(h.db.execute('SELECT first_seen FROM rolling_economic_events ORDER BY identity').fetchall(),[(seen,)]*len(rows))
+                self.assertTrue(all(body for body, in h.db.execute('SELECT body FROM rolling_economic_events')))
                 wrong=replace(rows[0],payload=dict(rows[0].payload,event=dict(rows[0].payload['event'],wallet='wrong')))
                 with self.assertRaises(EvidenceConflict):h.ingest([wrong])
             finally:state.writer.close()
@@ -422,7 +427,7 @@ class DurableBatchTests(unittest.TestCase):
                 state.writer.close();state,h=state_at(Path(d)/'c.sqlite',lambda:seen+150)
                 h.ingest([replace(r,observed_at=seen+150) for r in rows])
                 while h.lifecycle.flush():pass
-                self.assertEqual(h.db.execute('SELECT DISTINCT first_seen FROM shared_history_cache').fetchall(),[(seen,)])
+                self.assertEqual(h.db.execute('SELECT DISTINCT first_seen FROM rolling_economic_events').fetchall(),[(seen,)])
                 with closing(CandidateHistory(h.lifecycle.path)) as history:
                     self.assertEqual(len(history.events('pump',creation['mint'])),len(rows))
                 changed=replace(rows[0],payload=dict(rows[0].payload,event=dict(rows[0].payload['event'],creator='altered')))

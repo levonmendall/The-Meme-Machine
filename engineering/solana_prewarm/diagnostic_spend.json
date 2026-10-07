@@ -1,0 +1,65 @@
+{
+  "classification": "DERIVED",
+  "pricing_source": "cost_model.json",
+  "captures": [
+    {
+      "capture": "startup-b1",
+      "seconds": 61.09006643295288,
+      "native_bytes": 47888468,
+      "WS_bytes": 109836280,
+      "RPC_CU": 11520,
+      "HTTP_bytes": 27093919,
+      "diagnostic_payload_USD": 0.021172444500000002
+    },
+    {
+      "capture": "startup-b2",
+      "seconds": 91.61979341506958,
+      "native_bytes": 10590239,
+      "WS_bytes": 144441194,
+      "RPC_CU": 70,
+      "HTTP_bytes": 210,
+      "diagnostic_payload_USD": 0.015997343295000004
+    },
+    {
+      "capture": "startup-b3",
+      "seconds": 90.09454655647278,
+      "native_bytes": 11246279,
+      "WS_bytes": 183706228,
+      "RPC_CU": 110,
+      "HTTP_bytes": 296,
+      "diagnostic_payload_USD": 0.020190374865
+    },
+    {
+      "capture": "startup-b4",
+      "seconds": 200.11070346832275,
+      "native_bytes": 25692364,
+      "WS_bytes": 177447554,
+      "RPC_CU": 19300,
+      "HTTP_bytes": 53043927,
+      "diagnostic_payload_USD": 0.03069142047
+    },
+    {
+      "capture": "startup-b5",
+      "seconds": 95.79943752288818,
+      "native_bytes": 22516850,
+      "WS_bytes": 120683171,
+      "RPC_CU": 18300,
+      "HTTP_bytes": 44649094,
+      "diagnostic_payload_USD": 0.023967996704999998
+    },
+    {
+      "capture": "startup-b6",
+      "seconds": 139.81515669822693,
+      "native_bytes": 16829808,
+      "WS_bytes": 218595528,
+      "RPC_CU": 26740,
+      "HTTP_bytes": 66586599,
+      "diagnostic_payload_USD": 0.03825326604000001
+    }
+  ],
+  "total_seconds": 678.5297040939331,
+  "total_USD": 0.150272845875,
+  "remaining_provider_runs_in_this_closure": 0,
+  "monthly_extrapolation": false,
+  "scope": "Six MODEL B startup captures after the explicit archival decision. Earlier pivot captures are separately preserved outside this subtotal; no additional provider access authorized beyond the owner budget."
+}

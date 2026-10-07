@@ -77,9 +77,11 @@ class YellowstoneTransactionFrame(NativeFrame):
 
 class CandidateTransactionJoin:
     """One bounded transient join, never a SQLite owner or market decision maker."""
-    def __init__(self,programs,full_programs,*,clock=time.monotonic,filtered_from_slot):
+    def __init__(self,programs,full_programs,*,clock=time.monotonic,filtered_from_slot,max_join_seconds=MAX_JOIN_SECONDS):
         if type(filtered_from_slot) is not int or filtered_from_slot<=0:raise EvidenceUnavailable("candidate_replay_floor_required")
         self.programs=dict(programs);self.full=set(full_programs);self.clock=clock
+        if not 0<max_join_seconds<=120:raise EvidenceUnavailable('candidate_join_wait_bound')
+        self.max_join_seconds=max_join_seconds
         self.scope_keys={scope:based58.b58decode(address.encode()) for address,scope in programs.items()}
         self.filter_scopes={label:scope for scope,label in scope_labels(programs).items()}
         self.full_scopes={programs[a] for a in self.full}
@@ -115,7 +117,7 @@ class CandidateTransactionJoin:
 
     def feed(self,update,size,seen):
         now=self.clock()
-        if any(now-s['started']>MAX_JOIN_SECONDS for s in self.pending.values()):
+        if any(now-s['started']>self.max_join_seconds for s in self.pending.values()):
             raise EvidenceUnavailable('yellowstone_incomplete_status_census')
         kind=update.WhichOneof('update_oneof')
         if kind not in ('transaction','transaction_status','block_meta','slot'):

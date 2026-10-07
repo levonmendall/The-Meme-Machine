@@ -1,3 +1,5 @@
+Current startup decision: **MODEL A ARCHIVED / MODEL B PROVISIONAL**. This report below is preserved historical evidence. The active implementation, final validation and uncensored accounting are in [the Model B report](../solana_prewarm/REPORT.md). No legacy startup is active; no monthly production cost is certified.
+
 ALCHEMY_SOLANA_FINALIZATION: NOT_READY
 
 SIMULTANEOUS_PROVIDER_CAPACITY: FAIL

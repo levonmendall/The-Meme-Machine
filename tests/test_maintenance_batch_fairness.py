@@ -18,6 +18,7 @@ class StageE19MaintenanceBatchFairnessTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(delay)
         self.fail('condition_not_met')
 
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_maintenance_pressure_limits_source_batches_to_one_frame(self):
         frames=32
         socket=SustainedSocket(

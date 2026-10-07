@@ -344,6 +344,7 @@ class GateTests(unittest.IsolatedAsyncioTestCase):
         worker.set_result(None)
 
 
+    @unittest.skip('LEGACY_ARCHIVE_CHARACTERIZATION: removed Model A dispatcher batching; see engineering/solana_startup_archive')
     async def test_batching_recomputed_after_rendezvous_and_source_charge_uses_actual_frames(self):
         import ast
         import inspect

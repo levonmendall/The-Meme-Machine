@@ -1,7 +1,7 @@
-"""Read-only hybrid provider driver. No program-wide bodies or log subscription.
+"""Read-only rolling pre-warm driver. No broad Pump/PumpSwap body stream.
 
-Universal account scouts retain identities; candidate activity wakes a conservative
-superset. Archive pagination proves gaps. Live Pump/PumpSwap logs are joined to
+Universal account scouts retain identities; first sight installs pre-warm interests.
+Archive pagination repairs gaps. Body-free Pump/PumpSwap logs are joined to
 independent native signature/index witnesses. Only selected Meteora candidates
 receive rich native bodies. A linked finality stream is acquired once for control.
 """
@@ -25,7 +25,9 @@ from .yellowstone import geyser_pb2 as pb
 
 HOST='solana-mainnet.streaming.alchemy.com:443'
 MAX_FRAME_BYTES=16*1024*1024
-MAX_LIVE_CANDIDATES=48
+# 47 status filters + one scoped Meteora content filter + metadata + finality
+# remain within the demonstrated 50-filter limit across request maps.
+MAX_LIVE_CANDIDATES=48 # StableShards subtracts the one Meteora content filter.
 ARCHIVE_WORKERS=8
 SCOUT_COMMIT_BATCH=64
 # This integration candidate must never silently activate an unproved source.
@@ -55,6 +57,10 @@ def install(state):
         state.writer.db.executescript(STATE_SCHEMA)
         from .solana_candidate_lifecycle import CandidateLifecycle
         state.selective.lifecycle=CandidateLifecycle(state.selective)
+        from .solana_rolling_history import RollingHistory
+        state.selective.rolling=RollingHistory(state.selective)
+        from .solana_prewarm_startup import PrewarmStartup
+        state.selective.startup=PrewarmStartup(state.selective)
         state.fence.selective=state.selective
         state.fence.health('topology','candidate_hybrid_v1')
     return state.selective
@@ -114,11 +120,21 @@ def commit_control(state,frame,*,active=True):
                   slot=b.slot,signatures=[],batches=[],deliveries=[])
     with state.writer.source_frame():
         state.fence.block(Subscription('source',CONTROL,'control','census',2),block_message(frame),seen,prepared=prepared)
+        state.writer._count('stream_accepted_messages')
         state.fence._health('phase','ACTIVE' if active else 'DEGRADED');state.fence._health('heartbeat',seen)
         # Source coordinates inform bounded storage maintenance, never global
         # economic completeness. Candidate proofs live in a separate namespace.
         for scope in FAMILIES.values():
             state.fence._health('finalized_frontier:'+scope,dict(slot=b.slot,time=b.block_time.timestamp,seen=seen))
+
+def skipped_prefix(history,scope,frame):
+    """A finalized parent below the replay floor proves skipped slots only."""
+    b=frame.update.block;lo=frame.replay_from_slot
+    if not (0<lo<b.slot and b.parent_slot<lo):return
+    witness=dict(finalized=True,complete=True,scope=scope,lower_slot=lo,upper_slot=b.slot-1,
+        lineage_hash=digest([lo,b.slot,b.parent_slot,b.blockhash,b.parent_blockhash]),
+        method='native_finalized_parent_proves_no_block_in_replay_prefix',native_order=True)
+    history.lifecycle.defer_proof(IntervalProof(scope,lo,b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,frame.seen))
 
 def commit_candidates(state,frame,addresses,session,*,publish=True):
     history=install(state);b=frame.update.block;seen=frame.seen
@@ -152,7 +168,12 @@ def commit_candidates(state,frame,addresses,session,*,publish=True):
             values=(b.slot,b.parent_slot,b.blockhash,b.parent_blockhash,b.block_time.timestamp,seen,session,digest(census))
             if old and b.slot<=old[0]:
                 if b.slot==old[0] and (old[1:5],old[7])!=(values[1:5],values[7]):raise EvidenceUnavailable('candidate_replay_receipt_conflict')
+                if b.slot==old[0] and old[6]!=session:
+                    # An exact replayed boundary can join this session's child.
+                    # Preserve original receipt time and immutable economics.
+                    state.writer.db.execute('UPDATE candidate_blocks SET session=? WHERE scope=?',(session,scope))
                 continue
+            if old is None:skipped_prefix(history,scope,frame)
             if old and old[6]==session:
                 witness=dict(finalized=True,complete=True,scope=scope,lower_slot=old[0],upper_slot=b.slot-1,
                     lineage_hash=digest([scope,list(old),list(values)]),
@@ -160,6 +181,54 @@ def commit_candidates(state,frame,addresses,session,*,publish=True):
                     native_order=True,transaction_bodies_only_for_meteora=True)
                 history.lifecycle.defer_proof(IntervalProof(scope,old[0],b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,seen))
             state.writer.db.execute('INSERT OR REPLACE INTO candidate_blocks VALUES(?,?,?,?,?,?,?,?,?)',(scope,*values))
+    if publish:history.lifecycle.publish()
+
+def commit_rolling_group(state,frame,addresses,session,*,publish=True):
+    """One proved membership interval, shared by all quiet Meteora views.
+
+    This is the same native per-address status/content join as candidate work.
+    Empty pool intervals share a receipt, rather than writing one copy of the
+    identical finalized header for every quiet candidate on every block.
+    """
+    history=install(state);b=frame.update.block;seen=frame.seen
+    scope=coverage_scope('meteora','group-'+digest(sorted(addresses.items())))
+    old=history.db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
+    if old and old[6]==session and b.slot>old[0] and (old[0]!=b.parent_slot or old[2]!=b.parent_blockhash):
+        history.gap(scope,old[0],b.slot-1,'candidate_native_parent_gap')
+        raise EvidenceUnavailable('candidate_native_parent_gap')
+    bodies={signature(tx.signature):economic_transaction(tx,slot=b.slot,
+        block_time=b.block_time.timestamp,rich=True) for tx in b.transactions}
+    reverse={s:a for a,s in addresses.items()};rows={}
+    census=[]
+    with state.writer.source_frame():
+        for sig,index,scopes,error,available in frame.candidate_statuses:
+            census.append([sig,index,list(scopes),error])
+            if error is not None:continue
+            if not scopes or not set(scopes).issubset(reverse) or sig not in bodies:
+                raise EvidenceUnavailable('candidate_required_content_missing')
+            # One immutable economic packet even when several pools consume it.
+            address=reverse[scopes[0]]
+            for row in economic_records('meteora',address,bodies[sig],endpoint_identity=history.endpoint_identity,
+                    seen=available,source='alchemy_finalized_stream'):rows[row.identity]=row
+        history.ingest(rows.values())
+        if old is None:
+            # The immutable group identity includes the full address/scope set.
+            # Membership does not need 47 repeated inserts on every quiet block.
+            for address in addresses:
+                history.db.execute('INSERT OR IGNORE INTO rolling_group_members VALUES(?,?,?,?)',
+                    (scope,'meteora',address,frame.replay_from_slot or b.slot))
+        values=(b.slot,b.parent_slot,b.blockhash,b.parent_blockhash,b.block_time.timestamp,seen,session,digest(census))
+        if old and b.slot<=old[0]:
+            if b.slot==old[0] and (old[1:5],old[7])!=(values[1:5],values[7]):raise EvidenceUnavailable('candidate_replay_receipt_conflict')
+            if b.slot==old[0] and old[6]!=session:history.db.execute('UPDATE candidate_blocks SET session=? WHERE scope=?',(session,scope))
+        else:
+            if old is None:skipped_prefix(history,scope,frame)
+            if old and old[6]==session:
+                witness=dict(finalized=True,complete=True,scope=scope,lower_slot=old[0],upper_slot=b.slot-1,
+                    lineage_hash=digest([scope,list(old),list(values)]),method='scoped_native_membership_census_with_linked_child',
+                    addresses=sorted(addresses),native_order=True)
+                history.lifecycle.defer_proof(IntervalProof(scope,old[0],b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,seen))
+            history.db.execute('INSERT OR REPLACE INTO candidate_blocks VALUES(?,?,?,?,?,?,?,?,?)',(scope,*values))
     if publish:history.lifecycle.publish()
 
 def plan_live(state):
@@ -187,6 +256,16 @@ def plan_live(state):
         else:
             p,d,age,f,a,lower=desired[existing]
             desired[existing]=(p,min(d,deadline),min(age,created),f,a,min(lower,lo))
+    # Meteora's exact mechanics need instructions, transfer bindings and native
+    # order. Accumulate the minimum native economic packet from first sight,
+    # independently of promotion/capital. Quiet scopes do not fetch accounts.
+    selected={(r[3],r[4]) for r in desired}
+    for address,lo,created in db.execute("""SELECT c.address,c.first_slot,c.first_seen FROM candidate_lifecycle c
+        JOIN market_observations m ON m.family=c.family AND m.address=c.address
+        WHERE c.family='meteora' AND json_extract(m.fields,'$.wsol_pair_locator')=1"""):
+        if ('meteora',address) not in selected:
+            history.bind('meteora',address)
+            desired.append((5,created+3600,created,'meteora',address,lo))
     desired.sort()
     if len(desired)>MAX_LIVE_CANDIDATES:
         with state.writer.transaction():history._observation(None,'capacity_pressure',dict(live_requested=len(desired),live_capacity=MAX_LIVE_CANDIDATES,economic_rejection=False))
@@ -195,6 +274,25 @@ def plan_live(state):
     chosen=desired
     return [dict(family=f,address=a,scope=history.scope_for(f,a),priority=p,deadline=d,lower_slot=lo)
             for p,d,_,f,a,lo in chosen]
+
+def source_work(work,stop,observe=None):
+    """Rejected admission retains the same frame and applies backpressure."""
+    async def resumable(fn,priority=1,**options):
+        started=time.monotonic();retries=0
+        while True:
+            try:
+                result=await work(fn,priority,**options)
+                if retries and observe:observe('owner_backpressure',retries=retries,seconds=time.monotonic()-started,priority=priority)
+                return result
+            except EvidenceUnavailable as exc:
+                if str(exc) not in ('evidence_background_yield','evidence_control_overloaded') or stop.is_set():raise
+                # Overload rejects before admission; a background yield rolls
+                # back its transaction. Neither case permits dropping a frame
+                # or changing its original work/deadline.
+                retries+=1
+                await asyncio.sleep(min(.2,.01*2**min(retries-1,5)))
+    return resumable
+
 
 class SelectiveSource:
     def __init__(self,config,rpc,*,token=None):
@@ -233,7 +331,9 @@ class SelectiveSource:
         try:
             while not self.stop.is_set():
                 await self.flush_delivery()
-                await self.work(lambda s:install(s).lifecycle.publish(),2,label='source_commit')
+                def publish(s):
+                    h=install(s);h.lifecycle.publish();return h.startup.advance()
+                await self.work(publish,2,label='source_commit')
                 await asyncio.sleep(.1)
         finally:await self.flush_delivery()
 
@@ -267,7 +367,7 @@ class SelectiveSource:
             try:
                 await self.stream(channel,req,control,'shared');return
             except EvidenceUnavailable as exc:
-                if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled'):raise
+                if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled','candidate_native_resource_exhausted'):raise
                 self.control_connected=False
                 retry+=1
                 def disconnected(state):
@@ -297,8 +397,12 @@ class SelectiveSource:
         self.observe('subscribe',stream_id=stream_id,family=family,request=request)
         call=channel.stream_stream('/geyser.Geyser/Subscribe',request_serializer=lambda r:r.SerializeToString(),
             response_deserializer=lambda r:r)(metadata=(('x-token',self.token),))
-        await call.write(request);pending=None
+        pending=None
         try:
+            # Subscription establishment can fail with the same native status
+            # as a subsequent read. It must enter identical scoped retry/gap
+            # handling rather than escape as an unclassified transport error.
+            await call.write(request)
             while not self.stop.is_set() and not (local_stop and local_stop.is_set()):
                 if pending is None:pending=asyncio.create_task(call.read())
                 try:raw=await asyncio.wait_for(asyncio.shield(pending),1)
@@ -332,7 +436,7 @@ class SelectiveSource:
             try:
                 await self.stream(channel,request,handler,'discovery');return
             except EvidenceUnavailable as exc:
-                if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled'):raise
+                if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled','candidate_native_resource_exhausted'):raise
                 retry+=1
                 def record(state):
                     h=install(state)
@@ -351,17 +455,11 @@ class SelectiveSource:
         The supported service still applies require_certified before entering.
         This method neither starts a PAPER lifecycle nor grants entry authority.
         """
-        original_work=work
-        async def resumable(fn,priority=1,**options):
-            while True:
-                try:return await original_work(fn,priority,**options)
-                except EvidenceUnavailable as exc:
-                    if str(exc)!='evidence_background_yield' or stop.is_set():raise
-                    # This is a cooperative rollback, not a missing receipt or a
-                    # provider failure. Retry the same idempotent owner command.
-                    await asyncio.sleep(.01)
-        work=resumable
-        self.work=work;self.stop=stop;self.batched=True;await work(install,0)
+        work=source_work(work,stop,self.observe)
+        self.work=work;self.stop=stop;self.batched=True
+        def boot(state):
+            h=install(state);h.startup.begin();return str(state.writer.path)
+        self.canonical_path=await work(boot,0)
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
                 ('grpc.max_receive_message_length',MAX_FRAME_BYTES),('grpc.max_send_message_length',4*1024*1024),('grpc.http2.bdp_probe',0)]) as channel:
@@ -373,6 +471,7 @@ class SelectiveSource:
                    asyncio.create_task(self.scout_stream(channel,tip,scouts)),
                    asyncio.create_task(self.structural_census()),
                    asyncio.create_task(self.acquire_pool()),asyncio.create_task(self.live_manager(channel)),
+                   asyncio.create_task(self.rolling_programs(channel)),
                    asyncio.create_task(self.activity_manager(channel)),
                    asyncio.create_task(self.cold_maintenance()),
                    asyncio.create_task(self.publish_history()),
@@ -391,12 +490,18 @@ class SelectiveSource:
                             # it must not terminate discovery/positions/recovery.
                             remaining.remove(task)
                         else:raise EvidenceUnavailable('candidate_source_task_stopped')
+            except Exception as exc:
+                # The owner records a Model B defect before shutdown. There is
+                # no archived startup producer to fall back to.
+                await work(lambda s:install(s).startup.fail(type(exc).__name__),0)
+                raise
             finally:
                 for task in tasks:task.cancel()
                 await asyncio.gather(*tasks,return_exceptions=True)
 
     async def structural_census(self):
         """Exhaust both WSOL orientations. Quiet pools remain durable forever."""
+        await self.wait_startup()
         from . import pump
         from .postgrad import WSOL
         for label,offset in (('m',88),('n',120)):
@@ -489,6 +594,27 @@ class SelectiveSource:
             for task in running:task.cancel()
             await asyncio.gather(*running,return_exceptions=True)
 
+    async def rolling_programs(self,channel):
+        """Fixed body-free filters, independent of candidate count or promotion.
+
+        WS carries logs only; native status supplies identity/order, metadata and
+        linked finality seal intervals. A restart requests an explicit overlapping
+        gap, never falsely completes an unseen past.
+        """
+        from .solana_rolling_history import program_scope
+        while not self.stop.is_set():
+            def rows(state):
+                h=install(state)
+                return [dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,
+                    deadline=h.clock()+120,lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
+            desired=await self.work(rows,6)
+            try:await self.live(channel,desired,self.stop)
+            except (EvidenceUnavailable,ConnectionClosed,OSError) as exc:
+                reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
+                self.observe('rolling_retry',reason=reason)
+                await self.work(lambda state:install(state)._observation(None,'rolling_retry',dict(reason=reason,complete=False)),1)
+                await asyncio.sleep(.5)
+
     async def cold_maintenance(self):
         from .solana_scoped_retirement import ScopedRetirement
         while not self.stop.is_set():
@@ -513,18 +639,30 @@ class SelectiveSource:
                 from .lanes.pump.pump_acceleration_strategy import POLICY
                 h=install(state);db=state.writer.db
                 if not hasattr(state,'acquisition_inflight'):state.acquisition_inflight=set()
+                if not h.startup.snapshot().get('released'):return None
                 frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
                 if frontier is not None:
                     for addr,fields in db.execute('''SELECT address,fields FROM market_observations m WHERE family='pump'
                         AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)'''):
                         value=json.loads(fields);upper=value.get('development_upper_bps')
                         if value.get('complete') or upper is None or upper>=POLICY.min_curve_progress_bps:
-                            h.bind('pump',addr);h.request('pump',addr,0,frontier,priority=3,deadline=time.time()+120)
+                            h.bind('pump',addr)
+                            first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
+                            h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
                     for family,addr,lo in db.execute("SELECT family,address,lower_slot FROM candidate_lifecycle WHERE state='reactivated'").fetchall():
                         from .solana_scoped_retirement import ScopedRetirement
                         ScopedRetirement(h).restore(family,addr)
-                        h.lifecycle.promote(family,addr,deadline=time.time()+150,lower_slot=0 if family=='pump' else lo)
+                        epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
+                        first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
+                        deadline=(time.time() if first is None else first)+150
+                        if deadline<=time.time():
+                            h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))
+                            h.lifecycle.demote(family,addr,reason='original_promotion_deadline_expired');continue
+                        h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
+                    h.rolling.resume_boundaries()
+                    h.rolling.resume_publication()
                 h.lifecycle.publish()
+                h.rolling.repair_required_checkpoint_prefixes()
                 result=h.plan(excluding=tuple(state.acquisition_inflight))
                 if result:
                     state.acquisition_inflight.add(result[0]['id'])
@@ -565,7 +703,13 @@ class SelectiveSource:
                 if finalized is None or finalized<job['hi']:
                     finalized=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',job['priority'])
                 if finalized<job['hi']:await asyncio.sleep(.1);continue
-                try:await self.work(commit,job['priority'],label='source_commit')
+                # A fetched page publishes required canonical evidence. Priority
+                # four is the owner's interruptible maintenance class: using it
+                # here repeatedly rolled a 100-row Meteora page back whenever
+                # position/control work arrived. Keep the bounded page in the
+                # ordinary source FIFO; urgent work still runs before its claim.
+                # Acquisition RPC urgency and the original deadline are unchanged.
+                try:await self.work(commit,min(job['priority'],3),label='source_commit')
                 except ValueError as exc:
                     if isinstance(exc,EvidenceUnavailable):
                         if str(exc)!='candidate_page_lease_stale':raise
@@ -594,10 +738,25 @@ class SelectiveSource:
 
     async def live_manager(self,channel):
         from .solana_stable_shards import StableShards
-        planner=StableShards(MAX_LIVE_CANDIDATES);running={};retry_at={};failures={}
+        await self.wait_startup()
+        planner=StableShards(MAX_LIVE_CANDIDATES);running={};retry_at={};failures={};revision=None;groups={}
         try:
             while not self.stop.is_set():
-                desired=await self.work(plan_live,2);groups=planner.reconcile(desired)
+                # A read-only revision peek cannot mutate or fork membership.
+                # Many changes coalesce into one plan of the latest owner state.
+                requested=self.read_revision()
+                self.observe('membership_requested',revision=requested)
+                if requested!=revision:
+                    def plan(state):
+                        rows=plan_live(state)
+                        return state.writer.db.execute('SELECT revision FROM prewarm_membership_revision WHERE id=1').fetchone()[0],rows
+                    revision,desired=await self.work(plan,2)
+                    # Pump/PumpSwap candidates consume the fixed program feeds.
+                    # Only position/continuation interests need extra priority
+                    # filters; promotion never installs a historical RPC stream.
+                    desired=[r for r in desired if r['family']=='meteora' or r['priority']<=2]
+                    groups=planner.reconcile(desired);self.observe('membership_plan',revision=revision,groups=len(groups))
+                else:self.observe('membership_suppressed',revision=revision)
                 for number,(identity,local_stop,task) in list(running.items()):
                     if task.done():
                         try:task.result()
@@ -606,7 +765,7 @@ class SelectiveSource:
                             retry_at[number]=time.monotonic()+min(8,.5*2**min(failures[number]-1,4))
                             await self.work(lambda s:install(s)._observation(None,'subscription_retry',dict(shard=number,reason='candidate_websocket_transport_closed',position=groups.get(number,{}).get('position',False))),1)
                         except EvidenceUnavailable as exc:
-                            if str(exc) not in ('candidate_websocket_ack_timeout','candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled','candidate_log_buffer_pressure','yellowstone_census_buffer_bound','yellowstone_incomplete_status_census'):raise
+                            if str(exc) not in ('candidate_websocket_ack_timeout','candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled','candidate_native_resource_exhausted','candidate_log_buffer_pressure','yellowstone_census_buffer_bound','yellowstone_incomplete_status_census'):raise
                             failures[number]=failures.get(number,0)+1
                             retry_at[number]=time.monotonic()+min(8,.5*2**min(failures[number]-1,4))
                             await self.work(lambda s:install(s)._observation(None,'subscription_retry',dict(shard=number,reason=str(exc),position=groups.get(number,{}).get('position',False))),1)
@@ -619,30 +778,74 @@ class SelectiveSource:
                 for number,group in groups.items():
                     if number in running or time.monotonic()<retry_at.get(number,0):continue
                     local_stop=asyncio.Event()
+                    self.observe('membership_install',group=number,identity=group['identity'])
                     running[number]=(group['identity'],local_stop,asyncio.create_task(self.live(channel,group['rows'],local_stop)))
                 await asyncio.sleep(.25)
         finally:
             for _,local_stop,task in running.values():local_stop.set();task.cancel()
             await asyncio.gather(*(task for _,_,task in running.values()),return_exceptions=True)
 
+    def read_revision(self):
+        import sqlite3
+        from pathlib import Path
+        from contextlib import closing
+        with closing(sqlite3.connect(Path(self.canonical_path).resolve().as_uri()+'?mode=ro',uri=True)) as db:
+            return db.execute('SELECT revision FROM prewarm_membership_revision WHERE id=1').fetchone()[0]
+
+    async def wait_startup(self):
+        from .solana_prewarm_startup import candidate_release
+        while not self.stop.is_set():
+            if candidate_release(self.canonical_path):return
+            try:await asyncio.wait_for(self.stop.wait(),.1)
+            except TimeoutError:pass
+        raise asyncio.CancelledError()
+
     async def live(self,channel,desired,local_stop):
+        rolling=any(r.get('rolling') for r in desired);has_checkpoint=False
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         def replay_floor(state):
-            h=install(state);points=[r[0] for r in state.writer.db.execute(
-                'SELECT slot FROM candidate_checkpoints WHERE scope IN ('+','.join('?' for r in desired)+')',
-                [r['scope'] for r in desired])]
+            nonlocal has_checkpoint
+            h=install(state);points=[]
+            for row in desired:
+                scopes=h.rolling.scopes(row['family'],row['scope'])
+                value=state.writer.db.execute('SELECT MAX(slot) FROM candidate_checkpoints WHERE scope IN ('+
+                    ','.join('?' for _ in scopes)+')',scopes).fetchone()[0]
+                if value is not None:points.append(value)
             earliest=min(points,default=tip)
+            has_checkpoint=bool(points)
+            if rolling and points:return max(1,earliest-1)
+            if any(r.get('rolling') for r in desired) and not points:return tip+1
+            if all(r['family']=='meteora' for r in desired) and not points:
+                # First-sight accumulation starts here. The scout's old locator
+                # is not an obligation to reconstruct its entire past. Promotion
+                # and positions request exact checkpoint/lookback gaps separately.
+                return tip+1
             return max(1,min(tip-WARM_OVERLAP,earliest-WARM_OVERLAP)) if tip-earliest<REPLAY_SLOTS else max(1,tip-WARM_OVERLAP)
         floor=await self.work(replay_floor,1 if any(r['priority']<=1 for r in desired) else 3)
         addresses={r['address']:r['scope'] for r in desired}
         full={r['address'] for r in desired if r['family']=='meteora'}
-        join=CandidateTransactionJoin(addresses,full,filtered_from_slot=floor);session=uuid.uuid4().hex
+        # A fresh HTTP tip can be ahead of the finalized WS delivery frontier.
+        # Buffer the startup log prefix until both subscribed programs deliver
+        # their first real finalized slot. Coverage starts on the following
+        # slot; the partially subscribed first slot is never called complete.
+        fresh_rolling=rolling and not has_checkpoint
+        join=CandidateTransactionJoin(addresses,full,filtered_from_slot=1 if fresh_rolling else floor,max_join_seconds=120 if rolling else 10);session=uuid.uuid4().hex
+        log_frontiers={};logs_available=asyncio.Event()
+        native_announced=False
         async def commit(frame):
-            if frame:await self.work(lambda s:commit_candidates(s,frame,addresses,session,publish=not self.batched),
-                0 if any(r['priority']<=1 for r in desired) else 2,label='source_commit')
+            nonlocal native_announced
+            grouped=all(r['family']=='meteora' and r['priority']>1 for r in desired)
+            if frame:
+                def durable(state):
+                    (commit_rolling_group if grouped else commit_candidates)(state,frame,addresses,session,publish=not self.batched)
+                    if rolling and not native_announced:install(state).startup.native([r['family'] for r in desired])
+                await self.work(durable,0 if any(r['priority']<=1 for r in desired) else 2,label='source_commit')
+                if rolling:native_announced=True
         acknowledged=asyncio.Event()
         async def native(update,size,seen):
-            try:await commit(join.feed(update,size,seen))
+            try:
+                frame=join.feed(update,size,seen)
+                await commit(frame)
             except EvidenceUnavailable as exc:
                 diagnostic=dict(reason=str(exc),addresses=len(addresses),pending_slots=len(join.pending),
                     pending_bytes=join.pending_bytes,missing_logs=sum(1 for slot,item in join.pending.items()
@@ -678,6 +881,9 @@ class SelectiveSource:
                     result=value['params']['result'];row=registered.get(value['params']['subscription'])
                     if row is None:raise EvidenceUnavailable('unknown_source_subscription')
                     v=result['value']
+                    if fresh_rolling:
+                        log_frontiers.setdefault(row['family'],result['context']['slot'])
+                        if len(log_frontiers)==len({r['family'] for r in desired}):logs_available.set()
                     if v['err'] is None:await commit(join.feed_log(result['context']['slot'],v['signature'],v['logs'],None,seen))
         tasks=[];waiter=None
         if len(full)<len(desired):tasks.append(asyncio.create_task(logs()))
@@ -692,17 +898,36 @@ class SelectiveSource:
                 for task in done:task.result()
                 raise EvidenceUnavailable('candidate_websocket_ack_timeout')
             tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'replay',1)
+            if rolling and not has_checkpoint:
+                try:await asyncio.wait_for(logs_available.wait(),8)
+                except TimeoutError:raise EvidenceUnavailable('rolling_delivery_frontier_unavailable') from None
+                floor=max(log_frontiers.values())+1
+                buffered=tuple(join.early_logs.items())
+                join=CandidateTransactionJoin(addresses,full,filtered_from_slot=floor,max_join_seconds=120)
+                for (slot,sig),(content,error,seen) in buffered:join.feed_log(slot,sig,content,error,seen)
             def warm(state):
                 from .solana_scoped_retirement import ScopedRetirement
                 h=install(state);cold=ScopedRetirement(h)
+                if rolling:
+                    for row in desired:h.startup.feed_ack(row['family'],floor,max(floor,tip))
                 for row in desired:cold.restore(row['family'],row['address'])
-                state.writer.db.execute('UPDATE candidate_gaps SET hi=? WHERE hi IS NULL AND lo<=?',(tip,tip))
-                h.lifecycle.repair(desired,tip);h.lifecycle.publish()
+                # A subscription ACK supplies an upper fence for this handoff
+                # only. It cannot close another shard's outstanding disconnect.
+                scopes=tuple({row['scope'] for row in desired})
+                state.writer.db.execute('UPDATE candidate_gaps SET hi=? WHERE hi IS NULL AND lo<=? AND scope IN ('+
+                    ','.join('?' for _ in scopes)+')',(tip,tip,*scopes))
+                # The native feed will replay full Meteora deltas from floor.
+                # Before its durable publication, missing rows are convergence,
+                # not evidence of a provider/history gap. Required checkpoint
+                # prefixes are handled only once a real retained floor proves
+                # that native rolling coverage cannot supply them.
+                recovery=[r for r in desired if not r.get('rolling') and r['family']!='meteora' and r['priority']<5]
+                h.lifecycle.repair(recovery,tip);h.lifecycle.publish()
             await self.work(warm,1 if any(r['priority']<=1 for r in desired) else 3)
             # The native replay supplies independent identity/order witnesses;
             # RPC supplies only the old log content unavailable from WS ACKs.
             for row in sorted(desired,key=lambda r:r['priority']):
-                if row['family']=='meteora':continue
+                if row['family']=='meteora' or row.get('rolling') or floor>tip:continue
                 token=None
                 while True:
                     config=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',
@@ -715,6 +940,40 @@ class SelectiveSource:
                     if next_token is None:break
                     if next_token==token:raise EvidenceUnavailable('repair_pagination_stalled')
                     token=next_token
+            if rolling and has_checkpoint:
+                async def repair_logs():
+                    # Independent native identities determine the exact missing
+                    # field. This exception fetches bodies only for the recovery
+                    # prefix unavailable from a new WS, never every promotion.
+                    inflight=set()
+                    async def one(slot,sig):
+                        try:
+                            tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
+                            if not tx or tx['slot']!=slot or tx['meta']['err'] is not None:
+                                raise EvidenceUnavailable('candidate_required_content_missing')
+                            await self.work(lambda s:install(s)._observation(None,'selective_missing_field',dict(signature=sig,slot=slot,field='logMessages',reason='RECOVERY_GAP')),2)
+                            await commit(join.feed_log(slot,sig,tx['meta']['logMessages'],None,time.time()))
+                            while True:
+                                frame=join.drain()
+                                if frame is None:break
+                                await commit(frame)
+                        finally:inflight.discard((slot,sig))
+                    pending=set()
+                    try:
+                        while not self.stop.is_set() and not local_stop.is_set():
+                            for task in list(pending):
+                                if task.done():task.result();pending.remove(task)
+                            for slot,item in list(join.pending.items()):
+                                if slot>tip:continue
+                                for fact in list(item['statuses'].values()):
+                                    sig=signature(fact[0]);key=(slot,sig)
+                                    if fact[2] is None and key not in join.early_logs and key not in inflight and len(pending)<8:
+                                        inflight.add(key);pending.add(asyncio.create_task(one(slot,sig)))
+                            await asyncio.sleep(.01)
+                    finally:
+                        for task in pending:task.cancel()
+                        await asyncio.gather(*pending,return_exceptions=True)
+                tasks.append(asyncio.create_task(repair_logs()))
             tasks.append(asyncio.create_task(self.stream(channel,candidate_subscription(addresses,floor,full_addresses=full),native,'candidate_live',local_stop)))
             done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
             for task in done:task.result()
@@ -726,6 +985,6 @@ class SelectiveSource:
                 h=install(state)
                 for row in desired:
                     checkpoint=state.writer.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(row['scope'],)).fetchone()
-                    h.gap(row['scope'],row['lower_slot'] if checkpoint is None else checkpoint[0]+1,None,
+                    h.gap(row['scope'],floor if checkpoint is None else checkpoint[0]+1,None,
                         'candidate_live_disconnect_or_filter_rebuild')
             await self.work(disconnect,1 if any(r['priority']<=1 for r in desired) else 3)

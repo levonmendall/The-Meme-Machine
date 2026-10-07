@@ -17,14 +17,31 @@ def install(module):
     original_fresh=getattr(module,'_fresh_supported_start',None)
     if original_fresh is None:return
     module._structural_warming_attached=True
+    install_checkpoints(module.dlmm.Adapter)
     original_rotate=module._rotate
     original_trigger=module._await_fresh_swap_trigger
     def fresh(adapter,candidate):
+        if candidate.get('provider_structural'):
+            import os
+            from meme_machine.solana_prewarm_startup import candidate_release
+            if not candidate_release(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')):
+                raise module.Unavailable('rolling_publication_pending')
         if candidate.get('decision_deadline') is not None:
             adapter.rpc.evidence_deadline=float(candidate['decision_deadline'])
             adapter.rpc.evidence_priority=4
         if not candidate.get('provider_structural'):return original_fresh(adapter,candidate)
-        snap=adapter.snapshot(candidate['address'],int(module.time.time()),True,fresh=True)
+        now=int(module.time.time());checkpoint=None
+        import os
+        if os.environ.get('MM_SOLANA_CANDIDATE_HISTORY_DB'):
+            with closing(CandidateHistory()) as shared:
+                checkpoint=shared.latest_checkpoint('program:meteora',candidate['address'],as_of=now,
+                    maximum_age=module.dlmm.MAX_AGE)
+        if checkpoint:
+            # Current exact state still comes from a NEW finalized account
+            # context. Only immutable address discovery is reused.
+            try:snap=adapter.snapshot_from_state(checkpoint['state'],now,True,fresh=True)
+            except (ValueError,module.Unavailable):snap=adapter.snapshot(candidate['address'],now,True,fresh=True)
+        else:snap=adapter.snapshot(candidate['address'],now,True,fresh=True)
         state=module.dlmm.validate(snap,snap['available_time'],'real')
         if (state['x']==module.dlmm.WSOL)==(state['y']==module.dlmm.WSOL):
             raise ValueError('dlmm_structural_wsol_pair_scope')
@@ -44,6 +61,40 @@ def install(module):
     module._fresh_supported_start=fresh
     module._rotate=rotate
     module._await_fresh_swap_trigger=await_trigger
+
+def install_checkpoints(adapter_class):
+    """Use existing authoritative endpoint reads; add zero provider calls.
+
+    Boundaries are the existing fresh compatibility/one-second interval reads,
+    not an arbitrary timer. Full state is validated before durable publication.
+    It can anchor later deltas but can never prove a missing delta interval.
+    """
+    if getattr(adapter_class,'_rolling_checkpoints_attached',False):return
+    adapter_class._rolling_checkpoints_attached=True
+    def attach(method):
+        def capture(self,*args,**kwargs):
+            snapshot=method(self,*args,**kwargs)
+            import os
+            if os.environ.get('MM_SOLANA_CANDIDATE_HISTORY_DB'):
+                with closing(CandidateHistory()) as history:
+                    frontier=0
+                    from pathlib import Path
+                    import sqlite3
+                    path=os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
+                    if path and Path(path).exists():
+                        with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True)) as db:
+                            if db.execute("SELECT 1 FROM sqlite_master WHERE name='candidate_checkpoints'").fetchone():
+                                scopes=['candidate:meteora:'+snapshot['pool']]
+                                if db.execute("SELECT 1 FROM sqlite_master WHERE name='rolling_group_members'").fetchone():
+                                    scopes.extend(s for s, in db.execute("SELECT scope FROM rolling_group_members WHERE family='meteora' AND address=?",(snapshot['pool'],)))
+                                row=db.execute('SELECT MAX(slot) FROM candidate_checkpoints WHERE scope IN ('+','.join('?' for _ in scopes)+') AND slot<=? AND updated<=?',(*scopes,snapshot['slot'],snapshot['available_time'])).fetchone()
+                                frontier=0 if not row or row[0] is None else row[0]
+                    history.checkpoint('program:meteora',snapshot['pool'],snapshot,
+                        proof=digest(snapshot),frontier=frontier)
+            return snapshot
+        return capture
+    adapter_class.snapshot=attach(adapter_class.snapshot)
+    adapter_class.snapshot_from_state=attach(adapter_class.snapshot_from_state)
 
 def _store(history):
     history.db.execute('''CREATE TABLE IF NOT EXISTS evidence_progress(
@@ -65,9 +116,13 @@ def save(work_id,value):
                 raise ValueError('candidate_evidence_work_unknown')
             history.db.execute('INSERT OR REPLACE INTO evidence_progress VALUES(?,?,?)',(work_id,canonical(value),digest(value)))
 
-def defer(work_id):
+def defer(work_id,*,scope=None,lower=None,upper=None,retry_at=None):
     with closing(CandidateHistory()) as history:
-        history.complete(work_id,status='deferred',details=dict(reason='authenticated_trigger_pending',delay_seconds=.25,deadline_reset=False))
+        if scope is not None and lower is not None and upper is not None and lower<=upper:
+            history.wait_for_history(work_id,scope,lower,upper,retry_at=retry_at,
+                reason='authenticated_trigger_history_unsealed')
+        else:
+            history.complete(work_id,status='deferred',details=dict(reason='authenticated_trigger_pending',delay_seconds=.25,deadline_reset=False))
     raise WarmingDeferred('candidate_trigger_wait')
 
 def compatibility(module,adapter,candidate):
@@ -96,7 +151,11 @@ def trigger(module,adapter,candidate,baseline,policy,pacer,rpcs,deadline):
     except Exception as exc:
         from meme_machine.solana_evidence_plane import EvidenceUnavailable
         if isinstance(exc,EvidenceUnavailable) and str(exc) in ('unresolved_evidence_gap','evidence_cold_start','evidence_finalized_stale','evidence_discontinuous','candidate_binding_required'):
-            defer(work_id)
+            plane=module._evidence_plane() if hasattr(module,'_evidence_plane') else None
+            try:head=None if plane is None else plane.frontier('program:meteora')
+            except EvidenceUnavailable:head=None
+            defer(work_id,scope=None if head is None else 'candidate:meteora:'+candidate['address'],
+                lower=progress['cursor']+1,upper=head,retry_at=progress['started']+module.FRESH_SWAP_TRIGGER_MAX_SECONDS)
         raise
     if not swaps:
         progress['cursor']=max(progress['cursor'],int(metadata.get('head_slot') or progress['cursor']))

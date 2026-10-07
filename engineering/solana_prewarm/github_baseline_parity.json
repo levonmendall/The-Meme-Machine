@@ -1,0 +1,54 @@
+{
+  "accepted_operational_base": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "verified_pre_edit_head": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "verified_pre_edit_run": 37619753006,
+  "accepted_identities": [
+    [
+      "ERROR",
+      "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+    ],
+    [
+      "ERROR",
+      "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+    ],
+    [
+      "FAIL",
+      "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+    ],
+    [
+      "FAIL",
+      "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+    ],
+    [
+      "FAIL",
+      "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+    ],
+    [
+      "FAIL",
+      "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+    ],
+    [
+      "FAIL",
+      "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+    ],
+    [
+      "FAIL",
+      "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+    ],
+    [
+      "FAIL",
+      "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+    ],
+    [
+      "FAIL",
+      "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+    ],
+    [
+      "FAIL",
+      "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+    ]
+  ],
+  "final_source_runs": [],
+  "status": "PENDING_FINAL_PUSH",
+  "legacy_removed_test_failures_excluded_from_accepted_baseline": false
+}

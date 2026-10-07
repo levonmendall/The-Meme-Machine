@@ -42,7 +42,7 @@ class RepairRPC:
         return self.call_delivered(method,params,1 if priority else 4)[0]
     def call_delivered(self,method,params,priority=4):
         import time
-        if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2'):
+        if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction'):
             raise ValueError('repair_method_forbidden')
         started=time.monotonic();transport=None;received=0;charged=0;code=None
         try:
@@ -50,7 +50,7 @@ class RepairRPC:
             self._count('queue_microseconds',int((time.monotonic()-started)*1e6))
             transport=time.monotonic()
             self._count('physical_requests');self._count('logical_calls');self._count('method:'+method)
-            charged={'getTransactionsForAddress':100,'getGenesisHash':10,'getSlot':20,'getProgramAccountsV2':20}[method]
+            charged={'getTransactionsForAddress':100,'getGenesisHash':10,'getSlot':20,'getProgramAccountsV2':20,'getTransaction':40}[method]
             self._count('repair_calls' if method=='getTransactionsForAddress' else 'identity_calls')
             request=urllib.request.Request(self.endpoint,json.dumps(dict(jsonrpc='2.0',id=1,method=method,params=params)).encode(),{'Content-Type':'application/json'})
             with urllib.request.urlopen(request,timeout=8) as response:raw=response.read(16*1024*1024+1)

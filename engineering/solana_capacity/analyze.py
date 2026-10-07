@@ -92,6 +92,10 @@ def measure(folder):
                 for i,l,c,s,t,d,e in db.execute('SELECT id,lane,candidate,status,created_at,deadline,estimate_seconds FROM work')]
         source_receipts = {i: json.loads(b) for i,b in db.execute('SELECT id,body FROM source_receipts')}
         event_counts = dict(db.execute('SELECT kind,COUNT(*) FROM events GROUP BY kind'))
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='canonical_event_refs'").fetchone():
+            counts=Counter(event_counts)
+            counts.update(dict(db.execute('SELECT kind,COUNT(*) FROM canonical_event_refs GROUP BY kind')))
+            event_counts=dict(counts)
     missing_receipts = [r['id'] for r in outbox if r['consumed'] is not None and r['id'] not in source_receipts]
     changed_receipts = [r['id'] for r in outbox if r['consumed'] is not None and r['id'] in source_receipts
                         and source_receipts[r['id']]['source_hash'] != r['body'].get('source_hash', r['hash'])]

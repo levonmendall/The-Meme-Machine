@@ -33,6 +33,22 @@ CREATE TABLE IF NOT EXISTS scoped_retirement_observations(
 '''
 
 
+def cold_record(db,identity,archive,*,cache=None):
+    """Resolve a local canonical cold pointer without provider reconstruction."""
+    cache={} if cache is None else cache
+    if archive not in cache:
+        manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(archive,)).fetchone()
+        if manifest is None:raise EvidenceUnavailable('scoped_cold_identity_missing')
+        packed=Path(manifest[0]).read_bytes()
+        if hashlib.sha256(packed).hexdigest()!=manifest[1]:raise EvidenceConflict('scoped_cold_hash_mismatch')
+        decoder=zlib.decompressobj();raw=decoder.decompress(packed,32*1024*1024+1)
+        if len(raw)>32*1024*1024 or not decoder.eof:raise EvidenceUnavailable('scoped_cold_restore_bound')
+        cache[archive]={x['record']['identity']:x for x in json.loads(raw)}
+    item=cache[archive].get(identity)
+    if item is None:raise EvidenceUnavailable('scoped_cold_identity_missing')
+    return item
+
+
 class ScopedRetirement:
     def __init__(self,history):
         self.history=history;self.writer=history.writer;self.db=history.db
@@ -40,22 +56,24 @@ class ScopedRetirement:
         if not self.db.execute("SELECT 1 FROM sqlite_master WHERE name='scoped_cold_records'").fetchone():
             if self.db.in_transaction:raise EvidenceUnavailable('scoped_retirement_install_inside_commit')
             self.db.executescript(SCHEMA)
-            # One canonical identity survives hot -> cold -> restored transitions.
-            self.db.executescript('''DROP VIEW canonical_evidence;
-                CREATE VIEW canonical_evidence AS
-                SELECT * FROM records WHERE body IS NOT NULL OR NOT EXISTS(
-                  SELECT 1 FROM shared_history_cache c WHERE c.identity=records.identity)
-                  AND NOT EXISTS(SELECT 1 FROM scoped_cold_records c WHERE c.identity=records.identity)
-                UNION ALL SELECT * FROM shared_history_cache c WHERE NOT EXISTS(
-                  SELECT 1 FROM records r WHERE r.identity=c.identity AND r.body IS NOT NULL)
-                UNION ALL SELECT * FROM scoped_cold_records c WHERE NOT EXISTS(
-                  SELECT 1 FROM records r WHERE r.identity=c.identity AND r.body IS NOT NULL)
-                  AND NOT EXISTS(SELECT 1 FROM shared_history_cache h WHERE h.identity=c.identity);
-                DROP VIEW canonical_addresses;
-                CREATE VIEW canonical_addresses AS SELECT identity,address FROM addresses
-                  UNION SELECT identity,address FROM cached_addresses
-                  UNION SELECT identity,address FROM scoped_cold_addresses;
-                ''')
+            if hasattr(self.history,'rolling'):self.history.rolling.install_views()
+            else:
+                # One canonical identity survives hot -> cold -> restored transitions.
+                self.db.executescript('''DROP VIEW canonical_evidence;
+                    CREATE VIEW canonical_evidence AS
+                    SELECT * FROM records WHERE body IS NOT NULL OR NOT EXISTS(
+                      SELECT 1 FROM shared_history_cache c WHERE c.identity=records.identity)
+                      AND NOT EXISTS(SELECT 1 FROM scoped_cold_records c WHERE c.identity=records.identity)
+                    UNION ALL SELECT * FROM shared_history_cache c WHERE NOT EXISTS(
+                      SELECT 1 FROM records r WHERE r.identity=c.identity AND r.body IS NOT NULL)
+                    UNION ALL SELECT * FROM scoped_cold_records c WHERE NOT EXISTS(
+                      SELECT 1 FROM records r WHERE r.identity=c.identity AND r.body IS NOT NULL)
+                      AND NOT EXISTS(SELECT 1 FROM shared_history_cache h WHERE h.identity=c.identity);
+                    DROP VIEW canonical_addresses;
+                    CREATE VIEW canonical_addresses AS SELECT identity,address FROM addresses
+                      UNION SELECT identity,address FROM cached_addresses
+                      UNION SELECT identity,address FROM scoped_cold_addresses;
+                    ''')
         self.db.execute('CREATE INDEX IF NOT EXISTS scoped_cold_address_lookup ON scoped_cold_addresses(address,identity)')
         self.db.execute('''CREATE INDEX IF NOT EXISTS candidate_canonical_consumed_identity
             ON candidate_history_outbox(json_extract(body,'$.record.identity'))
@@ -84,6 +102,13 @@ class ScopedRetirement:
         if self.db.execute(f'SELECT 1 FROM candidate_history_outbox WHERE family=? AND address IN ({placeholders}) AND consumed IS NULL LIMIT 1',(family,*aliases)).fetchone():return 'pending_consumer'
         lane='pump' if family in ('pump','pumpswap') else 'meteora'
         if shared.db.execute("SELECT 1 FROM work WHERE lane=? AND candidate=? AND status IN ('active','pending') LIMIT 1",(lane,market)).fetchone():return 'candidate_work'
+        if hasattr(self.history,'rolling'):
+            retention=self.history.rolling.retention(family,address)
+            rows=self.db.execute('SELECT MAX(r.market_time) FROM canonical_evidence r JOIN canonical_addresses a ON a.identity=r.identity WHERE r.scope=? AND a.address=? AND r.slot BETWEEN ? AND ?',(base,market,lo,hi)).fetchone()
+            # Pump economics remain recoverable through canonical cold pointers
+            # and CandidateHistory references. Future eligibility does not pin
+            # raw log/hydration bytes in hot storage forever.
+            if family=='meteora' and rows and rows[0] is not None and rows[0]>=self.clock()-retention['window_seconds']:return 'rolling_trigger_and_warmup_history'
         return None
 
     def retire(self,*,limit=64):
@@ -99,9 +124,23 @@ class ScopedRetirement:
                 # Resolve the indexed address set before expanding the canonical
                 # union. Scanning an entire program for every candidate blocks
                 # urgent owner work even though each result is bounded to 64.
-                rows=self.db.execute('''SELECT r.* FROM canonical_addresses a CROSS JOIN canonical_evidence r
-                    WHERE a.address=? AND r.identity=a.identity AND r.scope=? AND r.body IS NOT NULL ORDER BY r.slot,r.identity LIMIT ?''',
-                    (market,FAMILIES[family],limit)).fetchall()
+                identities=[r[0] for r in self.db.execute(
+                    'SELECT identity FROM canonical_addresses WHERE address=?',(market,))]
+                if not identities:continue
+                # SQLite distributes ORDER BY through the canonical UNION ALL
+                # and otherwise chooses a whole-program scope scan per quiet
+                # view. Resolve compact metadata by primary identity first;
+                # only the bounded selected rows expand their economic bodies.
+                metadata=[]
+                for start in range(0,len(identities),256):
+                    chunk=identities[start:start+256]
+                    metadata.extend(r for r in self.db.execute(
+                        'SELECT identity,scope,slot,body IS NOT NULL FROM canonical_evidence WHERE identity IN ('+
+                        ','.join('?' for _ in chunk)+')',chunk)
+                        if r[1]==FAMILIES[family] and r[3])
+                selected_ids=[r[0] for r in sorted(metadata,key=lambda r:(r[2],r[0]))[:limit]]
+                rows=[self.db.execute('SELECT * FROM canonical_evidence WHERE identity=?',(identity,)).fetchone()
+                    for identity in selected_ids]
                 if not rows:continue
                 reason=self.pinned(family,address,rows[0][2],rows[-1][2],shared)
                 if reason:
@@ -150,6 +189,8 @@ class ScopedRetirement:
                     for address in body['addresses']:
                         self.db.execute('INSERT OR IGNORE INTO scoped_cold_addresses VALUES(?,?)',(row[0],address))
                     self.db.execute('UPDATE records SET body=NULL WHERE identity=?',(row[0],))
+                    if hasattr(self.history,'rolling'):
+                        self.db.execute('UPDATE rolling_economic_events SET body=NULL,archive=? WHERE identity=?',(identity,row[0]))
                     # Address/index/history metadata remains durable. Cache-only
                     # records keep their address table even after the body leaves.
                     self.db.execute('DELETE FROM shared_history_cache WHERE identity=?',(row[0],))
@@ -204,10 +245,15 @@ class ScopedRetirement:
                 if not stored:continue
                 if (digest(body),item['available'])!=stored:raise EvidenceConflict('local_evidence_hash_mismatch')
                 with self.writer.transaction():
-                    self.db.execute('''INSERT OR IGNORE INTO shared_history_cache VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)''',
-                        (identity,body['scope'],body['slot'],body['signature'],body['program'],body['market_time'],
-                         body['event_index'],body['transaction_index'],body['kind'],canonical(body),stored[0],stored[1]))
-                    for a in body['addresses']:self.db.execute('INSERT OR IGNORE INTO cached_addresses VALUES(?,?)',(identity,a))
+                    normalized=hasattr(self.history,'rolling') and self.db.execute(
+                        'SELECT 1 FROM rolling_economic_events WHERE identity=?',(identity,)).fetchone()
+                    if normalized:
+                        self.db.execute('UPDATE rolling_economic_events SET body=?,archive=NULL WHERE identity=?',(canonical(body),identity))
+                    else:
+                        self.db.execute('''INSERT OR IGNORE INTO shared_history_cache VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)''',
+                            (identity,body['scope'],body['slot'],body['signature'],body['program'],body['market_time'],
+                             body['event_index'],body['transaction_index'],body['kind'],canonical(body),stored[0],stored[1]))
+                        for a in body['addresses']:self.db.execute('INSERT OR IGNORE INTO cached_addresses VALUES(?,?)',(identity,a))
                     self.db.execute('DELETE FROM scoped_cold_records WHERE identity=?',(identity,))
                     self.db.execute('DELETE FROM scoped_cold_addresses WHERE identity=?',(identity,))
                 restored+=1

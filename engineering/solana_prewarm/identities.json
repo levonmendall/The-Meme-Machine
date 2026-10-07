@@ -1,0 +1,13 @@
+{
+  "verified_pre_edit_head": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "verified_pre_edit_tree": "348ad500e397f53e3eff33c6412c138a6d7ceb2d",
+  "branch": "repair/final-alchemy-solana-20261007",
+  "operational_base": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "PR": 121,
+  "draft": true,
+  "open": true,
+  "unmerged": true,
+  "implementation_commit": "RECORDED_AFTER_SOURCE_COMMIT",
+  "implementation_tree": "RECORDED_AFTER_SOURCE_COMMIT",
+  "final_delivery_identity": "Use PR head/tree; final audit commit only changes documentation/provenance"
+}

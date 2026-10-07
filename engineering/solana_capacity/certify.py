@@ -102,13 +102,16 @@ class Certification:
         self.transport=TransportMeter(out/'provider.frames.zlib');self.source.observer=self.transport
         self.family_context=FAMILY;self.pump_candidates=None
         self.meter=Meter(out);self.latencies=defaultdict(list);self.results=[];self.position=[];self.monitor=[];self.errors=[];self.work=None;self.stop=None;self.worker_stop=threading.Event();self.cpu0=time.process_time();self.wall0=time.time()
-        source_paths=['meme_machine/solana_selective_source.py','meme_machine/solana_selective_history.py','meme_machine/solana_scoped_retirement.py','meme_machine/solana_candidate_lifecycle.py','meme_machine/solana_candidate_join.py','meme_machine/solana_stable_shards.py','meme_machine/runtime/governor.py','meme_machine/runtime/solana_warming.py','meme_machine/runtime/candidate_history.py','meme_machine/runtime/lifecycle_timing.py','meme_machine/runtime/evidence_worker.py','meme_machine/lanes/meteora/runner.py','meme_machine/lanes/pump/solana_evidence_runtime.py','engineering/solana_capacity/certify.py','engineering/solana_capacity/pump_candidates.py','engineering/solana_capacity/transport_meter.py']
+        source_paths=['meme_machine/solana_prewarm_startup.py','meme_machine/solana_rolling_history.py','meme_machine/solana_selective_source.py','meme_machine/solana_selective_history.py','meme_machine/solana_scoped_retirement.py','meme_machine/solana_candidate_lifecycle.py','meme_machine/solana_candidate_join.py','meme_machine/solana_stable_shards.py','meme_machine/runtime/governor.py','meme_machine/runtime/solana_warming.py','meme_machine/runtime/candidate_history.py','meme_machine/runtime/lifecycle_timing.py','meme_machine/runtime/evidence_worker.py','meme_machine/lanes/meteora/runner.py','meme_machine/lanes/pump/solana_evidence_runtime.py','engineering/solana_capacity/certify.py','engineering/solana_capacity/pump_candidates.py','engineering/solana_capacity/transport_meter.py']
+        source_paths+=['meme_machine/solana_evidence_service.py','meme_machine/solana_evidence_control.py','meme_machine/solana_checkpoint.py']
         self.source_hashes={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in source_paths};self.position_pacer={};self.position_rpcs={};self.position_states={};self.pump_mint=PUMP;self.pump_choices=[];self.attempts=[]
     async def request(self,fn,priority=1):return await self.work(fn,priority)
     def state(self,s):
         from meme_machine.solana_selective_source import install
         h=install(s);db=s.writer.db
-        return dict(at=time.time(),observations=dict(db.execute('SELECT family,COUNT(*) FROM market_observations GROUP BY family')),
+        return dict(startup=h.startup.snapshot(),at=time.time(),sqlite_changes=db.total_changes,
+          hot_db_bytes=s.writer.path.stat().st_size,wal_bytes=(Path(str(s.writer.path)+'-wal').stat().st_size if Path(str(s.writer.path)+'-wal').exists() else 0),
+          observations=dict(db.execute('SELECT family,COUNT(*) FROM market_observations GROUP BY family')),
           lifecycle=dict(db.execute('SELECT state,COUNT(*) FROM candidate_lifecycle GROUP BY state')),
           promotions=[dict(id=i,family=f,address=a,created=t,body=json.loads(b)) for i,f,a,b,t in db.execute("SELECT id,family,address,body,created FROM candidate_history_outbox WHERE kind='promotion'")],
           delivery=[dict(family=f,transport=t,bytes=b,cu=c,calls=n) for f,t,b,c,n in db.execute('SELECT family,transport,SUM(raw_bytes),SUM(rpc_cu),SUM(calls) FROM provider_delivery GROUP BY family,transport')],
@@ -120,26 +123,41 @@ class Certification:
         from meme_machine.solana_selective_source import install
         from meme_machine.solana_selective_history import FAMILIES
         from meme_machine.lanes.pump.postgrad import pumpswap_pool
+        from meme_machine.solana_selective_source import source_work
+        work=source_work(work,stop,self.source.observe)
         self.work=work;self.stop=stop;self.started=time.time();self.cutoff=self.started+self.seconds
-        # Same durable service-interest command used by real position controllers.
-        tip=await asyncio.to_thread(self.rpc.call,'getSlot',[dict(commitment='finalized')],True)
-        # One bounded latest-transaction locator seeds the real lower-bound
-        # witness required by the position reader. Its interval is then proved
-        # by the ordinary ascending archive worker; the locator proves no gap.
-        latest=await asyncio.to_thread(self.rpc.call,'getTransactionsForAddress',[POSITIVE,dict(transactionDetails='full',sortOrder='desc',limit=1,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters=dict(slot=dict(gte=0,lte=tip)))],True)
-        last_slot=latest['data'][0]['slot'] if latest.get('data') else max(1,tip-32)
-        def seed(s):
-            h=install(s);h.bind('meteora',POSITIVE);return h.request('meteora',POSITIVE,last_slot,tip,priority=0,deadline=time.time()+150)
-        await work(seed,0)
-        for family,address in [('pump',PUMP),('pumpswap',pumpswap_pool(SWAP_MINT)),('meteora',POSITIVE)]:
-            def pin(s,f=family,a=address):
-                install(s);return s.fence.command(dict(op='interest',owner='capacity:position:'+f,scope=FAMILIES[f],lower_slot=last_slot if f=='meteora' else max(1,tip-32),addresses=[a],lifecycle='open',priority=0,evidence_class='transactions' if f=='meteora' else 'logs'))
-            await work(pin,0)
         tasks=[asyncio.create_task(self.source.run(work,stop))]
-        for family in ('pump','pumpswap','meteora'):tasks.append(asyncio.create_task(self.position_loop(family)))
-        tasks.append(asyncio.create_task(self.candidate_loop()))
-        tasks.append(asyncio.create_task(self.pump_candidate_loop()))
+        self.startup_samples=[];self.steady_started=None
         try:
+            # No candidate controller or position-equivalent workload starts
+            # before the real owner has released Model B consumers.
+            while time.time()-self.started<90:
+                if tasks[0].done():tasks[0].result();raise ValueError('model_b_source_stopped_during_startup')
+                snapshot=await work(self.state,2);self.startup_samples.append(snapshot)
+                if snapshot['startup'].get('released'):
+                    self.steady_started=time.time();self.cutoff=self.steady_started+self.seconds;break
+                await asyncio.sleep(.25)
+            if self.steady_started is None:
+                await work(lambda s:install(s).startup.fail('startup_publication_unproven'),0)
+                raise ValueError('model_b_startup_publication_unproven')
+            # These are position-only prerequisites after startup, not a hidden
+            # startup or ordinary-promotion cold-reconstruction fallback.
+            tip=await asyncio.to_thread(self.rpc.call,'getSlot',[dict(commitment='finalized')],True)
+            latest=await asyncio.to_thread(self.rpc.call,'getTransactionsForAddress',[POSITIVE,dict(transactionDetails='full',sortOrder='desc',limit=1,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters=dict(slot=dict(gte=0,lte=tip)))],True)
+            last_slot=latest['data'][0]['slot'] if latest.get('data') else max(1,tip-32)
+            def seed(s):
+                h=install(s);h.bind('meteora',POSITIVE)
+                job=h.request('meteora',POSITIVE,last_slot,tip,priority=0,deadline=time.time()+150)
+                h.db.execute('INSERT OR IGNORE INTO backfill_reasons VALUES(?,?,?)',(job,'POSITION_REQUIRED_GAP','{}'))
+                return job
+            await work(seed,0)
+            for family,address in [('pump',PUMP),('pumpswap',pumpswap_pool(SWAP_MINT)),('meteora',POSITIVE)]:
+                def pin(s,f=family,a=address):
+                    install(s);return s.fence.command(dict(op='interest',owner='capacity:position:'+f,scope=FAMILIES[f],lower_slot=last_slot if f=='meteora' else max(1,tip-32),addresses=[a],lifecycle='open',priority=0,evidence_class='transactions' if f=='meteora' else 'logs'))
+                await work(pin,0)
+            for family in ('pump','pumpswap','meteora'):tasks.append(asyncio.create_task(self.position_loop(family)))
+            tasks.append(asyncio.create_task(self.candidate_loop()))
+            tasks.append(asyncio.create_task(self.pump_candidate_loop()))
             drain_until=self.cutoff+150
             while time.time()<drain_until and not stop.is_set():
                 for n,t in enumerate(tasks):
@@ -195,7 +213,10 @@ class Certification:
             rpc=self.position_rpcs[family]
             if family=='pump':
                 with sqlite3.connect(os.environ['MM_SOLANA_CANDIDATE_HISTORY_DB']) as db:
-                    choices=[r[0] for r in db.execute("SELECT candidate FROM events WHERE kind='pump_create' ORDER BY slot DESC LIMIT 40")]
+                    choices=[r[0] for r in db.execute("""SELECT candidate FROM (
+                        SELECT candidate,slot FROM events WHERE kind='pump_create'
+                        UNION ALL SELECT candidate,slot FROM canonical_event_refs WHERE kind='pump_create')
+                        ORDER BY slot DESC LIMIT 40""")]
                 for mint in choices:
                     if mint not in self.pump_choices:self.pump_choices.append(mint)
                 if self.pump_choices and self.position_states.get('pump_illiquid'):
@@ -384,7 +405,7 @@ class Certification:
             executor.shutdown(wait=False)
     def write(self):
         end=getattr(self,'ended',time.time());duration=end-getattr(self,'started',self.wall0)
-        result=dict(schema='actual-shared-provider-certification-v1',source_sha256=self.source_hashes,classification='MEASURED_LIVE',started_UTC=datetime.datetime.fromtimestamp(self.wall0,datetime.timezone.utc).isoformat(),window_seconds=duration,planned_seconds=self.seconds,measurement_started=getattr(self,'started',self.wall0),measurement_cutoff=getattr(self,'cutoff',None),drain_seconds=max(0,duration-self.seconds),endpoint_identity=self.config.identity,worker_capacity=2,governor_interval_seconds=self.governor.solana_interval,position_equivalence='Native adapters, quote/exit/mark and DLMM tape functions through the same physical governor; no monetary controller',rpc=self.meter.totals(),final=getattr(self,'final',{}),promotions=self.results,positions=self.position,latency={k:quantiles(v) for k,v in self.latencies.items()},transport=self.transport.summary(),provider_delivery_latency={k:quantiles(v) for k,v in self.transport.latencies.items()},pump_candidate_work=[] if self.pump_candidates is None else self.pump_candidates.rows,pump_candidate_boundaries=[] if self.pump_candidates is None else self.pump_candidates.errors,errors=self.errors,monitor=self.monitor,attempts=self.attempts,pump_position_mint=self.pump_mint,cpu_seconds=time.process_time()-self.cpu0,rss_peak_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        result=dict(startup_samples=getattr(self,'startup_samples',[]),steady_started=getattr(self,'steady_started',None),schema='actual-shared-provider-certification-v1',source_sha256=self.source_hashes,classification='MEASURED_LIVE',started_UTC=datetime.datetime.fromtimestamp(self.wall0,datetime.timezone.utc).isoformat(),window_seconds=duration,planned_seconds=self.seconds,measurement_started=getattr(self,'started',self.wall0),measurement_cutoff=getattr(self,'cutoff',None),drain_seconds=max(0,duration-self.seconds),endpoint_identity=self.config.identity,worker_capacity=2,governor_interval_seconds=self.governor.solana_interval,position_equivalence='Native adapters, quote/exit/mark and DLMM tape functions through the same physical governor; no monetary controller',rpc=self.meter.totals(),final=getattr(self,'final',{}),promotions=self.results,positions=self.position,latency={k:quantiles(v) for k,v in self.latencies.items()},transport=self.transport.summary(),provider_delivery_latency={k:quantiles(v) for k,v in self.transport.latencies.items()},pump_candidate_work=[] if self.pump_candidates is None else self.pump_candidates.rows,pump_candidate_boundaries=[] if self.pump_candidates is None else self.pump_candidates.errors,errors=self.errors,monitor=self.monitor,attempts=self.attempts,pump_position_mint=self.pump_mint,cpu_seconds=time.process_time()-self.cpu0,rss_peak_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
         (self.out/'result.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(dict(window_seconds=duration,rpc=result['rpc'],promotions=len(self.results),position_samples=len(self.position),errors=self.errors)),flush=True)
 
 async def main(args):

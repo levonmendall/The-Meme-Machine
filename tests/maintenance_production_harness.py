@@ -102,6 +102,52 @@ class NativeCompletionPool:
     def shutdown(self,*args,**kwargs):pass
 
 
+async def model_b_feed(work,stop,clock):
+    """Linked quiet native frames through the Model B publisher and owner.
+
+    The old broad-block WebSocket fixture is archived. This fixture still
+    contends with maintenance, while committing real production coverage logic.
+    """
+    from meme_machine.solana_selective_source import install,commit_control,commit_candidates
+    from meme_machine.solana_candidate_join import YellowstoneTransactionFrame
+    from meme_machine.solana_selective_history import PROGRAMS
+    from meme_machine.solana_rolling_history import program_scope
+    from meme_machine.yellowstone import geyser_pb2 as pb
+    slot=2_000_000;parent_hash=None;addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+    def boot(state):
+        nonlocal slot,parent_hash
+        h=install(state);h.clock=h.lifecycle.clock=clock.time;h.startup.begin()
+        # Resume the fixture's actual durable native frontier. Fixed-slot replay
+        # with a new timestamp would conflict with its original immutable block.
+        latest=state.writer.db.execute('''SELECT MAX(slot) FROM (
+            SELECT slot FROM cursors UNION ALL SELECT slot FROM candidate_blocks
+            UNION ALL SELECT slot FROM stream_receipts)''').fetchone()[0]
+        slot=max(slot,1+(latest or 0))
+        prior=state.writer.db.execute('''SELECT hash FROM candidate_blocks WHERE slot=?
+            UNION ALL SELECT hash FROM stream_receipts WHERE slot=? LIMIT 1''',(slot-1,slot-1)).fetchone()
+        parent_hash=prior[0] if prior else 'h'+str(slot-1)
+        for f in ('pump','pumpswap'):h.startup.feed_ack(f,slot,slot)
+        h.startup.native(('pump','pumpswap'))
+    await work(boot,0)
+    while not stop.is_set():
+        u=pb.SubscribeUpdate();b=u.block;b.slot=slot;b.parent_slot=slot-1
+        b.blockhash='model-b-'+str(slot);b.parent_blockhash=parent_hash
+        b.block_time.timestamp=int(clock.time())
+        frame=YellowstoneTransactionFrame(u,u.ByteSize(),clock.time())
+        def publish(state):
+            commit_control(state,frame);commit_candidates(state,frame,addresses,'offline-model-b')
+            # The maintenance fixture deliberately seeds legacy raw records.
+            # Linked quiet native headers also bound those raw *gaps*; they do
+            # not seal the missing prefix or start a legacy provider producer.
+            from meme_machine.solana_selective_source import block_message
+            for scope in SCOPES:
+                sub=next(s for s in service.program_subscriptions() if s.scope==scope and s.evidence_class in ('census','transactions'))
+                state.fence.block(sub,block_message(frame),clock.time())
+            install(state).startup.advance()
+        await work(publish,2,label='source_commit');parent_hash=b.blockhash;slot+=1
+        await asyncio.sleep(.005)
+
+
 async def run_case(*,seed=None,before=None,after=None,turns=32,
                    archive_hook=None,retention_hook=None,pool_class=NativeCompletionPool,
                    clock=None,path=None):
@@ -156,7 +202,8 @@ async def run_case(*,seed=None,before=None,after=None,turns=32,
             stack.enter_context(patch.object(obj,name,value))
         stack.enter_context(patch('concurrent.futures.ProcessPoolExecutor',pool))
         stack.enter_context(patch('websockets.asyncio.client.connect',return_value=Wire(clock)))
-        runner=asyncio.create_task(service.serve(path,ENDPOINT,stop=stop))
+        async def source_driver(work,stop):await model_b_feed(work,stop,clock)
+        runner=asyncio.create_task(service.serve(path,ENDPOINT,stop=stop,source_driver=source_driver))
         try:
             await asyncio.wait_for(asyncio.shield(runner),12)
         except BaseException as exc:

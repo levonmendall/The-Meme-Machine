@@ -134,6 +134,24 @@ class CandidateHistory:
           id TEXT PRIMARY KEY,scope TEXT NOT NULL,lower_slot INTEGER NOT NULL,
           upper_slot INTEGER NOT NULL,lower_time INTEGER NOT NULL,
           upper_time INTEGER NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS work_history_requirements(
+          work_id TEXT PRIMARY KEY,scope TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER NOT NULL,
+          retry_at REAL NOT NULL,created REAL NOT NULL,reason TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS work_history_proofs(
+          id TEXT PRIMARY KEY,scope TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER NOT NULL,
+          available REAL NOT NULL,hash TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS work_history_proof_scope ON work_history_proofs(scope,lo,hi);
+        CREATE TABLE IF NOT EXISTS canonical_event_refs(
+          lane TEXT NOT NULL,candidate TEXT NOT NULL,identity TEXT NOT NULL,
+          slot INTEGER NOT NULL,transaction_index INTEGER,event_index INTEGER NOT NULL,
+          market_time INTEGER NOT NULL,kind TEXT NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL,
+          PRIMARY KEY(lane,candidate,identity));
+        CREATE INDEX IF NOT EXISTS canonical_ref_order ON canonical_event_refs(lane,candidate,slot,transaction_index,event_index);
+        CREATE TABLE IF NOT EXISTS state_checkpoints(
+          id TEXT PRIMARY KEY,scope TEXT NOT NULL,candidate TEXT NOT NULL,slot INTEGER NOT NULL,
+          market_time INTEGER NOT NULL,available REAL NOT NULL,frontier INTEGER NOT NULL,
+          proof TEXT NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS checkpoint_frontier ON state_checkpoints(scope,candidate,slot);
         """)
 
     @contextmanager
@@ -160,7 +178,77 @@ class CandidateHistory:
             if self.db.in_transaction:self.db.execute("ROLLBACK")
             raise
 
-    def close(self):self.db.close()
+    def close(self):
+        for db in getattr(self,'_source_readers',{}).values():db.close()
+        self.db.close()
+
+    def append_reference(self,lane,candidate,record,*,path,identity,kind,payload_fields=None):
+        """Index/view only. Economics remain in the one canonical reservoir."""
+        ref=dict(path=str(Path(path).resolve()),canonical_identity=record['identity'],
+            canonical_hash=digest(record),fields=dict(payload_fields or {}))
+        body=self._reference_body(lane,candidate,identity,kind,ref)
+        with self.transaction():
+            old=self.event(lane,candidate,identity)
+            if old is not None and old!=body:raise ValueError('candidate_history_event_conflict')
+            self.db.execute('INSERT OR IGNORE INTO canonical_event_refs VALUES(?,?,?,?,?,?,?,?,?,?)',
+                (lane,candidate,identity,body['slot'],body['transaction_index'],body['event_index'],
+                 body['market_time'],kind,canonical(ref),digest(ref)))
+            # One-way migration removes an identical legacy copy, not its history.
+            self.db.execute('DELETE FROM events WHERE lane=? AND candidate=? AND identity=?',(lane,candidate,identity))
+        return body
+
+    def _reference_body(self,lane,candidate,identity,kind,ref):
+        from meme_machine.solana_evidence_plane import decode_body
+        self._source_readers=getattr(self,'_source_readers',{})
+        if ref['path'] not in self._source_readers:
+            self._source_readers[ref['path']]=sqlite3.connect(Path(ref['path']).as_uri()+'?mode=ro',uri=True,timeout=30)
+        db=self._source_readers[ref['path']]
+        row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(ref['canonical_identity'],)).fetchone()
+        if row is None:raise ValueError('candidate_canonical_reference_missing')
+        if row[0] is not None:r=decode_body(row[0],db)
+        else:
+            import hashlib,zlib
+            manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(row[2],)).fetchone()
+            if manifest is None:raise ValueError('candidate_canonical_reference_requires_restore')
+            packed=Path(manifest[0]).read_bytes()
+            if hashlib.sha256(packed).hexdigest()!=manifest[1]:raise ValueError('candidate_history_corruption')
+            decoder=zlib.decompressobj();raw=decoder.decompress(packed,32*1024*1024+1)
+            if not decoder.eof or len(raw)>32*1024*1024:raise ValueError('candidate_canonical_archive_bound')
+            r=next((x['record'] for x in json.loads(raw) if x['record']['identity']==ref['canonical_identity']),None)
+        if r is None or digest(r)!=row[1] or row[1]!=ref['canonical_hash']:raise ValueError('candidate_history_corruption')
+        # Scoped Meteora packets already contain only the authenticated
+        # instruction, balance, event and ordering fields consumed by DLMM.
+        # An index resolves that one packet; it never stores a per-pool copy.
+        payload=r['payload']['event'] if r['kind']=='event' else r['payload']
+        return dict(lane=lane,candidate=candidate,identity=identity,slot=r['slot'],
+            transaction_index=r['transaction_index'],event_index=r['event_index'],market_time=r['market_time'],
+            kind=kind,payload=dict(payload,**ref['fields']))
+
+    def checkpoint(self,scope,candidate,snapshot,*,proof,frontier):
+        """Authoritative state anchor, never permission to skip a delta/gap.
+
+        DLMM validate authenticates exact layout/owners/mints/vaults/bins at one
+        finalized context. The proof stores that context's RPC receipt hash.
+        """
+        if scope!='program:meteora':raise ValueError('candidate_checkpoint_scope')
+        from meme_machine.lanes.meteora import dlmm
+        state=dlmm.validate(snapshot,snapshot['available_time'],'real')
+        if state['pool']!=candidate or len(proof)!=64 or type(frontier) is not int or frontier<0:
+            raise ValueError('candidate_checkpoint_identity')
+        body=dict(snapshot=snapshot,state=state,history_frontier=frontier)
+        identity=digest([scope,candidate,snapshot['slot'],proof])
+        with self.transaction():
+            self.db.execute('INSERT OR IGNORE INTO state_checkpoints VALUES(?,?,?,?,?,?,?,?,?,?)',
+                (identity,scope,candidate,snapshot['slot'],snapshot['market_time'],snapshot['available_time'],
+                 frontier,proof,canonical(body),digest(body)))
+        return identity
+
+    def latest_checkpoint(self,scope,candidate,*,as_of,maximum_age=None):
+        for raw,checksum,available in self.db.execute('SELECT body,hash,available FROM state_checkpoints WHERE scope=? AND candidate=? AND available<=? ORDER BY slot DESC',(scope,candidate,as_of)):
+            body=json.loads(raw)
+            if digest(body)!=checksum:raise ValueError('candidate_history_corruption')
+            if maximum_age is None or as_of-body['snapshot']['market_time']<=maximum_age:return body
+        return None
 
     @staticmethod
     def _required(value,name):
@@ -234,6 +322,12 @@ class CandidateHistory:
                   market_time=market_time,kind=kind,payload=payload)
         encoded=canonical(body);checksum=digest(body)
         with self.transaction():
+            ref=self.db.execute('SELECT body,hash FROM canonical_event_refs WHERE lane=? AND candidate=? AND identity=?',(lane,candidate,identity)).fetchone()
+            if ref:
+                value=json.loads(ref[0])
+                if digest(value)!=ref[1] or self._reference_body(lane,candidate,identity,kind,value)!=body:
+                    raise ValueError('candidate_history_event_conflict')
+                return body
             old=self.db.execute(
                 "SELECT body,hash FROM events WHERE lane=? AND candidate=? AND identity=?",
                 (lane,candidate,identity)).fetchone()
@@ -257,12 +351,26 @@ class CandidateHistory:
             body=json.loads(raw)
             if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
             result.append(body)
+        refs='SELECT identity,kind,body,hash FROM canonical_event_refs WHERE lane=? AND candidate=?'
+        params=[lane,candidate]
+        if through is not None:refs+=' AND market_time<=?';params.append(int(through))
+        for identity,kind,raw,checksum in self.db.execute(refs,params):
+            ref=json.loads(raw)
+            if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')
+            result.append(self._reference_body(lane,candidate,identity,kind,ref))
+        result.sort(key=lambda r:(r['slot'],r['payload'].get('_economic_order',r['transaction_index']) is None,
+            r['payload'].get('_economic_order',r['transaction_index']) or 0,r['event_index'],r['identity']))
         return result
 
     def event(self,lane,candidate,identity):
         row=self.db.execute('SELECT body,hash FROM events WHERE lane=? AND candidate=? AND identity=?',
                             (lane,candidate,identity)).fetchone()
-        if row is None:return None
+        if row is None:
+            ref=self.db.execute('SELECT kind,body,hash FROM canonical_event_refs WHERE lane=? AND candidate=? AND identity=?',(lane,candidate,identity)).fetchone()
+            if ref is None:return None
+            body=json.loads(ref[1])
+            if digest(body)!=ref[2]:raise ValueError('candidate_history_corruption')
+            return self._reference_body(lane,candidate,identity,ref[0],body)
         body=json.loads(row[0])
         if digest(body)!=row[1]:raise ValueError('candidate_history_corruption')
         return body
@@ -272,7 +380,9 @@ class CandidateHistory:
         total,unknown,native_missing=self.db.execute("""SELECT COUNT(*),
             COALESCE(SUM(transaction_index IS NULL AND json_type(body,'$.payload._economic_order') IS NOT 'integer'),0),
             COALESCE(SUM(transaction_index IS NULL),0)
-            FROM events WHERE lane=? AND candidate=?""",(lane,candidate)).fetchone()
+            FROM (SELECT transaction_index,body FROM events WHERE lane=? AND candidate=?
+                  UNION ALL SELECT transaction_index,body FROM canonical_event_refs WHERE lane=? AND candidate=?)""",
+            (lane,candidate,lane,candidate)).fetchone()
         return dict(events=total,unknown_transaction_order=unknown,
                     native_index_missing=native_missing,
                     complete=total>0 and unknown==0)
@@ -314,7 +424,7 @@ class CandidateHistory:
             transaction_index=record.get('transaction_index'),event_index=int(record['event_index']),
             market_time=int(record['market_time']),kind='pumpswap_trade',payload=event)
 
-    def commit_coverage(self,scope,lower_slot,upper_slot,lower_time,upper_time,*,proof_hash):
+    def commit_coverage(self,scope,lower_slot,upper_slot,lower_time,upper_time,*,proof_hash,candidate=None):
         """A canonical reader supplies the proof after all normalized rows commit.
 
         This does not infer continuity from an earliest event or a highest slot.
@@ -324,6 +434,7 @@ class CandidateHistory:
         if (not scope or any(type(v) is not int for v in (lower_slot,upper_slot,lower_time,upper_time))
                 or lower_slot<0 or upper_slot<lower_slot or upper_time<lower_time
                 or len(proof_hash)!=64):raise ValueError('candidate_history_coverage_shape')
+        if candidate is not None:scope=scope+'\x1f'+self._required(candidate,'candidate')
         body=dict(scope=scope,lower_slot=lower_slot,upper_slot=upper_slot,
                   lower_time=lower_time,upper_time=upper_time,proof_hash=proof_hash)
         identity=digest(body)
@@ -334,7 +445,12 @@ class CandidateHistory:
 
     def covered_events(self,lane,candidate,scope,lower_time,upper_time,*,upper_slot=None):
         windows=[]
-        for raw,checksum in self.db.execute('SELECT body,hash FROM history_coverage WHERE scope=? ORDER BY lower_slot,upper_slot',(scope,)):
+        # Candidate-filtered delivery proves this identity only. The legacy
+        # program-wide coverage remains valid for the earlier full source, but
+        # selective publication must never mint it for every other candidate.
+        scoped=scope+'\x1f'+candidate
+        coverage_scope=scoped if self.db.execute('SELECT 1 FROM history_coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone() else scope
+        for raw,checksum in self.db.execute('SELECT body,hash FROM history_coverage WHERE scope=? ORDER BY lower_slot,upper_slot',(coverage_scope,)):
             body=json.loads(raw)
             if digest(body)!=checksum:raise ValueError('candidate_history_corruption')
             windows.append(body)
@@ -353,6 +469,50 @@ class CandidateHistory:
         if any(r['transaction_index'] is None and type(r['payload'].get('_economic_order')) is not int for r in rows):
             raise ValueError('candidate_history_transaction_order_missing')
         return [dict(r['payload']) for r in rows]
+
+    def wait_for_history(self,identity,scope,lo,hi,*,retry_at,reason='required_history_unsealed',now=None):
+        """Release a warming lease until an exact durable interval is ready.
+
+        The timer is a wakeup for explicit failure/timeout handling, never a
+        continuity proof or a new economic decision deadline.
+        """
+        now=float(self.clock() if now is None else now)
+        if not scope or type(lo) is not int or type(hi) is not int or not 0<=lo<=hi:
+            raise ValueError('candidate_history_work_requirement')
+        with self.transaction():
+            row=self.db.execute('SELECT deadline,status FROM work WHERE id=?',(identity,)).fetchone()
+            if row is None:raise ValueError('candidate_history_work_unknown')
+            if row[1]=='deadline_missed':raise ValueError('candidate_history_deadline_disposition_immutable')
+            self.db.execute('INSERT OR REPLACE INTO work_history_requirements VALUES(?,?,?,?,?,?,?)',
+                (identity,scope,lo,hi,min(float(retry_at),row[0]),now,reason))
+            self.db.execute("UPDATE work SET status='pending',worker=NULL,lease_until=NULL,ready_at=?,updated_at=? WHERE id=?",
+                (now,now,identity))
+            self._work_observation(identity,'history_blocked',now,dict(scope=scope,lo=lo,hi=hi,reason=reason,deadline_reset=False))
+
+    def commit_history_readiness(self,scope,lo,hi,*,proof_hash,available=None):
+        """Receive a canonical complete witness after consumer durability.
+
+        These are scheduling receipts, not normalized economic history or entry
+        authority. Disjoint complete islands cannot fill an unproved interval.
+        """
+        at=float(self.clock() if available is None else available)
+        if not scope or type(lo) is not int or type(hi) is not int or not 0<=lo<=hi or len(proof_hash)!=64:
+            raise ValueError('candidate_history_work_proof')
+        body=dict(scope=scope,lo=lo,hi=hi,proof_hash=proof_hash)
+        with self.transaction():
+            self.db.execute('INSERT OR IGNORE INTO work_history_proofs VALUES(?,?,?,?,?,?)',
+                (digest(body),scope,lo,hi,at,proof_hash))
+            spans=self.db.execute('SELECT lo,hi FROM work_history_proofs WHERE scope=? AND available<=? ORDER BY lo,hi',(scope,at)).fetchall()
+            for identity,lower,upper in self.db.execute('SELECT work_id,lo,hi FROM work_history_requirements WHERE scope=?',(scope,)).fetchall():
+                cursor=lower
+                for a,b in spans:
+                    if b<cursor:continue
+                    if a>cursor:break
+                    cursor=max(cursor,b+1)
+                    if cursor>upper:break
+                if cursor>upper:
+                    self.db.execute('DELETE FROM work_history_requirements WHERE work_id=?',(identity,))
+                    self._work_observation(identity,'history_ready',at,dict(scope=scope,lo=lower,hi=upper,proof_hash=proof_hash,deadline_reset=False))
 
     def record_decision(self,lane,candidate,*,mode,observed_at,qualified,decision):
         lane=self._required(lane,"lane");candidate=self._required(candidate,"candidate")
@@ -472,8 +632,9 @@ class CandidateHistory:
                 WHERE status='active' AND lease_until IS NOT NULL AND lease_until<=?""",(now,now))
             active=self.db.execute(
                 "SELECT COUNT(*) FROM work WHERE status='active' AND lease_until>?",(now,)).fetchone()[0]
-            where="status='pending' AND ready_at<=?"
-            args=[now]
+            where="""status='pending' AND ready_at<=? AND (deadline<=? OR NOT EXISTS(
+                SELECT 1 FROM work_history_requirements r WHERE r.work_id=work.id AND r.retry_at>?))"""
+            args=[now,now,now]
             if lane is not None:where+=" AND lane=?";args.append(lane)
             # Safety/positions/continuation precede admission; admission is EDF.
             row=self.db.execute("""SELECT id,lane,candidate,kind,ready_at,deadline,estimate_seconds,
@@ -497,6 +658,8 @@ class CandidateHistory:
                              economic_rejection=False,qualification_complete=False))
                     missed=work
                 elif active<capacity:
+                    from meme_machine.solana_prewarm_startup import candidate_release
+                    if not candidate_release(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')):return None
                     lease=min(work["deadline"],now+max(1.0,work["estimate_seconds"]*2.0))
                     self.db.execute("""UPDATE work SET status='active',worker=?,lease_until=?,updated_at=?
                         WHERE id=? AND status='pending'""",(worker,lease,now,work["id"]))

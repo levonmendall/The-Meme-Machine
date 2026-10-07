@@ -71,6 +71,8 @@ def consume_pump_discovery(tape,sequence):
     from contextlib import closing
     from .runtime.candidate_history import open_candidate_history,order_economic_records
     reader=tape.plane._selective_reader();db=reader.db
+    from .solana_prewarm_startup import require_released
+    require_released(db)
     db.execute('BEGIN')
     try:
         rows=reader.discovery(sequence,as_of=tape.plane.clock())

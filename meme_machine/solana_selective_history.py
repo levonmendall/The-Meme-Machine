@@ -139,8 +139,8 @@ def economic_records(family,address,tx,*,endpoint_identity,seen,source):
     for event in events:
         # A transaction can mention multiple candidates. Acquire it once, but
         # do not put an unrelated event inside this candidate's coverage proof.
-        if family=='pumpswap' and event.get('pool')!=address:continue
-        if family=='pump' and event.get('mint')!=address and event.get('bonding_curve')!=address:
+        if family=='pumpswap' and address!=PROGRAMS[family] and event.get('pool')!=address:continue
+        if family=='pump' and address!=PROGRAMS[family] and event.get('mint')!=address and event.get('bonding_curve')!=address:
             from . import pump
             mint=event.get('mint')
             if not mint or pump_curve_address(mint)!=address:continue
@@ -279,6 +279,9 @@ class SelectiveHistory:
                 raise EvidenceUnavailable('candidate_page_lease_stale')
             self.ingest(rows)
             if proof is not None:
+                actual=self.scope_for(job['family'],job['address'])
+                if proof.scope!=actual:
+                    proof=replace(proof,scope=actual,witness=dict(proof.witness,scope=actual))
                 if hasattr(self,'lifecycle'):self.lifecycle.defer_proof(proof)
                 else:self.prove(proof)
             for row in rows:self.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
@@ -306,7 +309,11 @@ class SelectiveHistory:
         require_storage(self.writer.path,required_bytes=32*1024*1024)
         hot=[];cached=[]
         with self.writer.transaction():
+            if hasattr(self,'rolling'):self.rolling.adopt(rows)
             for row in rows:
+                if hasattr(self,'rolling') and row.kind in ('event','transaction'):
+                    self.rolling.store(row)
+                    continue
                 incoming=row.body()
                 economic_hash=self.content_hash(incoming)
                 receipt=self.db.execute('SELECT economic_hash,transaction_index,first_seen FROM candidate_content_receipts WHERE identity=?',(row.identity,)).fetchone()
@@ -438,7 +445,11 @@ class SelectiveHistory:
                 checksum=hashlib.sha256(packed).hexdigest();first=min(p[2] for p in points)
             self.db.execute('INSERT OR REPLACE INTO candidate_coverage VALUES(?,?,?,?,?,?,?,?,?,?)',
                 (scope,lo,max(p[1] for p in points),len(points),first,at,packed,checksum,lineage,proof.source))
-            if proof.source=='alchemy_finalized_repair':
+            from .solana_rolling_history import program_scope
+            family=scope.split(':',2)[1]
+            rolling_stream=(family in ('pump','pumpswap') and scope==program_scope(family) or
+                proof.witness.get('method')=='scoped_native_membership_census_with_linked_child')
+            if proof.source=='alchemy_finalized_repair' or rolling_stream:
                 self._repair_gap_segments(proof,at)
 
     def _repair_gap_segments(self,proof,at):
@@ -507,7 +518,7 @@ class CandidateReader:
                 raise EvidenceUnavailable('unresolved_evidence_gap')
             # The proof covers this candidate only. Content identities and first
             # availability remain shared; no global coverage is minted here.
-            sql='''SELECT r.body,r.identity,r.hash FROM canonical_evidence r JOIN canonical_addresses a
+            sql='''SELECT r.body,r.identity,r.hash,r.archive,r.first_seen FROM canonical_evidence r JOIN canonical_addresses a
                 ON a.identity=r.identity WHERE a.address=? AND r.scope=?
                 AND r.slot BETWEEN ? AND ? AND r.first_seen<=?'''
             args=[self.market_address,self.base,lower_slot,upper_slot,as_of]
@@ -515,10 +526,16 @@ class CandidateReader:
             sql+=' ORDER BY r.slot,r.transaction_index,r.event_index,r.identity LIMIT ?'
             rows=self.db.execute(sql,(*args,limit+1)).fetchall()
             if len(rows)>limit:raise EvidenceUnavailable('local_evidence_query_bound')
-            result=[]
-            for raw,identity,checksum in rows:
-                if raw is None:raise EvidenceUnavailable('evidence_requires_offline_archive_restore')
-                row=decode_body(raw,self.db)
+            result=[];archives={}
+            for raw,identity,checksum,archive,available in rows:
+                if raw is None:
+                    if not archive or not self.db.execute("SELECT 1 FROM sqlite_master WHERE name='scoped_cold_manifests'").fetchone():
+                        raise EvidenceUnavailable('evidence_requires_offline_archive_restore')
+                    from .solana_scoped_retirement import cold_record
+                    item=cold_record(self.db,identity,archive,cache=archives)
+                    if item['available']!=available:raise EvidenceConflict('local_evidence_hash_mismatch')
+                    row=item['record']
+                else:row=decode_body(raw,self.db)
                 if digest(row)!=checksum:raise EvidenceConflict('local_evidence_hash_mismatch')
                 if row['transaction_index'] is None:
                     native=self.db.execute('''SELECT transaction_index,hash FROM native_order_attestations
@@ -535,6 +552,11 @@ class CandidateReader:
         self.reader._healthy()
         if scope!=self.scope or type(lo) is not int or type(hi) is not int or not 0<=lo<=hi:
             raise EvidenceUnavailable('invalid_query_window')
+        if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='rolling_origins'").fetchone():
+            from .solana_rolling_history import RollingHistory
+            from types import SimpleNamespace
+            view=object.__new__(RollingHistory);view.db=self.db;view.history=SimpleNamespace(clock=lambda:as_of)
+            return not view.missing(self.family,scope,lo,hi,as_of=as_of)
         if self.db.execute('''SELECT 1 FROM candidate_gaps WHERE scope=? AND lo<=?
             AND (hi IS NULL OR hi>=?) AND created<=? AND (repaired IS NULL OR repaired>?) LIMIT 1''',
             (scope,hi,lo,as_of,as_of)).fetchone():return False
@@ -587,8 +609,20 @@ class ConsumerReader:
             r.transaction_index,r.event_index,r.market_time,r.first_seen FROM candidate_outbox o
             JOIN canonical_evidence r ON r.identity=o.identity WHERE o.scope='program:pump'
             AND o.sequence>? AND o.first_seen<=? ORDER BY o.sequence LIMIT ?''',(sequence,as_of,limit)).fetchall()
-        if any(row[1] is None for row in rows):raise EvidenceUnavailable('pump_consumer_backlog_archived')
-        return rows
+        archives={};result=[]
+        for row in rows:
+            if row[1] is None:
+                # Normalized economics can leave hot storage after durable
+                # CandidateHistory publication. A later consumer resolves the
+                # same local canonical pointer, without provider reconstruction.
+                checksum,archive=self.db.execute('SELECT hash,archive FROM canonical_evidence WHERE identity=?',(row[3],)).fetchone()
+                if not archive:raise EvidenceUnavailable('pump_consumer_backlog_archived')
+                from .solana_scoped_retirement import cold_record
+                item=cold_record(self.db,row[3],archive,cache=archives)
+                if digest(item['record'])!=checksum or item['available']!=row[8]:raise EvidenceConflict('local_evidence_hash_mismatch')
+                row=(row[0],canonical(item['record']),*row[2:])
+            result.append(row)
+        return result
 
 
 class ReadTables:

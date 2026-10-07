@@ -411,11 +411,13 @@ class RobinhoodUSDTests(unittest.TestCase):
             'meme_machine/lanes/pump/runner.py',
             'meme_machine/lanes/pump/pumpswap_survivor_runtime.py',
             'meme_machine/lanes/pump/solana_evidence_runtime.py',
+            'meme_machine/lanes/pump/solana_evidence_service.py',
             'meme_machine/lanes/pump/solana_evidence_queries.py',
             'meme_machine/lanes/pump/pump_acceleration_evidence.py',
             'meme_machine/lanes/meteora/runner.py',
             'meme_machine/lanes/meteora/solana_evidence_queries.py',
             'meme_machine/lanes/meteora/solana_evidence_runtime.py',
+            'meme_machine/lanes/meteora/solana_evidence_service.py',
             'meme_machine/lanes/pons/pons_survivor_runtime.py',
         }
         for rel in paths:

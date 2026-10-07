@@ -42,6 +42,7 @@ class ArchiveSchedulingTests(unittest.TestCase):
 
 
 class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_periodic_telemetry_does_not_preempt_background_durable_work(self):
   priorities=[];context=threading.local()
   submit=PriorityOwner.submit;health=service.FinalizedFence.health
@@ -67,9 +68,11 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(set(priorities),{4},'telemetry wakes preempt archive and retention as urgent requests')
    finally:stop.set();await runner
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_cooperative_commit_yield_reuses_already_published_archive(self):
   await self.exercise(False)
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_yield_after_durable_commit_retries_idempotently(self):
   await self.exercise(True)
 
@@ -120,6 +123,7 @@ class ArchiveReceiptRetryTests(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(metrics['archive_worker.records.total'],40,'worker telemetry double-counted a retained receipt retry')
 
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_ready_archive_receipt_finishes_slices_before_fresh_retention_grant(self):
    order=[]
    class SeededState(service.ServiceState):

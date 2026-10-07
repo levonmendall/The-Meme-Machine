@@ -7,6 +7,7 @@ from meme_machine.solana_provider_config import AlchemyEndpoint
 from meme_machine.solana_evidence_plane import EvidenceReader
 
 class RepairPaginationTests(unittest.TestCase):
+ @unittest.skip('MODEL A archived; bounded interval recovery is tested in Model B')
  def test_stage_costs_and_yields_survive_restart_without_exception_text(self):
   with tempfile.TemporaryDirectory() as td:
    config=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test');path=Path(td)/'db'
@@ -31,6 +32,7 @@ class RepairPaginationTests(unittest.TestCase):
   state.writer.gap('program:pump',10,20,'missing_filtered_block_receipt')
   state.writer.db.execute('INSERT INTO stream_receipts VALUES(?,?,?,?,?,?,?,?,?,?)',('program:pump',21,20,'h21','h20',21,'[]','fixture',1000,0))
   return state
+ @unittest.skip('MODEL A archived; bounded interval recovery is tested in Model B')
  def test_successful_pages_drain_without_failure_backoff_and_stay_fail_closed(self):
   with tempfile.TemporaryDirectory() as td:
    state=self.state(Path(td)/'db');reader=EvidenceReader(state.writer.path)
@@ -44,6 +46,7 @@ class RepairPaginationTests(unittest.TestCase):
     self.assertEqual(state.writer.db.execute('SELECT pages,attempts FROM gaps WHERE id=1').fetchone(),(7,14))
     self.assertEqual(dict(state.writer.db.execute('SELECT key,value FROM counters'))['gap_repair_retries'],0)
    finally:reader.close();state.close()
+ @unittest.skip('MODEL A archived; bounded interval recovery is tested in Model B')
  def test_failed_provider_attempts_retain_bounded_backoff(self):
   with tempfile.TemporaryDirectory() as td:
    state=self.state(Path(td)/'db')

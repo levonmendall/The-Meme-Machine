@@ -89,7 +89,7 @@ class CandidateLifecycle:
             if not inserted:return False
             receipt=self.emit(family,address,'activity',dict(slot=slot,seen=seen,signature=signature,
                 evidence=evidence,economic_event=False,entry_authority=False),at=seen)
-            if old[0] in ('queued','warming','active'):return False
+            if old[0] in ('reactivated','queued','warming','active'):return False
             # A native bin-array locator alone does not certify WSOL pairing.
             locator=self.db.execute('SELECT fields FROM market_observations WHERE family=? AND address=?',
                 (family,address)).fetchone()
@@ -111,9 +111,26 @@ class CandidateLifecycle:
             if deadline<=self.clock():raise EvidenceUnavailable('candidate_decision_deadline_missed')
             lo=row[4] if lower_slot is None else lower_slot
             self.history.bind(family,address)
+            if family=='meteora' and hasattr(self.history,'rolling') and lower_slot is None:
+                # Meteora begins its exact warmup AFTER fresh compatibility and
+                # a new swap. The old structural discovery timestamp supplies
+                # no historical qualification authority or cold-RPC obligation.
+                scopes=self.history.rolling.scopes(family,self.history.scope_for(family,address))
+                head=self.db.execute('SELECT MAX(slot) FROM candidate_blocks WHERE scope IN ('+','.join('?' for _ in scopes)+')',
+                    scopes).fetchone() if self.db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name='candidate_blocks'").fetchone() else None
+                if head and head[0] is not None:lo=head[0]
             self.db.execute("UPDATE candidate_history_outbox SET priority=MIN(priority,2) WHERE family=? AND address=? AND consumed IS NULL",(family,address))
             self.db.execute("UPDATE candidate_lifecycle SET state='queued',deadline=?,lower_slot=? WHERE family=? AND address=?",
                 (deadline,lo,family,address))
+            if hasattr(self.history,'rolling'):
+                from .solana_selective_runtime import CONTROL
+                upper=self.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
+                # Structural Meteora exact history starts at its authoritative
+                # fresh compatibility snapshot, then the native trigger/warmup.
+                # An old scout slot is not an instruction to cold-rebuild state.
+                if upper is not None and upper>=lo and (family!='meteora' or lower_slot is not None):
+                    self.history.rolling.prepare(family,address,lo,upper,deadline=deadline)
             body=dict(epoch=row[1],first_slot=row[2],observed_at=row[3],first_seen=row[5],ready_at=self.clock(),
                 decision_deadline=deadline,lower_slot=lo,entry_authority=False)
             return self.emit(family,address,'promotion',body)
@@ -128,7 +145,8 @@ class CandidateLifecycle:
         for row in rows:
             for family,address,market in self.db.execute('''SELECT DISTINCT family,
                 substr(coverage_scope,length('candidate:'||family||':')+1),market_address
-                FROM evidence_bindings WHERE canonical_scope=?''',(row.scope,)):
+                FROM evidence_bindings WHERE canonical_scope=? AND market_address IN ('''+','.join('?' for _ in row.addresses)+')',
+                (row.scope,*row.addresses)):
                 if market not in row.addresses:continue
                 # Preserve the original first availability on duplicate delivery.
                 stored=self.db.execute('SELECT body,first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()
@@ -163,11 +181,28 @@ class CandidateLifecycle:
                         r=body['record']
                         if family=='pump':
                             event=dict(r['payload']['event'],_economic_order=r['transaction_index'],available_time=int(body['available']))
-                            shared.retain_pump_source_history([dict(identity=r['identity'],slot=r['slot'],
-                                transaction_index=r['transaction_index'],event_index=r['event_index'],market_time=r['market_time'],event=event)])
-                        elif family=='pumpswap':shared.retain_pumpswap_record(candidate,r,r['transaction_index'])
-                        # Meteora raw records remain canonical. Its native verified
-                        # tape commits normalized economics through the existing lane.
+                            mint=event['mint'];prior=shared.candidate('pump',mint)
+                            shared.observe('pump',mint,surface='pumpswap' if event['event_type']=='migration' or prior and prior['surface']=='pumpswap' else 'pump.fun',
+                                observed_at=event['market_time'],metadata=dict(source='solana_finalized_evidence_plane',
+                                    **{k:event[k] for k in ('creator','pool') if event.get(k)}))
+                            if hasattr(self.history,'rolling'):
+                                shared.append_reference('pump',mint,r,path=self.writer.path,
+                                    identity='pump-source:'+r['identity'],kind='pump_'+event['event_type'],
+                                    payload_fields=dict(_economic_order=r['transaction_index'],available_time=int(body['available'])))
+                            else:
+                                shared.retain_pump_source_history([dict(identity=r['identity'],slot=r['slot'],
+                                    transaction_index=r['transaction_index'],event_index=r['event_index'],market_time=r['market_time'],event=event)])
+                        elif family=='pumpswap':
+                            event=r['payload']['event']
+                            if hasattr(self.history,'rolling'):
+                                shared.append_reference('pump',candidate,r,path=self.writer.path,
+                                    identity=str(event.get('id') or r['identity']),kind='pumpswap_trade',
+                                    payload_fields=dict(_economic_order=r['transaction_index']))
+                            else:shared.retain_pumpswap_record(candidate,r,r['transaction_index'])
+                        elif family=='meteora' and hasattr(self.history,'rolling'):
+                            shared.append_reference('meteora',candidate,r,path=self.writer.path,
+                                identity=r['identity'],kind='meteora_economic_packet',
+                                payload_fields=dict(pool=candidate,_economic_order=r['transaction_index']))
                     elif kind=='promotion':
                         shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
                             observed_at=int(body['first_seen']),decision_deadline=int(body['decision_deadline']),
@@ -203,6 +238,8 @@ class CandidateLifecycle:
     def missing(self,scope,lo,hi):
         """Return exactly the unproved intervals, including unresolved gaps."""
         if hi<lo:return []
+        if hasattr(self.history,'rolling'):
+            return self.history.rolling.missing(scope.split(':',2)[1],scope,lo,hi)
         spans=[]
         for packed,checksum in self.db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND hi>=? AND lo<=?',(scope,lo,hi)):
             spans.extend((a,b) for a,b,at in coverage_points(packed,checksum) if at<=self.clock())
@@ -252,23 +289,35 @@ class CandidateLifecycle:
                         remaining=tail
                     for x,y in remaining:
                         self.history.gap(row['scope'],x,y,'candidate_restart_or_subscription_rebuild')
-                        jobs.append(self.history.request(row['family'],row['address'],x,y,
-                            priority=row['priority'],deadline=row['deadline']))
+                        job=self.history.request(row['family'],row['address'],x,y,
+                            priority=row['priority'],deadline=row['deadline'])
+                        jobs.append(job)
+                        if hasattr(self.history,'rolling'):
+                            self.db.execute('INSERT OR IGNORE INTO backfill_reasons VALUES(?,?,?)',
+                                (job,'RECOVERY_GAP',canonical(dict(scope=row['scope'],lo=x,hi=y))))
         return jobs
 
     def checkpoint(self,scope,slot,receipt):
         # This method is called in the same transaction as the complete proof.
-        if self.unconsumed(scope):
+        if self.unconsumed(scope,through=slot):
             raise EvidenceUnavailable('candidate_checkpoint_ahead_of_history')
         old=self.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(scope,)).fetchone()
         if old and slot<old[0]:return
         self.db.execute('INSERT OR REPLACE INTO candidate_checkpoints VALUES(?,?,?,?)',(scope,slot,receipt,self.clock()))
 
-    def unconsumed(self,scope):
+    def unconsumed(self,scope,*,through=None):
         family,address=scope.split(':',2)[1:]
+        from .solana_rolling_history import program_scope
+        bound='' if through is None else " AND (kind!='canonical' OR json_extract(body,'$.record.slot')<=?)"
+        tail=() if through is None else (through,)
+        if family in ('pump','pumpswap') and scope==program_scope(family):
+            return self.db.execute("SELECT 1 FROM candidate_history_outbox WHERE family=? AND kind='canonical' AND consumed IS NULL"+bound+' LIMIT 1',(family,*tail)).fetchone()
+        if hasattr(self.history,'rolling') and address.startswith('group-'):
+            return self.db.execute('''SELECT 1 FROM candidate_history_outbox o JOIN rolling_group_members m
+                ON m.family=o.family AND m.address=o.address WHERE m.scope=? AND o.consumed IS NULL'''+bound+' LIMIT 1',(scope,*tail)).fetchone()
         aliases=list({address,*[r[0] for r in self.db.execute('SELECT address FROM evidence_bindings WHERE family=? AND coverage_scope=?',(family,scope))]})
         return self.db.execute('SELECT 1 FROM candidate_history_outbox WHERE consumed IS NULL AND family=? AND address IN ('+
-            ','.join('?' for _ in aliases)+') LIMIT 1',(family,*aliases)).fetchone()
+            ','.join('?' for _ in aliases)+')'+bound+' LIMIT 1',(family,*aliases,*tail)).fetchone()
 
     def defer_proof(self,proof):
         identity=digest([proof.scope,proof.lower_slot,proof.upper_slot,proof.witness])
@@ -280,12 +329,44 @@ class CandidateLifecycle:
         """Proofs become visible only after all source receipts are durable."""
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
         self.flush()
-        with self.writer.transaction():
+        with closing(CandidateHistory(self.path,clock=self.clock)) as shared, self.writer.transaction():
             for identity,scope,lo,hi,source,endpoint,raw,at in self.db.execute(
                     'SELECT * FROM candidate_pending_proofs ORDER BY lo,hi').fetchall():
                 family,address=scope.split(':',2)[1:]
-                if self.unconsumed(scope):continue
-                self.history.prove(IntervalProof(scope,lo,hi,source,endpoint,json.loads(raw),at))
+                if self.unconsumed(scope,through=hi):continue
+                proof=IntervalProof(scope,lo,hi,source,endpoint,json.loads(raw),at)
+                proof.validate()
+                binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND coverage_scope=? LIMIT 1',
+                    (family,scope)).fetchone()
+                candidate=address if binding is None else binding[0]
+                # Publish a scheduling receipt only after every canonical row's
+                # external consumer receipt is durable. The receipt proves this
+                # candidate interval, never program-wide market completeness.
+                shared.commit_history_readiness('candidate:'+family+':'+candidate,lo,hi,
+                    proof_hash=identity,available=self.clock())
+                if hasattr(self.history,'rolling') and address.startswith('group-'):
+                    # Fan out scheduler readiness only for actual pending
+                    # consumers, not one duplicate history per quiet pool.
+                    # Finish the WAL read statement before opening a write
+                    # transaction. A concurrent worker commit otherwise leaves
+                    # this cursor with a stale snapshot (SQLITE_BUSY_SNAPSHOT).
+                    targets=shared.db.execute("SELECT DISTINCT candidate FROM work WHERE lane='meteora' AND status IN ('active','pending')").fetchall()
+                    for target, in targets:
+                        member=self.db.execute('SELECT lower_slot FROM rolling_group_members WHERE scope=? AND family=? AND address=?',(scope,family,target)).fetchone()
+                        if member and member[0]<=hi:
+                            shared.commit_history_readiness('candidate:meteora:'+target,max(lo,member[0]),hi,
+                                proof_hash=identity,available=self.clock())
+                if family in ('pump','pumpswap'):
+                    from .solana_selective_runtime import CONTROL
+                    lower=(0,) if lo==0 else self.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot=?',
+                        (CONTROL,lo)).fetchone()
+                    upper=self.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',
+                        (CONTROL,hi)).fetchone()
+                    if lower and upper:
+                        from .solana_rolling_history import program_scope
+                        shared.commit_coverage(FAMILIES[family],lo,hi,int(lower[0]),int(upper[0]),
+                            proof_hash=identity,candidate=None if scope==program_scope(family) else candidate)
+                self.history.prove(proof)
                 old=self.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(scope,)).fetchone()
                 # A later isolated complete island is not a contiguous checkpoint.
                 unresolved=self.db.execute('SELECT 1 FROM candidate_gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,hi)).fetchone()
