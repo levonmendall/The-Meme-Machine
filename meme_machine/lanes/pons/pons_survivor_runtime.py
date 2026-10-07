@@ -332,10 +332,9 @@ class Runtime:
             for row in self.history.rows():
                 if row.get('position'):self._position(row,admit=admit)
             if admit:
-                # A bounded full hot set must still age/evaluate/retire. Repeating
-                # discovery's capacity exception before that work deadlocks it.
-                discovery_deferred=len(self.history.rows())>=self.history.maximum_candidates
-                if not discovery_deferred:self.discover()
+                # Cheap candidate discovery is not work admission. Retain every
+                # candidate; the existing decision worker bounds expensive work.
+                self.discover()
             rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
                 for expired in list(rows):

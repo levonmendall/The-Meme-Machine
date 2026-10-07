@@ -41,6 +41,7 @@ from meme_machine.lanes.meteora.provider import Unavailable
 from meme_machine.lanes.meteora.solana_evidence_runtime import RuntimeEvidence,METEORA_SCOPE
 
 EVIDENCE_PLANE=None
+CANDIDATE_HISTORY=None
 
 def _evidence_plane():
     global EVIDENCE_PLANE
@@ -433,20 +434,78 @@ def _attempt_budget_state(budget,now,campaign):
 
 
 def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
+    """Retain every cheap candidate; schedule only bounded expensive warming.
+
+    The public discovery producer owns an unlimited-by-count on-disk spool.  After
+    cheap public-context screening, candidates enter the shared EDF queue.  A busy
+    worker never converts a candidate into a rejection: the work remains durable
+    and the earliest decision deadline is always claimed first.
+    """
     from meme_machine.lanes.meteora.dlmm_discovery import CampaignDiscovery
+    from meme_machine.runtime.candidate_history import CandidateDeadlineMissed
     source=source or CampaignDiscovery(OUT.with_suffix('.discovery.sqlite'),
         api=_api,candidate=_candidate,eligible=_sol_pair,sorts=DISCOVERY_SORTS,
         pages=DISCOVERY_PAGES_PER_SORT,page_size=DISCOVERY_PAGE_SIZE,deadline=deadline)
     for key in ('rejections','errors','qualified'):telemetry.setdefault(key,[])
     for key in ('seen','history_reads','snapshot_context_candidates','reactivated'):telemetry.setdefault(key,0)
-    source.start()
+    source.start();source_done=False
+    worker='meteora-warmup:'+str(os.getpid())
+    history=CANDIDATE_HISTORY
+    def screen(item):
+        # Missing public context may require I/O. It belongs to admitted work,
+        # after every already-delivered cheap identity has entered the EDF queue.
+        address=item['address'];observed_at=item['signal_observed_at']
+        telemetry['snapshot_context_candidates']+=1
+        if item.get('missing_5m_context') and item['tvl_usd']>0:
+            telemetry['history_reads']+=1
+            try:item=_history_acceleration(item,observed_at)
+            except Exception as exc:
+                reason=str(exc)
+                if not reason.startswith('solana_dlmm_volume_history_'):reason=type(exc).__name__
+                telemetry['errors'].append(dict(pool=address,reason=reason,
+                    failure_domain='incomplete_evidence',qualification_inferred=False))
+                _stage(address,'rejected','public_fee_context_incomplete')
+                checkpoint('discovery_incomplete_evidence');return None
+        failed=[]
+        if item['fee_5m_usd']<=0:failed.append('public_fee_context_zero')
+        if item['tvl_usd']<=0:failed.append('public_liquidity_context_zero')
+        if failed:
+            telemetry['rejections'].append(dict(pool=address,failed=failed,candidate=item))
+            checkpoint('discovery_rejection');return None
+        telemetry['qualified'].append(item)
+        checkpoint('discovery_signal');return item
     try:
         while not _runtime_expired(deadline):
+            # A queued urgent candidate must not remain hidden behind a slow
+            # first warming job. Drain the currently available cheap spool first.
+            if history is not None and (source_done or source.snapshot().get('pending',0)==0):
+                try:claimed=history.claim(worker,lane='meteora')
+                except CandidateDeadlineMissed as exc:
+                    telemetry.setdefault('deadline_misses',[]).append(exc.work)
+                    checkpoint('candidate_decision_deadline_missed')
+                    continue
+                if claimed is not None:
+                    item=screen(dict(claimed['payload']['candidate']))
+                    if item is None:
+                        history.complete(claimed['id'],status='failed',details=dict(
+                            reason='public_context_incomplete_or_weak',recoverable=True,
+                            strategy_qualification_inferred=False))
+                        continue
+                    item['_candidate_work_id']=claimed['id']
+                    yield item
+                    continue
+                if source_done:
+                    if history.pending(lane='meteora')<=0:break
+                    _stop_sleep(min(.05,_runtime_remaining(deadline)))
+                    continue
+            if source_done:break
             item=source.next_candidate()
             stats=source.snapshot();telemetry['seen']=stats['first_seen']
             telemetry['census_cycles']=stats['census_cycles']
             telemetry['source_acquisition']=stats
-            if item is None:break
+            if item is None:
+                source_done=True
+                continue
             address=item['address'];observed_at=item['signal_observed_at']
             if source.on_discovered is None:_stage(address,'discovered')
             if item.get('reactivated'):
@@ -454,26 +513,25 @@ def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
                 _stage(address,'reactivated',
                        discovery_cycle=item.get('discovery_cycle'),
                        source_observed_at=item.get('source_observed_at'))
-            telemetry['snapshot_context_candidates']+=1
-            if item.get('missing_5m_context') and item['tvl_usd']>0:
-                telemetry['history_reads']+=1
-                try:item=_history_acceleration(item,observed_at)
-                except Exception as exc:
-                    reason=str(exc)
-                    if not reason.startswith('solana_dlmm_volume_history_'):reason=type(exc).__name__
-                    telemetry['errors'].append(dict(pool=address,reason=reason,
-                        failure_domain='incomplete_evidence',qualification_inferred=False))
-                    _stage(address,'rejected','public_fee_context_incomplete')
-                    checkpoint('discovery_incomplete_evidence');continue
-            failed=[]
-            if item['fee_5m_usd']<=0:failed.append('public_fee_context_zero')
-            if item['tvl_usd']<=0:failed.append('public_liquidity_context_zero')
-            if failed:
-                telemetry['rejections'].append(dict(pool=address,failed=failed,candidate=item))
-                checkpoint('discovery_rejection');continue
-            telemetry['qualified'].append(item)
-            checkpoint('discovery_signal')
-            yield item
+            if history is None:
+                item=screen(item)
+                if item is not None:yield item
+                continue
+            decision_deadline=int(min(item.get('decision_deadline',float('inf')),
+                getattr(source,'deadline_wall',time.time()+_runtime_remaining(deadline))))
+            history.observe('meteora',address,surface='meteora-dlmm',
+                observed_at=int(observed_at),decision_deadline=decision_deadline,
+                metadata=dict(source='meteora_public_ranking',
+                    discovery_sort=item.get('discovery_sort'),
+                    discovery_page=item.get('discovery_page'),
+                    discovery_raw_rank=item.get('discovery_raw_rank')))
+            history.enqueue('meteora',address,kind='warmup',
+                ready_at=time.time(),deadline=decision_deadline,
+                estimate_seconds=FRESH_SWAP_TRIGGER_MAX_SECONDS+
+                    int(policy['range']['warmup_seconds'])+15,
+                priority=30,payload=dict(candidate=item),
+                identity='meteora:warmup:'+address+':'+str(int(observed_at)))
+            checkpoint('candidate_retained')
     finally:
         try:source.close()
         finally:
@@ -789,6 +847,31 @@ def _capture_chunk(
         start,end_snapshot,signatures,transactions,int(time.time()),cursor)
     _stage(start["pool"],"reconstruction_complete",lineage=tape.lineage)
     actions=ordered_tape_actions(tape)
+    if CANDIDATE_HISTORY is not None:
+        # Persist only the normalized economics required by later promotion.
+        # Raw transaction bodies remain evidence-plane material, not candidate history.
+        source_order={(s['slot'],s.get('transactionIndex') if type(s.get('transactionIndex')) is int
+            else s['transactionOrder']['rank']):s for s in signatures}
+        for kind,item,_order in actions:
+            order=list(item.get('cursor') or [item.get('slot',0),0,0])
+            if len(order)!=3:raise Unavailable('candidate_history_meteora_order')
+            witness=source_order.get((int(order[0]),int(order[1])))
+            if witness is None:raise Unavailable('candidate_history_meteora_order_witness_missing')
+            identity=str(witness['signature'])+':'+str(order[2])
+            payload=dict(item,_economic_order=int(order[1]),
+                _order_witness=witness.get('transactionOrder') or dict(kind='chain_index'))
+            prior=CANDIDATE_HISTORY.event('meteora',start['pool'],identity)
+            if prior is not None and 'available_time' in prior['payload']:
+                # A replay may finish later, but cannot rewrite when this exact
+                # normalized event first became available. All economic fields
+                # still undergo the immutable append/conflict check below.
+                payload['available_time']=prior['payload']['available_time']
+            CANDIDATE_HISTORY.append_event(
+                'meteora',start['pool'],identity=identity,
+                slot=int(order[0]),transaction_index=witness.get('transactionIndex'),
+                event_index=int(order[2]),
+                market_time=int(item.get('time') or tape.terminal['time']),
+                kind='meteora_'+str(kind),payload=payload)
     next_cursor=(list(actions[-1][1].get("cursor") or cursor)
                  if actions else list(cursor))
     return tape,next_cursor,census
@@ -1248,7 +1331,7 @@ def _eligible_exit_reasons(reasons, *, elapsed_seconds, collapse_streaks, policy
     return eligible
 
 
-def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
+def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None,decision_id=None):
     identity=book.identity() if book is not None else None
     if EVIDENCE_PLANE is not None:
         EVIDENCE_PLANE.interest(METEORA_SCOPE,lower_slot=entry['slot'],addresses=[address],
@@ -1256,6 +1339,10 @@ def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,br
     if book is not None:
         book.append(identity,'reserve',dict(amount=CAPITAL+ROUND_TRIP_NETWORK_COST,
             pool=address,policy_hash=digest(policy),strategy_evidence_hash=digest(dict(entry=entry,features=features))))
+        if CANDIDATE_HISTORY is not None and decision_id is not None:
+            CANDIDATE_HISTORY.record_funding(decision_id,'meteora',address,
+                status='funded',at=int(time.time()),details=dict(
+                    lifecycle_id=identity,amount=CAPITAL+ROUND_TRIP_NETWORK_COST))
     _stage(address,'entry_reserved',lifecycle_id=identity)
     try:
         return _position_lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline,broker,book,identity)
@@ -1795,10 +1882,12 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
 
 
 def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=False):
-    global PROGRESS_HOOK
+    global PROGRESS_HOOK,CANDIDATE_HISTORY
     from meme_machine.lanes.meteora.pipeline import Pipeline,censor_class
     assert_independence()
     policy=load_policy()
+    from meme_machine.runtime.candidate_history import open_candidate_history
+    CANDIDATE_HISTORY=open_candidate_history()
     target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
     max_attempted=int(max_attempted or policy["prospective_test"]["max_attempted_pools"])
     if not 1<=target<=int(policy["prospective_test"]["target_complete_lifecycles"]):
@@ -1876,9 +1965,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
     attempt_budget=CampaignAttemptBudget(max_attempted)
     report['policy_hash']=digest(policy)
     report["continuous_campaign"]=campaign
-    report["attempt_budget_window_seconds"]=1200 if campaign else None
+    report["attempt_budget_window_seconds"]=None
     report['operational_configuration']=dict(campaign=campaign,census_interval_seconds=60 if campaign else None,
-        attempt_limit=max_attempted,attempt_window_seconds=1200 if campaign else None,
+        attempt_limit=None if campaign else max_attempted,attempt_window_seconds=None,
         attempt_limit_is_pressure_only=True,
         first_sighting_scope='entire_process',paper_starting_capital_lamports=1_000_000_000,
         runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
@@ -1903,6 +1992,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
             DLMM_WAKE_STREAM_KEY,int(time.time()),0)
         report["evidence_broker"]=broker.telemetry()
         report["evidence_plane"]=_evidence_plane().telemetry()
+        if CANDIDATE_HISTORY is not None:
+            report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
         _atomic_checkpoint(
             report,stage,rpcs,pacer,
             attempted_pool_count=attempted,
@@ -1966,20 +2057,6 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     checkpoint("compatibility_rejection")
                     continue
 
-                budget_state=_attempt_budget_state(
-                    attempt_budget,time.monotonic(),campaign)
-                capacity_pressure=budget_state['pressure']
-                if capacity_pressure:
-                    # The historical attempt budget is now pressure telemetry only.
-                    # It may reveal that the machine/provider cannot keep up, but it
-                    # may not silently discard an otherwise recoverable candidate.
-                    failure_counts['capacity_attempt_window_pressure']+=1
-                    report['attempt_budget_pressure_count']=(
-                        report.get('attempt_budget_pressure_count',0)+1)
-                    _stage(candidate["address"],"capacity_pressure",
-                           "capacity_attempt_window_pressure",
-                           economic_rejection=False)
-                    checkpoint('capacity_pressure')
                 attempted+=1
                 _stage(candidate["address"],"admitted")
                 _stage(candidate["address"],"trigger_evidence_requested")
@@ -2020,10 +2097,19 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     _stage(candidate["address"],"economic_vector")
                     _stage(candidate["address"],"evidence_complete")
                     decision=qualify(features,policy)
+                    decision_id=None
+                    if CANDIDATE_HISTORY is not None:
+                        decision_id=CANDIDATE_HISTORY.record_decision(
+                            'meteora',candidate["address"],mode='dlmm',
+                            observed_at=int(entry.get('available_time') or time.time()),
+                            qualified=bool(decision["passes"]),decision=dict(
+                                features=features,qualification=decision,
+                                policy_hash=digest(policy)))
                     _stage(candidate["address"],"evaluated")
                     _stage(candidate["address"],"qualified" if decision["passes"] else "rejected")
                     attempt["pre_entry_features"]=features
                     attempt["qualification"]=decision
+                    attempt["decision_id"]=decision_id
                     for failed in decision["failed"]:failure_counts[failed]+=1
                     if not decision["passes"]:
                         attempt["terminal_classification"]="qualification_rejection"
@@ -2032,25 +2118,30 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                         _stage(candidate["address"],"terminal","qualification_rejection",failed=decision["failed"])
                         checkpoint("qualification_rejection")
                         continue
-                    if book.reconcile()['unsettled']:
-                        # Preserve the complete qualified opportunity while refusing
-                        # only the funding/execution step.
-                        failure_counts['paper_capital_occupied']+=1
-                        attempt["terminal_classification"]="qualified_but_capital_unavailable"
+                    capital_state=book.reconcile()
+                    if capital_state['unsettled']:
+                        reason='paper_capital_occupied'
+                        if CANDIDATE_HISTORY is not None and decision_id is not None:
+                            CANDIDATE_HISTORY.record_funding(
+                                decision_id,'meteora',candidate["address"],
+                                status='denied',at=int(time.time()),reason=reason,
+                                details=capital_state)
+                        attempt["funding"]=dict(status='denied',reason=reason,capital=capital_state)
+                        attempt["terminal_classification"]="funding_denied"
                         attempt["economic_rejection"]=False
-                        attempt["strategy_qualified"]=True
-                        attempt["funding_reason"]="paper_capital_occupied"
                         attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                         report["attempts"].append(attempt)
-                        _stage(candidate["address"],"evidence_not_required",
-                               "paper_capital_occupied",scope="execution_only",
-                               strategy_qualified=True,capital_constraint_preserved=True)
-                        checkpoint("qualified_but_capital_unavailable")
+                        failure_counts['funding_denied']+=1
+                        _stage(candidate["address"],"funding_denied",reason,
+                            qualification_preserved=True,decision_id=decision_id)
+                        _stage(candidate["address"],"terminal",reason,
+                            qualification_preserved=True,decision_id=decision_id)
+                        checkpoint("funding_denied")
                         continue
                     lifecycle,adapter=_lifecycle(
                         adapter,candidate["address"],entry,features,policy,pacer,
                         candidate_rpcs,(deadline+int(policy['range']['max_holding_seconds'])+300
-                            if campaign else deadline),broker,book)
+                            if campaign else deadline),broker,book,decision_id=decision_id)
                     for rpc in candidate_rpcs:
                         if rpc not in rpcs:rpcs.append(rpc)
                     attempt["lifecycle"]=lifecycle
@@ -2070,6 +2161,25 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     checkpoint("lifecycle_terminal")
                 except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
                     classification='paper_capital_capacity' if str(exc)=='dlmm_accounting_capital_exhausted' else 'exception'
+                    if (classification=='paper_capital_capacity'
+                            and CANDIDATE_HISTORY is not None
+                            and attempt.get('decision_id') is not None):
+                        prior_funding=CANDIDATE_HISTORY.funding_outcome(
+                            attempt['decision_id'])
+                        if prior_funding is None:
+                            CANDIDATE_HISTORY.record_funding(
+                                attempt['decision_id'],'meteora',candidate["address"],
+                                status='denied',at=int(time.time()),
+                                reason='dlmm_accounting_capital_exhausted',
+                                details=book.reconcile())
+                            attempt['funding']=dict(status='denied',
+                                reason='dlmm_accounting_capital_exhausted',
+                                capital=book.reconcile())
+                        else:
+                            # A successful reserve is already a durable funded
+                            # disposition. A later accounting failure cannot rewrite
+                            # that qualified decision into a funding denial.
+                            attempt['funding']=prior_funding
                     attempt["terminal_classification"]=classification
                     attempt["reason"]=str(exc)[:200]
                     failure_counts[classification]+=1
@@ -2083,6 +2193,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                 plane.command(op='release',owner='meteora:candidate:'+candidate['address'],
                     scope=METEORA_SCOPE,resolved=False)
                 plane.count('meteora.candidate_interests_released')
+                work_id=candidate.get('_candidate_work_id')
+                if CANDIDATE_HISTORY is not None and work_id is not None:
+                    CANDIDATE_HISTORY.complete(work_id,status='complete')
 
     finally:
         try:
@@ -2101,7 +2214,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                 PROGRESS_HOOK=None
                 stream_stop.set();wake_thread.join(timeout=5)
                 try:pipeline.close()
-                finally:broker.close()
+                finally:
+                    broker.close()
+                    if CANDIDATE_HISTORY is not None:
+                        CANDIDATE_HISTORY.close();CANDIDATE_HISTORY=None
 
 
 
@@ -2165,6 +2281,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
     report["evidence_broker"]=broker.telemetry()
     broker.close()
+    if CANDIDATE_HISTORY is not None:
+        CANDIDATE_HISTORY.close();CANDIDATE_HISTORY=None
     PROGRESS_HOOK=None;pipeline.close()
     print(json.dumps(dict(
         conclusion=report["conclusion"],attempted=attempted,complete=complete,

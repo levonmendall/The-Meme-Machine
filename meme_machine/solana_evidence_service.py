@@ -168,8 +168,8 @@ def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,i
     records=decoder.decode(replace(subscription,evidence_class='transactions'),scoped,seen) if subscription.evidence_class=='transactions' else []
     enriched=[];deliveries=[];batches=[]
     for tx,record in zip(transactions,records):
-        body=dict(record.payload);body.pop('transactionIndex',None)
-        enriched.append(prepare(replace(record,payload=body,transaction_index=None,
+        body=dict(record.payload)
+        enriched.append(prepare(replace(record,payload=body,
             addresses=tuple(sorted(set(keys(tx)+[subscription.address]))))))
     if enriched:batches.append(tuple(enriched))
     for tx,signature in zip(transactions,signatures):
@@ -177,7 +177,7 @@ def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,i
             meta=tx['meta'];log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
             notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
             rows=FinalizedNotificationDecoder(endpoint_identity=endpoint_identity,log_decoder=decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
-            if rows:batches.append(tuple(prepare(row) for row in rows))
+            if rows:batches.append(tuple(prepare(replace(row,transaction_index=tx.get('transactionIndex'))) for row in rows))
             deliveries.append((signature,digest(log)))
         elif subscription.evidence_class=='transactions':deliveries.append((signature,digest(tx)))
     # Prepared scopes already share the 16 MiB frame budget. Group their exact
@@ -306,8 +306,8 @@ class FinalizedFence:
                     keys=[k if isinstance(k,str) else k['pubkey'] for k in message_keys]
                     loaded=(tx.get('meta') or {}).get('loadedAddresses') or {}
                     keys+=list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
-                    body=dict(record.payload);body.pop('transactionIndex',None)
-                    enriched.append(replace(record,payload=body,transaction_index=None,
+                    body=dict(record.payload)
+                    enriched.append(replace(record,payload=body,
                         addresses=tuple(sorted(set(keys+[subscription.address])))))
                 self.writer.ingest(enriched)
                 with self.writer.transaction():
@@ -319,7 +319,7 @@ class FinalizedFence:
                         log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
                         notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
                         records=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
-                        if records:self.writer.ingest(records)
+                        if records:self.writer.ingest([replace(row,transaction_index=tx.get('transactionIndex')) for row in records])
                         self._delivery(subscription.scope,slot,signature,log,seen)
                     elif subscription.evidence_class=='transactions':self._delivery(subscription.scope,slot,signature,tx,seen)
             else:

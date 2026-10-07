@@ -7,7 +7,7 @@ FAST=[
  'tests.test_operational_uptime_health',
  'tests.test_operational_backup','tests.test_operational_observation','tests.test_durable_acceptance','tests.test_operational_monitoring','tests.test_operational_acceptance','tests.test_operational_metrics',
  'tests.test_operational_storage_guard',
- 'tests.test_operational_capacity_repairs','tests.test_runtime_evidence_thread_ownership',
+ 'tests.test_operational_capacity_repairs','tests.test_runtime_evidence_thread_ownership','tests.test_candidate_history','tests.test_solana_reconstruction_gate','tests.test_solana_source_intake.SourceIntakeTests',
  'tests.test_operational_nine','tests.test_operational_portfolio',
  'tests.test_robinhood_usd_valuation','tests.test_native_valuation_completion',
  'tests.test_opportunity_telemetry','tests.test_opportunity_retention','tests.test_pons_ongoing_scale','tests.test_strategic_reference','tests.test_strategy_observability_runtime','tests.test_current_survivor_independence',
@@ -22,7 +22,7 @@ FAST=[
 ]
 OPERATIONAL=FAST+[
  'tests.test_workload_efficiency',
- 'tests.test_solana_source_intake',
+ 'tests.test_solana_source_intake.LiveIntakeBoundaryTests',
  'tests.test_operational_supervisor','tests.test_operational_storage',
  'tests.test_operational_dashboard','tests.test_portfolio_snapshot_transport',
  'tests.lanes.pons.test_pons_current_recovery','tests.lanes.pons.test_pons_position_provider_recovery',

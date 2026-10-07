@@ -54,6 +54,8 @@ class Runtime:
         from meme_machine.runtime.survivor_terminal_archive import compact
         compact(self.book,self.sleeve,self.history)
         self.plane=RuntimeEvidence(owner='pump:survivor')
+        from meme_machine.runtime.candidate_history import open_candidate_history
+        self.candidate_history=open_candidate_history()
         self.rpc=None;self.current=None;self.last_error=None
 
     def now(self):return int(time.time())
@@ -107,10 +109,18 @@ class Runtime:
                 index=proof[0]
             return record['slot'],index,record['event_index']
         records.sort(key=order)
+        multiple={}
+        for record in records:multiple.setdefault(record['slot'],set()).add(record['signature'])
         events=[];points={}
         for record in records:
-            e=record['payload']['event'];t=e['market_time']
+            e=dict(record['payload']['event']);t=e['market_time']
+            if len(multiple[record['slot']])>1:e['_economic_order']=order(record)[1]
             if not row['through']<=t<=at:continue
+            shared=getattr(self,'candidate_history',None)
+            if shared is not None:
+                shared.observe('pump',row['id'],surface='pumpswap',
+                    observed_at=grad['at'],metadata=dict(pool=grad['pool']))
+                shared.retain_pumpswap_record(row['id'],record,order(record)[1])
             price=Fraction(e['pool_quote_reserve'],e['pool_base_reserve'])
             prior=points.get(t,dict(low=str(price),high=str(price)))
             points[t]=dict(price=str(price),low=str(min(price,Fraction(prior['low']))),
@@ -237,10 +247,25 @@ class Runtime:
 
     def _enter(self,row,decision,generation,regime,identity):
         sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
-        return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
+        result=commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
             strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
             target=sizing["target"],minimum=GAS*2+1,retention_bps=5000,
             ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
+        self._funding(row,'funded',details=dict(lifecycle_id=identity,sizing=sizing))
+        return result
+
+    def _decision(self,row,decision,at):
+        shared=getattr(self,'candidate_history',None)
+        if shared is None:return
+        row['decision_id']=shared.record_decision('pump',row['id'],mode='survivor',
+            observed_at=at,qualified=bool(decision['candidate']),
+            decision=dict(qualification=decision,policy_hash=POLICY_HASH))
+
+    def _funding(self,row,status,reason=None,details=None):
+        shared=getattr(self,'candidate_history',None)
+        if shared is not None and row.get('decision_id'):
+            shared.record_funding(row['decision_id'],'pump',row['id'],
+                status=status,at=self.now(),reason=reason,details=details)
 
     def step(self,*,admit):
         discovery_deferred=False
@@ -300,6 +325,8 @@ class Runtime:
                             status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime)
+                        self._decision(row,decision,state['market_time'])
+                        self.history.save(row)
                         if decision['candidate']:
                             sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
                             if int(sizing.get('allocatable_target',0)) < GAS*2+1:
@@ -307,6 +334,7 @@ class Runtime:
                                 # unavailable. Do not mint a fake reserved position.
                                 row['position']=None
                                 row['state']='qualified_but_capital_unavailable'
+                                self._funding(row,'denied','survivor_minimum_capital',sizing)
                                 self.sleeve.opportunity(
                                     row['id'],identity=row['id'],regime='survivor',
                                     status=row['state'],at=state.get('market_time',state.get('at')),
@@ -318,11 +346,12 @@ class Runtime:
                                 try:
                                     self._enter(row,decision,observed['generation'],regime,row['position'])
                                 except ValueError as exc:
-                                    if str(exc)!='survivor_minimum_capital':
+                                    if str(exc) not in ('survivor_minimum_capital','sleeve_capital_exhausted'):
                                         raise
                                     row=self.history.get(row['id'])
                                     row['position']=None
                                     row['state']='qualified_but_capital_unavailable'
+                                    self._funding(row,'denied',str(exc),sizing)
                                     self.sleeve.opportunity(
                                         row['id'],identity=row['id'],regime='survivor',
                                         status=row['state'],at=state.get('market_time',state.get('at')),
@@ -343,4 +372,5 @@ class Runtime:
                     durable_handoff=handoff_ready(self.book,self.history.rows()))
 
     def close(self):
+        if getattr(self,'candidate_history',None) is not None:self.candidate_history.close()
         self.book.close();self.history.close();self.sleeve.close();self.plane.close()
