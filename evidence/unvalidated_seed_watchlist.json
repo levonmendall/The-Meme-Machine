@@ -1,0 +1,32 @@
+{
+  "status": "unvalidated_observation_only",
+  "authority": "diagnostic_watchlist_only",
+  "created_from": "public finalized Pump.fun program census in GitHub Actions run 35159048378",
+  "created_at_unix": 1789598620,
+  "seeds": [
+    {
+      "wallet": "9egfsobatFdRYaQNmea5V17ijGBCWpsCCAg2o7Qnj9VU",
+      "event_id": "35LkK86HeniAse3XsYgW8yUtfJcWBB7hLVA3ZuAqRUBZATTT7sfV66QifQmmqaUZxH9uND8jEwLRuFvYNsEeNP1t:47",
+      "mint": "6XcZ6ds95n9XnHvfbCqDmvowcQtLNNofnYyjMjkAjse9",
+      "market_time": 1789598605
+    },
+    {
+      "wallet": "9NBrgQ4QUCBBBwXeDs3zgviV8h5GkvPgiU1BkisGZY2R",
+      "event_id": "45b6PGQGQMgc2kQKPZUuCYJ8BqZYdyU9AbhfDS7Ad2pAbSzrFv5YxRrJ7r5gFyPbewZpL4iyvjvKiZULFmXd2WyM:41",
+      "mint": "AGHe2wRLrL65u3vSvbWx6X3HK49Y5MGPyib6svXKpump",
+      "market_time": 1789598605
+    }
+  ],
+  "excluded_system_wallets": [
+    {
+      "wallet": "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s",
+      "reason": "Pump.fun publicly disclosed Mayhem Mode trading-agent wallet and Mayhem sol-vault; protocol-controlled random-walk activity is not independent scout evidence",
+      "verified_at": "2026-09-16"
+    }
+  ],
+  "limitations": [
+    "Recent buying proves activity only, not skill, profitability, independence, or future usefulness.",
+    "These addresses may nominate diagnostic candidates but receive no skill-based authority or sizing influence.",
+    "Protocol-controlled system wallets are excluded from scouting and independent-demand corroboration."
+  ]
+}

@@ -1,0 +1,39 @@
+test_fee_tier_boundary_and_graduation (tests.test_captured.Captured.test_fee_tier_boundary_and_graduation) ... ok
+test_real_accounts_and_quotes (tests.test_captured.Captured.test_real_accounts_and_quotes) ... ok
+test_real_trade (tests.test_captured.Captured.test_real_trade) ... ok
+test_rpc_failures_and_forged_logs_are_not_trades (tests.test_captured.Captured.test_rpc_failures_and_forged_logs_are_not_trades) ... ok
+test_transfer_tax_extensions_rejected (tests.test_captured.Captured.test_transfer_tax_extensions_rejected) ... ok
+test_known_global_pda (tests.test_lifecycle.AdapterTests.test_known_global_pda) ... ok
+test_math_conservative_roundtrip_and_impact (tests.test_lifecycle.AdapterTests.test_math_conservative_roundtrip_and_impact) ... ok
+test_provider_budget_cache_and_readonly (tests.test_lifecycle.AdapterTests.test_provider_budget_cache_and_readonly) ... ok
+test_provider_redacts_errors (tests.test_lifecycle.AdapterTests.test_provider_redacts_errors) ... ok
+test_archive_corruption (tests.test_lifecycle.Lifecycle.test_archive_corruption) ... ok
+test_checkpoint_corruption (tests.test_lifecycle.Lifecycle.test_checkpoint_corruption) ... ok
+test_duplicate_conflict (tests.test_lifecycle.Lifecycle.test_duplicate_conflict) ... ok
+test_independent_rejection (tests.test_lifecycle.Lifecycle.test_independent_rejection) ... ok
+test_losing_path_and_failed_exit (tests.test_lifecycle.Lifecycle.test_losing_path_and_failed_exit) ... ok
+test_pressure_keeps_exits (tests.test_lifecycle.Lifecycle.test_pressure_keeps_exits) ... ok
+test_process_termination_before_after_commit (tests.test_lifecycle.Lifecycle.test_process_termination_before_after_commit) ... ok
+test_reconciliation_detects_balance_damage (tests.test_lifecycle.Lifecycle.test_reconciliation_detects_balance_damage) ... ok
+test_related_buyers_not_independent (tests.test_lifecycle.Lifecycle.test_related_buyers_not_independent) ... ok
+test_replay_is_same_path (tests.test_lifecycle.Lifecycle.test_replay_is_same_path) ... ok
+test_restart_open_and_lost_ack (tests.test_lifecycle.Lifecycle.test_restart_open_and_lost_ack) ... ok
+test_shared_capital_and_dlmm_disabled (tests.test_lifecycle.Lifecycle.test_shared_capital_and_dlmm_disabled) ... ok
+test_stale_fill_cancel_and_failed_fee (tests.test_lifecycle.Lifecycle.test_stale_fill_cancel_and_failed_fee) ... ok
+test_stale_future_tax_and_unsupported (tests.test_lifecycle.Lifecycle.test_stale_future_tax_and_unsupported) ... ok
+test_synthetic_contamination (tests.test_lifecycle.Lifecycle.test_synthetic_contamination) ... ok
+test_unavailable_exit_unknown_mark (tests.test_lifecycle.Lifecycle.test_unavailable_exit_unknown_mark) ... ok
+test_winning_complete_path (tests.test_lifecycle.Lifecycle.test_winning_complete_path) ... ok
+test_duplicate_with_later_ingestion_is_same_economic_event (tests.test_recovery.Recovery.test_duplicate_with_later_ingestion_is_same_economic_event) ... ok
+test_exit_scheduler_runs_without_new_wallet_trade (tests.test_recovery.Recovery.test_exit_scheduler_runs_without_new_wallet_trade) ... ok
+test_future_finality_wait_does_not_fill_earlier_price (tests.test_recovery.Recovery.test_future_finality_wait_does_not_fill_earlier_price) ... ok
+test_liquidity_interface_cannot_bypass_shared_allocator (tests.test_recovery.Recovery.test_liquidity_interface_cannot_bypass_shared_allocator) ... ok
+test_no_free_cash_on_missing_mark (tests.test_recovery.Recovery.test_no_free_cash_on_missing_mark) ... ok
+test_no_reseed_or_configuration_drift (tests.test_recovery.Recovery.test_no_reseed_or_configuration_drift) ... ok
+test_reservation_restart_and_related_limit (tests.test_recovery.Recovery.test_reservation_restart_and_related_limit) ... ok
+test_wallet_transfers_and_partial_sells_not_profit (tests.test_recovery.Recovery.test_wallet_transfers_and_partial_sells_not_profit) ... ok
+
+----------------------------------------------------------------------
+Ran 34 tests in 0.170s
+
+OK
