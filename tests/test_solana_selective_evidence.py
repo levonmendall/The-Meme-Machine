@@ -260,4 +260,36 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
             with self.assertRaises(DeliveredRPCError) as raised:rpc.call_delivered('getTransactionsForAddress',[],3)
         self.assertEqual(raised.exception.receipt,dict(bytes=32,cu=100))
 
+    def test_native_resource_exhaustion_keeps_provider_detail_without_credentials(self):
+        import asyncio
+        import grpc
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock,MagicMock
+        from meme_machine.solana_selective_source import SelectiveSource
+        from engineering.solana_capacity.transport_meter import TransportMeter
+        for phase in ('subscription_write','stream_read'):
+            with self.subTest(phase=phase):
+                source=SelectiveSource(SimpleNamespace(credential='fixture-key'),MagicMock(),token='fixture-token')
+                source.stop=asyncio.Event()
+                call=MagicMock();call.write=AsyncMock();call.read=AsyncMock()
+                failure=grpc.aio.AioRpcError(grpc.StatusCode.RESOURCE_EXHAUSTED,None,None,
+                    details='subscription limit exceeded; fixture-token https://solana-mainnet.g.alchemy.com/v2/fixture-key')
+                (call.write if phase=='subscription_write' else call.read).side_effect=failure
+                channel=MagicMock();channel.stream_stream.return_value.return_value=call
+                meter=TransportMeter(Path(self.tmp.name)/('native-'+phase+'.zlib'));source.observer=meter
+                request=pb.SubscribeRequest(from_slot=300)
+                request.slots['finality'].filter_by_commitment=True
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_native_resource_exhausted'):
+                    asyncio.run(source.stream(channel,request,AsyncMock(),'candidate_live'))
+                meter.close();summary=meter.summary()
+                self.assertEqual(summary['native_status_counts'],{'RESOURCE_EXHAUSTED':1})
+                row=summary['native_errors'][0]
+                self.assertEqual(row['phase'],phase);self.assertEqual(row['filters'],1)
+                self.assertEqual(row['from_slot'],300);self.assertEqual(row['active_streams'],1)
+                self.assertIn('subscription limit exceeded',row['details'])
+                self.assertNotIn('fixture-token',row['details']);self.assertNotIn('fixture-key',row['details'])
+                self.assertNotIn('alchemy.com/v2/',row['details'])
+                self.assertEqual(summary['delivery'],[]);source.rpc.call_delivered.assert_not_called()
+                call.cancel.assert_called_once()
+
 if __name__=='__main__':unittest.main()

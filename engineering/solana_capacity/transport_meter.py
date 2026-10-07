@@ -8,6 +8,7 @@ class TransportMeter:
         self.active={};self.subscriptions=[];self.delivery=Counter();self.messages=Counter()
         self.duplicates=Counter();self.recent={};self.latencies=defaultdict(list)
         self.timestamps_missing=Counter();self.events=[];self.peak_shards=0;self.control=Counter();self.producer_waits=[]
+        self.native_errors=[]
     def write(self,metadata,raw=b''):
         header=json.dumps(metadata,separators=(',',':')).encode()
         self.file.write(self.compress.compress(struct.pack('!II',len(header),len(raw))+header+raw))
@@ -19,6 +20,12 @@ class TransportMeter:
             if kind=='owner_backpressure':self.producer_waits.append(value)
             self.write(dict(kind=kind,at=at,**value));return
         sid=value['stream_id']
+        if kind=='native_error':
+            subscription=self.active.get(sid,{})
+            row=dict(kind=kind,at=at,**value,filters=subscription.get('filters'),
+                filter_types=subscription.get('filter_types'),from_slot=subscription.get('from_slot'),
+                address_count=len(subscription.get('addresses',[])),active_streams=len(self.active))
+            self.native_errors.append(row);self.write(row);return
         if kind=='subscribe':
             r=value['request'];names=('accounts','transactions','transactions_status','blocks','blocks_meta','slots')
             counts={name:len(getattr(r,name)) for name in names}
@@ -62,6 +69,7 @@ class TransportMeter:
         return dict(delivery=[dict(transport=t,family=f,bytes=b,messages=self.messages[t,f],duplicate_bytes=self.duplicates[t,f]) for (t,f),b in self.delivery.items()],
                     control=dict(self.control),producer_waits=self.producer_waits,
                     subscriptions=self.subscriptions,peak_native_streams=self.peak_shards,
-                    provider_timestamp_missing=dict(self.timestamps_missing))
+                    provider_timestamp_missing=dict(self.timestamps_missing),native_errors=self.native_errors,
+                    native_status_counts=dict(Counter(r['status'] for r in self.native_errors)))
     def close(self):
         self.file.write(self.compress.flush());self.file.close()

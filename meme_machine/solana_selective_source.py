@@ -397,12 +397,13 @@ class SelectiveSource:
         self.observe('subscribe',stream_id=stream_id,family=family,request=request)
         call=channel.stream_stream('/geyser.Geyser/Subscribe',request_serializer=lambda r:r.SerializeToString(),
             response_deserializer=lambda r:r)(metadata=(('x-token',self.token),))
-        pending=None
+        pending=None;phase='subscription_write'
         try:
             # Subscription establishment can fail with the same native status
             # as a subsequent read. It must enter identical scoped retry/gap
             # handling rather than escape as an unclassified transport error.
             await call.write(request)
+            phase='stream_read'
             while not self.stop.is_set() and not (local_stop and local_stop.is_set()):
                 if pending is None:pending=asyncio.create_task(call.read())
                 try:raw=await asyncio.wait_for(asyncio.shield(pending),1)
@@ -418,7 +419,18 @@ class SelectiveSource:
                 if kind=='ping':await call.write(pb.SubscribeRequest(ping=pb.SubscribeRequestPing(id=1)));continue
                 if kind=='pong':continue
                 await handler(update,len(raw),at)
-        except grpc.aio.AioRpcError as exc:raise EvidenceUnavailable('candidate_native_'+exc.code().name.lower()) from None
+        except grpc.aio.AioRpcError as exc:
+            # Preserve the provider's reason separately from HTTP errors. This
+            # observation grants no coverage, does not advance a checkpoint and
+            # does not enqueue forensic work on the canonical owner.
+            from .solana_provider_config import SECRET_PATTERN
+            details=exc.details() or ''
+            for secret in (self.token,self.config.credential):
+                if isinstance(secret,str) and secret:details=details.replace(secret,'[redacted]')
+            details=SECRET_PATTERN.sub('[redacted]',details)
+            self.observe('native_error',stream_id=stream_id,family=family,phase=phase,
+                status=exc.code().name,details=details[:2048])
+            raise EvidenceUnavailable('candidate_native_'+exc.code().name.lower()) from None
         finally:
             if pending:pending.cancel();await asyncio.gather(pending,return_exceptions=True)
             call.cancel()
