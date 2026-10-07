@@ -1,5 +1,7 @@
 LEGACY_STARTUP: ARCHIVED
 
+Latest result: **BLOCKED_BY_SPECIFIC_EVIDENCE_OR_PROVIDER_CONSTRAINT**. [The final mixed proof](../solana_final_mixed/REPORT.md) ran source `476bad205014c8c3d586f45d87f84ec44306817a`: minimal startup succeeded with zero historical RPC, but native subscriptions returned `too many active connections` and normal owner drainage/full position prerequisites remained unproven. The measurements below are preserved startup-b6 history, not the latest live run or a production capacity certificate.
+
 NEW_STARTUP: PROVISIONAL
 
 NEW_STARTUP_PROMISING_ONE_PROOF_REMAINS

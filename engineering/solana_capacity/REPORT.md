@@ -1,4 +1,4 @@
-Current startup decision: **MODEL A ARCHIVED / MODEL B PROVISIONAL**. This report below is preserved historical evidence. The active implementation, final validation and uncensored accounting are in [the Model B report](../solana_prewarm/REPORT.md). No legacy startup is active; no monthly production cost is certified.
+Current startup decision: **MODEL A ARCHIVED / MODEL B PROVISIONAL**. Latest outcome: **BLOCKED_BY_SPECIFIC_EVIDENCE_OR_PROVIDER_CONSTRAINT**, with native `too many active connections` and unproven normal drainage/position prerequisites. [The final mixed report](../solana_final_mixed/REPORT.md) and [measurements](../solana_final_mixed/measurements.json) contain the current evidence. This report below is preserved historical evidence; no legacy startup is active and no monthly production cost is certified.
 
 ALCHEMY_SOLANA_FINALIZATION: NOT_READY
 

@@ -1,11 +1,11 @@
 {
-  "status": "NEW_STARTUP_PROMISING_ONE_PROOF_REMAINS",
+  "status": "BLOCKED_BY_SPECIFIC_EVIDENCE_OR_PROVIDER_CONSTRAINT",
   "active_model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
   "legacy_startup": "ARCHIVED_NON_ACTIVE",
   "measured_cost_model": "NOT_CERTIFIED",
-  "remaining_proof": "Complete simultaneous steady-state normalized publication and all candidate/position prerequisites through the actual shared governor on final source, preserving original deadlines.",
+  "remaining_proof": "Native subscription connection budget, full candidate/position prerequisites and stable normal queue drain. No monthly extrapolation from the failed mix.",
   "pricing": {
-    "verified_UTC": "2026-10-07T16:46:39Z",
+    "verified_UTC": "2026-10-07T20:26:04.313279+00:00",
     "sources": [
       "https://www.alchemy.com/pricing",
       "https://www.alchemy.com/solana-grpc",
@@ -285,5 +285,18 @@
     "HTTP response bytes are separately measured; RPC is priced by CU.",
     "Local normalization, deduplication and compression receive no provider-cost credit.",
     "Startup stock and censored dispositions are not production arrival or zero-hydration rates."
-  ]
+  ],
+  "latest_observation": {
+    "source": "engineering/solana_final_mixed/measurements.json",
+    "source_commit": "476bad205014c8c3d586f45d87f84ec44306817a",
+    "classification": "MEASURED_LIVE",
+    "window_seconds": 390.37199878692627,
+    "RPC_CU": 85230,
+    "WebSocket_CU": 80423.5892,
+    "provider_payload_bytes": 588379253,
+    "diagnostic_payload_estimate_USD": 0.09380826408000001,
+    "monthly_status": "NOT_CERTIFIED",
+    "proof_status": "FAILED_MIX"
+  },
+  "historical_measurement_note": "Existing startup/steady/input values below preserve startup-b6 measurements. They are historical censored evidence, not the final run or production rates. Latest measurements are linked above."
 }
