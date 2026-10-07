@@ -5,6 +5,7 @@
   "engineering/solana_finalization/cost_model.py",
   "engineering/solana_finalization/files_changed.json",
   "engineering/solana_finalization/gate1.json",
+  "engineering/solana_finalization/github_baseline_parity.json",
   "engineering/solana_finalization/measurements.json",
   "engineering/solana_finalization/provider_proofs.json",
   "engineering/solana_finalization/strategy_audit.json",
