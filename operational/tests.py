@@ -2,6 +2,10 @@
 import argparse,ipaddress,socket,unittest,urllib.request
 
 FAST=[
+ 'tests.test_shared_capital', 'tests.test_shared_capital_concurrency',
+ 'tests.test_shared_capital_recovery', 'tests.test_shared_capital_migration',
+ 'tests.test_shared_capital_strategy', 'tests.test_shared_capital_performance',
+ 'tests.test_shared_capital_economics',
  'tests.test_canonical_money',
  'tests.test_learning_retention','tests.test_startup_storage','tests.test_native_genesis_wait','tests.test_operational_configuration','tests.test_storage_measurement',
  'tests.test_operational_uptime_health',
