@@ -1,0 +1,66 @@
+{
+  "classification": "MEASURED_REPLAY",
+  "replayed_transactions": 103,
+  "raw_provider_bytes_per_reconnect": 869874,
+  "rpc_cu_per_reconnect": 400,
+  "rpc_calls_per_reconnect": 4,
+  "provider_capture_catchup_seconds": 0.3307769339880906,
+  "replay_processing_catchup_seconds": 0.05790315102785826,
+  "restart_detection_seconds": 0.005224660970270634,
+  "subscription_interest_rebuild_seconds": 0.005235112039372325,
+  "gap_slots": 191,
+  "missing_interval": [
+    [
+      454070512,
+      454070702
+    ]
+  ],
+  "original_deadline": 1791336374.0,
+  "resumed_archive_calls": 2,
+  "resumed_transactions": 3,
+  "partial_canonical_records": 79,
+  "canonical_records": 81,
+  "duplicates_received": 103,
+  "duplicates_canonically_admitted": 0,
+  "historical_reconnects": 6,
+  "historical_visible_connected_seconds": 3971.216833591461,
+  "historical_sessions": 52,
+  "expected_reconnects_per_day": 130.53933384221003,
+  "high_reconnects_per_day": 261.07866768442005,
+  "expected_replay_provider_bytes_per_day": 113552772.4866586,
+  "expected_replay_cu_per_day": 52215.733536884014,
+  "frequency_classification": "DERIVED",
+  "frequency_source": "engineering/solana_closure/captures/historical-reconnects.json",
+  "frequency_limitation": "Legacy broad topology, retained visible session spans give a conservative exposure denominator; not a new-topology live rate.",
+  "continuity_complete": true,
+  "natural_reconnects": 0,
+  "natural_observation_seconds": 116.75747538800351,
+  "natural_observation_windows": [
+    {
+      "source": "warming-20261007T035902Z",
+      "seconds": 18.331494571000803,
+      "natural_reconnects": 0
+    },
+    {
+      "source": "warming-20261007T040646Z",
+      "seconds": 10.1116412509582,
+      "natural_reconnects": 0
+    },
+    {
+      "source": "warming-20261007T041321Z",
+      "seconds": 17.94825024000602,
+      "natural_reconnects": 0
+    },
+    {
+      "source": "warming-20261007T041506Z",
+      "seconds": 54.35183684201911,
+      "natural_reconnects": 0
+    },
+    {
+      "source": "warming-20261007T044454Z",
+      "seconds": 16.01425248401938,
+      "natural_reconnects": 0
+    }
+  ],
+  "natural_rate_statement": "0 natural reconnects in 0.032433 bounded observed hours; this does not establish zero production recovery cost."
+}

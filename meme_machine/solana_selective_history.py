@@ -151,24 +151,42 @@ class SelectiveHistory:
         seen=self.clock() if seen is None else seen
         body=canonical(fields);checksum=digest(fields)
         with self.writer.transaction():
-            prior=self.db.execute('SELECT last_slot,last_seen FROM market_observations WHERE family=? AND address=?',(family,address)).fetchone()
-            if prior and (slot,seen)<tuple(prior):return
+            prior=self.db.execute('SELECT last_slot,last_seen,fields FROM market_observations WHERE family=? AND address=?',(family,address)).fetchone()
+            if prior and (slot,seen)<tuple(prior[:2]):return
+            if prior:
+                fields=dict(json.loads(prior[2]),**fields);body=canonical(fields);checksum=digest(fields)
             self.db.execute('''INSERT INTO market_observations VALUES(?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(family,address) DO UPDATE SET last_slot=excluded.last_slot,
                 last_seen=excluded.last_seen,source_signature=excluded.source_signature,
                 fields=excluded.fields,hash=excluded.hash''',
                 (family,address,slot,slot,seen,seen,signature,body,checksum))
+            if hasattr(self,'lifecycle'):
+                self.lifecycle.observe(family,address,slot=slot,seen=seen,signature=signature,fields=fields,
+                    activity=fields.get('activity',False))
 
     def bind(self,family,address,*,market_address=None,aliases=(),metadata=None):
         base=FAMILIES[family];scoped=coverage_scope(family,address)
+        market=market_address or address
         with self.writer.transaction():
+            # A mint interest must reuse the curve's already proved identity.
+            # Conversely, a creation backfill can attach a provisional curve to
+            # an existing mint interest without changing its durable scope.
+            existing=[self.db.execute('SELECT market_address,coverage_scope FROM evidence_bindings WHERE family=? AND address=?',
+                (family,a)).fetchone() for a in dict.fromkeys((address,*aliases))]
+            matching={row[1] for row in existing if row and row[0]==market}
+            if len(matching)>1:raise EvidenceConflict('candidate_binding_conflict')
+            if matching:scoped=matching.pop()
             for alias in dict.fromkeys((address,*aliases)):
                 old=self.db.execute('SELECT market_address,coverage_scope FROM evidence_bindings WHERE family=? AND address=?',(family,alias)).fetchone()
-                target=(market_address or address,scoped)
+                target=(market,scoped)
                 if old and tuple(old)!=target:raise EvidenceConflict('candidate_binding_conflict')
                 self.db.execute('INSERT OR IGNORE INTO evidence_bindings VALUES(?,?,?,?,?,?)',
-                    (family,alias,market_address or address,base,scoped,canonical(metadata or {})))
+                    (family,alias,market,base,scoped,canonical(metadata or {})))
         return scoped
+
+    def scope_for(self,family,address):
+        row=self.db.execute('SELECT coverage_scope FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
+        return coverage_scope(family,address) if row is None else row[0]
 
     def request(self,family,address,lo,hi,*,priority,deadline):
         if type(lo) is not int or type(hi) is not int or not 0<=lo<=hi or not 0<=priority<=6:
@@ -224,7 +242,7 @@ class SelectiveHistory:
             last=pair
             rows.extend(economic_records(job['family'],job['address'],tx,
                 endpoint_identity=self.endpoint_identity,seen=seen,source='alchemy_finalized_repair'))
-        scoped=coverage_scope(job['family'],job['address']);lineage=digest([job['lineage'],digest(value)])
+        scoped=self.scope_for(job['family'],job['address']);lineage=digest([job['lineage'],digest(value)])
         proof=None
         if token is None:
             proof=IntervalProof(scoped,job['lo'],job['hi'],'alchemy_finalized_repair',self.endpoint_identity,
@@ -236,7 +254,9 @@ class SelectiveHistory:
             if current is None or tuple(current)!=(job['token'],job['pages'],'pending'):
                 raise EvidenceUnavailable('candidate_page_lease_stale')
             self.ingest(rows)
-            if proof is not None:self.prove(proof)
+            if proof is not None:
+                if hasattr(self,'lifecycle'):self.lifecycle.defer_proof(proof)
+                else:self.prove(proof)
             for row in rows:self.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
             self.db.execute('''UPDATE acquisition_jobs SET token=?,pages=pages+1,last_slot=?,last_index=?,
                 lineage=?,status=?,updated=? WHERE id=?''',(token,*((None,None) if last is None else last),
@@ -263,11 +283,21 @@ class SelectiveHistory:
                 incoming=row.body()
                 old=self.db.execute('SELECT body,hash,first_seen,archive FROM records WHERE identity=?',(row.identity,)).fetchone()
                 previous_cache=self.db.execute('SELECT body,hash,first_seen FROM shared_history_cache WHERE identity=?',(row.identity,)).fetchone()
-                if old or previous_cache:
-                    prior=old or previous_cache
+                cold=(self.db.execute('SELECT body,hash,first_seen,archive FROM scoped_cold_records WHERE identity=?',(row.identity,)).fetchone()
+                      if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='scoped_cold_records'").fetchone() else None)
+                if old or previous_cache or cold:
+                    # A verified scoped cache is the current body pointer; an
+                    # older empty records row must not hide it. All durable
+                    # copies still have to agree on hash and first availability.
+                    prior=previous_cache if previous_cache and previous_cache[0] is not None else old or cold or previous_cache
+                    if any(tuple(copy[1:3])!=tuple(prior[1:3]) for copy in (old,previous_cache,cold) if copy):
+                        raise EvidenceConflict('local_evidence_hash_mismatch')
                     if prior[0] is not None:body=decode_body(prior[0],self.db)
                     else:
                         body=restored.get(row.identity)
+                        if body is None and cold:
+                            from .solana_scoped_retirement import ScopedRetirement
+                            body=ScopedRetirement(self).body(row.identity)
                         if body is None:raise EvidenceUnavailable('selective_archive_restore_required')
                     if digest(body)!=prior[1]:raise EvidenceConflict('local_evidence_hash_mismatch')
                     self._compatible(body,incoming)
@@ -295,6 +325,7 @@ class SelectiveHistory:
                     self.db.execute('''INSERT OR IGNORE INTO candidate_outbox
                         SELECT COALESCE(MAX(sequence)+1,4611686018427387904),?,?,?,?
                         FROM candidate_outbox''',(row.identity,row.scope,row.slot,available))
+            if hasattr(self,'lifecycle'):self.lifecycle.queue_records(rows)
             # Same physical 2-GiB guard, including metadata and the scoped cache.
             import os
             if sum(os.path.getsize(p) for p in (self.writer.path,str(self.writer.path)+'-wal') if os.path.exists(p))>=self.writer.max_hot_bytes:

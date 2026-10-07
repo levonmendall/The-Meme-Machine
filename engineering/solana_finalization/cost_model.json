@@ -1,709 +1,921 @@
 {
+  "status": "ALCHEMY_SOLANA_NOT_READY",
+  "measured_cost_model": "FAIL",
+  "blocker": "SIMULTANEOUS_PROVIDER_CAPACITY",
   "pricing": {
-    "yellowstone_per_TB": 75.0,
-    "rpc_per_million_CU": 0.525,
-    "websocket_CU_per_byte": 0.0002,
-    "bytes_per_TB": 1000000000000,
+    "checked_at_UTC": "2026-10-07 05:00:47 UTC",
+    "yellowstone_USD_per_decimal_TB": 75.0,
+    "rpc_USD_per_million_CU": 0.525,
+    "solana_websocket_CU_per_byte": 0.0002,
+    "getSlot_CU": 20,
+    "getMultipleAccounts_CU": 20,
+    "getProgramAccountsV2_CU": 20,
+    "getTransaction_CU": 40,
+    "getBlock_CU": 40,
+    "getTransactionsForAddress_CU": 100,
     "PAYG_included_CU": 0,
-    "monthly_minimum": 0
-  },
-  "pricing_timestamp_UTC": "2026-10-07 02:40 UTC",
-  "status": "CONDITIONAL_WORKLOAD_ENVELOPE_NOT_CERTIFIED_PRODUCTION_BILL",
-  "production_forecast_certified": false,
-  "scenario_note": "Promotion incidence, simultaneous open-position traffic and replay frequency are explicit engineering scenarios; short captures cannot establish a monthly expectation. HIGH covers double measured creation/graduation/activity rates and one warming per structural Meteora pool/day. It is not an unconditional physical bound on all future markets.",
-  "assumptions": {
-    "LOW": {
-      "traffic": 0.5,
-      "creations": 23400,
-      "pump_promotions": 500,
-      "pump_events_per_promotion": 40,
-      "graduations": 1800,
-      "swap_promotions": 100,
-      "swap_archive_bodies_per_promotion": 100,
-      "swap_watch_events": 100000,
-      "swap_activity_transactions": 1500000,
-      "met_promotions": 20,
-      "pump_open_hours": 1,
-      "survivor_open_hours": 1,
-      "met_open_hours": 1,
-      "replay": 0.01
-    },
-    "EXPECTED": {
-      "traffic": 1.0,
-      "creations": 46800,
-      "pump_promotions": 6000,
-      "pump_events_per_promotion": 120,
-      "graduations": 3600,
-      "swap_promotions": 500,
-      "swap_archive_bodies_per_promotion": 1000,
-      "swap_watch_events": 1000000,
-      "swap_activity_transactions": 3053785,
-      "met_promotions": 200,
-      "pump_open_hours": 4,
-      "survivor_open_hours": 4,
-      "met_open_hours": 4,
-      "replay": 0.05
-    },
-    "HIGH": {
-      "traffic": 2.0,
-      "creations": 93600,
-      "pump_promotions": 93600,
-      "pump_events_per_promotion": 500,
-      "graduations": 7200,
-      "swap_promotions": 7200,
-      "swap_archive_bodies_per_promotion": 10000,
-      "swap_watch_events": 52761600,
-      "swap_activity_transactions": 52761600,
-      "met_promotions": 119330,
-      "pump_open_hours": 24,
-      "survivor_open_hours": 24,
-      "met_open_hours": 24,
-      "replay": 0.25
-    }
-  },
-  "measurements": {
-    "control_bytes_per_second": 868,
-    "pump_scout_bytes_per_day": 720577058.379703,
-    "met_pool_scout_bytes_per_day": 246365234.85139385,
-    "met_bin_scout_bytes_per_day": 1000929738.1459837,
-    "activity_bytes_per_status": 114.66447368421052,
-    "activity_mean_fanout": 1.1137218045112782,
-    "archive_bytes_per_transaction": 8445.378640776698,
-    "canonical_pump_event_bytes": 5366,
-    "canonical_swap_event_bytes": 5831,
-    "met_warming_calls": 27,
-    "met_warming_CU": 540,
-    "met_warming_http_bytes": 571671,
-    "met_warming_wall_seconds": 13.70387651596684,
-    "timestamp_UTC": "2026-10-07 02:40 UTC",
-    "proven_body_free_swap_events": 879,
-    "observed_meteora_structural_pool_population": 119330,
-    "source_windows_seconds": [
-      24,
-      30.10356330004288,
-      25.184735190996435,
-      61.760908365249634
-    ],
-    "limitations": [
-      "Activity-biased updated-curve fraction is not creation-cohort promotion incidence.",
-      "A negative Meteora qualification vector matched; no positive opportunity was certified.",
-      "Provider wire protobuf sizes precede filtering; framing uncertainty is included in high scenario traffic/replay margins.",
-      "Position rate scenarios are engineering envelopes, not a combined production benchmark."
-    ],
+    "yellowstone_minimum_monthly_USD": 0,
     "sources": {
-      "pricing": "https://www.alchemy.com/docs/reference/compute-unit-costs",
-      "PAYG": "https://www.alchemy.com/pricing",
+      "rpc": "https://www.alchemy.com/pricing",
       "yellowstone": "https://www.alchemy.com/solana-grpc",
-      "host": "DigitalOcean connected droplets API reports gd-2vcpu-8gb at $68/mo; read-only lsblk confirms attached 50 GiB; https://docs.digitalocean.com/products/volumes/details/pricing/"
+      "methods_and_websocket": "https://www.alchemy.com/docs/reference/compute-unit-costs"
+    },
+    "note": "Solana-specific WebSocket rate applies. Free-plan 30M CU is not a PAYG credit. HTTP bytes are measured; RPC is charged by CU."
+  },
+  "inputs": {
+    "pump.observed_candidates": {
+      "value": 114,
+      "unit": "candidates",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pump",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 114,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pump.promotions": {
+      "value": 114,
+      "unit": "promotion_events",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pump",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 114,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pump.reactivations": {
+      "value": 114,
+      "unit": "reactivations",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pump",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 114,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pump.promotion_percentage": {
+      "value": 100.0,
+      "unit": "percent",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pump",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 114,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pump.daily_normalized_stress_promotions": {
+      "value": 391094.04666368064,
+      "unit": "promotion_events/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pump",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 114,
+      "classification": "DERIVED",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pump.production_promotions_per_day": {
+      "value": null,
+      "unit": "promotions/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pump",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 114,
+      "classification": "MODELED",
+      "missing_reason": "Final operating incidence is gated by simultaneous provider capacity."
+    },
+    "pump.production_hydrations_per_day": {
+      "value": null,
+      "unit": "hydrations/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pump",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 114,
+      "classification": "MODELED",
+      "missing_reason": "Final operating incidence is gated by simultaneous provider capacity."
+    },
+    "pumpswap.observed_candidates": {
+      "value": 113,
+      "unit": "candidates",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pumpswap",
+      "measurement_window": 30.10356330004288,
+      "sample_count": 113,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pumpswap.promotions": {
+      "value": 113,
+      "unit": "promotion_events",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pumpswap",
+      "measurement_window": 30.10356330004288,
+      "sample_count": 113,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pumpswap.reactivations": {
+      "value": 113,
+      "unit": "reactivations",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pumpswap",
+      "measurement_window": 30.10356330004288,
+      "sample_count": 113,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pumpswap.promotion_percentage": {
+      "value": 100.0,
+      "unit": "percent",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pumpswap",
+      "measurement_window": 30.10356330004288,
+      "sample_count": 113,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pumpswap.daily_normalized_stress_promotions": {
+      "value": 324320.410268046,
+      "unit": "promotion_events/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pumpswap",
+      "measurement_window": 30.10356330004288,
+      "sample_count": 113,
+      "classification": "DERIVED",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pumpswap.production_promotions_per_day": {
+      "value": null,
+      "unit": "promotions/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pumpswap",
+      "measurement_window": 30.10356330004288,
+      "sample_count": 113,
+      "classification": "MODELED",
+      "missing_reason": "Final operating incidence is gated by simultaneous provider capacity."
+    },
+    "pumpswap.production_hydrations_per_day": {
+      "value": null,
+      "unit": "hydrations/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/pumpswap",
+      "measurement_window": 30.10356330004288,
+      "sample_count": 113,
+      "classification": "MODELED",
+      "missing_reason": "Final operating incidence is gated by simultaneous provider capacity."
+    },
+    "meteora.observed_candidates": {
+      "value": 91,
+      "unit": "candidates",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/meteora",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 91,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "meteora.promotions": {
+      "value": 61,
+      "unit": "promotion_events",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/meteora",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 91,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "meteora.reactivations": {
+      "value": 61,
+      "unit": "reactivations",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/meteora",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 91,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "meteora.promotion_percentage": {
+      "value": 67.03296703296704,
+      "unit": "percent",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/meteora",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 91,
+      "classification": "MEASURED_REPLAY",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "meteora.daily_normalized_stress_promotions": {
+      "value": 209269.62146039054,
+      "unit": "promotion_events/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/meteora",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 91,
+      "classification": "DERIVED",
+      "production_central_tendency": false,
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "meteora.production_promotions_per_day": {
+      "value": null,
+      "unit": "promotions/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/meteora",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 91,
+      "classification": "MODELED",
+      "missing_reason": "Final operating incidence is gated by simultaneous provider capacity."
+    },
+    "meteora.production_hydrations_per_day": {
+      "value": null,
+      "unit": "hydrations/day",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/candidate_rates/meteora",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 91,
+      "classification": "MODELED",
+      "missing_reason": "Final operating incidence is gated by simultaneous provider capacity."
+    },
+    "meteora.hydration.rpc_calls": {
+      "value": 32.0,
+      "unit": "rpc_calls/hydration",
+      "source": "engineering/solana_closure/measurements.json#/hydration",
+      "measurement_window": [
+        14.94504602899542,
+        18.245456199976616,
+        17.076330558978952,
+        16.003484838001896
+      ],
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE",
+      "distribution": {
+        "mean": 32.0,
+        "p50": 31,
+        "p95": 35,
+        "p99": 35,
+        "max": 35,
+        "samples": 4
+      },
+      "limitation": "Four full fresh-trigger warmups of one pool; not hydrations/day."
+    },
+    "meteora.hydration.rpc_cu": {
+      "value": 640.0,
+      "unit": "rpc_cu/hydration",
+      "source": "engineering/solana_closure/measurements.json#/hydration",
+      "measurement_window": [
+        14.94504602899542,
+        18.245456199976616,
+        17.076330558978952,
+        16.003484838001896
+      ],
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE",
+      "distribution": {
+        "mean": 640.0,
+        "p50": 620,
+        "p95": 700,
+        "p99": 700,
+        "max": 700,
+        "samples": 4
+      },
+      "limitation": "Four full fresh-trigger warmups of one pool; not hydrations/day."
+    },
+    "meteora.hydration.http_provider_bytes": {
+      "value": 681308.25,
+      "unit": "http_provider_bytes/hydration",
+      "source": "engineering/solana_closure/measurements.json#/hydration",
+      "measurement_window": [
+        14.94504602899542,
+        18.245456199976616,
+        17.076330558978952,
+        16.003484838001896
+      ],
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE",
+      "distribution": {
+        "mean": 681308.25,
+        "p50": 659383,
+        "p95": 747096,
+        "p99": 747096,
+        "max": 747096,
+        "samples": 4
+      },
+      "limitation": "Four full fresh-trigger warmups of one pool; not hydrations/day."
+    },
+    "meteora.hydration.account_fetches": {
+      "value": 125.0,
+      "unit": "account_fetches/hydration",
+      "source": "engineering/solana_closure/measurements.json#/hydration",
+      "measurement_window": [
+        14.94504602899542,
+        18.245456199976616,
+        17.076330558978952,
+        16.003484838001896
+      ],
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE",
+      "distribution": {
+        "mean": 125.0,
+        "p50": 121,
+        "p95": 137,
+        "p99": 137,
+        "max": 137,
+        "samples": 4
+      },
+      "limitation": "Four full fresh-trigger warmups of one pool; not hydrations/day."
+    },
+    "meteora.hydration.transaction_body_rpc_fetches": {
+      "value": 0.0,
+      "unit": "transaction_body_rpc_fetches/hydration",
+      "source": "engineering/solana_closure/measurements.json#/hydration",
+      "measurement_window": [
+        14.94504602899542,
+        18.245456199976616,
+        17.076330558978952,
+        16.003484838001896
+      ],
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE",
+      "distribution": {
+        "mean": 0.0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0,
+        "samples": 4
+      },
+      "limitation": "Four full fresh-trigger warmups of one pool; not hydrations/day."
+    },
+    "meteora.hydration.block_fetches": {
+      "value": 0.0,
+      "unit": "block_fetches/hydration",
+      "source": "engineering/solana_closure/measurements.json#/hydration",
+      "measurement_window": [
+        14.94504602899542,
+        18.245456199976616,
+        17.076330558978952,
+        16.003484838001896
+      ],
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE",
+      "distribution": {
+        "mean": 0.0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0,
+        "samples": 4
+      },
+      "limitation": "Four full fresh-trigger warmups of one pool; not hydrations/day."
+    },
+    "meteora.hydration.window_seconds": {
+      "value": 16.56757940648822,
+      "unit": "window_seconds/hydration",
+      "source": "engineering/solana_closure/measurements.json#/hydration",
+      "measurement_window": [
+        14.94504602899542,
+        18.245456199976616,
+        17.076330558978952,
+        16.003484838001896
+      ],
+      "sample_count": 4,
+      "classification": "MEASURED_LIVE",
+      "distribution": {
+        "mean": 16.56757940648822,
+        "p50": 16.003484838001896,
+        "p95": 18.245456199976616,
+        "p99": 18.245456199976616,
+        "max": 18.245456199976616,
+        "samples": 4
+      },
+      "limitation": "Four full fresh-trigger warmups of one pool; not hydrations/day."
+    },
+    "pump.position.http_provider_bytes_per_position_hour": {
+      "value": 4908480.0,
+      "unit": "http_provider_bytes_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pump.position.rpc_cu_per_position_hour": {
+      "value": 28800.0,
+      "unit": "rpc_cu_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pump.position.rpc_calls_per_position_hour": {
+      "value": 1440.0,
+      "unit": "rpc_calls_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pump.position.account_fetches_per_position_hour": {
+      "value": 2160.0,
+      "unit": "account_fetches_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pump.position.transaction_bodies_per_position_hour": {
+      "value": 0.0,
+      "unit": "transaction_bodies_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pump.position.selective_fetches_per_position_hour": {
+      "value": 0.0,
+      "unit": "selective_fetches_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pumpswap.position.http_provider_bytes_per_position_hour": {
+      "value": 7392240.0,
+      "unit": "http_provider_bytes_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pumpswap.position.rpc_cu_per_position_hour": {
+      "value": 57600.0,
+      "unit": "rpc_cu_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pumpswap.position.rpc_calls_per_position_hour": {
+      "value": 2880.0,
+      "unit": "rpc_calls_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pumpswap.position.account_fetches_per_position_hour": {
+      "value": 4320.0,
+      "unit": "account_fetches_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pumpswap.position.transaction_bodies_per_position_hour": {
+      "value": 0.0,
+      "unit": "transaction_bodies_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "pumpswap.position.selective_fetches_per_position_hour": {
+      "value": 0.0,
+      "unit": "selective_fetches_per_position_hour",
+      "source": "engineering/solana_closure/pump_position_measurements.json",
+      "measurement_window": 15.0,
+      "sample_count": 3,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC with live read-only HTTP units",
+      "complete_simultaneous_position_path": false
+    },
+    "meteora.position.provider_bytes_per_position_hour": {
+      "value": 161952744.68954325,
+      "unit": "provider_bytes_per_position_hour",
+      "source": "engineering/solana_closure/meteora_position_measurements.json",
+      "measurement_window": 13.593276262283325,
+      "sample_count": 12,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC",
+      "complete_simultaneous_position_path": false
+    },
+    "meteora.position.http_bytes_per_position_hour": {
+      "value": 139392885.3824178,
+      "unit": "http_bytes_per_position_hour",
+      "source": "engineering/solana_closure/meteora_position_measurements.json",
+      "measurement_window": 13.593276262283325,
+      "sample_count": 12,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC",
+      "complete_simultaneous_position_path": false
+    },
+    "meteora.position.native_bytes_per_position_hour": {
+      "value": 22559859.307125457,
+      "unit": "native_bytes_per_position_hour",
+      "source": "engineering/solana_closure/meteora_position_measurements.json",
+      "measurement_window": 13.593276262283325,
+      "sample_count": 12,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC",
+      "complete_simultaneous_position_path": false
+    },
+    "meteora.position.rpc_cu_per_position_hour": {
+      "value": 127121.67152775425,
+      "unit": "rpc_cu_per_position_hour",
+      "source": "engineering/solana_closure/meteora_position_measurements.json",
+      "measurement_window": 13.593276262283325,
+      "sample_count": 12,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC",
+      "complete_simultaneous_position_path": false
+    },
+    "meteora.position.rpc_calls_per_position_hour": {
+      "value": 6356.083576387713,
+      "unit": "rpc_calls_per_position_hour",
+      "source": "engineering/solana_closure/meteora_position_measurements.json",
+      "measurement_window": 13.593276262283325,
+      "sample_count": 12,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC",
+      "complete_simultaneous_position_path": false
+    },
+    "meteora.position.subscription_messages_per_position_hour": {
+      "value": 29926.560172158814,
+      "unit": "subscription_messages_per_position_hour",
+      "source": "engineering/solana_closure/meteora_position_measurements.json",
+      "measurement_window": 13.593276262283325,
+      "sample_count": 12,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC",
+      "complete_simultaneous_position_path": false
+    },
+    "meteora.position.selective_fetches_per_position_hour": {
+      "value": 0,
+      "unit": "selective_fetches_per_position_hour",
+      "source": "engineering/solana_closure/meteora_position_measurements.json",
+      "measurement_window": 13.593276262283325,
+      "sample_count": 12,
+      "classification": "DERIVED",
+      "authority": "MEASURED_REPLAY_POSITION_TRAFFIC",
+      "complete_simultaneous_position_path": false
+    },
+    "replay.raw_provider_bytes_per_reconnect": {
+      "value": 869874,
+      "unit": "bytes/reconnect",
+      "source": "engineering/solana_closure/recovery_measurements.json",
+      "measurement_window": 0.3307769339880906,
+      "sample_count": 103,
+      "classification": "MEASURED_REPLAY",
+      "limitation": "Representative 103-transaction interval, not every reconnect."
+    },
+    "replay.rpc_cu_per_reconnect": {
+      "value": 400,
+      "unit": "CU/reconnect",
+      "source": "engineering/solana_closure/recovery_measurements.json",
+      "measurement_window": 0.3307769339880906,
+      "sample_count": 103,
+      "classification": "MEASURED_REPLAY",
+      "limitation": "Representative 103-transaction interval, not every reconnect."
+    },
+    "replay.rpc_calls_per_reconnect": {
+      "value": 4,
+      "unit": "calls/reconnect",
+      "source": "engineering/solana_closure/recovery_measurements.json",
+      "measurement_window": 0.3307769339880906,
+      "sample_count": 103,
+      "classification": "MEASURED_REPLAY",
+      "limitation": "Representative 103-transaction interval, not every reconnect."
+    },
+    "replay.provider_capture_catchup_seconds": {
+      "value": 0.3307769339880906,
+      "unit": "seconds/reconnect",
+      "source": "engineering/solana_closure/recovery_measurements.json",
+      "measurement_window": 0.3307769339880906,
+      "sample_count": 103,
+      "classification": "MEASURED_REPLAY",
+      "limitation": "Representative 103-transaction interval, not every reconnect."
+    },
+    "replay.expected_reconnects_per_day": {
+      "value": 130.53933384221003,
+      "unit": "reconnects/day",
+      "source": "engineering/solana_closure/recovery_measurements.json",
+      "measurement_window": 3971.216833591461,
+      "sample_count": 6,
+      "classification": "DERIVED",
+      "limitation": "Legacy broad topology, retained visible session spans give a conservative exposure denominator; not a new-topology live rate."
+    },
+    "replay.expected_replay_provider_bytes_per_day": {
+      "value": 113552772.4866586,
+      "unit": "bytes/day",
+      "source": "engineering/solana_closure/recovery_measurements.json",
+      "measurement_window": 3971.216833591461,
+      "sample_count": 6,
+      "classification": "DERIVED",
+      "limitation": "Legacy broad topology, retained visible session spans give a conservative exposure denominator; not a new-topology live rate."
+    },
+    "replay.expected_replay_cu_per_day": {
+      "value": 52215.733536884014,
+      "unit": "CU/day",
+      "source": "engineering/solana_closure/recovery_measurements.json",
+      "measurement_window": 3971.216833591461,
+      "sample_count": 6,
+      "classification": "DERIVED",
+      "limitation": "Legacy broad topology, retained visible session spans give a conservative exposure denominator; not a new-topology live rate."
+    },
+    "replay.natural_reconnects": {
+      "value": 0,
+      "unit": "reconnects",
+      "source": "engineering/solana_closure/recovery_measurements.json",
+      "measurement_window": 116.75747538800351,
+      "sample_count": 5,
+      "classification": "MEASURED_LIVE",
+      "production_zero_rate_proven": false
+    },
+    "scout.p.bytes_per_day_normalized": {
+      "value": 720577058.379703,
+      "unit": "bytes/day",
+      "source": "engineering/solana_closure/captures/delivery-20261007T023339Z/scout.frames.zlib",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 866,
+      "classification": "DERIVED",
+      "steady_state_monthly_forecast": false
+    },
+    "scout.m.bytes_per_day_normalized": {
+      "value": 76349105.33772117,
+      "unit": "bytes/day",
+      "source": "engineering/solana_closure/captures/delivery-20261007T023339Z/scout.frames.zlib",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 92,
+      "classification": "DERIVED",
+      "steady_state_monthly_forecast": false
+    },
+    "scout.n.bytes_per_day_normalized": {
+      "value": 170016129.51367268,
+      "unit": "bytes/day",
+      "source": "engineering/solana_closure/captures/delivery-20261007T023339Z/scout.frames.zlib",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 205,
+      "classification": "DERIVED",
+      "steady_state_monthly_forecast": false
+    },
+    "scout.a.bytes_per_day_normalized": {
+      "value": 1000929738.1459836,
+      "unit": "bytes/day",
+      "source": "engineering/solana_closure/captures/delivery-20261007T023339Z/scout.frames.zlib",
+      "measurement_window": 25.184735190996435,
+      "sample_count": 1207,
+      "classification": "DERIVED",
+      "steady_state_monthly_forecast": false
+    },
+    "shards.overlap_delivery_bytes": {
+      "value": 4561,
+      "unit": "bytes/captured_window",
+      "source": "engineering/solana_closure/simultaneous_provider.json#/routing",
+      "measurement_window": 30.10356330004288,
+      "sample_count": 1064,
+      "classification": "DERIVED",
+      "billing_included": true,
+      "serialization": "Complete captured provider status, only routing labels differ."
+    },
+    "shards.limit": {
+      "value": 50,
+      "unit": "filter entries/shard",
+      "source": "Established authenticated endpoint probe 2026-10-07",
+      "measurement_window": "bounded probe",
+      "sample_count": 1,
+      "classification": "MEASURED_REPLAY"
+    },
+    "pricing.yellowstone": {
+      "value": 75,
+      "unit": "USD/decimal_TB",
+      "source": "https://www.alchemy.com/solana-grpc",
+      "measurement_window": "2026-10-07 05:00:47 UTC",
+      "sample_count": 1,
+      "classification": "MODELED",
+      "verified_current_public_rate": true
+    },
+    "pricing.rpc": {
+      "value": 0.525,
+      "unit": "USD/million_CU",
+      "source": "https://www.alchemy.com/pricing",
+      "measurement_window": "2026-10-07 05:00:47 UTC",
+      "sample_count": 1,
+      "classification": "MODELED",
+      "verified_current_public_rate": true
+    },
+    "pricing.solana_websocket": {
+      "value": 0.0002,
+      "unit": "CU/byte",
+      "source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+      "measurement_window": "2026-10-07 05:00:47 UTC",
+      "sample_count": 1,
+      "classification": "MODELED",
+      "verified_current_public_rate": true
+    },
+    "host_storage": {
+      "value": 73,
+      "unit": "USD/month",
+      "source": "Established $68 host + $5 50 GiB volume; engineering/solana_finalization/measurements.json",
+      "measurement_window": "preceding authenticated infrastructure snapshot",
+      "sample_count": 1,
+      "classification": "MODELED",
+      "alchemy_direct_scope": false
+    },
+    "failure_envelope.Meteora_warming_RPC": {
+      "value": 2109.4377843207367,
+      "unit": "USD/month",
+      "source": "simultaneous_provider.json + measurements.json#/hydration",
+      "measurement_window": [
+        25.184735190996435,
+        [
+          14.94504602899542,
+          18.245456199976616,
+          17.076330558978952,
+          16.003484838001896
+        ]
+      ],
+      "sample_count": [
+        61,
+        4
+      ],
+      "classification": "MODELED",
+      "production_high": false
     }
   },
-  "results": {
-    "LOW": {
-      "families": {
-        "Shared Solana control/finality/replay": {
-          "provider_bytes_per_day": 62515707,
-          "yellowstone_bytes_per_day": 51739903,
-          "websocket_bytes_per_day": 4860000,
-          "http_response_bytes_per_day": 5915804,
-          "rpc_CU_per_day": 32739,
-          "billed_websocket_CU_per_day": 972.0,
-          "rpc_calls_per_day": 1441,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 1032000,
-          "monthly_USD": 0.64736303175
-        },
-        "Pump universal discovery": {
-          "provider_bytes_per_day": 360288529,
-          "yellowstone_bytes_per_day": 360288529,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 0.8106491902499999
-        },
-        "Pump ordered candidate history": {
-          "provider_bytes_per_day": 487337000,
-          "yellowstone_bytes_per_day": 2400000,
-          "websocket_bytes_per_day": 50000000,
-          "http_response_bytes_per_day": 434937000,
-          "rpc_CU_per_day": 160000,
-          "billed_websocket_CU_per_day": 10000.0,
-          "rpc_calls_per_day": 2000,
-          "transaction_bodies_delivered_per_day": 51500,
-          "canonical_bytes_per_day": 107320000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 2.6828999999999996
-        },
-        "Pump qualification hydration": {
-          "provider_bytes_per_day": 5000000,
-          "yellowstone_bytes_per_day": 0,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 5000000,
-          "rpc_CU_per_day": 25000,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 1500,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 0.39375000000000004
-        },
-        "Pump position management": {
-          "provider_bytes_per_day": 77040000,
-          "yellowstone_bytes_per_day": 3600000,
-          "websocket_bytes_per_day": 72000000,
-          "http_response_bytes_per_day": 1440000,
-          "rpc_CU_per_day": 14400,
-          "billed_websocket_CU_per_day": 14400.0,
-          "rpc_calls_per_day": 720,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 7200000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 0.4617
-        },
-        "PumpSwap ordered history": {
-          "provider_bytes_per_day": 486054734,
-          "yellowstone_bytes_per_day": 171996711,
-          "websocket_bytes_per_day": 220000000,
-          "http_response_bytes_per_day": 94058023,
-          "rpc_CU_per_day": 24274,
-          "billed_websocket_CU_per_day": 44000.0,
-          "rpc_calls_per_day": 323,
-          "transaction_bodies_delivered_per_day": 11137,
-          "canonical_bytes_per_day": 583100000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1.46230809975
-        },
-        "PumpSwap selective body hydration": {
-          "provider_bytes_per_day": 0,
-          "yellowstone_bytes_per_day": 0,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 0.0
-        },
-        "Pump Survivor incremental evidence": {
-          "provider_bytes_per_day": 165240000,
-          "yellowstone_bytes_per_day": 5400000,
-          "websocket_bytes_per_day": 144000000,
-          "http_response_bytes_per_day": 15840000,
-          "rpc_CU_per_day": 86400,
-          "billed_websocket_CU_per_day": 28800.0,
-          "rpc_calls_per_day": 4320,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 9000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1.8265500000000001
-        },
-        "Meteora structural scout": {
-          "provider_bytes_per_day": 123182617,
-          "yellowstone_bytes_per_day": 123182617,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 0.27716088825
-        },
-        "Meteora ordered candidate history": {
-          "provider_bytes_per_day": 500864869,
-          "yellowstone_bytes_per_day": 500864869,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 2000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1.12694595525
-        },
-        "Meteora warming/hydration": {
-          "provider_bytes_per_day": 14433420,
-          "yellowstone_bytes_per_day": 3000000,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 11433420,
-          "rpc_CU_per_day": 10800,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 540,
-          "transaction_bodies_delivered_per_day": 20,
-          "canonical_bytes_per_day": 240000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 0.17685
-        },
-        "Meteora position management": {
-          "provider_bytes_per_day": 237600000,
-          "yellowstone_bytes_per_day": 216000000,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 21600000,
-          "rpc_CU_per_day": 43200,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 2160,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 36000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1.1663999999999999
-        }
-      },
-      "total_monthly_USD": 11.03257716525,
-      "provider_bytes_per_day": 2519556876,
-      "canonical_bytes_per_day": 744860000,
-      "retained_bytes_per_day": 931075000.0,
-      "local_IPC_bytes_per_day": 1032000,
-      "rpc_CU_per_day": 396813,
-      "transaction_bodies_delivered_per_day": 62657,
-      "explicit_getTransaction_per_day": 0,
-      "hydration_promotions_per_day": 620,
-      "lanes": {
-        "Pump Current": {
-          "discovery": 0.40532459512499996,
-          "history_watch": 2.072604049875,
-          "hydration": 0.39375000000000004,
-          "position_management": 0.4617,
-          "recovery": 0.21578767724999998,
-          "marginal": 0.85545,
-          "fully_loaded": 3.5491663222499996
-        },
-        "Pump Survivor": {
-          "discovery": 0.40532459512499996,
-          "history_watch": 2.072604049875,
-          "hydration": 0.0,
-          "position_management": 1.8265500000000001,
-          "recovery": 0.21578767724999998,
-          "marginal": 1.8265500000000001,
-          "fully_loaded": 4.5202663222499995
-        },
-        "Meteora": {
-          "discovery": 0.27716088825,
-          "history_watch": 1.12694595525,
-          "hydration": 0.17685,
-          "position_management": 1.1663999999999999,
-          "recovery": 0.21578767724999998,
-          "marginal": 2.7473568435,
-          "fully_loaded": 2.96314452075
-        }
-      }
+  "evidence_families": {
+    "Shared control/finality": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Production incidence uncertified; measured units in inputs."
     },
-    "EXPECTED": {
-      "families": {
-        "Shared Solana control/finality/replay": {
-          "provider_bytes_per_day": 1002213507,
-          "yellowstone_bytes_per_day": 245666594,
-          "websocket_bytes_per_day": 243200000,
-          "http_response_bytes_per_day": 513346913,
-          "rpc_CU_per_day": 209378,
-          "billed_websocket_CU_per_day": 48640.0,
-          "rpc_calls_per_day": 1441,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 8128000,
-          "monthly_USD": 4.616533336500001
-        },
-        "Pump universal discovery": {
-          "provider_bytes_per_day": 720577058,
-          "yellowstone_bytes_per_day": 720577058,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1.6212983804999999
-        },
-        "Pump ordered candidate history": {
-          "provider_bytes_per_day": 7105644000,
-          "yellowstone_bytes_per_day": 86400000,
-          "websocket_bytes_per_day": 1800000000,
-          "http_response_bytes_per_day": 5219244000,
-          "rpc_CU_per_day": 1920000,
-          "billed_websocket_CU_per_day": 360000.0,
-          "rpc_calls_per_day": 24000,
-          "transaction_bodies_delivered_per_day": 618000,
-          "canonical_bytes_per_day": 3863520000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 36.104400000000005
-        },
-        "Pump qualification hydration": {
-          "provider_bytes_per_day": 60000000,
-          "yellowstone_bytes_per_day": 0,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 60000000,
-          "rpc_CU_per_day": 300000,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 18000,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 4.7250000000000005
-        },
-        "Pump position management": {
-          "provider_bytes_per_day": 308160000,
-          "yellowstone_bytes_per_day": 14400000,
-          "websocket_bytes_per_day": 288000000,
-          "http_response_bytes_per_day": 5760000,
-          "rpc_CU_per_day": 57600,
-          "billed_websocket_CU_per_day": 57600.0,
-          "rpc_calls_per_day": 2880,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 28800000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1.8468
-        },
-        "PumpSwap ordered history": {
-          "provider_bytes_per_day": 7253061820,
-          "yellowstone_bytes_per_day": 350160650,
-          "websocket_bytes_per_day": 2200000000,
-          "http_response_bytes_per_day": 4702901170,
-          "rpc_CU_per_day": 622547,
-          "billed_websocket_CU_per_day": 440000.0,
-          "rpc_calls_per_day": 6625,
-          "transaction_bodies_delivered_per_day": 556861,
-          "canonical_bytes_per_day": 5831000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 17.5229767125
-        },
-        "PumpSwap selective body hydration": {
-          "provider_bytes_per_day": 42226893,
-          "yellowstone_bytes_per_day": 0,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 42226893,
-          "rpc_CU_per_day": 200000,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 5000,
-          "transaction_bodies_delivered_per_day": 5000,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 3.1500000000000004
-        },
-        "Pump Survivor incremental evidence": {
-          "provider_bytes_per_day": 632160000,
-          "yellowstone_bytes_per_day": 21600000,
-          "websocket_bytes_per_day": 576000000,
-          "http_response_bytes_per_day": 34560000,
-          "rpc_CU_per_day": 201600,
-          "billed_websocket_CU_per_day": 115200.0,
-          "rpc_calls_per_day": 10080,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 36000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 5.038200000000001
-        },
-        "Meteora structural scout": {
-          "provider_bytes_per_day": 246365235,
-          "yellowstone_bytes_per_day": 246365235,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 0.55432177875
-        },
-        "Meteora ordered candidate history": {
-          "provider_bytes_per_day": 1004929738,
-          "yellowstone_bytes_per_day": 1004929738,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 20000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 2.2610919105
-        },
-        "Meteora warming/hydration": {
-          "provider_bytes_per_day": 144334200,
-          "yellowstone_bytes_per_day": 30000000,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 114334200,
-          "rpc_CU_per_day": 108000,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 5400,
-          "transaction_bodies_delivered_per_day": 200,
-          "canonical_bytes_per_day": 2400000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1.7685000000000004
-        },
-        "Meteora position management": {
-          "provider_bytes_per_day": 950400000,
-          "yellowstone_bytes_per_day": 864000000,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 86400000,
-          "rpc_CU_per_day": 172800,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 8640,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 144000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 4.6655999999999995
-        }
-      },
-      "total_monthly_USD": 83.87472211875001,
-      "provider_bytes_per_day": 19470072451,
-      "canonical_bytes_per_day": 9925720000,
-      "retained_bytes_per_day": 12407150000.0,
-      "local_IPC_bytes_per_day": 8128000,
-      "rpc_CU_per_day": 3791925,
-      "transaction_bodies_delivered_per_day": 1180061,
-      "explicit_getTransaction_per_day": 5000,
-      "hydration_promotions_per_day": 6700,
-      "lanes": {
-        "Pump Current": {
-          "discovery": 0.8106491902499999,
-          "history_watch": 26.813688356250005,
-          "hydration": 6.300000000000001,
-          "position_management": 1.8468,
-          "recovery": 1.5388444455,
-          "marginal": 6.5718000000000005,
-          "fully_loaded": 37.309981992000004
-        },
-        "Pump Survivor": {
-          "discovery": 0.8106491902499999,
-          "history_watch": 26.813688356250005,
-          "hydration": 1.5750000000000002,
-          "position_management": 5.038200000000001,
-          "recovery": 1.5388444455,
-          "marginal": 5.038200000000001,
-          "fully_loaded": 35.776381992000005
-        },
-        "Meteora": {
-          "discovery": 0.55432177875,
-          "history_watch": 2.2610919105,
-          "hydration": 1.7685000000000004,
-          "position_management": 4.6655999999999995,
-          "recovery": 1.5388444455,
-          "marginal": 9.24951368925,
-          "fully_loaded": 10.78835813475
-        }
-      }
+    "Replay/recovery": {
+      "provider_bytes_per_day": 113552772.4866586,
+      "rpc_CU_per_day": 52215.733536884014,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "DERIVED historical frequency \u00d7 measured replay unit; not new-topology live rate."
     },
-    "HIGH": {
-      "families": {
-        "Shared Solana control/finality/replay": {
-          "provider_bytes_per_day": 551190859771,
-          "yellowstone_bytes_per_day": 65243377377,
-          "websocket_bytes_per_day": 59564880000,
-          "http_response_bytes_per_day": 426382602394,
-          "rpc_CU_per_day": 96141162,
-          "billed_websocket_CU_per_day": 11912976.0,
-          "rpc_calls_per_day": 1441,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 806988000,
-          "monthly_USD": 1848.65027259825
-        },
-        "Pump universal discovery": {
-          "provider_bytes_per_day": 1441154117,
-          "yellowstone_bytes_per_day": 1441154117,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 3.24259676325
-        },
-        "Pump ordered candidate history": {
-          "provider_bytes_per_day": 517859720388,
-          "yellowstone_bytes_per_day": 5616000000,
-          "websocket_bytes_per_day": 117000000000,
-          "http_response_bytes_per_day": 395243720388,
-          "rpc_CU_per_day": 58032000,
-          "billed_websocket_CU_per_day": 23400000.0,
-          "rpc_calls_per_day": 655200,
-          "transaction_bodies_delivered_per_day": 46800000,
-          "canonical_bytes_per_day": 251128800000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1295.19
-        },
-        "Pump qualification hydration": {
-          "provider_bytes_per_day": 936000000,
-          "yellowstone_bytes_per_day": 0,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 936000000,
-          "rpc_CU_per_day": 4680000,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 280800,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 73.71000000000001
-        },
-        "Pump position management": {
-          "provider_bytes_per_day": 1848960000,
-          "yellowstone_bytes_per_day": 86400000,
-          "websocket_bytes_per_day": 1728000000,
-          "http_response_bytes_per_day": 34560000,
-          "rpc_CU_per_day": 345600,
-          "billed_websocket_CU_per_day": 345600.0,
-          "rpc_calls_per_day": 17280,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 172800000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 11.0808
-        },
-        "PumpSwap ordered history": {
-          "provider_bytes_per_day": 1338259925367,
-          "yellowstone_bytes_per_day": 6049881095,
-          "websocket_bytes_per_day": 116075520000,
-          "http_response_bytes_per_day": 1216134524272,
-          "rpc_CU_per_day": 145584000,
-          "billed_websocket_CU_per_day": 23215104.0,
-          "rpc_calls_per_day": 1461600,
-          "transaction_bodies_delivered_per_day": 144000000,
-          "canonical_bytes_per_day": 307652889600,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 2672.19812046375
-        },
-        "PumpSwap selective body hydration": {
-          "provider_bytes_per_day": 22279584485,
-          "yellowstone_bytes_per_day": 0,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 22279584485,
-          "rpc_CU_per_day": 105523200,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 2638080,
-          "transaction_bodies_delivered_per_day": 2638080,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1661.9904000000001
-        },
-        "Pump Survivor incremental evidence": {
-          "provider_bytes_per_day": 3677760000,
-          "yellowstone_bytes_per_day": 129600000,
-          "websocket_bytes_per_day": 3456000000,
-          "http_response_bytes_per_day": 92160000,
-          "rpc_CU_per_day": 633600,
-          "billed_websocket_CU_per_day": 691200.0,
-          "rpc_calls_per_day": 31680,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 216000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 21.1572
-        },
-        "Meteora structural scout": {
-          "provider_bytes_per_day": 492730470,
-          "yellowstone_bytes_per_day": 492730470,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 0,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1.1086435575
-        },
-        "Meteora ordered candidate history": {
-          "provider_bytes_per_day": 4388459476,
-          "yellowstone_bytes_per_day": 4388459476,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 0,
-          "rpc_CU_per_day": 0,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 0,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 11933000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 9.874033821
-        },
-        "Meteora warming/hydration": {
-          "provider_bytes_per_day": 211568032780,
-          "yellowstone_bytes_per_day": 143350532350,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 68217500430,
-          "rpc_CU_per_day": 64438200,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 3221910,
-          "transaction_bodies_delivered_per_day": 12887640,
-          "canonical_bytes_per_day": 1431960000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 1337.4403477875
-        },
-        "Meteora position management": {
-          "provider_bytes_per_day": 101260800000,
-          "yellowstone_bytes_per_day": 98668800000,
-          "websocket_bytes_per_day": 0,
-          "http_response_bytes_per_day": 2592000000,
-          "rpc_CU_per_day": 5184000,
-          "billed_websocket_CU_per_day": 0.0,
-          "rpc_calls_per_day": 259200,
-          "transaction_bodies_delivered_per_day": 0,
-          "canonical_bytes_per_day": 864000000,
-          "local_IPC_bytes_per_day": 0,
-          "monthly_USD": 303.6528
-        }
-      },
-      "total_monthly_USD": 9239.29521499125,
-      "provider_bytes_per_day": 2755203986854,
-      "canonical_bytes_per_day": 573399449600,
-      "retained_bytes_per_day": 716749312000.0,
-      "local_IPC_bytes_per_day": 806988000,
-      "rpc_CU_per_day": 480561762,
-      "transaction_bodies_delivered_per_day": 206325720,
-      "explicit_getTransaction_per_day": 2638080,
-      "hydration_promotions_per_day": 220130,
-      "lanes": {
-        "Pump Current": {
-          "discovery": 1.621298381625,
-          "history_watch": 1983.694060231875,
-          "hydration": 904.7052000000001,
-          "position_management": 11.0808,
-          "recovery": 616.21675753275,
-          "marginal": 84.7908,
-          "fully_loaded": 3517.3181161462503
-        },
-        "Pump Survivor": {
-          "discovery": 1.621298381625,
-          "history_watch": 1983.694060231875,
-          "hydration": 830.9952000000001,
-          "position_management": 21.1572,
-          "recovery": 616.21675753275,
-          "marginal": 21.1572,
-          "fully_loaded": 3453.68451614625
-        },
-        "Meteora": {
-          "discovery": 1.1086435575,
-          "history_watch": 9.874033821,
-          "hydration": 1337.4403477875,
-          "position_management": 303.6528,
-          "recovery": 616.21675753275,
-          "marginal": 1652.075825166,
-          "fully_loaded": 2268.29258269875
-        }
-      }
+    "Pump universal discovery": {
+      "provider_bytes_per_day": 720577058.379703,
+      "rpc_CU_per_day": 0,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "DERIVED short scout capture; initial census cost absent."
+    },
+    "Pump ordered history": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Production incidence uncertified; measured units in inputs."
+    },
+    "Pump promotion/hydration": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Production incidence uncertified; measured units in inputs."
+    },
+    "Pump position management": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Production incidence uncertified; measured units in inputs."
+    },
+    "PumpSwap ordered history": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Production incidence uncertified; measured units in inputs."
+    },
+    "PumpSwap selective bodies": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "0/879 captured events needed bodies. Fallback tested; production incidence unmeasured."
+    },
+    "Survivor incremental evidence": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Production incidence uncertified; measured units in inputs."
+    },
+    "Meteora structural scout": {
+      "provider_bytes_per_day": 246365234.85139385,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "DERIVED WSOL scout capture; paginated census/refresh incidence unmeasured."
+    },
+    "Meteora ordered history": {
+      "provider_bytes_per_day": 1000929738.1459836,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Cheap bin-locator deliveries only; rich promoted-history incidence unmeasured."
+    },
+    "Meteora warming/hydration": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Production incidence uncertified; measured units in inputs."
+    },
+    "Meteora position management": {
+      "provider_bytes_per_day": null,
+      "rpc_CU_per_day": null,
+      "LOW_monthly_USD": null,
+      "EXPECTED_monthly_USD": null,
+      "PRODUCTION_HIGH_monthly_USD": null,
+      "input_quality": "Production incidence uncertified; measured units in inputs."
     }
   },
-  "non_alchemy_host_monthly_USD": 73,
-  "expected_infra_scenario_monthly_USD": 156.87472211875001,
+  "monthly": {
+    "ALCHEMY_LOW": null,
+    "ALCHEMY_EXPECTED": null,
+    "ALCHEMY_PRODUCTION_HIGH": null,
+    "UNSERVICEABLE_FAILURE_ENVELOPE": {
+      "partial_monthly_USD_lower_bound": 2109.4377843207367,
+      "full_system_monthly_USD": null,
+      "classification": "MODELED",
+      "production_high": false,
+      "assumption": "Daily-linear continuation of captured cold/activity-first Meteora promotions, every promoted scope needing measured mean compatible full warmup.",
+      "exclusions": "All Pump/PumpSwap, other Meteora/control/replay/native-byte traffic and position occupancy.",
+      "current_capacity": {
+        "workers": 2,
+        "measured_seconds_per_warmup": 16.003484838001896,
+        "queued_jobs": 61,
+        "predicted_deadline_misses": 43,
+        "maximum_start_delay_seconds": 454.2803271053126,
+        "classification": "DERIVED_FROM_MEASURED",
+        "economic_rejection": false,
+        "assumption": "Every promoted Meteora scope requires the measured compatible full warmup; compatibility incidence is unmeasured."
+      }
+    },
+    "NON_ALCHEMY_HOST_STORAGE": 73.0,
+    "TOTAL_EXPECTED_INFRA": null,
+    "EXPECTED_SAVINGS_USD": null,
+    "EXPECTED_SAVINGS_PERCENT": null
+  },
   "previous_broad_monthly_USD": 1332.83,
-  "modeled_savings_monthly_USD": 1248.95527788125,
-  "modeled_savings_percent": 93.70702024123482,
-  "realized_savings_certified": false,
+  "previous_conditional_expected_USD": 83.87,
+  "previous_expected_status": "WITHDRAWN as a measured production estimate; historical conditional arithmetic only.",
+  "previous_assumed_daily_promotions_imported": false,
+  "previous_assumed_selective_bodies_imported": false,
+  "production_forecast_certified": false,
   "target_classification": {
-    "50": "PLAUSIBLE_BUT_UNPROVEN",
-    "100": "PLAUSIBLE_BUT_UNPROVEN",
-    "250": "PLAUSIBLE_BUT_UNPROVEN"
+    "25": {
+      "classification": "PLAUSIBLE",
+      "proven": false,
+      "note": "Selective evidence can reach this reporting band; sustainable measured operating incidence is uncertified. No strategy changed to reach it."
+    },
+    "50": {
+      "classification": "PLAUSIBLE",
+      "proven": false,
+      "note": "Selective evidence can reach this reporting band; sustainable measured operating incidence is uncertified. No strategy changed to reach it."
+    },
+    "100": {
+      "classification": "PLAUSIBLE",
+      "proven": false,
+      "note": "Selective evidence can reach this reporting band; sustainable measured operating incidence is uncertified. No strategy changed to reach it."
+    },
+    "250": {
+      "classification": "PLAUSIBLE",
+      "proven": false,
+      "note": "Selective evidence can reach this reporting band; sustainable measured operating incidence is uncertified. No strategy changed to reach it."
+    }
   },
+  "measurement_phase": "BLOCKED by capacity gate. Unit/stress evidence is not a completed measured production model.",
   "pons_direct_alchemy_monthly_USD": 0,
   "ramses_direct_alchemy_monthly_USD": 0
 }

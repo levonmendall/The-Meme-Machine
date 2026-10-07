@@ -1,0 +1,389 @@
+{
+  "classification": "MEASURED_REPLAY",
+  "window_seconds": {
+    "scout": 25.184735190996435,
+    "routing": 30.10356330004288
+  },
+  "wall_seconds": 30.40137138403952,
+  "pace": 1,
+  "candidate_rates": {
+    "pump": {
+      "denominator": 114,
+      "retained_locators": 114,
+      "unresolved_structural_locators": 0,
+      "numerator": 114,
+      "reactivations": 114,
+      "seconds": 25.184735190996435,
+      "rate_hour": 16295.585277653361,
+      "rate_day": 391094.04666368064,
+      "promoted_unique": 114,
+      "promotion_percentage": 100.0,
+      "burst_max_per_second": 24,
+      "classification": "MEASURED_REPLAY",
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "pumpswap": {
+      "denominator": 113,
+      "retained_locators": 113,
+      "unresolved_structural_locators": 0,
+      "numerator": 113,
+      "reactivations": 113,
+      "seconds": 30.10356330004288,
+      "rate_hour": 13513.35042783525,
+      "rate_day": 324320.410268046,
+      "promoted_unique": 113,
+      "promotion_percentage": 100.0,
+      "burst_max_per_second": 21,
+      "classification": "MEASURED_REPLAY",
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    },
+    "meteora": {
+      "denominator": 91,
+      "retained_locators": 144,
+      "unresolved_structural_locators": 53,
+      "numerator": 61,
+      "reactivations": 61,
+      "seconds": 25.184735190996435,
+      "rate_hour": 8719.567560849606,
+      "rate_day": 209269.62146039054,
+      "promoted_unique": 61,
+      "promotion_percentage": 67.03296703296704,
+      "burst_max_per_second": 11,
+      "classification": "MEASURED_REPLAY",
+      "cohort": "Activity-first capture with immediate permissive handoff for demand replay; not a new-creation census or certified governed operating rate."
+    }
+  },
+  "latency_seconds": {
+    "owner_6": {
+      "mean": 0.01763099506189358,
+      "p50": 0.01150317199062556,
+      "p95": 0.042628135008271784,
+      "p99": 0.20392864098539576,
+      "max": 0.30100430897437036,
+      "samples": 257
+    },
+    "owner_1": {
+      "mean": 0.019329337326237053,
+      "p50": 0.01789341395488009,
+      "p95": 0.02594048297032714,
+      "p99": 0.05387749697547406,
+      "max": 0.22697801602771506,
+      "samples": 870
+    },
+    "ordered_history": {
+      "mean": 0.019339583028474522,
+      "p50": 0.017902377003338188,
+      "p95": 0.02595049497904256,
+      "p99": 0.053891027986537665,
+      "max": 0.2269879289669916,
+      "samples": 870
+    },
+    "owner_5": {
+      "mean": 0.01124821398412133,
+      "p50": 0.006379600032232702,
+      "p95": 0.03163576504448429,
+      "p99": 0.04504860198358074,
+      "max": 0.49008508800761774,
+      "samples": 2370
+    },
+    "candidate_event_arrival": {
+      "mean": 0.011255107356705958,
+      "p50": 0.006385807995684445,
+      "p95": 0.031644373026210815,
+      "p99": 0.04505848896224052,
+      "max": 0.4901022940175608,
+      "samples": 2370
+    },
+    "promotion": {
+      "mean": 0.011255698031397096,
+      "p50": 0.006386350025422871,
+      "p95": 0.031645000039134175,
+      "p99": 0.0450591939734295,
+      "max": 0.49010314902989194,
+      "samples": 2370
+    },
+    "owner_0": {
+      "mean": 0.005386955582071096,
+      "p50": 0.0048230469692498446,
+      "p95": 0.010989798000082374,
+      "p99": 0.017164419987238944,
+      "max": 0.017164419987238944,
+      "samples": 60
+    },
+    "open_position_mark": {
+      "mean": 0.005407776517677121,
+      "p50": 0.004842361027840525,
+      "p95": 0.01101065700640902,
+      "p99": 0.01718901499407366,
+      "max": 0.01718901499407366,
+      "samples": 60
+    },
+    "hwm_update": {
+      "mean": 0.005407776517677121,
+      "p50": 0.004842361027840525,
+      "p95": 0.01101065700640902,
+      "p99": 0.01718901499407366,
+      "max": 0.01718901499407366,
+      "samples": 60
+    },
+    "exit_signal": {
+      "mean": 0.005407776517677121,
+      "p50": 0.004842361027840525,
+      "p95": 0.01101065700640902,
+      "p99": 0.01718901499407366,
+      "max": 0.01718901499407366,
+      "samples": 60
+    },
+    "safety_signal": {
+      "mean": 0.005407776517677121,
+      "p50": 0.004842361027840525,
+      "p95": 0.01101065700640902,
+      "p99": 0.01718901499407366,
+      "max": 0.01718901499407366,
+      "samples": 60
+    },
+    "hydration": {
+      "mean": 16.003484838001896,
+      "p50": 16.003484838001896,
+      "p95": 16.003484838001896,
+      "p99": 16.003484838001896,
+      "max": 16.003484838001896,
+      "samples": 1
+    },
+    "qualification_ready": {
+      "mean": 51.325281381607056,
+      "p50": 51.325281381607056,
+      "p95": 51.325281381607056,
+      "p99": 51.325281381607056,
+      "max": 51.325281381607056,
+      "samples": 1
+    },
+    "meteora_replay_processing": {
+      "mean": 2.102695793029852,
+      "p50": 2.102695793029852,
+      "p95": 2.102695793029852,
+      "p99": 2.102695793029852,
+      "max": 2.102695793029852,
+      "samples": 1
+    }
+  },
+  "errors": [],
+  "routing": {
+    "matched": 1064,
+    "omissions": 0,
+    "body_free_events": 879,
+    "shards": 3,
+    "addresses_per_shard": [
+      49,
+      50,
+      15
+    ],
+    "filters_per_shard": [
+      12,
+      12,
+      8
+    ],
+    "delivered_status_bytes": 118833,
+    "duplicate_delivered_bytes": 4561,
+    "bytes_per_shard": {
+      "1": 67263,
+      "0": 25323,
+      "2": 26247
+    },
+    "received_duplicates": 44,
+    "duplicate_canonical_events": 0,
+    "serialization_classification": "DERIVED_FROM_MEASURED",
+    "first_canonical_admissions": 880
+  },
+  "provider_raw_bytes_per_second": 26723.769548815228,
+  "provider_rate_scope": "Scout payloads plus derived overlapping status deliveries only. Candidate WS log bytes and HTTP work are not included; this is not an aggregate production wire rate.",
+  "queue_depth_peak": 3,
+  "oldest_queue_age_seconds": 0.1950393070001155,
+  "warming_backlog_peak": 286,
+  "warming_backlog_end": 61,
+  "owner_metrics": {
+    "queue_peak": 3,
+    "nonurgent_fifo_selections": 2627,
+    "priority6.queue_peak_us": 300585,
+    "priority6.queue_total_us": 4114495,
+    "priority6.execution_peak_us": 221193,
+    "priority6.execution_total_us": 361438,
+    "priority6.completed": 257,
+    "priority1.queue_peak_us": 119259,
+    "priority1.queue_total_us": 3504860,
+    "priority1.execution_peak_us": 181754,
+    "priority1.execution_total_us": 13166702,
+    "priority1.completed": 870,
+    "priority5.queue_peak_us": 364119,
+    "priority5.queue_total_us": 11814245,
+    "priority5.execution_peak_us": 124107,
+    "priority5.execution_total_us": 14488272,
+    "priority5.completed": 2370,
+    "priority0.queue_peak_us": 16939,
+    "priority0.queue_total_us": 312243,
+    "priority0.execution_peak_us": 792,
+    "priority0.execution_total_us": 3987,
+    "priority0.completed": 60
+  },
+  "cpu_seconds": 17.708891524,
+  "cpu_percent_one_core": 58.250304896762074,
+  "maximum_rss_kib": 110576,
+  "network": {
+    "replay_network_bytes": 0,
+    "actual_reference_capture_bytes": 11461681,
+    "derived_shard_status_bytes": 118833,
+    "invoice_meter": false,
+    "note": "Preserved full reference bodies were provider-delivered historical bytes. The future default body-free path still buys WS logs; this replay does not measure that aggregate live subscription rate."
+  },
+  "positions": {
+    "pumpswap_events": 60
+  },
+  "retirement": {
+    "hot_bytes_before": 500923,
+    "hot_bytes_after": 500923,
+    "retired_records": 0,
+    "retired_logical_bytes": 0,
+    "pinned_bytes": 459349,
+    "oldest_unretired_scope": {
+      "scope": "candidate:pumpswap:298tmGN5tSxaVvFbWhZLfv95sybxhf7f3MjtkvestkDH",
+      "slot": 454079651,
+      "reason": "warming_or_deadline"
+    },
+    "retirement_seconds": 0.0738999720197171,
+    "records_per_second": 0.0,
+    "physical_database_bytes": 15110656,
+    "retained_candidate_history_bytes": 5443584,
+    "cold_bytes": 0
+  },
+  "positive": {
+    "pool": "E1XdfKcKbE6uyamZy3fy4T9YBBKotAZp1ky6s1FMoxED",
+    "full_qualification": {
+      "passes": true,
+      "checks": {
+        "authenticated_fee_density": true,
+        "capacity": true,
+        "two_way": true,
+        "drift": true,
+        "reversal": true,
+        "unwind": true,
+        "expected_net": true
+      },
+      "failed": [],
+      "rule": "solana_dlmm_authenticated_fee_density_v1",
+      "fitted_thresholds": false,
+      "public_api_entry_authority": false
+    },
+    "minimal_qualification": {
+      "passes": true,
+      "checks": {
+        "authenticated_fee_density": true,
+        "capacity": true,
+        "two_way": true,
+        "drift": true,
+        "reversal": true,
+        "unwind": true,
+        "expected_net": true
+      },
+      "failed": [],
+      "rule": "solana_dlmm_authenticated_fee_density_v1",
+      "fitted_thresholds": false,
+      "public_api_entry_authority": false
+    },
+    "events": 6,
+    "rpc_calls": 31,
+    "rpc_cu": 620,
+    "scout_time": 1791346509.5860906,
+    "promotion_time": 1791346509.5860908,
+    "positive_attempt_promotion_time": 1791346544.907893,
+    "warm_start": 1791346547.3180957,
+    "warm_complete": 1791346560.911372,
+    "decision_deadline": 1791346659.5860908,
+    "lead_time_margin_seconds": 98.67471885681152,
+    "deadline_note": "Conservative earliest original candidate deadline; the third positive attempt receives no deadline reset in this proof.",
+    "wall_clock_seconds": 16.003484838001896,
+    "http_bytes": 659383,
+    "captured_provider_grpc_bytes": 437316,
+    "transaction_body_rpc_fetches": 0,
+    "block_fetches": 0,
+    "account_fetches": 121,
+    "canonical_records": 29,
+    "position_equivalent": {
+      "mark": {
+        "resolved": true,
+        "ending_sol_lamports": 99899997,
+        "pnl_lamports": -500003,
+        "withdrawn_assets_raw": {
+          "x": 14359863947,
+          "y": 49999950,
+          "fee_x": 0,
+          "fee_y": 0
+        },
+        "unwind_quote": {
+          "input": 14359863947,
+          "output": 49900047,
+          "fee": 14360109,
+          "protocol_fee": 1436010,
+          "start": -5664,
+          "end": -5664,
+          "traversed": [
+            {
+              "bin": -5664,
+              "input": 14359863947,
+              "output": 49900047,
+              "fee": 14360109,
+              "protocol_fee": 1436010
+            }
+          ]
+        },
+        "fee_pnl_lamports": 0,
+        "inventory_pnl_lamports": -100003,
+        "fee_income_mark_lamports": 0,
+        "inventory_mark_pnl_lamports": -50052,
+        "unwind_cost_lamports": 49951,
+        "network_cost_lamports": 400000,
+        "fee_valuation_method": "pro_rata_combined_executable_unwind_output",
+        "execution_cost_accounting": "swap_and_protocol_fees_embedded_in_executable_quotes_network_cost_separate",
+        "unwind_input_token": "PEPEqnuuCDbBC89p1u9vpnP1KQ2oj1xTcQBsjt9X55m",
+        "pnl_bps": -50.0003,
+        "non_sol_inventory_raw": 14359863947,
+        "non_sol_inventory_liquidation_lamports": 49900047,
+        "non_sol_inventory_fraction_of_initial_capital": 0.49900047,
+        "active_bin": -5664,
+        "time": 1791346537,
+        "slot": 454112638
+      },
+      "exit_reasons": [],
+      "confirmed_exits": []
+    },
+    "trigger": {
+      "authenticated": true,
+      "signature": "4RRJXMSDbVFDXxk6zncpXPWxcPw4yuhyg5QpRJWRUWLyP15jJtPgC644iRvVYtEgdQUdh9F2J3WBWhB1TJRXfbKT",
+      "slot": 454112638,
+      "compatibility_slot": 454112629,
+      "fresh_state_slot": 454112638
+    },
+    "classification": "MEASURED_REPLAY",
+    "qualified": true
+  },
+  "byte_boundaries": {
+    "captured_scout_provider_bytes": 573615,
+    "derived_provider_shard_status_bytes": 118833,
+    "local_materialized_hot_bytes": 500923,
+    "canonical_logical_bytes": 5276963,
+    "local_ipc_bytes": 0,
+    "limitation": "Scout and routing captures differ in time; status sharding is derived. No production aggregate/day or IPC/day is inferred."
+  },
+  "two_worker_deadline_envelope": {
+    "workers": 2,
+    "measured_seconds_per_warmup": 16.003484838001896,
+    "queued_jobs": 61,
+    "predicted_deadline_misses": 43,
+    "maximum_start_delay_seconds": 454.2803271053126,
+    "classification": "DERIVED_FROM_MEASURED",
+    "economic_rejection": false,
+    "assumption": "Every promoted Meteora scope requires the measured compatible full warmup; compatibility incidence is unmeasured."
+  },
+  "local_evidence_readiness_pass": true,
+  "shared_governed_provider_latency_certified": false,
+  "capacity_pass": false
+}

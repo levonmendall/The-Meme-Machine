@@ -455,6 +455,16 @@ def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
         # Missing public context may require I/O. It belongs to admitted work,
         # after every already-delivered cheap identity has entered the EDF queue.
         address=item['address'];observed_at=item['signal_observed_at']
+        if item.get('provider_structural'):
+            # The complete WSOL scout is an independent discovery source. Public
+            # ranking cannot veto its candidates; exact on-chain fees/depth/flow
+            # still pass through the same compatibility, warmup and qualify calls.
+            item.update(volume_acceleration=0.0,fee_acceleration=0.0,
+                public_context_source='structural_scout_no_public_acceleration',
+                public_api_entry_authority=False)
+            telemetry['qualified'].append(item)
+            checkpoint('structural_candidate_promoted')
+            return item
         telemetry['snapshot_context_candidates']+=1
         if item.get('missing_5m_context') and item['tvl_usd']>0:
             telemetry['history_reads']+=1
@@ -852,7 +862,7 @@ def _capture_chunk(
         # Raw transaction bodies remain evidence-plane material, not candidate history.
         source_order={(s['slot'],s.get('transactionIndex') if type(s.get('transactionIndex')) is int
             else s['transactionOrder']['rank']):s for s in signatures}
-        for kind,item,_order in actions:
+        for kind,item in actions:
             order=list(item.get('cursor') or [item.get('slot',0),0,0])
             if len(order)!=3:raise Unavailable('candidate_history_meteora_order')
             witness=source_order.get((int(order[0]),int(order[1])))
@@ -2029,6 +2039,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
             # warming and strategy qualification continue even while another
             # position owns the paper capital.
             plane=_evidence_plane()
+            candidate_deadline=min(deadline,time.monotonic()+max(0.,
+                float(candidate.get('decision_deadline',time.time()+_runtime_remaining(deadline)))-time.time()))
             admission=plane.admit_candidate(METEORA_SCOPE,
                 addresses=[candidate['address']],owner='meteora:candidate:'+candidate['address'])
             if not admission['accepted']:
@@ -2046,7 +2058,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     (compatibility_state,adapter)=_retry_rate_limited_operation(
                         lambda active:_fresh_supported_start(
                             active,candidate),
-                        adapter,pacer,candidate_rpcs,deadline)
+                        adapter,pacer,candidate_rpcs,candidate_deadline)
                 except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
                     compatibility_rejections.append(dict(
                         pool=candidate["address"],candidate=candidate,
@@ -2072,7 +2084,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     alignment,warm,entry,warm_origin,adapter,aligned_candidate=(
                         _triggered_warmup(
                             adapter,candidate,compatibility_state,
-                            policy,pacer,candidate_rpcs,deadline,broker))
+                            policy,pacer,candidate_rpcs,candidate_deadline,broker))
                     # Any rotated RPCs created inside observation are not yet in global list.
                     for rpc in candidate_rpcs:
                         if rpc not in rpcs:rpcs.append(rpc)
@@ -2096,6 +2108,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     _stage(candidate["address"],"prospective_range",lower=features.get("lower"),upper=features.get("upper"))
                     _stage(candidate["address"],"economic_vector")
                     _stage(candidate["address"],"evidence_complete")
+                    if _runtime_expired(candidate_deadline):
+                        raise Unavailable('candidate_decision_deadline_missed')
                     decision=qualify(features,policy)
                     decision_id=None
                     if CANDIDATE_HISTORY is not None:

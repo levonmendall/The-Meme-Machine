@@ -123,14 +123,14 @@ class SelectiveEvidenceTests(unittest.TestCase):
 
 class ActivityRoutingTests(unittest.TestCase):
     def test_multi_candidate_activity_never_misses_a_member_or_invents_an_event(self):
-        router=ActivityRoutes('pool-'+str(n) for n in range(1024))
-        for members in (('pool-0',),('pool-27','pool-98'),('pool-1','pool-44','pool-700')):
+        router=ActivityRoutes('pool-'+str(n) for n in range(50))
+        for members in (('pool-0',),('pool-27','pool-48'),('pool-1','pool-44','pool-7')):
             labels=[label for label,group in router.groups.items() if set(members)&set(group)]
             resolved=router.resolve(labels)
             self.assertTrue(set(members).issubset(resolved['addresses']))
             self.assertFalse(resolved['economic_event']);self.assertFalse(resolved['history_complete'])
         self.assertLessEqual(len(router.subscription().transactions_status),50)
-        self.assertLessEqual(max(len(f.account_include) for f in router.subscription().transactions_status.values()),512)
+        self.assertLessEqual(max(len(f.account_include) for f in router.subscription().transactions_status.values()),50)
         self.assertEqual(sum(len(r.addresses) for r in shards('p-'+str(n) for n in range(10000))),10000)
 
     def test_an_empty_include_filter_can_never_request_unrelated_transactions(self):

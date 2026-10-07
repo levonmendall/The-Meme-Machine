@@ -216,14 +216,14 @@ class ReconstructionGateTests(unittest.TestCase):
         adapter=SimpleNamespace(snapshot_from_state=lambda *args,**kwargs:{'slot':20})
         signatures=[dict(signature='swap',slot=20,transactionIndex=7)]
         plane=SimpleNamespace(meteora_interval=lambda *args:(signatures,{},{}),count=lambda *args:None)
-        tape=SimpleNamespace(lineage='proof',terminal={'time':1000})
+        from meme_machine.lanes.meteora.dlmm_tape import VerifiedTape
         event=dict(signature='swap',slot=20,cursor=[20,7,0],time=1000,
                    available_time=1001,amount=50,prestate_hash='exact-state')
         def capture():
+            tape=VerifiedTape('start','end',(dict(event),),{'time':1000},'proof')
             with patch.object(meteora,'CANDIDATE_HISTORY',self.h),patch.object(meteora,'_stage'), \
                  patch.object(meteora,'_stop_sleep'),patch.object(meteora,'_evidence_plane',return_value=plane), \
-                 patch.object(meteora,'reconstruct',return_value=tape), \
-                 patch.object(meteora,'ordered_tape_actions',return_value=[('swap',dict(event),(0,0))]):
+                 patch.object(meteora,'reconstruct',return_value=tape):
                 meteora._capture_chunk(adapter,{'pool':'pool','slot':19},[19,0,0],1)
         capture();first=self.h.events('meteora','pool')
         self.h.close();self.h=CandidateHistory(self.path,clock=lambda:1010.)

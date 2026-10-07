@@ -1,3 +1,5 @@
+CURRENT CLOSURE RECORD: [../solana_closure/REPORT.md](../solana_closure/REPORT.md). The following report is a historical pre-closure record. Its $83.87 EXPECTED estimate is conditional and has been withdrawn as a measured production estimate. Its larger filter-size claims are superseded by the demonstrated 50-filter production boundary. Six blockers now pass; simultaneous governed provider capacity remains unproved. PR #121 remains draft and unmerged.
+
 PRE_ALCHEMY_VALIDATION: PASS
 
 ALCHEMY_SOLANA_FINALIZATION: NOT_READY

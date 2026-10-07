@@ -1,0 +1,50 @@
+{
+  "classification": "MEASURED_REPLAY_POSITION_TRAFFIC",
+  "provider_unit_classification": "DERIVED_FROM_MEASURED",
+  "window_seconds": 13.593276262283325,
+  "sample_count": 12,
+  "source": "tests/fixtures/solana_positive_meteora",
+  "raw_http_bytes": 526335,
+  "raw_native_bytes": 85184,
+  "raw_by_kind": {
+    "slot": {
+      "bytes": 1605,
+      "messages": 49
+    },
+    "block_meta": {
+      "bytes": 10253,
+      "messages": 49
+    },
+    "transaction": {
+      "bytes": 72620,
+      "messages": 6
+    },
+    "transaction_status": {
+      "bytes": 672,
+      "messages": 7
+    },
+    "ping": {
+      "bytes": 16,
+      "messages": 1
+    },
+    "pong": {
+      "bytes": 18,
+      "messages": 1
+    }
+  },
+  "rpc_calls": 24,
+  "rpc_cu": 480,
+  "account_fetches": 96,
+  "transaction_body_rpc_fetches": 0,
+  "block_fetches": 0,
+  "native_transaction_bodies": 6,
+  "provider_bytes_per_position_hour": 161952744.68954325,
+  "http_bytes_per_position_hour": 139392885.3824178,
+  "native_bytes_per_position_hour": 22559859.307125457,
+  "rpc_cu_per_position_hour": 127121.67152775425,
+  "rpc_calls_per_position_hour": 6356.083576387713,
+  "subscription_messages_per_position_hour": 29926.560172158814,
+  "selective_fetches_per_position_hour": 0,
+  "authority": "Exact evidence/mark/confirmation/exit/settlement-input replay, without reservation, entry, signature or submission.",
+  "limitation": "Isolated provider-equivalent interval; simultaneous governed provider latency remains blocker 4."
+}

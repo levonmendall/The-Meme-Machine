@@ -10,10 +10,9 @@ import math
 from .solana_evidence_plane import EvidenceUnavailable,digest
 from .yellowstone import geyser_pb2 as pb
 
-# A 512-address include list delivered an actual finalized status in the final
-# bounded diagnostic. Complementary filters therefore retain 1,024 identities
-# per shard while each paid filter contains at most 512 addresses.
-SHARD_SIZE=1024
+# Only the demonstrated 50-filter boundary is a production assumption. Keep
+# include lists below 50 too; a quiet larger-list probe proves no larger limit.
+SHARD_SIZE=50
 LABELS='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX'
 
 class ActivityRoutes:
