@@ -42,6 +42,13 @@ def conditions(sample,epoch,now):
         if row.get('oldest_wait_seconds',0)>30:found.add(provider+'_request_queue_stalled')
     for lane in ('pump','pons','meteora','ramses'):
         row=sample.get('lanes',{}).get(lane,{})
+        from meme_machine.runtime.operating_families import PAUSED_LANES
+        if lane in PAUSED_LANES:
+            if row.get('phase')!='PAUSED' or row.get('paused') is not True or row.get('pid') is not None:
+                found.add(lane+'_pause_state_invalid')
+            if p.get('positions_by_lane',{}).get(lane,0) or p.get('reservations_by_lane',{}).get(lane,0) or p.get('pending_by_lane',{}).get(lane,0):
+                found.add(lane+'_paused_with_obligation')
+            continue
         if row.get('reconciled') is not True:found.add(lane+'_reconciliation_unavailable')
         if row.get('phase')=='VALUATION_UNAVAILABLE':found.add(lane+'_valuation_unavailable')
         if p.get('positions_by_lane',{}).get(lane,0)>0 and now-row.get('progress_at',0)>PERSISTENCE:

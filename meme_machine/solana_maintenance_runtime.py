@@ -69,14 +69,15 @@ class MaintenanceRuntime:
         self._publish()
 
     def _load(self):
-        rows = self.writer.db.execute('SELECT scope,side,source_deadline,wall_started,envelope FROM maintenance_episodes ORDER BY scope,side LIMIT ?', (MAX_SCOPES*2+3,)).fetchall()
+        from .runtime.operating_families import evidence_scope_sql
+        rows = self.writer.db.execute('SELECT scope,side,source_deadline,wall_started,envelope FROM maintenance_episodes WHERE '+evidence_scope_sql('maintenance_episodes.scope')+' ORDER BY scope,side LIMIT ?', (MAX_SCOPES*2+3,)).fetchall()
         if len(rows) > MAX_SCOPES*2+2:
             raise EvidenceUnavailable('maintenance_episode_bound')
         for scope, side, deadline, started, envelope in rows:
             if side not in ('archive','retirement') or not math.isfinite(deadline) or not math.isfinite(started) or envelope != PIPELINE_SLACK_RECORDS:
                 raise EvidenceUnavailable('maintenance_episode_invalid')
             self.episodes[side,scope] = (deadline, started, envelope)
-        rows = self.writer.db.execute('SELECT scope,side,wall_started FROM maintenance_nonrecord_demand ORDER BY scope,side LIMIT ?', (MAX_SCOPES+2,)).fetchall()
+        rows = self.writer.db.execute('SELECT scope,side,wall_started FROM maintenance_nonrecord_demand WHERE '+evidence_scope_sql('maintenance_nonrecord_demand.scope')+' ORDER BY scope,side LIMIT ?', (MAX_SCOPES+2,)).fetchall()
         if len(rows)>MAX_SCOPES+1:
             raise EvidenceUnavailable('maintenance_nonrecord_demand_bound')
         for scope,side,started in rows:

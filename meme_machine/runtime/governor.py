@@ -52,6 +52,9 @@ class Governor:
         return min(30.0,8.0*(2**min(streak-1,2)))
 
     def acquire(self,provider,lane,priority=50,*,deadline_seconds=30,methods=()):
+        from .operating_families import require_active,active_scope_sql
+        require_active(lane)
+        live=active_scope_sql('lane')
         if not 0<deadline_seconds<=30:raise ValueError('provider_deadline_bound')
         methods=self._methods(methods)
         identity=str(uuid.uuid4());started=time.monotonic()
@@ -63,9 +66,9 @@ class Governor:
                 db.execute('INSERT OR IGNORE INTO method_pressure VALUES(?,?,0,0,0,0)',
                            (provider,method))
             db.execute('BEGIN IMMEDIATE')
-            db.execute('DELETE FROM queue WHERE created<=?',(started-30,))
-            if db.execute('SELECT COUNT(*) FROM queue WHERE provider=?',(provider,)).fetchone()[0]>=256:
-                victim=(db.execute('SELECT id FROM queue WHERE provider=? AND priority>=50 ORDER BY priority DESC,created DESC LIMIT 1',(provider,)).fetchone()
+            db.execute('DELETE FROM queue WHERE '+live+' AND created<=?',(started-30,))
+            if db.execute('SELECT COUNT(*) FROM queue WHERE '+live+' AND provider=?',(provider,)).fetchone()[0]>=256:
+                victim=(db.execute('SELECT id FROM queue WHERE '+live+' AND provider=? AND priority>=50 ORDER BY priority DESC,created DESC LIMIT 1',(provider,)).fetchone()
                         if provider=='solana' and priority in (0,1) else None)
                 if victim:
                     db.execute('DELETE FROM queue WHERE id=?',victim)
@@ -78,7 +81,7 @@ class Governor:
                 if now-started>deadline_seconds:raise TimeoutError('operational_provider_queue_deadline')
                 db.execute('BEGIN IMMEDIATE')
                 try:
-                    db.execute('DELETE FROM queue WHERE created<=?',(now-30,))
+                    db.execute('DELETE FROM queue WHERE '+live+' AND created<=?',(now-30,))
                     if not db.execute('SELECT 1 FROM queue WHERE id=?',(identity,)).fetchone():
                         reason='background_preempted';db.execute('COMMIT')
                         raise TimeoutError('operational_background_preempted')
@@ -122,10 +125,11 @@ class Governor:
 
     @staticmethod
     def _head(db,provider,now):
+        from .operating_families import active_scope_sql
         # Positions always first. Foreground Pump/DLMM use one urgency class,
         # with a bounded aged grant so a continuous short-deadline lane cannot
         # suppress the other. Speculative work is never promoted over foreground.
-        return db.execute("""SELECT id FROM queue WHERE provider=?
+        return db.execute("""SELECT id FROM queue WHERE """+active_scope_sql('lane')+""" AND provider=?
             ORDER BY CASE WHEN priority=0 THEN 0
                      WHEN priority BETWEEN 10 AND 30 AND created<=? THEN 5
                      WHEN priority BETWEEN 10 AND 30 THEN 10 ELSE priority END,

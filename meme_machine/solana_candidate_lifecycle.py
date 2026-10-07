@@ -13,6 +13,7 @@ import time
 from .runtime.candidate_history import CandidateHistory
 from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,canonical,digest,decode_body
 from .solana_selective_history import FAMILIES,coverage_scope,coverage_points
+from .runtime.operating_families import active_sql,active_scope_sql,require_active,require_scope
 
 SCHEMA='''
 CREATE TABLE IF NOT EXISTS candidate_lifecycle(
@@ -52,6 +53,7 @@ class CandidateLifecycle:
         self.db.execute('CREATE INDEX IF NOT EXISTS candidate_history_identity_pending ON candidate_history_outbox(family,address,consumed)')
 
     def emit(self,family,address,kind,body,*,at=None):
+        require_active(family)
         at=self.clock() if at is None else at
         identity=digest([family,address,kind,body])
         priority=0 if kind=='canonical' else 1 if kind=='promotion' else 3
@@ -65,6 +67,7 @@ class CandidateLifecycle:
 
     def observe(self,family,address,*,slot,seen,fields,activity=False,signature=''):
         """Retain every scope locator. Ranking and capital are absent."""
+        require_active(family)
         with self.writer.transaction():
             old=self.db.execute('SELECT state,epoch,last_slot FROM candidate_lifecycle WHERE family=? AND address=?',
                 (family,address)).fetchone()
@@ -79,6 +82,7 @@ class CandidateLifecycle:
 
     def wake(self,family,address,*,slot,seen,signature,evidence):
         """Accept a conservative activity superset without inventing an event."""
+        require_active(family)
         with self.writer.transaction():
             old=self.db.execute('SELECT state,epoch,last_slot FROM candidate_lifecycle WHERE family=? AND address=?',
                 (family,address)).fetchone()
@@ -103,6 +107,7 @@ class CandidateLifecycle:
 
     def promote(self,family,address,*,deadline,lower_slot=None):
         """Promotion allocates observation work, never entry or funding."""
+        require_active(family)
         with self.writer.transaction():
             row=self.db.execute('SELECT state,epoch,first_slot,last_seen,lower_slot,first_seen FROM candidate_lifecycle WHERE family=? AND address=?',
                 (family,address)).fetchone()
@@ -161,7 +166,7 @@ class CandidateLifecycle:
         """
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
         rows=self.db.execute('''SELECT id,family,address,kind,body,hash,created FROM candidate_history_outbox
-            WHERE consumed IS NULL ORDER BY priority,created,rowid LIMIT ?''',(limit,)).fetchall()
+            WHERE '''+active_sql('family',solana=True)+''' AND consumed IS NULL ORDER BY priority,created,rowid LIMIT ?''',(limit,)).fetchall()
         if not rows:return 0
         with closing(CandidateHistory(self.path,clock=self.clock)) as shared:
             shared.db.execute('''CREATE TABLE IF NOT EXISTS source_receipts(
@@ -320,6 +325,7 @@ class CandidateLifecycle:
             ','.join('?' for _ in aliases)+')'+bound+' LIMIT 1',(family,*aliases,*tail)).fetchone()
 
     def defer_proof(self,proof):
+        require_scope(proof.scope)
         identity=digest([proof.scope,proof.lower_slot,proof.upper_slot,proof.witness])
         self.db.execute('INSERT OR IGNORE INTO candidate_pending_proofs VALUES(?,?,?,?,?,?,?,?)',
             (identity,proof.scope,proof.lower_slot,proof.upper_slot,proof.source,
@@ -331,7 +337,7 @@ class CandidateLifecycle:
         self.flush()
         with closing(CandidateHistory(self.path,clock=self.clock)) as shared, self.writer.transaction():
             for identity,scope,lo,hi,source,endpoint,raw,at in self.db.execute(
-                    'SELECT * FROM candidate_pending_proofs ORDER BY lo,hi').fetchall():
+                    'SELECT * FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+' ORDER BY lo,hi').fetchall():
                 family,address=scope.split(':',2)[1:]
                 if self.unconsumed(scope,through=hi):continue
                 proof=IntervalProof(scope,lo,hi,source,endpoint,json.loads(raw),at)
@@ -375,7 +381,7 @@ class CandidateLifecycle:
 
     def refresh(self):
         """Finish observation leases after native work; keep identities recoverable."""
-        rows=self.db.execute("SELECT family,address,deadline FROM candidate_lifecycle WHERE state IN ('queued','warming','active')").fetchall()
+        rows=self.db.execute("SELECT family,address,deadline FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state IN ('queued','warming','active')").fetchall()
         if not rows:return
         with closing(CandidateHistory(self.path,clock=self.clock)) as shared:
             for family,address,deadline in rows:

@@ -183,6 +183,8 @@ class CandidateHistory:
         self.db.close()
 
     def append_reference(self,lane,candidate,record,*,path,identity,kind,payload_fields=None):
+        from .operating_families import require_active
+        require_active(lane)
         """Index/view only. Economics remain in the one canonical reservoir."""
         ref=dict(path=str(Path(path).resolve()),canonical_identity=record['identity'],
             canonical_hash=digest(record),fields=dict(payload_fields or {}))
@@ -257,6 +259,8 @@ class CandidateHistory:
         return value
 
     def observe(self,lane,candidate,*,surface,observed_at,decision_deadline=None,metadata=None):
+        from .operating_families import require_active
+        require_active(lane)
         lane=self._required(lane,"lane");candidate=self._required(candidate,"candidate")
         surface=self._required(surface,"surface");observed_at=int(observed_at)
         deadline=None if decision_deadline is None else int(decision_deadline)
@@ -309,6 +313,8 @@ class CandidateHistory:
 
     def append_event(self,lane,candidate,*,identity,slot,transaction_index,event_index,
                      market_time,kind,payload):
+        from .operating_families import require_active
+        require_active(lane)
         lane=self._required(lane,"lane");candidate=self._required(candidate,"candidate")
         identity=self._required(identity,"event_identity");kind=self._required(kind,"event_kind")
         if type(slot) is not int or slot<0 or type(event_index) is not int or event_index<0:
@@ -515,6 +521,8 @@ class CandidateHistory:
                     self._work_observation(identity,'history_ready',at,dict(scope=scope,lo=lower,hi=upper,proof_hash=proof_hash,deadline_reset=False))
 
     def record_decision(self,lane,candidate,*,mode,observed_at,qualified,decision):
+        from .operating_families import require_active
+        require_active(lane)
         lane=self._required(lane,"lane");candidate=self._required(candidate,"candidate")
         mode=self._required(mode,"mode");observed_at=int(observed_at)
         if type(qualified) is not bool or not isinstance(decision,dict):
@@ -533,6 +541,8 @@ class CandidateHistory:
         return identity
 
     def record_funding(self,decision_id,lane,candidate,*,status,at,reason=None,details=None):
+        from .operating_families import require_active
+        require_active(lane)
         if status not in ("funded","denied"):raise ValueError("candidate_history_funding_status")
         lane=self._required(lane,"lane");candidate=self._required(candidate,"candidate")
         decision_id=self._required(decision_id,"decision_id");at=int(at)
@@ -576,6 +586,8 @@ class CandidateHistory:
 
     def enqueue(self,lane,candidate,*,kind,ready_at,deadline,estimate_seconds,
                 payload=None,priority=50,identity=None):
+        from .operating_families import require_active,active_sql
+        require_active(lane)
         lane=self._required(lane,"lane");candidate=self._required(candidate,"candidate")
         kind=self._required(kind,"work_kind")
         ready_at=float(ready_at);deadline=float(deadline);estimate=float(estimate_seconds)
@@ -597,7 +609,7 @@ class CandidateHistory:
                 VALUES(?,?,?,?,?,?,?,?,?,NULL,NULL,?,?,?,?)""",
                 (identity,lane,candidate,kind,ready_at,deadline,estimate,priority,"pending",
                  now,now,encoded,checksum))
-            depth=self.db.execute("SELECT COUNT(*) FROM work WHERE status IN ('pending','active')").fetchone()[0]
+            depth=self.db.execute("SELECT COUNT(*) FROM work WHERE "+active_sql('lane')+" AND status IN ('pending','active')").fetchone()[0]
             if depth>self.worker_capacity:
                 self._work_observation(identity,'capacity_pressure',now,
                     dict(queue_depth=depth,worker_capacity=self.worker_capacity,
@@ -621,6 +633,8 @@ class CandidateHistory:
         return result
 
     def claim(self,worker,*,now=None,capacity=None,lane=None):
+        from .operating_families import active_sql
+        live=active_sql('lane')
         worker=self._required(worker,"worker")
         lane=None if lane is None else self._required(lane,"lane")
         now=float(self.clock() if now is None else now)
@@ -629,10 +643,10 @@ class CandidateHistory:
         missed=None;claimed=None
         with self.transaction():
             self.db.execute("""UPDATE work SET status='pending',worker=NULL,lease_until=NULL,updated_at=?
-                WHERE status='active' AND lease_until IS NOT NULL AND lease_until<=?""",(now,now))
+                WHERE """+live+""" AND status='active' AND lease_until IS NOT NULL AND lease_until<=?""",(now,now))
             active=self.db.execute(
-                "SELECT COUNT(*) FROM work WHERE status='active' AND lease_until>?",(now,)).fetchone()[0]
-            where="""status='pending' AND ready_at<=? AND (deadline<=? OR NOT EXISTS(
+                "SELECT COUNT(*) FROM work WHERE "+live+" AND status='active' AND lease_until>?",(now,)).fetchone()[0]
+            where=live+""" AND status='pending' AND ready_at<=? AND (deadline<=? OR NOT EXISTS(
                 SELECT 1 FROM work_history_requirements r WHERE r.work_id=work.id AND r.retry_at>?))"""
             args=[now,now,now]
             if lane is not None:where+=" AND lane=?";args.append(lane)
@@ -678,6 +692,8 @@ class CandidateHistory:
             if row[2]=="deadline_missed":raise ValueError("candidate_history_deadline_disposition_immutable")
             body=json.loads(row[0])
             if digest(body)!=row[1]:raise ValueError("candidate_history_corruption")
+            from .operating_families import require_active
+            require_active(body['lane'])
             if now>float(body['deadline']):
                 status='deadline_missed'
                 details=dict(details or {},qualification_complete=False,

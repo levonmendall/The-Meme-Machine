@@ -194,13 +194,14 @@ def source_decoder_probe():
 class FinalizedFence:
     def __init__(self,writer,*,endpoint_identity,decoders=None):
         import threading
+        from .runtime.operating_families import evidence_scope_sql,enabled
         self.writer=writer;self.endpoint_identity=endpoint_identity
         self.decoders=decoders or {};self.session=uuid.uuid4().hex
         # A thread-safe hint, never subscription/evidence authority. The owner
         # still reads durable interests at the original priority and cadence.
         self.subscriptions_dirty=threading.Event();self.subscriptions_dirty.set()
         writer.db.executescript(SERVICE_SCHEMA)
-        if writer.db.execute('SELECT 1 FROM stream_receipts LIMIT 1').fetchone():self.disconnect('service_restart')
+        if writer.db.execute('SELECT 1 FROM stream_receipts WHERE '+evidence_scope_sql('stream_receipts.scope')+' LIMIT 1').fetchone():self.disconnect('service_restart')
         with writer.transaction():
             for key in ('pump.foreground_historical_rpc_calls','meteora.historical_reconstruction_rpc_calls',
                         'stream_messages','stream_bytes','stream_reconnects','stream_rejected_messages',
@@ -210,6 +211,7 @@ class FinalizedFence:
                         'pump.complete_local_reads','meteora.complete_local_reads',
                         'pump.incomplete_local_reads','meteora.incomplete_local_reads',
                         'pump.repair_assisted_windows','meteora.repair_assisted_windows'):
+                if key.startswith('meteora.') and not enabled('meteora'):continue
                 writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
 
     def _health(self,key,value):
@@ -225,25 +227,28 @@ class FinalizedFence:
         with self.writer.transaction():self.writer._count(key,n)
 
     def expire_candidates(self,now):
+        from .runtime.operating_families import active_scope_sql
+        live=active_scope_sql('owner')+' AND '+active_scope_sql('scope')
         with self.writer.transaction():
-            n=self.writer.db.execute("UPDATE interests SET active=0 WHERE active=1 AND lifecycle IN ('candidate','research') AND updated<?",(now-1200,)).rowcount
+            n=self.writer.db.execute("UPDATE interests SET active=0 WHERE "+live+" AND active=1 AND lifecycle IN ('candidate','research') AND updated<?",(now-1200,)).rowcount
             self.writer._count('expired_candidate_interests',n)
-            self.writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
-            self.writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
-            self.writer.db.execute('DELETE FROM interest_checkpoints WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_checkpoints.owner AND i.scope=interest_checkpoints.scope)')
-            self.writer.db.execute('DELETE FROM interest_owners WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_owners.owner)')
+            self.writer.db.execute('DELETE FROM service_interests WHERE '+live+' AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
+            self.writer.db.execute('DELETE FROM interests WHERE '+live+' AND active=0 AND updated<?',(now-7200,))
+            self.writer.db.execute('DELETE FROM interest_checkpoints WHERE '+live+' AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_checkpoints.owner AND i.scope=interest_checkpoints.scope)')
+            self.writer.db.execute('DELETE FROM interest_owners WHERE '+active_scope_sql('owner')+' AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_owners.owner)')
         if n:self.subscriptions_dirty.set()
 
     def disconnect(self,reason='stream_disconnect'):
+        from .runtime.operating_families import evidence_scope_sql
         # Account notifications are content observations, never interval sources.
         # Creating unrepairable interval gaps for them would pin expired account
         # history forever. Program fences still fail closed across this restart;
         # execution accounts require the independently bounded current refresh.
-        bounds=dict(self.writer.db.execute("SELECT scope,slot+1 FROM cursors WHERE scope NOT LIKE 'account:%'"))
+        bounds=dict(self.writer.db.execute("SELECT scope,slot+1 FROM cursors WHERE "+evidence_scope_sql('cursors.scope')+" AND scope NOT LIKE 'account:%'"))
         with self.writer.transaction():
             self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
                 ('account_stream_discontinuity',canonical(dict(reason=reason,seen=self.writer.clock()))))
-        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 AND session=? GROUP BY scope',(self.session,)):
+        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE '+evidence_scope_sql('stream_receipts.scope')+' AND sealed=0 AND session=? GROUP BY scope',(self.session,)):
             bounds[scope]=min(bounds.get(scope,slot),slot)
         for scope,slot in bounds.items():self.writer.gap(scope,slot,None,reason)
         self.session=uuid.uuid4().hex
@@ -444,6 +449,12 @@ class FinalizedFence:
     def _apply_command(self,request):
         """Strict consumer IPC whitelist; no proof/ingest/SQL escape hatch."""
         op=request.get('op')
+        from .runtime.operating_families import require_scope,require_active,PausedFamily
+        try:
+            require_scope(request.get('scope',''))
+            require_active(request.get('consumer',''))
+        except PausedFamily:
+            raise EvidenceUnavailable('paused_family_activity_forbidden') from None
         if op in ('interest','release','ack','advance_interest'):
             owner=request['owner'];consumer=request.get('consumer',owner)
             if not isinstance(owner,str) or len(owner)>256 or not isinstance(consumer,str) or len(consumer)>128:
@@ -464,7 +475,8 @@ class FinalizedFence:
             phase=self.writer.db.execute("SELECT value FROM service_health WHERE key='phase'").fetchone()
             if phase and json.loads(phase[0])=='DRAINING' and request['lifecycle'] not in ('reserved','open'):
                 raise EvidenceUnavailable('service_draining')
-            current={r[0] for r in self.writer.db.execute('SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1')}
+            from .runtime.operating_families import active_scope_sql
+            current={r[0] for r in self.writer.db.execute('SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 AND '+active_scope_sql('s.owner')+' AND '+active_scope_sql('s.scope'))}
             if len(current|set(addresses))>256:
                 if hasattr(self,'selective'):
                     self.count('subscription_capacity_pressure')
@@ -504,7 +516,9 @@ def program_subscriptions():
     result=[]
     for scope,address in [(PUMP_SCOPE,pump.PROGRAM),(SWAP_SCOPE,PUMPSWAP_PROGRAM)]:
         result.extend(Subscription('service',scope,address,kind,4) for kind in ('logs','census'))
-    result.append(Subscription('service',METEORA_SCOPE,'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo','transactions',4))
+    from .runtime.operating_families import enabled
+    if enabled('meteora'):
+        result.append(Subscription('service',METEORA_SCOPE,'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo','transactions',4))
     return result
 
 
@@ -621,7 +635,8 @@ class ServiceState:
         return committed
 
     def interests(self):
-        return [r[0] for r in self.writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 257")]
+        from .runtime.operating_families import active_scope_sql
+        return [r[0] for r in self.writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 AND "+active_scope_sql('s.owner')+' AND '+active_scope_sql('s.scope')+" GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 257")]
 
     def disconnected(self,reason):
         self.fence.disconnect(reason);self.fence.count('stream_reconnects')

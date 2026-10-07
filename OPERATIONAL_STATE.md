@@ -1,10 +1,21 @@
 # Meme Machine PAPER
 
-Pump Current/Survivor, Pons Current/Survivor, Meteora and Ramses run under one
-supervisor with one preserved PAPER Decimal portfolio. The existing epoch,
+The operational candidate runs only Pump Current/Survivor and Pons Current/Survivor
+under one supervisor. Meteora and Ramses are PAUSED indefinitely, with no new
+market work or capital admission; reactivation needs an explicit owner decision.
+Historical four-family accounting remains in one preserved PAPER Decimal portfolio. The existing epoch,
 capital history, positions, reservations and pending deliveries must survive
 every deployment. Missing storage is a startup failure, never permission to
 create a replacement portfolio.
+
+Before any process starts, canonical and native paused-family obligations must
+be clear. Unverified state or exposure blocks startup with exact identities;
+positions and pending deliveries are never deleted to enforce a pause.
+The native family sleeves remain the funding authority. The shared-capital
+feature is prepared in isolation and requires approved aggregate risk caps and
+a reconciled preserved-epoch migration before activation. Model B is the sole
+startup candidate; its existing concurrent-provider certification blocker remains.
+This candidate has not been deployed or accepted against real providers.
 
 Entrypoint: `python -m meme_machine.operational run`. CPython 3.12.14;
 `pip install -r requirements.txt`. SQLite 3.45.1 and 3.53.1 have both passed the operational suite.

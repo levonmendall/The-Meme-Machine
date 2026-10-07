@@ -23,13 +23,14 @@ def _fetch(db,sql,args):
 
 def snapshot(writer,before_time,*,max_records=1000,max_bytes=4*1024*1024):
     from .solana_evidence_plane import EvidenceUnavailable,canonical
+    from .runtime.operating_families import evidence_scope_sql
     writer._check()
     if not 1<=max_records<=1000:raise EvidenceUnavailable('archive_batch_bound')
     # Select identities and lengths first, not 1,000 arbitrary payload bodies.
     cursor=writer.db.execute('''WITH account_pins AS MATERIALIZED
       (SELECT scope,floor FROM account_interest_floors)
       SELECT r.identity,r.hash,r.scope,r.slot,length(r.body) FROM records r
-      WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
+      WHERE '''+evidence_scope_sql('r.scope')+''' AND r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
       AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
          AND i.scope=r.scope AND r.slot>=i.lower_slot
          AND (NOT EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)

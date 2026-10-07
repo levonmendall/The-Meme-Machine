@@ -4,6 +4,7 @@ No capital or entry authority. Checkpoints never seal an interval. Cold archive
 acquisition is requested only for an explicitly missing interval.
 """
 import json
+from .runtime.operating_families import active_sql
 from .solana_evidence_plane import EvidenceUnavailable,digest,canonical,decode_body
 from .solana_selective_history import FAMILIES,PROGRAMS,coverage_scope,coverage_points
 
@@ -128,6 +129,13 @@ class RollingHistory:
         for row in rows:
             if row.kind!='event':continue
             e=row.payload.get('event') or {};family=next(f for f,s in FAMILIES.items() if s==row.scope)
+            if family=='pumpswap' and e.get('pool'):
+                # The fixed canonical feed already covers every swap and its
+                # native order. Wake retained pools from that receipt, without
+                # acquiring an additional status feed per quiet-candidate shard.
+                self.history.lifecycle.wake(family,e['pool'],slot=row.slot,
+                    seen=row.observed_at,signature=row.signature,
+                    evidence=dict(source='canonical_program_event',identity=row.identity))
             if family=='pump' and e.get('event_type')=='create':
                 mint=e['mint'];curve=e['bonding_curve']
                 old=self.db.execute("SELECT coverage_scope,market_address FROM evidence_bindings WHERE family='pump' AND address=?",(curve,)).fetchone()
@@ -255,7 +263,7 @@ class RollingHistory:
     def resume_boundaries(self):
         """A sealed native observation resolves a first-sight publication race."""
         for family,address,observed,upper,deadline,priority,created in self.db.execute(
-                "SELECT family,address,observed_slot,upper_slot,deadline,priority,created FROM rolling_boundary_waits WHERE status='pending'").fetchall():
+                "SELECT family,address,observed_slot,upper_slot,deadline,priority,created FROM rolling_boundary_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
             if self.clock()>=deadline:
                 self.db.execute("UPDATE rolling_boundary_waits SET status='deadline_missed' WHERE family=? AND address=?",(family,address))
                 self.history._observation(None,'boundary_deadline_missed',dict(family=family,address=address,
@@ -274,7 +282,7 @@ class RollingHistory:
     def resume_publication(self):
         """Release waits only on durable publication, preserving first deadline."""
         for family,address,lo,hi,deadline,priority in self.db.execute(
-                "SELECT family,address,lo,hi,deadline,priority FROM rolling_publication_waits WHERE status='pending'").fetchall():
+                "SELECT family,address,lo,hi,deadline,priority FROM rolling_publication_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
             if self.clock()>=deadline:
                 status='deadline_missed'
                 self.history._observation(None,'publication_deadline_missed',dict(

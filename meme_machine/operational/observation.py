@@ -114,6 +114,10 @@ def portfolio_summary(reader,state,as_of):
         open_positions=sum(p['state']=='OPEN' for p in state['positions'].values()),
         positions_by_lane={lane:sum(p['lane']==lane and p['state']=='OPEN'
             for p in state['positions'].values()) for lane in ('pump','pons','meteora','ramses')},
+        reservations_by_lane={lane:sum(r['lane']==lane for r in state['reservations'].values())
+            for lane in ('pump','pons','meteora','ramses')},
+        pending_by_lane={lane:reader.db.execute('SELECT COUNT(*) FROM portfolio_native_pending WHERE lane=?',(lane,)).fetchone()[0]
+            for lane in ('pump','pons','meteora','ramses')},
         realized_pnl=amount(totals['realized']), marked_equity=amount(equity) if equity is not None else None,
         unrealized_pnl=amount(unrealized) if unrealized is not None else None)
 
@@ -165,6 +169,7 @@ def observed_portfolio(root,health,now=None):
         keys=('state','timestamp','valid_until','epoch_id','inception_sha256','sequence',
             'journal_hash','reconciliation','checks','reservations','pending_deliveries',
             'open_positions','positions_by_lane','realized_pnl','marked_equity','unrealized_pnl')
+        keys=keys+('reservations_by_lane','pending_by_lane') if all(k in row for k in ('reservations_by_lane','pending_by_lane')) else keys
         if any(not re.fullmatch('[a-z_]{1,64}',key) for key in row['checks']):return result
         for key in ('inception_sha256','journal_hash'):
             if not isinstance(row[key],str) or not re.fullmatch('[0-9a-f]{64}',row[key]):return result
@@ -227,6 +232,8 @@ def owner_learning_observation(root):
     """
     deadline=time.monotonic()+.25;rows=body_bytes=files=0;complete=True
     for p in Path(root).rglob('*.sqlite*'):
+        from meme_machine.runtime.operating_families import PAUSED_LANES
+        if p.relative_to(root).parts[0] in PAUSED_LANES:continue
         if time.monotonic()>=deadline:complete=False;break
         if p.suffix not in ('.sqlite','.sqlite3'):continue
         files+=1
@@ -240,13 +247,14 @@ def owner_learning_observation(root):
 
 
 def evidence(db):
+    from meme_machine.runtime.operating_families import active_scope_sql
     health = {k:json.loads(v) for k,v in db.execute('SELECT key,value FROM service_health LIMIT 128')}
     result = {key:numeric(health.get(key)) for key in
         ('heartbeat', 'phase', 'pid', 'repair_http', 'ipc', 'owner_scheduler',
-         'storage', 'storage_maintenance', 'subscriptions')}
+         'storage', 'storage_maintenance', 'subscriptions','native_streams')}
     result['stream'] = numeric({k:v for k,v in health.get('ipc',{}).items() if k.startswith('stream.')})
     result['frontiers'] = [dict(scope=s, slot=slot, updated=at)
-        for s,slot,at in db.execute("SELECT scope,slot,updated FROM cursors WHERE scope IN ('program:pump','program:pumpswap','program:meteora')")]
+        for s,slot,at in db.execute("SELECT scope,slot,updated FROM cursors WHERE scope IN ('program:pump','program:pumpswap')")]
     result['all_frontiers'] = dict(zip(('scopes','lowest_slot','highest_slot','oldest_update','newest_update'),
         db.execute('SELECT COUNT(*),MIN(slot),MAX(slot),MIN(updated),MAX(updated) FROM cursors').fetchone()))
     result['counters'] = {k:v for k,v in db.execute('SELECT key,value FROM counters LIMIT 128')}
@@ -255,21 +263,32 @@ def evidence(db):
     # A sealed historical gap remains unavailable; it is not a failure of the
     # current stream unless active work or fresh coverage still references it.
     required,oldest=db.execute('''SELECT COUNT(*),MIN(g.created) FROM gaps g
-        WHERE g.repaired IS NULL AND (g.hi IS NULL
+        WHERE '''+active_scope_sql('g.scope',production=True)+''' AND g.repaired IS NULL AND (g.hi IS NULL
         OR EXISTS(SELECT 1 FROM interests i WHERE i.scope=g.scope AND i.active=1 AND i.lower_slot<=g.hi)
         OR EXISTS(SELECT 1 FROM coverage c WHERE c.scope=g.scope AND c.available>=? AND c.lo<=g.hi AND c.hi>=g.lo))''',
         (time.time()-180,)).fetchone()
     result['repair_backlog'].update(required_gaps=required,oldest_required_created=oldest)
     result['maintenance_progress'] = [dict(scope=s,side=side,at=at,units=units,record_at=record_at,records=records)
-        for s,side,at,units,record_at,records in db.execute("SELECT * FROM maintenance_progress WHERE scope IN ('program:pump','program:pumpswap','program:meteora')")]
+        for s,side,at,units,record_at,records in db.execute("SELECT * FROM maintenance_progress WHERE scope IN ('program:pump','program:pumpswap')")]
     result['all_maintenance_progress'] = [dict(side=side,scopes=scopes,units=units,records=records,last_progress=at)
         for side,scopes,units,records,at in db.execute('SELECT side,COUNT(*),SUM(units),SUM(records),MAX(at) FROM maintenance_progress GROUP BY side')]
     result['archive'] = dict(zip(('files', 'bytes', 'records'), db.execute('SELECT COUNT(*),SUM(bytes),SUM(records) FROM archives').fetchone()))
     return result
 
 
+def provider_queue(db,solana):
+    """Operational readers do not inherit the producer's phase environment."""
+    from meme_machine.runtime.operating_families import active_scope_sql
+    if solana and 'lane' in {r[1] for r in db.execute('PRAGMA table_info(queue)')}:
+        where=active_scope_sql('lane',production=True)
+    elif not solana and db.execute("SELECT 1 FROM sqlite_master WHERE name='queue_meta'").fetchone():
+        where="id IN (SELECT q.id FROM queue q LEFT JOIN queue_meta m ON m.id=q.id WHERE "+active_scope_sql("COALESCE(m.lane,'shared')",production=True)+")"
+    else:where='1=1'
+    return db.execute('SELECT COUNT(*),MIN(created) FROM queue WHERE '+where).fetchone()
+
+
 def provider(db, solana):
-    depth,oldest = db.execute('SELECT COUNT(*),MIN(created) FROM queue').fetchone()
+    depth,oldest = provider_queue(db,solana)
     value = dict(queue_depth=depth, oldest_wait_seconds=max(0,time.monotonic()-oldest) if oldest is not None else 0)
     if solana:
         value['pressure'] = [dict(provider=p,grants=g,rate_errors=e,cooldown_seconds=max(0,c-time.monotonic()))
@@ -367,6 +386,8 @@ def collect(root):
         if '.sqlite' in p.name:
             value['storage'][str(p.relative_to(root))] = size
         if p.name.endswith(('.sqlite','.sqlite3')):
+            from meme_machine.runtime.operating_families import PAUSED_LANES
+            if p.relative_to(root).parts[0] in PAUSED_LANES:continue
             if time.monotonic()>=learning_deadline:
                 learning_complete=False;continue
             facts=database(p,learning_usage,seconds=max(.01,learning_deadline-time.monotonic()))
@@ -409,7 +430,8 @@ def check_next_database(root,folder,value):
     path=Path(folder)/'database-integrity.json'
     try:previous=read_json(path,limit=SAMPLE_BOUND)
     except (OSError,ValueError):previous={}
-    names=sorted(name for name in value['storage'] if name.endswith(('.sqlite','.sqlite3')))
+    from meme_machine.runtime.operating_families import PAUSED_LANES
+    names=sorted(name for name in value['storage'] if name.endswith(('.sqlite','.sqlite3')) and Path(name).parts[0] not in PAUSED_LANES)
     if not names:return
     key=min(names,key=lambda name:previous.get(name,{}).get('timestamp',0))
     def check(db):

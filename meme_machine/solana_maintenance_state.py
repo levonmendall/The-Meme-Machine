@@ -229,6 +229,7 @@ def install_housekeeping_witnesses(db):
 
 
 def install(writer):
+    from .runtime.operating_families import evidence_scope_sql
     """Restartable 512-row migration, before source/consumer service is admitted.
 
     The existing exclusive writer lease prevents other writers during migration.
@@ -248,7 +249,7 @@ def install(writer):
     row = db.execute("SELECT value FROM meta WHERE key='maintenance_backfill_cursor'").fetchone()
     cursor = int(row[0]) if row else 0
     while True:
-        rows = db.execute('SELECT rowid,scope,slot,COALESCE(market_time,first_seen),body IS NOT NULL FROM records WHERE rowid>? ORDER BY rowid LIMIT 512', (cursor,)).fetchall()
+        rows = db.execute('SELECT rowid,scope,slot,COALESCE(market_time,first_seen),body IS NOT NULL FROM records WHERE '+evidence_scope_sql('records.scope')+' AND rowid>? ORDER BY rowid LIMIT 512', (cursor,)).fetchall()
         if not rows:
             break
         grouped = defaultdict(lambda: [0, 0])
@@ -448,9 +449,11 @@ class DebtAgeAdapter:
         with self.budget():
             if db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone():
                 raise EvidenceUnavailable('maintenance_store_poisoned')
-            cursors = self.bounded('SELECT scope,slot FROM cursors ORDER BY scope', limit=MAX_SCOPES)
+            from .runtime.operating_families import evidence_scope_sql,enabled
+            cursors = self.bounded('SELECT scope,slot FROM cursors WHERE '+evidence_scope_sql('cursors.scope')+' ORDER BY scope', limit=MAX_SCOPES)
             known = dict(cursors)
             for scope in PROGRAM_SCOPES:
+                if scope=='program:meteora' and not enabled('meteora'):continue
                 known.setdefault(scope, -1)
             if len(known) > MAX_SCOPES:
                 raise EvidenceUnavailable('maintenance_scope_bound')

@@ -50,6 +50,9 @@ class NativePortfolio:
     def prepare(self, native, *, event_key, journal_hash, kind, at, data, value_evidence=None):
         """Persist one exact delivery intent; no native economic mutation occurs."""
         with self.writer() as (account, producer):
+            from .operating_families import require_active,operational
+            require_active(self.lane,production=operational() or
+                           producer.epoch_id.startswith('paper-'))
             alias = self._alias(account, native)
             pending = account.db.execute("SELECT body FROM portfolio_native_pending WHERE lane=? AND native=?", (self.lane, native)).fetchone()
             if pending:

@@ -22,6 +22,7 @@ from .solana_evidence_transport import Subscription
 from .solana_selective_history import SelectiveHistory,FAMILIES,PROGRAMS,coverage_scope,economic_records
 from .solana_selective_runtime import CONTROL
 from .yellowstone import geyser_pb2 as pb
+from .runtime.operating_families import enabled,active_sql,active_scope_sql,operational
 
 HOST='solana-mainnet.streaming.alchemy.com:443'
 MAX_FRAME_BYTES=16*1024*1024
@@ -70,12 +71,14 @@ def scout_request():
     for label,program,kind in [('p',PROGRAMS['pump'],'BondingCurve'),
                               ('m',PROGRAMS['meteora'],'LbPair'),('n',PROGRAMS['meteora'],'LbPair'),
                               ('a',PROGRAMS['meteora'],'BinArray')]:
+        if program==PROGRAMS['meteora'] and not enabled('meteora'):continue
         f=request.accounts[label];f.owner.append(program)
         f.filters.add().memcmp.CopyFrom(pb.SubscribeRequestFilterAccountsFilterMemcmp(
             offset=0,bytes=hashlib.sha256(('account:'+kind).encode()).digest()[:8]))
     from . import pump
     from .postgrad import WSOL
     for label,offset in [('m',88),('n',120)]:
+        if not enabled('meteora'):continue
         request.accounts[label].filters.add().memcmp.CopyFrom(pb.SubscribeRequestFilterAccountsFilterMemcmp(offset=offset,bytes=pump.un58(WSOL)))
     request.accounts_data_slice.add(offset=0,length=56)
     return request
@@ -83,6 +86,7 @@ def scout_request():
 def commit_scout(state,update,seen):
     history=install(state);item=update.account;account=item.account
     labels=set(update.filters);raw=account.data;address=pubkey(account.pubkey)
+    if labels & {'m','n','a'} and not enabled('meteora'):return
     if len(raw)<49:raise EvidenceUnavailable('candidate_scout_fields_missing')
     sig=signature(account.txn_signature) if account.HasField('txn_signature') else ''
     activity=bool(sig and not item.is_startup)
@@ -124,7 +128,7 @@ def commit_control(state,frame,*,active=True):
         state.fence._health('phase','ACTIVE' if active else 'DEGRADED');state.fence._health('heartbeat',seen)
         # Source coordinates inform bounded storage maintenance, never global
         # economic completeness. Candidate proofs live in a separate namespace.
-        for scope in FAMILIES.values():
+        for scope in (FAMILIES[f] for f in install(state).active_families):
             state.fence._health('finalized_frontier:'+scope,dict(slot=b.slot,time=b.block_time.timestamp,seen=seen))
 
 def skipped_prefix(history,scope,frame):
@@ -237,9 +241,9 @@ def plan_live(state):
     desired=[]
     for scope,address,priority,lower,updated,position in db.execute('''SELECT i.scope,s.address,MIN(i.priority),
         MIN(i.lower_slot),MIN(i.updated),MAX(i.lifecycle IN ('open','reserved')) FROM service_interests s JOIN interests i
-        ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 GROUP BY i.scope,s.address'''):
+        ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 AND '''+active_scope_sql('i.scope')+''' GROUP BY i.scope,s.address'''):
         family=next((f for f,b in FAMILIES.items() if b==scope),None)
-        if family is None:continue
+        if family not in history.active_families:continue
         role=1 if position else (0 if priority==0 else (2 if priority<=2 else 3))
         # Stable interest identity: a polling clock cannot reconnect every feed.
         deadline=updated+3600 if role<=2 else updated+120
@@ -249,7 +253,7 @@ def plan_live(state):
     # Provider promotions carry their original deadline across process/filter
     # restarts; a polling clock must never manufacture a fresh decision window.
     for family,address,deadline,lo,created in db.execute('''SELECT family,address,deadline,lower_slot,first_seen
-            FROM candidate_lifecycle WHERE state IN ('queued','warming','active')'''):
+            FROM candidate_lifecycle WHERE '''+active_sql('family',solana=True)+''' AND state IN ('queued','warming','active')'''):
         existing=next((i for i,r in enumerate(desired) if r[3:5]==(family,address)),None)
         if existing is None:
             desired.append((4,deadline,created,family,address,lo))
@@ -262,7 +266,7 @@ def plan_live(state):
     selected={(r[3],r[4]) for r in desired}
     for address,lo,created in db.execute("""SELECT c.address,c.first_slot,c.first_seen FROM candidate_lifecycle c
         JOIN market_observations m ON m.family=c.family AND m.address=c.address
-        WHERE c.family='meteora' AND json_extract(m.fields,'$.wsol_pair_locator')=1"""):
+        WHERE """+active_sql('c.family',solana=True)+""" AND c.family='meteora' AND json_extract(m.fields,'$.wsol_pair_locator')=1"""):
         if ('meteora',address) not in selected:
             history.bind('meteora',address)
             desired.append((5,created+3600,created,'meteora',address,lo))
@@ -300,9 +304,35 @@ class SelectiveSource:
         self.work=None;self.stop=None
         self.observer=None
         self.batched=False;self.pending_delivery={};self.delivery_lock=asyncio.Lock();self.control_connected=False
+        self.native_streams={};self.native_attempts={};self.native_errors={}
+        self.native_peak=0;self.native_revision=0;self.native_published=-1
 
     def observe(self,kind,**values):
+        identity=values.get('stream_id');family=values.get('family','shared')
+        if kind=='subscribe':
+            self.native_streams[identity]=dict(consumer=family,delivering=False)
+            self.native_attempts[family]=self.native_attempts.get(family,0)+1
+            self.native_peak=max(self.native_peak,len(self.native_streams));self.native_revision+=1
+        elif kind=='delivery' and identity in self.native_streams and not self.native_streams[identity]['delivering']:
+            self.native_streams[identity]['delivering']=True;self.native_revision+=1
+        elif kind=='native_error':
+            key=family+':'+values['status'];self.native_errors[key]=self.native_errors.get(key,0)+1
+            self.native_revision+=1
+        elif kind=='unsubscribe':
+            self.native_streams.pop(identity,None);self.native_revision+=1
         if self.observer is not None:self.observer(kind,values)
+
+    def stream_telemetry(self):
+        # A client-open stream is not independently certified provider admission.
+        # First physical delivery is distinguished from subscription attempts.
+        families=set(self.native_attempts)|{r['consumer'] for r in self.native_streams.values()}
+        return dict(client_open_streams=len(self.native_streams),peak_client_streams=self.native_peak,
+            delivering_streams=sum(r['delivering'] for r in self.native_streams.values()),
+            by_consumer={f:dict(attempts=self.native_attempts.get(f,0),
+                client_open=sum(r['consumer']==f for r in self.native_streams.values()),
+                delivering=sum(r['consumer']==f and r['delivering'] for r in self.native_streams.values()))
+                for f in sorted(families)},errors=dict(self.native_errors),
+            provider_quota_verified=False)
 
     async def delivered(self,family,transport,size,seen,priority=2):
         if not self.batched:
@@ -331,9 +361,12 @@ class SelectiveSource:
         try:
             while not self.stop.is_set():
                 await self.flush_delivery()
+                revision=self.native_revision;native=self.stream_telemetry()
                 def publish(s):
+                    if revision!=self.native_published:s.fence._health('native_streams',native)
                     h=install(s);h.lifecycle.publish();return h.startup.advance()
                 await self.work(publish,2,label='source_commit')
+                self.native_published=revision
                 await asyncio.sleep(.1)
         finally:await self.flush_delivery()
 
@@ -378,6 +411,8 @@ class SelectiveSource:
                 await queue.join()
                 await asyncio.sleep(min(8,.5*2**min(retry-1,4)))
     async def measured_rpc(self,method,params,family,priority=4):
+        from .runtime.operating_families import require_active
+        require_active(family)
         for attempt in range(3):
             try:result,receipt=await asyncio.to_thread(self.rpc.call_delivered,method,params,priority)
             except ValueError as exc:
@@ -393,6 +428,8 @@ class SelectiveSource:
                 rpc_cu=receipt['cu'],calls=1),priority)
             return result
     async def stream(self,channel,request,handler,family,local_stop=None):
+        from .runtime.operating_families import require_active
+        require_active(family)
         stream_id=uuid.uuid4().hex
         self.observe('subscribe',stream_id=stream_id,family=family,request=request)
         call=channel.stream_stream('/geyser.Geyser/Subscribe',request_serializer=lambda r:r.SerializeToString(),
@@ -446,7 +483,7 @@ class SelectiveSource:
         while not self.stop.is_set():
             request=scout_request();request.from_slot=max(1,tip-CONTROL_OVERLAP)
             try:
-                await self.stream(channel,request,handler,'discovery');return
+                await self.stream(channel,request,handler,'pump' if not enabled('meteora') else 'discovery');return
             except EvidenceUnavailable as exc:
                 if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled','candidate_native_resource_exhausted'):raise
                 retry+=1
@@ -479,16 +516,18 @@ class SelectiveSource:
             async def scouts(update,size,seen):
                 if update.WhichOneof('update_oneof')!='account':raise EvidenceUnavailable('candidate_scout_filter')
                 await work(lambda s:commit_scout(s,update,seen),5,label='source_commit')
+            census=asyncio.create_task(self.structural_census()) if enabled('meteora') else None
+            stop_task=asyncio.create_task(stop.wait())
             tasks=[asyncio.create_task(self.control_stream(channel,tip,control_queue)),
                    asyncio.create_task(self.scout_stream(channel,tip,scouts)),
-                   asyncio.create_task(self.structural_census()),
                    asyncio.create_task(self.acquire_pool()),asyncio.create_task(self.live_manager(channel)),
                    asyncio.create_task(self.rolling_programs(channel)),
-                   asyncio.create_task(self.activity_manager(channel)),
                    asyncio.create_task(self.cold_maintenance()),
                    asyncio.create_task(self.publish_history()),
                    asyncio.create_task(self.control_commits(control_queue)),
-                   asyncio.create_task(stop.wait())]
+                   stop_task]
+            if census is not None:tasks.append(census)
+            if not operational():tasks.append(asyncio.create_task(self.activity_manager(channel)))
             try:
                 remaining=set(tasks)
                 while not stop.is_set():
@@ -496,8 +535,8 @@ class SelectiveSource:
                     if stop.is_set():return
                     for task in done:
                         task.result()
-                        if task is tasks[-1]:return
-                        if task is tasks[2]:
+                        if task is stop_task:return
+                        if task is census:
                             # The startup structural census is finite. Completing
                             # it must not terminate discovery/positions/recovery.
                             remaining.remove(task)
@@ -513,6 +552,7 @@ class SelectiveSource:
 
     async def structural_census(self):
         """Exhaust both WSOL orientations. Quiet pools remain durable forever."""
+        if not enabled('meteora'):return
         await self.wait_startup()
         from . import pump
         from .postgrad import WSOL
@@ -664,7 +704,7 @@ class SelectiveSource:
                             h.bind('pump',addr)
                             first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
                             h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
-                    for family,addr,lo in db.execute("SELECT family,address,lower_slot FROM candidate_lifecycle WHERE state='reactivated'").fetchall():
+                    for family,addr,lo in db.execute("SELECT family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated'").fetchall():
                         from .solana_scoped_retirement import ScopedRetirement
                         ScopedRetirement(h).restore(family,addr)
                         epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
@@ -987,7 +1027,8 @@ class SelectiveSource:
                         for task in pending:task.cancel()
                         await asyncio.gather(*pending,return_exceptions=True)
                 tasks.append(asyncio.create_task(repair_logs()))
-            tasks.append(asyncio.create_task(self.stream(channel,candidate_subscription(addresses,floor,full_addresses=full),native,'candidate_live',local_stop)))
+            consumer='pump' if not enabled('meteora') else 'candidate_live'
+            tasks.append(asyncio.create_task(self.stream(channel,candidate_subscription(addresses,floor,full_addresses=full),native,consumer,local_stop)))
             done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
             for task in done:task.result()
         finally:

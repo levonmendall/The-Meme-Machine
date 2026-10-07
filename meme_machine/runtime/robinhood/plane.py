@@ -131,6 +131,8 @@ class Plane:
         with self.lock:return self._row(key)
 
     def _audit(self,row,kind,reason=None,**details):
+        from meme_machine.runtime.operating_families import require_active,active_sql
+        require_active(row['lane'])
         tail=self.db.execute('SELECT MAX(seq) FROM transitions').fetchone()[0]
         if tail is None:
             archive=self.history_archive() or {}
@@ -138,11 +140,12 @@ class Plane:
         self.db.execute('INSERT INTO transitions(seq,candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?,?)',
             (tail+1,row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))
         from meme_machine.runtime.storage import audit_ring
-        audit_ring(self.db,'transitions','history_no_delete')
+        audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))')
 
     def maintain(self):
         """Port cache eviction and ordering fences without observer artifacts."""
         from meme_machine.runtime.storage import audit_ring
+        from meme_machine.runtime.operating_families import active_sql,active_scope_sql
         with self.lock:
             now = self.clock()
             stamp = (self.db.total_changes, self.db.execute('PRAGMA data_version').fetchone()[0])
@@ -151,20 +154,21 @@ class Plane:
         with self.transaction():
             version = self.db.execute('PRAGMA data_version').fetchone()[0]
             evidence_evicted = False
-            audit_ring(self.db,'observations','observations_no_delete',key='rowid')
-            self.db.execute('DELETE FROM result_consumption WHERE NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
-            self.db.execute('DELETE FROM rolling WHERE at<?',(self.clock()-86400,))
-            for namespace, in self.db.execute('SELECT DISTINCT namespace FROM evidence').fetchall():
+            participating='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))'
+            audit_ring(self.db,'observations','observations_no_delete',key='rowid',where=participating)
+            self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
+            self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
+            for namespace, in self.db.execute('SELECT DISTINCT namespace FROM evidence WHERE '+active_scope_sql('namespace')).fetchall():
                 limit=8192 if namespace.endswith(':receipt') else 4096
                 evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?)',(namespace,namespace,limit)).rowcount > 0
             protected=set()
-            for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE key LIKE 'native_position:%' OR key='pons_cohort'"):
+            for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND (key LIKE 'native_position:%' OR key='pons_cohort')"):
                 value=json.loads(raw)
                 if key.startswith('native_position:') and value['position']['status']!='settled':protected.add(value['candidate'])
                 if key=='pons_cohort':
                     for kind in ('qualifiers','lifecycles'):
                         protected.update(r['curve'].lower() for r in value['result'].get(kind,[]) if r.get('curve'))
-            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
+            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
             archive=self.history_archive() or dict(schema='robinhood-window-history-v1')
             floors=archive.setdefault('retired_ordering',{})
             for row in rows:
@@ -176,7 +180,7 @@ class Plane:
                 self.db.execute('DELETE FROM observation_archive WHERE candidate=?',(row['id'],))
                 self.db.execute('DELETE FROM result_consumption WHERE candidate=?',(row['id'],))
                 self.db.execute('DELETE FROM rolling WHERE candidate=?',(row['id'],))
-            for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE key LIKE 'native_position:%'").fetchall():
+            for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND key LIKE 'native_position:%'").fetchall():
                 value=json.loads(raw)
                 if value['position']['status']=='settled' and value['candidate'] not in protected:
                     self.db.execute('DELETE FROM runtime WHERE key=?',(key,))
@@ -186,8 +190,8 @@ class Plane:
             # Eviction must also evict the warm view. Another writer invalidates
             # the stamp; clock rollback and the next age boundary force a sweep.
             if evidence_evicted:self._immutable.clear();self._immutable_bytes = 0
-            next_candidate = self.db.execute('SELECT MIN(observed) FROM candidates WHERE pending=0 AND claim IS NULL AND observed>=?',(now-86400,)).fetchone()[0]
-            next_rolling = self.db.execute('SELECT MIN(at) FROM rolling').fetchone()[0]
+            next_candidate = self.db.execute('SELECT MIN(observed) FROM candidates WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed>=?',(now-86400,)).fetchone()[0]
+            next_rolling = self.db.execute('SELECT MIN(at) FROM rolling WHERE candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')').fetchone()[0]
             deadlines = [now+60] + [x+86400+.000001 for x in (next_candidate,next_rolling) if x is not None]
             self._maintenance_at = now
             self._maintenance_due = min(deadlines)
@@ -195,6 +199,8 @@ class Plane:
 
     def observe(self, key, lane, observation, payload, *, ordering, watermark,
                 interpretation, observed, deadline, priority, rank=0, needs_work=True):
+        from meme_machine.runtime.operating_families import require_active
+        require_active(lane)
         if lane not in ('pons','ramses') or not key or not observation:raise ValueError('candidate_identity')
         if not 0<=priority<=5 or not all(math.isfinite(x) for x in (observed,rank)) or (deadline is not None and not math.isfinite(deadline)):
             raise ValueError('candidate_schedule')
@@ -249,7 +255,8 @@ class Plane:
 
     def recover(self):
         with self.transaction():
-            for raw in self.db.execute('SELECT * FROM candidates WHERE claim IS NOT NULL').fetchall():
+            from meme_machine.runtime.operating_families import active_sql
+            for raw in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND claim IS NOT NULL').fetchall():
                 row=dict(raw)
                 if not alive(row['owner']) or row['claim_until']<=self.clock():
                     self.db.execute('UPDATE candidates SET claim=NULL,owner=NULL,claim_generation=NULL,claim_until=NULL WHERE id=?',(row['id'],))
@@ -268,7 +275,8 @@ class Plane:
         self.recover()
         now=self.clock()
         with self.transaction():
-            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE pending=1 AND claim IS NULL'+(' AND lane=?' if lane else ''),((lane,) if lane else ())).fetchall()]
+            from meme_machine.runtime.operating_families import active_sql
+            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND pending=1 AND claim IS NULL'+(' AND lane=?' if lane else ''),((lane,) if lane else ())).fetchall()]
             if key is not None:rows=[r for r in rows if r["id"]==key]
             def order(r):
                 # Aging applies only below entry confirmation. Safety stays first.
@@ -297,6 +305,8 @@ class Plane:
         return bool(row and row['generation']==work['generation'] and row['claim']==work['claim'] and row['desired']==work['desired'] and self.clock()<row['deadline'])
 
     def finish(self,work,*,result=None,state='canonical_evidence_complete',reason=None,logical=None,physical=None,seconds=None,accounting_details=None):
+        from meme_machine.runtime.operating_families import require_active
+        require_active(work['lane'])
         with self.transaction():
             row=self._row(work['id'])
             if (not row or row['claim']!=work['claim'] or row['generation']!=work['generation'] or row['desired']!=work['desired']):
@@ -316,6 +326,8 @@ class Plane:
             return state=='canonical_evidence_complete'
 
     def promote(self,work):
+        from meme_machine.runtime.operating_families import require_active
+        require_active(work['lane'])
         with self.transaction():
             row=self._row(work['id'])
             if not row or row['generation']!=work['generation'] or row['claim']!=work['claim']:return False
@@ -343,11 +355,16 @@ class Plane:
     def consume(self,key,generation):
         with self.transaction():
             row=self._row(key)
+            from meme_machine.runtime.operating_families import require_active
+            if row:require_active(row['lane'])
             if not row or row['generation']!=generation or row['completed']!=row['desired']:return False
             self.db.execute('INSERT OR IGNORE INTO result_consumption VALUES(?,?,?)',(key,generation,self.clock()))
             return True
 
     def put(self,namespace,key,value,provenance):
+        from meme_machine.runtime.operating_families import require_scope,require_active
+        require_scope(namespace)
+        if provenance.get('lane'):require_active(provenance['lane'])
         body=canonical(value);proof=canonical(provenance)
         with self.lock:
             self._refresh_immutable()
@@ -388,6 +405,9 @@ class Plane:
         return (json.loads(row[0]),json.loads(row[1])) if row else None
 
     def rolling_put(self,candidate,identity,at,block,value,provenance,*,retention_seconds=60,limit=400):
+        from meme_machine.runtime.operating_families import require_active
+        row=self.get(candidate)
+        if row:require_active(row['lane'])
         # Exact normalized authenticated events, never public observation fields.
         if provenance.get('authority')!='authenticated_receipt_header':raise ValueError('rolling_authority')
         with self.transaction():
@@ -406,6 +426,8 @@ class Plane:
         return json.loads(row[0]) if row else None
 
     def checkpoint(self,key,value):
+        from meme_machine.runtime.operating_families import require_scope
+        require_scope(key)
         with self.transaction():
             self.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body',(key,canonical(value)))
 
@@ -472,6 +494,8 @@ def project_native_position(path,lane,candidate_id,position,*,ledger_path,policy
     This evidence is independently versioned: an exit for a held position is
     never discarded because discovery advanced the candidate generation.
     """
+    from meme_machine.runtime.operating_families import require_active
+    require_active(lane)
     plane=Plane(path)
     try:
         native_id=position['id'];version=position['version']

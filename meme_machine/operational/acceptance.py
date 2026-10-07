@@ -1,7 +1,7 @@
 """Later Droplet mechanics checks. Never imported or run by the PAPER service."""
 import argparse,json,os,signal,time
 from pathlib import Path
-from .supervisor import validate_environment,PAUSED_LANES
+from .supervisor import validate_environment,PAUSED_LANES,ACTIVE_LANES
 from meme_machine.runtime.usd_valuation import utc
 
 REQUIRED_SECONDS={'CAPACITY':3600,'AUTONOMY':129600}
@@ -21,6 +21,17 @@ def read(path):
     return json.loads(path.read_text())
 
 
+def running_pids(health):
+    evidence=health.get('providers',{}).get('evidence',{})
+    if evidence.get('state')!='CURRENT' or evidence.get('phase')!='ACTIVE' or evidence.get('startup_released') is not True:
+        raise ValueError('shared_canonical_source_not_ready')
+    if not 0<=time.time()-evidence.get('heartbeat',0)<=60:
+        raise ValueError('shared_canonical_source_stale')
+    pids=[health['pid'],evidence.get('pid')]+[health['lanes'][lane].get('pid') for lane in ACTIVE_LANES]
+    if any(type(pid) is not int or pid<=0 for pid in pids):raise ValueError('active_process_pid_unavailable')
+    return sorted(set(pids))
+
+
 def observe(root):
     health=read(root/'health.json');portfolio=read(root/'portfolio.json')
     if health.get('offline') or not health['epoch_id'].startswith('paper-'):raise ValueError('genuine_PAPER_epoch_required')
@@ -31,7 +42,7 @@ def observe(root):
     if health.get('stopping'):raise ValueError('supervisor_stopping')
     if set(health['lanes'])!={'pump','pons','meteora','ramses'}:raise ValueError('four_lanes_required')
     rss=0
-    pids=[health['pid']]+[r['pid'] for r in health['lanes'].values() if not r.get('paused')]
+    pids=running_pids(health)
     for pid in pids:
         os.kill(pid,0)
         for line in Path('/proc/'+str(pid)+'/status').read_text().splitlines():
@@ -48,9 +59,22 @@ def observe(root):
                 raise ValueError(lane+'_pause_state_invalid')
             if any(isinstance(p,dict) and p.get('lane')==lane for p in positions):
                 raise ValueError(lane+'_paused_with_active_position')
+            projection=health.get('portfolio_observation') or {}
+            if (projection.get('reservations_by_lane',{}).get(lane,0) or
+                    projection.get('pending_by_lane',{}).get(lane,0)):
+                raise ValueError(lane+'_paused_with_economic_obligation')
             continue
-        if row.get('reconciled') is not True or row.get('exit_code') is not None:
+        if row.get('paused') or row.get('reconciled') is not True or row.get('exit_code') is not None:
             raise ValueError(lane+'_not_reconciled_or_running')
+    report_path=root/'pons/pons-selective-continuation-v1-cohort/cohort-progress.json'
+    report=read(report_path)
+    if not 0<=time.time()-report['checkpoint_at']<=60:
+        raise ValueError('pons_canonical_progress_stale')
+    if (report.get('current_startup_coverage') or {}).get('complete') is not True:
+        raise ValueError('pons_current_startup_coverage_incomplete')
+    cursor=report.get('canonical_discovery_cursor')
+    if type(cursor) is not int:raise ValueError('pons_canonical_progress_unavailable')
+    health['active_evidence']=dict(pons_canonical_cursor=cursor)
     return health,portfolio,rss
 
 
@@ -68,7 +92,11 @@ def measure(root,seconds,*,clock=time.monotonic,sleeper=time.sleep):
                 max_queue=max(max_queue,row['queue_depth'])
                 if row['oldest_wait_seconds']>30:raise ValueError(provider+'_queue_exceeds_native_deadline')
             for row in health['providers'].get('evidence',{}).get('frontiers',[]):
+                if row['scope'] not in ('program:pump','program:pumpswap'):continue
                 history=frontiers.setdefault(row['scope'],[row['slot'],row['slot']]);history[1]=max(history[1],row['slot'])
+            cursor=health.get('active_evidence',{}).get('pons_canonical_cursor')
+            if type(cursor) is int:
+                history=frontiers.setdefault('pons:canonical',[cursor,cursor]);history[1]=max(history[1],cursor)
             samples+=1
             if outage_at is not None:
                 outage_seconds+=clock()-outage_at;recovered_events+=1;outage_at=None
@@ -79,8 +107,9 @@ def measure(root,seconds,*,clock=time.monotonic,sleeper=time.sleep):
                 errors.append(type(error).__name__+':'+reason);errors=errors[-32:]
         sleeper(min(5,max(0,deadline-clock())))
     if outage_at is not None:errors.append('system_not_healthy_at_phase_end')
-    advanced=any(last>first for first,last in frontiers.values())
-    if not advanced:errors.append('target_evidence_frontier_did_not_advance')
+    for scope in ('program:pump','program:pumpswap','pons:canonical'):
+        first_slot,last_slot=frontiers.get(scope,[0,0])
+        if last_slot<=first_slot:errors.append(scope+':target_evidence_frontier_did_not_advance')
     return dict(passed=bool(samples) and not errors,samples=samples,max_process_rss_bytes=max_rss,max_provider_queue=max_queue,
         target_frontiers=frontiers,errors=errors,pnl=last['balances'] if last else None,
         elapsed_seconds=clock()-started,self_healing_events=recovered_events,transient_outage_seconds=outage_seconds)
@@ -96,7 +125,7 @@ def recovery(root):
         try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:pass
         else:raise ValueError('PAPER_supervisor_single_writer_fence_missing')
-    targets=[lane for lane,row in baseline['lanes'].items() if not row.get('paused')]+['supervisor']
+    targets=list(ACTIVE_LANES)+['supervisor']
     for lane in targets:
         health,_,_=observe(root)
         old=health['pid'] if lane=='supervisor' else health['lanes'][lane]['pid']

@@ -19,6 +19,8 @@ METEORA_SCOPE='program:meteora'
 
 class BaseRuntimeEvidence:
     def __init__(self,path=None,*,owner,clock=time.time,command=None):
+        from .runtime.operating_families import require_active
+        require_active(owner)
         path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
         if not path:raise EvidenceUnavailable('shared_evidence_plane_required')
         self.path=Path(path).resolve()

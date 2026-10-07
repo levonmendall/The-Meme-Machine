@@ -53,15 +53,17 @@ def decision_work(priority_class):
 
 
 def next_ticket(db,endpoint,now,interval):
+    from meme_machine.runtime.operating_families import active_scope_sql
+    live=active_scope_sql("COALESCE(m.lane,'shared')")
     first=db.execute("SELECT q.id,q.priority,m.lane,q.deadline FROM queue q "
-        "LEFT JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? ORDER BY "
+        "LEFT JOIN queue_meta m ON m.id=q.id WHERE "+live+" AND q.endpoint=? ORDER BY "
         "CASE WHEN q.priority=0 THEN 0 WHEN q.priority>=50 AND q.created<=? THEN 5 ELSE q.priority END,"
         "q.deadline,q.created,q.id LIMIT 1",(endpoint,now-FOREGROUND_AGE_SECONDS)).fetchone()
     if not first or first[1]!=0 or first[3]<=now+interval:return first
     service=db.execute('SELECT lane,consecutive FROM position_service WHERE endpoint=?',(endpoint,)).fetchone()
     if not service or service[0]!=first[2] or service[1]<POSITION_BURST:return first
     aged=db.execute('SELECT q.id,q.priority,m.lane,q.deadline FROM queue q '
-        'JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? AND q.priority>0 '
+        'JOIN queue_meta m ON m.id=q.id WHERE '+live+' AND q.endpoint=? AND q.priority>0 '
         'AND (m.lane<>? OR q.priority<=10) AND q.created<=? ORDER BY q.deadline,q.created,q.id LIMIT 1',
         (endpoint,first[2],now-FOREGROUND_AGE_SECONDS)).fetchone()
     return aged or first
@@ -99,6 +101,8 @@ def priority(scope):
 
 class Admission:
     def __init__(self,path,endpoint,*,lane,interval=0.5,clock=time.monotonic,sleeper=time.sleep):
+        from meme_machine.runtime.operating_families import require_active
+        require_active(lane)
         if interval < .5:raise BoundaryError('provider_aggregate_ceiling_invalid')
         from pathlib import Path
         Path(path).parent.mkdir(parents=True,exist_ok=True)
@@ -133,28 +137,30 @@ class Admission:
         db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
         return db
     def acquire(self,scope,deadline=None,*,methods=None):
+        from meme_machine.runtime.operating_families import active_scope_sql
+        live="id IN (SELECT q.id FROM queue q LEFT JOIN queue_meta m ON m.id=q.id WHERE "+active_scope_sql("COALESCE(m.lane,'shared')")+")"
         ticket=uuid.uuid4().hex;started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30
         granted=False;failure=None
         db=self.connect()
         try:
             if deadline<=started:raise BoundaryError('provider_shared_admission_deadline')
             db.execute('BEGIN IMMEDIATE')
-            db.execute('DELETE FROM queue WHERE deadline<=?',(started,))
+            db.execute('DELETE FROM queue WHERE '+live+' AND deadline<=?',(started,))
             db.execute('DELETE FROM queue_meta WHERE id NOT IN (SELECT id FROM queue)')
-            if (db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]>=256
+            if (db.execute('SELECT COUNT(*) FROM queue WHERE '+live+' AND endpoint=?',(self.endpoint,)).fetchone()[0]>=256
                     and priority(scope)!=0):
                 # Candidate backlog cannot refuse admission to an existing
                 # position's safety work. The transport ceiling is unchanged.
                 raise BoundaryError('provider_shared_queue_capacity')
             db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(ticket,self.endpoint,priority(scope),started,deadline))
             db.execute('INSERT INTO queue_meta VALUES(?,?)',(ticket,self.lane))
-            depth=db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]
+            depth=db.execute('SELECT COUNT(*) FROM queue WHERE '+live+' AND endpoint=?',(self.endpoint,)).fetchone()[0]
             db.execute('COMMIT')
             while True:
                 now=self.clock()
                 if now>=deadline:raise BoundaryError('provider_shared_admission_deadline')
                 db.execute('BEGIN IMMEDIATE')
-                db.execute('DELETE FROM queue WHERE deadline<=?',(now,))
+                db.execute('DELETE FROM queue WHERE '+live+' AND deadline<=?',(now,))
                 next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
                 first=next_ticket(db,self.endpoint,now,interval)
                 if first and first[0]==ticket and now>=max(next_at,cooldown):

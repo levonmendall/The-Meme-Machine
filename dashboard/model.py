@@ -406,11 +406,11 @@ class Reader:
                 row = {}
             health = row.get('health', 'unknown')
             if 'phase' in row:
-                health='exited' if row.get('exit_code') is not None else 'responsive' if row.get('reconciled') is True else 'starting'
-            known = ('responsive', 'starting', 'responsive_but_strategy_stalled', 'progress_stalled', 'exited', 'terminated', 'unknown')
+                health='paused' if row.get('phase')=='PAUSED' and row.get('paused') is True and row.get('pid') is None else 'exited' if row.get('exit_code') is not None else 'responsive' if row.get('reconciled') is True else 'starting'
+            known = ('paused','responsive', 'starting', 'responsive_but_strategy_stalled', 'progress_stalled', 'exited', 'terminated', 'unknown')
             if health not in known:
                 health = 'unknown'
-            state = ('CURRENT' if health == 'responsive' else 'FAIL_CLOSED' if health in ('progress_stalled', 'responsive_but_strategy_stalled', 'terminated') or row.get('unexpected_exit') else 'UNKNOWN')
+            state = ('CURRENT' if health in ('responsive','paused') else 'FAIL_CLOSED' if health in ('progress_stalled', 'responsive_but_strategy_stalled', 'terminated') or row.get('unexpected_exit') else 'UNKNOWN')
             if state == 'CURRENT' and out['telemetry']['state'] != 'CURRENT':
                 state = out['telemetry']['state']
             # Runtime identities and configured source identities have different provenance.
@@ -420,7 +420,7 @@ class Reader:
             out['lanes'][lane] = dict(operational=metric(health, state),
                 accounting=metric(row.get('accounting_reconciled') if type(row.get('accounting_reconciled')) is bool else None,
                                   'FAIL_CLOSED' if row.get('accounting_reconciled') is False else out['telemetry']['state']),
-                evidence=metric(None, 'UNKNOWN', 'process_heartbeat_is_not_evidence_freshness'),
+                evidence=metric(None, 'CURRENT' if health=='paused' else 'UNKNOWN', 'PAUSED' if health=='paused' else 'process_heartbeat_is_not_evidence_freshness'),
                 runtime_identities=safe_identities(row), configured_identities=safe_identities(configured),
                 last_evidence_at=None, native_accounting=native_accounting(row, lane),
                 progress_age_seconds=metric(str(row['progress_age_seconds']) if isinstance(row.get('progress_age_seconds'), (int, Decimal)) else None, out['telemetry']['state']),

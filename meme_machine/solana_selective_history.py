@@ -157,9 +157,12 @@ class SelectiveHistory:
     def __init__(self,writer,endpoint_identity,*,clock=time.time):
         self.writer=writer;self.db=writer.db;self.endpoint_identity=endpoint_identity;self.clock=clock
         self.db.executescript(SCHEMA)
+        from .runtime.operating_families import solana_families
+        self.active_families=solana_families()
 
     def observe(self,family,address,*,slot,signature,fields,seen=None):
         """Lossless cheap retention. This record cannot authorize qualification."""
+        if family not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         if family not in FAMILIES or not isinstance(fields,dict):raise EvidenceUnavailable('candidate_scout_shape')
         seen=self.clock() if seen is None else seen
         body=canonical(fields);checksum=digest(fields)
@@ -178,6 +181,7 @@ class SelectiveHistory:
                     activity=fields.get('activity',False))
 
     def bind(self,family,address,*,market_address=None,aliases=(),metadata=None):
+        if family not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         base=FAMILIES[family];scoped=coverage_scope(family,address)
         with self.writer.transaction():
             current=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',
@@ -206,6 +210,7 @@ class SelectiveHistory:
         return coverage_scope(family,address) if row is None else row[0]
 
     def request(self,family,address,lo,hi,*,priority,deadline):
+        if family not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         if type(lo) is not int or type(hi) is not int or not 0<=lo<=hi or not 0<=priority<=6:
             raise EvidenceUnavailable('candidate_history_request_shape')
         now=self.clock();identity=digest([family,address,lo,hi])
@@ -226,14 +231,16 @@ class SelectiveHistory:
 
     def plan(self,*,excluding=()):
         """Priority for safety/positions/continuations, then deadline and age."""
+        from .runtime.operating_families import active_sql
+        live=active_sql('family',solana=True)
         now=self.clock()
         with self.writer.transaction():
-            for identity in [r[0] for r in self.db.execute("SELECT id FROM acquisition_jobs WHERE status='pending' AND deadline<=?",(now,))]:
+            for identity in [r[0] for r in self.db.execute("SELECT id FROM acquisition_jobs WHERE "+live+" AND status='pending' AND deadline<=?",(now,))]:
                 self.db.execute("UPDATE acquisition_jobs SET status='deadline_missed',updated=?,error='candidate_decision_deadline_missed' WHERE id=?",(now,identity))
                 self._observation(identity,'deadline_missed',dict(economic_rejection=False))
             exclusion='' if not excluding else ' AND id NOT IN ('+','.join('?' for _ in excluding)+')'
             row=self.db.execute('''SELECT id,family,address,lo,hi,priority,deadline,token,pages,last_slot,last_index,lineage
-                FROM acquisition_jobs WHERE status='pending'
+                FROM acquisition_jobs WHERE '''+live+''' AND status='pending'
                 '''+exclusion+''' ORDER BY CASE WHEN priority<=2 THEN priority ELSE 3 END,deadline,priority,created,id LIMIT 1''',tuple(excluding)).fetchone()
         if row is None:return None
         job=dict(zip(('id','family','address','lo','hi','priority','deadline','token','pages','last_slot','last_index','lineage'),row))
@@ -243,6 +250,7 @@ class SelectiveHistory:
         return job,config
 
     def commit_page(self,job,value,*,finalized_through,seen=None):
+        if job['family'] not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         """No page-count discard; every physical page remains bounded to 100."""
         seen=self.clock() if seen is None else seen
         if finalized_through<job['hi']:raise EvidenceUnavailable('repair_upper_boundary_not_finalized')
@@ -303,6 +311,8 @@ class SelectiveHistory:
         neither their immutable content nor original availability is rewritten.
         """
         rows=tuple(rows);restored=restored or {}
+        from .runtime.operating_families import require_scope
+        for row in rows:require_scope(row.scope)
         if len(rows)>2048 or sum(len(canonical(r.body()).encode()) for r in rows)>16*1024*1024:
             raise EvidenceUnavailable('ingestion_batch_bound')
         from .solana_evidence_plane import require_storage
@@ -479,6 +489,8 @@ class SelectiveHistory:
         self.db.execute('INSERT OR IGNORE INTO native_order_attestations VALUES(?,?,?,?,?)',(scope,slot,signature,index,checksum))
 
     def delivery(self,family,transport,*,raw_bytes,rpc_cu=0,calls=0,retained_bytes=0,canonical_bytes=0,ipc_bytes=0,seen=None):
+        from .runtime.operating_families import require_active
+        require_active(family)
         values=(raw_bytes,retained_bytes,canonical_bytes,ipc_bytes,rpc_cu,calls)
         if any(type(n) is not int or n<0 for n in values):raise EvidenceUnavailable('provider_meter_shape')
         if transport not in ('yellowstone','websocket','rpc'):raise EvidenceUnavailable('provider_meter_transport')

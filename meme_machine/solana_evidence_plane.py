@@ -274,7 +274,8 @@ class EvidenceWriter:
                     # Account snapshots carry their own slot/freshness; they do
                     # not attest a continuous program interval. Match disconnect
                     # semantics rather than creating unrepairable account gaps.
-                    for scope, slot in self.db.execute("SELECT scope,slot FROM cursors WHERE scope NOT LIKE 'account:%'").fetchall():
+                    from .runtime.operating_families import evidence_scope_sql
+                    for scope, slot in self.db.execute("SELECT scope,slot FROM cursors WHERE "+evidence_scope_sql('cursors.scope')+" AND scope NOT LIKE 'account:%'").fetchall():
                         self._gap(scope, slot + 1, None, 'writer_restart')
                 self.db.execute("INSERT OR IGNORE INTO meta VALUES('initialized','1')")
         except BaseException:
@@ -335,6 +336,8 @@ class EvidenceWriter:
         self.db.execute('INSERT INTO counters VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=value+excluded.value', (key, count))
 
     def _gap(self, scope, lo, hi, reason):
+        from .runtime.operating_families import require_scope
+        require_scope(scope)
         if not self.db.execute('''SELECT 1 FROM gaps WHERE scope=? AND lo<=? AND repaired IS NULL
             AND (hi IS NULL OR (? IS NOT NULL AND hi>=?))''', (scope, lo, hi, hi)).fetchone():
             self.db.execute('INSERT INTO gaps(scope,lo,hi,reason,created) VALUES(?,?,?,?,?)', (scope, lo, hi, reason, self.clock()))
@@ -359,11 +362,14 @@ class EvidenceWriter:
                 self.db.execute('UPDATE gaps SET hi=? WHERE id=?', (max(lo, lower_slot), identity))
 
     def ingest(self, records, *, proof=None, repair_receipt=None):
+        from .runtime.operating_families import require_scope
+        if proof is not None:require_scope(proof.scope)
         self._check()
         require_storage(self.path, required_bytes=32 * 1024 * 1024)
         inputs=tuple(records)
         if len(inputs)>2048:raise EvidenceUnavailable('ingestion_batch_bound')
         records=tuple(row.record if isinstance(row,PreparedRecord) else row for row in inputs)
+        for record in records:require_scope(record.scope)
         for record in records:
             floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
             if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
@@ -451,6 +457,9 @@ class EvidenceWriter:
             self._interest(owner,scope,lower_slot=lower_slot,priority=priority,lifecycle=lifecycle)
 
     def _interest(self, owner, scope, *, lower_slot, priority=4, lifecycle='candidate'):
+        from .runtime.operating_families import require_scope,require_active
+        require_active(owner)
+        require_scope(scope)
         if (not owner or not scope or type(lower_slot) is not int or lower_slot < 0
                 or priority not in range(5) or lifecycle not in ('candidate', 'reserved', 'open', 'research')):
             raise EvidenceUnavailable('invalid_interest')
@@ -676,7 +685,8 @@ class EvidenceWriter:
                 progress.interrupted=True;progress.yield_reason=yield_class
                 return archived
         source_yield_budget=[2]  # existing three separate 256-record transactions
-        scopes=self.db.execute('SELECT scope,slot FROM cursors ORDER BY scope').fetchall()
+        from .runtime.operating_families import evidence_scope_sql
+        scopes=self.db.execute('SELECT scope,slot FROM cursors WHERE '+evidence_scope_sql('cursors.scope')+' ORDER BY scope').fetchall()
         resume=getattr(self,'_retention_next_scope',None)
         start=next((i for i,row in enumerate(scopes) if row[0]==resume),0)
         scopes=scopes[start:]+scopes[:start]
@@ -1109,7 +1119,8 @@ class IngestionService:
                 if self._loss.is_set():
                     # Fail the service instead of losing the unknown interval or
                     # accepting queued coverage that might bridge dropped data.
-                    for scope, slot in writer.db.execute('SELECT scope,slot FROM cursors').fetchall():
+                    from .runtime.operating_families import evidence_scope_sql
+                    for scope, slot in writer.db.execute('SELECT scope,slot FROM cursors WHERE '+evidence_scope_sql('cursors.scope')).fetchall():
                         writer.gap(scope, slot, reason='ingestion_queue_overflow')
                     raise EvidenceUnavailable('ingestion_queue_overflow')
                 try:

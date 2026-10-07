@@ -1,7 +1,8 @@
 # The Meme Machine — PAPER
 
-One Python supervisor runs Pump Current/Survivor, Pons Current/Survivor, Meteora
-and Ramses from committed source, sharing one durable $500 Decimal portfolio.
+One Python supervisor runs Pump Current/Survivor and Pons Current/Survivor from
+committed source, sharing one preserved $500 Decimal portfolio. Meteora and
+Ramses are PAUSED indefinitely; their code and historical accounting remain.
 Existing positions reconcile before discovery resumes. There are no wallet keys,
 transaction signers, real trade submissions, owner permits or live-money switch.
 
@@ -23,7 +24,7 @@ python -m meme_machine.operational check
 `check` validates runtime and provider configuration without network I/O or state creation.
 Tests use temporary synthetic portfolios and prohibit market provider calls.
 SQLite 3.45.1 and 3.53.1 were explicitly tested. The only external runtime
-dependency is `websockets==17.1`.
+dependencies are pinned in `requirements.txt`, including the Model B native stream client.
 
 The ordinary source is under `meme_machine/lanes/`, shared services under
 `meme_machine/runtime/`, and the supervisor under `meme_machine/operational/`.

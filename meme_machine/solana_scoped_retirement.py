@@ -6,6 +6,7 @@ are lossless and hash verified; restoring one candidate does not replay a market
 All byte savings in this module are LOCAL storage savings, not provider credits.
 """
 from contextlib import closing
+from .runtime.operating_families import active_sql
 from dataclasses import fields
 import hashlib
 import json
@@ -118,7 +119,8 @@ class ScopedRetirement:
         before=self.hot_bytes()
         with closing(CandidateHistory(self.lifecycle.path,clock=self.clock)) as shared:
             for family,address in self.db.execute('''SELECT DISTINCT family,
-                    substr(coverage_scope,length('candidate:'||family||':')+1) FROM evidence_bindings''').fetchall():
+                    substr(coverage_scope,length('candidate:'||family||':')+1) FROM evidence_bindings WHERE '''+
+                    active_sql('family',solana=True)).fetchall():
                 binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
                 market=binding[0]
                 # Resolve the indexed address set before expanding the canonical
@@ -242,6 +244,8 @@ class ScopedRetirement:
         raise EvidenceUnavailable('scoped_cold_identity_missing')
 
     def restore(self,family,address):
+        from .runtime.operating_families import require_active
+        require_active(family)
         binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
         market=address if binding is None else binding[0]
         rows=self.db.execute('''SELECT DISTINCT c.archive FROM scoped_cold_records c JOIN canonical_addresses a ON a.identity=c.identity

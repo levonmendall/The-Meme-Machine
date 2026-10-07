@@ -221,6 +221,7 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
         target_reached=result.get("target_reached"),
         boundary=result.get("boundary"),
         evidence_queue=result.get('evidence_queue'),
+        current_startup_coverage=result.get('current_startup_coverage'),
         opportunity_coverage=result.get("opportunity_coverage"),
         evidence_acquisition=result.get('evidence_acquisition'),
         capacity_censored=result.get('capacity_censored',0),

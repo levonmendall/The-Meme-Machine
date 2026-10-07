@@ -4,9 +4,9 @@ import os
 from pathlib import Path
 
 
-def audit_ring(db, table, trigger, *, limit=4096, key='seq'):
+def audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1'):
     """Ordinary audit rows have no scheduling or capital authority."""
-    count=db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]
+    count=db.execute('SELECT COUNT(*) FROM '+table+' WHERE '+where).fetchone()[0]
     if count<=limit:return
     if table=='progress' and key=='sequence':
         # Four native pipelines share this existing maintenance hook. Keep all
@@ -18,7 +18,7 @@ def audit_ring(db, table, trigger, *, limit=4096, key='seq'):
             pipeline(db,row)
     sql=db.execute('SELECT sql FROM sqlite_master WHERE name=?',(trigger,)).fetchone()
     if sql:db.execute('DROP TRIGGER '+trigger)
-    db.execute('DELETE FROM '+table+' WHERE '+key+' NOT IN (SELECT '+key+' FROM '+table+' ORDER BY '+key+' DESC LIMIT ?)',(limit,))
+    db.execute('DELETE FROM '+table+' WHERE ('+where+') AND '+key+' NOT IN (SELECT '+key+' FROM '+table+' WHERE '+where+' ORDER BY '+key+' DESC LIMIT ?)',(limit,))
     if sql:db.execute(sql[0])
 
 

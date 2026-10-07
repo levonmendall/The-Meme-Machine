@@ -42,7 +42,7 @@ class CapacityRepairs(unittest.TestCase):
             'MM_ROBINHOOD_STATE_DIR','MM_PROVIDER_DB','MM_RPC_CACHE_DB','MM_PROVIDER_GOVERNOR_DB')}
         with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,parent,clear=True):
             supervisor=Supervisor(td);supervisor.epoch='preserved-fixture'
-            for lane in ('pump','meteora','solana','pons','ramses'):
+            for lane in ('pump','solana','pons'):
                 with self.subTest(lane=lane):
                     names=set(supervisor.environment(lane))
                     self.assertTrue({'MM_MODE','MM_PAPER_EPOCH','MM_STATE_ROOT','MM_PORTFOLIO_ACCOUNTING_DB','PYTHONPATH'}<=names)
@@ -72,7 +72,7 @@ class CapacityRepairs(unittest.TestCase):
                 dict(poison,**transport,**providers),clear=True):
             for offline in (False,True):
                 supervisor=Supervisor(td,offline=offline);supervisor.epoch='preserved'
-                for lane in ('pump','meteora','solana','pons','ramses'):
+                for lane in ('pump','solana','pons'):
                     with self.subTest(lane=lane,offline=offline):
                         env=supervisor.environment(lane)
                         for name,value in poison.items():self.assertNotEqual(env.get(name),value)

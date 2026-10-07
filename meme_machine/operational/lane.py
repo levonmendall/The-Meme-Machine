@@ -59,6 +59,8 @@ def run_offline(root,lane,stop):
 
 
 def run_native(root,lane):
+    from meme_machine.runtime.operating_families import require_active
+    require_active(lane,production=True)
     # Shared USD delivery recovery is attached by each native book constructor.
     # Native restoration below is the existing recovery path, before discovery.
     health(root,lane,'RECONCILING')
@@ -190,6 +192,8 @@ def main():
     parser.add_argument('--state-root',required=True)
     parser.add_argument('--offline',action='store_true')
     args=parser.parse_args()
+    from meme_machine.runtime.operating_families import require_active
+    require_active(args.lane,production=True)
     stop=[False]
     from meme_machine.runtime.stop import requested,Shutdown
     def shutdown(*_):

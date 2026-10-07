@@ -26,7 +26,7 @@ class Conditions(unittest.TestCase):
     def sample(self,now=1000):
         return dict(timestamp=now,portfolio=dict(state='CURRENT',epoch_id='paper-existing',checks={'conservation':True},positions_by_lane={}),
             host={'service':{'ActiveState':'active','NRestarts':'0'},'disks':{}},
-            lanes={l:dict(reconciled=True,restarts=0) for l in ('pump','pons','meteora','ramses')},
+            lanes={l:dict(reconciled=True,restarts=0,**(dict(phase='PAUSED',paused=True,pid=None) if l in ('meteora','ramses') else {})) for l in ('pump','pons','meteora','ramses')},
             solana={'state':'CURRENT'},solana_provider={'state':'CURRENT','oldest_wait_seconds':0},
             robinhood_provider={'state':'CURRENT','oldest_wait_seconds':0})
 
@@ -35,6 +35,13 @@ class Conditions(unittest.TestCase):
         x['solana_provider']['pressure']=[{'rate_errors':40,'cooldown_seconds':1}]
         x['lanes']['pump']['strategy_rejections']=100000
         self.assertEqual(monitoring.evaluate(x,{},'paper-existing',1000)['state'],'CURRENT')
+
+    def test_pause_exempts_freshness_but_never_masks_historical_obligations(self):
+        x=self.sample()
+        self.assertFalse(monitoring.evaluate(x,{},'paper-existing',1000)['conditions'])
+        x['portfolio']['pending_by_lane']={'ramses':1}
+        value=monitoring.evaluate(x,{},'paper-existing',1000)
+        self.assertIn('ramses_paused_with_obligation',value['conditions'])
 
     def test_temporary_provider_outage_is_self_healing(self):
         x=self.sample();x['robinhood_provider']['state']='UNAVAILABLE'

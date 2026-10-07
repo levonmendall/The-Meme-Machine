@@ -907,6 +907,12 @@ class PortfolioAccounting:
             state = deepcopy(self._state)
             if state is None:
                 raise PortfolioIntegrityError("portfolio_not_initialized")
+            if action in ('reserve','enter','rebalance'):
+                from .runtime.operating_families import require_active,operational
+                lane=data.get('lane')
+                if lane is None:
+                    lane=state['positions'].get(data.get('lifecycle_id'),{}).get('lane','')
+                require_active(lane,production=operational() or epoch_id.startswith('paper-'))
             if self.db.execute("SELECT 1 FROM portfolio_events WHERE event_id=?", (event_id,)).fetchone():
                 raise PortfolioIntegrityError("duplicate_canonical_event")
             body = {"action": action, "event_id": event_id, "epoch_id": epoch_id, "at": at, "data": data}

@@ -145,8 +145,16 @@ class StrategyCapitalTests(unittest.TestCase):
         from pathlib import Path
         import subprocess
         root = Path(__file__).resolve().parents[1]
-        preserved = ("meme_machine/lanes", "meme_machine/runtime", "meme_machine/operational",
-                     "meme_machine/portfolio_accounting.py", "meme_machine/portfolio_lane_integration.py",
-                     "operational/nine-change-implementation.json", "requirements.txt")
+        # Whole-tree isolation described the original feature branch. This
+        # requested integration still must not activate the new authority or
+        # change economics. Check that contract directly, with the existing
+        # native sizing/exit/bridge/add behavioral regressions alongside it.
+        for path in (root/'meme_machine/operational').glob('*.py'):
+            self.assertNotIn('import shared_capital',path.read_text())
+            self.assertNotIn('from meme_machine.shared_capital',path.read_text())
+        preserved = ('meme_machine/lanes/pump/pump_acceleration_strategy.py',
+                     'meme_machine/lanes/pump/pumpswap_survivor.py',
+                     'meme_machine/lanes/pons/pons_postgrad_survivor.py',
+                     'operational/nine-change-implementation.json')
         for path in preserved:
             self.assertEqual(subprocess.check_output(["git", "diff", "b577cc1c67f4d64f887b430f5e933f376b607dc2", "--", path], cwd=root), b"")

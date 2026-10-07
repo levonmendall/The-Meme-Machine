@@ -16,10 +16,9 @@ from meme_machine.runtime.usd_valuation import ValuationUnavailable,utc
 SOURCE_ROOT=Path(__file__).resolve().parents[2]
 
 # Owner-directed reversible pause. Accounting identity/state remains four-lane so
-# historical Ramses evidence and any future reactivation stay attributable, but
-# the live operational supervisor does not launch Ramses discovery/management.
-ACTIVE_LANES=('pump','pons','meteora')
-PAUSED_LANES={'ramses':'market_opportunity_insufficient'}
+# historical paused-family evidence and future owner-directed reactivation stay
+# attributable. Only Pump and Pons receive operational processes and evidence.
+from meme_machine.runtime.operating_families import ACTIVE_LANES,PAUSED_LANES,require_active
 
 
 def identities():
@@ -62,20 +61,11 @@ class Supervisor:
         self.last_publish=0
 
     def runtime_lanes(self):
-        # Offline fixtures intentionally retain all four lane implementations so
-        # archive/recovery tests can still read Ramses. Only the live PAPER
-        # supervisor applies the owner pause.
-        return LANES if self.offline else ACTIVE_LANES
+        return ACTIVE_LANES
 
     def _assert_paused_lanes_clear(self,account):
-        state=account.snapshot()
-        for lane in PAUSED_LANES:
-            exposed=(any(p['lane']==lane for p in state['positions'].values()) or
-                any(r['lane']==lane for r in state['reservations'].values()))
-            pending=account.db.execute(
-                'SELECT 1 FROM portfolio_native_pending WHERE lane=? LIMIT 1',(lane,)).fetchone()
-            if exposed or pending:
-                raise RuntimeError('paused_lane_has_active_or_pending_exposure:'+lane)
+        from .pause import assert_clear
+        return assert_clear(self.root,account)
 
     def initialize(self):
         validate_environment(offline=self.offline)
@@ -97,6 +87,7 @@ class Supervisor:
                 binding=account.binding()
                 if binding is None:
                     if existing_state:raise RuntimeError('existing_epoch_state_requires_bound_portfolio')
+                    if not self.offline:raise RuntimeError('preserved_PAPER_epoch_required_no_reseed')
                     epoch=('offline-fixture-' if self.offline else 'paper-')+str(time.time_ns())
                     values=identities()
                     account.establish_inception(inception_receipt(epoch,utc(time.time()),epoch+':inception'),portfolio_identities=values['pump'],lane_identities=values)
@@ -104,7 +95,7 @@ class Supervisor:
                 elif self.offline != binding['receipt']['epoch_id'].startswith('offline-fixture-'):
                     raise RuntimeError('offline_and_operational_state_must_be_separate')
                 self.epoch=account.binding()['receipt']['epoch_id']
-                if not self.offline:self._assert_paused_lanes_clear(account)
+                self.pause_proof=self._assert_paused_lanes_clear(account)
         except BaseException:
             self.lock.close();self.lock=None
             raise
@@ -129,6 +120,7 @@ class Supervisor:
 
     def environment(self,lane):
         if lane not in (*LANES,'solana'):raise ValueError('unknown_runtime_lane')
+        require_active(lane,production=True)
         solana=lane in ('pump','meteora','solana')
         # Parent credentials, strategy overrides and state paths are not child
         # configuration. Retain only interpreter/OS transport needs and explicitly
@@ -140,7 +132,7 @@ class Supervisor:
             'SSL_CERT_FILE','SSL_CERT_DIR','REQUESTS_CA_BUNDLE','CURL_CA_BUNDLE'}
         providers=({'MM_SOLANA_READ_RPC_URL','MM_SOLANA_PUBLIC_RPC_URL',
             'MM_ONFINALITY_SOLANA_RPC_URL','MM_ONFINALITY_SOLANA_WS_URL'} if solana
-            else {'MM_ROBINHOOD_READ_RPC_URL','MM_ROBINHOOD_DLMM_RPC_URL',
+            else {'MM_ROBINHOOD_READ_RPC_URL',
                   'MM_ROBINHOOD_SEQUENCER_FEED_URL'})
         allowed=transport | (set() if self.offline else providers)
         env={k:v for k,v in os.environ.items() if k in allowed}
@@ -166,6 +158,7 @@ class Supervisor:
         return env
 
     def start_lane(self,lane):
+        require_active(lane,production=True)
         folder=self.root/lane;folder.mkdir(exist_ok=True,mode=0o700)
         args=[sys.executable,'-m','meme_machine.operational.lane','--lane',lane,'--state-root',str(self.root)]
         if self.offline:args.append('--offline')
@@ -200,11 +193,10 @@ class Supervisor:
                     raise ValueError('health_predecessor_instance')
             except (OSError,ValueError):row=dict(phase='STARTING')
             health[lane]=dict(row,pid=proc.pid,exit_code=proc.poll(),restarts=self.restarts[lane])
-        if not self.offline:
-            for lane,reason in PAUSED_LANES.items():
-                health[lane]=dict(lane=lane,phase='PAUSED',paper_only=True,at=utc(now),
-                    paused=True,pause_reason=reason,discovery_enabled=False,reconciled=True,
-                    pid=None,process_instance=None,exit_code=None,restarts=0)
+        for lane,reason in PAUSED_LANES.items():
+            health[lane]=dict(lane=lane,phase='PAUSED',paper_only=True,at=utc(now),
+                paused=True,pause_reason=reason,discovery_enabled=False,reconciled=True,
+                pid=None,process_instance=None,exit_code=None,restarts=0)
         try:
             with self.account() as account:
                 sequence=account.snapshot()['sequence']
@@ -253,7 +245,8 @@ class Supervisor:
             db=None
             try:
                 db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=.1)
-                depth,oldest=db.execute('SELECT COUNT(*),MIN(created) FROM queue').fetchone()
+                from .observation import provider_queue
+                depth,oldest=provider_queue(db,provider=='solana')
                 result[provider]=dict(state='CURRENT',queue_depth=depth,oldest_wait_seconds=max(0,time.monotonic()-oldest) if oldest is not None else 0)
                 if provider=='solana':
                     result[provider]['pressure']=[dict(provider=p,grants=g,rate_errors=e,cooldown_seconds=max(0,c-time.monotonic())) for p,_,c,g,e in db.execute('SELECT * FROM pressure')]
@@ -268,6 +261,10 @@ class Supervisor:
             try:
                 db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=.1)
                 result['evidence']=dict(state='CURRENT',hot_records=db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0],open_gaps=db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],frontiers=[dict(scope=s,slot=slot,updated=updated) for s,slot,updated in db.execute('SELECT * FROM cursors')])
+                from meme_machine.solana_prewarm_startup import released
+                result['evidence']['startup_released']=released(db)
+                for key,raw in db.execute("SELECT key,value FROM service_health WHERE key IN ('pid','phase','heartbeat','native_streams')"):
+                    result['evidence'][key]=json.loads(raw)
             except (OSError,sqlite3.Error):result['evidence']={'state':'UNAVAILABLE'}
             finally:
                 if db:db.close()
@@ -283,7 +280,7 @@ class Supervisor:
             for lane in self.runtime_lanes():self.start_lane(lane)
             while not self.stop_requested and (seconds is None or time.monotonic()-started<seconds):
                 for lane,proc in list(self.processes.items()):
-                    if proc.poll() is not None and time.monotonic()>=self.next_start[lane]:
+                    if lane in ACTIVE_LANES and proc.poll() is not None and time.monotonic()>=self.next_start[lane]:
                         self.restarts[lane]+=1
                         self.next_start[lane]=time.monotonic()+min(30,2**min(self.restarts[lane],5))
                         self.start_lane(lane)

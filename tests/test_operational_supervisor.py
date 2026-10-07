@@ -8,6 +8,7 @@ from unittest.mock import patch
 from meme_machine.operational.supervisor import Supervisor,validate_environment,SOURCE_ROOT
 from meme_machine.operational.offline import open_native,open_position,close
 from meme_machine.portfolio_accounting import PortfolioAccounting,LANES,digest
+from meme_machine.runtime.operating_families import ACTIVE_LANES,PAUSED_LANES
 from meme_machine.runtime.portfolio import NativePortfolio
 from meme_machine.runtime.usd_valuation import ValuationUnavailable,utc
 
@@ -246,29 +247,29 @@ class ProcessSupervisor(unittest.TestCase):
             time.sleep(.05)
         self.fail('mocked supervisor did not reach required health')
 
-    def test_four_process_crash_restart_same_exposure_sigterm_and_second_start(self):
+    def test_active_process_crash_restart_same_exposure_sigterm_and_second_start(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);log=(root/'test.log').open('w')
             command=[sys.executable,'-m','meme_machine.operational','offline','--state-root',td,'--seconds','90']
             process=subprocess.Popen(command,cwd=SOURCE_ROOT,stdout=log,stderr=log)
             try:
-                self.wait_health(root,lambda h:len(h['lanes'])==4 and all(r.get('native_lifecycle') for r in h['lanes'].values()))
+                self.wait_health(root,lambda h:len(h['lanes'])==4 and all(h['lanes'][lane].get('native_lifecycle') for lane in ACTIVE_LANES) and all(h['lanes'][lane].get('phase')=='PAUSED' for lane in PAUSED_LANES))
                 with closing(PortfolioAccounting(root/'portfolio.sqlite',wait_for_writer=True)) as account:
                     initial=set(account.snapshot()['positions'])
-                for lane in LANES:
+                for lane in ACTIVE_LANES:
                     health=json.loads((root/'health.json').read_text());old=health['lanes'][lane]['pid']
                     os.kill(old,signal.SIGKILL)
                     recovered=self.wait_health(root,lambda h:h['lanes'][lane]['pid']!=old and h['lanes'][lane].get('reconciled') is True and h['lanes'][lane].get('native_lifecycle'))
                     self.assertGreaterEqual(recovered['lanes'][lane]['restarts'],1)
                 process.send_signal(signal.SIGTERM);self.assertEqual(process.wait(timeout=20),0)
                 final=json.loads((root/'health.json').read_text())
-                self.assertTrue(all(row['exit_code']==0 for row in final['lanes'].values()),
+                self.assertTrue(all(final['lanes'][lane]['exit_code']==0 for lane in ACTIVE_LANES) and all(final['lanes'][lane]['pid'] is None for lane in PAUSED_LANES),
                     {'lanes':final['lanes'],'offline_log':(root/'test.log').read_text()[-8000:]})
                 again=subprocess.run(command[:-1]+['2'],cwd=SOURCE_ROOT,stdout=log,stderr=log,timeout=25)
                 self.assertEqual(again.returncode,0)
                 with closing(PortfolioAccounting(root/'portfolio.sqlite',wait_for_writer=True)) as account:
                     state=account.snapshot();self.assertEqual(set(state['positions']),initial)
-                    self.assertEqual(len(initial),4);self.assertFalse(state['reservations'])
+                    self.assertEqual(len(initial),2);self.assertFalse(state['reservations'])
                     self.assertTrue(account.verify_archive()['verified'])
                     self.assertTrue(state['receipt']['epoch_id'].startswith('offline-fixture-'))
             finally:

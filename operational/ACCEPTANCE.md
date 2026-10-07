@@ -21,7 +21,7 @@ validates configuration without network I/O or inception.
    modes). The non-secret storage configuration must also be readable by that
    user; keep provider env files root:root 0600.
 3. Prepare `/opt/meme-machine` at that exact commit, CPython **3.12.14** and
-   `websockets==17.1`. Verify SQLite **3.45.1** or the tested compatible successor.
+   the pinned `requirements.txt` (including Model B gRPC). Verify SQLite **3.45.1** or the tested compatible successor.
    Run `python -m operational.tests FAST`, then `python -m operational.tests OPERATIONAL`.
 4. Preserve the two existing read-only provider URLs in the protected env file.
    Install `deployment/meme-machine-paper.service`; configure bounded journald
@@ -60,10 +60,18 @@ CAPACITY run. Do not combine results from different runtime candidates. Keep an
 ordinary operational handoff outside Git with exact identities, epoch, unit,
 timestamps, paths, results and next action.
 
-CAPACITY requires continued target evidence acquisition, bounded queues/storage
+Before market observation, bind explicit request/CU, storage and elapsed-time
+ceilings to a separately authorized PAPER run. This consolidation authorizes
+offline validation only; no defaults here grant a provider-spending budget.
+
+CAPACITY requires independent progress for Pump, PumpSwap and Pons canonical
+coverage, complete Pons startup nomination coverage, bounded queues/storage
 and memory within the existing 2 dedicated vCPU / 8 GiB host. Inspect CPU,
 provider failures, backlog and maintenance completion alongside its measurements.
-RECOVERY deliberately kills each lane and then the supervisor; verify the same
+The active operational set is exactly `pump, pons`; `meteora, ramses` must remain
+explicitly PAUSED with zero strategy processes or new work, including after
+recovery. Their historical accounting stays mandatory. RECOVERY deliberately
+kills each active lane and then the supervisor; verify the same
 epoch, complete native/portfolio reconciliation, no duplicate entries or lost
 positions, no pending deliveries or stranded reservations, and resumed management
 before discovery. A strategy exit during recovery remains a valid native exit.
