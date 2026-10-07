@@ -236,7 +236,7 @@ class LocalPumpTape:
         db=self.plane.reader.db;db.execute('BEGIN')
         try:
             rows=db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
-                WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY a.slot DESC LIMIT 1000''',
+                WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY r.slot DESC LIMIT 1000''',
                 (mint,PUMP_SCOPE,self.plane.clock())).fetchall()
             for raw,seen in rows:
                 if raw:

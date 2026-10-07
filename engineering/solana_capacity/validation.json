@@ -1,0 +1,112 @@
+{
+  "verified_UTC": "2026-10-07T11:40:25.578601+00:00",
+  "FOCUSED": {
+    "tests": 107,
+    "seconds": 33.933,
+    "result": "PASS",
+    "failure_identities": [],
+    "log": "engineering/solana_capacity/validation/focused.log",
+    "log_sha256": "f4f3a8b0937fd9773edf3dfcd27b82bc2a1551ba77102af2a9fe8469afeed23e"
+  },
+  "FAST": {
+    "tests": 617,
+    "seconds": 62.13,
+    "result": "PASS",
+    "failure_identities": [],
+    "log": "engineering/solana_capacity/validation/fast.log",
+    "log_sha256": "ec4c09e03ea166f8b7ddbe6ae3bc3b0e3b066a699b19e48abb07b56897087d43"
+  },
+  "AFFECTED_OPERATIONAL": {
+    "result": "PENDING",
+    "scope": "Full OPERATIONAL, including all affected paths"
+  },
+  "gates": {
+    "METEORA_STRUCTURAL_PROMOTION": "PASS",
+    "CANDIDATE_REACTIVATION": "PASS",
+    "SCOPED_COLD_RETIREMENT": "PASS",
+    "SIMULTANEOUS_PROVIDER_CAPACITY": "FAIL",
+    "ACK_REPLAY_HANDOFF": "PASS",
+    "CANDIDATE_RESTART_RECOVERY": "PASS",
+    "METEORA_POSITIVE_PARITY": "PASS"
+  },
+  "MEASURED_COST_MODEL": "FAIL",
+  "GitHub_failure_identity_parity": {
+    "result": "PENDING",
+    "base_commit": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+    "base_run": 37548780045,
+    "accepted_identities": [
+      [
+        "ERROR",
+        "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+      ],
+      [
+        "ERROR",
+        "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+      ],
+      [
+        "FAIL",
+        "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+      ],
+      [
+        "FAIL",
+        "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+      ],
+      [
+        "FAIL",
+        "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+      ],
+      [
+        "FAIL",
+        "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+      ],
+      [
+        "FAIL",
+        "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+      ],
+      [
+        "FAIL",
+        "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+      ]
+    ]
+  },
+  "OPERATIONAL_BOUNDARY": {
+    "tests": 6,
+    "seconds": 101.349,
+    "result": "PASS",
+    "failure_identities": [],
+    "log": "engineering/solana_capacity/validation/operational-boundary.log",
+    "log_sha256": "b94e3de305e20f21e1c83cf6807aeff4961e53ece1ad071c63c6451ee1e1adee"
+  },
+  "earlier_corrected_regressions": [
+    "Protected native Meteora AST changes moved into observation wrappers.",
+    "Only look up native freshness clock when retrying missing interval proof.",
+    "Rotation passthrough respects absent fixture adapters."
+  ],
+  "earlier_operational_attempt": {
+    "tests": 2031,
+    "result": "FAIL",
+    "failure_identities": [
+      [
+        "ERROR",
+        "test_sustained_source_clock_candidate_progress_and_durable_drain (tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain)"
+      ],
+      [
+        "FAIL",
+        "test_meteora_recovered_native_lifecycle_does_not_block_discovery (tests.test_native_continuity.ContinuityTests.test_meteora_recovered_native_lifecycle_does_not_block_discovery)"
+      ]
+    ],
+    "note": "Both boundary reruns passed; complete final suite is required before finalizing validation."
+  }
+}

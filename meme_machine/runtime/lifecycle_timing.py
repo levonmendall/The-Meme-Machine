@@ -76,6 +76,8 @@ def meteora_preentry_remaining_ok(deadline, *, clock=None):
 
 def install_meteora(module):
     """Install hourly-only pre-entry cutoff and asynchronous durable lifecycle ownership."""
+    from .solana_warming import install
+    install(module)
     if getattr(module, "_continuation_attached", False):
         return
     module._continuation_attached = True
@@ -97,7 +99,8 @@ def install_meteora(module):
         adapter, candidate, compatibility_state, policy, pacer, rpcs,
         deadline=None, broker=None
     ):
-        if _hourly() and not meteora_preentry_remaining_ok(deadline):
+        if (_hourly() and not candidate.get("provider_structural")
+                and not meteora_preentry_remaining_ok(deadline)):
             remaining = None if deadline is None else max(0.0, float(deadline)-time.monotonic())
             return (
                 dict(

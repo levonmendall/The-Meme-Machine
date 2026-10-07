@@ -45,12 +45,22 @@ class CandidateLifecycle:
             self.writer.path.parent/'solana-candidate-history.sqlite')
         if str(self.path)==str(self.writer.path):raise EvidenceUnavailable('candidate_history_store_must_be_separate')
         self.db.executescript(SCHEMA)
+        if 'priority' not in {r[1] for r in self.db.execute('PRAGMA table_info(candidate_history_outbox)')}:
+            self.db.execute('ALTER TABLE candidate_history_outbox ADD COLUMN priority INTEGER NOT NULL DEFAULT 3')
+            self.db.execute("UPDATE candidate_history_outbox SET priority=CASE kind WHEN 'canonical' THEN 0 WHEN 'promotion' THEN 1 ELSE 3 END")
+        self.db.execute('CREATE INDEX IF NOT EXISTS candidate_history_dispatch ON candidate_history_outbox(consumed,priority,created)')
+        self.db.execute('CREATE INDEX IF NOT EXISTS candidate_history_identity_pending ON candidate_history_outbox(family,address,consumed)')
 
     def emit(self,family,address,kind,body,*,at=None):
         at=self.clock() if at is None else at
         identity=digest([family,address,kind,body])
-        self.db.execute('INSERT OR IGNORE INTO candidate_history_outbox VALUES(?,?,?,?,?,?,?,NULL)',
-            (identity,family,address,kind,canonical(body),digest(body),at))
+        priority=0 if kind=='canonical' else 1 if kind=='promotion' else 3
+        if priority==3:
+            active=self.db.execute("SELECT 1 FROM candidate_lifecycle WHERE family=? AND address=? AND state IN ('queued','warming','active')",(family,address)).fetchone()
+            pinned=self.db.execute('SELECT 1 FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 AND s.address=? AND s.scope=? LIMIT 1',(address,FAMILIES[family])).fetchone()
+            if active or pinned:priority=2
+        self.db.execute('INSERT OR IGNORE INTO candidate_history_outbox(id,family,address,kind,body,hash,created,consumed,priority) VALUES(?,?,?,?,?,?,?,NULL,?)',
+            (identity,family,address,kind,canonical(body),digest(body),at,priority))
         return identity
 
     def observe(self,family,address,*,slot,seen,fields,activity=False,signature=''):
@@ -65,7 +75,7 @@ class CandidateLifecycle:
             self.emit(family,address,'scout',dict(slot=slot,seen=seen,fields=fields,signature=signature),at=seen)
             if activity:
                 self.wake(family,address,slot=slot,seen=seen,signature=signature,
-                    evidence=dict(source='finalized_account_write',**fields))
+                    evidence=dict(fields,source='finalized_account_write'))
 
     def wake(self,family,address,*,slot,seen,signature,evidence):
         """Accept a conservative activity superset without inventing an event."""
@@ -101,6 +111,7 @@ class CandidateLifecycle:
             if deadline<=self.clock():raise EvidenceUnavailable('candidate_decision_deadline_missed')
             lo=row[4] if lower_slot is None else lower_slot
             self.history.bind(family,address)
+            self.db.execute("UPDATE candidate_history_outbox SET priority=MIN(priority,2) WHERE family=? AND address=? AND consumed IS NULL",(family,address))
             self.db.execute("UPDATE candidate_lifecycle SET state='queued',deadline=?,lower_slot=? WHERE family=? AND address=?",
                 (deadline,lo,family,address))
             body=dict(epoch=row[1],first_slot=row[2],observed_at=row[3],first_seen=row[5],ready_at=self.clock(),
@@ -132,51 +143,55 @@ class CandidateLifecycle:
         """
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
         rows=self.db.execute('''SELECT id,family,address,kind,body,hash,created FROM candidate_history_outbox
-            WHERE consumed IS NULL ORDER BY CASE kind WHEN 'canonical' THEN 0 WHEN 'promotion' THEN 1 ELSE 2 END,
-            created,rowid LIMIT ?''',(limit,)).fetchall()
+            WHERE consumed IS NULL ORDER BY priority,created,rowid LIMIT ?''',(limit,)).fetchall()
         if not rows:return 0
         with closing(CandidateHistory(self.path,clock=self.clock)) as shared:
             shared.db.execute('''CREATE TABLE IF NOT EXISTS source_receipts(
                 id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,kind TEXT NOT NULL,
                 at REAL NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL)''')
-            for identity,family,address,kind,raw,checksum,at in rows:
-                body=json.loads(raw)
-                if digest(body)!=checksum:raise EvidenceUnavailable('candidate_history_outbox_corrupt')
-                lane='pump' if family in ('pump','pumpswap') else 'meteora'
-                bind=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
-                candidate=address if not bind else bind[0]
-                if kind=='scout':
-                    shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
-                        observed_at=int(at),metadata=dict(structural_scout=body['fields'],recoverable=True))
-                elif kind=='canonical':
-                    r=body['record']
-                    if family=='pump':
-                        event=dict(r['payload']['event'],_economic_order=r['transaction_index'],available_time=int(body['available']))
-                        shared.retain_pump_source_history([dict(identity=r['identity'],slot=r['slot'],
-                            transaction_index=r['transaction_index'],event_index=r['event_index'],market_time=r['market_time'],event=event)])
-                    elif family=='pumpswap':shared.retain_pumpswap_record(candidate,r,r['transaction_index'])
-                    # Meteora raw records remain canonical. Its native verified
-                    # tape commits normalized economics through the existing lane.
-                elif kind=='promotion':
-                    shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
-                        observed_at=int(body['first_seen']),decision_deadline=int(body['decision_deadline']),
-                        metadata=dict(provider_promotion=identity,evidence_state='queued',recoverable=True))
-                    if family=='meteora':
-                        item=dict(address=address,signal_observed_at=int(body['observed_at']),
-                            provider_structural=True,provider_promotion_id=identity,
-                            decision_deadline=body['decision_deadline'],lower_slot=body['lower_slot'])
-                        shared.enqueue(lane,candidate,kind='warmup',ready_at=body['ready_at'],
-                            deadline=body['decision_deadline'],estimate_seconds=147,priority=30,
-                            identity='provider:'+identity,payload=dict(candidate=item))
-                else:
-                    shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
-                        observed_at=int(at),metadata=dict(evidence_state=kind,recoverable=True))
-                receipt=dict(source_hash=checksum,scope=coverage_scope(family,address),
-                    canonical_identity=(body.get('record') or {}).get('identity'))
-                with shared.transaction():
-                    shared.db.execute('INSERT OR IGNORE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
-                        (identity,family,address,kind,at,canonical(receipt),digest(receipt)))
-                with self.writer.transaction():
+            with shared.transaction():
+                for identity,family,address,kind,raw,checksum,at in rows:
+                    body=json.loads(raw)
+                    if digest(body)!=checksum:raise EvidenceUnavailable('candidate_history_outbox_corrupt')
+                    lane='pump' if family in ('pump','pumpswap') else 'meteora'
+                    bind=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
+                    candidate=address if not bind else bind[0]
+                    if kind=='scout':
+                        shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
+                            observed_at=int(at),metadata=dict(structural_scout=body['fields'],recoverable=True))
+                    elif kind=='canonical':
+                        r=body['record']
+                        if family=='pump':
+                            event=dict(r['payload']['event'],_economic_order=r['transaction_index'],available_time=int(body['available']))
+                            shared.retain_pump_source_history([dict(identity=r['identity'],slot=r['slot'],
+                                transaction_index=r['transaction_index'],event_index=r['event_index'],market_time=r['market_time'],event=event)])
+                        elif family=='pumpswap':shared.retain_pumpswap_record(candidate,r,r['transaction_index'])
+                        # Meteora raw records remain canonical. Its native verified
+                        # tape commits normalized economics through the existing lane.
+                    elif kind=='promotion':
+                        shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
+                            observed_at=int(body['first_seen']),decision_deadline=int(body['decision_deadline']),
+                            metadata=dict(provider_promotion=identity,evidence_state='queued',recoverable=True))
+                        if family=='meteora':
+                            item=dict(address=address,signal_observed_at=int(body['observed_at']),
+                                provider_structural=True,provider_promotion_id=identity,
+                                decision_deadline=body['decision_deadline'],lower_slot=body['lower_slot'])
+                            shared.enqueue(lane,candidate,kind='warmup',ready_at=body['ready_at'],
+                                deadline=body['decision_deadline'],estimate_seconds=147,priority=30,
+                                identity='provider:'+identity,payload=dict(candidate=item))
+                    else:
+                        shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
+                            observed_at=int(at),metadata=dict(evidence_state=kind,recoverable=True))
+                    receipt=dict(source_hash=checksum,scope=coverage_scope(family,address),
+                        canonical_identity=(body.get('record') or {}).get('identity'))
+                    with shared.transaction():
+                        shared.db.execute('INSERT OR IGNORE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
+                            (identity,family,address,kind,at,canonical(receipt),digest(receipt)))
+            # Coverage/ACK may advance only after the external FULL commit.
+            # Failure here replays the identical receipt batch idempotently.
+            with self.writer.transaction():
+                for identity,family,address,kind,raw,checksum,at in rows:
+                    body=json.loads(raw)
                     if kind=='canonical':
                         compact=dict(source_hash=checksum,record=dict(identity=body['record']['identity'],
                             slot=body['record']['slot']),available=body['available'])
@@ -199,7 +214,9 @@ class CandidateLifecycle:
             if cursor>hi:break
         if cursor<=hi:result.append((cursor,hi))
         result.extend((max(lo,a),min(hi,b if b is not None else hi)) for a,b in self.db.execute(
-            'SELECT lo,hi FROM candidate_gaps WHERE scope=? AND repaired IS NULL AND lo<=? AND (hi IS NULL OR hi>=?)',(scope,hi,lo)))
+            '''SELECT lo,hi FROM candidate_gaps WHERE scope=? AND created<=?
+                AND (repaired IS NULL OR repaired>?) AND lo<=? AND (hi IS NULL OR hi>=?)''',
+            (scope,self.clock(),self.clock(),hi,lo)))
         merged=[]
         for a,b in sorted(result):
             if merged and a<=merged[-1][1]+1:merged[-1]=(merged[-1][0],max(b,merged[-1][1]))
@@ -214,9 +231,29 @@ class CandidateLifecycle:
                 checkpoint=self.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(row['scope'],)).fetchone()
                 lo=row['lower_slot'] if checkpoint is None else max(row['lower_slot'],checkpoint[0]+1)
                 for a,b in self.missing(row['scope'],lo,tip):
-                    self.history.gap(row['scope'],a,b,'candidate_restart_or_subscription_rebuild')
-                    jobs.append(self.history.request(row['family'],row['address'],a,b,
-                        priority=row['priority'],deadline=row['deadline']))
+                    # Pending work is an obligation, never a coverage proof.
+                    # Rebuilds may share that obligation across authenticated
+                    # aliases instead of restarting the same archive at zero.
+                    remaining=[(a,b)]
+                    pending=self.db.execute('''SELECT id,address,lo,hi FROM acquisition_jobs
+                        WHERE family=? AND status='pending' AND deadline>? AND lo<=? AND hi>=?
+                        ORDER BY lo,hi''',(row['family'],self.clock(),b,a)).fetchall()
+                    for identity,address,p,q in pending:
+                        if self.history.scope_for(row['family'],address)!=row['scope']:continue
+                        if not any(p<=y and q>=x for x,y in remaining):continue
+                        self.db.execute('UPDATE acquisition_jobs SET priority=MIN(priority,?),deadline=MIN(deadline,?) WHERE id=?',
+                            (row['priority'],row['deadline'],identity))
+                        if identity not in jobs:jobs.append(identity)
+                        tail=[]
+                        for x,y in remaining:
+                            if p>y or q<x:tail.append((x,y));continue
+                            if x<p:tail.append((x,p-1))
+                            if q<y:tail.append((q+1,y))
+                        remaining=tail
+                    for x,y in remaining:
+                        self.history.gap(row['scope'],x,y,'candidate_restart_or_subscription_rebuild')
+                        jobs.append(self.history.request(row['family'],row['address'],x,y,
+                            priority=row['priority'],deadline=row['deadline']))
         return jobs
 
     def checkpoint(self,scope,slot,receipt):

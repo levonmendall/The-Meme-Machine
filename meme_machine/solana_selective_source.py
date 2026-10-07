@@ -13,6 +13,7 @@ import time
 import uuid
 import grpc
 from websockets.asyncio.client import connect
+from websockets.exceptions import ConnectionClosed
 from .solana_activity_routes import ActivityRoutes,shards
 from .solana_candidate_join import CandidateTransactionJoin,candidate_subscription
 from .solana_native_evidence import economic_transaction,pubkey,signature
@@ -25,6 +26,8 @@ from .yellowstone import geyser_pb2 as pb
 HOST='solana-mainnet.streaming.alchemy.com:443'
 MAX_FRAME_BYTES=16*1024*1024
 MAX_LIVE_CANDIDATES=48
+ARCHIVE_WORKERS=8
+SCOUT_COMMIT_BATCH=64
 # This integration candidate must never silently activate an unproved source.
 # These are implementation/validation gaps, not owner-approval requirements.
 PRODUCTION_BLOCKERS=(
@@ -105,19 +108,19 @@ def block_message(frame):
         block=dict(parentSlot=b.parent_slot,blockhash=b.blockhash,previousBlockhash=b.parent_blockhash,
                    blockTime=b.block_time.timestamp,transactions=[])))))
 
-def commit_control(state,frame):
+def commit_control(state,frame,*,active=True):
     install(state);b=frame.update.block;seen=frame.seen
     prepared=dict(endpoint_identity=state.fence.endpoint_identity,observed_at=seen,
                   slot=b.slot,signatures=[],batches=[],deliveries=[])
     with state.writer.source_frame():
         state.fence.block(Subscription('source',CONTROL,'control','census',2),block_message(frame),seen,prepared=prepared)
-        state.fence._health('phase','ACTIVE');state.fence._health('heartbeat',seen)
+        state.fence._health('phase','ACTIVE' if active else 'DEGRADED');state.fence._health('heartbeat',seen)
         # Source coordinates inform bounded storage maintenance, never global
         # economic completeness. Candidate proofs live in a separate namespace.
         for scope in FAMILIES.values():
             state.fence._health('finalized_frontier:'+scope,dict(slot=b.slot,time=b.block_time.timestamp,seen=seen))
 
-def commit_candidates(state,frame,addresses,session):
+def commit_candidates(state,frame,addresses,session,*,publish=True):
     history=install(state);b=frame.update.block;seen=frame.seen
     bodies={signature(tx.signature):economic_transaction(tx,slot=b.slot,
         block_time=b.block_time.timestamp,rich=True) for tx in b.transactions}
@@ -157,7 +160,7 @@ def commit_candidates(state,frame,addresses,session):
                     native_order=True,transaction_bodies_only_for_meteora=True)
                 history.lifecycle.defer_proof(IntervalProof(scope,old[0],b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,seen))
             state.writer.db.execute('INSERT OR REPLACE INTO candidate_blocks VALUES(?,?,?,?,?,?,?,?,?)',(scope,*values))
-    history.lifecycle.publish()
+    if publish:history.lifecycle.publish()
 
 def plan_live(state):
     history=install(state);now=time.time();db=state.writer.db
@@ -197,18 +200,101 @@ class SelectiveSource:
     def __init__(self,config,rpc,*,token=None):
         self.config=config;self.rpc=rpc;self.token=token or config.credential
         self.work=None;self.stop=None
+        self.observer=None
+        self.batched=False;self.pending_delivery={};self.delivery_lock=asyncio.Lock();self.control_connected=False
+
+    def observe(self,kind,**values):
+        if self.observer is not None:self.observer(kind,values)
+
+    async def delivered(self,family,transport,size,seen,priority=2):
+        if not self.batched:
+            await self.work(lambda s:install(s).delivery(family,transport,raw_bytes=size,seen=seen),priority)
+            return
+        key=(int(seen)//86400,family,transport)
+        total,first=self.pending_delivery.get(key,(0,seen))
+        self.pending_delivery[key]=(total+size,first)
+
+    async def flush_delivery(self):
+        async with self.delivery_lock:
+            pending=dict(self.pending_delivery)
+            if not pending:return
+            def commit(state):
+                h=install(state)
+                with state.writer.transaction():
+                    for (_,family,transport),(size,seen) in pending.items():
+                        h.delivery(family,transport,raw_bytes=size,seen=seen)
+            await self.work(commit,2)
+            for key,(size,seen) in pending.items():
+                remaining=self.pending_delivery[key][0]-size
+                if remaining:self.pending_delivery[key]=(remaining,self.pending_delivery[key][1])
+                else:del self.pending_delivery[key]
+
+    async def publish_history(self):
+        try:
+            while not self.stop.is_set():
+                await self.flush_delivery()
+                await self.work(lambda s:install(s).lifecycle.publish(),2,label='source_commit')
+                await asyncio.sleep(.1)
+        finally:await self.flush_delivery()
+
+    async def control_commits(self,queue):
+        while not self.stop.is_set():
+            first=await queue.get();batch=[first]
+            # The same eight-frame durable batch bound as the shared service.
+            await asyncio.sleep(.01)
+            while len(batch)<8:
+                try:batch.append(queue.get_nowait())
+                except asyncio.QueueEmpty:break
+            def commit(state):
+                with state.writer.transaction():
+                    for frame in batch:commit_control(state,frame,active=self.control_connected)
+            await self.work(commit,2,label='source_commit')
+            for _ in batch:queue.task_done()
+
+    async def control_stream(self,channel,tip,queue):
+        retry=0
+        while not self.stop.is_set():
+            checkpoint=await self.work(lambda s:s.writer.db.execute(
+                'SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0],2)
+            floor=max(1,(tip if checkpoint is None else checkpoint)-CONTROL_OVERLAP)
+            req=pb.SubscribeRequest(commitment=pb.FINALIZED,from_slot=floor)
+            req.blocks_meta['b'].SetInParent();req.slots['f'].filter_by_commitment=True
+            join=CandidateTransactionJoin({},set(),filtered_from_slot=floor)
+            async def control(update,size,seen):
+                self.control_connected=True
+                frame=join.feed(update,size,seen)
+                if frame:await queue.put(frame)
+            try:
+                await self.stream(channel,req,control,'shared');return
+            except EvidenceUnavailable as exc:
+                if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled'):raise
+                self.control_connected=False
+                retry+=1
+                def disconnected(state):
+                    h=install(state)
+                    state.fence._health('phase','DEGRADED')
+                    h._observation(None,'control_reconnect',dict(reason=str(exc),attempt=retry,checkpoint=checkpoint))
+                await self.work(disconnected,0)
+                await queue.join()
+                await asyncio.sleep(min(8,.5*2**min(retry-1,4)))
     async def measured_rpc(self,method,params,family,priority=4):
-        try:result,receipt=await asyncio.to_thread(self.rpc.call_delivered,method,params,priority)
-        except ValueError as exc:
-            receipt=getattr(exc,'receipt',None)
-            if receipt is not None:
-                await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
-                    rpc_cu=receipt['cu'],calls=1),priority)
-            raise
-        await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
-            rpc_cu=receipt['cu'],calls=1),priority)
-        return result
+        for attempt in range(3):
+            try:result,receipt=await asyncio.to_thread(self.rpc.call_delivered,method,params,priority)
+            except ValueError as exc:
+                receipt=getattr(exc,'receipt',None)
+                if receipt is not None:
+                    await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
+                        rpc_cu=receipt['cu'],calls=1),priority)
+                if not getattr(exc,'retryable',False) or attempt==2:raise
+                await self.work(lambda s:install(s)._observation(None,'rpc_retry',dict(method=method,
+                    family=family,attempt=attempt+1,deadline_reset=False,cause_kind=getattr(exc,'cause_kind',None))),priority)
+                await asyncio.sleep(.2*(attempt+1));continue
+            await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
+                rpc_cu=receipt['cu'],calls=1),priority)
+            return result
     async def stream(self,channel,request,handler,family,local_stop=None):
+        stream_id=uuid.uuid4().hex
+        self.observe('subscribe',stream_id=stream_id,family=family,request=request)
         call=channel.stream_stream('/geyser.Geyser/Subscribe',request_serializer=lambda r:r.SerializeToString(),
             response_deserializer=lambda r:r)(metadata=(('x-token',self.token),))
         await call.write(request);pending=None
@@ -221,8 +307,9 @@ class SelectiveSource:
                 if raw is grpc.aio.EOF:raise EvidenceUnavailable('candidate_native_eof')
                 if len(raw)>MAX_FRAME_BYTES:raise EvidenceUnavailable('candidate_native_frame_bound')
                 at=time.time()
+                self.observe('delivery',stream_id=stream_id,family=family,transport='yellowstone',raw=raw,seen=at)
                 # Delivery counts before parsing, routing, filtering or dedup.
-                await self.work(lambda s:install(s).delivery(family,'yellowstone',raw_bytes=len(raw),seen=at),2)
+                await self.delivered(family,'yellowstone',len(raw),at)
                 update=pb.SubscribeUpdate.FromString(raw);kind=update.WhichOneof('update_oneof')
                 if kind=='ping':await call.write(pb.SubscribeRequest(ping=pb.SubscribeRequestPing(id=1)));continue
                 if kind=='pong':continue
@@ -231,33 +318,79 @@ class SelectiveSource:
         finally:
             if pending:pending.cancel();await asyncio.gather(pending,return_exceptions=True)
             call.cancel()
+            self.observe('unsubscribe',stream_id=stream_id,family=family)
+
+    async def scout_stream(self,channel,tip,handler):
+        """Retry transport failure with the original overlapping scout boundary.
+
+        Account locators grant neither economic coverage nor entry authority.
+        Retrying never advances a canonical or CandidateHistory checkpoint.
+        """
+        retry=0
+        while not self.stop.is_set():
+            request=scout_request();request.from_slot=max(1,tip-CONTROL_OVERLAP)
+            try:
+                await self.stream(channel,request,handler,'discovery');return
+            except EvidenceUnavailable as exc:
+                if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled'):raise
+                retry+=1
+                def record(state):
+                    h=install(state)
+                    h._observation(None,'scout_reconnect',dict(reason=str(exc),attempt=retry,
+                        from_slot=request.from_slot,economic_coverage_claim=False,checkpoint_advanced=False))
+                await self.work(record,1)
+                await asyncio.sleep(min(8,.5*2**min(retry-1,4)))
 
     async def __call__(self,work,stop):
         require_certified()
-        self.work=work;self.stop=stop;await work(install,0)
+        return await self.run(work,stop)
+
+    async def run(self,work,stop):
+        """The production read-only driver; also used by bounded certification.
+
+        The supported service still applies require_certified before entering.
+        This method neither starts a PAPER lifecycle nor grants entry authority.
+        """
+        original_work=work
+        async def resumable(fn,priority=1,**options):
+            while True:
+                try:return await original_work(fn,priority,**options)
+                except EvidenceUnavailable as exc:
+                    if str(exc)!='evidence_background_yield' or stop.is_set():raise
+                    # This is a cooperative rollback, not a missing receipt or a
+                    # provider failure. Retry the same idempotent owner command.
+                    await asyncio.sleep(.01)
+        work=resumable
+        self.work=work;self.stop=stop;self.batched=True;await work(install,0)
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
                 ('grpc.max_receive_message_length',MAX_FRAME_BYTES),('grpc.max_send_message_length',4*1024*1024),('grpc.http2.bdp_probe',0)]) as channel:
-            req=pb.SubscribeRequest(commitment=pb.FINALIZED,from_slot=max(1,tip-CONTROL_OVERLAP))
-            req.blocks_meta['b'].SetInParent();req.slots['f'].filter_by_commitment=True
-            join=CandidateTransactionJoin({},set(),filtered_from_slot=req.from_slot)
-            async def control(update,size,seen):
-                frame=join.feed(update,size,seen)
-                if frame:await work(lambda s:commit_control(s,frame),2,label='source_commit')
+            control_queue=asyncio.Queue(maxsize=64)
             async def scouts(update,size,seen):
                 if update.WhichOneof('update_oneof')!='account':raise EvidenceUnavailable('candidate_scout_filter')
                 await work(lambda s:commit_scout(s,update,seen),5,label='source_commit')
-            tasks=[asyncio.create_task(self.stream(channel,req,control,'shared')),
-                   asyncio.create_task(self.stream(channel,scout_request(),scouts,'discovery')),
+            tasks=[asyncio.create_task(self.control_stream(channel,tip,control_queue)),
+                   asyncio.create_task(self.scout_stream(channel,tip,scouts)),
                    asyncio.create_task(self.structural_census()),
-                   asyncio.create_task(self.acquire()),asyncio.create_task(self.live_manager(channel)),
+                   asyncio.create_task(self.acquire_pool()),asyncio.create_task(self.live_manager(channel)),
                    asyncio.create_task(self.activity_manager(channel)),
                    asyncio.create_task(self.cold_maintenance()),
+                   asyncio.create_task(self.publish_history()),
+                   asyncio.create_task(self.control_commits(control_queue)),
                    asyncio.create_task(stop.wait())]
             try:
-                done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
-                for task in done:
-                    if task is not tasks[-1]:task.result()
+                remaining=set(tasks)
+                while not stop.is_set():
+                    done,_=await asyncio.wait(remaining,return_when=asyncio.FIRST_COMPLETED)
+                    if stop.is_set():return
+                    for task in done:
+                        task.result()
+                        if task is tasks[-1]:return
+                        if task is tasks[2]:
+                            # The startup structural census is finite. Completing
+                            # it must not terminate discovery/positions/recovery.
+                            remaining.remove(task)
+                        else:raise EvidenceUnavailable('candidate_source_task_stopped')
             finally:
                 for task in tasks:task.cancel()
                 await asyncio.gather(*tasks,return_exceptions=True)
@@ -288,10 +421,10 @@ class SelectiveSource:
                 next_token=value.get('paginationKey')
                 if next_token is not None and (not isinstance(next_token,str) or not next_token or next_token==token):
                     raise EvidenceUnavailable('repair_pagination_stalled')
-                def commit(state):
+                def commit(state,rows):
                     h=install(state);seen=h.clock()
                     with state.writer.transaction():
-                        for row in value['accounts']:
+                        for row in rows:
                             account=row['account'];data=base64.b64decode(account['data'][0],validate=True)
                             if account['owner']!=PROGRAMS['meteora'] or len(data)!=152:
                                 raise EvidenceUnavailable('candidate_scout_fields_missing')
@@ -301,10 +434,21 @@ class SelectiveSource:
                             h.observe('meteora',row['pubkey'],slot=context['slot'],signature='',seen=seen,
                                 fields=dict(wsol_pair_locator=True,activity=False,economic_event=False,
                                     history_complete=False,source='paginated_structural_census'))
-                        state.writer.db.execute('INSERT OR REPLACE INTO structural_census VALUES(?,?,?,?,?)',
-                            (label,next_token,'complete' if next_token is None else 'pending',context['slot'],seen))
                     h.lifecycle.publish()
-                await self.work(commit,6,label='source_commit')
+                # Provider pages remain complete and are not filtered. Only the
+                # owner transaction is sliced so discovery cannot monopolize
+                # control, position or deadline-sensitive canonical commits.
+                for offset_in_page in range(0,len(value['accounts']),SCOUT_COMMIT_BATCH):
+                    rows=value['accounts'][offset_in_page:offset_in_page+SCOUT_COMMIT_BATCH]
+                    await self.work(lambda state,rows=rows:commit(state,rows),6,label='source_commit')
+                def checkpoint(state):
+                    h=install(state)
+                    with state.writer.transaction():
+                        state.writer.db.execute('INSERT OR REPLACE INTO structural_census VALUES(?,?,?,?,?)',
+                            (label,next_token,'complete' if next_token is None else 'pending',context['slot'],h.clock()))
+                # A crash inside a page repeats its unchanged durable cursor;
+                # account identities/history deduplicate the completed slices.
+                await self.work(checkpoint,6,label='source_commit')
                 if next_token is None:break
                 token=next_token
 
@@ -351,14 +495,24 @@ class SelectiveSource:
             def retire(state):
                 h=install(state);h.lifecycle.publish()
                 return ScopedRetirement(h).retire(limit=64)
-            await self.work(retire,6,label='retention')
+            # The owner installs its existing urgent SQL interruption hook for
+            # maintenance priority four. Interrupted slices retry durably.
+            await self.work(retire,4,label='retention')
             await asyncio.sleep(1)
+
+    async def acquire_pool(self):
+        tasks=[asyncio.create_task(self.acquire()) for _ in range(ARCHIVE_WORKERS)]
+        try:await asyncio.gather(*tasks)
+        finally:
+            for task in tasks:task.cancel()
+            await asyncio.gather(*tasks,return_exceptions=True)
 
     async def acquire(self):
         while not self.stop.is_set():
             def request_development(state):
                 from .lanes.pump.pump_acceleration_strategy import POLICY
                 h=install(state);db=state.writer.db
+                if not hasattr(state,'acquisition_inflight'):state.acquisition_inflight=set()
                 frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
                 if frontier is not None:
                     for addr,fields in db.execute('''SELECT address,fields FROM market_observations m WHERE family='pump'
@@ -371,13 +525,14 @@ class SelectiveSource:
                         ScopedRetirement(h).restore(family,addr)
                         h.lifecycle.promote(family,addr,deadline=time.time()+150,lower_slot=0 if family=='pump' else lo)
                 h.lifecycle.publish()
-                return h.plan()
+                result=h.plan(excluding=tuple(state.acquisition_inflight))
+                if result:
+                    state.acquisition_inflight.add(result[0]['id'])
+                    result[0]['finalized_hint']=frontier
+                return result
             plan=await self.work(request_development,4)
             if not plan:await asyncio.sleep(.1);continue
             job,config=plan
-            value=await self.measured_rpc('getTransactionsForAddress',[job['address'],config],job['family'],job['priority'])
-            finalized=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',job['priority'])
-            if finalized<job['hi']:await asyncio.sleep(.1);continue
             def commit(state):
                 h=install(state)
                 if job['family']=='pump':
@@ -401,31 +556,74 @@ class SelectiveSource:
                 result=h.commit_page(job,value,finalized_through=finalized)
                 h.lifecycle.publish()
                 return result
-            await self.work(commit,job['priority'],label='source_commit')
+            try:
+                value=await self.measured_rpc('getTransactionsForAddress',[job['address'],config],job['family'],job['priority'])
+                # The immutable upper bound is already finalized when the linked
+                # control stream has durably covered it. Only missing authority
+                # needs an additional physical finality read for this page.
+                finalized=job.get('finalized_hint')
+                if finalized is None or finalized<job['hi']:
+                    finalized=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',job['priority'])
+                if finalized<job['hi']:await asyncio.sleep(.1);continue
+                try:await self.work(commit,job['priority'],label='source_commit')
+                except ValueError as exc:
+                    if isinstance(exc,EvidenceUnavailable):
+                        if str(exc)!='candidate_page_lease_stale':raise
+                        def expired(state):
+                            h=install(state)
+                            row=h.db.execute('SELECT status,deadline FROM acquisition_jobs WHERE id=?',(job['id'],)).fetchone()
+                            if not row or row[0]!='deadline_missed' or row[1]>h.clock():raise EvidenceUnavailable('candidate_page_lease_stale')
+                            h._observation(job['id'],'late_page_after_original_deadline',dict(deadline=row[1],canonical_admission=False,deadline_reset=False))
+                        await self.work(expired,job['priority'])
+                    elif str(exc) in ('truncated trade event','truncated create event'):
+                        # Frozen decoder incompatibility is scoped and explicit.
+                        # Preserve the candidate, deadline and missing interval;
+                        # never certify the page or terminate unrelated positions.
+                        def unavailable(state):
+                            h=install(state)
+                            with state.writer.transaction():
+                                h.db.execute("UPDATE acquisition_jobs SET status='failed',error=?,updated=? WHERE id=? AND status='pending'",
+                                    ('candidate_archive_decoder_unavailable',h.clock(),job['id']))
+                                h.gap(h.scope_for(job['family'],job['address']),job['lo'],job['hi'],'candidate_archive_decoder_unavailable')
+                                h._observation(job['id'],'archive_decoder_unavailable',dict(reason=str(exc),
+                                    candidate_retained=True,economic_rejection=False,complete=False,deadline=job['deadline']))
+                        await self.work(unavailable,job['priority'])
+                    else:raise
+            finally:
+                await self.work(lambda state:state.acquisition_inflight.discard(job['id']),1)
 
     async def live_manager(self,channel):
-        running=[];identity=None;local_stop=None
+        from .solana_stable_shards import StableShards
+        planner=StableShards(MAX_LIVE_CANDIDATES);running={};retry_at={};failures={}
         try:
             while not self.stop.is_set():
-                desired=await self.work(plan_live,2)
-                new=digest([[r['family'],r['address'],r['priority']] for r in desired])
-                for task in running:
-                    if task.done():task.result();raise EvidenceUnavailable('candidate_live_task_stopped')
-                if new!=identity:
-                    if running:
-                        local_stop.set()
-                        for task in running:task.cancel()
-                        await asyncio.gather(*running,return_exceptions=True)
-                    identity=new
-                    if desired:
-                        local_stop=asyncio.Event()
-                        running=[asyncio.create_task(self.live(channel,desired[n:n+MAX_LIVE_CANDIDATES],local_stop))
-                                 for n in range(0,len(desired),MAX_LIVE_CANDIDATES)]
-                    else:running=[]
+                desired=await self.work(plan_live,2);groups=planner.reconcile(desired)
+                for number,(identity,local_stop,task) in list(running.items()):
+                    if task.done():
+                        try:task.result()
+                        except (ConnectionClosed,OSError) as exc:
+                            failures[number]=failures.get(number,0)+1
+                            retry_at[number]=time.monotonic()+min(8,.5*2**min(failures[number]-1,4))
+                            await self.work(lambda s:install(s)._observation(None,'subscription_retry',dict(shard=number,reason='candidate_websocket_transport_closed',position=groups.get(number,{}).get('position',False))),1)
+                        except EvidenceUnavailable as exc:
+                            if str(exc) not in ('candidate_websocket_ack_timeout','candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled','candidate_log_buffer_pressure','yellowstone_census_buffer_bound','yellowstone_incomplete_status_census'):raise
+                            failures[number]=failures.get(number,0)+1
+                            retry_at[number]=time.monotonic()+min(8,.5*2**min(failures[number]-1,4))
+                            await self.work(lambda s:install(s)._observation(None,'subscription_retry',dict(shard=number,reason=str(exc),position=groups.get(number,{}).get('position',False))),1)
+                        else:raise EvidenceUnavailable('candidate_live_task_stopped')
+                        del running[number]
+                        continue
+                    if number not in groups or groups[number]['identity']!=identity:
+                        local_stop.set();task.cancel();await asyncio.gather(task,return_exceptions=True)
+                        del running[number]
+                for number,group in groups.items():
+                    if number in running or time.monotonic()<retry_at.get(number,0):continue
+                    local_stop=asyncio.Event()
+                    running[number]=(group['identity'],local_stop,asyncio.create_task(self.live(channel,group['rows'],local_stop)))
                 await asyncio.sleep(.25)
         finally:
-            for task in running:task.cancel()
-            if running:await asyncio.gather(*running,return_exceptions=True)
+            for _,local_stop,task in running.values():local_stop.set();task.cancel()
+            await asyncio.gather(*(task for _,_,task in running.values()),return_exceptions=True)
 
     async def live(self,channel,desired,local_stop):
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
@@ -440,12 +638,27 @@ class SelectiveSource:
         full={r['address'] for r in desired if r['family']=='meteora'}
         join=CandidateTransactionJoin(addresses,full,filtered_from_slot=floor);session=uuid.uuid4().hex
         async def commit(frame):
-            if frame:await self.work(lambda s:commit_candidates(s,frame,addresses,session),
+            if frame:await self.work(lambda s:commit_candidates(s,frame,addresses,session,publish=not self.batched),
                 0 if any(r['priority']<=1 for r in desired) else 2,label='source_commit')
         acknowledged=asyncio.Event()
-        async def native(update,size,seen):await commit(join.feed(update,size,seen))
+        async def native(update,size,seen):
+            try:await commit(join.feed(update,size,seen))
+            except EvidenceUnavailable as exc:
+                diagnostic=dict(reason=str(exc),addresses=len(addresses),pending_slots=len(join.pending),
+                    pending_bytes=join.pending_bytes,missing_logs=sum(1 for slot,item in join.pending.items()
+                        for index,fact in item['statuses'].items() if fact[2] is None and not join.full_scopes.intersection(fact[3])
+                        and (slot,signature(fact[0])) not in join.early_logs),
+                    missing_meta=sum(item['meta'] is None for item in join.pending.values()),
+                    missing_finality=sum(item['finality'] is None for item in join.pending.values()),
+                    oldest_join_age=max((join.clock()-item['started'] for item in join.pending.values()),default=0),
+                    missing_log_examples=[dict(slot=slot,signature=signature(fact[0])) for slot,item in join.pending.items() for index,fact in item['statuses'].items() if fact[2] is None and not join.full_scopes.intersection(fact[3]) and (slot,signature(fact[0])) not in join.early_logs][:8],
+                    position=any(r['priority']<=1 for r in desired))
+                await self.work(lambda s:install(s)._observation(None,'join_failure',diagnostic),1)
+                raise
         async def logs():
             async with connect(self.config.stream_url,max_size=MAX_FRAME_BYTES,max_queue=2,ping_interval=10,ping_timeout=None) as ws:
+                ws_id=uuid.uuid4().hex
+                self.observe('websocket_open',stream_id=ws_id,addresses=[r['address'] for r in desired if r['family']!='meteora'])
                 pending={};registered={}
                 for number,row in enumerate((r for r in sorted(desired,key=lambda r:r['priority']) if r['family']!='meteora'),1):
                     pending[number]=row
@@ -454,7 +667,8 @@ class SelectiveSource:
                 if not pending:acknowledged.set()
                 while not self.stop.is_set() and not local_stop.is_set():
                     raw=await ws.recv();seen=time.time();size=len(raw.encode() if isinstance(raw,str) else raw)
-                    await self.work(lambda s:install(s).delivery('candidate_logs','websocket',raw_bytes=size,seen=seen),2)
+                    self.observe('delivery',stream_id=ws_id,family='candidate_logs',transport='websocket',raw=raw.encode() if isinstance(raw,str) else raw,seen=seen)
+                    await self.delivered('candidate_logs','websocket',size,seen,0 if 'id' in json.loads(raw) else (0 if any(r['priority']<=1 for r in desired) else 2))
                     value=json.loads(raw)
                     if 'id' in value:
                         if 'error' in value or value['id'] not in pending:raise EvidenceUnavailable('authoritative_subscription_rejected')
@@ -465,7 +679,7 @@ class SelectiveSource:
                     if row is None:raise EvidenceUnavailable('unknown_source_subscription')
                     v=result['value']
                     if v['err'] is None:await commit(join.feed_log(result['context']['slot'],v['signature'],v['logs'],None,seen))
-        tasks=[]
+        tasks=[];waiter=None
         if len(full)<len(desired):tasks.append(asyncio.create_task(logs()))
         else:acknowledged.set()
         try:
@@ -505,8 +719,9 @@ class SelectiveSource:
             done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
             for task in done:task.result()
         finally:
+            if waiter is not None:waiter.cancel()
             for task in tasks:task.cancel()
-            await asyncio.gather(*tasks,return_exceptions=True)
+            await asyncio.gather(*tasks,*([waiter] if waiter is not None else []),return_exceptions=True)
             def disconnect(state):
                 h=install(state)
                 for row in desired:

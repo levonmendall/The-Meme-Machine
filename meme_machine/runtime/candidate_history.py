@@ -138,12 +138,26 @@ class CandidateHistory:
 
     @contextmanager
     def transaction(self):
+        # A bounded outbox batch commits all native observations in one FULL
+        # transaction. Nested helpers retain their atomic rollback boundaries.
+        if self.db.in_transaction:
+            self._transaction_sequence=getattr(self,'_transaction_sequence',0)+1
+            name='candidate_'+str(self._transaction_sequence)
+            self.db.execute('SAVEPOINT '+name)
+            try:
+                yield
+                self.db.execute('RELEASE '+name)
+            except BaseException:
+                if self.db.in_transaction:
+                    self.db.execute('ROLLBACK TO '+name);self.db.execute('RELEASE '+name)
+                raise
+            return
         self.db.execute("BEGIN IMMEDIATE")
         try:
             yield
             self.db.execute("COMMIT")
         except BaseException:
-            self.db.execute("ROLLBACK")
+            if self.db.in_transaction:self.db.execute("ROLLBACK")
             raise
 
     def close(self):self.db.close()
@@ -542,6 +556,21 @@ class CandidateHistory:
                     worker_capacity=self.worker_capacity)
 
 
+class ThreadLocalCandidateHistory:
+    """Shared lane facade with one native SQLite connection per worker thread."""
+    def __init__(self,path,*,clock=time.time):
+        import threading
+        self.path=Path(path);self.clock=clock;self._local=threading.local()
+    def _history(self):
+        history=getattr(self._local,'history',None)
+        if history is None:
+            history=CandidateHistory(self.path,clock=self.clock);self._local.history=history
+        return history
+    def __getattr__(self,name):return getattr(self._history(),name)
+    def close(self):
+        history=getattr(self._local,'history',None)
+        if history is not None:history.close();self._local.history=None
+
 def open_candidate_history(*,clock=time.time):
     path=os.environ.get("MM_SOLANA_CANDIDATE_HISTORY_DB")
-    return None if not path else CandidateHistory(path,clock=clock)
+    return None if not path else ThreadLocalCandidateHistory(path,clock=clock)

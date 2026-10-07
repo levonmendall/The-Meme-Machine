@@ -42,6 +42,7 @@ from meme_machine.lanes.meteora.solana_evidence_runtime import RuntimeEvidence,M
 
 EVIDENCE_PLANE=None
 CANDIDATE_HISTORY=None
+from meme_machine.runtime.solana_warming import WarmingDeferred
 
 def _evidence_plane():
     global EVIDENCE_PLANE
@@ -698,6 +699,13 @@ def _retry_rate_limited_operation(
             continue
 
 
+def _candidate_compatibility_start(adapter,candidate):
+    import sys
+    from meme_machine.runtime.solana_warming import compatibility,install
+    module=sys.modules[__name__];install(module)
+    return compatibility(module,adapter,candidate)
+
+
 def _fresh_supported_start(adapter,candidate):
     snap=adapter.snapshot(candidate["address"],int(time.time()),True,fresh=True)
     state=dlmm.validate(snap,snap["available_time"],"real")
@@ -849,7 +857,19 @@ def _capture_chunk(
     end_snapshot=adapter.snapshot_from_state(
         start,int(time.time()),True,fresh=True)
     plane=_evidence_plane()
-    signatures,transactions,census=plane.meteora_interval(start['pool'],start['slot'],end_snapshot['slot'])
+    # Finalized account context can lead the linked-child stream proof. Wait
+    # for that exact endpoint, retaining both the original decision deadline
+    # and the native snapshot freshness bound; silence never grants coverage.
+    from meme_machine.solana_evidence_plane import EvidenceUnavailable
+    while True:
+        try:
+            signatures,transactions,census=plane.meteora_interval(start['pool'],start['slot'],end_snapshot['slot'])
+            break
+        except EvidenceUnavailable as exc:
+            expires=min(float(end_snapshot['market_time'])+dlmm.MAX_AGE,
+                float(getattr(adapter.rpc,'evidence_deadline',float('inf'))))
+            if str(exc) not in ('unresolved_evidence_gap','candidate_specific_coverage_required','evidence_cold_start','evidence_finalized_stale') or time.time()>=expires:raise
+            _stop_sleep(min(.05,max(0,expires-time.time())))
     plane.count('meteora.local_warmup_intervals')
     if len(encode(transactions))>2_000_000:
         raise Unavailable("solana_dlmm_interval_evidence_bound")
@@ -2048,6 +2068,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                 report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,**admission))
                 _stage(candidate['address'],'terminal',admission['reason'],stage_failed='evidence_admission')
                 checkpoint('evidence_admission_unavailable')
+                work_id=candidate.get('_candidate_work_id')
+                if CANDIDATE_HISTORY is not None and work_id is not None:
+                    CANDIDATE_HISTORY.complete(work_id,status='deferred',details=dict(reason=admission['reason'],delay_seconds=.25))
                 continue
             try:
                 candidate_rpcs=[]
@@ -2056,7 +2079,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                 _stage(candidate["address"],"screened")
                 try:
                     (compatibility_state,adapter)=_retry_rate_limited_operation(
-                        lambda active:_fresh_supported_start(
+                        lambda active:_candidate_compatibility_start(
                             active,candidate),
                         adapter,pacer,candidate_rpcs,candidate_deadline)
                 except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
@@ -2201,6 +2224,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                     report["attempts"].append(attempt)
                     _stage(candidate["address"],"terminal",str(exc),stage_failed=(pipeline.last or {}).get("stage"))
                     checkpoint("candidate_exception")
+            except WarmingDeferred:
+                discovery_telemetry['trigger_wait_deferrals']=discovery_telemetry.get('trigger_wait_deferrals',0)+1
+                checkpoint('candidate_trigger_pending')
             finally:
                 # A terminal candidate no longer owns a retention lease. Position
                 # leases use a separate identity and remain pinned until settlement.
@@ -2209,7 +2235,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                 plane.count('meteora.candidate_interests_released')
                 work_id=candidate.get('_candidate_work_id')
                 if CANDIDATE_HISTORY is not None and work_id is not None:
-                    CANDIDATE_HISTORY.complete(work_id,status='complete')
+                    status=CANDIDATE_HISTORY.db.execute('SELECT status FROM work WHERE id=?',(work_id,)).fetchone()
+                    if status and status[0]=='active':CANDIDATE_HISTORY.complete(work_id,status='complete')
 
     finally:
         try:

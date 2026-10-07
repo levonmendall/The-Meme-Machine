@@ -23,7 +23,7 @@ CONTINUITY='b'
 FINALITY='f'
 MAX_CHAIN_TRANSACTIONS=8192
 MAX_RELEVANT_TRANSACTIONS=2048
-MAX_PENDING_SLOTS=4
+MAX_PENDING_SLOTS=256
 MAX_PENDING_BYTES=32*1024*1024
 MAX_SLOT_BYTES=16*1024*1024
 MAX_JOIN_SECONDS=10
@@ -108,7 +108,7 @@ class CandidateTransactionJoin:
             if prior[:2]!=fact[:2]:raise EvidenceUnavailable('candidate_log_content_conflict')
             return self.drain()
         size=len(str(logs).encode())
-        if len(self.early_logs)>=4096 or self.early_log_bytes+size>MAX_PENDING_BYTES:
+        if len(self.early_logs)>=32768 or self.early_log_bytes+size>MAX_PENDING_BYTES:
             raise EvidenceUnavailable('candidate_log_buffer_pressure')
         self.early_logs[key]=fact;self.early_log_bytes+=size
         return self.drain()

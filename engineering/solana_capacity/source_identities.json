@@ -1,0 +1,61 @@
+{
+  "verified_UTC": "2026-10-07T11:19:09.978122+00:00",
+  "pre_edit_head": "fe86d9a8b60a36de0f47a234f7d2291c2a33c629",
+  "pre_edit_tree": "c04392407151a48be34bb3f21f4d3c6c821f0127",
+  "operational_base": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "last_live_source_sha256": {
+    "meme_machine/solana_selective_source.py": "e759b00a56b678c0381162751fd9588470b6393dbe763427cc81d68b208505cc",
+    "meme_machine/solana_selective_history.py": "2cf0f338e22a3a82b7a924957ce2af4a08d95ab38b7e43453317ede76ddf89f8",
+    "meme_machine/solana_scoped_retirement.py": "2dde4a82f13188a44123c162f39e82fffcffc2b3773647985e329825432a408c",
+    "meme_machine/solana_candidate_lifecycle.py": "a633c99a1ab3efe8a252a78a3f72a3d32bcbe68cc96a07ba4b886c884b450cd8",
+    "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+    "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+    "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+    "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+    "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+    "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+    "meme_machine/runtime/evidence_worker.py": "9b1b4b1e23156325dfff6a26d5c0ec0b87e3ffe0039ef282d044f3fffc939d1e",
+    "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+    "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+    "engineering/solana_capacity/certify.py": "cf4ccd51428746a3b9843d8800403f0e5c8020e809a7161b80455db9b1e0ac0b",
+    "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+    "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+  },
+  "final_offline_validated_source_sha256": {
+    "meme_machine/solana_selective_source.py": "e759b00a56b678c0381162751fd9588470b6393dbe763427cc81d68b208505cc",
+    "meme_machine/solana_selective_history.py": "2cf0f338e22a3a82b7a924957ce2af4a08d95ab38b7e43453317ede76ddf89f8",
+    "meme_machine/solana_scoped_retirement.py": "2dde4a82f13188a44123c162f39e82fffcffc2b3773647985e329825432a408c",
+    "meme_machine/solana_candidate_lifecycle.py": "a633c99a1ab3efe8a252a78a3f72a3d32bcbe68cc96a07ba4b886c884b450cd8",
+    "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+    "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+    "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+    "meme_machine/runtime/solana_warming.py": "526a67a618fc9bbea84992f56670a308ed195328fb09dd442d6566ef2b005a6d",
+    "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+    "meme_machine/runtime/lifecycle_timing.py": "1ceeae9b384768afc2c6a7faf1ddbb7913b59dc371381adb5770d72280c48070",
+    "meme_machine/runtime/evidence_worker.py": "9b1b4b1e23156325dfff6a26d5c0ec0b87e3ffe0039ef282d044f3fffc939d1e",
+    "meme_machine/lanes/meteora/runner.py": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b",
+    "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+    "engineering/solana_capacity/certify.py": "bf9a15c635eac39ae1b43dfd79cc872cdaa57af44ab2a3d269994a8715602ed5",
+    "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+    "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+  },
+  "post_capture_source_differences": {
+    "meme_machine/runtime/solana_warming.py": {
+      "captured": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+      "final": "526a67a618fc9bbea84992f56670a308ed195328fb09dd442d6566ef2b005a6d"
+    },
+    "meme_machine/runtime/lifecycle_timing.py": {
+      "captured": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+      "final": "1ceeae9b384768afc2c6a7faf1ddbb7913b59dc371381adb5770d72280c48070"
+    },
+    "meme_machine/lanes/meteora/runner.py": {
+      "captured": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+      "final": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b"
+    },
+    "engineering/solana_capacity/certify.py": {
+      "captured": "cf4ccd51428746a3b9843d8800403f0e5c8020e809a7161b80455db9b1e0ac0b",
+      "final": "bf9a15c635eac39ae1b43dfd79cc872cdaa57af44ab2a3d269994a8715602ed5"
+    }
+  },
+  "source_limitations": "Four files changed after the last live capture: three Meteora observation scheduling files to preserve protected native AST, guard absent fixture adapters and avoid a fixture timestamp lookup; the meter uses the reverified 10 CU getAccountInfo price. Final source is validated offline. No simultaneous post-correction live certification is claimed."
+}

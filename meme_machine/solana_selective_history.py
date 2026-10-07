@@ -10,6 +10,7 @@ import hashlib
 import json
 import time
 import zlib
+from functools import lru_cache
 from .solana_evidence_plane import FinalizedRecord,IntervalProof,EvidenceUnavailable,EvidenceConflict,canonical,digest,decode_body
 from .solana_program_decoders import pump_events,pumpswap_trade_events
 from .solana_native_evidence import normalize_zero_display
@@ -34,6 +35,9 @@ CREATE TABLE IF NOT EXISTS acquisition_jobs(
  status TEXT NOT NULL,token TEXT,pages INTEGER NOT NULL,last_slot INTEGER,last_index INTEGER,
  lineage TEXT NOT NULL,created REAL NOT NULL,updated REAL NOT NULL,error TEXT);
 CREATE INDEX IF NOT EXISTS acquisition_priority ON acquisition_jobs(status,priority,deadline,created);
+CREATE TABLE IF NOT EXISTS acquisition_page_receipts(
+ job TEXT NOT NULL,page INTEGER NOT NULL,input_hash TEXT NOT NULL,
+ result TEXT NOT NULL,committed REAL NOT NULL,PRIMARY KEY(job,page));
 CREATE TABLE IF NOT EXISTS native_order_attestations(
  scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,
  transaction_index INTEGER NOT NULL,hash TEXT NOT NULL,
@@ -72,7 +76,16 @@ CREATE TABLE IF NOT EXISTS candidate_outbox(
  sequence INTEGER PRIMARY KEY,identity TEXT NOT NULL UNIQUE,scope TEXT NOT NULL,
  slot INTEGER NOT NULL,first_seen REAL NOT NULL);
 CREATE INDEX IF NOT EXISTS candidate_outbox_scope ON candidate_outbox(scope,sequence);
+CREATE TABLE IF NOT EXISTS candidate_content_receipts(
+ identity TEXT PRIMARY KEY,economic_hash TEXT NOT NULL,transaction_index INTEGER,
+ first_seen REAL NOT NULL);
 '''
+
+@lru_cache(maxsize=8192)
+def pump_curve_address(mint):
+    """Cache immutable PDA computation, never candidate eligibility or history."""
+    from . import pump
+    return pump.pda([b'bonding-curve',pump.un58(mint)],pump.PROGRAM)
 
 def coverage_scope(family,address):
     if family not in FAMILIES or not isinstance(address,str) or not address:
@@ -130,7 +143,7 @@ def economic_records(family,address,tx,*,endpoint_identity,seen,source):
         if family=='pump' and event.get('mint')!=address and event.get('bonding_curve')!=address:
             from . import pump
             mint=event.get('mint')
-            if not mint or pump.pda([b'bonding-curve',pump.un58(mint)],pump.PROGRAM)!=address:continue
+            if not mint or pump_curve_address(mint)!=address:continue
         addresses=tuple(sorted({str(event[k]) for k in ('pool','mint','wallet') if event.get(k)}))
         payload=dict(event=event,raw_lineage=dict(logs=logs,err=meta['err']))
         rows.append(FinalizedRecord(f'{scope}:{slot}:{signature}:{event["index"]}',scope,slot,
@@ -166,8 +179,12 @@ class SelectiveHistory:
 
     def bind(self,family,address,*,market_address=None,aliases=(),metadata=None):
         base=FAMILIES[family];scoped=coverage_scope(family,address)
-        market=market_address or address
         with self.writer.transaction():
+            current=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',
+                (family,address)).fetchone()
+            # Repeated provider-interest registration must retain an authenticated
+            # curve-to-mint upgrade. An explicit different identity still fails.
+            market=market_address or (current[0] if current else address)
             # A mint interest must reuse the curve's already proved identity.
             # Conversely, a creation backfill can attach a provisional curve to
             # an existing mint interest without changing its durable scope.
@@ -207,16 +224,17 @@ class SelectiveHistory:
         self.db.execute('INSERT INTO acquisition_observations(job,kind,at,body) VALUES(?,?,?,?)',
             (job,kind,self.clock(),canonical(body)))
 
-    def plan(self):
+    def plan(self,*,excluding=()):
         """Priority for safety/positions/continuations, then deadline and age."""
         now=self.clock()
         with self.writer.transaction():
             for identity in [r[0] for r in self.db.execute("SELECT id FROM acquisition_jobs WHERE status='pending' AND deadline<=?",(now,))]:
                 self.db.execute("UPDATE acquisition_jobs SET status='deadline_missed',updated=?,error='candidate_decision_deadline_missed' WHERE id=?",(now,identity))
                 self._observation(identity,'deadline_missed',dict(economic_rejection=False))
+            exclusion='' if not excluding else ' AND id NOT IN ('+','.join('?' for _ in excluding)+')'
             row=self.db.execute('''SELECT id,family,address,lo,hi,priority,deadline,token,pages,last_slot,last_index,lineage
                 FROM acquisition_jobs WHERE status='pending'
-                ORDER BY CASE WHEN priority<=2 THEN priority ELSE 3 END,deadline,priority,created,id LIMIT 1''').fetchone()
+                '''+exclusion+''' ORDER BY CASE WHEN priority<=2 THEN priority ELSE 3 END,deadline,priority,created,id LIMIT 1''',tuple(excluding)).fetchone()
         if row is None:return None
         job=dict(zip(('id','family','address','lo','hi','priority','deadline','token','pages','last_slot','last_index','lineage'),row))
         config=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',
@@ -250,6 +268,12 @@ class SelectiveHistory:
                      lineage_hash=lineage,method='getTransactionsForAddress',pagination_exhausted=True,
                      page_count=job['pages']+1,address=job['address'],canonical_scope=FAMILIES[job['family']]),seen)
         with self.writer.transaction():
+            input_hash=digest([job['token'],value])
+            receipt=self.db.execute('SELECT input_hash,result FROM acquisition_page_receipts WHERE job=? AND page=?',
+                (job['id'],job['pages'])).fetchone()
+            if receipt:
+                if receipt[0]!=input_hash:raise EvidenceConflict('candidate_archive_page_conflict')
+                return json.loads(receipt[1])
             current=self.db.execute('SELECT token,pages,status FROM acquisition_jobs WHERE id=?',(job['id'],)).fetchone()
             if current is None or tuple(current)!=(job['token'],job['pages'],'pending'):
                 raise EvidenceUnavailable('candidate_page_lease_stale')
@@ -262,7 +286,10 @@ class SelectiveHistory:
                 lineage=?,status=?,updated=? WHERE id=?''',(token,*((None,None) if last is None else last),
                 lineage,'complete' if token is None else 'pending',seen,job['id']))
             if job['pages']+1>16:self._observation(job['id'],'capacity_pressure',dict(pages=job['pages']+1,economic_rejection=False))
-        return dict(complete=token is None,records=len(rows),pages=job['pages']+1)
+            result=dict(complete=token is None,records=len(rows),pages=job['pages']+1)
+            self.db.execute('INSERT INTO acquisition_page_receipts VALUES(?,?,?,?,?)',
+                (job['id'],job['pages'],input_hash,canonical(result),seen))
+        return result
 
     def ingest(self,rows,*,restored=None):
         """One identity; a bounded shared cache permits late scoped backfill.
@@ -281,10 +308,26 @@ class SelectiveHistory:
         with self.writer.transaction():
             for row in rows:
                 incoming=row.body()
+                economic_hash=self.content_hash(incoming)
+                receipt=self.db.execute('SELECT economic_hash,transaction_index,first_seen FROM candidate_content_receipts WHERE identity=?',(row.identity,)).fetchone()
+                if receipt:
+                    if receipt[0]!=economic_hash:raise EvidenceConflict('candidate_economic_content_conflict')
+                    if receipt[1] is not None and row.transaction_index is not None and receipt[1]!=row.transaction_index:
+                        raise EvidenceConflict('candidate_native_order_conflict')
+                    # Global hot maintenance can remove a fully consumed record.
+                    # Its immutable receipt remains the original availability on
+                    # later selective reconstruction, not the new HTTP delivery.
+                    row=replace(row,observed_at=receipt[2])
                 old=self.db.execute('SELECT body,hash,first_seen,archive FROM records WHERE identity=?',(row.identity,)).fetchone()
                 previous_cache=self.db.execute('SELECT body,hash,first_seen FROM shared_history_cache WHERE identity=?',(row.identity,)).fetchone()
                 cold=(self.db.execute('SELECT body,hash,first_seen,archive FROM scoped_cold_records WHERE identity=?',(row.identity,)).fetchone()
                       if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='scoped_cold_records'").fetchone() else None)
+                available=next((copy[2] for copy in (previous_cache,old,cold) if copy),row.observed_at)
+                self.db.execute('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
+                    (row.identity,economic_hash,row.transaction_index,available))
+                if row.transaction_index is not None:
+                    self.db.execute('UPDATE candidate_content_receipts SET transaction_index=? WHERE identity=? AND transaction_index IS NULL',
+                        (row.transaction_index,row.identity))
                 if old or previous_cache or cold:
                     # A verified scoped cache is the current body pointer; an
                     # older empty records row must not hide it. All durable
@@ -298,6 +341,14 @@ class SelectiveHistory:
                         if body is None and cold:
                             from .solana_scoped_retirement import ScopedRetirement
                             body=ScopedRetirement(self).body(row.identity)
+                        if body is None and receipt:
+                            # A selective physical refetch can restore a globally
+                            # archived body, but only as the exact old immutable
+                            # body. Native-order enrichment remains an attestation.
+                            table='records' if old else 'scoped_cold_records'
+                            original_index=self.db.execute('SELECT transaction_index FROM '+table+' WHERE identity=?',(row.identity,)).fetchone()[0]
+                            body=dict(incoming,transaction_index=original_index)
+                            if digest(body)!=prior[1]:raise EvidenceConflict('local_evidence_hash_mismatch')
                         if body is None:raise EvidenceUnavailable('selective_archive_restore_required')
                     if digest(body)!=prior[1]:raise EvidenceConflict('local_evidence_hash_mismatch')
                     self._compatible(body,incoming)
@@ -306,7 +357,15 @@ class SelectiveHistory:
                     cached.append((row,body,prior[2]))
                     continue
                 floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+row.scope,)).fetchone()
-                if floor and row.slot<int(floor[0]):cached.append((row,incoming,row.observed_at))
+                from .solana_maintenance_state import PRESERVATION_SECONDS
+                historical=row.market_time is not None and row.market_time<=self.clock()-PRESERVATION_SECONDS
+                # Backfill and overlapping native replay may introduce evidence
+                # whose market-age maintenance lease has already elapsed. Keep
+                # its complete body in the candidate cache instead of creating
+                # instantly overdue debt in the current global hot pipeline.
+                # Both are part of canonical_evidence and use the same pins,
+                # scoped retirement guards and physical storage limit.
+                if historical or floor and row.slot<int(floor[0]):cached.append((row,incoming,row.observed_at))
                 else:hot.append(row)
             self.writer.ingest(hot)
             for row,body,available in cached:
@@ -330,6 +389,13 @@ class SelectiveHistory:
             import os
             if sum(os.path.getsize(p) for p in (self.writer.path,str(self.writer.path)+'-wal') if os.path.exists(p))>=self.writer.max_hot_bytes:
                 raise EvidenceUnavailable('hot_store_capacity')
+
+    @staticmethod
+    def content_hash(body):
+        economic=dict(body);economic.pop('transaction_index')
+        if economic['kind']=='transaction':
+            economic['payload']=rpc_economic_transaction(dict(economic['payload'],transactionIndex=0),rich=True)
+        return digest(economic)
 
     @staticmethod
     def _compatible(old,new):
@@ -366,14 +432,29 @@ class SelectiveHistory:
                 # not replace the first point's availability or lineage.
                 original=coverage_points(existing[0],existing[1])
                 if any(a==point[0] and b==point[1] and available<=at for a,b,available in original):
+                    if proof.source=='alchemy_finalized_repair':self._repair_gap_segments(proof,at)
                     return
                 points=original+[point];packed=zlib.compress(canonical(points).encode(),1)
                 checksum=hashlib.sha256(packed).hexdigest();first=min(p[2] for p in points)
             self.db.execute('INSERT OR REPLACE INTO candidate_coverage VALUES(?,?,?,?,?,?,?,?,?,?)',
                 (scope,lo,max(p[1] for p in points),len(points),first,at,packed,checksum,lineage,proof.source))
             if proof.source=='alchemy_finalized_repair':
-                self.db.execute('UPDATE candidate_gaps SET repaired=? WHERE scope=? AND lo>=? AND hi<=? AND repaired IS NULL',
-                    (at,scope,proof.lower_slot,proof.upper_slot))
+                self._repair_gap_segments(proof,at)
+
+    def _repair_gap_segments(self,proof,at):
+        """Retain the gap audit and only the still-unproved residual intervals."""
+        repaired_at=max(at,float(self.clock()))
+        rows=self.db.execute('''SELECT id,lo,hi,created,reason FROM candidate_gaps
+            WHERE scope=? AND repaired IS NULL AND lo<=? AND (hi IS NULL OR hi>=?)''',
+            (proof.scope,proof.upper_slot,proof.lower_slot)).fetchall()
+        for identity,lo,hi,created,reason in rows:
+            self.db.execute('UPDATE candidate_gaps SET repaired=? WHERE id=?',(repaired_at,identity))
+            residual=[]
+            if lo<proof.lower_slot:residual.append((lo,proof.lower_slot-1))
+            if hi is None or hi>proof.upper_slot:residual.append((proof.upper_slot+1,hi))
+            for a,b in residual:
+                self.db.execute('INSERT INTO candidate_gaps(scope,lo,hi,created,reason) VALUES(?,?,?,?,?)',
+                    (proof.scope,a,b,created,reason))
 
     def gap(self,scope,lo,hi,reason):
         with self.writer.transaction():

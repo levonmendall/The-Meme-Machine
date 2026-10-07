@@ -15,8 +15,8 @@ from meme_machine.solana_evidence_transport import alchemy_stream_endpoint
 from meme_machine.solana_evidence_service import serve
 
 class DeliveredRPCError(ValueError):
-    def __init__(self,reason,receipt):
-        super().__init__(reason);self.receipt=receipt
+    def __init__(self,reason,receipt,*,retryable=False,cause_kind=None):
+        super().__init__(reason);self.receipt=receipt;self.retryable=retryable;self.cause_kind=cause_kind
 
 class RepairRPC:
     def __init__(self,endpoint,governor):
@@ -44,9 +44,9 @@ class RepairRPC:
         import time
         if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2'):
             raise ValueError('repair_method_forbidden')
-        started=time.monotonic();transport=None;received=0;charged=0
+        started=time.monotonic();transport=None;received=0;charged=0;code=None
         try:
-            self.governor.acquire('solana','evidence',2 if priority<=2 else 50,deadline_seconds=8,methods=(method,))
+            self.governor.acquire('solana','evidence',int(priority) if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB') else (2 if priority<=2 else 50),deadline_seconds=8,methods=(method,))
             self._count('queue_microseconds',int((time.monotonic()-started)*1e6))
             transport=time.monotonic()
             self._count('physical_requests');self._count('logical_calls');self._count('method:'+method)
@@ -70,10 +70,13 @@ class RepairRPC:
             if exc.code==429:
                 self._count('429s');self.governor.rate_limited('solana',(method,))
             self._count('failures')
-            raise DeliveredRPCError('repair_http_'+str(int(exc.code)),dict(bytes=received,cu=charged)) from None
-        except Exception:
+            raise DeliveredRPCError('repair_http_'+str(int(exc.code)),dict(bytes=received,cu=charged),
+                retryable=exc.code in (429,502,503,504),cause_kind='HTTPError') from None
+        except Exception as exc:
             self._count('failures')
-            raise DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged)) from None
+            retryable=isinstance(exc,(TimeoutError,urllib.error.URLError,json.JSONDecodeError)) or code in (429,-32603,-32005,-32016)
+            raise DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged),
+                retryable=retryable,cause_kind=type(exc).__name__) from None
         finally:
             if transport is not None:self._count('transport_microseconds',int((time.monotonic()-transport)*1e6))
             self._count('delivered_response_bytes',received);self._count('current_pricing_cu',charged)

@@ -1,3 +1,5 @@
+Current shared-provider closure: [capacity report](../solana_capacity/REPORT.md) and [rebuilt gated cost model](../solana_capacity/cost_model.json). The six established gates remain PASS; simultaneous provider capacity and production cost certification remain FAIL. This older report retains historical evidence and counterfactuals, not current production incidence.
+
 ALCHEMY_SOLANA_FINALIZATION: NOT_READY
 
 ALCHEMY_SOLANA_NOT_READY

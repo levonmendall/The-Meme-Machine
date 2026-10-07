@@ -56,6 +56,10 @@ class ScopedRetirement:
                   UNION SELECT identity,address FROM cached_addresses
                   UNION SELECT identity,address FROM scoped_cold_addresses;
                 ''')
+        self.db.execute('CREATE INDEX IF NOT EXISTS scoped_cold_address_lookup ON scoped_cold_addresses(address,identity)')
+        self.db.execute('''CREATE INDEX IF NOT EXISTS candidate_canonical_consumed_identity
+            ON candidate_history_outbox(json_extract(body,'$.record.identity'))
+            WHERE kind='canonical' AND consumed IS NOT NULL''')
 
     def pinned(self,family,address,lo,hi,shared):
         scope=self.history.scope_for(family,address);base=FAMILIES[family]
@@ -92,8 +96,11 @@ class ScopedRetirement:
                     substr(coverage_scope,length('candidate:'||family||':')+1) FROM evidence_bindings''').fetchall():
                 binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
                 market=binding[0]
-                rows=self.db.execute('''SELECT r.* FROM canonical_evidence r JOIN canonical_addresses a ON a.identity=r.identity
-                    WHERE a.address=? AND r.scope=? AND r.body IS NOT NULL ORDER BY r.slot,r.identity LIMIT ?''',
+                # Resolve the indexed address set before expanding the canonical
+                # union. Scanning an entire program for every candidate blocks
+                # urgent owner work even though each result is bounded to 64.
+                rows=self.db.execute('''SELECT r.* FROM canonical_addresses a CROSS JOIN canonical_evidence r
+                    WHERE a.address=? AND r.identity=a.identity AND r.scope=? AND r.body IS NOT NULL ORDER BY r.slot,r.identity LIMIT ?''',
                     (market,FAMILIES[family],limit)).fetchall()
                 if not rows:continue
                 reason=self.pinned(family,address,rows[0][2],rows[-1][2],shared)
