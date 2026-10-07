@@ -145,7 +145,7 @@ class StrategyObservabilityRuntimeTests(unittest.TestCase):
     def test_meteora_capital_check_occurs_after_strategy_qualification(self):
         source=inspect.getsource(meteora_runner.run_live)
         qualified=source.index('decision=qualify(features,policy)')
-        funding=source.index("book.reconcile()['unsettled']",qualified)
+        funding=source.index("capital_state=book.reconcile()",qualified)
         self.assertLess(qualified,funding)
         self.assertNotIn(
             "if book.reconcile()['unsettled']:\n                # During",

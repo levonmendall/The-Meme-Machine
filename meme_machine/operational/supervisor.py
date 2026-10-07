@@ -151,7 +151,9 @@ class Supervisor:
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
         if solana:
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
-                MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'))
+                MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'),
+                MM_SOLANA_CANDIDATE_HISTORY_DB=str(self.root/'shared/solana-candidate-history.sqlite'),
+                MM_SOLANA_EXPENSIVE_WORKERS='2')
         else:
             env.update(MM_PROVIDER_DB=str(self.root/'shared/robinhood-provider.sqlite'),
                 MM_RPC_CACHE_DB=str(self.root/'shared/robinhood-evidence.sqlite'),

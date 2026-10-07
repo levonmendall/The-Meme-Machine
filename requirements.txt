@@ -1,2 +1,5 @@
 websockets==17.1
 pysimdjson==7.0.2
+grpcio==1.84.0
+protobuf==7.36.2
+based58==0.1.1

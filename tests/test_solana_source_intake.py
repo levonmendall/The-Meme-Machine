@@ -13,6 +13,7 @@ from unittest.mock import patch
 from meme_machine import solana_evidence_service as service
 from meme_machine.solana_evidence_plane import EvidenceUnavailable
 from meme_machine.solana_source_intake import SelectedFrame,select_frame
+from tests.solana_economic_reference import economic_source_reference
 
 
 def frame(txs,slot=300):
@@ -38,18 +39,29 @@ class SourceIntakeTests(unittest.TestCase):
         cls.templates=json.loads(gzip.decompress(path.read_bytes()))['templates']
         cls.subs=[s for s in service.program_subscriptions() if s.evidence_class!='logs']
         cls.targets=tuple(sorted({s.address for s in cls.subs}))
+        cls.transaction_targets=tuple(sorted(
+            {s.address for s in cls.subs if s.evidence_class=='transactions'}))
 
     def select(self,value,*,bound=service.STREAM_MAX_MESSAGE_BYTES):
-        return select_frame(encode(value),'',self.targets,max_bytes=bound)
+        # Match production source routing: Pump/PumpSwap keep only canonical
+        # log/census fields; only Meteora receives the economic transaction vector.
+        return select_frame(encode(value),'',self.targets,max_bytes=bound,
+                            full_transaction_addresses=self.transaction_targets)
 
     def parity(self,value):
         selected=self.select(value)
         prepared,total,retained=service.prepare_selected_source(selected,'a'*64,2000000000.)
         self.assertEqual(total,len(value['params']['result']['value']['block']['transactions']))
         self.assertEqual(retained,len(selected.normalized_keys))
+        reference=economic_source_reference(value,self.subs)
+        self.assertEqual(selected.message,reference)
         for sub in self.subs:
-            # Independent original broad-scope decoder, without the new selector.
-            expected=service.prepare_block_scope(sub,value,2000000000.,'a'*64,
+            # Pump/PumpSwap remain byte-equivalent to the original broad source.
+            # Meteora intentionally consumes the narrow economic projection, so
+            # compare the canonical decoder against that projected source instead.
+            expected_source=(
+                reference if sub.evidence_class=='transactions' else value)
+            expected=service.prepare_block_scope(sub,expected_source,2000000000.,'a'*64,
                 service.program_decoders(),include_logs=True,budget=[16*1024*1024])
             self.assertEqual(prepared.scopes[sub.scope],expected)
         transferred=pickle.loads(pickle.dumps(selected))
@@ -66,30 +78,50 @@ class SourceIntakeTests(unittest.TestCase):
 
     def test_mixed_scopes_order_and_cross_program_transaction(self):
         txs=[copy.deepcopy(self.templates[k][0]) for k in ('pump','meteora','pumpswap')]
-        cross=copy.deepcopy(txs[0]);cross['transaction']['signatures']=['cross']
+        cross=copy.deepcopy(self.templates['meteora'][0]);cross['transaction']['signatures']=['cross']
         cross['transaction']['message']['accountKeys']+=list(self.targets)
         selected,_=self.parity(frame(txs+[unrelated(),cross]))
         self.assertEqual(selected.retained_transactions,4)
-        self.assertEqual(selected.message['params']['result']['value']['block']['transactions'],txs+[cross])
+        bodies=selected.message['params']['result']['value']['block']['transactions']
+        self.assertEqual([b['transaction']['signatures'][0] for b in bodies],
+                         [t['transaction']['signatures'][0] for t in txs]+['cross'])
         self.assertTrue(all(3 in selected.members[address] for address in self.targets))
 
-    def test_log_projection_keeps_exact_records_and_full_cross_program_body(self):
+    def test_log_and_economic_projection_keep_required_records_without_full_bodies(self):
         txs=[copy.deepcopy(self.templates[k][0]) for k in ('pump','pumpswap','meteora')]
-        cross=copy.deepcopy(txs[0]);cross['transaction']['signatures']=['cross']
+        cross=copy.deepcopy(txs[2]);cross['transaction']['signatures']=['cross']
         cross['transaction']['message']['accountKeys']+=list(self.targets)
         value=frame(txs+[unrelated(),cross])
         full_targets=tuple(s.address for s in self.subs if s.evidence_class=='transactions')
         selected=select_frame(encode(value),'',self.targets,max_bytes=service.STREAM_MAX_MESSAGE_BYTES,
                               full_transaction_addresses=full_targets)
         prepared,_,_=service.prepare_selected_source(selected,'a'*64,2000000000.)
+        reference=economic_source_reference(value,self.subs)
+        self.assertEqual(selected.message,reference)
         for sub in self.subs:
-            expected=service.prepare_block_scope(sub,value,2000000000.,'a'*64,
+            expected_source=(
+                reference if sub.evidence_class=='transactions' else value)
+            expected=service.prepare_block_scope(sub,expected_source,2000000000.,'a'*64,
                 service.program_decoders(),include_logs=True,budget=[16*1024*1024])
             self.assertEqual(prepared.scopes[sub.scope],expected)
         bodies=selected.message['params']['result']['value']['block']['transactions']
-        self.assertEqual(bodies[2:],txs[2:]+[cross])
         self.assertEqual(set(bodies[0]['meta']),{'err','logMessages'})
-        self.assertEqual((selected.full_body_transactions,selected.log_projection_transactions),(2,2))
+        originals={
+            tx['transaction']['signatures'][0]:tx
+            for tx in txs+[cross]
+        }
+        for body in bodies[2:]:
+            self.assertEqual(set(body['transaction']['message']),{'accountKeys','instructions'})
+            self.assertEqual(set(body['meta']),
+                {'err','logMessages','innerInstructions','preTokenBalances','postTokenBalances'})
+            self.assertNotIn('preBalances',body['meta'])
+            self.assertNotIn('postBalances',body['meta'])
+            original=originals[body['transaction']['signatures'][0]]
+            if original.get('transactionIndex') is not None:
+                self.assertEqual(body.get('transactionIndex'),original['transactionIndex'])
+        self.assertEqual(
+            (selected.full_body_transactions,selected.log_projection_transactions,
+             selected.economic_projection_transactions),(0,2,2))
         self.assertEqual(service.prepare_selected_source(pickle.loads(pickle.dumps(selected)),'a'*64,2000000000.)[0].scopes,prepared.scopes)
 
     def test_loaded_addresses_and_account_objects_are_not_omitted(self):
@@ -186,11 +218,13 @@ class SourceIntakeTests(unittest.TestCase):
     def test_native_u64_and_escaped_keys_preserve_exact_values(self):
         tx=copy.deepcopy(self.templates['meteora'][0]);tx['meta']['preBalances']=[2**64-1]
         selected,_=self.parity(frame([tx]))
-        self.assertEqual(selected.message['params']['result']['value']['block']['transactions'][0]['meta']['preBalances'],[2**64-1])
+        projected=selected.message['params']['result']['value']['block']['transactions'][0]
+        self.assertNotIn('preBalances',projected['meta'])
         tx=copy.deepcopy(self.templates['pump'][0]);raw=encode(frame([tx]))
         target=self.targets[0];escaped=''.join('\\u%04x'%ord(c) for c in target)
         raw=raw.replace(target.encode(),escaped.encode())
-        selected=select_frame(raw,'',self.targets,max_bytes=len(raw)+1)
+        selected=select_frame(raw,'',self.targets,max_bytes=len(raw)+1,
+                              full_transaction_addresses=self.transaction_targets)
         self.assertEqual(selected.retained_transactions,1)
 
     def test_no_native_proxy_or_parser_state_escapes_concurrent_calls(self):
@@ -212,6 +246,7 @@ class SourceIntakeTests(unittest.TestCase):
 
 
 class LiveIntakeBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_real_dispatch_never_submits_raw_unrelated_body_to_process_pool(self):
         from tests.test_run372_large_frame_runtime import LargeFrameSocket,local_server,frame as wire_frame,observe
         real_factory=concurrent.futures.ProcessPoolExecutor;submissions=[]

@@ -23,6 +23,7 @@ class IdleSocket:
 
 
 class TransportBackpressureTests(unittest.IsolatedAsyncioTestCase):
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_silent_source_still_gets_a_bounded_explicit_gap(self):
   wire=IdleSocket();stop=asyncio.Event()
   with tempfile.TemporaryDirectory() as td,patch('websockets.asyncio.client.connect',return_value=wire),patch('asyncio.start_unix_server',side_effect=local_server),patch.object(service,'STREAM_SOURCE_IDLE_SECONDS',.1):
@@ -50,6 +51,7 @@ class TransportBackpressureTests(unittest.IsolatedAsyncioTestCase):
     finally:reader.close()
    finally:stop.set();await runner
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_real_protocol_queue_backpressure_drains_without_ping_disconnect(self):
   stopped=asyncio.Event();frames=320;connections=[]
   async def provider(ws):

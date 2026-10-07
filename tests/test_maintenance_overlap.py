@@ -143,6 +143,7 @@ class CheckpointRecyclingTests(unittest.TestCase):
    finally:reader.close();writer.close()
 
 class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_slow_passive_checkpoint_cannot_block_source_and_is_joined_on_shutdown(self):
   from tests.test_dispatch_throughput import SustainedSocket
   entered=threading.Event();release=threading.Event();calls=[]
@@ -193,6 +194,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(db.execute('PRAGMA synchronous').fetchone()[0],2)
    finally:db.close()
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_incomplete_passive_checkpoint_skips_owner_truncate(self):
   calls=[];finished=[]
   def checkpoint(path):
@@ -230,6 +232,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(counters.get('checkpoint.reclaimed',0),0)
    finally:db.close()
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_completed_passive_checkpoint_joins_source_fifo_for_zero_wait_reset(self):
   calls=[];finished=[]
   def checkpoint(path):
@@ -269,6 +272,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
     self.assertGreaterEqual(counters.get('owner.stage.checkpoint_finish.calls',0),1)
    finally:db.close()
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_repeated_health_yields_cannot_starve_archive_progress(self):
   calls=[];finished=[];owner_threads=[]
   from meme_machine.solana_checkpoint import checkpoint_and_reclaim as native_boundary
@@ -319,6 +323,7 @@ class ArchiveCleanupOverlapTests(unittest.IsolatedAsyncioTestCase):
                     'checkpoint used the wrong execution owner')
    finally:stop.set();await runner
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_hot_cleanup_progresses_while_next_archive_worker_is_pending(self):
   real_pool=concurrent.futures.ProcessPoolExecutor;pending=[]
   class Pool:

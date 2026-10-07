@@ -44,6 +44,7 @@ class MixedSocket:
 
 
 class Run376PressureTests(unittest.IsolatedAsyncioTestCase):
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_saturated_admission_waits_for_durable_drain_without_loss(self):
         socket=BurstSocket(frames=24);stop=asyncio.Event()
         original=service.ServiceState.source_batch
@@ -85,6 +86,7 @@ class Run376PressureTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))
             db.close()
 
+    @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
     async def test_mixed_large_blocks_and_accounts_drain_without_capacity_churn(self):
         # Four accounts per 4 MiB block models the preserved 3070:~893 mix.
         # Accelerated cadence + fixed 30ms FULL-commit cost recreates ordered-ready

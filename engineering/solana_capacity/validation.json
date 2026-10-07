@@ -1,0 +1,407 @@
+{
+  "verified_UTC": "2026-10-07T12:15:48.890734+00:00",
+  "FOCUSED": {
+    "tests": 107,
+    "seconds": 33.933,
+    "result": "PASS",
+    "failure_identities": [],
+    "log": "engineering/solana_capacity/validation/focused.log",
+    "log_sha256": "f4f3a8b0937fd9773edf3dfcd27b82bc2a1551ba77102af2a9fe8469afeed23e"
+  },
+  "FAST": {
+    "tests": 617,
+    "seconds": 62.13,
+    "result": "PASS",
+    "failure_identities": [],
+    "log": "engineering/solana_capacity/validation/fast.log",
+    "log_sha256": "ec4c09e03ea166f8b7ddbe6ae3bc3b0e3b066a699b19e48abb07b56897087d43"
+  },
+  "AFFECTED_OPERATIONAL": {
+    "scope": "All 88 affected source/history/governor/Pump/Meteora/maintenance/continuity/backup modules, with original timing limits. Full 2031-test outcomes are retained separately.",
+    "modules": [
+      "tests.test_operational_backup",
+      "tests.test_operational_capacity_repairs",
+      "tests.test_runtime_evidence_thread_ownership",
+      "tests.test_candidate_history",
+      "tests.test_solana_reconstruction_gate",
+      "tests.test_solana_selective_evidence",
+      "tests.test_solana_source_intake.SourceIntakeTests",
+      "tests.test_solana_closure",
+      "tests.test_solana_shared_capacity",
+      "tests.test_current_survivor_independence",
+      "tests.test_prefetch_governor_readonly",
+      "tests.lanes.pump.test_pump_acceleration_strategy",
+      "tests.lanes.pump.test_pump_acceleration_paper",
+      "tests.lanes.pump.test_pumpswap_survivor",
+      "tests.lanes.pump.test_paper_accounting",
+      "tests.lanes.meteora.test_solana_dlmm_independent_v1",
+      "tests.test_meteora_discovery_scheduler",
+      "tests.test_solana_source_intake.LiveIntakeBoundaryTests",
+      "tests.test_work_admission",
+      "tests.test_production_maintenance_arbiter",
+      "tests.test_maintenance_batch_fairness",
+      "tests.test_maintenance_integrity",
+      "tests.test_maintenance_overlap",
+      "tests.test_meteora_host_fee",
+      "tests.test_meteora_safe_token2022",
+      "tests.test_meteora_missing_fee_context",
+      "tests.test_meteora_mint_supply",
+      "tests.test_meteora_evidence_recovery_isolated",
+      "tests.test_meteora_market_scope_efficiency",
+      "tests.test_meteora_tape",
+      "tests.test_meteora_bin_array_neutral",
+      "tests.test_meteora_pool_neutral",
+      "tests.test_retention_outcomes",
+      "tests.test_retention_progress",
+      "tests.test_solana_evidence_plane",
+      "tests.test_solana_evidence_broker",
+      "tests.test_solana_read_rpc",
+      "tests.test_solana_retained_raw",
+      "tests.test_solana_retention_working_set",
+      "tests.test_evidence_interest_checkpoint",
+      "tests.test_solana_checkpoint_owner",
+      "tests.test_checkpoint_handoff",
+      "tests.test_retention_access_path",
+      "tests.test_solana_health_atomicity",
+      "tests.test_solana_evidence_transport",
+      "tests.test_solana_evidence_retention",
+      "tests.test_solana_evidence_queries",
+      "tests.test_solana_evidence_fences",
+      "tests.lanes.pump.test_broker_startup_wal",
+      "tests.lanes.pump.test_default_signature_admission",
+      "tests.lanes.pump.test_local_admission_retry",
+      "tests.lanes.pump.test_pump_finalized_log_authority",
+      "tests.lanes.pump.test_solana_immutable_efficiency",
+      "tests.lanes.pump.test_stream_negative_admission",
+      "tests.lanes.pump.test_stream_payload_retention",
+      "tests.lanes.meteora.test_dlmm_alchemy_provider",
+      "tests.lanes.meteora.test_solana_immutable_efficiency",
+      "tests.lanes.pump.test_pump_durable_strategy_recovery",
+      "tests.lanes.pump.test_pump_acceleration_history",
+      "tests.lanes.pump.test_pumpswap_survivor_evidence",
+      "tests.lanes.pump.test_pump_evidence_classification",
+      "tests.lanes.pump.test_pump_continuous_campaign",
+      "tests.lanes.pump.test_pump_campaign_tail_drain",
+      "tests.lanes.pump.test_pump_shared_survivor",
+      "tests.lanes.pump.test_pump_acceleration_confirmations",
+      "tests.lanes.pump.test_pump_acceleration_evidence",
+      "tests.lanes.pump.test_pump_supply_boundaries",
+      "tests.lanes.pump.test_captured",
+      "tests.lanes.pump.test_postgrad_captured",
+      "tests.lanes.pump.test_pump_acceleration_stream_extensions",
+      "tests.lanes.pump.test_postgrad",
+      "tests.lanes.pump.test_directional_capacity",
+      "tests.lanes.pump.test_evidence_attribution",
+      "tests.lanes.pump.test_evidence_consumers",
+      "tests.lanes.pump.test_evidence_plane_publication",
+      "tests.lanes.pump.test_evidence_runtime_cutover",
+      "tests.lanes.pump.test_market_scope_efficiency",
+      "tests.lanes.pump.test_opportunity_coverage",
+      "tests.lanes.pump.test_pump_acceleration_natural_harness",
+      "tests.lanes.pump.test_run369_liveness",
+      "tests.lanes.pump.test_run370_pump_progression",
+      "tests.lanes.pump.test_strategy_prospect_admission",
+      "tests.lanes.pump.test_solana_evidence_broker",
+      "tests.lanes.pump.test_solana_read_rpc",
+      "tests.test_governor_method_pressure",
+      "tests.test_reserved_evidence_priority",
+      "tests.lanes.pump.test_pump_smoke_tail",
+      "tests.test_native_continuity"
+    ],
+    "tests": 724,
+    "seconds": 175.969,
+    "result": "PASS",
+    "failure_identities": [],
+    "log": "engineering/solana_capacity/validation/affected-operational.log",
+    "log_sha256": "cb0f112d2a999725af96855aebc17b297e83d992145732156c0fc201e7d91b70"
+  },
+  "gates": {
+    "METEORA_STRUCTURAL_PROMOTION": "PASS",
+    "CANDIDATE_REACTIVATION": "PASS",
+    "SCOPED_COLD_RETIREMENT": "PASS",
+    "SIMULTANEOUS_PROVIDER_CAPACITY": "FAIL",
+    "ACK_REPLAY_HANDOFF": "PASS",
+    "CANDIDATE_RESTART_RECOVERY": "PASS",
+    "METEORA_POSITIVE_PARITY": "PASS"
+  },
+  "MEASURED_COST_MODEL": "FAIL",
+  "GitHub_failure_identity_parity": {
+    "result": "PASS",
+    "base_commit": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+    "base_run": 37548780045,
+    "accepted_identities": [
+      [
+        "ERROR",
+        "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+      ],
+      [
+        "ERROR",
+        "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+      ],
+      [
+        "FAIL",
+        "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+      ],
+      [
+        "FAIL",
+        "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+      ],
+      [
+        "FAIL",
+        "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+      ],
+      [
+        "FAIL",
+        "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+      ],
+      [
+        "FAIL",
+        "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+      ],
+      [
+        "FAIL",
+        "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+      ],
+      [
+        "FAIL",
+        "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+      ]
+    ],
+    "runs": [
+      {
+        "run": 37616525528,
+        "head": "eb24401e622da28dfd5f46243cbf146edc7ba1ee",
+        "attempt": 1,
+        "identities": [
+          [
+            "ERROR",
+            "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+          ],
+          [
+            "ERROR",
+            "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+          ],
+          [
+            "FAIL",
+            "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+          ],
+          [
+            "FAIL",
+            "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+          ],
+          [
+            "FAIL",
+            "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+          ],
+          [
+            "FAIL",
+            "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+          ],
+          [
+            "FAIL",
+            "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+          ],
+          [
+            "FAIL",
+            "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+          ],
+          [
+            "FAIL",
+            "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+          ],
+          [
+            "FAIL",
+            "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+          ],
+          [
+            "FAIL",
+            "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+          ]
+        ],
+        "new_identities": [],
+        "missing_or_changed_identities": [],
+        "log": "engineering/solana_capacity/validation/github-37616525528-attempt1.log",
+        "log_sha256": "69abbc0637c3c36a361a549bfdfca5307567c6f58b548bb655e28b6c129daa14"
+      },
+      {
+        "run": 37616530525,
+        "head": "eb24401e622da28dfd5f46243cbf146edc7ba1ee",
+        "attempt": 1,
+        "identities": [
+          [
+            "ERROR",
+            "test_all_lane_journals_survivor_and_pending_delivery_restore_idempotently (tests.test_operational_backup.BackupRestore.test_all_lane_journals_survivor_and_pending_delivery_restore_idempotently)"
+          ],
+          [
+            "ERROR",
+            "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+          ],
+          [
+            "ERROR",
+            "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+          ],
+          [
+            "FAIL",
+            "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+          ],
+          [
+            "FAIL",
+            "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+          ],
+          [
+            "FAIL",
+            "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+          ],
+          [
+            "FAIL",
+            "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+          ],
+          [
+            "FAIL",
+            "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+          ],
+          [
+            "FAIL",
+            "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+          ],
+          [
+            "FAIL",
+            "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+          ],
+          [
+            "FAIL",
+            "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+          ],
+          [
+            "FAIL",
+            "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+          ]
+        ],
+        "new_identities": [
+          [
+            "ERROR",
+            "test_all_lane_journals_survivor_and_pending_delivery_restore_idempotently (tests.test_operational_backup.BackupRestore.test_all_lane_journals_survivor_and_pending_delivery_restore_idempotently)"
+          ]
+        ],
+        "missing_or_changed_identities": [],
+        "log": "engineering/solana_capacity/validation/github-37616530525-attempt1.log",
+        "log_sha256": "ebc53466232063e4c921cc7b2be08a76fb652ffab6442534b7f5570f1f7c06d4"
+      }
+    ],
+    "exact_identity_match": true,
+    "NEW_FAILURE_IDENTITIES": 0,
+    "MISSING_OR_CHANGED_BASELINE_IDENTITIES": 0,
+    "accepted_latest_attempt": {
+      "run": 37616530525,
+      "attempt": 2,
+      "head": "eb24401e622da28dfd5f46243cbf146edc7ba1ee",
+      "tests": 617,
+      "identities": [
+        [
+          "ERROR",
+          "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+        ],
+        [
+          "ERROR",
+          "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+        ],
+        [
+          "FAIL",
+          "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+        ],
+        [
+          "FAIL",
+          "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+        ],
+        [
+          "FAIL",
+          "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+        ],
+        [
+          "FAIL",
+          "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+        ],
+        [
+          "FAIL",
+          "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+        ],
+        [
+          "FAIL",
+          "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+        ]
+      ],
+      "log": "engineering/solana_capacity/validation/github-37616530525-attempt2.log",
+      "log_sha256": "e34e82a406aceb8cc10ed6c6efd57099f44ce33fb4dcd2c17159315d0a52680b"
+    }
+  },
+  "OPERATIONAL_BOUNDARY": {
+    "tests": 6,
+    "seconds": 101.349,
+    "result": "PASS",
+    "failure_identities": [],
+    "log": "engineering/solana_capacity/validation/operational-boundary.log",
+    "log_sha256": "b94e3de305e20f21e1c83cf6807aeff4961e53ece1ad071c63c6451ee1e1adee"
+  },
+  "earlier_corrected_regressions": [
+    "Protected native Meteora AST changes moved into observation wrappers.",
+    "Only look up native freshness clock when retrying missing interval proof.",
+    "Rotation passthrough respects absent fixture adapters."
+  ],
+  "earlier_operational_attempt": {
+    "tests": 2031,
+    "result": "FAIL",
+    "failure_identities": [
+      [
+        "ERROR",
+        "test_sustained_source_clock_candidate_progress_and_durable_drain (tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain)"
+      ],
+      [
+        "FAIL",
+        "test_meteora_recovered_native_lifecycle_does_not_block_discovery (tests.test_native_continuity.ContinuityTests.test_meteora_recovered_native_lifecycle_does_not_block_discovery)"
+      ]
+    ],
+    "note": "Both boundary reruns passed; complete final suite is required before finalizing validation."
+  },
+  "full_operational_followup": {
+    "tests": 2031,
+    "seconds": 618.034,
+    "result": "FAIL",
+    "failure_identities": [
+      [
+        "FAIL",
+        "test_scope_fairness_under_new_dense_meteora_arrivals (tests.test_production_maintenance_arbiter.ProductionServeTests.test_scope_fairness_under_new_dense_meteora_arrivals)"
+      ]
+    ],
+    "reason": "Maintenance fixture TimeoutError; full affected modules are being rerun without changing production/test limits."
+  },
+  "MAINTENANCE_BACKUP_RETRY": {
+    "tests": 41,
+    "seconds": 62.46,
+    "result": "PASS",
+    "failure_identities": [],
+    "log": "engineering/solana_capacity/validation/maintenance-backup.log",
+    "log_sha256": "f628314d324745944b58044d94d59ac176b557c8695d65d371f99de1bd948ccd"
+  },
+  "final_classification": "ALCHEMY_SOLANA_NOT_READY",
+  "remaining_blocker": "SIMULTANEOUS_PROVIDER_CAPACITY"
+}

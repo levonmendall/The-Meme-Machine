@@ -17,7 +17,7 @@ PUMP_SCOPE='program:pump'
 SWAP_SCOPE='program:pumpswap'
 METEORA_SCOPE='program:meteora'
 
-class RuntimeEvidence:
+class BaseRuntimeEvidence:
     def __init__(self,path=None,*,owner,clock=time.time,command=None):
         path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
         if not path:raise EvidenceUnavailable('shared_evidence_plane_required')
@@ -175,6 +175,11 @@ class RuntimeEvidence:
         if reader:reader.close()
         self._thread_readers.reader=None
 
+from meme_machine.solana_selective_runtime import SelectiveRuntime
+
+class RuntimeEvidence(SelectiveRuntime,BaseRuntimeEvidence):
+    pass
+
 class LocalPumpHistory:
     """Adapter for the real Pump runner's frozen history/decision interface."""
     def __init__(self,plane,pool,graduation_time):
@@ -222,6 +227,8 @@ class LocalPumpTape:
             return None
         finally:db.execute('ROLLBACK')
     def events_since(self,sequence):
+        from meme_machine.solana_selective_runtime import selective,consume_pump_discovery
+        if hasattr(self.plane,'_selective_reader') and selective(self.plane._selective_reader()):return consume_pump_discovery(self,sequence)
         hi=self.plane.frontier(PUMP_SCOPE)
         # Keep body and shared material on the same bounded read snapshot while
         # archive GC runs. Release it before any control acknowledgement.
@@ -240,6 +247,8 @@ class LocalPumpTape:
         if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
         return events,sequence
     def covered(self,now=None):
+        from meme_machine.solana_selective_runtime import selective
+        if hasattr(self.plane,'_selective_reader') and selective(self.plane._selective_reader()):return self.plane.health(PUMP_SCOPE)['usable']
         try:
             hi=self.plane.frontier(PUMP_SCOPE)
             row=self.plane.reader.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',(PUMP_SCOPE,hi)).fetchone()

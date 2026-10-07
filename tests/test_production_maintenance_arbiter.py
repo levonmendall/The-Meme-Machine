@@ -436,24 +436,14 @@ class FrontierCurrentnessTests(unittest.TestCase):
 
 
 class AdapterServeCorrectionsTests(unittest.IsolatedAsyncioTestCase):
-    async def test_actual_serve_cold_retirement_with_continuous_source_batches(self):
-        from tests import maintenance_production_harness as harness
-        from meme_machine import solana_evidence_service as service,startup_storage
-        clock=Clock();cold=[False];batches=[]
-        original_source=service.ServiceState.source_batch
+    async def test_actual_serve_cold_retirement_with_continuous_model_b_publication(self):
+        from meme_machine import solana_selective_source as selective,startup_storage
+        clock=Clock();cold=[False];publications=[]
+        original_control=selective.commit_control
         original_recovery=startup_storage.recover
-        class BurstWire(harness.Wire):
-            async def recv(self,decode=None):
-                if not self.acks.empty():return await self.acks.get()
-                await asyncio.sleep(0 if self.slot<2_000_040 else .005)
-                slot=self.slot;self.slot+=1
-                return json.dumps(dict(method='blockNotification',params=dict(subscription=1,
-                    result=dict(value=dict(slot=slot,err=None,block=dict(parentSlot=slot-1,
-                    blockhash=f'h{slot}',previousBlockhash=f'h{slot-1}',blockTime=int(clock.time()),
-                    transactions=[])))))).encode()
-        def source(state,items):
-            result=original_source(state,items)
-            if cold[0]:batches.append(len(items))
+        def control(state,frame):
+            result=original_control(state,frame)
+            if cold[0]:publications.append(frame.update.block.slot)
             return result
         async def recovery(*args,**kwargs):
             cold[0]=kwargs.get('on_complete') is not None
@@ -462,12 +452,11 @@ class AdapterServeCorrectionsTests(unittest.IsolatedAsyncioTestCase):
         def before(runtime,flight,box):
             if box['turns']==2:
                 ingest(runtime.writer,rows(clock,SCOPES[0],12000,age=1800,same_slot=True))
-        with patch.object(harness,'Wire',BurstWire),patch.object(service.ServiceState,'source_batch',source),\
+        with patch.object(selective,'commit_control',control),\
                 patch.object(startup_storage,'recover',recovery):
             box=await run_case(before=before,turns=5,clock=clock)
         self.assertFalse(box['errors'],[str(error) for error in box['errors']])
-        self.assertTrue(batches,'no source work interleaved with cold recovery')
-        self.assertGreater(max(batches),1,'normal backed-up source batching was bypassed')
+        self.assertGreater(len(publications),1,'rolling publication did not continue during local archive recovery')
         self.assertEqual(box['counters'].get('archived_records'),12000)
         self.assertEqual(box['counters'].get('compacted_records'),12000)
         self.assertEqual(box['counters'].get('maintenance_cold_self_recoveries'),1)

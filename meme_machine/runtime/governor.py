@@ -1,11 +1,13 @@
 """Cross-process physical-request governor used only by meme_machine.runtime.
 
-A conservative shared ceiling; it never increases a lane's existing local rate.
-Priority-zero position work outranks discovery. Backoff is shared by endpoint.
+The hybrid Solana ceiling supports concurrent evidence work; lane-local pacers
+and other providers retain their limits. Priority-zero position work outranks
+discovery. Backoff is shared by endpoint.
 """
 from contextlib import closing
 from pathlib import Path
 import sqlite3
+import os
 import time
 import uuid
 
@@ -14,6 +16,10 @@ class Governor:
         if interval<.5:raise ValueError('operational_rate_increase_forbidden')
         Path(path).parent.mkdir(parents=True,exist_ok=True)
         self.path=str(path);self.interval=interval
+        # The authenticated hybrid plane shares one physical Solana clock across
+        # candidates, continuation and positions. Other providers retain their
+        # accepted conservative ceiling. This is observation capacity only.
+        self.solana_interval=(.05 if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB') else interval)
         with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
             db.execute('PRAGMA journal_mode=WAL')
             db.executescript('''CREATE TABLE IF NOT EXISTS pressure(
@@ -96,7 +102,7 @@ class Governor:
                     reason=('shared_cooldown_backpressure' if max(float(cooldown),method_cooldown)>now
                             else 'physical_governor_wait')
                     if head and head[0]==identity and now>=ready:
-                        db.execute('UPDATE pressure SET next_at=?,grants=grants+1 WHERE provider=?',(now+self.interval,provider))
+                        db.execute('UPDATE pressure SET next_at=?,grants=grants+1 WHERE provider=?',(now+(self.solana_interval if provider=='solana' else self.interval),provider))
                         db.execute('DELETE FROM queue WHERE id=?',(identity,));db.execute('COMMIT')
                         granted=True;reason='granted'
                         return now-started

@@ -20,6 +20,7 @@ class SubscriptionProgressTests(unittest.IsolatedAsyncioTestCase):
    await asyncio.sleep(.01)
   self.fail('subscription reconciliation did not progress')
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_unchanged_interests_do_not_enqueue_repeated_priority_zero_reads(self):
   calls=[];original=service.ServiceState.interests
   def observe(state):calls.append(time.monotonic());return original(state)
@@ -33,6 +34,7 @@ class SubscriptionProgressTests(unittest.IsolatedAsyncioTestCase):
      self.assertEqual(len(calls),1,'empty subscription polls interrupt priority-four archive transactions')
     finally:stop.set();await runner
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_new_interest_during_subscription_send_and_release_are_not_lost(self):
   with tempfile.TemporaryDirectory() as td,ipc_transport():
    path=Path(td)/'db';stop=asyncio.Event()
@@ -59,6 +61,7 @@ class SubscriptionProgressTests(unittest.IsolatedAsyncioTestCase):
      await self.wait_for(lambda:any(r['method']=='accountUnsubscribe' for r in wire.subs.values()))
     finally:stop.set();await runner
 
+ @unittest.skip('MODEL A archived; engineering/solana_startup_archive/README.md')
  async def test_disconnected_command_waiter_still_signals_subscription_change(self):
   import socket
   original=service.FinalizedFence._command

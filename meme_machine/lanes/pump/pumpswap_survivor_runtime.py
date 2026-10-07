@@ -16,6 +16,7 @@ from meme_machine.runtime.journal import digest
 from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,scale
 from meme_machine.runtime.survivor_history import History
 from meme_machine.runtime.survivor_paper_book import PaperBook
+from meme_machine.solana_evidence_plane import decode_body
 from .engine import GAS,MAYHEM_AGENT_WALLET
 from .postgrad import PostGraduationAdapter,graduation_handoff,buy_quote,sell_quote
 from .provider import Unavailable
@@ -54,6 +55,8 @@ class Runtime:
         from meme_machine.runtime.survivor_terminal_archive import compact
         compact(self.book,self.sleeve,self.history)
         self.plane=RuntimeEvidence(owner='pump:survivor')
+        from meme_machine.runtime.candidate_history import open_candidate_history
+        self.candidate_history=open_candidate_history()
         self.rpc=None;self.current=None;self.last_error=None
 
     def now(self):return int(time.time())
@@ -68,13 +71,21 @@ class Runtime:
         self.rpc.evidence_kind='survivor_monitor' if priority==30 else 'survivor_commit_or_exit'
 
     def discover(self):
+        from meme_machine.solana_selective_runtime import selective
+        selected=selective(self.plane._selective_reader()) if hasattr(self.plane,'_selective_reader') else False
         top=self.plane.frontier(PUMP_SCOPE)
         cursor=self.history.get_meta('discovery_slot')
-        if cursor is None:
+        if cursor is None and not selected:
             self.history.set_meta('discovery_slot',max(0,top-1));return
-        if top<=cursor:return
-        end=min(top,cursor+64)
-        rows=self.plane.reader.window(PUMP_SCOPE,cursor+1,end,as_of=time.time(),kind='event',limit=10000)
+        if selected:
+            sequence=self.history.get_meta('discovery_sequence') or 0
+            delivery=self.plane.reader.discovery(sequence,as_of=time.time())
+            rows=[decode_body(row[1],self.plane.reader.db) for row in delivery]
+            end=top
+        else:
+            if top<=cursor:return
+            end=min(top,cursor+64)
+            rows=self.plane.reader.window(PUMP_SCOPE,cursor+1,end,as_of=time.time(),kind='event',limit=10000)
         for row in rows:
             event=row['payload']['event']
             if event.get('event_type')!='migration' or event.get('quote_asset')!='SOL':continue
@@ -89,7 +100,9 @@ class Runtime:
                     points=[(event['market_time'],str(Fraction(event['quote_amount'],event['mint_amount'])))],complete=True)
             self.plane.interest(SWAP_SCOPE,lower_slot=event['slot'],addresses=[event['pool']],
                 lifecycle='candidate',priority=4,owner='pump:survivor:'+event['mint'])
-        self.history.set_meta('discovery_slot',end)
+        if selected:
+            if delivery:self.history.set_meta('discovery_sequence',delivery[-1][0])
+        else:self.history.set_meta('discovery_slot',end)
 
     def _increment(self,row,at,slot):
         row=self.history.get(row['id'])
@@ -107,10 +120,18 @@ class Runtime:
                 index=proof[0]
             return record['slot'],index,record['event_index']
         records.sort(key=order)
+        multiple={}
+        for record in records:multiple.setdefault(record['slot'],set()).add(record['signature'])
         events=[];points={}
         for record in records:
-            e=record['payload']['event'];t=e['market_time']
+            e=dict(record['payload']['event']);t=e['market_time']
+            if len(multiple[record['slot']])>1:e['_economic_order']=order(record)[1]
             if not row['through']<=t<=at:continue
+            shared=getattr(self,'candidate_history',None)
+            if shared is not None:
+                shared.observe('pump',row['id'],surface='pumpswap',
+                    observed_at=grad['at'],metadata=dict(pool=grad['pool']))
+                shared.retain_pumpswap_record(row['id'],record,order(record)[1])
             price=Fraction(e['pool_quote_reserve'],e['pool_base_reserve'])
             prior=points.get(t,dict(low=str(price),high=str(price)))
             points[t]=dict(price=str(price),low=str(min(price,Fraction(prior['low']))),
@@ -237,10 +258,25 @@ class Runtime:
 
     def _enter(self,row,decision,generation,regime,identity):
         sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
-        return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
+        result=commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
             strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
             target=sizing["target"],minimum=GAS*2+1,retention_bps=5000,
             ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
+        self._funding(row,'funded',details=dict(lifecycle_id=identity,sizing=sizing))
+        return result
+
+    def _decision(self,row,decision,at):
+        shared=getattr(self,'candidate_history',None)
+        if shared is None:return
+        row['decision_id']=shared.record_decision('pump',row['id'],mode='survivor',
+            observed_at=at,qualified=bool(decision['candidate']),
+            decision=dict(qualification=decision,policy_hash=POLICY_HASH))
+
+    def _funding(self,row,status,reason=None,details=None):
+        shared=getattr(self,'candidate_history',None)
+        if shared is not None and row.get('decision_id'):
+            shared.record_funding(row['decision_id'],'pump',row['id'],
+                status=status,at=self.now(),reason=reason,details=details)
 
     def step(self,*,admit):
         discovery_deferred=False
@@ -300,6 +336,8 @@ class Runtime:
                             status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime)
+                        self._decision(row,decision,state['market_time'])
+                        self.history.save(row)
                         if decision['candidate']:
                             sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
                             if int(sizing.get('allocatable_target',0)) < GAS*2+1:
@@ -307,6 +345,7 @@ class Runtime:
                                 # unavailable. Do not mint a fake reserved position.
                                 row['position']=None
                                 row['state']='qualified_but_capital_unavailable'
+                                self._funding(row,'denied','survivor_minimum_capital',sizing)
                                 self.sleeve.opportunity(
                                     row['id'],identity=row['id'],regime='survivor',
                                     status=row['state'],at=state.get('market_time',state.get('at')),
@@ -318,11 +357,12 @@ class Runtime:
                                 try:
                                     self._enter(row,decision,observed['generation'],regime,row['position'])
                                 except ValueError as exc:
-                                    if str(exc)!='survivor_minimum_capital':
+                                    if str(exc) not in ('survivor_minimum_capital','sleeve_capital_exhausted'):
                                         raise
                                     row=self.history.get(row['id'])
                                     row['position']=None
                                     row['state']='qualified_but_capital_unavailable'
+                                    self._funding(row,'denied',str(exc),sizing)
                                     self.sleeve.opportunity(
                                         row['id'],identity=row['id'],regime='survivor',
                                         status=row['state'],at=state.get('market_time',state.get('at')),
@@ -343,4 +383,5 @@ class Runtime:
                     durable_handoff=handoff_ready(self.book,self.history.rows()))
 
     def close(self):
+        if getattr(self,'candidate_history',None) is not None:self.candidate_history.close()
         self.book.close();self.history.close();self.sleeve.close();self.plane.close()

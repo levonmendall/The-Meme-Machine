@@ -168,8 +168,8 @@ def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,i
     records=decoder.decode(replace(subscription,evidence_class='transactions'),scoped,seen) if subscription.evidence_class=='transactions' else []
     enriched=[];deliveries=[];batches=[]
     for tx,record in zip(transactions,records):
-        body=dict(record.payload);body.pop('transactionIndex',None)
-        enriched.append(prepare(replace(record,payload=body,transaction_index=None,
+        body=dict(record.payload)
+        enriched.append(prepare(replace(record,payload=body,
             addresses=tuple(sorted(set(keys(tx)+[subscription.address]))))))
     if enriched:batches.append(tuple(enriched))
     for tx,signature in zip(transactions,signatures):
@@ -177,7 +177,7 @@ def prepare_block_scope(subscription,message,seen,endpoint_identity,decoders,*,i
             meta=tx['meta'];log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
             notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
             rows=FinalizedNotificationDecoder(endpoint_identity=endpoint_identity,log_decoder=decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
-            if rows:batches.append(tuple(prepare(row) for row in rows))
+            if rows:batches.append(tuple(prepare(replace(row,transaction_index=tx.get('transactionIndex'))) for row in rows))
             deliveries.append((signature,digest(log)))
         elif subscription.evidence_class=='transactions':deliveries.append((signature,digest(tx)))
     # Prepared scopes already share the 16 MiB frame budget. Group their exact
@@ -306,8 +306,8 @@ class FinalizedFence:
                     keys=[k if isinstance(k,str) else k['pubkey'] for k in message_keys]
                     loaded=(tx.get('meta') or {}).get('loadedAddresses') or {}
                     keys+=list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
-                    body=dict(record.payload);body.pop('transactionIndex',None)
-                    enriched.append(replace(record,payload=body,transaction_index=None,
+                    body=dict(record.payload)
+                    enriched.append(replace(record,payload=body,
                         addresses=tuple(sorted(set(keys+[subscription.address])))))
                 self.writer.ingest(enriched)
                 with self.writer.transaction():
@@ -319,7 +319,7 @@ class FinalizedFence:
                         log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
                         notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
                         records=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
-                        if records:self.writer.ingest(records)
+                        if records:self.writer.ingest([replace(row,transaction_index=tx.get('transactionIndex')) for row in records])
                         self._delivery(subscription.scope,slot,signature,log,seen)
                     elif subscription.evidence_class=='transactions':self._delivery(subscription.scope,slot,signature,tx,seen)
             else:
@@ -452,7 +452,7 @@ class FinalizedFence:
             if known and known[0]!=consumer:raise EvidenceUnavailable('interest_owned_by_other_consumer')
             if not known and op=='advance_interest':raise EvidenceUnavailable('interest_checkpoint_unknown_owner')
             if not known and op=='interest':
-                if self.writer.db.execute('SELECT COUNT(*) FROM interest_owners').fetchone()[0]>=4096:
+                if not hasattr(self,'selective') and self.writer.db.execute('SELECT COUNT(*) FROM interest_owners').fetchone()[0]>=4096:
                     raise EvidenceUnavailable('interest_owner_capacity')
         if op=='interest':
             owner=request['owner'];scope=request['scope']
@@ -466,8 +466,11 @@ class FinalizedFence:
                 raise EvidenceUnavailable('service_draining')
             current={r[0] for r in self.writer.db.execute('SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1')}
             if len(current|set(addresses))>256:
-                self.count('subscription_capacity_rejections')
-                raise EvidenceUnavailable('subscription_capacity')
+                if hasattr(self,'selective'):
+                    self.count('subscription_capacity_pressure')
+                else:
+                    self.count('subscription_capacity_rejections')
+                    raise EvidenceUnavailable('subscription_capacity')
             with self.writer.transaction():
                 self.writer._interest(owner,scope,lower_slot=request['lower_slot'],
                     priority=request['priority'],lifecycle=request['lifecycle'])
@@ -539,7 +542,7 @@ class ServiceState:
         import os
         self.fence.health('pid',os.getpid())
         self.fence.health('hot_limit_bytes',self.writer.max_hot_bytes)
-        self.repair_after={};self.failed=False
+        self.failed=False
         prior=self.writer.db.execute("SELECT value FROM service_health WHERE key='storage_maintenance'").fetchone()
         self.storage_metrics=json.loads(prior[0]) if prior else {}
         self.last_measured_archive_receipt=None
@@ -625,46 +628,6 @@ class ServiceState:
         self.fence.count('disconnect:'+reason)
         self.fence.health('phase','DEGRADED')
         self.fence.health('last_source_error',reason)
-
-    def repair_plan(self):
-        now=time.time()
-        # One bounded provider page runs outside the owner, at the governor's
-        # background priority. Open lifecycles can still repair missing evidence;
-        # they never wait for this worker to perform their current-state refresh.
-        if self.writer.db.execute("SELECT value FROM meta WHERE key='poisoned'").fetchone():return None
-        rows=self.writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,attempts,pages FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY attempts,created LIMIT 64').fetchall()
-        for gid,scope,lo,hi,cursor,attempts,pages in rows:
-            if now<self.repair_after.get(gid,0):continue
-            sub=next((s for s in program_subscriptions() if s.scope==scope),None)
-            if sub is None:continue
-            state=json.loads(cursor) if cursor else {}
-            cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters={'slot':{'gte':lo,'lte':hi}})
-            if state.get('next'):cfg['paginationToken']=state['next']
-            # Each successful page has one dispatch attempt and one durable
-            # apply receipt. Pagination itself is not a failed provider retry.
-            failures=max(0,attempts-2*pages)
-            with self.writer.transaction():
-                self.writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
-                self.writer._count('gap_repair_attempts')
-                if failures:self.writer._count('gap_repair_retries')
-            # At most 64 bounded retry leases; completed/old leases are expendable.
-            self.repair_after={k:v for k,v in self.repair_after.items() if v>now}
-            self.repair_after[gid]=now+min(60,2**min(failures,6))
-            return gid,sub.address,cfg
-
-    def repair_apply(self,plan,value):
-        from .solana_evidence_transport import AddressGapRepair
-        gid,address,_=plan
-        scope=self.writer.db.execute('SELECT scope FROM gaps WHERE id=?',(gid,)).fetchone()[0]
-        frontier=self.writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(scope,)).fetchone()[0]
-        class ReceiptRPC:
-            def call(self,*args):return value
-        try:
-            self._storage_stage('repair_apply',lambda:AddressGapRepair(ReceiptRPC(),self.writer,endpoint_identity=self.fence.endpoint_identity,record_mapper=self.fence.repair_records).step(gid,address,now=time.time(),finalized_through=frontier))
-            self.repair_after[gid]=time.time()+1
-        except (ValueError,KeyError,TypeError) as exc:
-            self.fence.count('gap_repair_failures')
-            self.fence.health('last_repair_error',str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__)
 
     def maintenance_health(self,http):
         from .solana_evidence_plane import require_storage,storage_health
@@ -795,8 +758,10 @@ class ServiceState:
         finally:self.writer.close()
 
 
-async def serve(path,endpoint,*,repair_rpc=None,stop=None):
-    """Independent bounded socket handling and one priority SQLite owner."""
+async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
+    """Model B startup, bounded socket handling and one canonical owner."""
+    if source_driver is None:
+        raise EvidenceUnavailable('legacy_startup_archived_model_b_driver_required')
     import asyncio
     from concurrent.futures import ProcessPoolExecutor
     import multiprocessing
@@ -807,7 +772,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     from .solana_provider_config import AlchemyEndpoint
     from .solana_evidence_transport import Subscription
     from .solana_evidence_plane import EvidenceWriter
-    from .solana_evidence_control import PriorityOwner,PendingCommands,MAX_COMMAND_BYTES
+    from .solana_evidence_control import PriorityOwner,PendingCommands,MAX_COMMAND_BYTES,admit
     config=AlchemyEndpoint.parse(endpoint)
     import logging
     logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
@@ -829,7 +794,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
             return value,int((started-submitted)*1_000_000),int((execution[1]-started)*1_000_000)
         submit_options=dict(priority=priority)
         if admit_before is not None:submit_options['admit_before']=admit_before
-        future=owner.submit(timed,**submit_options)
+        # Every producer keeps its one bounded outstanding command until the
+        # owner can admit it. Rejection happens before mutation; a retry submits
+        # the same command once, preserving its immutable evidence/deadline.
+        # Admission offers retain their separate expiry/recheck semantics.
+        future=await admit(owner,timed,**submit_options)
         if accepted is not None:accepted(future)
         wrapped=asyncio.wrap_future(future)
         try:value,queued,executed=await asyncio.shield(wrapped)
@@ -863,27 +832,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     admission=OwnerAdmission(owner,clock=time.monotonic)
     loop=asyncio.get_running_loop()
     owner.admission_notify=lambda:loop.call_soon_threadsafe(admission.recheck)
-    # Source batching amortizes FULL-synchronous fsyncs while the store is clean.
-    # Once archive/retention has real backlog, however, a multi-frame batch would
-    # consume several frames inside one owner admission and make cleanup fairness
-    # depend on decode timing. Keep the fast path, but collapse source commits to
-    # one frame while either maintenance path reports active backlog.
-    maintenance_pressure={'archive':False,'retention':False}
     # A prepared archive receipt is already durable outside SQLite. While its
     # bounded 512-row commit slices remain, do not let the independent retention
     # loop enqueue fresh background work between those slices. Source/foreground
     # work still enters the owner FIFO normally, and retention resumes while the
     # next archive receipt is being prepared by the worker.
-    def maintenance_batch_limit(pending_frames):
-        # Cleanup fairness matters when source is keeping pace. If the bounded
-        # transport queue itself is materially backed up, preserve the existing
-        # batching fast path so reception can drain without manufacturing a
-        # capacity discontinuity. Once backlog falls below two maximum batches,
-        # maintenance regains one-frame source admissions until it catches up.
-        if (any(maintenance_pressure.values())
-                and pending_frames<2*STREAM_COMMIT_BATCH_MAX_MESSAGES):
-            return 1
-        return STREAM_COMMIT_BATCH_MAX_MESSAGES
     def count(key):counts[key]=counts.get(key,0)+1
     subscriptions_dirty=await work(lambda state:state.fence.subscriptions_dirty,0)
 
@@ -929,446 +882,6 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     try:
         server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
         os.chmod(socket_path,0o600)
-        class StreamDispatchCapacity(OSError):
-            pass
-
-        async def source():
-            await storage_ready.wait()
-            while not stop.is_set():
-                connection_tasks=[]
-                connection_stop=asyncio.Event()
-                try:
-                    # Keep websocket draining independent from decode, SQLite
-                    # persistence, and account-subscription reconciliation. Run 373
-                    # proved that a healthy receiver can still lose continuity when
-                    # one sequential downstream processor cannot sustain block flow.
-                    # A bounded websocket data queue pauses transport reads,
-                    # including PONG frames. Its autonomous ping deadline cannot
-                    # distinguish that intentional backpressure from a dead peer.
-                    # Keep pings, but enforce explicit receive/commit progress
-                    # deadlines below; native freshness/finality gates are intact.
-                    async with connect(config.stream_url,logger=logger,max_size=STREAM_MAX_MESSAGE_BYTES,max_queue=STREAM_PROTOCOL_QUEUE_FRAMES,ping_interval=10,ping_timeout=None,open_timeout=10) as ws:
-                        from collections import Counter,deque
-                        number=1
-                        pending={1:Subscription('service','chain:solana','all','blocks',2)}
-                        active={};registered=set();retiring=set();retired_subscriptions=deque(maxlen=256)
-                        inbound=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
-                        decoded=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
-                        pending_bytes=0;pending_frames=0;receive_sequence=0
-                        commit_progress=time.monotonic()
-                        receive_capacity_waiting=False
-                        drained=asyncio.Event();drained.set()
-                        capacity_available=asyncio.Event()
-                        wanted=set()
-                        await ws.send(canonical(pending[1].request(1)))
-
-                        async def sync_subscriptions_once():
-                            nonlocal number,wanted
-                            started=time.monotonic()
-                            wanted=set(await work(lambda state:state.interests(),0))
-                            if len(wanted)>256:raise EvidenceUnavailable('restored_subscription_capacity')
-                            for sid,sub in list(active.items()):
-                                if sub.evidence_class=='account' and sub.address not in wanted:
-                                    number+=1;retiring.add(number)
-                                    retired_subscriptions.append(sid)
-                                    await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
-                                    del active[sid];registered.discard(sub.address)
-                            for address in sorted(wanted-registered):
-                                number+=1;sub=Subscription('service','account:'+address,address,'account',0)
-                                pending[number]=sub;registered.add(address)
-                                await ws.send(canonical(sub.request(number)))
-                            elapsed=int((time.monotonic()-started)*1_000_000)
-                            counts['stream.subscription_syncs']=counts.get('stream.subscription_syncs',0)+1
-                            counts['stream.subscription_sync_peak_microseconds']=max(
-                                counts.get('stream.subscription_sync_peak_microseconds',0),elapsed)
-
-                        async def subscription_manager():
-                            restore=True
-                            while not stop.is_set() and not connection_stop.is_set():
-                                if restore or subscriptions_dirty.is_set():
-                                    # Clear before enqueueing the read. A mutation
-                                    # during that read/send sets a fresh hint for
-                                    # the next cycle; no wakeup can be erased.
-                                    subscriptions_dirty.clear()
-                                    await sync_subscriptions_once();restore=False
-                                else:count('stream.subscription_unchanged_polls')
-                                try:await asyncio.wait_for(connection_stop.wait(),STREAM_SUBSCRIPTION_SYNC_SECONDS)
-                                except TimeoutError:pass
-
-                        async def receive():
-                            nonlocal pending_bytes,pending_frames,receive_sequence,receive_capacity_waiting
-                            last_receive=time.monotonic()
-                            while not stop.is_set() and not connection_stop.is_set():
-                                # Reserve room for one maximum-sized frame before
-                                # asking the transport for it. A full local queue
-                                # is backpressure, not missing evidence: let the
-                                # ordered committer free capacity instead of reading
-                                # a frame that we must discard and disconnect over.
-                                # The protocol queue and TCP flow control remain
-                                # bounded. A real transport discontinuity still gaps.
-                                wait_started=None
-                                while (pending_frames>=STREAM_DISPATCH_MAX_MESSAGES
-                                       or pending_bytes+STREAM_MAX_MESSAGE_BYTES>STREAM_DISPATCH_MAX_BYTES):
-                                    if wait_started is None:
-                                        wait_started=time.monotonic()
-                                        count('stream.admission_waits')
-                                        receive_capacity_waiting=True;admission.recheck()
-                                    capacity_available.clear()
-                                    try:await asyncio.wait_for(capacity_available.wait(),.5)
-                                    except TimeoutError:pass
-                                    if stop.is_set() or connection_stop.is_set():return
-                                    if time.monotonic()-commit_progress>STREAM_COMMIT_STALL_SECONDS:
-                                        raise EvidenceUnavailable('local_ordered_commit_stalled')
-                                if wait_started is not None:
-                                    receive_capacity_waiting=False
-                                    wait_us=int((time.monotonic()-wait_started)*1_000_000)
-                                    counts['stream.admission_wait_total_microseconds']=counts.get('stream.admission_wait_total_microseconds',0)+wait_us
-                                    counts['stream.admission_wait_peak_microseconds']=max(counts.get('stream.admission_wait_peak_microseconds',0),wait_us)
-                                try:raw=await asyncio.wait_for(ws.recv(decode=False),.5)
-                                except TimeoutError:
-                                    if time.monotonic()-last_receive>STREAM_SOURCE_IDLE_SECONDS:
-                                        raise EvidenceUnavailable('source_receive_idle_timeout')
-                                    continue
-                                last_receive=time.monotonic()
-                                size=len(raw) if isinstance(raw,(str,bytes)) else STREAM_MAX_MESSAGE_BYTES+1
-                                # The frame that crosses the bound is the first
-                                # unretained frame. Stop reception, drain every frame
-                                # already accepted into this connection, then create
-                                # the continuity gap at the resulting committed edge.
-                                if (size>STREAM_MAX_MESSAGE_BYTES
-                                        or pending_frames>=STREAM_DISPATCH_MAX_MESSAGES
-                                        or pending_bytes+size>STREAM_DISPATCH_MAX_BYTES):
-                                    count('stream.dispatch_queue_overflow')
-                                    counts['stream.dispatch_overflow_frame_bytes']=max(
-                                        counts.get('stream.dispatch_overflow_frame_bytes',0),size)
-                                    counts['stream.dispatch_overflow_pending_frames']=max(
-                                        counts.get('stream.dispatch_overflow_pending_frames',0),pending_frames)
-                                    counts['stream.dispatch_overflow_pending_bytes']=max(
-                                        counts.get('stream.dispatch_overflow_pending_bytes',0),pending_bytes)
-                                    return ('capacity',size)
-                                sequence=receive_sequence;receive_sequence+=1
-                                pending_frames+=1;pending_bytes+=size;drained.clear()
-                                admission.recheck()
-                                received_at=time.monotonic()
-                                inbound.put_nowait((sequence,raw,time.time(),size,received_at))
-                                counts['stream.received_messages']=counts.get('stream.received_messages',0)+1
-                                counts['stream.raw_message_peak_bytes']=max(
-                                    counts.get('stream.raw_message_peak_bytes',0),size)
-                                counts['stream.dispatch_queue_peak']=max(
-                                    counts.get('stream.dispatch_queue_peak',0),inbound.qsize())
-                                counts['stream.dispatch_bytes_peak']=max(
-                                    counts.get('stream.dispatch_bytes_peak',0),pending_bytes)
-                                counts['stream.outstanding_frames_peak']=max(
-                                    counts.get('stream.outstanding_frames_peak',0),pending_frames)
-
-                        async def decode_worker(worker_id):
-                            while True:
-                                item=await inbound.get()
-                                if item is None:
-                                    inbound.task_done()
-                                    await decoded.put(('worker_done',worker_id))
-                                    return
-                                sequence,raw,seen,size,received_at=item
-                                item=None
-                                try:
-                                    decode_started=time.monotonic()
-                                    queue_wait_us=int(max(0.0,decode_started-received_at)*1_000_000)
-                                    counts['stream.decode_queue_wait_peak_microseconds']=max(
-                                        counts.get('stream.decode_queue_wait_peak_microseconds',0),queue_wait_us)
-                                    from .solana_source_intake import select_frame
-                                    intake_started=time.monotonic()
-                                    selected=await asyncio.to_thread(select_frame,raw,config.credential,
-                                        source_program_addresses,max_bytes=STREAM_MAX_MESSAGE_BYTES,
-                                        full_transaction_addresses=tuple(s.address for s in program_subscriptions() if s.evidence_class=='transactions'))
-                                    # The full source frame stays inside this process.
-                                    # Release it before submitting only relevant content
-                                    # for canonical decoding/hash/compression in workers.
-                                    raw=None
-                                    intake_us=int((time.monotonic()-intake_started)*1_000_000)
-                                    counts['stream.intake_total_microseconds']=counts.get('stream.intake_total_microseconds',0)+intake_us
-                                    counts['stream.intake_peak_microseconds']=max(counts.get('stream.intake_peak_microseconds',0),intake_us)
-                                    for key,n in selected.counters().items():
-                                        name='stream.intake_'+key
-                                        counts[name]=counts.get(name,0)+n
-                                    if size>=STREAM_PROCESS_DECODE_MIN_BYTES and selected.retained_transactions:
-                                        future=decoder_pool.submit(
-                                            prepare_selected_source,selected,config.identity,seen)
-                                        message,source_transactions,retained_transactions=await asyncio.shield(
-                                            asyncio.wrap_future(future))
-                                        counts['stream.decode_process_messages']=counts.get('stream.decode_process_messages',0)+1
-                                    else:
-                                        message,source_transactions,retained_transactions=await asyncio.to_thread(
-                                            prepare_selected_source,selected,config.identity,seen)
-                                        counts['stream.decode_thread_messages']=counts.get('stream.decode_thread_messages',0)+1
-                                    selected=None
-                                    if isinstance(message,PreparedSource):
-                                        key='stream.prepared_messages' if message.scopes is not None else 'stream.preparation_fallbacks'
-                                        counts[key]=counts.get(key,0)+1
-                                        counts['stream.prepared_payload_peak_bytes']=max(counts.get('stream.prepared_payload_peak_bytes',0),message.prepared_bytes)
-                                    decoded_at=time.monotonic()
-                                    decode_us=int((decoded_at-decode_started)*1_000_000)
-                                    counts['stream.decode_peak_microseconds']=max(
-                                        counts.get('stream.decode_peak_microseconds',0),decode_us)
-                                    counts['stream.decode_total_microseconds']=(
-                                        counts.get('stream.decode_total_microseconds',0)+decode_us)
-                                    counts['stream.source_transactions']=(
-                                        counts.get('stream.source_transactions',0)+source_transactions)
-                                    counts['stream.retained_transactions']=(
-                                        counts.get('stream.retained_transactions',0)+retained_transactions)
-                                    await decoded.put(('frame',sequence,message,seen,size,decoded_at))
-                                    admission.recheck()
-                                finally:
-                                    inbound.task_done()
-
-                        async def commit_ordered():
-                            nonlocal pending_bytes,pending_frames,commit_progress
-                            next_sequence=0;finished_workers=0;ready={}
-                            while finished_workers<STREAM_DECODE_WORKERS or ready or pending_frames:
-                                # Pull every completion already available before
-                                # entering the ordered commit pass. Without this,
-                                # the committer immediately consumed one decoded
-                                # frame and therefore could not form a batch even
-                                # while the decoded queue was backing up.
-                                completed=[await decoded.get()]
-                                while len(completed)<STREAM_DISPATCH_MAX_MESSAGES:
-                                    try:
-                                        completed.append(decoded.get_nowait())
-                                    except asyncio.QueueEmpty:
-                                        break
-                                counts['stream.decoded_drain_peak']=max(
-                                    counts.get('stream.decoded_drain_peak',0),len(completed))
-                                try:
-                                    for item in completed:
-                                        if item[0]=='worker_done':
-                                            finished_workers+=1
-                                        else:
-                                            _,sequence,message,seen,size,decoded_at=item
-                                            ready[sequence]=(message,seen,size,decoded_at)
-                                            counts['stream.ordered_ready_peak']=max(
-                                                counts.get('stream.ordered_ready_peak',0),len(ready))
-                                    while next_sequence in ready:
-                                        message,seen,size,decoded_at=ready[next_sequence]
-
-                                        # Run 376: interleaved account notifications
-                                        # defeated block-only fsync amortization.
-                                        # Batch consecutive data frames in exact wire
-                                        # order, retaining per-frame savepoints and
-                                        # the existing 8-frame/16-MiB transaction cap.
-                                        # Subscription/control ACKs remain barriers.
-                                        if 'id' in message:admission.counters['bypass_head_ack']+=1
-                                        if 'id' not in message:
-                                            sid=(message.get('params') or {}).get('subscription')
-                                            sub=active.get(sid)
-                                            if sub is None and sid in retired_subscriptions:
-                                                sub=None
-                                            elif sub is None:
-                                                raise EvidenceUnavailable('unknown_source_subscription')
-                                            if sub is not None and sub.evidence_class not in ('blocks','account'):
-                                                admission.counters['bypass_head_control']+=1
-                                            if sub is not None and sub.evidence_class in ('blocks','account'):
-                                                def source_state():
-                                                    now=time.monotonic()
-                                                    return SourceState(sub.evidence_class,pending_frames,pending_bytes,
-                                                        receive_capacity_waiting,inbound.qsize(),decoded.qsize(),len(ready),
-                                                        now-commit_progress,now-decoded_at,
-                                                        stop.is_set() or connection_stop.is_set())
-                                                offer=await admission.rendezvous(source_state)
-                                                try:
-                                                    batch=[];batch_bytes=0;cursor=next_sequence
-                                                    batch_limit=maintenance_batch_limit(pending_frames)
-                                                    maintenance_limited=batch_limit==1
-                                                    if (not maintenance_limited
-                                                            and any(maintenance_pressure.values())):
-                                                        counts['stream.maintenance_backpressure_batching']=(
-                                                            counts.get('stream.maintenance_backpressure_batching',0)+1)
-                                                    while (cursor in ready
-                                                           and len(batch)<batch_limit):
-                                                        candidate,c_seen,c_size,c_decoded_at=ready[cursor]
-                                                        if 'id' in candidate:
-                                                            break
-                                                        c_sid=(candidate.get('params') or {}).get('subscription')
-                                                        c_sub=active.get(c_sid)
-                                                        if c_sub is None:
-                                                            break
-                                                        if c_sub.evidence_class not in ('blocks','account'):
-                                                            break
-                                                        if batch and batch_bytes+c_size>STREAM_COMMIT_BATCH_MAX_BYTES:
-                                                            break
-                                                        if c_size>STREAM_COMMIT_BATCH_MAX_BYTES:
-                                                            raise EvidenceUnavailable('stream_commit_batch_bound')
-                                                        ready.pop(cursor)
-                                                        batch.append((c_sub,candidate,c_seen,c_size,c_decoded_at))
-                                                        batch_bytes+=c_size;cursor+=1
-                                                    commit_started=time.monotonic()
-                                                    wait_us=max(int(max(0.0,commit_started-row[4])*1_000_000)
-                                                                for row in batch)
-                                                    counts['stream.ordered_commit_wait_peak_microseconds']=max(
-                                                        counts.get('stream.ordered_commit_wait_peak_microseconds',0),wait_us)
-                                                    source_items=tuple((row[0],row[1],row[2],row[3]) for row in batch)
-                                                    await work(lambda state,items=source_items:state.source_batch(items),
-                                                               0 if all(row[0].evidence_class=='account' for row in batch) else 2,
-                                                               label='source_commit',
-                                                               accepted=lambda future:admission.source_accepted(future,offer,len(batch)))
-                                                    commit_us=int((time.monotonic()-commit_started)*1_000_000)
-                                                    counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+len(batch)
-                                                    counts['stream.commit_batches']=counts.get('stream.commit_batches',0)+1
-                                                    counts['stream.commit_batch_messages_peak']=max(
-                                                        counts.get('stream.commit_batch_messages_peak',0),len(batch))
-                                                    counts['stream.commit_batch_bytes_peak']=max(
-                                                        counts.get('stream.commit_batch_bytes_peak',0),batch_bytes)
-                                                    counts['stream.commit_batch_saved_transactions']=(
-                                                        counts.get('stream.commit_batch_saved_transactions',0)+max(0,len(batch)-1))
-                                                    if maintenance_limited:
-                                                        counts['stream.maintenance_limited_commit_batches']=(
-                                                            counts.get('stream.maintenance_limited_commit_batches',0)+1)
-                                                        counts['stream.maintenance_limited_commit_messages']=(
-                                                            counts.get('stream.maintenance_limited_commit_messages',0)+len(batch))
-                                                    counts['stream.commit_peak_microseconds']=max(
-                                                        counts.get('stream.commit_peak_microseconds',0),commit_us)
-                                                    counts['stream.commit_total_microseconds']=(
-                                                        counts.get('stream.commit_total_microseconds',0)+commit_us)
-                                                    pending_bytes=max(0,pending_bytes-batch_bytes)
-                                                    pending_frames=max(0,pending_frames-len(batch))
-                                                    commit_progress=time.monotonic()
-                                                    capacity_available.set()
-                                                    if pending_frames==0:drained.set()
-                                                    next_sequence+=len(batch)
-                                                finally:
-                                                    admission.abort(offer)
-                                                continue
-
-                                        # Subscription acknowledgements, retired
-                                        # notifications and account observations
-                                        # preserve the exact former one-at-a-time
-                                        # path.
-                                        message,seen,size,decoded_at=ready.pop(next_sequence)
-                                        commit_started=time.monotonic()
-                                        ordered_wait_us=int(max(0.0,commit_started-decoded_at)*1_000_000)
-                                        counts['stream.ordered_commit_wait_peak_microseconds']=max(
-                                            counts.get('stream.ordered_commit_wait_peak_microseconds',0),ordered_wait_us)
-                                        if message.get('id') in retiring:
-                                            retiring.remove(message['id'])
-                                        elif 'id' in message:
-                                            sub=pending.pop(message['id'])
-                                            if 'error' in message or type(message.get('result')) is not int:
-                                                raise EvidenceUnavailable('authoritative_subscription_rejected')
-                                            active[message['result']]=sub
-                                            status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),
-                                                        pending=len(pending),wanted_accounts=len(wanted))
-                                            await work(lambda state:state.fence.health('subscriptions',status))
-                                        else:
-                                            sid=(message.get('params') or {}).get('subscription')
-                                            sub=active.get(sid)
-                                            if sub is None and sid in retired_subscriptions:
-                                                sub=None
-                                            elif sub is None:
-                                                raise EvidenceUnavailable('unknown_source_subscription')
-                                            if sub is not None:
-                                                await work(lambda state:state.source(sub,message,seen,size),
-                                                           0 if sub.evidence_class=='account' else 2)
-                                        commit_us=int((time.monotonic()-commit_started)*1_000_000)
-                                        counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+1
-                                        counts['stream.commit_peak_microseconds']=max(
-                                            counts.get('stream.commit_peak_microseconds',0),commit_us)
-                                        counts['stream.commit_total_microseconds']=(
-                                            counts.get('stream.commit_total_microseconds',0)+commit_us)
-                                        pending_bytes=max(0,pending_bytes-size)
-                                        pending_frames=max(0,pending_frames-1)
-                                        commit_progress=time.monotonic()
-                                        capacity_available.set()
-                                        if pending_frames==0:drained.set()
-                                        next_sequence+=1
-                                finally:
-                                    for _ in completed:
-                                        decoded.task_done()
-                            if pending_frames or ready:
-                                raise EvidenceUnavailable('stream_ordered_drain_incomplete')
-
-                        async def loop_watchdog():
-                            expected=time.monotonic()+STREAM_WATCHDOG_SECONDS
-                            while not stop.is_set() and not connection_stop.is_set():
-                                await asyncio.sleep(STREAM_WATCHDOG_SECONDS)
-                                now=time.monotonic()
-                                lag_us=int(max(0.0,now-expected)*1_000_000)
-                                counts['stream.event_loop_lag_peak_microseconds']=max(
-                                    counts.get('stream.event_loop_lag_peak_microseconds',0),lag_us)
-                                expected=now+STREAM_WATCHDOG_SECONDS
-
-                        receiver=asyncio.create_task(receive())
-                        decoders=[asyncio.create_task(decode_worker(i)) for i in range(STREAM_DECODE_WORKERS)]
-                        committer=asyncio.create_task(commit_ordered())
-                        subscriptions=asyncio.create_task(subscription_manager())
-                        watchdog=asyncio.create_task(loop_watchdog())
-                        stopper=asyncio.create_task(stop.wait())
-                        connection_tasks=[receiver,*decoders,committer,subscriptions,watchdog,stopper]
-                        watched=[receiver,*decoders,committer,subscriptions,watchdog,stopper]
-                        done,_=await asyncio.wait(watched,return_when=asyncio.FIRST_COMPLETED)
-
-                        # A subscription/watchdog task can observe the stop flag
-                        # before the dedicated waiter runs. The flag, not which
-                        # task wins FIRST_COMPLETED, owns admitted-frame drain.
-                        if stop.is_set():
-                            admission.recheck()
-                            connection_stop.set();receiver.cancel()
-                            await asyncio.gather(receiver,return_exceptions=True)
-                            for _ in decoders:await inbound.put(None)
-                            await asyncio.gather(*decoders)
-                            await committer
-                            return
-
-                        if receiver in done:
-                            receiver_exc=receiver.exception()
-                            outcome=None if receiver_exc else receiver.result()
-                            connection_stop.set();admission.recheck()
-                            for _ in decoders:await inbound.put(None)
-                            drain_started=time.monotonic()
-                            await asyncio.gather(*decoders)
-                            await committer
-                            await drained.wait()
-                            counts['stream.drain_count']=counts.get('stream.drain_count',0)+1
-                            drain_us=int((time.monotonic()-drain_started)*1_000_000)
-                            counts['stream.drain_peak_microseconds']=max(
-                                counts.get('stream.drain_peak_microseconds',0),drain_us)
-                            if receiver_exc is not None:raise receiver_exc
-                            if outcome and outcome[0]=='capacity':
-                                raise StreamDispatchCapacity() from None
-                            raise EvidenceUnavailable('stream_receiver_stopped')
-
-                        # Any downstream task ending while reception is active is
-                        # structural. Propagate its exception rather than silently
-                        # reconnecting around corrupt ordering or persistence.
-                        for task in done:
-                            if task is not stopper:
-                                result=task.result()
-                                raise EvidenceUnavailable('stream_pipeline_task_stopped:'+task.get_coro().__name__)
-                except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
-                    if stop.is_set():return
-                    if isinstance(exc,EvidenceConflict) or str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
-                    reason=('local_receive_dispatch_capacity' if isinstance(exc,StreamDispatchCapacity)
-                            else disconnect_classification(exc))
-                    await work(lambda state:state.disconnected(reason))
-                    try:await asyncio.wait_for(stop.wait(),1)
-                    except TimeoutError:pass
-                finally:
-                    connection_stop.set();admission.recheck()
-                    for task in connection_tasks:task.cancel()
-                    if connection_tasks:await asyncio.gather(*connection_tasks,return_exceptions=True)
-
-        async def repair():
-            await storage_ready.wait()
-            while not stop.is_set():
-                try:
-                    if repair_rpc is not None:
-                        plan=await work(lambda state:state.repair_plan(),4)
-                        if plan:
-                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[plan[1],plan[2]],False)
-                            await work(lambda state:state.repair_apply(plan,value),4)
-                except (OSError,ValueError,KeyError,TypeError,TimeoutError) as exc:
-                    if str(exc)!='evidence_background_yield':
-                        await work(lambda state:state.fence.count('gap_repair_failures'),3)
-                try:await asyncio.wait_for(stop.wait(),1)
-                except TimeoutError:pass
-
         async def health():
             # Health publication has its own single outstanding owner request.
             # Its scheduler wait must not idle a completed archive worker.
@@ -1420,8 +933,6 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         accepted=lambda future:admission.accepted(future,offer),
                         admit_before=offer.row['deadline'] if offer is not None else None)
                     admission.publish(runtime.generation,result)
-                    maintenance_pressure['archive']=result['archive_pressure']
-                    maintenance_pressure['retention']=result['retirement_pressure']
                     if result.get('cold_recovery_required'):
                         await recover(work,decoder_pool,path,stop,wall=runtime.wall,
                             monotonic=runtime.monotonic,force=True,flight=flight,
@@ -1521,7 +1032,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
-        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
+        async def selected_source():
+            await storage_ready.wait()
+            await source_driver(work,stop)
+        # Model B is the only producer. Archived startup cannot be selected.
+        producers=[asyncio.create_task(selected_source())]
+        tasks=[*producers,asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             admission.close()

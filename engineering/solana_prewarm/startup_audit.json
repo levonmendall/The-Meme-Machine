@@ -1,0 +1,2441 @@
+{
+  "schema": "model-b-startup-audit-v1",
+  "classification": "MEASURED_LIVE",
+  "source_sha256": {
+    "meme_machine/solana_prewarm_startup.py": "9291fac388444d0c3f4799cab81c9172aa8d8bf55f769dd616034b5d863b03c0",
+    "meme_machine/solana_rolling_history.py": "b3612e6b2ecbb7a20b9ec2c79144ce76e80959bb037a4d300fa91927fa0afcfa",
+    "meme_machine/solana_selective_source.py": "3701b2d469b878279e094813c5417a626a5ce91669523bce26b0c965dd9badf7",
+    "meme_machine/solana_selective_history.py": "135734ead43fbee4f03e37d20bdf21bac4408945dc083b733c64be883eeb45b6",
+    "meme_machine/solana_scoped_retirement.py": "765eeeb29fc8d375240b7748ab9eedbe5cb27c4d7a1b27497a6638518114f214",
+    "meme_machine/solana_candidate_lifecycle.py": "e51c76b5cbb20d84a46e0687e23d2c39f0cdfc456f5d2edb9b2b455099925e67",
+    "meme_machine/solana_candidate_join.py": "39e8e5be5d6b9dd6c1db1e3c6d6ed2eb7766d09ff33e01e74186da2300706d0f",
+    "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+    "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+    "meme_machine/runtime/solana_warming.py": "e129796e56ecd0b5f918e6ba080a7accfebb789f088d25ce5bb5d6d32b58f552",
+    "meme_machine/runtime/candidate_history.py": "611a33bcc50d18ca061496a61ad7b06cc31a2ade01419727c9d8c4260c017028",
+    "meme_machine/runtime/lifecycle_timing.py": "1ceeae9b384768afc2c6a7faf1ddbb7913b59dc371381adb5770d72280c48070",
+    "meme_machine/runtime/evidence_worker.py": "e5a88fdcf48ef2105d3271e975c6a96c3acde34fd73860d9743c49e07ed2ecdd",
+    "meme_machine/lanes/meteora/runner.py": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b",
+    "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+    "engineering/solana_capacity/certify.py": "cb97a00bf6428fc52fc2ea33727892b577300baee41bf4f3bc3143f4bdafc9eb",
+    "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+    "engineering/solana_capacity/transport_meter.py": "381315c88adb6f425a0233fe058650702008b1b8186b966cdd0345cd6d155b90",
+    "meme_machine/solana_evidence_service.py": "99ca89243ef45e597f2b0af455fb0e800403fcae6e64f2f043da8e1c7e9060ba",
+    "meme_machine/solana_evidence_control.py": "914941124cc5c2174969c928281061d92b1c18e050bf692d1ffe978eeb31db44",
+    "meme_machine/solana_checkpoint.py": "63977d26d04bc2fd6f38e43e5fc7d6358ebe70d1bfe1c79a88036a87cc1d99e0"
+  },
+  "endpoint_identity": "8f3feda9d10baa64d74b5ecb3a97cfa48af379982666f93a425e537668a51749",
+  "process_measurement_seconds": 139.81515669822693,
+  "consumer_released": true,
+  "startup_seconds": 16.20401692390442,
+  "steady_observed_seconds": 123.61113977432251,
+  "planned_post_release_arrival_seconds": 60,
+  "phase_transitions": [
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "BOOT",
+      "at": 1791390581.9066112,
+      "details": {
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "RESTORE_DURABLE_FRONTIER",
+      "at": 1791390581.9075158,
+      "details": {
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "RESTORE_NORMALIZED_HISTORY",
+      "at": 1791390581.9083238,
+      "details": {
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "INSTALL_BASE_INTERESTS",
+      "at": 1791390581.9089816,
+      "details": {
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "START_ROLLING_FEEDS",
+      "at": 1791390581.909606,
+      "details": {
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "RECOVERY_OVERLAP",
+      "at": 1791390590.398969,
+      "details": {
+        "feeds_connected_at": 1791390590.3026233,
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "required_intervals": {
+          "pump": [
+            454276769,
+            454276794
+          ],
+          "pumpswap": [
+            454276769,
+            454276794
+          ]
+        },
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "WAIT_FOR_DURABLE_PUBLICATION",
+      "at": 1791390590.4006577,
+      "details": {
+        "feeds_connected_at": 1791390590.3026233,
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "required_intervals": {
+          "pump": [
+            454276769,
+            454276794
+          ],
+          "pumpswap": [
+            454276769,
+            454276794
+          ]
+        },
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "VERIFY_CONTIGUOUS_COVERAGE",
+      "at": 1791390598.078763,
+      "details": {
+        "canonical_control_frontier": 454276852,
+        "coverage_verified_at": 1791390598.078663,
+        "feeds_connected_at": 1791390590.3026233,
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "required_intervals": {
+          "pump": [
+            454276769,
+            454276794
+          ],
+          "pumpswap": [
+            454276769,
+            454276794
+          ]
+        },
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "RELEASE_CANDIDATE_CONSUMERS",
+      "at": 1791390598.0815573,
+      "details": {
+        "canonical_control_frontier": 454276852,
+        "consumers_released_at": 1791390598.0811102,
+        "coverage_verified_at": 1791390598.078663,
+        "feeds_connected_at": 1791390590.3026233,
+        "first_rolling_event_at": 1791390589.9956474,
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "required_intervals": {
+          "pump": [
+            454276769,
+            454276794
+          ],
+          "pumpswap": [
+            454276769,
+            454276794
+          ]
+        },
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        }
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "STEADY_STATE",
+      "at": 1791390598.0851276,
+      "details": {
+        "canonical_control_frontier": 454276852,
+        "consumers_released_at": 1791390598.0811102,
+        "coverage_verified_at": 1791390598.078663,
+        "feeds_connected_at": 1791390590.3026233,
+        "first_rolling_event_at": 1791390589.9956474,
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "required_intervals": {
+          "pump": [
+            454276769,
+            454276794
+          ],
+          "pumpswap": [
+            454276769,
+            454276794
+          ]
+        },
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        },
+        "steady_at": 1791390598.0839307
+      }
+    },
+    {
+      "session": "351e2f99a2eb4f41b5330530e43fc1b1",
+      "phase": "FAIL_CLOSED",
+      "at": 1791390719.957223,
+      "details": {
+        "canonical_control_frontier": 454276852,
+        "consumers_released_at": 1791390598.0811102,
+        "coverage_verified_at": 1791390598.078663,
+        "failure": "AioRpcError",
+        "feeds_connected_at": 1791390590.3026233,
+        "first_rolling_event_at": 1791390589.9956474,
+        "legacy_fallback": false,
+        "legacy_startup_active": false,
+        "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+        "normalized_records": 0,
+        "required_intervals": {
+          "pump": [
+            454276769,
+            454276794
+          ],
+          "pumpswap": [
+            454276769,
+            454276794
+          ]
+        },
+        "restored_frontiers": {
+          "pump": null,
+          "pumpswap": null
+        },
+        "steady_at": 1791390598.0839307
+      }
+    }
+  ],
+  "stage_seconds_from_process_start": {
+    "BOOT": 0.02907085418701172,
+    "RESTORE_DURABLE_FRONTIER": 0.029975414276123047,
+    "RESTORE_NORMALIZED_HISTORY": 0.030783414840698242,
+    "INSTALL_BASE_INTERESTS": 0.03144121170043945,
+    "START_ROLLING_FEEDS": 0.032065629959106445,
+    "RECOVERY_OVERLAP": 8.52142858505249,
+    "WAIT_FOR_DURABLE_PUBLICATION": 8.523117303848267,
+    "VERIFY_CONTIGUOUS_COVERAGE": 16.20122265815735,
+    "RELEASE_CANDIDATE_CONSUMERS": 16.20401692390442,
+    "STEADY_STATE": 16.207587242126465
+  },
+  "feeds_connected_seconds": 8.425082921981812,
+  "first_rolling_event_seconds": 8.118107080459595,
+  "traffic": {
+    "startup": {
+      "HTTP_response_samples": 4,
+      "HTTP_bytes": 210,
+      "RPC_calls": 4,
+      "RPC_CU": 70,
+      "selective_transaction_bodies": 0,
+      "scoped_archive_transaction_bodies": 0,
+      "blocks": 0,
+      "yellowstone_delivery_samples": 17535,
+      "yellowstone_bytes": 1924534,
+      "cross_shard_duplicate_bytes": 14067,
+      "websocket_delivery_samples": 17594,
+      "websocket_bytes": 51068151,
+      "raw_provider_payload_bytes": 52992895
+    },
+    "steady": {
+      "HTTP_response_samples": 863,
+      "HTTP_bytes": 66586389,
+      "RPC_calls": 863,
+      "RPC_CU": 26670,
+      "selective_transaction_bodies": 24,
+      "scoped_archive_transaction_bodies": 7822,
+      "blocks": 0,
+      "history_or_missing_field_RPC_calls": 142,
+      "recovery_HTTP_bytes": 61435296,
+      "yellowstone_delivery_samples": 39241,
+      "yellowstone_bytes": 14905274,
+      "cross_shard_duplicate_bytes": 805603,
+      "websocket_delivery_samples": 47310,
+      "websocket_bytes": 167527377,
+      "raw_provider_payload_bytes": 249019040
+    }
+  },
+  "steady_hour_normalization": {
+    "HTTP_response_samples": 25133.65709330163,
+    "HTTP_bytes": 1939234609.741821,
+    "RPC_calls": 25133.65709330163,
+    "RPC_CU": 776726.1120259032,
+    "selective_transaction_bodies": 698.9661300570557,
+    "scoped_archive_transaction_bodies": 227804.7112210954,
+    "blocks": 0.0,
+    "history_or_missing_field_RPC_calls": 4135.54960283758,
+    "recovery_HTTP_bytes": 1789216295.5845714,
+    "yellowstone_delivery_samples": 1142838.7462320384,
+    "yellowstone_bytes": 434095070.2175021,
+    "cross_shard_duplicate_bytes": 23462050.469681427,
+    "websocket_delivery_samples": 1377836.983874971,
+    "websocket_bytes": 4878998432.512475,
+    "raw_provider_payload_bytes": 7252328112.471798
+  },
+  "normalization_note": "Bounded startup-stock/position-equivalent mix, not production incidence or a monthly estimate.",
+  "ordinary_startup_cold_reconstruction_calls": 0,
+  "startup_transaction_bodies": 0,
+  "control": {
+    "membership_requested": 132,
+    "membership_plan": 29,
+    "membership_install": 118,
+    "membership_suppressed": 103,
+    "owner_backpressure": 46,
+    "rolling_retry": 5
+  },
+  "membership_suppression_percent": 78.03030303030303,
+  "owner_scheduler": {
+    "admission_refusals": 3871,
+    "admission_wait_peak_us": 8690568,
+    "admission_wait_total_us": 479977730,
+    "admission_waited": 655,
+    "aged_selections": 2025,
+    "background_yields": 186,
+    "checkpoint_handoff_peak_us": 600236,
+    "checkpoint_handoff_total_us": 1615216,
+    "checkpoint_handoffs": 29,
+    "nonurgent_fifo_selections": 5018,
+    "owner_admission": {
+      "closed": true,
+      "consumed_epoch": 0,
+      "counters": {},
+      "events": [],
+      "failed": false,
+      "generation": "c75c56e6397344acb5dfc5a0ad382a79",
+      "hint_epoch": 52
+    },
+    "priority0.completed": 1044,
+    "priority0.execution_peak_us": 422803,
+    "priority0.execution_total_us": 6558928,
+    "priority0.queue_peak_us": 4896834,
+    "priority0.queue_total_us": 93801139,
+    "priority1.completed": 296,
+    "priority1.execution_peak_us": 609612,
+    "priority1.execution_total_us": 1669253,
+    "priority1.queue_peak_us": 1476762,
+    "priority1.queue_total_us": 14643218,
+    "priority2.completed": 2307,
+    "priority2.execution_peak_us": 4906828,
+    "priority2.execution_total_us": 53370045,
+    "priority2.queue_peak_us": 10491257,
+    "priority2.queue_total_us": 3598600099,
+    "priority3.completed": 537,
+    "priority3.execution_peak_us": 1810091,
+    "priority3.execution_total_us": 32839716,
+    "priority3.queue_peak_us": 10461054,
+    "priority3.queue_total_us": 854508383,
+    "priority4.completed": 1330,
+    "priority4.execution_peak_us": 367585,
+    "priority4.execution_total_us": 19604452,
+    "priority4.queue_peak_us": 10507308,
+    "priority4.queue_total_us": 869473126,
+    "priority5.completed": 702,
+    "priority5.execution_peak_us": 86081,
+    "priority5.execution_total_us": 3886907,
+    "priority5.queue_peak_us": 9921104,
+    "priority5.queue_total_us": 121161811,
+    "priority6.completed": 142,
+    "priority6.execution_peak_us": 3992752,
+    "priority6.execution_total_us": 16827990,
+    "priority6.queue_peak_us": 10485103,
+    "priority6.queue_total_us": 190797500,
+    "queue_peak": 58,
+    "queued": 0,
+    "rejected": 4210
+  },
+  "producer_wait_seconds": {
+    "N": 46,
+    "mean": 12.49890810443954,
+    "p50": 5.897709381999448,
+    "p95": 36.42953994299751,
+    "p99": 54.46686322800815,
+    "max": 59.28235386800952
+  },
+  "canonical_owner_queue_peak": 58,
+  "commands_completed": 6358,
+  "queue_depth_at_last_telemetry": 0,
+  "queue_normal_drain_proven": false,
+  "acquisition_jobs": {
+    "complete": 26,
+    "pending": 104
+  },
+  "backfill_reasons": {
+    "LATE_DISCOVERY": 126,
+    "POSITION_REQUIRED_GAP": 1,
+    "RECOVERY_GAP": 3
+  },
+  "boundary_waits": {},
+  "history_preparation_observations": 63,
+  "history_complete_preparation_observations": 0,
+  "history_complete_preparation_percent": 0.0,
+  "history_preparation_note": "Preparations can repeat across exact requested intervals; not all promotions have a completed disposition.",
+  "preparation_metrics": [
+    {
+      "family": "pump",
+      "address": "3PzC7iUr7nqtekssvrmJoASBh25YKRKywYf4Bkdkj5pt",
+      "at": 1791390598.320787,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "51788eb5c6d0c37813da54e6ce4f3a81223ad376e81144cb9652f1ea843508da",
+        "08a8b3d8f32f01ce5ac8badf29bd1e716cabf29c4a885ff88b8a05e574a9850a"
+      ],
+      "decision_deadline": 1791390736.6175687,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "3e5fhJzBFvAqaZ6FrEmpC5AKJ7jpmHEzyDYsctctH81y",
+      "at": 1791390598.3269095,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "a79a3689a9fca4e4485265c79879ae9458e46dfb3d891c0e1e36c930ba9271e0",
+        "0b1e1da189ce15512bd3e3c1a9c0ae8d15e06b11285eac68a8d03543e0e1ff9c"
+      ],
+      "decision_deadline": 1791390732.3747115,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "4di843Gw3zopA7uFVVD6iTZ3yxiP6zxpPvcjBM8h4WYZ",
+      "at": 1791390598.3345575,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "b6953141ab5a72dc61a34683bb62e1b476ab74e3ad24ab840434266769c94437",
+        "e150aa66e6e6421dd60072c117b4b1951713b4564d09aaaa194da61e89ae6263"
+      ],
+      "decision_deadline": 1791390738.1430266,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "4kPSuCbmV6ypKqWyVWqfb42YPcjM94cPhrK4UW9DdPPE",
+      "at": 1791390598.3428695,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "13cdd9478e9f91f0a08b16ea1da1217d85f8ddb56a1a0ecb41aa02e9825d544e",
+        "2d1106376f3bff3f72c48427479017f254be6f81c1640ab489786fce5f91826f"
+      ],
+      "decision_deadline": 1791390736.3129482,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "5brBdWzXrvv6meezDVEvtwsKo1EVTkaPG3JwLS8BtQZe",
+      "at": 1791390598.3483934,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "f4ef6b366b8a62e317c5ed5e12086cb61ad2b317b23fe48dd7ac54dfe754d045",
+        "10c46e1aaf7cfca301f2e06f4499486f37dba38149b2f36b25ad27d694587be0"
+      ],
+      "decision_deadline": 1791390733.605709,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "6PdYrjs8kefueHL6yHRQU4j2Kr4dNSwicwqxTENKSevZ",
+      "at": 1791390598.3521183,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "f689e987d2213934d67393a37e36063061e989e10f99d5e485d4d5fe63a8d3f9",
+        "7f896fb49ef6b212bebf963f95c36ae27707698ab274d5197278da6e91cb2da4"
+      ],
+      "decision_deadline": 1791390733.7834735,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "9KSD7E3jx2cGjxx9SR6bX71UUyeHSEZgbojidouhgbeJ",
+      "at": 1791390598.3558364,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "38d3cbb1631f464429e934f156172d4b97143d9c925291e8aa596047e6205cbb",
+        "279f051cdf556dc2a61ccd5187fd4273d21a59d8dd24bd486a89ec0b8df81db1"
+      ],
+      "decision_deadline": 1791390738.6712239,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "9PsxLKwSGhykjAeMK6orA99JQJb7W8RhN4UDLCCtnFkq",
+      "at": 1791390598.358801,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "563452b49add35c078a9e4bed91a364b1d3e71e1b9c9cd0a3ed1856a43355c99",
+        "5feb08302db3e242bc24a15b84bfd92849e1f6774968e4b634b30a7ce916c962"
+      ],
+      "decision_deadline": 1791390743.8879836,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "AuVhMU6HtCsqWLQVxUpcDXvPkaukA7RsTQRXs1YVqdwf",
+      "at": 1791390598.3628194,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "3b3cdc3700a3e88cb1c677a7ebbef007dbffe0a260c5a875e07c8e489d0dc6f4",
+        "fafa7ebce0b7909f69abd57374f770f6c3295185cb91f99a4c71f38f38f34fc8"
+      ],
+      "decision_deadline": 1791390732.0947838,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3",
+      "at": 1791390598.366587,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "5ab88e39daa4783ff2c18c354c10c7d2c33bdfe8a816e90502e2ef61950c8aeb",
+        "2a55edeecda23093d9606530eaa4be2e3453b72961fd5c8b268f584470579579"
+      ],
+      "decision_deadline": 1791390735.9084406,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "Dy9pPQ3YLnPBnBaxdUguxKqwCZxRm1QwRDE6JhxSj8CE",
+      "at": 1791390598.3703232,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "fa08583592ac425e368fa3a79702c2877c137a87a97d1244ebac3e67a38ded11",
+        "a13c70d3558bd3c7131aefeccda165ea3b4c779a14bcdfc328e84260326fb4ff"
+      ],
+      "decision_deadline": 1791390738.0814512,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "EnkqgGkupxdd5fy4wLiEYesssnXSPkXBZMP8bBTTxw7t",
+      "at": 1791390598.3743224,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "75ab2d7e4d40015d8f0ce250b7e8e08143a7a9c799a3988128d673d230b4a221",
+        "254e5f4a2f12d5d22e40a01ab6799d260649eeaf0c4eabefe9c31cb453f1359d"
+      ],
+      "decision_deadline": 1791390738.6908126,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "EvCA9nGYRkpGADcyjfUU9M3B854UTH71SyZfQzuRyKob",
+      "at": 1791390598.3781972,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "56b89062992b441f24874862e6e2e712358364d3048248473c83a0ec813438c2",
+        "2da7a938f562b448f150adbf2aa4767e85ff4c2e785b970a8a09aefd0d06489c"
+      ],
+      "decision_deadline": 1791390736.42882,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "FYmFN6XiL4a6DAcRr9ZHfCG2utLv1V6oqE2SN6ew9RDa",
+      "at": 1791390598.3820424,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "cb304fc56ce1517ec7a36383f59edf1a71e39cf7df10e54adb2e5aaea4bd66ed",
+        "d47955955f64ac294897b37c217c8516daac226cea4d29017deb5997ac6be1eb"
+      ],
+      "decision_deadline": 1791390735.3874185,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "FmJsYWfz8sSy2rH5KhzncEK79soYAeZoPFs36t4iA9iR",
+      "at": 1791390598.385887,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "faf0e0e984899341651d8c80226dd895fd6ed8e640f04498efe0a5369c7b7866",
+        "d43fdb62b9c676b959f288d1b759e86553be81f165907e04922ade647fe6395d"
+      ],
+      "decision_deadline": 1791390740.5317273,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "JBdzW4de2GYAh8gTNwebSFX7Cokbq1PmeS4i1u6NMT8J",
+      "at": 1791390598.3899622,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "da23f4ae233bcac1b9ea194a419cce6ccbe5f3c03c3cd9c60105e17744b4cd11",
+        "00a3aebd261b9709521b26665c259ffae511d5bdb85730ecf22d3f029adae82c"
+      ],
+      "decision_deadline": 1791390747.913377,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "JC55aTJEfVBiGZ2E43eFjMZrsHCG4ddgV5fq2AMUBDom",
+      "at": 1791390598.3938196,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "446fdca088e9f0b773d1e69d5e96bf001d02a800bcc123e128747b4ee38b40b9",
+        "8c55a43bd988c8a273abc57b9c22a65f46644b6ac5da1af92d086d3b8f3389b6"
+      ],
+      "decision_deadline": 1791390736.5892475,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "7DnSa37yhrNYYTS5H7Fw2iPUyMB2Eq295KR8vneEKpyb",
+      "at": 1791390598.399315,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "b01ddb1a43c2006eefedcb36ae0c4c787c1c8ff634c4a67e1558b552db6a744d",
+        "a51d648214efcd0195541414d2c312ea63e503d74fd244f4ce8e8ba73a023c87"
+      ],
+      "decision_deadline": 1791390732.2103612,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "8UHtbpdCCQD1gZAsshvayAq6EsnLhpAbwreqYyrFFsuo",
+      "at": 1791390598.4007916,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "8fe29a227e1f7c968d3432d62d89a3223188ee0e58cecf8d0d8bb54e84d3e762",
+        "4a7298a9a0ec219a7601bfb1483d67fc8002f4fbdf965b38205e151394fba64a"
+      ],
+      "decision_deadline": 1791390732.3272586,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "3rJnZu3BGDtBGYTGsVZ3o7Ws9eiVCHXPHsvx7DuaeXfb",
+      "at": 1791390598.4021568,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "927b0b621533b3a03963c06f2e15e56ba409a82568a783dea007188512a53a1b",
+        "3b4aedeb5e2e6269d93e030657757a8b39959b996602d99cb1aad71ee97aa664"
+      ],
+      "decision_deadline": 1791390732.343198,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "9n71R7f6wCueBeAx7CAUeHEKyidccNrN3Ruk3eMcbUyc",
+      "at": 1791390598.4063206,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "cdac22852952f0cc50163b68a152609127dc31469f070d05fdc990ed82b5f9f1",
+        "46a6d863aed260724071a4c418b1602f84719a5012b7d35be210cfb547d6437e"
+      ],
+      "decision_deadline": 1791390732.385827,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "6oE7X4z6XYqxuFKbApk8A2z57bn9JyoXJg3Yu5SR8V8N",
+      "at": 1791390598.4096513,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "e09f4792d7801987d6c5230d2165ae6e5771c5bfdceb89d896b01a3610454f43",
+        "b5d7a2bc882c57619a51928ab48f334d1c238936ccaa212867b626465872ea93"
+      ],
+      "decision_deadline": 1791390732.8221896,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "BtEQ14cxJRzXuNTvXpnqgqfPxzkFN6GRznENk9TUMT8R",
+      "at": 1791390598.4113352,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "095e48749e4b4be6fc095acfbcba6740b724517e51eae2efa9b4019070b17f7b",
+        "239de7bc05033504a8e7a98417c2f9a287351ad8a16bf5c10a314de5544aed4a"
+      ],
+      "decision_deadline": 1791390732.8277175,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "HHvxEmZkTDuSkWHVbhCVCYTANbdJZrJfhCAz1ERbLQQL",
+      "at": 1791390598.4147768,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "3776b3d458895208e48e5f3cf3f64d0abd8e8c4bbea9867cd9161388e1749593",
+        "772fb5808acad0c678ce8cbb8fbb7767514314985f4916d88e2be78e6b5f6a0b"
+      ],
+      "decision_deadline": 1791390733.7376714,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "H2SkFTPeXEHAb497MPcXVJGRBRPexSTSpUoUT73x8bLL",
+      "at": 1791390598.4183035,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "0cb312978095367c84534684db897b20d4cee29a25d250afb4404548df34702b",
+        "1f43e4bf9cb6ef35c06514da9775eae11363c39bf248ee46b546d4920e78f7c1"
+      ],
+      "decision_deadline": 1791390733.812797,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "8gDwMzR7nAvx9NFFbas7FbovduaYDRAvBbJ9kREETkPb",
+      "at": 1791390598.4202282,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "dd2dc5d6b57293dacef779004f6fe6a6c9e83d994281801f02057a44a0f91af8",
+        "d3c1c0e20ba1cd5931896844b7801798de5484152509d5579be920eaec70f849"
+      ],
+      "decision_deadline": 1791390733.8241713,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "7hRrgdDxmuPuutfuffwiaAXEfGzZ48vcDdogvLxcgjsW",
+      "at": 1791390598.4221172,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "eff776cad19e87944c515b118d616e634d91e0b7fef7c09a3012156637a6b59a",
+        "909ac5afca8d80ef283fa44fd0c30743cb9f2932f50f21d936448094630e3c2d"
+      ],
+      "decision_deadline": 1791390734.7207975,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "6WntGyEjfr8Uebp8cMqadoWraXaGh5P2xwWGgu8nXHbP",
+      "at": 1791390598.4238155,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "77165304caaf3831f6f7b2099f5d62134750881398f86f924c681bd9f31efbee",
+        "361dcafa81c9dc7303b775ca45c1d5cbb4c40f2772832c6b07696964e55bd21b"
+      ],
+      "decision_deadline": 1791390734.8697147,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "oYkYAn8auDanqmkdvPkT6Z817gUCJ7mF55N46HmJoTo",
+      "at": 1791390598.425386,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "5b876bdaeb6e55a226340aa7f648443b8c46b94726437c753fcbf29eeab5e7fc",
+        "803c1a4b52ded6678a633ef0e06f939668eaeeb7fd90f9b45a9119dade87fe22"
+      ],
+      "decision_deadline": 1791390734.8811338,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "CPDyFBuPS1y8cFgfo5kf7vt2JEipAR3aFYF5DF177Q3H",
+      "at": 1791390598.4270525,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "22d6088bbe8a39e729758d9eb0fbefdfb5d59eae6ca13a50394662128c63f693",
+        "ef716de956bb8610ead704cb12f767ae9999860e27864c0c443d78f35d0faeb0"
+      ],
+      "decision_deadline": 1791390734.9326997,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "BZ7odp7MsaVWyCGVzbN6mW1jrBLtysfGSHeR3vjVvMAo",
+      "at": 1791390598.434269,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "1695d43d209ab0a6dddbaa74b5aad86cadba6b15bcb3a9a201b26f1eaa51f361",
+        "14e52b7fab167c7e3809eed113cf8cbd9f70ab12d76104037c741d72ce486d30"
+      ],
+      "decision_deadline": 1791390735.5311673,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "22jEnvo2Rv7UkdPc8WRPGWaATPXv2YR9FJeKUqArHFjJ",
+      "at": 1791390598.4358718,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "ca00e443d40ba349b17c324e2aeb32014274350786946b5a4716aa678d3a18a0",
+        "bccd80440c6f39a7c90a982fd82399b5f126142d886e1bd6beed1cc1f6431aba"
+      ],
+      "decision_deadline": 1791390735.5461004,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "6ThUWqpmh6oZgvxuf6NG7jFe7zhDbkSsupprTHadrbJ6",
+      "at": 1791390598.4381301,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "c2e044a9257db7747e5a0296f8e8c35431004262462668934c52aabaa53e704f",
+        "33e2eac25730a4116a66d00d715c72c1b42f4c760f615942bd1c1c43855e3d10"
+      ],
+      "decision_deadline": 1791390735.5645647,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "EBJP6B2WvBEP5NvvDcSig7CCEtg1mQdn5rkNPC2Cyzvn",
+      "at": 1791390598.4427078,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "862a9a87feed8efc3a8b7d74e466ca33662e632bb84689f3ac7fc191d7ea4567",
+        "616551f9240b509cef4418d6ec65240182525a9749fd6e618098adf294852a25"
+      ],
+      "decision_deadline": 1791390735.78992,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "ACH1rv4Ab5edC589c6YMEcm7wdnmMSbSBD2fFHch5o3i",
+      "at": 1791390598.4441264,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "6ea40aa45506e10c16c90ae9a99c97b25a361a9ea45c0ae9eee48f9d6395c2ef",
+        "c5f8a9f7998616cee60c847a9d97d76f5b00ce5be84e6358b7affa88a54789ba"
+      ],
+      "decision_deadline": 1791390735.890278,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "7pxweesStKmCGh1gpLQvpt8sm4Yi38f6jHLGmH97ovCA",
+      "at": 1791390598.447178,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "f5769812cd9e8fec5d9731777b76e259afcdea0335314677a3a305a9e1ab041e",
+        "151066560f63e8848fefa31f07097e66306976cd9d32e65a7a15ca1f33675a9f"
+      ],
+      "decision_deadline": 1791390735.9186678,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "6KGd9egdXxX8JxQWhxoQodQ1FKDE71WVA6oEHwt9vmyw",
+      "at": 1791390598.4510486,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "6ff706780d8936fed999b82f14dd587332536ae2434508db0234322cbf8a804e",
+        "0f5632c663d4c5b4ad8d6c40b67835f6a0da5bfa538c8be60a2f28727775fb59"
+      ],
+      "decision_deadline": 1791390736.1600192,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "6EYGVa5zobSLTBsg6i4HycAjsLrJsrZXJHSihkopTNqr",
+      "at": 1791390598.4590468,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "54d3e910d473c4120a1896d91c8fb528b778d47c0f7bc28d26088b98227a0dfa",
+        "95a94a3ae3f881dc80a3ca68babb6d7a1f6bcd3b466eb14ffac1768028adc742"
+      ],
+      "decision_deadline": 1791390736.6338205,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "6jcCx8Xkbuwnuwrv1eBfeC1Dgaa3F3tpP4U2hMtWDUPM",
+      "at": 1791390598.4614654,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "e074b966898c9fac9be03344362362de6a31e111cdb41ac7e5888bd37ab99604",
+        "2f623d5317c214806c09198e3dccbe7a77fa6929d07683e46a63cad98d8d496b"
+      ],
+      "decision_deadline": 1791390736.9736779,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "GnefdZuoUyKhHAN1UegZUY92mTNASJ4FtPC5j5ahAfo9",
+      "at": 1791390598.4629138,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "c844d2c6b5f85d10f91fd761e9b882c05311fe7f69e12f483a7008c8233765f4",
+        "7f15ba397e05a2048b38a79b5ac48d6bbda4d599dacb2a6643b772faf8888640"
+      ],
+      "decision_deadline": 1791390737.0302327,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "Arnykz5ber2Q4dFmUeakYqP9SoAJbnvrVpexiR9tj2B3",
+      "at": 1791390598.4666467,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "c5a1797cf71200a3d841dc4c0ff15278dc7d8720b6896fa6ed51e588ef96b523",
+        "637811921e2a9a596160010afd8b41ea79135c1e29c58200f4f3b51dc0bb5cca"
+      ],
+      "decision_deadline": 1791390737.131738,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "3txbMHDsN2pMzRRzBhtZKzB6oSH9eoyM42JLCVbKSpsu",
+      "at": 1791390598.4681368,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "5dd60e1c117ec7aa0e97afb299ff076498bd29b1d2d37d0e99f4e5213f41a8ad",
+        "9671c2f21d59c212c8791f63cdb7acfb133716e63e1da61dcaa5d228bf9ed6d3"
+      ],
+      "decision_deadline": 1791390737.148642,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "6YnohATuQBn6c9vP19aGz5SSHtHsZoF64gXSYrbMzjUK",
+      "at": 1791390598.4696193,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "ae5ce5fd6ac5292df7ce2f3a700b9e55ea8f90690cdd8dd05f0e1d28ee7809c0",
+        "9680fb496a2a905ae37b7de8d223bfc0d3b14b9e9c436f307a51ae3cf23fecc5"
+      ],
+      "decision_deadline": 1791390737.1579611,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "9XGEcxYMqyXNA94xUtXV7jBYhjdQ7NptqV4SFSwC398S",
+      "at": 1791390598.4711974,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "631fe80d7ea8e25908c8acd9515ba3e7afa1054cc958f095ea39f02f91f7f58f",
+        "b3b6900c7cedcc69520f36c83ed6955b702433cd354ceb34ae2492358603b1a3"
+      ],
+      "decision_deadline": 1791390737.5280638,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "FxKx3ByBud2VRSjY9S5BsRfvM9LByw9FJPFzbvFMqv2",
+      "at": 1791390598.4771476,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "86ece30a93b3e448776c60efdb5173b7fc993471c6614e14621b22c9b045c1f3",
+        "81c27ca61c1cbd9a1894b43622e157bc40d67969d501a43c7e44bc87e73f77db"
+      ],
+      "decision_deadline": 1791390738.1592174,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "H54AKGgmPggLEfkU3ESaULtL3YnJfe4NfxMiF8eWc245",
+      "at": 1791390598.4787312,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "aec80628975d3449b8240fb46b11618ec5f1d201c66d1ebf41b5104090bf1a88",
+        "c80f6d855190956cad8a0dc03db41959d8aea8f9eb0d3899c1aed2852232e75d"
+      ],
+      "decision_deadline": 1791390738.1745887,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "87G8Z1LgUBk2mLSyXE1rUFrWX3JEPvBWxScxPXeENx6T",
+      "at": 1791390598.4821188,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "c86f26c81bb4c5690d89740c28aba9a15fcf81ff0373cc935ff259f1b3e92559",
+        "fbfd4e0cfc84fba123a8fbd1f6eacfd2c6c94eae916f7abdde9df9f377e29fb9"
+      ],
+      "decision_deadline": 1791390738.279948,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "CV9aupLkJ63UbFoc5pg8nmFHwiz1usCEtBgopAfKAoLh",
+      "at": 1791390598.4837523,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "da5b0fcd51ac8a2c57ec37aadded9180ba7af755dbef046f68c4967aa1ed13ad",
+        "12b980ace2364a3874cbe04a9c3d03d7b39587561fc3fdccff173d0166cb2757"
+      ],
+      "decision_deadline": 1791390738.375012,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "D4PEMyTHtjhiUSVZMHHNZT7i9TBYSZvAfYq7svF6Aw6r",
+      "at": 1791390598.4901905,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "0745550fe2c2c6dfb84ee47adca4c1b407e70b982eb595c197f8d2516aa6e961",
+        "f31b63710bec346a2af62b441b2757a8b59882bf9484f411cb766cfe02c8e4bf"
+      ],
+      "decision_deadline": 1791390738.6549184,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "EwD6XWJ2TmTkB3wKVFLgwVsoujkpyNgtU7xbik9E4tZv",
+      "at": 1791390598.50832,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "1f3fd6d8ff982c0233c5e108a8c7427119131ce289aec58c144f046a825b01b6",
+        "f6bd306a06d82feef1a3bad7d38abd5109ab341bef77971fee6f14413a02ed0b"
+      ],
+      "decision_deadline": 1791390739.8843873,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "AQWAcJQfNbbQgVHuzMA4Vy3LXgBSkitxWoTFNNZh1hMw",
+      "at": 1791390598.511349,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "cfa0c3e913644fc34daecdce72fa5a8003a22a9a87b32ee5dca6885fd90ac96f",
+        "3fc2b20aa341fe78291cea1bb0a72e533f132bd76143a6c50e37641b947b9727"
+      ],
+      "decision_deadline": 1791390739.9107203,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "H2cZ7G2qhaxsKXiiPtQQnz3jbAczWXJzgkjeao86BXTz",
+      "at": 1791390598.5169506,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "422e3e51e88e67bd15b20fbb573b403aac74aae2741d338af450fbd67dae02d5",
+        "765bb19f065e3e9d7130b771bfb999c0858dda1943d330a94e34e271469438a0"
+      ],
+      "decision_deadline": 1791390741.661175,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "qd98ouwp2UWsveuDMayUHuLgvvJ3wS6uRPQjGB5w6rv",
+      "at": 1791390598.5212023,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "6ed96b5aa62f04d50bd77a08374a31d45f746e4aae891b12c3a19e4592374f9e",
+        "c4d4284f67e479d0323a26c353f968440382da3b9f41ae6b45a4abb2c0c05516"
+      ],
+      "decision_deadline": 1791390743.7150064,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "Fpccmvh9zKKhGtvQitMmMwzszzZ3BSN8SnkGgaPdCxTV",
+      "at": 1791390598.5226889,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "d3d77500daeaf68897ae41dfd57db5266d7da8128c491dedbb602b5a82d79677",
+        "42609fb41bdc0f013b9824ce71a84e8f481f42bb53010fe55b0a43fadf094160"
+      ],
+      "decision_deadline": 1791390743.7853408,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "BbRTosF1hCMR4A4iVt1rzYrGLvVczCM53TMxr7o3JGpW",
+      "at": 1791390598.5318882,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "a5818a0e21441b6fdfbc0a2aa8a299a6690094428e3b7efe15e369a94560e25f",
+        "3311a382c96c4bd5b4ef4c01fd5f43c48c304a819cc6de37f6e52114119ac1f2"
+      ],
+      "decision_deadline": 1791390743.924536,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "mofsyjfSpEV2n16nGwSpwefrwHEVhkLs4UFVGpmoEDL",
+      "at": 1791390598.53817,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "f130f21c0476f93daa21e8af9b3d40f55f9c027688e00d87bc5a2e10d0229dd9",
+        "ae3c5b7dea100e7efd72c12157d88d1533ae6c49cca07b3d3d34a77a6f3e1127"
+      ],
+      "decision_deadline": 1791390745.0753303,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276828,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276795,
+          454276853
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276853
+    },
+    {
+      "family": "pump",
+      "address": "72icoa5xprTq3naJA2BWZUEkGoUEExZEKZuBCCxFcgz4",
+      "at": 1791390600.5699518,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "a6a51cf5e18106b621ae02dd699f37dfbd5a2f3399ea5da68b91fb9c38fff5b6",
+        "2e56ee057a1b3101f6675cad1302572756fb978aa1e89099caad005bf62a0e61"
+      ],
+      "decision_deadline": 1791390749.1124377,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276831,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276797,
+          454276858
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454276858
+    },
+    {
+      "family": "pump",
+      "address": "FdWEMXNrLxyZkCoBhxR4KdXXkQG26Gt9tYG9Bs7j88r6",
+      "at": 1791390659.6373389,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "d84401f0d24a48ddc1ab56df694847f6d336fc821e614c1f9aa54602f42fe47c",
+        "7964fd9ae0a4c8c4e3432a5f0a7b2dfe486d6022b192f1aeb04839f5300f2f6b"
+      ],
+      "decision_deadline": 1791390798.2161372,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454276970,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276804,
+          454277004
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454277004
+    },
+    {
+      "family": "pump",
+      "address": "3Mi6gz3VKWuuKywZYT7FENM4XiWcmVWrFJUNkDLe95dn",
+      "at": 1791390678.8086782,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "bf1afbb0f405abfa0e8ebf7cab86725663aba8845ba9b8060b92b0d8a39f09b4",
+        "3851ef79d7c7f49c94381e7b4d63b99926dcfcf2e85ee4a1a8f20ba7b036ae0a"
+      ],
+      "decision_deadline": 1791390822.202866,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454277042,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276804,
+          454277076
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454277076
+    },
+    {
+      "family": "pump",
+      "address": "B7hjMXYsbc1hrsJMmAWN7SXXT2jVXFUeWR9J7RHVEH6F",
+      "at": 1791390688.9924395,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "b55bcc8ffa188628e427e1dddd214f57e4094e523917c09d392cdb1f38ccd313",
+        "7556f28e5302766409b23f45e0a225c2dc78d0e0731d5273784a7b1799357ced"
+      ],
+      "decision_deadline": 1791390837.6817398,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454277074,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276804,
+          454277108
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454277108
+    },
+    {
+      "family": "pump",
+      "address": "3wPcpPtC4VCTGrK4wUyaXB13p8dzVkzwppDZtF3jwnnK",
+      "at": 1791390689.6895084,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "5f180d99bb5cef0c278c9549d8936c007ba1f92c5087288616dfbd5d918607cf",
+        "e51deb7fe5bc8710e956bb0cb57b88a768797b9f13efcce828b04718e7b539d2"
+      ],
+      "decision_deadline": 1791390838.7070513,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454277082,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276804,
+          454277116
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454277116
+    },
+    {
+      "family": "pump",
+      "address": "8vTxSSddpJC3gyQHAvfXGwquMZWKZeFLPmxzxVYwVcm6",
+      "at": 1791390715.0937822,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "7329f18773d389046b83ad950f72cf9fd9aa3cd706e56db2022980623c1c27f3",
+        "084c8f51dfd8a5548d514089675e837018fae481e21bdba8667ac01977b19edb"
+      ],
+      "decision_deadline": 1791390863.7902582,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454277239,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276804,
+          454277273
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454277273
+    },
+    {
+      "family": "pump",
+      "address": "ELQJCpbzpMLwWfquMGWoZWF9ume86rKGovHpHWFSYRDG",
+      "at": 1791390718.7519317,
+      "backfill_bytes_at_promotion": 0,
+      "backfill_calls_at_promotion": 0,
+      "backfill_jobs": [
+        "bd13afb37e06024a5a1f71dbaf11a807475515ae04e74db0b7ce3832b3c8b365",
+        "d040197eb60898a8b011df2b1169a4084f978ef3345ee5e32fa21070a5535801"
+      ],
+      "decision_deadline": 1791390864.881001,
+      "entry_authority": false,
+      "history_already_complete_at_promotion": false,
+      "history_gap_seconds_at_promotion": null,
+      "history_gap_slots_at_promotion": 454277245,
+      "lower_slot": 0,
+      "missing_intervals": [
+        [
+          0,
+          454276768
+        ],
+        [
+          454276804,
+          454277279
+        ]
+      ],
+      "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+      "transaction_bodies_at_promotion": 0,
+      "upper_slot": 454277279
+    }
+  ],
+  "canonical_event_reference_counts": {
+    "meteora_economic_packet": 1153,
+    "pump_create": 23,
+    "pump_trade": 3058
+  },
+  "work_states": {
+    "complete": 9,
+    "pending": 22
+  },
+  "last_running_required_and_unrequired_gap_count": 4225,
+  "shutdown_outbox_pending": 0,
+  "normalized_records": 6537,
+  "normalized_hot_logical_bytes": 16727274,
+  "canonical_DB_bytes": 76898304,
+  "candidate_DB_bytes": 20381696,
+  "cold_archive_bytes": 21611,
+  "SQLite_changes_observed": 157428,
+  "WAL_peak_bytes_observed": 115772032,
+  "CPU_seconds": 167.738083955,
+  "CPU_percent_of_one_core": 119.97131635523688,
+  "RSS_peak_KiB": 291868,
+  "errors": [
+    {
+      "task": 0,
+      "type": "AioRpcError",
+      "reason": "AioRpcError",
+      "frames": [
+        {
+          "file": "certify.py",
+          "line": 165,
+          "function": "__call__"
+        },
+        {
+          "file": "solana_selective_source.py",
+          "line": 481,
+          "function": "run"
+        },
+        {
+          "file": "solana_selective_source.py",
+          "line": 606,
+          "function": "rolling_programs"
+        },
+        {
+          "file": "solana_selective_source.py",
+          "line": 973,
+          "function": "live"
+        },
+        {
+          "file": "solana_selective_source.py",
+          "line": 399,
+          "function": "stream"
+        },
+        {
+          "file": "_call.py",
+          "line": 525,
+          "function": "write"
+        },
+        {
+          "file": "_call.py",
+          "line": 494,
+          "function": "_write"
+        },
+        {
+          "file": "_call.py",
+          "line": 276,
+          "function": "_raise_for_status"
+        }
+      ]
+    }
+  ],
+  "latency": {
+    "pumpswap_position": {
+      "N": 24,
+      "p50": 3.0986549854278564,
+      "p95": 3.2038960456848145,
+      "p99": 3.207289695739746,
+      "max": 3.518885850906372
+    },
+    "pump_position": {
+      "N": 23,
+      "p50": 2.884307622909546,
+      "p95": 3.318674087524414,
+      "p99": 3.321579694747925,
+      "max": 3.357903003692627
+    },
+    "meteora_hydration": {
+      "N": 9,
+      "p50": 0.49057722091674805,
+      "p95": 0.5343625545501709,
+      "p99": 0.5343625545501709,
+      "max": 0.5453858375549316
+    },
+    "meteora_qualification": {
+      "N": 9,
+      "p50": 24.117862224578857,
+      "p95": 28.721219301223755,
+      "p99": 28.721219301223755,
+      "max": 30.232598304748535
+    },
+    "meteora_position": {
+      "N": 20,
+      "p50": 3.3267767429351807,
+      "p95": 6.504519939422607,
+      "p99": 6.504519939422607,
+      "max": 11.058986186981201
+    }
+  },
+  "measurement_limits": [
+    "Application payload bytes, not Ethernet/TLS framing.",
+    "CPU is parent-process CPU, consistent with the preserved baseline; decoder child CPU was not sampled.",
+    "SQLite changes/WAL extents are local observations, not complete physical disk-write accounting.",
+    "Shutdown gaps do not establish normal-drain completeness.",
+    "No production monthly cost is certified by this audit."
+  ]
+}

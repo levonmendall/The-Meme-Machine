@@ -1,0 +1,9 @@
+...........................................................................................................................................Executing <Task finished name='Task-69' coro=<SourceLifetimeTests.test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools() done, defined at /root/Documents/Codex/2026-10-06/the-meme-machine-final-seven-blocker/repo/tests/test_solana_shared_capacity.py:249> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.180 seconds
+...................................................................................................................................................Executing <Task finished name='Task-564' coro=<ProductionServeTests.test_continuous_archive_pressure_low_retirement_debt() done, defined at /root/Documents/Codex/2026-10-06/the-meme-machine-final-seven-blocker/repo/tests/test_production_maintenance_arbiter.py:34> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.107 seconds
+.....................................................................................................................................................................................................................................168-hour held-pin soak: records peak 2 hot bytes 2419616 2460576 unreferenced raw archives 0
+checkpoint-handoff-growth-proof {'baseline_wal_bytes': [341992, 659232, 992952, 1318432, 1656272, 1985872, 2327832, 2657432], 'repaired_wal_bytes': [0, 0, 0, 0, 0, 0, 0, 0], 'records': 272}
+.................................................................................................................................................................................................................
+----------------------------------------------------------------------
+Ran 724 tests in 175.969s
+
+OK
