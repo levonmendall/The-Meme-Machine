@@ -15,6 +15,12 @@ from meme_machine.runtime.usd_valuation import ValuationUnavailable,utc
 
 SOURCE_ROOT=Path(__file__).resolve().parents[2]
 
+# Owner-directed reversible pause. Accounting identity/state remains four-lane so
+# historical Ramses evidence and any future reactivation stay attributable, but
+# the live operational supervisor does not launch Ramses discovery/management.
+ACTIVE_LANES=('pump','pons','meteora')
+PAUSED_LANES={'ramses':'market_opportunity_insufficient'}
+
 
 def identities():
     from meme_machine.lanes.pump.pump_acceleration_strategy import policy_hash
@@ -55,6 +61,22 @@ class Supervisor:
         self.lock=None
         self.last_publish=0
 
+    def runtime_lanes(self):
+        # Offline fixtures intentionally retain all four lane implementations so
+        # archive/recovery tests can still read Ramses. Only the live PAPER
+        # supervisor applies the owner pause.
+        return LANES if self.offline else ACTIVE_LANES
+
+    def _assert_paused_lanes_clear(self,account):
+        state=account.snapshot()
+        for lane in PAUSED_LANES:
+            exposed=(any(p['lane']==lane for p in state['positions'].values()) or
+                any(r['lane']==lane for r in state['reservations'].values()))
+            pending=account.db.execute(
+                'SELECT 1 FROM portfolio_native_pending WHERE lane=? LIMIT 1',(lane,)).fetchone()
+            if exposed or pending:
+                raise RuntimeError('paused_lane_has_active_or_pending_exposure:'+lane)
+
     def initialize(self):
         validate_environment(offline=self.offline)
         if not self.offline:
@@ -82,6 +104,7 @@ class Supervisor:
                 elif self.offline != binding['receipt']['epoch_id'].startswith('offline-fixture-'):
                     raise RuntimeError('offline_and_operational_state_must_be_separate')
                 self.epoch=account.binding()['receipt']['epoch_id']
+                if not self.offline:self._assert_paused_lanes_clear(account)
         except BaseException:
             self.lock.close();self.lock=None
             raise
@@ -175,6 +198,11 @@ class Supervisor:
                     raise ValueError('health_predecessor_instance')
             except (OSError,ValueError):row=dict(phase='STARTING')
             health[lane]=dict(row,pid=proc.pid,exit_code=proc.poll(),restarts=self.restarts[lane])
+        if not self.offline:
+            for lane,reason in PAUSED_LANES.items():
+                health[lane]=dict(lane=lane,phase='PAUSED',paper_only=True,at=utc(now),
+                    paused=True,pause_reason=reason,discovery_enabled=False,reconciled=True,
+                    pid=None,process_instance=None,exit_code=None,restarts=0)
         try:
             with self.account() as account:
                 sequence=account.snapshot()['sequence']
@@ -250,7 +278,7 @@ class Supervisor:
         for sig in prior:signal.signal(sig,lambda *_:setattr(self,'stop_requested',True))
         try:
             self.start_services()
-            for lane in ('pump','pons','meteora','ramses'):self.start_lane(lane)
+            for lane in self.runtime_lanes():self.start_lane(lane)
             while not self.stop_requested and (seconds is None or time.monotonic()-started<seconds):
                 for lane,proc in list(self.processes.items()):
                     if proc.poll() is not None and time.monotonic()>=self.next_start[lane]:
@@ -262,7 +290,7 @@ class Supervisor:
                     # next start must prove native journals and pending delivery.
                     self.stop_lanes()
                     self.start_services()
-                    for lane in LANES:self.start_lane(lane)
+                    for lane in self.runtime_lanes():self.start_lane(lane)
                 if time.monotonic()-self.last_publish>=2:self.publish()
                 time.sleep(.05)
         finally:

@@ -1,7 +1,7 @@
 """Later Droplet mechanics checks. Never imported or run by the PAPER service."""
 import argparse,json,os,signal,time
 from pathlib import Path
-from .supervisor import validate_environment
+from .supervisor import validate_environment,PAUSED_LANES
 from meme_machine.runtime.usd_valuation import utc
 
 REQUIRED_SECONDS={'CAPACITY':3600,'AUTONOMY':129600}
@@ -31,13 +31,24 @@ def observe(root):
     if health.get('stopping'):raise ValueError('supervisor_stopping')
     if set(health['lanes'])!={'pump','pons','meteora','ramses'}:raise ValueError('four_lanes_required')
     rss=0
-    for pid in [health['pid']]+[r['pid'] for r in health['lanes'].values()]:
+    pids=[health['pid']]+[r['pid'] for r in health['lanes'].values() if not r.get('paused')]
+    for pid in pids:
         os.kill(pid,0)
         for line in Path('/proc/'+str(pid)+'/status').read_text().splitlines():
             if line.startswith('VmRSS:'):rss+=int(line.split()[1])*1024
     checks=portfolio['reconciliation']['checks']
     if not checks or any(v is not True for v in checks.values()):raise ValueError('portfolio_not_reconciled')
+    positions=portfolio.get('positions',[])
+    if isinstance(positions,dict):positions=positions.values()
     for lane,row in health['lanes'].items():
+        if lane in PAUSED_LANES:
+            if (row.get('paused') is not True or row.get('phase')!='PAUSED' or
+                    row.get('reconciled') is not True or row.get('pid') is not None or
+                    row.get('exit_code') is not None):
+                raise ValueError(lane+'_pause_state_invalid')
+            if any(isinstance(p,dict) and p.get('lane')==lane for p in positions):
+                raise ValueError(lane+'_paused_with_active_position')
+            continue
         if row.get('reconciled') is not True or row.get('exit_code') is not None:
             raise ValueError(lane+'_not_reconciled_or_running')
     return health,portfolio,rss
@@ -85,7 +96,8 @@ def recovery(root):
         try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:pass
         else:raise ValueError('PAPER_supervisor_single_writer_fence_missing')
-    for lane in ('pump','pons','meteora','ramses','supervisor'):
+    targets=[lane for lane,row in baseline['lanes'].items() if not row.get('paused')]+['supervisor']
+    for lane in targets:
         health,_,_=observe(root)
         old=health['pid'] if lane=='supervisor' else health['lanes'][lane]['pid']
         before=state_identity(root)
@@ -120,7 +132,7 @@ def recovery(root):
         results.append(dict(target=lane,recovered=recovered,elapsed_seconds=time.monotonic()-started,
             pending_deliveries_reconciled=recovered,native_reconciled=recovered))
         if not recovered:break
-    return dict(passed=len(results)==5 and all(r['recovered'] for r in results),recoveries=results,
+    return dict(passed=len(results)==len(targets) and all(r['recovered'] for r in results),recoveries=results,
         epoch_id=original_epoch,single_writer_fencing=True)
 
 
