@@ -57,7 +57,7 @@ def audit(folder):
     with sqlite3.connect(path.as_uri()+'?mode=ro',uri=True) as db:
         from meme_machine.solana_rolling_history import RollingHistory
         from meme_machine.solana_selective_history import coverage_scope
-        rolling=RollingHistory.__new__(RollingHistory);rolling.history=SimpleNamespace(db=db,clock=lambda:close)
+        rolling=RollingHistory.__new__(RollingHistory);rolling.db=db;rolling.history=SimpleNamespace(db=db,clock=lambda:close)
         phases=[dict(phase=p,at=t,details=json.loads(b)) for p,t,b in db.execute('SELECT phase,at,body FROM prewarm_startup_transitions ORDER BY sequence')]
         metrics=defaultdict(list)
         for f,a,at,b in db.execute('SELECT family,address,at,body FROM promotion_history_metrics'):
