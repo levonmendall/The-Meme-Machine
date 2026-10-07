@@ -36,6 +36,21 @@ def candidate_census(path):
             requirements=[dict(r) for r in db.execute('SELECT * FROM work_history_requirements')])
 
 
+def required_gap_census(db):
+    """Resolve active scopes once, rather than joining all views for each gap.
+
+    This observer must not become the workload's dominant owner command. IN
+    retains every alias/view and every required gap; it changes no admission or
+    completeness rule. A read census has no authority to seal history.
+    """
+    cursor=db.execute('''SELECT g.* FROM candidate_gaps g WHERE repaired IS NULL AND g.scope IN(
+        SELECT b.coverage_scope FROM candidate_lifecycle c JOIN evidence_bindings b
+        ON b.family=c.family AND b.address=c.address
+        WHERE c.state IN ('queued','warming','active','reactivated'))''')
+    names=[c[0] for c in cursor.description]
+    return [dict(zip(names,row)) for row in cursor]
+
+
 class FinalMixed(certify.Certification):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -54,9 +69,7 @@ class FinalMixed(certify.Certification):
         result['acquisitions']=rows('SELECT j.*,r.reason AS repair_cause,r.fields AS repair_fields FROM acquisition_jobs j LEFT JOIN backfill_reasons r ON r.job=j.id')
         result['publication_waits']=rows('SELECT * FROM rolling_publication_waits')
         result['boundary_waits']=rows('SELECT * FROM rolling_boundary_waits')
-        result['required_gaps']=rows('''SELECT g.* FROM candidate_gaps g WHERE repaired IS NULL AND EXISTS(
-            SELECT 1 FROM evidence_bindings b JOIN candidate_lifecycle c ON c.family=b.family AND c.address=b.address
-            WHERE b.coverage_scope=g.scope AND c.state IN ('queued','warming','active','reactivated'))''')
+        result['required_gaps']=required_gap_census(db)
         result['checkpoints']=rows('SELECT * FROM candidate_checkpoints')
         result['canonical_max_slot']=db.execute('SELECT MAX(slot) FROM canonical_evidence').fetchone()[0]
         result['normalized_max_slot']=db.execute('SELECT MAX(slot) FROM rolling_economic_events').fetchone()[0]

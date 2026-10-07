@@ -1,6 +1,6 @@
 import unittest
 from engineering.solana_capacity.live_probe import normal_drain
-from engineering.solana_capacity.final_mixed import position_disposition,candidate_census
+from engineering.solana_capacity.final_mixed import position_disposition,candidate_census,required_gap_census
 
 
 class RunningDrain(unittest.TestCase):
@@ -27,3 +27,30 @@ class RunningDrain(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'not-yet-created.sqlite'
             self.assertFalse(candidate_census(path)['initialized']);self.assertFalse(path.exists())
+
+    def test_gap_census_retains_all_active_aliases_with_bounded_observer_work(self):
+        import sqlite3
+        with sqlite3.connect(':memory:') as db:
+            db.executescript('''CREATE TABLE candidate_lifecycle(family,address,state,PRIMARY KEY(family,address));
+                CREATE TABLE evidence_bindings(family,address,coverage_scope,PRIMARY KEY(family,address));
+                CREATE TABLE candidate_gaps(id INTEGER PRIMARY KEY,scope,repaired);''')
+            active=set();gaps=[]
+            for n in range(3000):
+                state='warming' if n%17==0 else 'cheap_retained'
+                scope='candidate:'+str(n//2) # Multiple aliases share one view.
+                db.execute('INSERT INTO candidate_lifecycle VALUES(?,?,?)',('meteora',str(n),state))
+                db.execute('INSERT INTO evidence_bindings VALUES(?,?,?)',('meteora',str(n),scope))
+                if state=='warming':active.add(scope)
+                repaired=1 if n%5==0 else None
+                db.execute('INSERT INTO candidate_gaps VALUES(?,?,?)',(n,scope,repaired))
+                gaps.append((n,scope,repaired))
+            # The independent set oracle includes repaired/quiet/alias cases.
+            expected={n for n,scope,repaired in gaps if repaired is None and scope in active}
+            steps=[0]
+            def bounded():
+                steps[0]+=1;return steps[0]>5000
+            db.set_progress_handler(bounded,200)
+            actual=required_gap_census(db)
+            db.set_progress_handler(None,0)
+            self.assertEqual({r['id'] for r in actual},expected)
+            self.assertLess(steps[0],5000)
