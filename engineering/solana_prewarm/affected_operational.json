@@ -90,9 +90,10 @@
     "tests.test_native_continuity",
     "tests.test_solana_rolling_prewarm",
     "tests.test_solana_prewarm_startup",
+    "tests.test_solana_mixed_proof_accounting",
     "tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged"
   ],
-  "tests": 767,
+  "tests": 772,
   "skipped": 8,
   "result": "PASS",
   "failure_identities": [],

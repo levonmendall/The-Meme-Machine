@@ -1,0 +1,17 @@
+{
+  "focused": {
+    "result": "PASS",
+    "tests": 215,
+    "skipped": 2
+  },
+  "FAST": {
+    "result": "PASS",
+    "tests": 659
+  },
+  "affected_OPERATIONAL": {
+    "result": "PASS",
+    "tests": 772,
+    "skipped": 8
+  },
+  "new_local_failure_identities": 0
+}

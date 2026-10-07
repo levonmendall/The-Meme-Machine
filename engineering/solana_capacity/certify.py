@@ -39,7 +39,8 @@ def quantiles(values):
 class Meter:
     def __init__(self,out):
         self.out=out;self.lock=threading.Lock();self.rows=[];self.raw=Counter();self.errors=Counter();self.original=urllib.request.urlopen
-        self.archive=(out/'http.ndjson').open('w');self.started=time.time();self.active=0;self.peak_concurrency=0
+        from .live_probe import CompressedText
+        self.archive=CompressedText(out/'http.ndjson.zlib');self.started=time.time();self.active=0;self.peak_concurrency=0;self.failed_attempts=[]
     def open(self,request,*args,**kw):
         payload=json.loads(request.data) if hasattr(request,'data') and request.data else None
         calls=payload if isinstance(payload,list) else [payload]
@@ -49,7 +50,9 @@ class Meter:
         with self.lock:self.active+=1;self.peak_concurrency=max(self.peak_concurrency,self.active)
         try:response=self.original(request,*args,**kw)
         except Exception as exc:
-            with self.lock:self.errors[type(exc).__name__]+=1;self.active-=1
+            with self.lock:
+                self.errors[type(exc).__name__]+=1;self.active-=1
+                self.failed_attempts.append(dict(family=family,methods=methods,started=start,finished=time.time(),error=type(exc).__name__,http_status=getattr(exc,'code',None)))
             raise
         meter=self
         class Response:
@@ -73,6 +76,7 @@ class Meter:
                     if isinstance(result,dict):archive_bodies=sum('transaction' in t for t in result.get('data',[]))
                 row=dict(family=family,methods=methods,calls=len(calls),cu=sum(CU[m] for m in methods),bytes=len(raw),started=start,finished=finished,seconds=finished-start,
                     account_fetches=sum(len(c.get('params',[[]])[0]) for c in calls if c['method']=='getMultipleAccounts'),transaction_bodies=methods.count('getTransaction'),scoped_archive_bodies=archive_bodies,blocks=methods.count('getBlock'))
+                if isinstance(decoded,dict) and 'error' in decoded:row['rpc_error']=decoded['error'].get('code')
                 with meter.lock:
                     meter.rows.append(row);meter.raw[family]+=len(raw)
                     meter.archive.write(json.dumps(dict(**row,requests=calls,response=decoded))+'\n');meter.archive.flush()
@@ -104,7 +108,7 @@ class Certification:
         self.meter=Meter(out);self.latencies=defaultdict(list);self.results=[];self.position=[];self.monitor=[];self.errors=[];self.work=None;self.stop=None;self.worker_stop=threading.Event();self.cpu0=time.process_time();self.wall0=time.time()
         source_paths=['meme_machine/solana_prewarm_startup.py','meme_machine/solana_rolling_history.py','meme_machine/solana_selective_source.py','meme_machine/solana_selective_history.py','meme_machine/solana_scoped_retirement.py','meme_machine/solana_candidate_lifecycle.py','meme_machine/solana_candidate_join.py','meme_machine/solana_stable_shards.py','meme_machine/runtime/governor.py','meme_machine/runtime/solana_warming.py','meme_machine/runtime/candidate_history.py','meme_machine/runtime/lifecycle_timing.py','meme_machine/runtime/evidence_worker.py','meme_machine/lanes/meteora/runner.py','meme_machine/lanes/pump/solana_evidence_runtime.py','engineering/solana_capacity/certify.py','engineering/solana_capacity/pump_candidates.py','engineering/solana_capacity/transport_meter.py']
         source_paths+=['meme_machine/solana_evidence_service.py','meme_machine/solana_evidence_control.py','meme_machine/solana_checkpoint.py']
-        self.source_hashes={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in source_paths};self.position_pacer={};self.position_rpcs={};self.position_states={};self.pump_mint=PUMP;self.pump_choices=[];self.attempts=[]
+        self.source_hashes={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in source_paths};self.position_pacer={};self.position_rpcs={};self.position_states={};self.pump_mint=PUMP;self.pump_choices=[];self.attempts=[];self.position_inflight={}
     async def request(self,fn,priority=1):return await self.work(fn,priority)
     def state(self,s):
         from meme_machine.solana_selective_source import install
@@ -181,14 +185,19 @@ class Certification:
                 # Payload plus a framing allowance; stop well before the $5 cap.
                 cost=snapshot['rpc']['cu']*.525/1e6+sum(r['bytes']*(75/1e12 if r['transport']=='yellowstone' else .0002*.525/1e6 if r['transport']=='websocket' else 0) for r in snapshot['delivery'])
                 if cost>4.0:self.errors.append(dict(reason='diagnostic_budget_stop'));stop.set();break
-                if time.time()>=self.cutoff and cohort_debt==0:break
+                if self.should_finish(snapshot,cohort_debt):break
                 await asyncio.sleep(1)
         finally:
+            self.running_close=await work(self.state,0)
+            self.running_close_at=time.time()
+            self.running_position_pending=dict(self.position_inflight)
             self.worker_stop.set();stop.set()
             # Source and threaded native reads retain the real governor deadlines.
             for t in tasks:t.cancel()
             await asyncio.gather(*tasks,return_exceptions=True)
             self.final=await work(self.state,0);self.ended=time.time()
+    def should_finish(self,snapshot,cohort_debt):
+        return time.time()>=self.cutoff and cohort_debt==0
     def native_rpc(self,family,deadline=None):
         if family=='meteora':
             from meme_machine.lanes.meteora import dlmm_alchemy_provider as native
@@ -317,11 +326,12 @@ class Certification:
         while not self.stop.is_set():
             await asyncio.sleep(max(0,due-time.time()));due+=cadence
             start=time.time()
+            self.position_inflight[family]=dict(id=family+':'+str(start),requested=start,family=family)
             try:row=await asyncio.to_thread(self.position_tick,family)
             except Exception as e:
                 if family=='pump':self.position_states['pump_illiquid']=True
                 row=dict(family=family,ready=False,seconds=time.time()-start,error=type(e).__name__,reason=safe_reason(e))
-            row['requested']=start;row['schedule_lateness_seconds']=max(0,start-(due-cadence));self.position.append(row)
+            row['requested']=start;row['schedule_lateness_seconds']=max(0,start-(due-cadence));self.position.append(row);self.position_inflight.pop(family,None)
             if family=='pump' and row['ready']:
                 from meme_machine.solana_selective_source import install
                 from meme_machine.solana_selective_history import FAMILIES
