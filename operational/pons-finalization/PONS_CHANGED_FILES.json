@@ -92,9 +92,9 @@
       "sha256": "26088b71f1e0ff5a613a3804517977577cf2551cdeba4c690d8669d88d0ee85a"
     },
     {
-      "bytes": 32506,
+      "bytes": 33102,
       "file": "operational/pons-finalization/PONS_FINAL_REPORT.md",
-      "sha256": "eb4afcaf7b1fd769939d8dcd390c389d1cdd6c44c423adc50fb7dee2b20f2508"
+      "sha256": "5c409337f7bf710843447aeb378c67dee273da7217a5b8237c9026f15dad7207"
     },
     {
       "bytes": 390708,
@@ -102,9 +102,9 @@
       "sha256": "dcc075197061a024fc3d79ee385d019a6ecb033740103fdab4f7bc4bc280494f"
     },
     {
-      "bytes": 52349,
+      "bytes": 53173,
       "file": "operational/pons-finalization/PONS_VERIFICATION.json",
-      "sha256": "dff5a160385389a7d469478446521fd8f3feb4ec421301d0db4680915d67f2c6"
+      "sha256": "4d53fff79abddbe6a54a5c3bead6c831d3ceeb8c6269a1e9d90db28199baef63"
     },
     {
       "bytes": 19004,

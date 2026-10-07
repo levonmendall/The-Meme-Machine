@@ -82,6 +82,27 @@
   "branch": "engineering/pons-finalization-20261007",
   "classification": "D: PONS_NOT_READY",
   "deployment_performed": false,
+  "final_read_only_upstream": {
+    "branch_retains_source_head_observed_at_creation": true,
+    "intervening_commit": "Pause Ramses as a reversible operational lane",
+    "intervening_files": [
+      "meme_machine/operational/acceptance.py",
+      "meme_machine/operational/supervisor.py",
+      "operational/owner-decisions/ramses-pause.md",
+      "operational/tests.py",
+      "tests/test_operational_ramses_pause.py"
+    ],
+    "later_operational_integrated": false,
+    "operational_head": "9f08f0db68fd3161c84bb955800db9a200a70f77",
+    "operational_tree": "384b94e290c0262f667c6605034c85f037c5fe47",
+    "pons_sources_and_economic_policies_changed": false,
+    "pr121": {
+      "head": "daad4640a6dab35ffcabca4e17ba9b3e3ae6c927",
+      "incorporated": false,
+      "merged_at": null,
+      "state": "OPEN"
+    }
+  },
   "focused": {
     "elapsed_seconds": 43.80872759199701,
     "errors": [],
