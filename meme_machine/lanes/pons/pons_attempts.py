@@ -26,7 +26,7 @@ def failure_category(reason, *, qualified=False):
         return 'EXECUTION_CAPACITY_UNAVAILABLE'
     if value in ('too_old', 'survivor_graduation_expired', 'strategy_horizon_expired'):
         return 'EXPIRED_BY_STRATEGY_HORIZON'
-    if any(x in value for x in ('incomplete', 'missing', 'not_caught_up', 'reorg', 'event_capacity', 'point_capacity', 'disagreement', 'conflict', 'shape', 'identity', 'unavailable', 'trajectory_history')):
+    if any(x in value for x in ('incomplete', 'missing', 'not_caught_up', 'reorg', 'event_capacity', 'point_capacity', 'disagreement', 'conflict', 'shape', 'identity', 'unavailable', 'trajectory_history', 'no_recent_canonical_buy')):
         return 'INCOMPLETE_EVIDENCE'
     if value in ('non_native_quote', 'natural_non_native_quote_not_supported'):
         return 'STRUCTURAL_INELIGIBLE'

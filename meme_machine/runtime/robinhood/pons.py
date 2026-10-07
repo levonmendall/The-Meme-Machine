@@ -31,11 +31,68 @@ class Broker:
         from meme_machine.lanes.pons.provider_admission import fingerprint
         self.provider_endpoint=fingerprint(source) if source else None
         self.nominal_deadline_seconds=5.;self.limit=None
+        with self.plane.lock:
+            self.plane.db.execute('''CREATE TABLE IF NOT EXISTS pons_current_watch(
+                candidate TEXT PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL,
+                next_at REAL NOT NULL,attempt INTEGER NOT NULL DEFAULT 0)''')
+        # Repair the projection after a crash between raw observation and watch
+        # insertion. Retained buys are sufficient; no provider or new clock is
+        # needed to restore the original nomination and observation time.
+        from meme_machine.lanes.pons.abi import topic
+        from meme_machine.lanes.pons.pons_selective_continuation import ENTRY_THRESHOLDS
+        buy=topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')
+        with self.plane.transaction():
+            for row in self.plane.db.execute("SELECT * FROM candidates WHERE lane='pons'").fetchall():
+                event=json.loads(row['payload'])
+                old=self.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(row['id'],)).fetchone()
+                if old and row['interpretation']==canonical(self.policy):
+                    self._sync_watch_order(row['id'],dict(row))
+                if row['reason']=='strategy_horizon_expired':continue
+                retained=json.loads(row['result']) if row['result'] else {}
+                stamp=retained.get('candidate',{}).get('stamp') or {}
+                if (retained.get('candidate',{}).get('state',{}).get('graduated') or
+                        retained.get('launch_at') is not None and stamp.get('event_at',0)>
+                        retained['launch_at']+ENTRY_THRESHOLDS['max_token_age_seconds']):continue
+                if (row['pending'] or (event.get('topics') or [None])[0]==buy) and row['interpretation']==canonical(self.policy):
+                    if not self.plane.db.execute('SELECT 1 FROM pons_current_watch WHERE candidate=?',(row['id'],)).fetchone():
+                        self._remember_watch(row['id'],event,row['observed'],row['generation'])
+
+    @staticmethod
+    def observation_id(event):
+        return event['transactionHash']+':'+event['logIndex']+':'+digest(event)
 
     def identity(self,event):
         return 'pons:'+str(self.policy['chain'])+':'+self.policy['factory']+':'+event['address'].lower()
 
-    def enqueue(self,event,*,now=None,needs_work=True):
+    def _remember_watch(self,key,event,observed,generation):
+        old=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+        if old and digest(json.loads(old[0]))!=old[1]:raise ValueError('pons_current_watch_corruption')
+        first=(json.loads(old[0])['first_observed_at'] if old else
+            self.plane.db.execute('SELECT MIN(at) FROM observations WHERE candidate=?',(key,)).fetchone()[0])
+        watch=dict(event=event,first_observed_at=observed if first is None else first,
+            last_buy_observed_at=observed,interpretation=self.policy,generation=generation)
+        row=self.plane._row(key)
+        watch.update(latest_ordering=json.loads(row['ordering']),latest_id=row['latest_id'])
+        self.plane.db.execute('''INSERT INTO pons_current_watch VALUES(?,?,?,?,0)
+            ON CONFLICT(candidate) DO UPDATE SET body=excluded.body,hash=excluded.hash,next_at=excluded.next_at''',
+            (key,canonical(watch),digest(watch),observed+self.nominal_deadline_seconds))
+
+    def _sync_watch_order(self,key,row):
+        old=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+        if old:
+            watch=json.loads(old[0])
+            if digest(watch)!=old[1]:raise ValueError('pons_current_watch_corruption')
+            watch.update(generation=row['generation'],latest_ordering=json.loads(row['ordering']),latest_id=row['latest_id'])
+            self.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=? WHERE candidate=?',
+                (canonical(watch),digest(watch),key))
+
+    def enqueue(self,event,*,now=None,needs_work=True,canonical_refresh=False):
+        # Live and startup workers share this broker. Serialize nomination,
+        # watch and cold-refresh projection without changing shared Plane code.
+        with self.plane.lock:
+            return self._enqueue(event,now=now,needs_work=needs_work,canonical_refresh=canonical_refresh)
+
+    def _enqueue(self,event,*,now=None,needs_work=True,canonical_refresh=False):
         from meme_machine.lanes.pons.pons_selective_continuation import ENTRY_THRESHOLDS
         observed=self.clock() if now is None else now
         key=self.identity(event)
@@ -45,7 +102,7 @@ class Broker:
         # Bind their full raw body/hash; canonical receipt authentication still
         # decides which (if any) is valid. A bad nomination cannot tombstone a
         # curve and suppress every later independently authenticated generation.
-        obs=event['transactionHash']+':'+event['logIndex']+':'+digest(event)
+        obs=self.observation_id(event)
         order=tuple(int(event[k],16) for k in ('blockNumber','transactionIndex','logIndex'))
         if previous and previous['reason']=='conflicting_observation':
             with self.plane.transaction():
@@ -57,6 +114,17 @@ class Broker:
             watermark=dict(block=order[0],hash=event['blockHash'],log=order[2],finality='confirmed'),
             interpretation=self.policy,observed=observed,
             deadline=observed+ENTRY_THRESHOLDS['max_state_age_seconds'],priority=priority,needs_work=needs_work)
+        if needs_work and result in ('created','updated'):
+            with self.plane.transaction():
+                self._remember_watch(key,event,observed,self.plane.get(key)['generation'])
+                if canonical_refresh:
+                    watch=json.loads(self.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()[0])
+                    target=dict(kind='pons_canonical_current_recheck',source='cold_start_nomination',
+                        original_nomination=event,first_observed_at=watch['first_observed_at'])
+                    self.plane.db.execute('UPDATE candidates SET desired=? WHERE id=?',(canonical(target),key))
+                    self.plane._audit(self.plane._row(key),'watching','pons_cold_start_requires_fresh_canonical_state')
+        elif result in ('created','updated'):
+            with self.plane.transaction():self._sync_watch_order(key,self.plane._row(key))
         return result in ('created','updated')
 
     @property
@@ -66,7 +134,81 @@ class Broker:
         return {r['id']:self._scheduled(dict(r)) for r in rows}
 
     def _scheduled(self,r):
-        return dict(key=r['id'],event=json.loads(r['payload']),queued_at=r['observed'],deadline=r['deadline'],work=r)
+        refresh=json.loads(r['desired']).get('kind')=='pons_canonical_current_recheck'
+        return dict(key=r['id'],event=json.loads(r['payload']),queued_at=r['observed'],deadline=r['deadline'],work=r,
+            canonical_refresh=refresh)
+
+    def reactivate_one(self):
+        """A timer requests new canonical state; it never renews old evidence.
+
+        Raw ordering stays at the last real event so a later buy can supersede
+        the probe. Original nominee/timing stay durable. One fair bounded probe
+        also breaks a stale service-estimate deadlock; actual admission and the
+        new observation's original five-second deadline still fail closed.
+        """
+        now=self.clock();deadline=now+self.nominal_deadline_seconds
+        with self.plane.transaction():
+            rows=self.plane.db.execute('''SELECT w.*,c.generation,c.state,c.pending,c.claim,c.result
+                FROM pons_current_watch w LEFT JOIN candidates c ON c.id=w.candidate
+                WHERE w.next_at<=? AND (c.id IS NULL OR c.pending=0 AND c.claim IS NULL
+                    AND c.state NOT IN ('entry_confirmation','entry_reserved'))
+                AND NOT EXISTS (SELECT 1 FROM runtime n WHERE n.key LIKE 'native_position:pons:%'
+                    AND json_extract(n.body,'$.candidate')=w.candidate
+                    AND json_extract(n.body,'$.position.status')<>'settled')
+                ORDER BY w.attempt,w.next_at,w.candidate''',(now,)).fetchall()
+            for row in rows:
+                if row['result'] is not None and not self.plane.db.execute(
+                        'SELECT 1 FROM result_consumption WHERE candidate=? AND generation=?',
+                        (row['candidate'],row['generation'])).fetchone():continue
+                watch=json.loads(row['body'])
+                if digest(watch)!=row['hash']:raise ValueError('pons_current_watch_corruption')
+                if watch['interpretation']!=self.policy:raise ValueError('pons_current_watch_interpretation_changed')
+                if row['generation'] is None:
+                    event=watch['event'];order=watch['latest_ordering']
+                    self.plane.db.execute('''INSERT INTO candidates(id,lane,generation,interpretation,latest_id,
+                        observed,ordering,desired,payload,state,pending,priority,rank,deadline,queued)
+                        VALUES(?,'pons',?,?,?,?,?,?,?,'watching',0,4,0,?,?)''',
+                        (row['candidate'],watch['generation'],canonical(self.policy),watch['latest_id'],
+                        now,canonical(order),canonical({}),canonical(event),deadline,now))
+                sequence=(self.plane.checkpoint_read('pons_current_recheck_sequence') or 0)+1
+                self.plane.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body',
+                    ('pons_current_recheck_sequence',canonical(sequence)))
+                target=dict(kind='pons_canonical_current_recheck',sequence=sequence,
+                    original_nomination=watch['event'],first_observed_at=watch['first_observed_at'])
+                self.plane.db.execute('''UPDATE candidates SET generation=generation+1,desired=?,payload=?,observed=?,
+                    deadline=?,queued=?,state='watching',reason=NULL,pending=1,result=NULL,priority=MAX(2,priority) WHERE id=?''',
+                    (canonical(target),canonical(watch['event']),now,deadline,now,row['candidate']))
+                watch['generation']=self.plane.get(row['candidate'])['generation']
+                self.plane.db.execute('UPDATE pons_current_watch SET next_at=?,attempt=?,body=?,hash=? WHERE candidate=?',
+                    (deadline,sequence,canonical(watch),digest(watch),row['candidate']))
+                self.plane._audit(self.plane._row(row['candidate']),'watching',
+                    'pons_timer_requires_fresh_canonical_current_state',first_observed_at=watch['first_observed_at'])
+                return row['candidate']
+        return None
+
+    def release_entry_guard(self,curve):
+        key='pons:'+str(self.policy['chain'])+':'+self.policy['factory']+':'+curve.lower()
+        with self.plane.transaction():
+            row=self.plane._row(key)
+            live=self.plane.db.execute("SELECT 1 FROM runtime WHERE key LIKE 'native_position:pons:%' "
+                "AND json_extract(body,'$.candidate')=? AND json_extract(body,'$.position.status')<>'settled'",(key,)).fetchone()
+            if live:return
+            if row and row['state'] in ('entry_confirmation','entry_reserved') and not row['pending'] and row['claim'] is None:
+                self.plane.db.execute("UPDATE candidates SET state='watching' WHERE id=?",(key,))
+                self.plane._audit(self.plane._row(key),'watching','pons_native_attempt_complete_recheck_preserved')
+
+    def release_orphan_entry_guards(self,active_curves):
+        """After native restart reconciliation, a pre-submit crash owns no entry.
+
+        Live native reservations/controllers and unconsumed decisions remain
+        protected. A released guard grants only a fresh canonical probe.
+        """
+        with self.plane.lock:
+            keys=[r[0] for r in self.plane.db.execute("SELECT id FROM candidates WHERE lane='pons' AND state IN ('entry_confirmation','entry_reserved')")]
+        active={c.lower() for c in active_curves}
+        for key in keys:
+            curve=key.rsplit(':',1)[-1]
+            if curve not in active:self.release_entry_guard(curve)
 
     def pop(self,*,now=None,minimum_remaining_seconds=0):
         estimate=self.plane.estimate('pons',provider_interval=.5)
@@ -85,7 +227,20 @@ class Broker:
                 if row and row[0] is not None:
                     estimate=self.plane.estimate('pons',provider_interval=row[0],queued_transports=n,cooldown_seconds=max(0,(row[1] or 0)-time.monotonic()))
             finally:db.close()
-        work=self.plane.claim(lane='pons',estimate_seconds=estimate)
+        # Alternate eligible raw nominations with retained quiet-market probes.
+        # Continuous new buys cannot indefinitely starve a recoverable identity.
+        probe_turn=self.plane.checkpoint_read('pons_current_probe_turn') is not False
+        work=None
+        if probe_turn:
+            key=self.reactivate_one()
+            if key is not None:work=self.plane.claim(lane='pons',key=key,estimate_seconds=.5)
+        if work is None:work=self.plane.claim(lane='pons',estimate_seconds=estimate)
+        if work is None:
+            key=self.reactivate_one()
+            if key is not None:work=self.plane.claim(lane='pons',key=key,estimate_seconds=.5)
+        if work is not None:
+            self.plane.checkpoint('pons_current_probe_turn',
+                json.loads(work['desired']).get('kind')!='pons_canonical_current_recheck')
         return self._scheduled(work) if work else None
 
     def finish(self,scheduled,evaluation,elapsed,*,logical=None,physical=None):
@@ -93,7 +248,36 @@ class Broker:
         # Retain the full authenticated candidate, including receipt/header and
         # typed-state fields needed by the frozen paper lifecycle after restart.
         value=json.loads(json.dumps(evaluation,default=lambda x:asdict(x) if is_dataclass(x) else (_ for _ in ()).throw(TypeError(type(x).__name__))))
-        return self.plane.finish(scheduled['work'],result=value,seconds=elapsed,logical=logical,physical=physical)
+        finished=self.plane.finish(scheduled['work'],result=value,seconds=elapsed,logical=logical,physical=physical)
+        if finished:
+            from meme_machine.lanes.pons.pons_selective_continuation import ENTRY_THRESHOLDS
+            stamp=value.get('candidate',{}).get('stamp') or {}
+            with self.plane.transaction():
+                row=self.plane._row(scheduled['key'])
+                if row['generation']!=scheduled['work']['generation']:return finished
+                if (value.get('candidate',{}).get('state',{}).get('graduated') or
+                        value.get('launch_at') is not None and stamp.get('event_at',0)>
+                        value['launch_at']+ENTRY_THRESHOLDS['max_token_age_seconds']):
+                    self.plane.db.execute('DELETE FROM pons_current_watch WHERE candidate=?',(scheduled['key'],))
+                else:
+                    old=self.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(scheduled['key'],)).fetchone()
+                    if old:
+                        watch=json.loads(old[0]);watch['failures']=0
+                        candidate=value.get('candidate',{})
+                        nomination=candidate.get('nomination_header') or candidate.get('header') or {}
+                        buy_at=int(nomination['timestamp'],16) if nomination.get('timestamp') else None
+                        age=(value.get('vector') or {}).get('token_age_seconds')
+                        delay=self.nominal_deadline_seconds
+                        if age is not None and age<ENTRY_THRESHOLDS['min_token_age_seconds']:
+                            delay=min(delay,ENTRY_THRESHOLDS['min_token_age_seconds']-age)
+                        # Once authenticated buying is outside the positive 15s
+                        # demand window, only another real buy can restore it.
+                        # Keep the identity/history but cease quiet RPC probes.
+                        next_at=(1e100 if buy_at is not None and stamp.get('event_at',0)>buy_at+15
+                            else self.clock()+delay)
+                        self.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=?,next_at=? WHERE candidate=?',
+                            (canonical(watch),digest(watch),next_at,scheduled['key']))
+        return finished
 
     def committed(self):
         from meme_machine.lanes.pons.pons import CurveState
@@ -108,7 +292,8 @@ class Broker:
     def acknowledge(self,scheduled):
         return self.plane.consume(scheduled['key'],scheduled['work']['generation'])
 
-    def failure(self,scheduled,reason,*,screen=None):
+    def failure(self,scheduled,reason,*,screen=None,evidence=None):
+        from meme_machine.lanes.pons.pons_selective_continuation import ENTRY_THRESHOLDS
         state=('superseded' if reason=='candidate_generation_superseded' else
                'freshness_deadline_censored' if any(x in reason for x in ('stale','deadline')) else
                'provider_capacity_defer' if any(x in reason for x in ('429','capacity','budget')) else
@@ -116,8 +301,31 @@ class Broker:
         if screen is not None:
             from .accounting import screen_outcome
             state=screen_outcome(screen)
-        return self.plane.finish(scheduled['work'],state=state,reason=reason,
-            accounting_details={'authenticated_evidence':screen['authenticated_evidence']} if screen else None)
+        horizon=(reason=='strategy_horizon_expired' and scheduled['canonical_refresh'] and evidence
+            and evidence.get('boundary')==reason and evidence.get('authentication_complete') is True
+            and evidence.get('identity') and evidence['asof']>evidence['launch_at']+ENTRY_THRESHOLDS['max_token_age_seconds'])
+        if horizon:state='strategy_rejected'
+        finished=self.plane.finish(scheduled['work'],state=state,reason=reason,
+            accounting_details={'authenticated_evidence':evidence} if horizon else
+                {'authenticated_evidence':screen['authenticated_evidence']} if screen else None)
+        if horizon:
+            with self.plane.transaction():
+                row=self.plane._row(scheduled['key'])
+                if row['generation']==scheduled['work']['generation'] and row['reason']==reason:
+                    self.plane.db.execute('DELETE FROM pons_current_watch WHERE candidate=?',(scheduled['key'],))
+        else:
+            with self.plane.transaction():
+                row=self.plane._row(scheduled['key'])
+                old=self.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(scheduled['key'],)).fetchone()
+                if old and row['generation']==scheduled['work']['generation'] and row['reason']==reason:
+                    watch=json.loads(old[0]);watch['failures']=watch.get('failures',0)+1
+                    delay=min(60,self.nominal_deadline_seconds*2**min(4,watch['failures']-1))
+                    # A complete canonical empty census cannot pass demand;
+                    # await a real event rather than repeatedly buying absence.
+                    next_at=1e100 if reason=='pons_current_recheck_no_recent_canonical_buy' else self.clock()+delay
+                    self.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=?,next_at=? WHERE candidate=?',
+                        (canonical(watch),digest(watch),next_at,scheduled['key']))
+        return finished
 
     def report_to(self,pipeline,*,drain=False):
         from .accounting import project,high_water

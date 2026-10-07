@@ -8,7 +8,10 @@ from . import BoundaryError
 from .abi import topic
 
 
-def canonical_window(context, candidate, *, seconds=60):
+CURRENT_DEMAND_WINDOW_SECONDS = 60
+
+
+def canonical_window(context, candidate, *, seconds=CURRENT_DEMAND_WINDOW_SECONDS):
     from .pons_selective_acquisition import _header_search
     block = int(candidate['block'])
     at = int(candidate['stamp'].event_at)
