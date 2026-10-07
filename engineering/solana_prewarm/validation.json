@@ -193,7 +193,16 @@
   "startup_read_only": "LIVE_CONSUMER_RELEASE_PROVEN; final-source corrections regression-proven only",
   "mixed_steady_state": "NOT_CERTIFIED",
   "monthly_cost": "NOT_CERTIFIED",
-  "GitHub_failure_identity_parity": "PENDING_FINAL_SOURCE_RUN",
+  "GitHub_failure_identity_parity": {
+    "result": "PASS",
+    "artifact": "github_baseline_parity.json",
+    "new_identities": 0,
+    "missing_or_changed_identities": 0,
+    "run_ids": [
+      37657838165,
+      37657849433
+    ]
+  },
   "legacy_characterization_tests_archived": 33,
   "earlier_corrected_failures": [
     "Obsolete nested Model A batching introspection archived",
@@ -202,5 +211,7 @@
     "Cold archive retirement fixture now measures Model B control publication interleaving",
     "One new test initially had displaced restart assertions; corrected before final acceptance"
   ],
-  "final_classification": "NEW_STARTUP_PROMISING_ONE_PROOF_REMAINS"
+  "final_classification": "NEW_STARTUP_PROMISING_ONE_PROOF_REMAINS",
+  "implementation_commit": "1c0055b87a14a7f005d59c1208e8d31de2bacaca",
+  "implementation_tree": "6188421c78e38fa06b840d7d94c729e69e890d0f"
 }

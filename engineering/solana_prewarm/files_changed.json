@@ -51,6 +51,8 @@
     "engineering/solana_prewarm/validation/affected_operational.log.gz",
     "engineering/solana_prewarm/validation/fast.log.gz",
     "engineering/solana_prewarm/validation/focused.log.gz",
+    "engineering/solana_prewarm/validation/github-37657838165.log.gz",
+    "engineering/solana_prewarm/validation/github-37657849433.log.gz",
     "engineering/solana_prewarm/validation/pre_migration_affected_failure.log.gz",
     "engineering/solana_prewarm/validation/startup_shared_maintenance.log.gz",
     "engineering/solana_prewarm/validation/test_layout_correction.log.gz",

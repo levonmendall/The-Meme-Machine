@@ -7,7 +7,7 @@
   "draft": true,
   "open": true,
   "unmerged": true,
-  "implementation_commit": "RECORDED_AFTER_SOURCE_COMMIT",
-  "implementation_tree": "RECORDED_AFTER_SOURCE_COMMIT",
+  "implementation_commit": "1c0055b87a14a7f005d59c1208e8d31de2bacaca",
+  "implementation_tree": "6188421c78e38fa06b840d7d94c729e69e890d0f",
   "final_delivery_identity": "Use PR head/tree; final audit commit only changes documentation/provenance"
 }
