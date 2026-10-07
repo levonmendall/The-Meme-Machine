@@ -1,6 +1,6 @@
 import unittest
 from engineering.solana_capacity.live_probe import normal_drain
-from engineering.solana_capacity.final_mixed import position_disposition
+from engineering.solana_capacity.final_mixed import position_disposition,candidate_census
 
 
 class RunningDrain(unittest.TestCase):
@@ -21,3 +21,9 @@ class RunningDrain(unittest.TestCase):
     def test_mark_without_continuation_is_not_complete(self):
         self.assertEqual(position_disposition(dict(ready=True,dependencies=dict(ordered_history_ready=False))),'incomplete')
         self.assertEqual(position_disposition(dict(ready=True,dependencies=dict(ordered_history_ready=True))),'completed')
+    def test_unrestored_candidate_history_is_observed_without_creation(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'not-yet-created.sqlite'
+            self.assertFalse(candidate_census(path)['initialized']);self.assertFalse(path.exists())

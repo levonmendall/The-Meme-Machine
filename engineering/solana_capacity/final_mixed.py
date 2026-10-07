@@ -25,6 +25,17 @@ def position_disposition(row):
     return 'failed' if row.get('error') else 'incomplete'
 
 
+def candidate_census(path):
+    """Observe lazy restoration without creating or initializing its database."""
+    if not path.exists():return dict(initialized=False,work=[],requirements=[])
+    with sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True) as db:
+        if not db.execute("SELECT 1 FROM sqlite_master WHERE name='work'").fetchone():
+            return dict(initialized=False,work=[],requirements=[])
+        db.row_factory=sqlite3.Row
+        return dict(initialized=True,work=[dict(r) for r in db.execute('SELECT * FROM work')],
+            requirements=[dict(r) for r in db.execute('SELECT * FROM work_history_requirements')])
+
+
 class FinalMixed(certify.Certification):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -51,10 +62,9 @@ class FinalMixed(certify.Certification):
         result['normalized_max_slot']=db.execute('SELECT MAX(slot) FROM rolling_economic_events').fetchone()[0]
         result['counters']=dict(db.execute('SELECT key,value FROM counters'))
         result['owner']=self.probe.owners[0].telemetry() if self.probe.owners else {}
-        with sqlite3.connect(self.out/'candidate.sqlite') as shared:
-            shared.row_factory=sqlite3.Row
-            result['candidate_work']=[dict(row) for row in shared.execute('SELECT * FROM work')]
-            result['history_requirements']=[dict(row) for row in shared.execute('SELECT * FROM work_history_requirements')]
+        shared=candidate_census(self.out/'candidate.sqlite')
+        result['candidate_history_initialized']=shared['initialized']
+        result['candidate_work']=shared['work'];result['history_requirements']=shared['requirements']
         return result
 
     def should_finish(self,snapshot,cohort_debt):
