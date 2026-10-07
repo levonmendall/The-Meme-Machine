@@ -452,7 +452,7 @@ class FinalizedFence:
             if known and known[0]!=consumer:raise EvidenceUnavailable('interest_owned_by_other_consumer')
             if not known and op=='advance_interest':raise EvidenceUnavailable('interest_checkpoint_unknown_owner')
             if not known and op=='interest':
-                if self.writer.db.execute('SELECT COUNT(*) FROM interest_owners').fetchone()[0]>=4096:
+                if not hasattr(self,'selective') and self.writer.db.execute('SELECT COUNT(*) FROM interest_owners').fetchone()[0]>=4096:
                     raise EvidenceUnavailable('interest_owner_capacity')
         if op=='interest':
             owner=request['owner'];scope=request['scope']
@@ -466,8 +466,11 @@ class FinalizedFence:
                 raise EvidenceUnavailable('service_draining')
             current={r[0] for r in self.writer.db.execute('SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1')}
             if len(current|set(addresses))>256:
-                self.count('subscription_capacity_rejections')
-                raise EvidenceUnavailable('subscription_capacity')
+                if hasattr(self,'selective'):
+                    self.count('subscription_capacity_pressure')
+                else:
+                    self.count('subscription_capacity_rejections')
+                    raise EvidenceUnavailable('subscription_capacity')
             with self.writer.transaction():
                 self.writer._interest(owner,scope,lower_slot=request['lower_slot'],
                     priority=request['priority'],lifecycle=request['lifecycle'])
@@ -795,7 +798,7 @@ class ServiceState:
         finally:self.writer.close()
 
 
-async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     """Independent bounded socket handling and one priority SQLite owner."""
     import asyncio
     from concurrent.futures import ProcessPoolExecutor
@@ -1521,7 +1524,14 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 try:await asyncio.wait_for(stop.wait(),1)
                 except TimeoutError:pass
 
-        tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
+        async def selected_source():
+            await storage_ready.wait()
+            await source_driver(work,stop)
+        # The supported worker supplies the hybrid driver. The historical
+        # stream remains available only to offline transport regression tests.
+        producers=([asyncio.create_task(selected_source())] if source_driver is not None
+                   else [asyncio.create_task(source()),asyncio.create_task(repair())])
+        tasks=[*producers,asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             admission.close()

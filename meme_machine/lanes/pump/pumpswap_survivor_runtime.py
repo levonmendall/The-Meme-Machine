@@ -16,6 +16,7 @@ from meme_machine.runtime.journal import digest
 from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,scale
 from meme_machine.runtime.survivor_history import History
 from meme_machine.runtime.survivor_paper_book import PaperBook
+from meme_machine.solana_evidence_plane import decode_body
 from .engine import GAS,MAYHEM_AGENT_WALLET
 from .postgrad import PostGraduationAdapter,graduation_handoff,buy_quote,sell_quote
 from .provider import Unavailable
@@ -70,13 +71,21 @@ class Runtime:
         self.rpc.evidence_kind='survivor_monitor' if priority==30 else 'survivor_commit_or_exit'
 
     def discover(self):
+        from meme_machine.solana_selective_runtime import selective
+        selected=selective(self.plane._selective_reader()) if hasattr(self.plane,'_selective_reader') else False
         top=self.plane.frontier(PUMP_SCOPE)
         cursor=self.history.get_meta('discovery_slot')
-        if cursor is None:
+        if cursor is None and not selected:
             self.history.set_meta('discovery_slot',max(0,top-1));return
-        if top<=cursor:return
-        end=min(top,cursor+64)
-        rows=self.plane.reader.window(PUMP_SCOPE,cursor+1,end,as_of=time.time(),kind='event',limit=10000)
+        if selected:
+            sequence=self.history.get_meta('discovery_sequence') or 0
+            delivery=self.plane.reader.discovery(sequence,as_of=time.time())
+            rows=[decode_body(row[1],self.plane.reader.db) for row in delivery]
+            end=top
+        else:
+            if top<=cursor:return
+            end=min(top,cursor+64)
+            rows=self.plane.reader.window(PUMP_SCOPE,cursor+1,end,as_of=time.time(),kind='event',limit=10000)
         for row in rows:
             event=row['payload']['event']
             if event.get('event_type')!='migration' or event.get('quote_asset')!='SOL':continue
@@ -91,7 +100,9 @@ class Runtime:
                     points=[(event['market_time'],str(Fraction(event['quote_amount'],event['mint_amount'])))],complete=True)
             self.plane.interest(SWAP_SCOPE,lower_slot=event['slot'],addresses=[event['pool']],
                 lifecycle='candidate',priority=4,owner='pump:survivor:'+event['mint'])
-        self.history.set_meta('discovery_slot',end)
+        if selected:
+            if delivery:self.history.set_meta('discovery_sequence',delivery[-1][0])
+        else:self.history.set_meta('discovery_slot',end)
 
     def _increment(self,row,at,slot):
         row=self.history.get(row['id'])

@@ -415,6 +415,7 @@ class RobinhoodUSDTests(unittest.TestCase):
             'meme_machine/lanes/pump/pump_acceleration_evidence.py',
             'meme_machine/lanes/meteora/runner.py',
             'meme_machine/lanes/meteora/solana_evidence_queries.py',
+            'meme_machine/lanes/meteora/solana_evidence_runtime.py',
             'meme_machine/lanes/pons/pons_survivor_runtime.py',
         }
         for rel in paths:
@@ -451,7 +452,10 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual(ast.dump(original['Quotes']),ast.dump(current['Quotes']))
         old_methods={n.name:n for n in original['Runtime'].body if isinstance(n,ast.FunctionDef)}
         new_methods={n.name:n for n in current['Runtime'].body if isinstance(n,ast.FunctionDef)}
-        mechanical={'__init__','_increment','_enter','step','close'}
+        # Discovery's checkpoint namespace changes from a global slot to a
+        # durable candidate outbox. Qualification/entry/exit economics below
+        # remain independently pinned to the operational source.
+        mechanical={'__init__','discover','_increment','_enter','step','close'}
         for name,node in old_methods.items():
             if name not in mechanical:self.assertEqual(ast.dump(new_methods[name]),ast.dump(node),rel+':'+name)
         # Durable funding instrumentation follows the exact existing commit call;
