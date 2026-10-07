@@ -1,0 +1,1 @@
+Run the frozen continuation-v1-robinhood qualified paper cohort. Target 10 genuine qualifiers. Preserve the exact policy hash, thresholds, five-second evidence gate, 2-second delayed fills, 5-second monitoring, +15% / -10% / 900s exits, and authenticated Pons->V4 carry. Paper/research only; no merge or deployment.

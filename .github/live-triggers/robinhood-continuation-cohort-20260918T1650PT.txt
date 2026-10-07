@@ -1,0 +1,4 @@
+Continue the exact frozen continuation-v1-robinhood qualified cohort after provider-session recovery repair.
+
+Policy hash, thresholds, 5-second gate, selection rule, +15%/-10%/900s lifecycle, sizing, and paper-only authority remain unchanged.
+Transient provider transport loss must reconnect without advancing the last proven discovery cursor.

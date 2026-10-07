@@ -1,0 +1,1 @@
+Run one live prospective paper-only market test of the independent ramses-fee-pulse-v1 strategy with all frozen thresholds unchanged. No forced qualification or live-money authority.

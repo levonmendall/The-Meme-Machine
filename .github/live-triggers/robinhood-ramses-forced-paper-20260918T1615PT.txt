@@ -1,0 +1,4 @@
+Run one forced, paper-only Ramses machinery proof on real finalized mainnet state. Forced admission only; preserve authentication, range freeze, 60-second observation, exact replay, terminal equality, unwind, settlement, restart reconciliation, and no strategy/allocation authority.
+Rerun from direct-finalized forced-proof head 0cbe9c72df13e6b260fd141068d37056d0a2cf4a.
+Rerun from provider-efficient forced-proof head 3208198b88727420174a706d7503973e34c07f26.
+Rerun from exact-horizon finalized selector af3bb0e33ed8374dbaf44bc48bde4ef93edcfe7f.

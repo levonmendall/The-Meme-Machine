@@ -1,0 +1,1 @@
+Fresh all-pool live market screen for the frozen independent ramses-fee-pulse-v1 policy using the dedicated DLMM RPC. No threshold changes; no forced qualification.
