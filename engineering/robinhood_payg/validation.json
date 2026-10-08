@@ -87,9 +87,24 @@
       },
       "log": "engineering/robinhood_payg/validation/compatibility-resources.txt",
       "log_sha256": "9455e8afd54f3e9dbfc6f4e3216809e6fe9488420e819687d3df13a3e4eb7b15"
+    },
+    {
+      "name": "committed-proof-reconciliation",
+      "status": "PASS",
+      "tests": 221,
+      "test_elapsed_seconds": 59.168,
+      "skipped": 0,
+      "log": "engineering/robinhood_payg/validation/reconciliation-fixed-resources.txt",
+      "log_sha256": "c48e2d5772c81747f75e21c1dcb68804d9202a4c5c05e6bf63d12dd00a9206a8",
+      "resources": {
+        "user_cpu_seconds": 38.46,
+        "system_cpu_seconds": 2.52,
+        "peak_rss_kib": 82116,
+        "wall_elapsed": "0:59.96"
+      }
     }
   ],
-  "full_suite_scope": "Full FAST and OPERATIONAL cover final production planner/evidence/metrics code. Subsequent engineering proof telemetry/final-artifact guard and two added supervisor/report regressions are covered by the final 61-test focused run. No production code changed after the full suites began.",
+  "full_suite_scope": "Full FAST and OPERATIONAL cover final production planner/evidence/metrics code. Subsequent engineering proof telemetry/final-artifact guard and two added supervisor/report regressions are covered by the final 61-test focused run. No production code changed after the full suites began. Completed shared-proof commits cf614f02, 1f05e058 and e39784a were subsequently integrated; 221 affected OPERATIONAL regressions pass. Pump production code remains unchanged.",
   "skips": "33 existing OPERATIONAL archived MODEL A tests; no new skip or suppressed assertion",
   "replays": [
     {
@@ -153,6 +168,12 @@
       "cause": "BoundaryError inherits ValueError, so fork error was relabeled as shape failure; explicitly rethrow domain failures",
       "scratch": "/tmp/mm-engineering-1_x631oi",
       "status": "RESOLVED"
+    },
+    {
+      "log": "validation/reconciliation-resources.txt",
+      "cause": "Three legacy fixtures passed a limits dict into the new contract-bound Budget interface. Integrated already committed e39784a fixture migrations and offline transport default; safety assertions preserved.",
+      "status": "RESOLVED",
+      "scratch": "/tmp/mm-engineering-fbnhhm8b"
     }
   ],
   "maintenance_repair_provenance": "maintenance-import.json",
@@ -172,5 +193,10 @@
     "tracebacks_assertions_counts_preserved": true
   },
   "remaining_blocker": "combined_position_and_candidate_provider_latency_not_certified",
-  "operational_proven": false
+  "operational_proven": false,
+  "integrated_completed_maintenance_commits": [
+    "cf614f024c8df7bbf6601ccb331ec83d9cc6bf74",
+    "1f05e058fd29ec387b8ae204a2aa179d45a7b647",
+    "e39784a59cfc585cfea972250dc72954e0adf134"
+  ]
 }

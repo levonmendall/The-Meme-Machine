@@ -15,7 +15,13 @@
       "branch": "engineering/maintenance-provider-proof-20261008",
       "head": "cf614f024c8df7bbf6601ccb331ec83d9cc6bf74",
       "outstanding_paths": [],
-      "modified_by_this_task": false
+      "modified_by_this_task": false,
+      "final_reconciliation_head": "e39784a59cfc585cfea972250dc72954e0adf134",
+      "observed_outstanding_paths_at_reconciliation": [
+        "M engineering/solana_capacity/proof_host.py",
+        " M engineering/solana_capacity/pump_pons_proof.py"
+      ],
+      "head_moved_by_concurrent_task": true
     },
     "scout": {
       "directory": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo",
@@ -46,5 +52,12 @@
     "ram_gib": 8,
     "infrastructure_purchased": false
   },
-  "instruction": "Resolve only actual scope conflicts against latest committed Pump/proof source; do not reset dirty worktrees or overwrite Pons with older Pump branch tree"
+  "instruction": "Resolve only actual scope conflicts against latest committed Pump/proof source; do not reset dirty worktrees or overwrite Pons with older Pump branch tree",
+  "integrated_completed_maintenance_commits": [
+    "cf614f024c8df7bbf6601ccb331ec83d9cc6bf74",
+    "1f05e058fd29ec387b8ae204a2aa179d45a7b647",
+    "e39784a59cfc585cfea972250dc72954e0adf134"
+  ],
+  "merge_commit": "e390fe135f6eeab8b1412a7043bfdccbe2e88a6e",
+  "remaining_worktree_edits_imported": false
 }

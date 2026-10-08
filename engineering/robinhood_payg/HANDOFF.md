@@ -5,12 +5,15 @@ The source is an offline engineering release, not a deployment. Keep
 qualifying evidence clears it. Do not repeat completed strategy engineering,
 global historical bootstrapping, or architectural comparisons.
 
-1. Reconcile this published branch with the **committed** ongoing Pump and
-   maintenance/proof work. This branch does not change Pump production files.
+1. This branch already integrates committed maintenance/shared-proof work
+   through `e39784a59cfc585cfea972250dc72954e0adf134`, including its tightened
+   deadline handling and fixture migrations; 221 affected regressions pass.
+   Reconcile only subsequent **committed** ongoing Pump and maintenance/proof
+   work. This branch does not change Pump production files.
    Preserve the Pump work at `engineering/pumpswap-provider-bandwidth-20261008`
    (`874e94a9` at inspection) and the maintenance worktree's outstanding edits.
    Use their final published identities, resolve only actual overlapping scope,
-   and run affected offline integration regressions on the resulting source.
+   and run only affected offline integration regressions on additional changes.
    Do not reset/rebase shared worktrees or replace the new Pons tree with Pump's
    older branch contents.
 2. Complete the read-only administrative comparison when the restored Alchemy

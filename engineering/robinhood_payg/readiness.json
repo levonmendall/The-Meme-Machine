@@ -110,7 +110,7 @@
     },
     {
       "id": "safe_release_integration",
-      "resolution": "Reconcile latest committed Pump and concurrent maintenance/proof work, review exact release, then obtain deployment/autonomous PAPER authorization"
+      "resolution": "Committed shared proof through e39784a already integrated and 221 affected regressions pass; reconcile only later completed Pump/proof changes, review exact release, then obtain provider/deployment/autonomous PAPER authorization"
     }
   ],
   "optional_optimization": {
@@ -129,5 +129,11 @@
     "billing/credential change"
   ],
   "thirty_day_billing_or_autonomy_certified": false,
-  "sustained_measurements": "Collect after qualifying authorized operation; not a mandatory global historical bootstrap or architectural perfection gate"
+  "sustained_measurements": "Collect after qualifying authorized operation; not a mandatory global historical bootstrap or architectural perfection gate",
+  "integrated_shared_proof_commits": [
+    "cf614f024c8df7bbf6601ccb331ec83d9cc6bf74",
+    "1f05e058fd29ec387b8ae204a2aa179d45a7b647",
+    "e39784a59cfc585cfea972250dc72954e0adf134"
+  ],
+  "reconciliation_regressions_passed": 221
 }

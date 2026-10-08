@@ -232,6 +232,10 @@ measurements, WAL accounting and final-report size protection. The full suites
 cover the final production code; those last executor-only additions were
 validated by the focused run. No production code changed after the full suites
 began. The original strategy source pins and maintenance assertions pass.
+Final reconciliation with committed shared-proof work also passed **221
+affected regressions**. Three older Budget fixtures initially failed because
+their interface had been retired; the independently committed migrations were
+integrated, preserving their safety assertions and adding retry/offline checks.
 
 ## Cost comparison
 
@@ -305,7 +309,17 @@ fixture, not production Pump acquisition or provider behavior.
 
 The harness import is byte-identical to the independently repaired maintenance
 worktree at the recorded SHA in [maintenance-import.json](maintenance-import.json).
-That worktree's ongoing proof changes were not overwritten or merged.
+At the final reconciliation boundary, that worktree had committed shared-proof
+improvements as `cf614f024c8df7bbf6601ccb331ec83d9cc6bf74`, tightened native
+deadline handling as `1f05e058fd29ec387b8ae204a2aa179d45a7b647`, and offline
+transport/fixture migrations as `e39784a59cfc585cfea972250dc72954e0adf134`.
+Those completed commits were merged into this branch, retaining both FAST
+suite registrations and the existing `--cases` helper. They change engineering
+proofs and fixtures, not production Pump acquisition or strategy settings.
+Their separate pinned forward-survivor proof contract and the original
+Robinhood ten-block proof contract remain unchanged. Outstanding uncommitted
+host/supervisor work in the other worktree was left untouched; review its final
+committed identity before relying on that shared executor for provider work.
 The separately published Pump branch `engineering/pumpswap-provider-bandwidth-20261008`
 at `874e94a9` is preserved. Final integration must reconcile its exact committed
 scope with this Pons branch; do not merge its older Pons tree over the new

@@ -11,7 +11,7 @@
     "meme_machine/lanes/pons/provider.py": "37b3e5a2d6f2980071329ec97e11fe1bcfe4030ed27aa04f93cb209569a424ff",
     "meme_machine/lanes/pons/provider_admission.py": "4d59523bde5fdcd929d08e3582a4991aeb21eb2f43a690655c764bcbe9d70d10",
     "meme_machine/runtime/robinhood/provider_usage.py": "577be6e6f366ae9a85c7c271d1f331b573b882b487466579e4afe5ae0d3aaccd",
-    "operational/tests.py": "1783da7ffb0f22468f26c109120bb0977a06773800beeb87d08e8b5521387375",
+    "operational/tests.py": "995707fa60a95af209f09f536af7456868681aee2e7d765c5eec35f6886480ca",
     "tests/test_robinhood_payg.py": "05324da59db4725d5bd426ba093f324da00a021aff5868bc6ca4f7ba808ee7c1",
     "tests/maintenance_production_harness.py": "35532118566d561a46b0af27feb78580161474db1bb548d54e63b3e97db60891",
     "tests/lanes/pons/test_pons_finalization.py": "969ce9ac82e98a96f87e754f21fe0c5f5bb3038a7c989c6c1d18525baa1c5196",
@@ -19,11 +19,21 @@
     "engineering/robinhood_payg/capability.py": "5777272e6e42afea227cfdc114a9146c62513dec6063578ad88132961c7cd121",
     "engineering/robinhood_payg/identity.py": "1cbc760cce5da2efdb5a258950268633823077dcda133aea5ad2f0cbfb053821",
     "engineering/robinhood_payg/replay.py": "d05901ac9ff2c8e5a1bdb9dee2dff7140ffbc10e0b9d420f5c50cb46c6ff2d1a",
-    "engineering/robinhood_payg/cost_model.py": "bdbd6110cb1968c767c65d2c806b29495bb8bee870b4e12ebe883f72f5d791e2"
+    "engineering/robinhood_payg/cost_model.py": "bdbd6110cb1968c767c65d2c806b29495bb8bee870b4e12ebe883f72f5d791e2",
+    "engineering/solana_capacity/final_mixed.py": "e3d255a632f1665472d59ca7976288834507ceff1ba94f57cf78600e41520b94",
+    "engineering/solana_capacity/proof_host.py": "dbd85ec1e72e4ca6377283c5609a43bce9ba0db1b5b46d230c9fd265f7483364",
+    "engineering/solana_capacity/proof_limits.py": "cf2f983787380836865541cf4c8d2563a67e96ea79b084e9b1d79d90c739c71f",
+    "engineering/solana_capacity/proof_transport.py": "62ae820f3b656bb4791385e5fbd9184011359ec1bfe660e1e1ad5a834e8939e1",
+    "engineering/solana_capacity/proof_workload.py": "440ec590f64446f236a576ccf77faa4429e912f6f9f75cdc8a7f28f9dad05e42",
+    "engineering/solana_capacity/pump_pons_proof.py": "9bac77475919e15b462f8ead60c879fce0636bdd0af86bc9c6198134fe15b963",
+    "tests/test_provider_efficiency.py": "4a9e4c846ff45e53df61d13b0c5dd282315586f59955f3524f4210e6c8b1481a",
+    "tests/test_pump_pons_proof.py": "21440b2b72f02fb4a4ff8c9b14eef365e06079f98cb84be92ec9764e038e102d",
+    "tests/test_solana_shared_capacity.py": "2e79ec87a6fc47b6c105e139d411def6ffc6abdd9016cfd05467311c82226bf7"
   },
   "original_current_window_byte_identical_to_base": true,
   "original_reviewed_proof_byte_identical": true,
   "pump_production_paths_changed": [],
   "canonical_governor_capacity_changed": false,
-  "credentials_included": false
+  "credentials_included": false,
+  "completed_shared_proof_merge_commit": "e390fe135f6eeab8b1412a7043bfdccbe2e88a6e"
 }
