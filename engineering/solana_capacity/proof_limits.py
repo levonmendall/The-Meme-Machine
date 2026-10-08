@@ -327,7 +327,7 @@ class QueueEvidence:
             self.dispatched+=1
             self._deadline(row)
     def _deadline(self,row):
-        if row.get('deadline') is not None and self.budget.clock()>row['deadline'] and not row.get('violated'):
+        if row.get('deadline') is not None and (self.budget.clock()>row['deadline'] or row.get('native_deadline_missed')) and not row.get('violated'):
             row['violated']=True;row['deadline_violation_at']=self.budget.clock();self.violations[row['kind']]+=1
             self.rows.append(dict(row,event='deadline_violation'))
             if row['kind']=='position':self.budget.fail('position_deadline_violation')
@@ -373,14 +373,25 @@ class QueueEvidence:
                 terminal=state in ('complete','failed','deadline_missed','cancelled')
                 known=identity in self.pending or identity in self.running
                 if identity in self.finished_ids:continue
+                if known:
+                    row=self.pending.get(identity) or self.running[identity]
+                    # Native requests may increase urgency or tighten a deadline.
+                    # Keep the original clock and only strengthen the observer;
+                    # repeated requests cannot renew a strategy window.
+                    if job['deadline']<row['original_wall_deadline']:
+                        row['original_wall_deadline']=job['deadline']
+                        row['deadline']=min(row['deadline'],now+job['deadline']-wall)
+                    if job.get('priority',3)<=1:row['kind']='position'
+                    if state=='deadline_missed':row['native_deadline_missed']=True
                 if not known and terminal:
                     # A job can fail its native deadline inside plan()/claim()
                     # before any subsequent census sees it pending. Preserve
                     # that violation rather than erase a disposed candidate.
                     created=job.get('created',job.get('created_at',wall))
-                    self.enqueue(identity,kind='position' if job.get('priority',3)<=1 else 'candidate',
+                    row=self.enqueue(identity,kind='position' if job.get('priority',3)<=1 else 'candidate',
                         deadline=now+job['deadline']-wall,queue=queue,original_deadline=job['deadline'],
                         enqueued=now+created-wall,control=True)
+                    if state=='deadline_missed':row['native_deadline_missed']=True
                     self.finish(identity,cancelled=state!='complete',error=job.get('error'));continue
                 if not known and not terminal:
                     created=job.get('created',job.get('created_at',wall))

@@ -276,6 +276,22 @@ class SchedulerTests(unittest.TestCase):
         jobs=[dict(id=i,created=99,deadline=100,status='deadline_missed',priority=3) for i in ('pump','pons')]
         with self.assertRaises(CeilingReached):self.q.scheduler_snapshot(jobs,source_now=101)
         self.assertEqual(self.q.violations['candidate'],2)
+    def test_native_deadline_tightening_and_position_priority_upgrade_stop_immediately(self):
+        job=dict(id='original',created=100,deadline=110,status='pending',priority=3)
+        self.q.scheduler_snapshot([job],source_now=100)
+        self.clock.at=4;job.update(deadline=103,priority=1)
+        with self.assertRaises(CeilingReached) as e:self.q.scheduler_snapshot([job],source_now=104)
+        self.assertEqual(e.exception.reason,'position_deadline_violation')
+        self.assertEqual(self.q.pending['acquisition:original']['original_wall_deadline'],103)
+    def test_repeated_native_requests_cannot_extend_existing_deadlines(self):
+        job=dict(id='original',created=100,deadline=103,status='pending',priority=3)
+        self.q.scheduler_snapshot([job],source_now=100);self.clock.at=2;job['deadline']=110
+        self.q.scheduler_snapshot([job],source_now=102)
+        self.assertEqual(self.q.pending['acquisition:original']['deadline'],3)
+    def test_native_deadline_missed_disposition_at_exact_boundary_is_a_violation(self):
+        job=dict(id='position',created=99,deadline=100,status='deadline_missed',priority=0)
+        with self.assertRaises(CeilingReached) as e:self.q.scheduler_snapshot([job],source_now=100)
+        self.assertEqual(e.exception.reason,'position_deadline_violation')
     def test_shutdown_cancels_admission_without_renewing_candidate_deadlines(self):
         self.q.enqueue('pending',kind='candidate',deadline=2);self.b.stop_work()
         with self.assertRaises(CeilingReached):self.q.enqueue('new',kind='candidate',deadline=4)
