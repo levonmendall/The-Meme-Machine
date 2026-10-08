@@ -404,10 +404,19 @@ def _supervise(args,contract,started):
     parent.setblocking(False)
     libc=ctypes.CDLL(None,use_errno=True)
     if libc.prctl(36,1,0,0,0)!=0:raise HostUnavailable('subreaper_unavailable')
+    def kill_all():
+        # A worker stalled before cgroup attachment is still in its Popen
+        # session. A descendant that later escapes that session remains in the
+        # cgroup. Both containment boundaries must be terminated.
+        if group is not None:group.pids()
+        if process is not None and process.poll() is None:
+            try:os.killpg(process.pid,signal.SIGKILL)
+            except ProcessLookupError:pass
+        if group is not None:group.kill()
     def hard_stop(*_):
         nonlocal forced,reason
         forced=True;reason=reason or 'wall_time_ceiling'
-        if group is not None:group.kill()
+        kill_all()
     old_alarm=signal.signal(signal.SIGALRM,hard_stop)
     signal.setitimer(signal.ITIMER_REAL,max(.001,deadline-time.monotonic()-.25))
     try:
@@ -455,7 +464,9 @@ def _supervise(args,contract,started):
                 if parent_resources['rss']>=128*1024*1024:reason=reason or 'supervisor_memory_reserve'
                 row['group_rss_bytes']+=parent_resources['rss']
                 row['cpu_seconds']+=parent_resources['cpu']-parent_baseline['cpu']
-                row['cumulative_process_write_bytes']+=parent_resources['writes']-parent_baseline['writes']
+                row['cumulative_group_block_write_bytes']=row['cumulative_process_write_bytes']
+                row['cumulative_dirty_process_write_bytes']=0 if kernel is None else sum(kernel.process_writes.values())
+                row['cumulative_process_write_bytes']=max(row['cumulative_group_block_write_bytes'],row['cumulative_dirty_process_write_bytes'])+parent_resources['writes']-parent_baseline['writes']
                 row['reserved_process_write_bytes']=0 if kernel is None else kernel.writes.writes
                 row['reserved_output_extent_bytes']=0 if kernel is None else kernel.writes.stock
                 reason=reason or watch.check(row);samples.append(row);next_sample=now+.1
@@ -469,24 +480,25 @@ def _supervise(args,contract,started):
             if reason:
                 # A safety failure stops immediately, not after allowing another
                 # 30 seconds of unmetered CPU/memory/write growth.
-                group.kill();forced=True
+                kill_all();forced=True
             elif shutdown_at is not None:
                 if now-shutdown_at>=contract.time['term_after_shutdown_seconds'] and not terminated:
                     if process.poll() is None:os.killpg(process.pid,signal.SIGTERM)
                     terminated=True;forced=True;reason=reason or 'termination_escalation'
                 if now-shutdown_at>=contract.time['kill_after_shutdown_seconds']-.25:
-                    group.kill();forced=True;reason=reason or 'shutdown_deadline'
+                    kill_all();forced=True;reason=reason or 'shutdown_deadline'
             if process.poll() is not None:
-                if group.populated():group.kill();forced=True;reason=reason or 'descendant_survived_worker'
+                if group.populated():kill_all();forced=True;reason=reason or 'descendant_survived_worker'
                 break
             if kernel is None and process.poll() is not None:break
             # Servicing notifications never waits on the application. Short
             # polling keeps the independent deadline/resource monitor runnable.
             select.select([parent],[],[],.005)
         if process.poll() is None:
-            group.kill();forced=True;reason=reason or 'wall_time_ceiling'
+            kill_all();forced=True;reason=reason or 'wall_time_ceiling'
         # Bound reaping and never use an unbounded process.wait/thread.join.
-        reap_until=min(deadline-.05,time.monotonic()+.15)
+        reap_until=min(deadline-.1,time.monotonic()+.25,
+            shutdown_at+contract.time['kill_after_shutdown_seconds']-.05 if shutdown_at is not None else deadline-.1)
         # Let Popen reap its own worker and preserve its actual exit status.
         # Only then reap adopted descendants; waitpid(-1) before poll() would
         # lose a killed worker's return code.
@@ -498,10 +510,12 @@ def _supervise(args,contract,started):
                         pid,_=os.waitpid(-1,os.WNOHANG)
                         if pid==0:break
                     except ChildProcessError:break
-                if not group.populated():break
+                # cgroup populated becomes zero before the last task's exit is
+                # waitable. Keep reaping known PIDs through that kernel race.
+                if not group.populated() and not any(Path(f'/proc/{pid}').exists() for pid in group.known_pids):break
             time.sleep(.002)
-        process.poll();survived=group.populated()
-        if survived:group.kill();reason=reason or 'descendants_not_reaped';forced=True
+        process.poll();survived=group.populated() or any(Path(f'/proc/{pid}').exists() for pid in group.known_pids)
+        if survived:kill_all();reason=reason or 'descendants_not_reaped';forced=True
         if kernel is not None and not kernel.close():reason=reason or 'kernel_broker_shutdown_incomplete';forced=True
         elapsed=time.monotonic()-started
         observation_end=finished.get('shutdown_elapsed')
@@ -528,7 +542,7 @@ def _supervise(args,contract,started):
                 offline_network_namespace=args.offline),production_state_write_scope='kernel-denied; disposable output only',
             original_epoch=contract.body['preserved_original_epoch'],production_restarted=False,
             paused_workloads=contract.body['paused_operational_workloads'],minimum_steady_seconds=contract.time['minimum_steady_seconds'])
-        raw=json.dumps(receipt,indent=2).encode()
+        raw=json.dumps(receipt,separators=(',',':')).encode()
         if len(raw)>RECEIPT_RESERVE:raise HostUnavailable('supervisor_receipt_reservation')
         if time.monotonic()<deadline-.05:(out/'process.json').write_bytes(raw)
         print(json.dumps(dict(classification=classification,reason=reason,output=str(out),elapsed_seconds=round(elapsed,3))))
@@ -536,7 +550,7 @@ def _supervise(args,contract,started):
     finally:
         signal.setitimer(signal.ITIMER_REAL,0);signal.signal(signal.SIGALRM,old_alarm)
         if group is not None:
-            if group.populated():group.kill()
+            if group.populated() or process is not None and process.poll() is None:kill_all()
             group.close()
         if kernel is not None and not kernel.closed.is_set():kernel.close()
         parent.close();worker.close()

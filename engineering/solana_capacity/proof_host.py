@@ -22,6 +22,8 @@ import time
 import threading
 
 RECEIPT_RESERVE=2*1024*1024
+WRITE_RESERVE=16*1024*1024
+MAPPED_RESERVE=6*1024*1024
 CGROOT=Path('/sys/fs/cgroup')
 
 
@@ -32,7 +34,7 @@ class LinuxGroup:
     def __init__(self, limits, *, root=CGROOT, output=None):
         if platform.system()!='Linux' or platform.machine()!='x86_64':raise HostUnavailable('linux_x86_64_required')
         self.path=root/('mm-provider-proof-'+str(os.getpid())+'-'+str(time.monotonic_ns()))
-        self.limits=limits;self.created=False
+        self.limits=limits;self.created=False;self.known_pids=set()
         try:
             controllers=set((root/'cgroup.controllers').read_text().split())
             enabled=set((root/'cgroup.subtree_control').read_text().split())
@@ -61,9 +63,12 @@ class LinuxGroup:
             self.close();raise HostUnavailable('cgroup_enforcement_unavailable') from None
     def attach_self(self):
         (self.path/'cgroup.procs').write_text(str(os.getpid()))
-    def pids(self):return [int(p) for p in (self.path/'cgroup.procs').read_text().split()]
+    def pids(self):
+        values=[int(p) for p in (self.path/'cgroup.procs').read_text().split()]
+        self.known_pids.update(values);return values
     def populated(self):return 'populated 1' in (self.path/'cgroup.events').read_text()
     def kill(self):
+        self.pids()
         (self.path/'cgroup.kill').write_text('1')
     def cpu(self):
         rows=dict(line.split() for line in (self.path/'cpu.stat').read_text().splitlines())
@@ -72,9 +77,12 @@ class LinuxGroup:
         rows={line.split()[0]:dict(field.split('=') for field in line.split()[1:])
               for line in (self.path/'io.stat').read_text().splitlines()}
         # Count all devices: unknown additional output devices fail closed.
-        active={dev for dev,v in rows.items() if int(v.get('wbytes',0))}
+        # Linux emits empty rows for inactive loop devices. They carry no I/O;
+        # a nonempty row without the write counter is an unavailable measurement.
+        if any(row and 'wbytes' not in row for row in rows.values()):raise HostUnavailable('block_write_accounting_unavailable')
+        active={dev for dev,v in rows.items() if v and int(v['wbytes'])}
         if active-{self.device}:raise HostUnavailable('unapproved_output_device')
-        return sum(int(v.get('wbytes',0)) for v in rows.values())
+        return sum(int(v['wbytes']) for v in rows.values() if v)
     def memory_events(self):
         return {k:int(v) for k,v in (line.split() for line in (self.path/'memory.events').read_text().splitlines())}
     def close(self):
@@ -144,7 +152,7 @@ class ResourceWatch:
         if row['output_stock_bytes']>=l['output_stock_bytes']-RECEIPT_RESERVE:return 'output_stock_bytes'
         if any(row['memory_events'].get(k,0) for k in ('max','oom','oom_kill')):return 'cgroup_memory_limit'
         if row.get('cumulative_process_write_bytes',0)>=l['cumulative_process_write_bytes']-16*1024*1024:return 'cumulative_process_write_bytes'
-        if 'reserved_process_write_bytes' in row and row['reserved_process_write_bytes']>=l['cumulative_process_write_bytes']-RECEIPT_RESERVE:
+        if 'reserved_process_write_bytes' in row and row['reserved_process_write_bytes']>=l['cumulative_process_write_bytes']-WRITE_RESERVE:
             return 'cumulative_process_write_bytes'
         if len(self.cpu)>=2 and now-self.cpu[0][0]>=30:
             # Linear interpolation obtains the actual trailing 30-second window;
@@ -167,7 +175,7 @@ class WriteAdmission:
     def reserve(self,size,*,key=None,end=0):
         if type(size) is not int or not 0<=size<=self.limits['cumulative_process_write_bytes']:raise HostUnavailable('write_measurement_unavailable')
         growth=max(0,end-self.extents.get(key,0)) if key is not None else 0
-        reason=('cumulative_process_write_bytes' if self.writes+size>self.limits['cumulative_process_write_bytes']-RECEIPT_RESERVE else
+        reason=('cumulative_process_write_bytes' if self.writes+size>self.limits['cumulative_process_write_bytes']-WRITE_RESERVE else
                 'output_stock_bytes' if self.stock+growth>self.limits['output_stock_bytes']-RECEIPT_RESERVE else None)
         if reason:self.denied+=1;return reason
         self.writes+=size;self.stock+=growth
@@ -249,6 +257,7 @@ class KernelAdmission:
         self.allowed_ips=set(allowed_ips);self.reason=None;self.network_denied=0;self.network_connections=0;self.shm_bytes=0;self.shm_extents={}
         self.thread=None;self.closed=threading.Event();self.old_signal=None
         self.group=group;self.fork_rss_reserved=0
+        self.process_writes={}
         self.provider_deadline=provider_deadline;self.network_closed=False
         self.names={self.lib.seccomp_syscall_resolve_name(n.encode()):n for n in WRITE_CALLS+REFUSED_CALLS+NETWORK_CALLS+OPEN_CALLS+METADATA_CALLS+PROCESS_CALLS}
     def target(self,pid,fd):
@@ -284,6 +293,7 @@ class KernelAdmission:
         return p
     def validate(self,n):
         name=self.names.get(n.data.nr);args=n.data.args;pid=n.pid
+        if self.group is not None:self.refresh_writes()
         if name in PROCESS_CALLS:
             flags=struct.unpack('Q',memory(pid,args[0],8))[0] if name=='clone3' else args[0] if name=='clone' else 0
             if flags&0x10000:return None # CLONE_THREAD: same process RSS
@@ -347,6 +357,7 @@ class KernelAdmission:
             # by cgroup io.stat/io.max, including exited process descendants.
             self.shm_extents[key]=max(args[1],self.shm_extents.get(key,0))
             self.shm_bytes=sum(self.shm_extents.values())
+            if self.shm_bytes>MAPPED_RESERVE:return 'mapped_writeback_reserve'
             return self.writes.reserve(args[1],key=key,end=args[5]+args[1])
         if name=='msync':return self.writes.reserve(((args[1]+4095)//4096)*4096)
         if name in ('fsync','fdatasync'):return self.writes.reserve(4096)
@@ -372,6 +383,23 @@ class KernelAdmission:
         if name in ('pwrite64','pwritev','pwritev2'):pos=args[3]
         if pos>=2**63:return 'unbounded_write_offset'
         return self.writes.reserve(0 if key is None else ((pos%4096+size+4095)//4096)*4096,key=key,end=pos+size)
+    def refresh_writes(self):
+        # write_bytes charges dirty pages before physical writeback. Retain
+        # exited processes' last counters; physical cgroup I/O and pre-syscall
+        # reservations independently cover short-lived workers' final writes.
+        for pid in self.group.pids():
+            try:
+                fields=Path(f'/proc/{pid}/stat').read_text().rsplit(')',1)[1].split()
+                key=(pid,int(fields[19]))
+                counters=dict(line.split(':') for line in Path(f'/proc/{pid}/io').read_text().splitlines())
+                value=int(counters['write_bytes'])
+                if value<self.process_writes.get(key,0):raise HostUnavailable('nonmonotonic_write_accounting')
+                self.process_writes[key]=value
+            except FileNotFoundError:continue
+        measured=max(self.group.writes(),sum(self.process_writes.values()))
+        self.writes.writes=max(self.writes.writes,measured)
+        if measured>=self.writes.limits['cumulative_process_write_bytes']-WRITE_RESERVE:
+            raise HostUnavailable('cumulative_process_write_bytes')
     def service(self,maximum=128):
         # SECCOMP_IOCTL_NOTIF_RECV may block after a task cancels between poll
         # and ioctl, even with O_NONBLOCK. It must never block the watchdog.

@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from engineering.solana_capacity.proof_limits import (Budget,CeilingReached,QueueEvidence,load_contract,
     CONTRACT_PATH,LIMITS,TIMES,MAX_FRAME,PUBLISHED,endpoint_family,validate_native_bindings)
-from engineering.solana_capacity.proof_host import (ResourceWatch,WriteAdmission,RECEIPT_RESERVE,HostUnavailable,
+from engineering.solana_capacity.proof_host import (ResourceWatch,WriteAdmission,RECEIPT_RESERVE,WRITE_RESERVE,HostUnavailable,
     LinuxGroup,group_sample,KernelAdmission,install_notifications,receive_listener)
 from engineering.solana_capacity.proof_transport import Transports
 from engineering.solana_capacity.pump_pons_proof import classify,main,validate_resume,supervise
@@ -371,7 +371,7 @@ class ResourceTests(unittest.TestCase):
         for at,cpu in [(0,0),(10,5),(20,25),(30,45)]:w.check(self.row(at=at,cpu_seconds=cpu))
         self.assertEqual(w.check(self.row(at=40,cpu_seconds=65)),'maximum_group_cpu_cores_30_second_average')
     def test_cumulative_write_reservations_and_stock_independently_stop(self):
-        limits=dict(LIMITS,cumulative_process_write_bytes=RECEIPT_RESERVE+100,output_stock_bytes=RECEIPT_RESERVE+100)
+        limits=dict(LIMITS,cumulative_process_write_bytes=WRITE_RESERVE+100,output_stock_bytes=RECEIPT_RESERVE+100)
         w=WriteAdmission(limits,'/unused')
         self.assertIsNone(w.reserve(99,key='same-inode',end=1))
         self.assertIsNone(w.reserve(1,key='same-inode',end=1))
@@ -393,6 +393,27 @@ class ResourceTests(unittest.TestCase):
         self.assertEqual(ResourceWatch(LIMITS).check(self.row(cumulative_process_write_bytes=boundary)),'cumulative_process_write_bytes')
     def test_cgroup_oom_events_fail_even_if_current_rss_dropped_after_worker_exit(self):
         self.assertEqual(ResourceWatch(LIMITS).check(self.row(memory_events={'oom_kill':1})),'cgroup_memory_limit')
+    def test_empty_inactive_io_rows_are_valid_but_missing_active_counters_fail_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            group=LinuxGroup.__new__(LinuxGroup);group.path=Path(d);group.device='8:0'
+            counter=group.path/'io.stat';counter.write_text('7:7 \n8:0 rbytes=0 wbytes=17\n')
+            self.assertEqual(group.writes(),17)
+            counter.write_text('8:0 rbytes=0\n')
+            with self.assertRaises(HostUnavailable):group.writes()
+            counter.write_text('8:1 wbytes=1\n')
+            with self.assertRaises(HostUnavailable):group.writes()
+    def test_dirty_page_counters_are_retained_after_exit_and_prevent_more_writes(self):
+        with tempfile.TemporaryDirectory() as d:
+            group=Namespace(pids=lambda:[os.getpid()],writes=lambda:0)
+            guard=KernelAdmission.__new__(KernelAdmission);guard.group=group
+            guard.process_writes={};guard.writes=WriteAdmission(LIMITS,d);guard.refresh_writes()
+            before=guard.writes.writes
+            (Path(d)/'actual-dirty-pages').write_bytes(b'x'*16384)
+            guard.refresh_writes();self.assertGreaterEqual(guard.writes.writes,before+16384)
+            retained=guard.writes.writes;group.pids=lambda:[];guard.refresh_writes()
+            self.assertEqual(guard.writes.writes,retained)
+            guard.writes.limits=dict(LIMITS,cumulative_process_write_bytes=WRITE_RESERVE+retained)
+            with self.assertRaises(HostUnavailable):guard.refresh_writes()
 
 
 class DispatchAndShutdownTests(unittest.TestCase):
@@ -558,17 +579,23 @@ while True:
         def popen(command,*a,**kw):
             if '--child' in command:command=[sys.executable,'-c',code,command[command.index('--control-fd')+1]]
             return native_popen(command,*a,**kw)
-        with tempfile.TemporaryDirectory(prefix='proof-deadline-') as d:
-            out=Path(d)/'output';args=Namespace(offline=True,authorized_live_proof=False,env=None,source_commit=None,
-                output=str(out),contract=str(CONTRACT_PATH))
-            started=time.monotonic()
-            with patch('engineering.solana_capacity.pump_pons_proof.subprocess.Popen',popen):self.assertEqual(supervise(args,contract),1)
-            self.assertLess(time.monotonic()-started,4)
-            result=json.loads((out/'process.json').read_text());self.assertEqual(result['classification'],'FAIL')
-            self.assertTrue(result['forced_termination']);self.assertFalse(result['descendants_survived'])
-            self.assertEqual(result['network']['kernel_connections'],0)
-            escaped=int((out/'escaped.pid').read_text())
-            self.assertFalse(Path(f'/proc/{escaped}').exists())
+        attached_code=code
+        for attached in (True,False):
+            with self.subTest(attached_to_cgroup=attached),tempfile.TemporaryDirectory(prefix='proof-deadline-') as d:
+                code=attached_code if attached else attached_code.replace(
+                    "(Path(init['group'])/'cgroup.procs').write_text(str(os.getpid()))",'').replace(
+                    attached_code[attached_code.index('pid=os.fork()'):attached_code.index('ready=time.monotonic()')],
+                    "(Path(init['output'])/'escaped.pid').write_text(str(os.getpid()))\n")
+                out=Path(d)/'output';args=Namespace(offline=True,authorized_live_proof=False,env=None,source_commit=None,
+                    output=str(out),contract=str(CONTRACT_PATH))
+                started=time.monotonic()
+                with patch('engineering.solana_capacity.pump_pons_proof.subprocess.Popen',popen):self.assertEqual(supervise(args,contract),1)
+                self.assertLess(time.monotonic()-started,4)
+                result=json.loads((out/'process.json').read_text());self.assertEqual(result['classification'],'FAIL')
+                self.assertTrue(result['forced_termination']);self.assertFalse(result['descendants_survived'])
+                self.assertEqual(result['network']['kernel_connections'],0)
+                escaped=int((out/'escaped.pid').read_text())
+                self.assertFalse(Path(f'/proc/{escaped}').exists())
     def kernel_case(self,action):
         import select
         with tempfile.TemporaryDirectory() as d:
@@ -612,3 +639,13 @@ while True:
             with (root/'same').open('wb') as f:
                 f.write(b'a'*100);f.flush();f.seek(0);f.write(b'b'*100);f.flush()
         reason,_,writes=self.kernel_case(action);self.assertIsNone(reason);self.assertGreaterEqual(writes,8192)
+    def test_shared_mapping_tail_reserve_is_bounded_before_mapping(self):
+        import mmap
+        def action(root):
+            retained=[]
+            for name in ('first-shm','second-shm'):
+                with (root/name).open('w+b') as f:
+                    f.truncate(32768);retained.append(mmap.mmap(f.fileno(),32768))
+        with patch('engineering.solana_capacity.proof_host.MAPPED_RESERVE',32768):
+            reason,_,_=self.kernel_case(action)
+        self.assertEqual(reason,'mapped_writeback_reserve')
