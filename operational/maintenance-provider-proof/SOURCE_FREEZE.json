@@ -1,0 +1,20 @@
+{
+  "executable_commit": "9c6910c57236004468bef506603c2d0502acbd3c",
+  "tree": "d095dc7633932cbdaf74f7bf4363b85d9f08edb6",
+  "dirty": false,
+  "captured_utc": "2026-10-08T19:50:56Z",
+  "production_provider_requests": 0,
+  "hashes": {
+    "engineering/solana_capacity/pump_pons_proof.py": "c7fe4d3a532aff00aa872e8d3a37bd83e559f44cb233e9db36786667c4ab5944",
+    "engineering/solana_capacity/proof_limits.py": "cf2f983787380836865541cf4c8d2563a67e96ea79b084e9b1d79d90c739c71f",
+    "engineering/solana_capacity/proof_host.py": "295dc71899c9ec79d18ac714a8652269b28863eb4f5957a7af916b1d3d2c40a0",
+    "engineering/solana_capacity/proof_transport.py": "aafd0bfdac317a3435971a66e614240e342db2933d5f92147c1c8b9680a30f8b",
+    "engineering/solana_capacity/proof_workload.py": "440ec590f64446f236a576ccf77faa4429e912f6f9f75cdc8a7f28f9dad05e42",
+    "tests/test_pump_pons_proof.py": "6f80dfbbd70dc0d0f473655fb47a7373a4376cab18e42be93f3d46efb5e1bb2b",
+    "tests/maintenance_production_harness.py": "35532118566d561a46b0af27feb78580161474db1bb548d54e63b3e97db60891",
+    "tests/test_production_maintenance_arbiter.py": "0f96eeff94fd4f235122569f555349d7ba38fb5179a633325d5f842728c7e82d",
+    "tests/test_run381_archive_scheduling.py": "6065b51bc2771b60b07b1d7f1ffe3e9a3e75548e6706ba3c2ca0d149dd9e4578",
+    "operational/tests.py": "995707fa60a95af209f09f536af7456868681aee2e7d765c5eec35f6886480ca",
+    "operational/forward-survivor/NEXT_PROOF.json": "1e02ae8630e8823f6bf24c52cf6792f6f2699df81d83b3ae805fa6020d858e6f"
+  }
+}

@@ -1,0 +1,848 @@
+{
+  "schema": "maintenance-provider-proof-final-validation-v1",
+  "readiness": "BLOCKED_BY_EXTERNAL_CONSTRAINT",
+  "readiness_reason": "Final exact-tree complete OPERATIONAL receipt remains unverified after owner instruction to stop and publish immediately; no unresolved engineering defect was demonstrated. Do not declare READY_FOR_AUTHORIZED_300_SECOND_PROOF.",
+  "executable_commit": "9c6910c57236004468bef506603c2d0502acbd3c",
+  "executable_tree": "d095dc7633932cbdaf74f7bf4363b85d9f08edb6",
+  "publication": "Dedicated engineering branch; final descendant contains this receipt package only",
+  "branch": "engineering/maintenance-provider-proof-20261008",
+  "python": "CPython3.12.14",
+  "interpreter": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/.venv/bin/python",
+  "maintenance": [
+    {
+      "test": "tests.test_production_maintenance_arbiter.ProductionServeTests.test_simultaneous_high_debt_and_three_scopes",
+      "original_failure": "12-second fixture timeout",
+      "cause": "Fixture setup inside service allowance; controlled-clock idle mismatch additionally proven in held-reader case",
+      "previous_commit_repaired": false,
+      "source_change": "tests/maintenance_production_harness.py only; native production maintenance and exact tests unchanged",
+      "isolated": {
+        "log": "evidence/maintenance-final-isolated-1.log.gz",
+        "tests": 1,
+        "seconds": 5.658,
+        "skipped": 0,
+        "result": "PASS"
+      },
+      "concurrent": [
+        {
+          "log": "evidence/maintenance-clocked-concurrent-1.log.gz",
+          "tests": 3,
+          "seconds": 30.755,
+          "skipped": 0,
+          "result": "PASS"
+        },
+        {
+          "log": "evidence/maintenance-clocked-concurrent-2.log.gz",
+          "tests": 3,
+          "seconds": 30.929,
+          "skipped": 0,
+          "result": "PASS"
+        }
+      ],
+      "affected_modules": {
+        "log": "evidence/maintenance-modules-final.log.gz",
+        "tests": 51,
+        "seconds": 83.263,
+        "skipped": 4,
+        "result": "PASS"
+      },
+      "final_classification": "PASS_FOCUSED_AND_REPEATED_CONTENTION",
+      "final_exact_tree_full_suite": "UNVERIFIED"
+    },
+    {
+      "test": "tests.test_run381_archive_scheduling.BoundedArchiveRetirementTests.test_eligible_reader_and_all_scopes_progress_under_source_pressure",
+      "original_failure": "12-second fixture timeout",
+      "cause": "Fixture setup inside service allowance; controlled-clock idle mismatch additionally proven in held-reader case",
+      "previous_commit_repaired": false,
+      "source_change": "tests/maintenance_production_harness.py only; native production maintenance and exact tests unchanged",
+      "isolated": {
+        "log": "evidence/maintenance-final-isolated-2.log.gz",
+        "tests": 1,
+        "seconds": 4.789,
+        "skipped": 0,
+        "result": "PASS"
+      },
+      "concurrent": [
+        {
+          "log": "evidence/maintenance-clocked-concurrent-1.log.gz",
+          "tests": 3,
+          "seconds": 30.755,
+          "skipped": 0,
+          "result": "PASS"
+        },
+        {
+          "log": "evidence/maintenance-clocked-concurrent-2.log.gz",
+          "tests": 3,
+          "seconds": 30.929,
+          "skipped": 0,
+          "result": "PASS"
+        }
+      ],
+      "affected_modules": {
+        "log": "evidence/maintenance-modules-final.log.gz",
+        "tests": 51,
+        "seconds": 83.263,
+        "skipped": 4,
+        "result": "PASS"
+      },
+      "final_classification": "PASS_FOCUSED_AND_REPEATED_CONTENTION",
+      "final_exact_tree_full_suite": "UNVERIFIED"
+    },
+    {
+      "test": "tests.test_run381_archive_scheduling.BoundedArchiveRetirementTests.test_sustained_ready_work_has_bounded_two_sided_service",
+      "original_failure": "12-second fixture timeout",
+      "cause": "Fixture setup inside service allowance; controlled-clock idle mismatch additionally proven in held-reader case",
+      "previous_commit_repaired": false,
+      "source_change": "tests/maintenance_production_harness.py only; native production maintenance and exact tests unchanged",
+      "isolated": {
+        "log": "evidence/maintenance-final-isolated-3.log.gz",
+        "tests": 1,
+        "seconds": 6.525,
+        "skipped": 0,
+        "result": "PASS"
+      },
+      "concurrent": [
+        {
+          "log": "evidence/maintenance-clocked-concurrent-1.log.gz",
+          "tests": 3,
+          "seconds": 30.755,
+          "skipped": 0,
+          "result": "PASS"
+        },
+        {
+          "log": "evidence/maintenance-clocked-concurrent-2.log.gz",
+          "tests": 3,
+          "seconds": 30.929,
+          "skipped": 0,
+          "result": "PASS"
+        }
+      ],
+      "affected_modules": {
+        "log": "evidence/maintenance-modules-final.log.gz",
+        "tests": 51,
+        "seconds": 83.263,
+        "skipped": 4,
+        "result": "PASS"
+      },
+      "final_classification": "PASS_FOCUSED_AND_REPEATED_CONTENTION",
+      "final_exact_tree_full_suite": "UNVERIFIED"
+    }
+  ],
+  "affected_FAST": {
+    "log": "evidence/FAST-stream-final.log.gz",
+    "tests": 164,
+    "seconds": 25.64,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  "structured_boundary_tests": {
+    "tests": 68,
+    "observations": 69,
+    "result": "PASS",
+    "receipt": "BOUNDARY_RECEIPTS.json"
+  },
+  "final_OP": {
+    "result": "INTERRUPTED_NOT_PASS",
+    "completed_ok_lines": 1048,
+    "started_test_lines": 1049,
+    "exit_status": 130,
+    "reason": "Owner requested immediate publication and no further broad validation; SIGINT only this task driver. Its worker group was stopped and scratch retained.",
+    "log": "evidence/OPERATIONAL-final.log.gz",
+    "resource_log": "evidence/OPERATIONAL-final.resources.txt.gz",
+    "full_suite_completion_unverified": true,
+    "resource_receipt_note": "GNU time textual Exit status may read zero after signal termination; the actual executor exit was130 and the KeyboardInterrupt makes this run incomplete."
+  },
+  "prior_published_full_receipts": {
+    "scout": {
+      "commit": "842c99c462f42dda582d9211b16242ae12dff225",
+      "tests": 2377,
+      "skips": 33,
+      "seconds": 992.276,
+      "sha256": "7ac0770fcab7e5e65ce41a66ed8497656b276f6f16cacb7fa2c23ea14d067fe1",
+      "scope": "All three maintenance cases pass; final reconciliation/source changes require separate focused verification; not exact final tree"
+    },
+    "payg": {
+      "commit": "73243cb0c135197359c23cce46d3a91a48d8b40a",
+      "receipt": "engineering/robinhood_payg/validation.json",
+      "tests": 2424,
+      "skips": 33,
+      "seconds": 860.486,
+      "scope": "Published full production validation plus221 committed proof reconciliation regressions; not a full receipt for9c6910c5"
+    }
+  },
+  "documented_characterization_skips": {
+    "existing": 33,
+    "added": 0,
+    "preserved": true,
+    "exact_final_full_skip_count": "UNVERIFIED because run interrupted"
+  },
+  "offline_proof": {
+    "schema": "offline-proof-summary-v1",
+    "source_commit": "9c6910c57236004468bef506603c2d0502acbd3c",
+    "classification": "INSUFFICIENT_SAMPLE",
+    "safety_and_executor_validation": "PASS",
+    "elapsed_seconds": 206.9962125850143,
+    "startup_seconds": 26.328484038007446,
+    "steady_observation_seconds": 180.06361921702046,
+    "budget": {
+      "counts": {
+        "total_rpc_elements": 188,
+        "physical_http_attempts": 180,
+        "published_rpc_cu": 3952,
+        "diagnostic_rpc_cu": 18660,
+        "total_diagnostic_cu": 29918,
+        "solana_rpc_elements": 2,
+        "http_response_bytes": 255450,
+        "robinhood_rpc_elements": 186,
+        "native_stream_bytes": 5763893,
+        "diagnostic_native_cu": 11258
+      },
+      "methods": {
+        "solana:getTransaction": 1,
+        "solana:getMultipleAccounts": 1,
+        "robinhood:eth_chainId": 4,
+        "robinhood:eth_getBlockByNumber": 166,
+        "robinhood:eth_getLogs": 6,
+        "robinhood:eth_getCode": 5,
+        "robinhood:eth_getTransactionReceipt": 3,
+        "robinhood:eth_call": 2
+      },
+      "http_reserved_bytes": 0,
+      "native_transports": {
+        "yellowstone": 756005,
+        "solana_websocket": 5007888
+      },
+      "native_possible_unread_shutdown_bytes": {},
+      "native_known_delivered_bytes": 5763893,
+      "native_ceiling_ledger": "known delivered payload plus conservative unobserved SDK shutdown reservations",
+      "native_inflight_reserved_bytes": 0,
+      "published_modeled_solana_ws_cu": "1001.5776",
+      "published_modeled_yellowstone_usd": "0.000056700375",
+      "published_method_prices": {
+        "solana": {
+          "getGenesisHash": 10,
+          "getSlot": 20,
+          "getMultipleAccounts": 20,
+          "getAccountInfo": 10,
+          "getBlockTime": 20,
+          "getTokenLargestAccounts": 3000,
+          "getProgramAccounts": 20,
+          "getProgramAccountsV2": 20,
+          "getTransactionsForAddress": 100,
+          "getTransaction": 40,
+          "getBlock": 40,
+          "getSignaturesForAddress": 40,
+          "getSignatureStatuses": 20
+        },
+        "robinhood": {
+          "eth_chainId": 0,
+          "eth_blockNumber": 10,
+          "eth_getBlockByNumber": 20,
+          "eth_getBlockByHash": 20,
+          "eth_getLogs": 60,
+          "eth_getTransactionReceipt": 20,
+          "eth_getCode": 20,
+          "eth_call": 26,
+          "eth_gasPrice": 20,
+          "eth_getBalance": 20,
+          "eth_getStorageAt": 20,
+          "eth_getTransactionByHash": 20,
+          "eth_getBlockReceipts": 20,
+          "eth_callMany": 20
+        }
+      },
+      "price_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+      "conservative_contract_weight_overrides": {
+        "getTokenLargestAccounts": 3000
+      },
+      "actual_provider_billed_cu": null,
+      "actual_provider_currency": null,
+      "accounting_basis": "attempted RPC elements; separate physical HTTP/WS-upgrade/gRPC-Subscribe attempts; received payload plus conservative SDK tail reservations; TLS excluded",
+      "retries": 0,
+      "real_provider_dispatches": 0,
+      "fake_provider_dispatches": 180,
+      "reason": null,
+      "admissions_stopped": true,
+      "ready_elapsed": 26.328484038007446,
+      "elapsed": 206.70336393499747,
+      "shutdown_elapsed": 206.3921032550279,
+      "limits": {
+        "consecutive_candidate_deadline_violations": 2,
+        "cumulative_process_write_bytes": 2147483648,
+        "diagnostic_native_cu": 4194304,
+        "diagnostic_rpc_cu": 720000,
+        "http_response_bytes": 134217728,
+        "maximum_group_cpu_cores_30_second_average": 1.8,
+        "maximum_log_range_blocks": 10,
+        "minimum_system_available_bytes": 2147483648,
+        "native_inflight_shutdown_reserve_bytes": 268435456,
+        "native_stream_bytes": 2147483648,
+        "output_stock_bytes": 805306368,
+        "per_http_response_bytes": 2000000,
+        "physical_http_attempts": 7200,
+        "position_deadline_violations": 0,
+        "proof_group_rss_bytes": 4294967296,
+        "published_rpc_cu": 720000,
+        "queue_capacity": 64,
+        "robinhood_rpc_elements": 1200,
+        "rpc_retries": 0,
+        "solana_rpc_elements": 6000,
+        "sustained_queue_stop_depth": 32,
+        "sustained_queue_stop_seconds": 5,
+        "total_diagnostic_cu": 4914304,
+        "total_rpc_elements": 7200
+      },
+      "time": {
+        "kill_after_shutdown_seconds": 30,
+        "maximum_startup_seconds": 60,
+        "minimum_steady_seconds": 180,
+        "shutdown_reserve_seconds": 30,
+        "stop_new_work_at_seconds": 270,
+        "term_after_shutdown_seconds": 20,
+        "total_wall_seconds": 300
+      },
+      "contract_sha256": "d258a12246128315e7516ff02fd65f4bc8de37845fb724564e77cd56f072c372"
+    },
+    "queues": {
+      "peak": 1,
+      "depths": {
+        "robinhood-pacer": 0,
+        "robinhood-provider": 0,
+        "pump-source": 0,
+        "pons-read": 0
+      },
+      "sustained_since": {},
+      "pending": [],
+      "running": [],
+      "completed": 2225,
+      "deadline_violations": {},
+      "consecutive_candidate_violations": 0,
+      "drain_proven": true,
+      "drain_evidence": {
+        "enqueued": 2225,
+        "dispatched": 2225,
+        "successful_completions": 2224,
+        "polls": 4014,
+        "progress_span_seconds": 201.4262008080259,
+        "observation_span_seconds": 202.23749590408988,
+        "completed_by_queue": {
+          "robinhood-pacer": 179,
+          "robinhood-provider": 179,
+          "pump-source": 1718,
+          "pons-read": 148
+        },
+        "normal_service_witness": {
+          "at": 571326.074561318,
+          "successful_completions": 2221,
+          "completed_by_queue": {
+            "robinhood-pacer": 178,
+            "robinhood-provider": 178,
+            "pump-source": 1717,
+            "pons-read": 148
+          },
+          "pending": 0,
+          "running": 2
+        },
+        "criterion": "multiple successful service events spanning at least five seconds, continuously polled; no remaining work"
+      }
+    },
+    "recovery": {
+      "disconnects": 1,
+      "resumed": true,
+      "checkpoint_identity_preserved": true,
+      "candidate_identities": [
+        "0xf25cbd487fe0294dd0a39ba2955982bcff28fd72"
+      ],
+      "original_source_clocks_preserved": true,
+      "event_order_preserved": true,
+      "transport": "deterministic fake disconnect and native PonsHistory reopen"
+    },
+    "capital_fixtures": {
+      "tests": 7,
+      "passed": true,
+      "qualification_precedes_funding": true,
+      "four_native_regimes": true,
+      "production_books_opened": 0,
+      "fixture_books": "disposable original offline fixtures only"
+    },
+    "insufficient": [
+      "synthetic_and_recorded_inputs_do_not_certify_live_capacity",
+      "authentic_native_positions_not_available",
+      "new_Survivor_candidates_cannot_mature_in_300_seconds"
+    ],
+    "peaks": {
+      "group_rss_bytes": 119681024,
+      "output_stock_bytes": 10983584,
+      "group_cpu_cores_30_second_average": 0.6157052327291335
+    },
+    "kernel_write_admission": {
+      "reserved_bytes": 867876864,
+      "reserved_output_extents": 15261430,
+      "fork_duplicated_rss_reserved": 0,
+      "denied": 0
+    },
+    "network": {
+      "real_provider_dispatches": 0,
+      "kernel_connections": 0,
+      "forbidden_socket_attempts": 0,
+      "offline_network_namespace": true
+    },
+    "shutdown": {
+      "worker_exit_code": 0,
+      "forced": false,
+      "descendants_survived": false
+    },
+    "resource_summary": {
+      "samples": 2036,
+      "maximum_measured_cumulative_process_writes": 346632192,
+      "minimum_available_system_bytes": 7249444864
+    },
+    "pump_replay": {
+      "canonical_count": 14,
+      "canonical_digest": "fab4a7600d90b3b3906f93026ff1ed3d00cae19b19a3ffb21f6160dde1d3bd51",
+      "original_clock_rows": [
+        [
+          "program:pump:454202900:4dhmVJbyTevCNFQ5xwQnza3veyh78cUiq9nVuuyPv3U2v13g4XaudJd9AUkoau7ze1MpV39CocxbfPHC41Mw2vgw:29",
+          "program:pump",
+          454202900,
+          "4dhmVJbyTevCNFQ5xwQnza3veyh78cUiq9nVuuyPv3U2v13g4XaudJd9AUkoau7ze1MpV39CocxbfPHC41Mw2vgw",
+          978,
+          29,
+          "92f97e84a2c22a9fd4b8dd412315f0165a4c67d2d1aa60720b8f838ea1d51df6",
+          1791370751.9971104
+        ],
+        [
+          "program:pump:454202910:3VUCTYQE3QPvRhdXWuYNQu5HR13jN1ZAu4YNTf4F4tViauR42RrgCpVq8GYQJLJ6r13J212H8d2qy4XVngnCGo1j:69",
+          "program:pump",
+          454202910,
+          "3VUCTYQE3QPvRhdXWuYNQu5HR13jN1ZAu4YNTf4F4tViauR42RrgCpVq8GYQJLJ6r13J212H8d2qy4XVngnCGo1j",
+          142,
+          69,
+          "a23ac4213e6a8aba621831014e06210d072a65c6058c84965d9026d3cc3bbfaa",
+          1791370755.1434422
+        ],
+        [
+          "program:pump:454202920:3R8iCPfUWAUEuZVyBcNAufNpgrNXdKUQJ3gBGZ7vKrvD1iQRCKD95xj5Lbrs1tx55kxRZUED4KyGcyk5k5taHBjf:44",
+          "program:pump",
+          454202920,
+          "3R8iCPfUWAUEuZVyBcNAufNpgrNXdKUQJ3gBGZ7vKrvD1iQRCKD95xj5Lbrs1tx55kxRZUED4KyGcyk5k5taHBjf",
+          628,
+          44,
+          "f151be39252ccf304185b575f1f089cb0230151346815e9972d6615889289dfd",
+          1791370759.4521446
+        ],
+        [
+          "program:pump:454202922:5prcWq3PXUk5eP4F3BvtJPhxHZU789D6NQNCRN3KweSQ1wuhcmDD3RZFKgvC37cEUU8NAvxM6qfoRAJpgsKuUdFH:15",
+          "program:pump",
+          454202922,
+          "5prcWq3PXUk5eP4F3BvtJPhxHZU789D6NQNCRN3KweSQ1wuhcmDD3RZFKgvC37cEUU8NAvxM6qfoRAJpgsKuUdFH",
+          811,
+          15,
+          "3956b274dad5f710f7f792fc5bf1a2caeb9b37c8faddd87773b228af50125666",
+          1791370800.6999557
+        ],
+        [
+          "program:pump:454202933:3dRn6j1wCHgHabvfWTy15ZMye6tX7WWevZDCLgfXVnfpQFteXJPYP6ZSvDiesJi75kNxbRZ2GNHG4EJXPuhfcQc6:42",
+          "program:pump",
+          454202933,
+          "3dRn6j1wCHgHabvfWTy15ZMye6tX7WWevZDCLgfXVnfpQFteXJPYP6ZSvDiesJi75kNxbRZ2GNHG4EJXPuhfcQc6",
+          708,
+          42,
+          "ed45ec178a9250c4a450bde3de79e332241be9cdbd0b5585b69daa71aaa90f70",
+          1791370781.19976
+        ],
+        [
+          "program:pump:454202933:23tbiqGayh8PpLQFqMxFSDJZFiuVuxwgnZs2gHjJGuwbDcZkAY8N7Mwd9fuPmpCDYP2Fky8HssVVqPq6kEaaeWHS:42",
+          "program:pump",
+          454202933,
+          "23tbiqGayh8PpLQFqMxFSDJZFiuVuxwgnZs2gHjJGuwbDcZkAY8N7Mwd9fuPmpCDYP2Fky8HssVVqPq6kEaaeWHS",
+          712,
+          42,
+          "4385aee04ccd24bfa6e90cdc6763594db111c4610768fd055785a89ee3e1ac93",
+          1791370781.2061813
+        ],
+        [
+          "program:pump:454202933:2ZB6MCGQVKgdfpEpjxuzKeXXEju2559PtW2uYeuoRgUQbnP5BCPS8pqFtVr3f9njqEwmatbGadt39JAhFziAAPK3:29",
+          "program:pump",
+          454202933,
+          "2ZB6MCGQVKgdfpEpjxuzKeXXEju2559PtW2uYeuoRgUQbnP5BCPS8pqFtVr3f9njqEwmatbGadt39JAhFziAAPK3",
+          715,
+          29,
+          "e7b775642a4b79788742a7ff106afdb64abc28e21f2225fbfef2db4cb229dc12",
+          1791370781.2069032
+        ],
+        [
+          "program:pump:454202933:2w4Pa2QG5f9QVZAbChrexF1h1NhTSFfQYff4kVnif4roRzr6JmhDhnFuv43fm2WRN28eczKamzMQg1yww4846u88:42",
+          "program:pump",
+          454202933,
+          "2w4Pa2QG5f9QVZAbChrexF1h1NhTSFfQYff4kVnif4roRzr6JmhDhnFuv43fm2WRN28eczKamzMQg1yww4846u88",
+          719,
+          42,
+          "8f57e62e2a4c1634c4fb144a4ae93e0e8775da59f964a3af74115a690e7ec9bb",
+          1791370781.212052
+        ],
+        [
+          "program:pump:454202933:3hwADkd9eJxJCbLQERdrrhqoY3PxPMtFETT7M5cvi1rFemhnkGZwwuPJN5w14Mo3rQrRzVBeBXZ4yUCtMzfZtNAS:42",
+          "program:pump",
+          454202933,
+          "3hwADkd9eJxJCbLQERdrrhqoY3PxPMtFETT7M5cvi1rFemhnkGZwwuPJN5w14Mo3rQrRzVBeBXZ4yUCtMzfZtNAS",
+          721,
+          42,
+          "e3ecd02fae39a0cc9da7941d243290fcb54c92e65331e1dcea5c4728e9bf0bf6",
+          1791370781.2130008
+        ],
+        [
+          "program:pump:454202933:3B4qqae5Lp7GZX6Hr9KHEymjV2PQbNzcRUX2bcfDh46hwEMw7Uf919MoUFgxeGH1NMjZZDUeLLTtQhiwjBb7D7F8:42",
+          "program:pump",
+          454202933,
+          "3B4qqae5Lp7GZX6Hr9KHEymjV2PQbNzcRUX2bcfDh46hwEMw7Uf919MoUFgxeGH1NMjZZDUeLLTtQhiwjBb7D7F8",
+          871,
+          42,
+          "395a6a05c749e4ebaf85d6187e6947ca54bc51cb9783141f6d12c456044311be",
+          1791370781.215416
+        ],
+        [
+          "program:pump:454202933:3xca8jA967S6Niwv4Ns5yvr1Ngsn1iQpKvWo8AE8FM4zxqaQdJKm8XNsaTZXmiSDEyU2M4P3aAjjqDnmcCz2t4jk:42",
+          "program:pump",
+          454202933,
+          "3xca8jA967S6Niwv4Ns5yvr1Ngsn1iQpKvWo8AE8FM4zxqaQdJKm8XNsaTZXmiSDEyU2M4P3aAjjqDnmcCz2t4jk",
+          873,
+          42,
+          "ad1decb8701bbe9d99549c6bd9eeede741f5525e1fbbcd7de12c3c65146fd4b3",
+          1791370781.2176533
+        ],
+        [
+          "program:pump:454202933:4FMZRUqqzPKq4p4EErNFZAvXyKwG9HFm1ptG7G2rrqXSv6ZwSqKxqb3UHeZEHb5zPfXNCFem9gDv8rLugDbbmxCF:42",
+          "program:pump",
+          454202933,
+          "4FMZRUqqzPKq4p4EErNFZAvXyKwG9HFm1ptG7G2rrqXSv6ZwSqKxqb3UHeZEHb5zPfXNCFem9gDv8rLugDbbmxCF",
+          887,
+          42,
+          "580c2736e0f70e6feacf6ea531800842af42295683d4a55a195e1cccd27ef316",
+          1791370781.2201128
+        ],
+        [
+          "program:pump:454202934:21fyQCqSVy85iy2cKwU3U33DFcFRZAh8x1YLA2sv7Wss8Kn6h9D5Ex3Wtqk5vhwNEwB8gDEkY2v1h9vPENRTyyqe:47",
+          "program:pump",
+          454202934,
+          "21fyQCqSVy85iy2cKwU3U33DFcFRZAh8x1YLA2sv7Wss8Kn6h9D5Ex3Wtqk5vhwNEwB8gDEkY2v1h9vPENRTyyqe",
+          585,
+          47,
+          "21fcb529225a865dedd53ac799fc81e710eb212dd68a6fd159534d6d0a6a1637",
+          1791370783.3851848
+        ],
+        [
+          "program:pump:454202950:2aVYsHDxvkXtH8xwuZQvBiRFU8MxXpBakvH5TzfrikdVSfLwTKXyLs9k4gJLVqW5ajzGMD5mDBAqnYXtRkFQdZXi:30",
+          "program:pump",
+          454202950,
+          "2aVYsHDxvkXtH8xwuZQvBiRFU8MxXpBakvH5TzfrikdVSfLwTKXyLs9k4gJLVqW5ajzGMD5mDBAqnYXtRkFQdZXi",
+          227,
+          30,
+          "490a57b903aa38bcb7e5a378165b1dc30e6b9212d36d8eb520629a2e50fd0a21",
+          1791370815.157595
+        ]
+      ],
+      "counters": {
+        "native_deliveries": 6348,
+        "scout_deliveries": 55,
+        "paused_or_unidentified_sessions_excluded": 9,
+        "websocket_deliveries": 2193
+      },
+      "source_sha256": "673822d151d81b34cc21b8e5009ceadf45f885117221e4f4c432e45c1c2486e4",
+      "candidate_history_rows": 37,
+      "candidate_checkpoints": 12,
+      "unresolved_join_tails": 393,
+      "seconds": 199.98333798197564,
+      "replay_stopped_at_contract_boundary": true,
+      "limitations": [
+        "Recorded tape tails and unavailable pre-enrollment intervals stay incomplete.",
+        "Paused-family recorded sessions are excluded from this contract, before fake delivery.",
+        "Historical probe addresses do not constitute authentic positions."
+      ]
+    }
+  },
+  "genuine_unresolved_engineering_defects": [],
+  "unverified_requirements": [
+    "Complete OPERATIONAL for exact frozen final tree; all three cases under that complete suite",
+    "Live combined provider capacity and authentic native position deadlines; owner authorization not granted",
+    "Newly mature six-hour Pump/four-hour Pons Survivor qualification; cannot mature within300seconds",
+    "Actual billed CU/currency and operational CAPACITY/RECOVERY/AUTONOMY acceptance"
+  ],
+  "commands": {
+    "affected_FAST": "PINNED_PY -m operational.tests FAST --modules tests.test_pump_pons_proof tests.test_provider_efficiency tests.test_solana_shared_capacity tests.test_robinhood_payg --verbose",
+    "full_OP_interrupted": "PINNED_PY -m operational.tests OPERATIONAL --verbose",
+    "offline_final": "PINNED_PY -m engineering.solana_capacity.pump_pons_proof --offline --output /tmp/mm-proof-offline-ready",
+    "boundary": "PINNED_PY audit/boundary_receipts.py handoff-draft/BOUNDARY_RECEIPTS.json",
+    "isolated": [
+      "PINNED_PY -m operational.tests OPERATIONAL --modules tests.test_production_maintenance_arbiter --cases tests.test_production_maintenance_arbiter.ProductionServeTests.test_simultaneous_high_debt_and_three_scopes --verbose",
+      "PINNED_PY -m operational.tests OPERATIONAL --modules tests.test_run381_archive_scheduling --cases tests.test_run381_archive_scheduling.BoundedArchiveRetirementTests.test_eligible_reader_and_all_scopes_progress_under_source_pressure --verbose",
+      "PINNED_PY -m operational.tests OPERATIONAL --modules tests.test_run381_archive_scheduling --cases tests.test_run381_archive_scheduling.BoundedArchiveRetirementTests.test_sustained_ready_work_has_bounded_two_sided_service --verbose"
+    ]
+  },
+  "real_provider_calls": 0,
+  "production_epoch_accessed": false,
+  "production_books_opened": false,
+  "deployment": false,
+  "production_restart": false,
+  "tests_weakened": false,
+  "evidence": [
+    {
+      "path": "evidence/maintenance-initial.log.gz",
+      "original_bytes": 515,
+      "original_sha256": "e125a1ea134749018eb149d489655803490b1abc89091c4e909d0f8ed98a10b0",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-initial.log"
+    },
+    {
+      "path": "evidence/maintenance-concurrent-1.log.gz",
+      "original_bytes": 26123,
+      "original_sha256": "bf42e18abc1f11db75c12e62fadc2d94fd8ac832021a8b41ce53f661736d9cd2",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-concurrent-1.log"
+    },
+    {
+      "path": "evidence/maintenance-concurrent-2.log.gz",
+      "original_bytes": 25468,
+      "original_sha256": "f1736757fdb8fbc9413b43fca61bcb8e8be02b6db0b4ec599a5ac109451fe810",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-concurrent-2.log"
+    },
+    {
+      "path": "evidence/maintenance-clocked-concurrent-1.log.gz",
+      "original_bytes": 5556,
+      "original_sha256": "9579f17839dc4729fed2453bf4cf95d26686ea6111a9df308a2c7c7c196281dd",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-clocked-concurrent-1.log"
+    },
+    {
+      "path": "evidence/maintenance-clocked-concurrent-2.log.gz",
+      "original_bytes": 4697,
+      "original_sha256": "b99080cb09c002f0de33d517ac29bd9d6fe4d975295b40a8d66e178c756329f9",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-clocked-concurrent-2.log"
+    },
+    {
+      "path": "evidence/maintenance-modules-final.log.gz",
+      "original_bytes": 33747,
+      "original_sha256": "2ef8ae494381bc78b40d086ed341ede17e569d1e345687fcbec2933292808e17",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-modules-final.log"
+    },
+    {
+      "path": "evidence/maintenance-final-isolated-1.log.gz",
+      "original_bytes": 1039,
+      "original_sha256": "58a4c1fc37c3a9042104ca414f485a64b700def508028eed5a44cfdfd47bdbf9",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-final-isolated-1.log"
+    },
+    {
+      "path": "evidence/maintenance-final-isolated-2.log.gz",
+      "original_bytes": 1114,
+      "original_sha256": "73f3feb5effafda18e07c8af676722221733d98b598a956f26eb83748f78d6fc",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-final-isolated-2.log"
+    },
+    {
+      "path": "evidence/maintenance-final-isolated-3.log.gz",
+      "original_bytes": 1151,
+      "original_sha256": "324ee3e745de10d8d562f04646577a7f45dbaa0889349e94aa9c036057d5c92d",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-final-isolated-3.log"
+    },
+    {
+      "path": "evidence/maintenance-trace-quiet.json.gz",
+      "original_bytes": 424197,
+      "original_sha256": "8a7f95fd6240ee2a74f154491133ea58f82b84589d61ca4be48e6b0d1506134d",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-trace-quiet.json"
+    },
+    {
+      "path": "evidence/maintenance-trace-contention-1.json.gz",
+      "original_bytes": 421225,
+      "original_sha256": "71f1f2f56ef5c58d6042ef7c13c4e8da4e9a472ba62cd38102445a039dadf7f4",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-trace-contention-1.json"
+    },
+    {
+      "path": "evidence/maintenance-trace-contention-2.json.gz",
+      "original_bytes": 424200,
+      "original_sha256": "39fc0c13b8787b172ba9393d03f0815626e99683b601cd3ef5dc383eacaa5ad8",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-trace-contention-2.json"
+    },
+    {
+      "path": "evidence/maintenance-repaired-trace-2.json.gz",
+      "original_bytes": 426449,
+      "original_sha256": "57a7857e71eee34d19b23d81c76f2210006474d5cebe9d9bb22d561d4a6f949b",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-repaired-trace-2.json"
+    },
+    {
+      "path": "evidence/maintenance-sql.json.gz",
+      "original_bytes": 9465,
+      "original_sha256": "d100deaf80f2ff63004c87812a9def590f261209c4ec9c55c16bb901b5d0c81b",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-sql.json"
+    },
+    {
+      "path": "evidence/maintenance-profile.log.gz",
+      "original_bytes": 6129,
+      "original_sha256": "8a5d1d4d0ddabf67c0a62a286408e6829b6c7c6f984524f1a65ca9ff3e54b89c",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/maintenance-profile.log"
+    },
+    {
+      "path": "evidence/deadline-tightening-reproduction.log.gz",
+      "original_bytes": 108,
+      "original_sha256": "df8605d6358d900ab4787a330305cc0ac4099c3ec9dcb38fcda72250575b8852",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/deadline-tightening-reproduction.log"
+    },
+    {
+      "path": "evidence/FAST-frozen.log.gz",
+      "original_bytes": 208638,
+      "original_sha256": "b4c983cdc69d12182fb114f67ce294c48c80c867012a178c5d1ac7c930a643a0",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/FAST-frozen.log"
+    },
+    {
+      "path": "evidence/FAST-affected-final.log.gz",
+      "original_bytes": 21977,
+      "original_sha256": "57b7c00f927d87f4974bfd33691f3424bd78f784c91afc1996ce40071080f5cd",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/FAST-affected-final.log"
+    },
+    {
+      "path": "evidence/FAST-affected-final3.log.gz",
+      "original_bytes": 24946,
+      "original_sha256": "ba18ffde80838cad81319f05712ca1c7b1c77ab26173462936c1c804b552764f",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/FAST-affected-final3.log"
+    },
+    {
+      "path": "evidence/FAST-integrated-final.log.gz",
+      "original_bytes": 31879,
+      "original_sha256": "214b38a314d237c5ab5c001951d09157c48ef92e07facaf9f0a516ca1b11a441",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/FAST-integrated-final.log"
+    },
+    {
+      "path": "evidence/FAST-stream-final.log.gz",
+      "original_bytes": 32093,
+      "original_sha256": "de7cf5b68df96db9401983408b6414417e7437234d41d3316b4fb4c3a66cf1a9",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/FAST-stream-final.log"
+    },
+    {
+      "path": "evidence/FAST-stream-final.resources.txt.gz",
+      "original_bytes": 979,
+      "original_sha256": "a23bf9877ce795ec3f8a5d382bb463f2746819b6b1e13636db152eef8ef34b4f",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/FAST-stream-final.resources.txt"
+    },
+    {
+      "path": "evidence/boundary-receipts.log.gz",
+      "original_bytes": 12906,
+      "original_sha256": "346072cb60112bb59eb472676a84ac2b4dc3b86a95228f782d7842371eebf4bb",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/boundary-receipts.log"
+    },
+    {
+      "path": "evidence/proof-offline-ready.log.gz",
+      "original_bytes": 127,
+      "original_sha256": "a0a64487132b96dbe7b4a0b14b17bf69ef1579e6352a54e33be3298b60e49072",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/proof-offline-ready.log"
+    },
+    {
+      "path": "evidence/proof-offline-ready.resources.txt.gz",
+      "original_bytes": 917,
+      "original_sha256": "f2fad6ed90c2f61bb6169f7f6a9134a893e0958f20c8fb352c443c47e7c693d1",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/proof-offline-ready.resources.txt"
+    },
+    {
+      "path": "evidence/OPERATIONAL-final.log.gz",
+      "original_bytes": 205769,
+      "original_sha256": "ccc5c2608db5edca04aee5498dd162a7c8030cc49465899386ab74fdb00899b0",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/OPERATIONAL-final.log"
+    },
+    {
+      "path": "evidence/OPERATIONAL-final.resources.txt.gz",
+      "original_bytes": 901,
+      "original_sha256": "c3398625cefbbb77882ba91d5be310e58f581450d40b3b9cde4010ee0fd8b8d3",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/OPERATIONAL-final.resources.txt"
+    },
+    {
+      "path": "evidence/maintenance_trace.py.gz",
+      "original_bytes": 2295,
+      "original_sha256": "d1a3336b729ddb6681e8c60c7b7cb78c456f37bf4108e9fa1769b55ffd88013c",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/audit/maintenance_trace.py"
+    },
+    {
+      "path": "evidence/maintenance_profile.py.gz",
+      "original_bytes": 1020,
+      "original_sha256": "eb9592a0758466a6c620e07ad62b7913f11a415d9631e5cad409c8a2f6563a69",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/audit/maintenance_profile.py"
+    },
+    {
+      "path": "evidence/maintenance_sql.py.gz",
+      "original_bytes": 1210,
+      "original_sha256": "0eab194d7f64b18c3516d17dbf83504db36e659c71dee654af9d1f3bf03eb89a",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/audit/maintenance_sql.py"
+    },
+    {
+      "path": "evidence/preservation.py.gz",
+      "original_bytes": 1592,
+      "original_sha256": "aec474f0ba27e98f7a189197f6803291661db6bb07474e1b40c18afb161934f9",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/audit/preservation.py"
+    },
+    {
+      "path": "evidence/boundary_receipts.py.gz",
+      "original_bytes": 2499,
+      "original_sha256": "f50deea82612a3d274805aaccf5a9d235d8f8c83208655accaf6d1de2a6c4b93",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/audit/boundary_receipts.py"
+    },
+    {
+      "path": "evidence/build_enforcement.py.gz",
+      "original_bytes": 17584,
+      "original_sha256": "5fca4de4276117c4b7da2a36d3b7959c38b046deae4397f05232925585f8b6d1",
+      "compression": "gzip",
+      "original_locator": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/audit/build_enforcement.py"
+    },
+    {
+      "path": "evidence/offline-process.json.gz",
+      "original_bytes": 1317857,
+      "original_sha256": "327d026a11d4f0437731ebcfaae90180d8e833f2f59f098fadb9a1da280da333",
+      "compression": "gzip",
+      "original_locator": "/tmp/mm-proof-offline-ready/process.json"
+    },
+    {
+      "path": "evidence/offline-ceilings.json.gz",
+      "original_bytes": 951106,
+      "original_sha256": "e993c6ce2502f333903e2715c1a34365d49d4b1254a4e867755f0771fe9e79a1",
+      "compression": "gzip",
+      "original_locator": "/tmp/mm-proof-offline-ready/ceilings.json"
+    },
+    {
+      "path": "evidence/offline-capital-fixtures.log.gz",
+      "original_bytes": 1464,
+      "original_sha256": "d05a1a4f7ead1f019856bbe09f6b4aed93d24c5eed47fa40b2fa566cfee4b4e8",
+      "compression": "gzip",
+      "original_locator": "/tmp/mm-proof-offline-ready/capital-fixtures.log"
+    },
+    {
+      "path": "evidence/offline-worker.log.gz",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compression": "gzip",
+      "original_locator": "/tmp/mm-proof-offline-ready/worker.log"
+    }
+  ]
+}

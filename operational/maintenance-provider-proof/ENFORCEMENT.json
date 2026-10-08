@@ -1,0 +1,1119 @@
+{
+  "schema": "finite-proof-contract-enforcement-v1",
+  "contract": "operational/forward-survivor/NEXT_PROOF.json",
+  "leaf_count": 74,
+  "rows": [
+    {
+      "contract_field": "authorization",
+      "published_value": "NOT_GRANTED",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "main",
+        "line": 564
+      },
+      "measurement_source": "Pinned contract and explicit execution mode",
+      "mechanism": "Default describes without I/O; --execute requires separate --authorized-live-proof, clean pinned commit and explicit credentials; CI/private-child fencing; no deploy/restart/upgrade API in executor",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_import_default_description_and_private_child_make_zero_connections; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_ci_cannot_deliberately_open_live_execution",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "classifications.0",
+      "published_value": "PASS",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Worker exit, forced kill, timing, drainage and missing samples",
+      "mechanism": "FAIL on limiter/error/kill; BLOCKED on unavailable preflight/measurement; INSUFFICIENT_SAMPLE on missing required evidence; PASS only complete applicable technical evidence",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "classifications.1",
+      "published_value": "FAIL",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Worker exit, forced kill, timing, drainage and missing samples",
+      "mechanism": "FAIL on limiter/error/kill; BLOCKED on unavailable preflight/measurement; INSUFFICIENT_SAMPLE on missing required evidence; PASS only complete applicable technical evidence",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "classifications.2",
+      "published_value": "INSUFFICIENT_SAMPLE",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Worker exit, forced kill, timing, drainage and missing samples",
+      "mechanism": "FAIL on limiter/error/kill; BLOCKED on unavailable preflight/measurement; INSUFFICIENT_SAMPLE on missing required evidence; PASS only complete applicable technical evidence",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "classifications.3",
+      "published_value": "BLOCKED",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Worker exit, forced kill, timing, drainage and missing samples",
+      "mechanism": "FAIL on limiter/error/kill; BLOCKED on unavailable preflight/measurement; INSUFFICIENT_SAMPLE on missing required evidence; PASS only complete applicable technical evidence",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "cu_enforcement",
+      "published_value": "Independently meter published method weights, including Solana getTokenLargestAccounts at 3000 CU. Unknown/unpriced methods stop before dispatch. Legacy diagnostic weights are additional limits, never account billing.",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Exact canonical contract SHA and strict types",
+      "mechanism": "Pin every leaf and incompatible legacy fields; executor_status is preserved historical instruction, completed enforcement is evidenced separately; mode remains isolated read-only",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; tests.test_pump_pons_proof.ContractTests.test_missing_malformed_duplicate_nonfinite_and_legacy_contracts_refused",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "current_harness",
+      "published_value": "engineering/solana_capacity/pump_pons_proof.py; technical-only, cannot certify acceptance",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Exact canonical contract SHA and strict types",
+      "mechanism": "Pin every leaf and incompatible legacy fields; executor_status is preserved historical instruction, completed enforcement is evidenced separately; mode remains isolated read-only",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; tests.test_pump_pons_proof.ContractTests.test_missing_malformed_duplicate_nonfinite_and_legacy_contracts_refused",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "deployment_allowed",
+      "published_value": false,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "main",
+        "line": 564
+      },
+      "measurement_source": "Pinned contract and explicit execution mode",
+      "mechanism": "Default describes without I/O; --execute requires separate --authorized-live-proof, clean pinned commit and explicit credentials; CI/private-child fencing; no deploy/restart/upgrade API in executor",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_import_default_description_and_private_child_make_zero_connections; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_ci_cannot_deliberately_open_live_execution",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "dispatch_allowed",
+      "published_value": false,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "main",
+        "line": 564
+      },
+      "measurement_source": "Pinned contract and explicit execution mode",
+      "mechanism": "Default describes without I/O; --execute requires separate --authorized-live-proof, clean pinned commit and explicit credentials; CI/private-child fencing; no deploy/restart/upgrade API in executor",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_import_default_description_and_private_child_make_zero_connections; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_ci_cannot_deliberately_open_live_execution",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "exact_pons_factory_filter.address",
+      "published_value": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "validate_native_bindings",
+        "line": 107
+      },
+      "measurement_source": "Native FACTORY, LAUNCH and GRADUATION constants",
+      "mechanism": "Compare exact address/topic-OR filter to published contract before workers; production forward enrollment and canonical targeted lineage retained",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_exact_contract_loads_and_all_values_are_pinned",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "exact_pons_factory_filter.topics.0.0",
+      "published_value": "0x8d4aad4953d0ca700d468f3753aa14432d1b35b43ec6409f051fb6aa43a89607",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "validate_native_bindings",
+        "line": 107
+      },
+      "measurement_source": "Native FACTORY, LAUNCH and GRADUATION constants",
+      "mechanism": "Compare exact address/topic-OR filter to published contract before workers; production forward enrollment and canonical targeted lineage retained",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_exact_contract_loads_and_all_values_are_pinned",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "exact_pons_factory_filter.topics.0.1",
+      "published_value": "0x0a44ef75df69c534f43cd6c1aa3ef8983065fe5fe79ef9e79f6494e6f258c259",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "validate_native_bindings",
+        "line": 107
+      },
+      "measurement_source": "Native FACTORY, LAUNCH and GRADUATION constants",
+      "mechanism": "Compare exact address/topic-OR filter to published contract before workers; production forward enrollment and canonical targeted lineage retained",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_exact_contract_loads_and_all_values_are_pinned",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "executor_status",
+      "published_value": "ADAPT_EXISTING_FINITE_EXECUTOR_BEFORE_DISPATCH; full resource and HTTP-byte ceilings are not yet wired in old harness",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Exact canonical contract SHA and strict types",
+      "mechanism": "Pin every leaf and incompatible legacy fields; executor_status is preserved historical instruction, completed enforcement is evidenced separately; mode remains isolated read-only",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; tests.test_pump_pons_proof.ContractTests.test_missing_malformed_duplicate_nonfinite_and_legacy_contracts_refused",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.consecutive_candidate_deadline_violations",
+      "published_value": 2,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "_deadline",
+        "line": 329
+      },
+      "measurement_source": "Original candidate-job and qualification deadlines, durable enqueue/claim/finish/disposal events",
+      "mechanism": "Two consecutive candidate deadline violations stop; only successful on-time completion resets; cancellation/failure cannot reset; disposed jobs and tightened deadlines remain visible",
+      "boundary_regression": "tests.test_pump_pons_proof.SchedulerTests.test_two_overdue_candidates_stop_even_if_both_are_blocked; tests.test_pump_pons_proof.SchedulerTests.test_cancellation_cannot_reset_candidate_streak_but_success_can; tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_disposal_between_censuses_is_not_erased; tests.test_pump_pons_proof.SchedulerTests.test_repeated_native_requests_cannot_extend_existing_deadlines",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.cumulative_process_write_bytes",
+      "published_value": 2147483648,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_host.py",
+        "symbol": "reserve",
+        "line": 175
+      },
+      "measurement_source": "Pre-syscall page-rounded write/metadata reservations; retained /proc PID/starttime dirty-page write_bytes and cumulative cgroup io.stat wbytes plus supervisor writes",
+      "mechanism": "Atomic independent kernel broker refuses over-reserve; io.max bounds repeated mapped writeback; actual dirty-page and block counters independently floor reservations with 16MiB write/cleanup margin; aggregate SQLite -shm maps capped at6MiB",
+      "boundary_regression": "tests.test_pump_pons_proof.ResourceTests.test_cumulative_write_reservations_and_stock_independently_stop; tests.test_pump_pons_proof.ResourceTests.test_actual_cumulative_write_counter_reaches_guard_independently_of_output_stock; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_file_write_reservation_is_independent_of_final_stock; tests.test_pump_pons_proof.ResourceTests.test_dirty_page_counters_are_retained_after_exit_and_prevent_more_writes; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_shared_mapping_tail_reserve_is_bounded_before_mapping",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.diagnostic_native_cu",
+      "published_value": 4194304,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "native",
+        "line": 222
+      },
+      "measurement_source": "gRPC deserializer lengths and actual WS recv encoded lengths; conservative unread SDK-tail reservations",
+      "mechanism": "Charge before parsing/routing/dedup and after stop; MAX_FRAME receive guards; stop at cap minus 256MiB reserve minus one maximum frame",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_native_delivery_ceilings_diag_total_and_shutdown_margin; tests.test_pump_pons_proof.BudgetTests.test_native_transports_sum_and_received_delivery_after_stop_is_charged; tests.test_pump_pons_proof.BudgetTests.test_sdk_unread_shutdown_reservations_are_charged_separately_from_known_payload",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.diagnostic_rpc_cu",
+      "published_value": 720000,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "reserve_http",
+        "line": 153
+      },
+      "measurement_source": "Independent frozen PUBLISHED and DIAGNOSTIC method tables",
+      "mechanism": "Atomic modeled CU before dispatch; token-largest published contract override 3000, legacy diagnostic 20; unknown/unpriced methods refused",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_published_diagnostic_and_total_cu_ceilings_prevent_additional_request; tests.test_pump_pons_proof.BudgetTests.test_batch_has_multiple_elements_one_attempt_and_independent_cu",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.http_response_bytes",
+      "published_value": 134217728,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "acquire",
+        "line": 264
+      },
+      "measurement_source": "Bounded read1 acquisitions and per-response/cumulative received-byte counters",
+      "mechanism": "Full 2,000,000-byte response reserved atomically before each request; actual chunks at most 16KiB; stop at boundary before full oversized buffering; unused reservation released",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_http_stream_meter_stops_before_oversized_body_is_buffered; tests.test_pump_pons_proof.BudgetTests.test_http_individual_just_below_boundary_passes_and_exact_boundary_stops; tests.test_pump_pons_proof.BudgetTests.test_cumulative_http_reservation_is_atomic_under_concurrency; tests.test_pump_pons_proof.BudgetTests.test_cumulative_actual_http_exhaustion_stops_acquisition",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.maximum_group_cpu_cores_30_second_average",
+      "published_value": 1.8,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_host.py",
+        "symbol": "check",
+        "line": 140
+      },
+      "measurement_source": "Cumulative cgroup cpu.stat usage including exited descendants plus supervisor CPU",
+      "mechanism": "Trailing 30-second interpolation; CPU kernel admission 1.75 cores leaves supervisor margin; stop average >1.8 cores",
+      "boundary_regression": "tests.test_pump_pons_proof.ResourceTests.test_cpu_30_second_average_just_below_at_and_above_1_point_8; tests.test_pump_pons_proof.ResourceTests.test_cpu_is_rolling_window_including_exited_workers",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.maximum_log_range_blocks",
+      "published_value": 10,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "reserve_http",
+        "line": 153
+      },
+      "measurement_source": "Explicit inclusive hex fromBlock/toBlock or single blockHash",
+      "mechanism": "Reject dynamic/ambiguous, reversed and >10-block ranges before RPC attempt",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_log_range_ten_accepted_eleven_dynamic_or_reverse_refused",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.minimum_system_available_bytes",
+      "published_value": 2147483648,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_host.py",
+        "symbol": "check",
+        "line": 140
+      },
+      "measurement_source": "/proc/meminfo MemAvailable",
+      "mechanism": "Preflight then independent 100ms watchdog; below 2GiB immediately kills affected proof",
+      "boundary_regression": "tests.test_pump_pons_proof.ResourceTests.test_low_system_available_memory_stops",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.native_inflight_shutdown_reserve_bytes",
+      "published_value": 268435456,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "stream_open",
+        "line": 197
+      },
+      "measurement_source": "Per active SDK stream: gRPC 32MiB / WS 48MiB, atomic aggregate",
+      "mechanism": "Refuse opening above 256MiB; byte-bounded SDK queues and channel receive settings; possible unread tail charged rather than freed on cancellation",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_native_inflight_reserve_and_no_evm_subscription; tests.test_pump_pons_proof.NativeTransportTests.test_disconnect_resubscription_retains_checkpoint_floor_and_charges_cancel_tail_once",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.native_stream_bytes",
+      "published_value": 2147483648,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "native",
+        "line": 222
+      },
+      "measurement_source": "gRPC deserializer lengths and actual WS recv encoded lengths; conservative unread SDK-tail reservations",
+      "mechanism": "Charge before parsing/routing/dedup and after stop; MAX_FRAME receive guards; stop at cap minus 256MiB reserve minus one maximum frame",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_native_delivery_ceilings_diag_total_and_shutdown_margin; tests.test_pump_pons_proof.BudgetTests.test_native_transports_sum_and_received_delivery_after_stop_is_charged; tests.test_pump_pons_proof.BudgetTests.test_sdk_unread_shutdown_reservations_are_charged_separately_from_known_payload",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.output_stock_bytes",
+      "published_value": 805306368,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_host.py",
+        "symbol": "output_stock",
+        "line": 94
+      },
+      "measurement_source": "Actual disposable directory inode sizes; independent admitted maximum inode extents",
+      "mechanism": "Pre-admit sparse extents, seeks, truncation and writes; 100ms stock census; 2MiB final receipt reserve; never substitute stock for cumulative writes",
+      "boundary_regression": "tests.test_pump_pons_proof.ResourceTests.test_output_stock_low_and_exact_guard; tests.test_pump_pons_proof.ResourceTests.test_cumulative_write_reservations_and_stock_independently_stop",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.per_http_response_bytes",
+      "published_value": 2000000,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "acquire",
+        "line": 264
+      },
+      "measurement_source": "Bounded read1 acquisitions and per-response/cumulative received-byte counters",
+      "mechanism": "Full 2,000,000-byte response reserved atomically before each request; actual chunks at most 16KiB; stop at boundary before full oversized buffering; unused reservation released",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_http_stream_meter_stops_before_oversized_body_is_buffered; tests.test_pump_pons_proof.BudgetTests.test_http_individual_just_below_boundary_passes_and_exact_boundary_stops; tests.test_pump_pons_proof.BudgetTests.test_cumulative_http_reservation_is_atomic_under_concurrency; tests.test_pump_pons_proof.BudgetTests.test_cumulative_actual_http_exhaustion_stops_acquisition",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.physical_http_attempts",
+      "published_value": 7200,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "reserve_http",
+        "line": 153
+      },
+      "measurement_source": "Separate HTTP attempt counter; stream_open also counts WS upgrade/gRPC Subscribe",
+      "mechanism": "One batch = one physical attempt; each native subscription opening also pre-admits one",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_batch_has_multiple_elements_one_attempt_and_independent_cu; tests.test_pump_pons_proof.BudgetTests.test_native_subscribe_and_websocket_upgrade_are_physical_attempts_not_rpc_elements",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.position_deadline_violations",
+      "published_value": 0,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "_deadline",
+        "line": 329
+      },
+      "measurement_source": "Original native position-priority work deadlines, preserved once as monotonic equivalents",
+      "mechanism": "Zero allowance; pending/running violation or explicit native deadline-missed disposition stops immediately; tighter native deadline/priority updates cannot be ignored",
+      "boundary_regression": "tests.test_pump_pons_proof.SchedulerTests.test_position_violation_stops_while_waiting_without_dispatch; tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_tightening_and_position_priority_upgrade_stop_immediately; tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_missed_disposition_at_exact_boundary_is_a_violation",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.proof_group_rss_bytes",
+      "published_value": 4294967296,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_host.py",
+        "symbol": "group_sample",
+        "line": 118
+      },
+      "measurement_source": "Sum /proc stat RSS for every cgroup process plus supervisor RSS",
+      "mechanism": "cgroup memory.max with 128MiB supervisor reserve; fork pre-reserves duplicate RSS and lowers memory.max; independent sum watchdog stops at 4GiB",
+      "boundary_regression": "tests.test_pump_pons_proof.ResourceTests.test_group_rss_at_and_above_ceiling_stops; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.published_rpc_cu",
+      "published_value": 720000,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "reserve_http",
+        "line": 153
+      },
+      "measurement_source": "Independent frozen PUBLISHED and DIAGNOSTIC method tables",
+      "mechanism": "Atomic modeled CU before dispatch; token-largest published contract override 3000, legacy diagnostic 20; unknown/unpriced methods refused",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_published_diagnostic_and_total_cu_ceilings_prevent_additional_request; tests.test_pump_pons_proof.BudgetTests.test_batch_has_multiple_elements_one_attempt_and_independent_cu",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.queue_capacity",
+      "published_value": 64,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "occupancy",
+        "line": 304
+      },
+      "measurement_source": "Actual owner, acquisition/history, qualification, provider/pacer and asyncio scheduler events",
+      "mechanism": "Cap pending queue at 64 before admission; continuously time depth >=32, stop after 5s; no single-snapshot drain claim",
+      "boundary_regression": "tests.test_pump_pons_proof.SchedulerTests.test_capacity_at_64_above_64_and_sustained_at_5_seconds; tests.test_pump_pons_proof.SchedulerTests.test_depth_below_32_resets_sustained_timer_not_single_snapshot_pass; tests.test_pump_pons_proof.SchedulerTests.test_repeated_running_service_is_required_and_shutdown_drain_cannot_create_a_witness; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_provider_admission_waits_are_recorded_without_provider_dispatch",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.robinhood_rpc_elements",
+      "published_value": 1200,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "reserve_http",
+        "line": 153
+      },
+      "measurement_source": "Atomic attempted-element counters, per approved endpoint family",
+      "mechanism": "Entire batch reserved under RLock before any HTTP dispatch; no second request after boundary",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_rpc_element_and_attempt_ceilings_at_boundary_and_next_rejected",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.rpc_retries",
+      "published_value": 0,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_transport.py",
+        "symbol": "install",
+        "line": 97
+      },
+      "measurement_source": "RPC constructor retry setting and first transport/RPC-error stop",
+      "mechanism": "Force default retries zero; refuse explicit retries; terminal BaseException crosses native sanitizers; disable gRPC retries; no HTTP redirect/proxy retry",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_no_retry_rule; tests.test_pump_pons_proof.BudgetTests.test_failed_rpc_cannot_be_retried_through_another_client",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.solana_rpc_elements",
+      "published_value": 6000,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "reserve_http",
+        "line": 153
+      },
+      "measurement_source": "Atomic attempted-element counters, per approved endpoint family",
+      "mechanism": "Entire batch reserved under RLock before any HTTP dispatch; no second request after boundary",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_rpc_element_and_attempt_ceilings_at_boundary_and_next_rejected",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.sustained_queue_stop_depth",
+      "published_value": 32,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "occupancy",
+        "line": 304
+      },
+      "measurement_source": "Actual owner, acquisition/history, qualification, provider/pacer and asyncio scheduler events",
+      "mechanism": "Cap pending queue at 64 before admission; continuously time depth >=32, stop after 5s; no single-snapshot drain claim",
+      "boundary_regression": "tests.test_pump_pons_proof.SchedulerTests.test_capacity_at_64_above_64_and_sustained_at_5_seconds; tests.test_pump_pons_proof.SchedulerTests.test_depth_below_32_resets_sustained_timer_not_single_snapshot_pass; tests.test_pump_pons_proof.SchedulerTests.test_repeated_running_service_is_required_and_shutdown_drain_cannot_create_a_witness; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_provider_admission_waits_are_recorded_without_provider_dispatch",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.sustained_queue_stop_seconds",
+      "published_value": 5,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "occupancy",
+        "line": 304
+      },
+      "measurement_source": "Actual owner, acquisition/history, qualification, provider/pacer and asyncio scheduler events",
+      "mechanism": "Cap pending queue at 64 before admission; continuously time depth >=32, stop after 5s; no single-snapshot drain claim",
+      "boundary_regression": "tests.test_pump_pons_proof.SchedulerTests.test_capacity_at_64_above_64_and_sustained_at_5_seconds; tests.test_pump_pons_proof.SchedulerTests.test_depth_below_32_resets_sustained_timer_not_single_snapshot_pass; tests.test_pump_pons_proof.SchedulerTests.test_repeated_running_service_is_required_and_shutdown_drain_cannot_create_a_witness; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_provider_admission_waits_are_recorded_without_provider_dispatch",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.total_diagnostic_cu",
+      "published_value": 4914304,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "native",
+        "line": 222
+      },
+      "measurement_source": "RPC diagnostic ledger plus ceil(total native upper-bound payload bytes/512)",
+      "mechanism": "RPC pre-admission and native runtime charging share one lock; combined diagnostic ceiling independent of published billing model",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_published_diagnostic_and_total_cu_ceilings_prevent_additional_request; tests.test_pump_pons_proof.BudgetTests.test_concurrent_native_transports_share_diagnostic_and_byte_ceiling",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "limits.total_rpc_elements",
+      "published_value": 7200,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "reserve_http",
+        "line": 153
+      },
+      "measurement_source": "Atomic attempted-element counters, per approved endpoint family",
+      "mechanism": "Entire batch reserved under RLock before any HTTP dispatch; no second request after boundary",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_rpc_element_and_attempt_ceilings_at_boundary_and_next_rejected",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "mandatory_unknowns.0",
+      "published_value": "Account billed CUs and currency are unmeasured without authenticated usage records",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Billed-provider usage null, authentic-position count, native qualification/evidence and stop reason",
+      "mechanism": "Report unknown billing/currency and missing maturity/positions; no profitability or autonomy inference; limit stop cannot PASS or extend run",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass; tests.test_pump_pons_proof.BudgetTests.test_batch_has_multiple_elements_one_attempt_and_independent_cu",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "mandatory_unknowns.1",
+      "published_value": "A run without mature complete Survivor candidates cannot certify their qualification latency",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Billed-provider usage null, authentic-position count, native qualification/evidence and stop reason",
+      "mechanism": "Report unknown billing/currency and missing maturity/positions; no profitability or autonomy inference; limit stop cannot PASS or extend run",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass; tests.test_pump_pons_proof.BudgetTests.test_batch_has_multiple_elements_one_attempt_and_independent_cu",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "mandatory_unknowns.2",
+      "published_value": "Quotes without authentic native positions cannot certify position maintenance",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Billed-provider usage null, authentic-position count, native qualification/evidence and stop reason",
+      "mechanism": "Report unknown billing/currency and missing maturity/positions; no profitability or autonomy inference; limit stop cannot PASS or extend run",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass; tests.test_pump_pons_proof.BudgetTests.test_batch_has_multiple_elements_one_attempt_and_independent_cu",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "mandatory_unknowns.3",
+      "published_value": "A ceiling stop is a failed/incomplete proof, never implicit authorization to extend",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Billed-provider usage null, authentic-position count, native qualification/evidence and stop reason",
+      "mechanism": "Report unknown billing/currency and missing maturity/positions; no profitability or autonomy inference; limit stop cannot PASS or extend run",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass; tests.test_pump_pons_proof.BudgetTests.test_batch_has_multiple_elements_one_attempt_and_independent_cu",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "mode",
+      "published_value": "PAPER_READ_ONLY_ISOLATED",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Exact canonical contract SHA and strict types",
+      "mechanism": "Pin every leaf and incompatible legacy fields; executor_status is preserved historical instruction, completed enforcement is evidenced separately; mode remains isolated read-only",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; tests.test_pump_pons_proof.ContractTests.test_missing_malformed_duplicate_nonfinite_and_legacy_contracts_refused",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "native_published_limit_model.evm_ws_bytes",
+      "published_value": 0,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_transport.py",
+        "symbol": "install",
+        "line": 97
+      },
+      "measurement_source": "Strict native endpoint/transport/method allowlist",
+      "mechanism": "Only Solana WSS and Geyser Subscribe; EVM subscription transport refused and never constructed",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_native_inflight_reserve_and_no_evm_subscription; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_alternative_http_clients_and_unapproved_native_channels_fail_without_connection; tests.test_pump_pons_proof.NativeTransportTests.test_actual_model_b_streaming_endpoint_is_admitted_only_through_fake_connector",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "native_published_limit_model.note",
+      "published_value": "Bounds assume the entire 2 GiB cap in each transport separately; actual mixed transport bytes must be metered. No EVM subscription in this normal-operation proof.",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "snapshot",
+        "line": 242
+      },
+      "measurement_source": "Native known payload plus possible unread tail upper bound per transport",
+      "mechanism": "Mixed bytes share total2GiB; independent decimal models .0002 CU/WS byte and75 USD/decimal TB; each displayed maximum assumes whole cap allocated to that transport; never actual billing",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_native_transports_sum_and_received_delivery_after_stop_is_charged; tests.test_pump_pons_proof.BudgetTests.test_sdk_unread_shutdown_reservations_are_charged_separately_from_known_payload",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "native_published_limit_model.solana_ws_cu_max",
+      "published_value": "429496.7296",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "snapshot",
+        "line": 242
+      },
+      "measurement_source": "Native known payload plus possible unread tail upper bound per transport",
+      "mechanism": "Mixed bytes share total2GiB; independent decimal models .0002 CU/WS byte and75 USD/decimal TB; each displayed maximum assumes whole cap allocated to that transport; never actual billing",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_native_transports_sum_and_received_delivery_after_stop_is_charged; tests.test_pump_pons_proof.BudgetTests.test_sdk_unread_shutdown_reservations_are_charged_separately_from_known_payload",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "native_published_limit_model.yellowstone_usd_max",
+      "published_value": "0.1610612736",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "snapshot",
+        "line": 242
+      },
+      "measurement_source": "Native known payload plus possible unread tail upper bound per transport",
+      "mechanism": "Mixed bytes share total2GiB; independent decimal models .0002 CU/WS byte and75 USD/decimal TB; each displayed maximum assumes whole cap allocated to that transport; never actual billing",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_native_transports_sum_and_received_delivery_after_stop_is_charged; tests.test_pump_pons_proof.BudgetTests.test_sdk_unread_shutdown_reservations_are_charged_separately_from_known_payload",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "paid_upgrade_allowed",
+      "published_value": false,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "main",
+        "line": 564
+      },
+      "measurement_source": "Pinned contract and explicit execution mode",
+      "mechanism": "Default describes without I/O; --execute requires separate --authorized-live-proof, clean pinned commit and explicit credentials; CI/private-child fencing; no deploy/restart/upgrade API in executor",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_import_default_description_and_private_child_make_zero_connections; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_ci_cannot_deliberately_open_live_execution",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "paused_operational_workloads.meteora",
+      "published_value": 0,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "validate_native_bindings",
+        "line": 107
+      },
+      "measurement_source": "Source-defined paused operating families; native filter guard and workload construction",
+      "mechanism": "Check native pause binding; only Pump/PumpSwap and Pons producers; native Meteora filters refused before write; no Ramses source/endpoint/subscription; captured paused sessions excluded before fake acquisition",
+      "boundary_regression": "tests.test_pump_pons_proof.NativeTransportTests.test_paused_native_filters_are_refused_before_subscription_write; tests.test_pump_pons_proof.BudgetTests.test_native_inflight_reserve_and_no_evm_subscription",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "paused_operational_workloads.ramses",
+      "published_value": 0,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "validate_native_bindings",
+        "line": 107
+      },
+      "measurement_source": "Source-defined paused operating families; native filter guard and workload construction",
+      "mechanism": "Check native pause binding; only Pump/PumpSwap and Pons producers; native Meteora filters refused before write; no Ramses source/endpoint/subscription; captured paused sessions excluded before fake acquisition",
+      "boundary_regression": "tests.test_pump_pons_proof.NativeTransportTests.test_paused_native_filters_are_refused_before_subscription_write; tests.test_pump_pons_proof.BudgetTests.test_native_inflight_reserve_and_no_evm_subscription",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "preserved_original_epoch",
+      "published_value": "paper-1791089005190643467",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "child",
+        "line": 276
+      },
+      "measurement_source": "SQL audit scope and independent kernel writable-path admission",
+      "mechanism": "Production SQLite access refused, including read-only opens; writable output only; original epoch value pinned; no operational runtime/book constructor or PAPER epoch activation",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_production_epoch_and_money_write_is_denied_before_kernel",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "production_epoch_access",
+      "published_value": false,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "child",
+        "line": 276
+      },
+      "measurement_source": "SQL audit scope and independent kernel writable-path admission",
+      "mechanism": "Production SQLite access refused, including read-only opens; writable output only; original epoch value pinned; no operational runtime/book constructor or PAPER epoch activation",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_production_epoch_and_money_write_is_denied_before_kernel",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "production_service_restart_allowed",
+      "published_value": false,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "main",
+        "line": 564
+      },
+      "measurement_source": "Pinned contract and explicit execution mode",
+      "mechanism": "Default describes without I/O; --execute requires separate --authorized-live-proof, clean pinned commit and explicit credentials; CI/private-child fencing; no deploy/restart/upgrade API in executor",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_import_default_description_and_private_child_make_zero_connections; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_ci_cannot_deliberately_open_live_execution",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "required_observation_domain",
+      "published_value": "authenticated canonical forward enrollment; candidate-specific preserved/recovered intervals",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "pons",
+        "line": 31
+      },
+      "measurement_source": "Native forward enrollment, source clocks, candidate-specific canonical histories/checkpoints",
+      "mechanism": "Runtime.__new__ evidence-only path, optimized MarketScout/native Current broker; no seven-day census; unavailable intervals not sealed or invented",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_checkpoint_resume_preserves_identity_source_clocks_and_nonregressing_frontiers; original tests.test_robinhood_scout and tests.test_forward_survivor; integrated offline evidence",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "schema",
+      "published_value": "forward-survivor-next-proof-v1",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Exact canonical contract SHA and strict types",
+      "mechanism": "Pin every leaf and incompatible legacy fields; executor_status is preserved historical instruction, completed enforcement is evidenced separately; mode remains isolated read-only",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; tests.test_pump_pons_proof.ContractTests.test_missing_malformed_duplicate_nonfinite_and_legacy_contracts_refused",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "subsequent_operational_acceptance.autonomy_seconds",
+      "published_value": 129600,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Pinned subsequent acceptance values",
+      "mechanism": "Separate3600-second capacity and129600-second autonomy Model B scopes, no activation/deployment entrypoint or CLI time override in this proof",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "subsequent_operational_acceptance.capacity_seconds",
+      "published_value": 3600,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Pinned subsequent acceptance values",
+      "mechanism": "Separate3600-second capacity and129600-second autonomy Model B scopes, no activation/deployment entrypoint or CLI time override in this proof",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "subsequent_operational_acceptance.model",
+      "published_value": "B",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Pinned subsequent acceptance values",
+      "mechanism": "Separate3600-second capacity and129600-second autonomy Model B scopes, no activation/deployment entrypoint or CLI time override in this proof",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "subsequent_operational_acceptance.requires_separate_validation_and_activation_scope",
+      "published_value": true,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "load_contract",
+        "line": 63
+      },
+      "measurement_source": "Pinned subsequent acceptance values",
+      "mechanism": "Separate3600-second capacity and129600-second autonomy Model B scopes, no activation/deployment entrypoint or CLI time override in this proof",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "time.kill_after_shutdown_seconds",
+      "published_value": 30,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "_supervise",
+        "line": 371
+      },
+      "measurement_source": "Independent shutdown monotonic marker and cgroup population",
+      "mechanism": "SIGTERM propagation initially; escalation at20 is FAIL and triggers group kill; hard kill by30/absolute299.75, including descendants escaping killpg; bounded reaping",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "time.maximum_startup_seconds",
+      "published_value": 60,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_limits.py",
+        "symbol": "check_time",
+        "line": 146
+      },
+      "measurement_source": "Monotonic ready marker checked by child and independent supervisor",
+      "mechanism": "Require ready within 60 seconds; stop missing/late startup; final receipt timing checked",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_startup_wall_and_stop_admission_use_monotonic_time; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "time.minimum_steady_seconds",
+      "published_value": 180,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Monotonic ready-to-stop-admission interval; shutdown excluded",
+      "mechanism": "At least 180 seconds; cannot count cleanup, network cancellation or process reaping as observation",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "time.shutdown_reserve_seconds",
+      "published_value": 30,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "_supervise",
+        "line": 371
+      },
+      "measurement_source": "Shared absolute monotonic elapsed; child stop flags and kernel network admission deadline",
+      "mechanism": "Stop provider and scheduler admissions by 270, leaving 30 seconds within total300; already received data remains charged; stop propagates to native worker/source tasks",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_startup_wall_and_stop_admission_use_monotonic_time; tests.test_pump_pons_proof.SchedulerTests.test_shutdown_cancels_admission_without_renewing_candidate_deadlines; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "time.stop_new_work_at_seconds",
+      "published_value": 270,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "_supervise",
+        "line": 371
+      },
+      "measurement_source": "Shared absolute monotonic elapsed; child stop flags and kernel network admission deadline",
+      "mechanism": "Stop provider and scheduler admissions by 270, leaving 30 seconds within total300; already received data remains charged; stop propagates to native worker/source tasks",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_startup_wall_and_stop_admission_use_monotonic_time; tests.test_pump_pons_proof.SchedulerTests.test_shutdown_cancels_admission_without_renewing_candidate_deadlines; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "time.term_after_shutdown_seconds",
+      "published_value": 20,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "_supervise",
+        "line": 371
+      },
+      "measurement_source": "Independent shutdown monotonic marker and cgroup population",
+      "mechanism": "SIGTERM propagation initially; escalation at20 is FAIL and triggers group kill; hard kill by30/absolute299.75, including descendants escaping killpg; bounded reaping",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "time.total_wall_seconds",
+      "published_value": 300,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "supervise",
+        "line": 358
+      },
+      "measurement_source": "Independent time.monotonic deadline, including preflight",
+      "mechanism": "300-second absolute alarm; kernel watchdog independent of blocked app; no unbounded wait/join; group kill before deadline; no PASS after forced kill",
+      "boundary_regression": "tests.test_pump_pons_proof.BudgetTests.test_startup_wall_and_stop_admission_use_monotonic_time; tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "unchanged_startup_blocker",
+      "published_value": "combined_position_and_candidate_provider_latency_not_certified",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "classify",
+        "line": 350
+      },
+      "measurement_source": "Honest missing-sample receipt",
+      "mechanism": "Technical proof cannot remove operational acceptance blocker; no authentic positions/new mature Survivor data implies INSUFFICIENT_SAMPLE",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "whole_market_historical_seed_required",
+      "published_value": false,
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "pons",
+        "line": 31
+      },
+      "measurement_source": "Native forward enrollment, source clocks, candidate-specific canonical histories/checkpoints",
+      "mechanism": "Runtime.__new__ evidence-only path, optimized MarketScout/native Current broker; no seven-day census; unavailable intervals not sealed or invented",
+      "boundary_regression": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_checkpoint_resume_preserves_identity_source_clocks_and_nonregressing_frontiers; original tests.test_robinhood_scout and tests.test_forward_survivor; integrated offline evidence",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "workload.0",
+      "published_value": "Pump/PumpSwap independent discovery and candidate histories",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "live_workload",
+        "line": 217
+      },
+      "measurement_source": "Existing optimized runtime paths; captured Pump data, synthetic Pons tape and original local fixtures",
+      "mechanism": "Execute applicable evidence paths without books/funding authority; honest sample limits; native checkpoint resume checks original identities/clocks; integrated receipt records provenance",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; integrated offline evidence; original seven workload/capital fixture tests",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "workload.1",
+      "published_value": "Pons Current scoped acquisition",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "live_workload",
+        "line": 217
+      },
+      "measurement_source": "Existing optimized runtime paths; captured Pump data, synthetic Pons tape and original local fixtures",
+      "mechanism": "Execute applicable evidence paths without books/funding authority; honest sample limits; native checkpoint resume checks original identities/clocks; integrated receipt records provenance",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; integrated offline evidence; original seven workload/capital fixture tests",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "workload.2",
+      "published_value": "Pons Survivor forward factory census, targeted lineage and shared pool acquisition",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "live_workload",
+        "line": 217
+      },
+      "measurement_source": "Existing optimized runtime paths; captured Pump data, synthetic Pons tape and original local fixtures",
+      "mechanism": "Execute applicable evidence paths without books/funding authority; honest sample limits; native checkpoint resume checks original identities/clocks; integrated receipt records provenance",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; integrated offline evidence; original seven workload/capital fixture tests",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "workload.3",
+      "published_value": "Fresh position monitoring/exit quote paths using authentic preserved positions where available",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/pump_pons_proof.py",
+        "symbol": "live_workload",
+        "line": 217
+      },
+      "measurement_source": "Existing optimized runtime paths; captured Pump data, synthetic Pons tape and original local fixtures",
+      "mechanism": "Execute applicable evidence paths without books/funding authority; honest sample limits; native checkpoint resume checks original identities/clocks; integrated receipt records provenance",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; integrated offline evidence; original seven workload/capital fixture tests",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "workload.4",
+      "published_value": "All four qualification paths on individually complete evidence; no minimum success/trade count",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_workload.py",
+        "symbol": "capital_fixtures",
+        "line": 54
+      },
+      "measurement_source": "Existing optimized runtime paths; captured Pump data, synthetic Pons tape and original local fixtures",
+      "mechanism": "Execute applicable evidence paths without books/funding authority; honest sample limits; native checkpoint resume checks original identities/clocks; integrated receipt records provenance",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; integrated offline evidence; original seven workload/capital fixture tests",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "workload.5",
+      "published_value": "Original shared-capital fixture contention, with qualification preceding funding",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_workload.py",
+        "symbol": "capital_fixtures",
+        "line": 54
+      },
+      "measurement_source": "Existing optimized runtime paths; captured Pump data, synthetic Pons tape and original local fixtures",
+      "mechanism": "Execute applicable evidence paths without books/funding authority; honest sample limits; native checkpoint resume checks original identities/clocks; integrated receipt records provenance",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; integrated offline evidence; original seven workload/capital fixture tests",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    },
+    {
+      "contract_field": "workload.6",
+      "published_value": "One bounded disconnect and checkpoint resume without rewriting source clocks",
+      "enforcement_location": {
+        "file": "engineering/solana_capacity/proof_workload.py",
+        "symbol": "offline_workload",
+        "line": 73
+      },
+      "measurement_source": "Existing optimized runtime paths; captured Pump data, synthetic Pons tape and original local fixtures",
+      "mechanism": "Execute applicable evidence paths without books/funding authority; honest sample limits; native checkpoint resume checks original identities/clocks; integrated receipt records provenance",
+      "boundary_regression": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned; integrated offline evidence; original seven workload/capital fixture tests",
+      "final_result": "PASS_OFFLINE_ENFORCEMENT",
+      "pinned_by": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "verification_scope": "Exact frozen executor; deterministic boundary tests and full-minimum fake proof. Missing authentic live samples are not certified."
+    }
+  ],
+  "executable_commit": "9c6910c57236004468bef506603c2d0502acbd3c",
+  "final_full_OP_scope": "UNVERIFIED: owner stopped unfinished regression"
+}

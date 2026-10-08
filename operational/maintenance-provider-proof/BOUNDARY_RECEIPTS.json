@@ -1,0 +1,910 @@
+{
+  "schema": "offline-boundary-observations-v1",
+  "passed": true,
+  "tests": 68,
+  "elapsed_seconds": 9.006088335998356,
+  "provider_dispatch_mode": "OFFLINE guarded",
+  "interpretations": "Internal reduced boundary injections exercise exact production limiter decisions. Wrapper observations do not replace or suppress decisions/assertions.",
+  "cases": [
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_batch_has_multiple_elements_one_attempt_and_independent_cu",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_concurrent_native_transports_share_diagnostic_and_byte_ceiling",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_concurrent_pump_and_pons_atomic_boundaries",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_cumulative_actual_http_exhaustion_stops_acquisition",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_cumulative_http_reservation_is_atomic_under_concurrency",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_failed_rpc_cannot_be_retried_through_another_client",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_http_individual_just_below_boundary_passes_and_exact_boundary_stops",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_http_stream_meter_stops_before_oversized_body_is_buffered",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_log_range_ten_accepted_eleven_dynamic_or_reverse_refused",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_malformed_batch_and_envelopes_refused_before_attempt",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_delivery_ceilings_diag_total_and_shutdown_margin",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_inflight_reserve_and_no_evm_subscription",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_subscribe_and_websocket_upgrade_are_physical_attempts_not_rpc_elements",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_transports_sum_and_received_delivery_after_stop_is_charged",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_no_retry_rule",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_published_diagnostic_and_total_cu_ceilings_prevent_additional_request",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_rpc_element_and_attempt_ceilings_at_boundary_and_next_rejected",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_sdk_unread_shutdown_reservations_are_charged_separately_from_known_payload",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_startup_wall_and_stop_admission_use_monotonic_time",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_transport_helper_defaults_to_offline_and_requires_explicit_fake_opener",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_dispatch_refused_before_fake_transport_is_called",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_methods_unpriced_methods_and_wrong_families_prevent_dispatch",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ContractTests.test_each_published_value_and_limit_change_is_rejected",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ContractTests.test_every_published_leaf_including_workload_and_recovery_is_pinned",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ContractTests.test_exact_contract_loads_and_all_values_are_pinned",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ContractTests.test_missing_malformed_duplicate_nonfinite_and_legacy_contracts_refused",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_file_write_reservation_is_independent_of_final_stock",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_provider_admission_waits_are_recorded_without_provider_dispatch",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_alternative_http_clients_and_unapproved_native_channels_fail_without_connection",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_checkpoint_resume_preserves_identity_source_clocks_and_nonregressing_frontiers",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_ci_cannot_deliberately_open_live_execution",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_failed_killed_incomplete_and_short_observation_never_pass",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_import_default_description_and_private_child_make_zero_connections",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_indirect_sdk_socket_is_denied_by_kernel_offline",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_live_constructor_uses_preflight_identity_without_subprocess_or_network",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_native_owner_expiry_and_async_queue_lifecycle_are_observed_offline",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_production_epoch_and_money_write_is_denied_before_kernel",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_shared_mapping_tail_reserve_is_bounded_before_mapping",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.NativeTransportTests.test_actual_model_b_streaming_endpoint_is_admitted_only_through_fake_connector",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.NativeTransportTests.test_disconnect_resubscription_retains_checkpoint_floor_and_charges_cancel_tail_once",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.NativeTransportTests.test_paused_native_filters_are_refused_before_subscription_write",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.NativeTransportTests.test_websocket_connection_context_cannot_authorize_another_http_client",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_actual_cumulative_write_counter_reaches_guard_independently_of_output_stock",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cgroup_oom_events_fail_even_if_current_rss_dropped_after_worker_exit",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cpu_30_second_average_just_below_at_and_above_1_point_8",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cpu_is_rolling_window_including_exited_workers",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cumulative_write_reservations_and_stock_independently_stop",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_dirty_page_counters_are_retained_after_exit_and_prevent_more_writes",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_empty_inactive_io_rows_are_valid_but_missing_active_counters_fail_closed",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_group_rss_at_and_above_ceiling_stops",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_low_system_available_memory_stops",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_output_stock_low_and_exact_guard",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_unavailable_measurements_fail_closed",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_actual_native_job_clocks_dispatch_and_completion_are_preserved",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_cancellation_cannot_reset_candidate_streak_but_success_can",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_capacity_at_64_above_64_and_sustained_at_5_seconds",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_depth_below_32_resets_sustained_timer_not_single_snapshot_pass",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_disposal_between_censuses_is_not_erased",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_missed_disposition_at_exact_boundary_is_a_violation",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_tightening_and_position_priority_upgrade_stop_immediately",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_position_violation_stops_while_waiting_without_dispatch",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_repeated_native_requests_cannot_extend_existing_deadlines",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_repeated_running_service_is_required_and_shutdown_drain_cannot_create_a_witness",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_shutdown_cancels_admission_without_renewing_candidate_deadlines",
+      "result": "PASS"
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_two_overdue_candidates_stop_even_if_both_are_blocked",
+      "result": "PASS"
+    }
+  ],
+  "observations": [
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_concurrent_native_transports_share_diagnostic_and_byte_ceiling",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "native_shutdown_margin",
+      "counts": {
+        "native_stream_bytes": 512,
+        "diagnostic_native_cu": 1,
+        "total_diagnostic_cu": 1
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_concurrent_native_transports_share_diagnostic_and_byte_ceiling",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "native_shutdown_margin",
+      "counts": {
+        "native_stream_bytes": 1024,
+        "diagnostic_native_cu": 2,
+        "total_diagnostic_cu": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_concurrent_pump_and_pons_atomic_boundaries",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "total_rpc_elements",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 40,
+        "diagnostic_rpc_cu": 40,
+        "total_diagnostic_cu": 40,
+        "solana_rpc_elements": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_concurrent_pump_and_pons_atomic_boundaries",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "physical_http_attempts",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 40,
+        "diagnostic_rpc_cu": 40,
+        "total_diagnostic_cu": 40,
+        "solana_rpc_elements": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_concurrent_pump_and_pons_atomic_boundaries",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "published_rpc_cu",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 200,
+        "total_diagnostic_cu": 200,
+        "robinhood_rpc_elements": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_concurrent_pump_and_pons_atomic_boundaries",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "diagnostic_rpc_cu",
+      "counts": {
+        "total_rpc_elements": 1,
+        "physical_http_attempts": 1,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 20,
+        "total_diagnostic_cu": 20,
+        "solana_rpc_elements": 1
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_cumulative_actual_http_exhaustion_stops_acquisition",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "http_response_bytes",
+      "counts": {
+        "total_rpc_elements": 1,
+        "physical_http_attempts": 1,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 20,
+        "total_diagnostic_cu": 20,
+        "solana_rpc_elements": 1,
+        "http_response_bytes": 100
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_cumulative_http_reservation_is_atomic_under_concurrency",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "http_response_reservation",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 40,
+        "diagnostic_rpc_cu": 40,
+        "total_diagnostic_cu": 40,
+        "solana_rpc_elements": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_failed_rpc_cannot_be_retried_through_another_client",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "rpc_error_no_retry",
+      "counts": {
+        "total_rpc_elements": 1,
+        "physical_http_attempts": 1,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 20,
+        "total_diagnostic_cu": 20,
+        "solana_rpc_elements": 1,
+        "http_response_bytes": 44
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_http_individual_just_below_boundary_passes_and_exact_boundary_stops",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "per_http_response_bytes",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 40,
+        "diagnostic_rpc_cu": 40,
+        "total_diagnostic_cu": 40,
+        "solana_rpc_elements": 2,
+        "http_response_bytes": 199
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_http_stream_meter_stops_before_oversized_body_is_buffered",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "per_http_response_bytes",
+      "counts": {
+        "total_rpc_elements": 1,
+        "physical_http_attempts": 1,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 20,
+        "total_diagnostic_cu": 20,
+        "solana_rpc_elements": 1,
+        "http_response_bytes": 32768
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_log_range_ten_accepted_eleven_dynamic_or_reverse_refused",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "maximum_log_range_blocks",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_log_range_ten_accepted_eleven_dynamic_or_reverse_refused",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "maximum_log_range_blocks",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_log_range_ten_accepted_eleven_dynamic_or_reverse_refused",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "maximum_log_range_blocks",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_malformed_batch_and_envelopes_refused_before_attempt",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "rpc_batch_shape",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_malformed_batch_and_envelopes_refused_before_attempt",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "rpc_batch_shape",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_malformed_batch_and_envelopes_refused_before_attempt",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "rpc_envelope",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_malformed_batch_and_envelopes_refused_before_attempt",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "rpc_envelope",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_delivery_ceilings_diag_total_and_shutdown_margin",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "native_stream_bytes",
+      "counts": {
+        "native_stream_bytes": 1025,
+        "diagnostic_native_cu": 3,
+        "total_diagnostic_cu": 3
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_delivery_ceilings_diag_total_and_shutdown_margin",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "diagnostic_native_cu",
+      "counts": {
+        "native_stream_bytes": 1025,
+        "diagnostic_native_cu": 3,
+        "total_diagnostic_cu": 3
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_delivery_ceilings_diag_total_and_shutdown_margin",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "total_diagnostic_cu",
+      "counts": {
+        "native_stream_bytes": 1025,
+        "diagnostic_native_cu": 3,
+        "total_diagnostic_cu": 3
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_delivery_ceilings_diag_total_and_shutdown_margin",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "native_shutdown_margin",
+      "counts": {
+        "native_stream_bytes": 1024,
+        "diagnostic_native_cu": 2,
+        "total_diagnostic_cu": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_inflight_reserve_and_no_evm_subscription",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "native_inflight_shutdown_reserve_bytes",
+      "counts": {
+        "physical_http_attempts": 8
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_inflight_reserve_and_no_evm_subscription",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_native_transport",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_native_subscribe_and_websocket_upgrade_are_physical_attempts_not_rpc_elements",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "physical_http_attempts",
+      "counts": {
+        "physical_http_attempts": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_no_retry_rule",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "rpc_retries",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_published_diagnostic_and_total_cu_ceilings_prevent_additional_request",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "published_rpc_cu",
+      "counts": {
+        "total_rpc_elements": 1,
+        "physical_http_attempts": 1,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 20,
+        "total_diagnostic_cu": 20,
+        "solana_rpc_elements": 1
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_published_diagnostic_and_total_cu_ceilings_prevent_additional_request",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "diagnostic_rpc_cu",
+      "counts": {
+        "total_rpc_elements": 1,
+        "physical_http_attempts": 1,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 20,
+        "total_diagnostic_cu": 20,
+        "solana_rpc_elements": 1
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_published_diagnostic_and_total_cu_ceilings_prevent_additional_request",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "total_diagnostic_cu",
+      "counts": {
+        "total_rpc_elements": 1,
+        "physical_http_attempts": 1,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 20,
+        "total_diagnostic_cu": 20,
+        "solana_rpc_elements": 1
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_rpc_element_and_attempt_ceilings_at_boundary_and_next_rejected",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "physical_http_attempts",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 40,
+        "diagnostic_rpc_cu": 40,
+        "total_diagnostic_cu": 40,
+        "solana_rpc_elements": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_rpc_element_and_attempt_ceilings_at_boundary_and_next_rejected",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "total_rpc_elements",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 40,
+        "diagnostic_rpc_cu": 40,
+        "total_diagnostic_cu": 40,
+        "solana_rpc_elements": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_rpc_element_and_attempt_ceilings_at_boundary_and_next_rejected",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "solana_rpc_elements",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 40,
+        "diagnostic_rpc_cu": 40,
+        "total_diagnostic_cu": 40,
+        "solana_rpc_elements": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_rpc_element_and_attempt_ceilings_at_boundary_and_next_rejected",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "robinhood_rpc_elements",
+      "counts": {
+        "total_rpc_elements": 2,
+        "physical_http_attempts": 2,
+        "published_rpc_cu": 20,
+        "diagnostic_rpc_cu": 200,
+        "total_diagnostic_cu": 200,
+        "robinhood_rpc_elements": 2
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_startup_wall_and_stop_admission_use_monotonic_time",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "wall_time_ceiling",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_startup_wall_and_stop_admission_use_monotonic_time",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "startup_ceiling",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_dispatch_refused_before_fake_transport_is_called",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unpriced_or_unapproved_method",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_endpoints_schemes_credentials_paths_and_aliases_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unapproved_provider_endpoint",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_methods_unpriced_methods_and_wrong_families_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unpriced_or_unapproved_method",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_methods_unpriced_methods_and_wrong_families_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unpriced_or_unapproved_method",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_methods_unpriced_methods_and_wrong_families_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unpriced_or_unapproved_method",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.BudgetTests.test_unknown_methods_unpriced_methods_and_wrong_families_prevent_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "unpriced_or_unapproved_method",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.NativeTransportTests.test_paused_native_filters_are_refused_before_subscription_write",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "paused_meteora_workload",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.NativeTransportTests.test_paused_native_filters_are_refused_before_subscription_write",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "paused_meteora_workload",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.NativeTransportTests.test_paused_native_filters_are_refused_before_subscription_write",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "paused_meteora_workload",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_actual_cumulative_write_counter_reaches_guard_independently_of_output_stock",
+      "kind": "independent_resource_stop",
+      "reason": "cumulative_process_write_bytes",
+      "measurement": {
+        "at": 0.0,
+        "cpu_seconds": 0.0,
+        "group_rss_bytes": 0,
+        "minimum_system_available_bytes": 2147483648,
+        "output_stock_bytes": 0,
+        "memory_events": {},
+        "cumulative_process_write_bytes": 2130706432
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cgroup_oom_events_fail_even_if_current_rss_dropped_after_worker_exit",
+      "kind": "independent_resource_stop",
+      "reason": "cgroup_memory_limit",
+      "measurement": {
+        "at": 0.0,
+        "cpu_seconds": 0.0,
+        "group_rss_bytes": 0,
+        "minimum_system_available_bytes": 2147483648,
+        "output_stock_bytes": 0,
+        "memory_events": {
+          "oom_kill": 1
+        },
+        "cumulative_process_write_bytes": 0
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cpu_30_second_average_just_below_at_and_above_1_point_8",
+      "kind": "independent_resource_stop",
+      "reason": "maximum_group_cpu_cores_30_second_average",
+      "measurement": {
+        "at": 30,
+        "cpu_seconds": 54.03,
+        "group_rss_bytes": 0,
+        "minimum_system_available_bytes": 2147483648,
+        "output_stock_bytes": 0,
+        "memory_events": {},
+        "cumulative_process_write_bytes": 0
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cpu_is_rolling_window_including_exited_workers",
+      "kind": "independent_resource_stop",
+      "reason": "maximum_group_cpu_cores_30_second_average",
+      "measurement": {
+        "at": 40,
+        "cpu_seconds": 65,
+        "group_rss_bytes": 0,
+        "minimum_system_available_bytes": 2147483648,
+        "output_stock_bytes": 0,
+        "memory_events": {},
+        "cumulative_process_write_bytes": 0
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cumulative_write_reservations_and_stock_independently_stop",
+      "kind": "pre_syscall_write_refusal",
+      "reason": "cumulative_process_write_bytes",
+      "cumulative_reserved": 100,
+      "stock_reserved": 1
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_cumulative_write_reservations_and_stock_independently_stop",
+      "kind": "pre_syscall_write_refusal",
+      "reason": "output_stock_bytes",
+      "cumulative_reserved": 1,
+      "stock_reserved": 100
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_group_rss_at_and_above_ceiling_stops",
+      "kind": "independent_resource_stop",
+      "reason": "proof_group_rss_bytes",
+      "measurement": {
+        "at": 0.0,
+        "cpu_seconds": 0.0,
+        "group_rss_bytes": 4294967296,
+        "minimum_system_available_bytes": 2147483648,
+        "output_stock_bytes": 0,
+        "memory_events": {},
+        "cumulative_process_write_bytes": 0
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_group_rss_at_and_above_ceiling_stops",
+      "kind": "independent_resource_stop",
+      "reason": "proof_group_rss_bytes",
+      "measurement": {
+        "at": 0.0,
+        "cpu_seconds": 0.0,
+        "group_rss_bytes": 4294967297,
+        "minimum_system_available_bytes": 2147483648,
+        "output_stock_bytes": 0,
+        "memory_events": {},
+        "cumulative_process_write_bytes": 0
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_low_system_available_memory_stops",
+      "kind": "independent_resource_stop",
+      "reason": "minimum_system_available_bytes",
+      "measurement": {
+        "at": 0.0,
+        "cpu_seconds": 0.0,
+        "group_rss_bytes": 0,
+        "minimum_system_available_bytes": 2147483647,
+        "output_stock_bytes": 0,
+        "memory_events": {},
+        "cumulative_process_write_bytes": 0
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.ResourceTests.test_output_stock_low_and_exact_guard",
+      "kind": "independent_resource_stop",
+      "reason": "output_stock_bytes",
+      "measurement": {
+        "at": 0.0,
+        "cpu_seconds": 0.0,
+        "group_rss_bytes": 0,
+        "minimum_system_available_bytes": 2147483648,
+        "output_stock_bytes": 803209216,
+        "memory_events": {},
+        "cumulative_process_write_bytes": 0
+      }
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_capacity_at_64_above_64_and_sustained_at_5_seconds",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "queue_capacity",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_capacity_at_64_above_64_and_sustained_at_5_seconds",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "sustained_queue_overload",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_disposal_between_censuses_is_not_erased",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "consecutive_candidate_deadline_violations",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_missed_disposition_at_exact_boundary_is_a_violation",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "position_deadline_violation",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_native_deadline_tightening_and_position_priority_upgrade_stop_immediately",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "position_deadline_violation",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_position_violation_stops_while_waiting_without_dispatch",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "position_deadline_violation",
+      "counts": {}
+    },
+    {
+      "test": "tests.test_pump_pons_proof.SchedulerTests.test_two_overdue_candidates_stop_even_if_both_are_blocked",
+      "kind": "atomic_provider_or_scheduler_stop",
+      "reason": "consecutive_candidate_deadline_violations",
+      "counts": {}
+    }
+  ]
+}
