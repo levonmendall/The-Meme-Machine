@@ -1,4 +1,4 @@
-"""Owner-only read-only dashboard with one authenticated snapshot receiver.
+"""Read-only dashboard with optional public viewing and authenticated snapshot receiver.
 
 This service never starts market execution and never initializes portfolio state.
 """
@@ -81,9 +81,12 @@ def make_server(
     max_concurrency=DEFAULT_MAX_CONCURRENCY,
     rate_limit_per_minute=DEFAULT_RATE_LIMIT_PER_MINUTE,
     clock=time.monotonic,
-    owner=None, ingest_token=None, snapshot_store=None,
+    owner=None, ingest_token=None, snapshot_store=None, public_reads=None,
 ):
     limiter = FixedWindowRateLimiter(rate_limit_per_minute, clock=clock)
+    # Public viewing must be explicitly enabled; authenticated ingestion never changes.
+    public_reads = (os.environ.get('MM_DASHBOARD_PUBLIC_READS') == '1'
+                    if public_reads is None else public_reads)
     owner = owner or (os.environ.get('MM_DASHBOARD_OWNER_USER'),
                       os.environ.get('MM_DASHBOARD_OWNER_PASSWORD'))
     ingest_token = ingest_token or os.environ.get('MM_DASHBOARD_INGEST_TOKEN')
@@ -158,19 +161,20 @@ def make_server(
                     return
                 self._json(202, {'status': 'accepted', 'captured_at': value['captured_at']})
                 return
-            if not all(owner):
-                self._json(503, {'error': 'owner_access_not_configured'})
-                return
-            try:
-                scheme, encoded = self.headers.get('Authorization', '').split(' ', 1)
-                supplied = base64.b64decode(encoded, validate=True) if scheme == 'Basic' else b''
-                authorized = hmac.compare_digest(supplied, (owner[0]+':'+owner[1]).encode())
-            except (ValueError, UnicodeError):
-                authorized = False
-            if not authorized:
-                self._json(401, {'error': 'owner_authentication_required'}, headers={
-                    'WWW-Authenticate': 'Basic realm="Meme Machine owner", charset="UTF-8"'})
-                return
+            if not public_reads:
+                if not all(owner):
+                    self._json(503, {'error': 'owner_access_not_configured'})
+                    return
+                try:
+                    scheme, encoded = self.headers.get('Authorization', '').split(' ', 1)
+                    supplied = base64.b64decode(encoded, validate=True) if scheme == 'Basic' else b''
+                    authorized = hmac.compare_digest(supplied, (owner[0]+':'+owner[1]).encode())
+                except (ValueError, UnicodeError):
+                    authorized = False
+                if not authorized:
+                    self._json(401, {'error': 'owner_authentication_required'}, headers={
+                        'WWW-Authenticate': 'Basic realm="Meme Machine owner", charset="UTF-8"'})
+                    return
             if path == '/':
                 if self.command not in ('GET', 'HEAD'):
                     self._json(405, {'error': 'read_only'}, headers={'Allow': 'GET, HEAD'})
