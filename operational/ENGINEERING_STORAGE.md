@@ -35,8 +35,9 @@ verified mount, a surviving recovery locator and adequate PAPER capacity.
 
 Run `python -m operational.tests FAST` for routine offline checks. The driver
 creates a marked, unique scratch scope and supervises only its offline worker
-process group. Every 0.25 seconds it checks aggregate scratch allocation and root
-headroom, including the unused scratch budget. It stops that engineering group
+process group. Every 0.25 seconds it checks its scope and the shared parent scratch
+allocation, including simultaneous scopes and retained failures, as well as root
+headroom and the unused scope budget. It stops that engineering group
 when a limit is exceeded. Successful scopes clean their own fixtures; failures
 and interruptions retain evidence and print its exact location. Retained failures
 consume quota and eventually block new scopes instead of being silently erased.

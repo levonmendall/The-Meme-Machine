@@ -62,14 +62,19 @@ def usage(path):
                 device=path.stat().st_dev)
 
 
-def tree_bytes(root, *, limit=None, reject_links=False):
+def tree_bytes(root, *, limit=None, reject_links=False, tolerate_missing=False):
     """Count allocation conservatively without following any symlinks."""
     total = 0
     entries = 0
     for directory, dirs, names in os.walk(root, followlinks=False):
         for name in dirs + names:
             p = Path(directory) / name
-            info = p.lstat()
+            try:
+                info = p.lstat()
+            except FileNotFoundError:
+                if tolerate_missing:
+                    continue  # Live offline fixtures may finish while inspected.
+                raise
             entries += 1
             if entries > 100000:
                 raise ArtifactStorageFull('engineering_inventory_entry_bound')
@@ -135,13 +140,19 @@ class Scratch:
         self.path = None
         self.success = False
 
-    def __enter__(self):
+    def retained_bytes(self):
         retained = 0
         for folder in self.parent.glob('mm-engineering-*'):
             if folder.is_symlink() or not folder.is_dir():
                 continue
             # Unknown prefix matches are preserved and still count against quota.
-            retained += tree_bytes(folder, limit=self.policy.scratch_total_bytes)
+            retained += tree_bytes(folder, limit=self.policy.scratch_total_bytes, tolerate_missing=True)
+            if retained > self.policy.scratch_total_bytes:
+                raise ArtifactStorageFull('engineering_scratch_retained_quota')
+        return retained
+
+    def __enter__(self):
+        retained = self.retained_bytes()
         if retained + self.policy.scratch_max_bytes > self.policy.scratch_total_bytes:
             raise ArtifactStorageFull('engineering_scratch_retained_quota')
         headroom(self.parent, self.policy.scratch_max_bytes, policy=self.policy)
@@ -160,7 +171,8 @@ class Scratch:
             purpose='offline tests only; never authoritative PAPER or recovery snapshots')) + '\n')
 
     def check(self):
-        used=tree_bytes(self.path, limit=self.policy.scratch_max_bytes)
+        used=tree_bytes(self.path, limit=self.policy.scratch_max_bytes, tolerate_missing=True)
+        self.retained_bytes()  # Also bound simultaneous scopes and retained failures.
         headroom(self.path,max(0,self.policy.scratch_max_bytes-used),policy=self.policy,warn=False)
 
     def __exit__(self, kind, value, traceback):
