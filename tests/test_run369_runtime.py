@@ -12,12 +12,31 @@ from unittest.mock import patch
 
 from meme_machine.solana_evidence_plane import EvidenceWriter, EvidenceReader, EvidenceUnavailable
 from meme_machine.solana_evidence_service import FinalizedFence, serve
-from meme_machine.solana_evidence_runtime import RuntimeEvidence, METEORA_SCOPE
+from meme_machine.solana_evidence_runtime import RuntimeEvidence, METEORA_SCOPE, PUMP_SCOPE
 from meme_machine.solana_evidence_transport import Subscription
 from tests.evidence_stream_harness import FakeSocket
 from tests.evidence_ipc_harness import ipc_transport
 
 PROGRAM = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo'
+
+
+async def ipc_model_b(work,stop):
+    """Reuse the offline Model B boot and real linked control authority."""
+    from tests.test_solana_prewarm_startup import quiet_model_b
+    from meme_machine.solana_selective_source import commit_control
+    from meme_machine.solana_candidate_join import YellowstoneTransactionFrame
+    from meme_machine.yellowstone import geyser_pb2 as pb
+    boot_done=asyncio.Event();boot_done.set()
+    await quiet_model_b(work,boot_done)
+    def control(state):
+        now=time.time()
+        for slot in (100,101):
+            update=pb.SubscribeUpdate();b=update.block
+            b.slot=slot;b.parent_slot=slot-1;b.blockhash=str(slot);b.parent_blockhash=str(slot-1)
+            b.block_time.timestamp=int(now)
+            commit_control(state,YellowstoneTransactionFrame(update,10,now,replay_from_slot=100))
+    await work(control,0)
+    await stop.wait()
 
 
 def block(slot=10):
@@ -236,24 +255,21 @@ class Run369IPCTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as temp:
             path=Path(temp)/'db'; stop=asyncio.Event();wire=FakeSocket()
             with ipc_transport(),patch('websockets.asyncio.client.connect', return_value=wire), patch.object(FinalizedFence,'command',slow):
-                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop,source_driver=ipc_model_b))
                 try:
                     for _ in range(200):
                         if Path(str(path)+'.sock').exists(): break
                         if task.done(): await task
                         await asyncio.sleep(.01)
                     for _ in range(200):
-                        if wire.subs:break
-                        await asyncio.sleep(.01)
-                    await wire.inject(100,[]);await wire.inject(101,[])
-                    for _ in range(200):
                         probe=RuntimeEvidence(path,owner='probe')
-                        ready=probe.health(METEORA_SCOPE)['usable'];probe.close()
+                        ready=probe.health(PUMP_SCOPE)['usable'];probe.close()
                         if ready:break
+                        if task.done():await task
                         await asyncio.sleep(.01)
                     def client():
-                        plane=RuntimeEvidence(path,owner='meteora')
-                        try: return plane.admit_candidate(METEORA_SCOPE,addresses=['pool'],owner='meteora:candidate:pool')
+                        plane=RuntimeEvidence(path,owner='pump')
+                        try: return plane.admit_candidate(PUMP_SCOPE,addresses=['pool'],owner='pump:candidate:pool')
                         finally: plane.close()
                     self.assertTrue((await asyncio.to_thread(client))['accepted'])
                     reader=EvidenceReader(path)
@@ -269,22 +285,22 @@ class Run369IPCTests(unittest.IsolatedAsyncioTestCase):
             loop=asyncio.get_running_loop();previous=loop.get_exception_handler()
             loop.set_exception_handler(lambda loop,context:errors.append(context))
             with patch('websockets.asyncio.client.connect',return_value=FakeSocket()),patch.object(FinalizedFence,'command',slow):
-                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop,source_driver=ipc_model_b))
                 try:
                     for _ in range(200):
                         if Path(str(path)+'.sock').exists():break
                         await asyncio.sleep(.01)
-                    request=dict(op='counter',key='meteora.disconnect',count=1,owner='meteora',consumer='meteora',request_id='disconnect',expires_at=time.time()+3)
+                    request=dict(op='counter',key='pump.disconnect',count=1,owner='pump',consumer='pump',request_id='disconnect',expires_at=time.time()+3)
                     def disconnect():
                         with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
                             stream.connect(str(path)+'.sock');stream.sendall((json.dumps(request)+'\n').encode())
                     await asyncio.to_thread(disconnect);await asyncio.sleep(.2)
                     def retry():
-                        plane=RuntimeEvidence(path,owner='meteora')
+                        plane=RuntimeEvidence(path,owner='pump')
                         try:
                             self.assertTrue(plane.command(**request)['ok'])
-                            self.assertTrue(plane.command(op='counter',key='meteora.normal',count=1)['ok'])
-                            self.assertEqual(plane.reader.db.execute("SELECT value FROM counters WHERE key='meteora.disconnect'").fetchone()[0],1)
+                            self.assertTrue(plane.command(op='counter',key='pump.normal',count=1)['ok'])
+                            self.assertEqual(plane.reader.db.execute("SELECT value FROM counters WHERE key='pump.disconnect'").fetchone()[0],1)
                         finally:plane.close()
                     await asyncio.to_thread(retry)
                     self.assertFalse(task.done());self.assertEqual(errors,[])

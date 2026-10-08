@@ -397,96 +397,48 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual(decoder(old),decoder(current))
 
     def test_strategy_sources_and_nine_change_tests_byte_unchanged(self):
-        # The old f05dcf09 byte pin predates the ACTIVE observability contract.
-        # Preserve the nine-change tests against that historical directive, but
-        # compare strategy economics to the explicitly active operational base.
+        # Keep the owner-approved nine-change tests byte-pinned to their original
+        # directive. The older operational pin predates completed Pons/Pump
+        # repairs; the owner explicitly names b1f215ed as this task's reference.
         self.assertEqual((ROOT/'tests/test_operational_nine.py').read_bytes(),
                          baseline('tests/test_operational_nine.py'))
-        active='5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0'
+        active='b1f215edd3dc079b623401c7e09e9c91a380e6a0'
         def source(path):
-            try:return subprocess.check_output(['git','show',active+':'+path],cwd=ROOT,stderr=subprocess.DEVNULL)
-            except subprocess.CalledProcessError:raise unittest.SkipTest('Active strategy baseline absent in shallow checkout') from None
+            return subprocess.check_output(['git','show',active+':'+path],cwd=ROOT)
         paths=subprocess.check_output(['git','ls-tree','-r','--name-only',active,'meme_machine/lanes'],cwd=ROOT,text=True).splitlines()
-        infrastructure={
-            'meme_machine/lanes/pump/runner.py',
-            'meme_machine/lanes/pump/pumpswap_survivor_runtime.py',
-            'meme_machine/lanes/pump/solana_evidence_runtime.py',
-            'meme_machine/lanes/pump/solana_evidence_service.py',
-            'meme_machine/lanes/pump/solana_evidence_queries.py',
-            'meme_machine/lanes/pump/pump_acceleration_evidence.py',
-            'meme_machine/lanes/meteora/runner.py',
-            'meme_machine/lanes/meteora/solana_evidence_queries.py',
-            'meme_machine/lanes/meteora/solana_evidence_runtime.py',
-            'meme_machine/lanes/meteora/solana_evidence_service.py',
-            'meme_machine/lanes/pons/pons_survivor_runtime.py',
-        }
+        infrastructure={'meme_machine/lanes/pons/pons_historical.py',
+                        'meme_machine/lanes/pons/pons_history.py',
+                        'meme_machine/lanes/pons/pons_survivor_runtime.py'}
         for rel in paths:
             if rel not in infrastructure:self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
-        for rel in ('meme_machine/runtime/directional_continuation.py','meme_machine/runtime/survivor_risk.py'):
+        for rel in ('meme_machine/runtime/directional_continuation.py','meme_machine/runtime/survivor_risk.py',
+                    'operational/nine-change-implementation.json'):
             self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
-        def functions(raw):
-            return {n.name:n for n in ast.parse(raw).body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
-        allowed={
-            'meme_machine/lanes/pump/runner.py':{
-                '_capacity','_refresh_pool_events','_reserve_position','_record_attempt','RollingAttemptBudget','main'},
-            'meme_machine/lanes/meteora/runner.py':{'_campaign_candidates','_capture_chunk','_lifecycle','run_live'},
-            'meme_machine/lanes/pump/pump_acceleration_evidence.py':{'late_curve_trajectory'},
-        }
-        for rel,changed in allowed.items():
-            original=functions(source(rel));current=functions((ROOT/rel).read_bytes())
-            for name,node in original.items():
-                if name not in changed:self.assertEqual(ast.dump(current[name]),ast.dump(node),rel+':'+name)
-            # Existing top-level economics/constants remain exact, including the
-            # $500 inception, targets, gas, deadlines and all frozen policy hashes.
-            def constants(raw):
-                return {tuple(ast.dump(t) for t in n.targets):ast.dump(n.value) for n in ast.parse(raw).body if isinstance(n,ast.Assign)}
-            before=constants(source(rel));after=constants((ROOT/rel).read_bytes())
-            for name,value in before.items():self.assertEqual(after[name],value,rel+':'+repr(name))
-        rel='meme_machine/lanes/pump/runner.py'
-        old=functions(source(rel))['_capacity'];new=functions((ROOT/rel).read_bytes())['_capacity']
-        # Only the qualifier's default sizing input changes: target equity is
-        # independent of committed funding. Quote math/resize/limits stay pinned.
-        new.body[0].body[0].value.slice=ast.Constant(value='allocatable_target')
-        self.assertEqual(ast.dump(new),ast.dump(old))
-
-        rel='meme_machine/lanes/pump/pumpswap_survivor_runtime.py'
-        original=functions(source(rel));current=functions((ROOT/rel).read_bytes())
-        self.assertEqual(ast.dump(original['Quotes']),ast.dump(current['Quotes']))
-        old_methods={n.name:n for n in original['Runtime'].body if isinstance(n,ast.FunctionDef)}
-        new_methods={n.name:n for n in current['Runtime'].body if isinstance(n,ast.FunctionDef)}
-        # Discovery's checkpoint namespace changes from a global slot to a
-        # durable candidate outbox. Qualification/entry/exit economics below
-        # remain independently pinned to the operational source.
-        mechanical={'__init__','discover','_increment','_enter','step','close'}
-        for name,node in old_methods.items():
-            if name not in mechanical:self.assertEqual(ast.dump(new_methods[name]),ast.dump(node),rel+':'+name)
-        # Durable funding instrumentation follows the exact existing commit call;
-        # it cannot modify sizing, quote, qualification or entry/exit limits.
-        old_entry=old_methods['_enter'];new_entry=new_methods['_enter']
-        self.assertEqual(ast.dump(old_entry.body[0]),ast.dump(new_entry.body[0]))
-        self.assertEqual(ast.dump(old_entry.body[1].value),ast.dump(new_entry.body[1].value))
-
+        rel='meme_machine/lanes/pons/pons_history.py'
+        self.assertEqual(ast.dump(ast.parse((ROOT/rel).read_bytes())),ast.dump(ast.parse(source(rel))))
         rel='meme_machine/lanes/pons/pons_survivor_runtime.py'
-        original=source(rel).decode()
-        before="""                # A bounded full hot set must still age/evaluate/retire. Repeating
-                # discovery's capacity exception before that work deadlocks it.
-                discovery_deferred=len(self.history.rows())>=self.history.maximum_candidates
-                if not discovery_deferred:self.discover()
-"""
-        after="""                # Cheap candidate discovery is not work admission. Retain every
-                # candidate; the existing decision worker bounds expensive work.
-                self.discover()
-"""
-        self.assertEqual(original.count(before),1)
-        self.assertEqual((ROOT/rel).read_text(),original.replace(before,after))
-        rel='meme_machine/lanes/pump/pump_acceleration_evidence.py'
-        old=functions(source(rel))['late_curve_trajectory'];new=functions((ROOT/rel).read_bytes())['late_curve_trajectory']
-        # The chain-order regression tests certify this added ordering witness.
-        # Every arithmetic operation and window boundary remains exact.
-        sort=next(n for n in new.body if isinstance(n,ast.Expr) and isinstance(n.value,ast.Call)
-                  and isinstance(n.value.func,ast.Attribute) and n.value.func.attr=='sort')
-        sort.value.keywords[0].value.body.elts.pop(2)
-        self.assertEqual(ast.dump(new),ast.dump(old))
+        original=ast.parse(source(rel));current=ast.parse((ROOT/rel).read_bytes())
+        def functions(tree):
+            return {n.name:n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
+        old=functions(original);new=functions(current)
+        for name,node in old.items():
+            if name!='Runtime':self.assertEqual(ast.dump(node),ast.dump(new[name]),rel+':'+name)
+        old_methods=functions(old['Runtime']);new_methods=functions(new['Runtime'])
+        mechanical={'historical_preparation_step','_provider','discover','_bootstrap_cursor','reconstruct','step'}
+        for name,node in old_methods.items():
+            if name not in mechanical:self.assertEqual(ast.dump(node),ast.dump(new_methods[name]),rel+':'+name)
+        # Reconstruction changes only the individual completeness authority.
+        # Price, buyer-flow, capacity, nominal sizing and quote math remain exact.
+        before=old_methods['reconstruct'];after=new_methods['reconstruct']
+        original_kw=next(k for n in ast.walk(before) if isinstance(n,ast.Call)
+                         for k in n.keywords if k.arg=='continuity_complete')
+        current_kw=next(k for n in ast.walk(after) if isinstance(n,ast.Call)
+                        for k in n.keywords if k.arg=='continuity_complete')
+        current_kw.value=original_kw.value
+        self.assertEqual(ast.dump(before),ast.dump(after))
+        def constants(tree):
+            return [ast.dump(n) for n in tree.body if isinstance(n,(ast.Assign,ast.AnnAssign))]
+        self.assertEqual(constants(original),constants(current))
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):
         from meme_machine.operational.supervisor import validate_environment

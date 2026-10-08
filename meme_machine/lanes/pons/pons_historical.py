@@ -1,7 +1,7 @@
-"""Offline-tested historical preparation in the existing Pons history authority.
+"""Canonical acquisition in the existing Pons history authority.
 
-This is a single-worker path selected explicitly for prepared history databases,
-not a second market-data service. The caller supplies the existing governed RPC
+Ordinary Survivor operation selects forward_only; retained historical preparation
+remains an explicit research/recovery tool. The caller supplies the governed RPC
 session factory. No endpoint, money book, candidate deadline or provider rate is
 created here. Numeric log ranges are reusable only through their canonical range
 checkpoints; the generic immutable RPC cache deliberately does not cache them.
@@ -27,6 +27,7 @@ from .provider_admission import decision_work
 
 SCHEMA = 'pons-historical-preparation-v1'
 PLAN = 'pons_historical_plan'
+FORWARD_PLAN = 'pons_forward_plan'
 FACTORY = load('pons_v2_factory')['address'].lower()
 LAUNCH = _event_topic('pons_v2_factory', 'TokenLaunched')
 GRADUATION = _event_topic('pons_v2_factory', 'PoolGraduated')
@@ -92,12 +93,15 @@ class _NativeReads:
 
 class Preparation:
     def __init__(self, history, provider, *, range_blocks=10, support=None,
-                 response_log_limit=1024, clock=time.time):
+                 response_log_limit=1024, clock=time.time, forward_only=False):
         if history.get_meta('policy') != POLICY_HASH:
             raise BoundaryError('historical_policy_identity')
         if not 1 <= range_blocks <= 10000 or not 2 <= response_log_limit <= 1024:
             raise BoundaryError('historical_work_bound')
         self.history = history
+        self.forward_only = forward_only
+        self.plan_key = FORWARD_PLAN if forward_only else PLAN
+        self.population_kind = 'forward_population' if forward_only else 'population'
         self.provider = provider
         self.range_blocks = range_blocks
         self.support = support
@@ -214,9 +218,9 @@ class Preparation:
 
     @decision_work(5)
     def begin(self, *, prospective=False):
-        """Freeze a head; one durable binary-search step per subsequent turn."""
-        if self.history.get_meta(PLAN) is not None:
-            return self.history.get_meta(PLAN)
+        """Enroll forward at a canonical head, or freeze an explicit research head."""
+        if self.history.get_meta(self.plan_key) is not None:
+            return self.history.get_meta(self.plan_key)
         rpc = self.rpc(7)
         values = self.calls([('eth_chainId', []), ('eth_getBlockByNumber', ['0x0', False]),
             ('eth_getBlockByNumber', ['latest', False])] +
@@ -233,17 +237,39 @@ class Preparation:
             genesis_hash=values[1]['hash'], provider_fingerprint=require_canonical(rpc),
             deployments=pins, target=head, cutoff=cutoff, prospective=prospective,
             started_at=self.clock(), search=dict(low=-1, high=top), ready=False)
-        if prospective:
+        if self.forward_only:
+            # Include the enrollment block, with its authenticated predecessor.
+            # This is a block frontier, never a claim about earlier opportunity recall.
+            enrollment = head
+            cursor = self.history.get_meta('discovery_block')
+            checkpoint = self.history.get_meta('discovery_block_hash')
+            if cursor is not None and checkpoint and self.history.get_meta(PLAN) is None:
+                # Migrate ordinary native observation without dropping an outage
+                # tail. A partial research census is not an enrollment frontier.
+                if type(cursor) is not int or not 0 <= cursor <= top:
+                    raise BoundaryError('forward_restore_checkpoint_identity')
+                enrollment = compact_header(self.header(cursor))
+                if enrollment['hash'] != checkpoint:
+                    raise BoundaryError('forward_restore_checkpoint_noncanonical')
+                plan['restored_from'] = 'preserved_native_discovery_checkpoint'
+            first = number(enrollment)
+            prior = self.header(first - 1) if first else None
+            if prior and enrollment['parentHash'] != prior['hash']:
+                raise BoundaryError('forward_enrollment_parent_identity')
+            plan.update(prospective=True, first=first, anchor=None if prior is None else compact_header(prior),
+                        enrollment_header=enrollment, enrollment_at=int(enrollment['timestamp'],16),mode='forward_only')
+            plan.pop('search')
+        elif prospective:
             # Keep the seven-day requirement; readiness can mature only once the
             # domain floor moves past this independently authenticated enrollment.
             plan.update(first=top + 1, anchor=head, enrollment_at=int(head['timestamp'], 16))
-        self.history.set_meta(PLAN, plan)
+        self.history.set_meta(self.plan_key, plan)
         self.restored = True
         return plan
 
     @decision_work(5)
     def boundary_step(self):
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         if p is None:
             raise BoundaryError('historical_plan_missing')
         if 'first' in p:
@@ -262,7 +288,7 @@ class Preparation:
                                   or first['parentHash'] != prior['hash'])):
                 raise BoundaryError('historical_domain_boundary_disagreement')
             p.update(first=hi, anchor=None if prior is None else compact_header(prior), first_header=compact_header(first))
-        self.history.set_meta(PLAN, p)
+        self.history.set_meta(self.plan_key, p)
         return p.get('first')
 
     def _frontier(self, kind, first, anchor):
@@ -417,7 +443,7 @@ class Preparation:
                 self._put_events(kind, all_logs)
                 if consume:
                     consume(end, h, shared)
-                if kind == 'population':
+                if kind == self.population_kind:
                     grads = [e for e in all_logs if e['topics'][0] == GRADUATION]
                     self.history.retain_graduations(grads, end, block_hash=h['hash'])
                 ident = digest([kind, start, end, evidence])
@@ -426,9 +452,9 @@ class Preparation:
                 self.history.set_meta('pons_historical_frontier:' + kind, dict(block=end, block_hash=h['hash']))
                 self.history.set_meta(pending_key, pending[len(spans):])
                 self._clear_gaps(kind, start, end)
-                p = self.history.get_meta(PLAN)
+                p = self.history.get_meta(self.plan_key)
                 p['ready'] = False
-                self.history.set_meta(PLAN, p)
+                self.history.set_meta(self.plan_key, p)
             return True
         except (BoundaryError, ValueError) as exc:
             reason = str(exc)
@@ -449,23 +475,47 @@ class Preparation:
     def discover_step(self):
         if not self.restored:
             raise BoundaryError('historical_restore_verification_required')
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         if 'first' not in p:
             return self.boundary_step()
-        return self._packet('population', self.population_filter(), p['first'], number(p['target']), p['anchor'])
+        return self._packet(self.population_kind, self.population_filter(), p['first'], number(p['target']), p['anchor'])
 
     def population(self):
-        rows = self.history.db.execute("SELECT body,hash FROM pons_historical_events WHERE kind='population' AND valid=1 ORDER BY block,id")
+        rows = self.history.db.execute("SELECT body,hash FROM pons_historical_events WHERE kind=? AND valid=1 ORDER BY block,id", (self.population_kind,))
         return sorted((self.history._verified(r) for r in rows), key=order)
 
     def _launch_step(self, token, record, graduation_block):
         known = [self.history._verified(r) for r in self.history.db.execute(
-            "SELECT body,hash FROM pons_historical_events WHERE kind='population' AND valid=1 "
+            "SELECT body,hash FROM pons_historical_events WHERE kind IN ('population','forward_population') AND valid=1 "
             "AND json_extract(body,'$.topics[1]')=? AND json_extract(body,'$.topics[0]')=?",
             ('0x'+'0'*24+token[2:],LAUNCH))]
         kind = 'launch:' + token
         known += [self.history._verified(r) for r in self.history.db.execute(
             'SELECT body,hash FROM pons_historical_events WHERE kind=? AND valid=1', (kind,))]
+        # Shared retained journals may witness the same canonical launch twice.
+        identities = {}
+        for event in known:
+            identity = event_id(event)
+            if identity in identities and identities[identity] != event:
+                raise BoundaryError('historical_launch_conflict')
+            identities[identity] = event
+        orphan_key='pons_historical_orphan_launches:'+token
+        orphaned=self.history.get_meta(orphan_key) or []
+        known = [e for ident,e in identities.items() if ident not in orphaned]
+        if known:
+            canonical_launches = [e for e in known if self.header(order(e)[0])['hash']==e['blockHash']]
+            if not canonical_launches:
+                # An old candidate-specific launch checkpoint can itself be on
+                # the orphan fork. Preserve its evidence, revoke its acquisition
+                # authority and acquire only this candidate's launch again.
+                with self.history.transaction():
+                    self.history.set_meta(orphan_key,orphaned+[event_id(e) for e in known])
+                    self.history.db.execute('UPDATE pons_historical_ranges SET valid=0 WHERE kind=?',(kind,))
+                    self.history.db.execute('UPDATE pons_historical_events SET valid=0 WHERE kind=?',(kind,))
+                    for prefix in ('frontier:','origin:','subdivision:','launch_search:'):
+                        suffix=token if prefix=='launch_search:' else kind
+                        self.history.set_meta('pons_historical_'+prefix+suffix,None)
+            known=canonical_launches
         if known:
             if len(known) != 1:
                 raise BoundaryError('historical_launch_ambiguous')
@@ -475,7 +525,7 @@ class Preparation:
                     or args['pairToken'] != record['pairToken'] or order(e)[0] > graduation_block):
                 raise BoundaryError('historical_launch_relationship')
             return e
-        # A launch can precede the seven-day graduation domain. Locate its exact
+        # A launch can precede enrollment. Locate its exact
         # timestamp via the authenticated curve, then census the entire second;
         # never infer the launch from previously retained runtime candidates.
         key = 'pons_historical_launch_search:' + token
@@ -522,7 +572,7 @@ class Preparation:
         if not nominations:
             return False
         ident, event = nominations[0]
-        if not self.history.db.execute("SELECT 1 FROM pons_historical_events WHERE kind='population' AND valid=1 AND id=?",
+        if not self.history.db.execute("SELECT 1 FROM pons_historical_events WHERE kind IN ('population','forward_population') AND valid=1 AND id=?",
                                        (event_id(event),)).fetchone():
             raise BoundaryError('historical_nomination_outside_census')
         args = decode_event(load('pons_v2_factory')['abi'], event)['args']
@@ -563,7 +613,7 @@ class Preparation:
         evidence = dict(at=transition['graduation_at'], block=block, block_hash=h['hash'],
             transition=transition, key=asdict(key), record=record,
             source='robinhood_authenticated_candidate_evidence_plane')
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         disposition = None
         if record['pairToken'] != ZERO:
             disposition = 'non_native_quote'
@@ -610,7 +660,7 @@ class Preparation:
         if row is None or row.get('block') is None or row.get('recovery') not in (
                 None, 'bounded_replay_from_canonical_graduation'):
             raise BoundaryError('historical_candidate_anchor_incomplete')
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         kind = 'candidate:' + token
         grad = row['graduation']
         key = PoolKey(**grad['key'])
@@ -644,7 +694,7 @@ class Preparation:
         if any(r is None or r.get('block') is None or r.get('recovery') not in
                (None, 'bounded_replay_from_canonical_graduation') for r in rows):
             raise BoundaryError('historical_candidate_anchor_incomplete')
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         rows.sort(key=lambda r:r['id'])
         kind = 'candidates:' + digest([r['id'] for r in rows])
         first = min(r['block'] for r in rows) + 1
@@ -679,14 +729,14 @@ class Preparation:
         admission guard. This method only acquires evidence; it never qualifies,
         funds or releases Current. Normal turns retain four ten-block queries.
         """
-        if self.history.get_meta(PLAN) is None:
+        if self.history.get_meta(self.plan_key) is None:
             self.begin()
         elif not self.restored:
             return self.resume()
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         if 'first' not in p:
             self.boundary_step()
-        elif self._frontier('population',p['first'],p['anchor'])['block'] < number(p['target']):
+        elif self._frontier(self.population_kind,p['first'],p['anchor'])['block'] < number(p['target']):
             self.discover_step()
         elif self.history.pending_graduations():
             self.authenticate_step()
@@ -780,9 +830,12 @@ class Preparation:
         """
         self.restored = False
         self.verify_database()
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         if p is None or p.get('schema') != SCHEMA or p.get('policy') != POLICY_HASH:
             raise BoundaryError('historical_restore_plan')
+        if self.forward_only and (p.get('mode')!='forward_only' or p.get('prospective') is not True
+                or not p.get('enrollment_header') or p.get('first',-1)<number(p['enrollment_header'])):
+            raise BoundaryError('forward_restore_enrollment_identity')
         vals = self.calls([('eth_chainId', []), ('eth_getBlockByNumber', ['0x0', False])])
         if (int(vals[0], 16) != p['chain_id'] or number(vals[1]) != 0
                 or vals[1]['hash'] != p['genesis_hash'] or self.fingerprint != p['provider_fingerprint']):
@@ -794,13 +847,17 @@ class Preparation:
                 raise BoundaryError('historical_search_target_reorg')
             self.restored = True
             return dict(ready=False, boundary_pending=True)
+        anchor_reorg = False
         if p['anchor'] is not None:
             anchor = self.header(p['first'] - 1)
             if anchor['hash'] != p['anchor']['hash']:
-                raise BoundaryError('historical_domain_anchor_reorg')
-        kinds = [r[0] for r in self.history.db.execute('SELECT DISTINCT kind FROM pons_historical_ranges WHERE valid=1')]
-        population_frontier = self.history.get_meta('pons_historical_frontier:population')
-        if population_frontier and population_frontier['block'] >= p['first'] and 'population' not in kinds:
+                if not self.forward_only:
+                    raise BoundaryError('historical_domain_anchor_reorg')
+                anchor_reorg = True
+        kinds = [r[0] for r in self.history.db.execute('SELECT DISTINCT kind FROM pons_historical_ranges WHERE valid=1' +
+                 (' AND kind=?' if self.forward_only else ''), (self.population_kind,) if self.forward_only else ())]
+        population_frontier = self.history.get_meta('pons_historical_frontier:' + self.population_kind)
+        if population_frontier and population_frontier['block'] >= p['first'] and self.population_kind not in kinds:
             raise BoundaryError('historical_population_ranges_missing')
         for kind in kinds:
             rows = self.history.db.execute('SELECT id,first,last,body,hash FROM pons_historical_ranges '
@@ -811,7 +868,7 @@ class Preparation:
                 raise BoundaryError('historical_range_origin')
             expected_first = retention['block']+1 if retention else origin['first']
             expected_hash = (retention or origin['anchor'])['block_hash']
-            if kind == 'population':
+            if kind == self.population_kind:
                 expected_first = p['first']
                 expected_hash = None if p['anchor'] is None else p['anchor']['hash']
             if rows[0][1] != expected_first:
@@ -835,10 +892,10 @@ class Preparation:
             frontier = self.history.get_meta('pons_historical_frontier:' + kind)
             if frontier != dict(block=prior_end, block_hash=prior_hash):
                 raise BoundaryError('historical_frontier_replay')
-            if self.header(prior_end)['hash'] == prior_hash:
+            if self.header(prior_end)['hash'] == prior_hash and not anchor_reorg:
                 continue
             low, high = -1, len(rows)
-            while low + 1 < high:
+            while not anchor_reorg and low + 1 < high:
                 mid = (low + high) // 2
                 e = self.history._verified((rows[mid][3], rows[mid][4]))
                 if self.header(rows[mid][2])['hash'] == e['end']['hash']:
@@ -853,7 +910,7 @@ class Preparation:
                 self.history.set_meta('pons_historical_frontier:' + kind,
                     dict(block=rewind, block_hash=None if h is None else h['hash']))
                 self.history.set_meta('pons_historical_subdivision:' + kind, [])
-                if kind == 'population':
+                if kind == self.population_kind:
                     for nomination, body, checksum in self.history.db.execute(
                             'SELECT id,body,hash FROM pons_graduation_intake').fetchall():
                         if order(self.history._verified((body, checksum)))[0] > rewind:
@@ -870,7 +927,23 @@ class Preparation:
                                 self.history.save(row)
                 self._gap(kind, rewind + 1, prior_end, 'canonical_reorganization')
                 p['ready'] = False
-                self.history.set_meta(PLAN, p)
+                self.history.set_meta(self.plan_key, p)
+        if anchor_reorg:
+            # Preserve the original enrollment and height. A fork at its parent
+            # rewinds only the retained prospective interval, never seven days
+            # before enrollment. Old fork witnesses remain invalidated in place.
+            with self.history.transaction():
+                previous = self.history.get_meta('pons_forward_boundary_reorganizations') or dict(count=0,hash=None)
+                self.history.set_meta('pons_forward_boundary_reorganizations',dict(count=previous['count']+1,
+                    hash=digest([previous['hash'],p['anchor'],compact_header(anchor)]),
+                    original_enrollment=p['enrollment_header'],qualification_authority=False))
+                p.update(anchor=compact_header(anchor),ready=False)
+                if not kinds:
+                    frontier=dict(block=p['first']-1,block_hash=anchor['hash'])
+                    self.history.set_meta('pons_historical_frontier:'+self.population_kind,frontier)
+                    self.history.set_meta('discovery_block',frontier['block'])
+                    self.history.set_meta('discovery_block_hash',frontier['block_hash'])
+                self.history.set_meta(self.plan_key,p)
         # An authenticated population frontier does not certify retained economic
         # histories. Every retained row is checked, regardless of funding state.
         for row in self.history.rows():
@@ -883,34 +956,39 @@ class Preparation:
         # Refresh a forked frozen head only at its original height/time domain.
         h = self.header(number(p['target']))
         if h['hash'] != p['target']['hash']:
-            if int(h['timestamp'], 16) - POLICY['universe']['max_seconds_after_graduation'] != p['cutoff']:
+            cutoff=max(0,int(h['timestamp'],16)-POLICY['universe']['max_seconds_after_graduation'])
+            if not self.forward_only and cutoff != p['cutoff']:
                 raise BoundaryError('historical_reorg_domain_changed')
-            p.update(target=compact_header(h), ready=False)
-            self.history.set_meta(PLAN, p)
+            p.update(target=compact_header(h), cutoff=cutoff, ready=False)
+            self.history.set_meta(self.plan_key, p)
         self.restored = True
         return self.readiness()
 
     def readiness(self):
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         if p is None or 'first' not in p:
             return dict(ready=False, category='INCOMPLETE_EVIDENCE', reason='boundary_pending')
         top = number(p['target'])
-        frontier = self._frontier('population', p['first'], p['anchor'])
+        frontier = self._frontier(self.population_kind, p['first'], p['anchor'])
         # The eligibility ceiling is inclusive. At exact equality, an event in
         # the enrollment header could still be eligible but predates first=top+1.
         mature = not p['prospective'] or p['cutoff'] > p['enrollment_at']
-        gaps = self.history.db.execute('SELECT COUNT(*) FROM pons_historical_gaps').fetchone()[0]
+        domain_ready = self.forward_only or mature
+        gaps = self.history.db.execute('SELECT COUNT(*) FROM pons_historical_gaps' +
+                  (' WHERE kind=?' if self.forward_only else ''),
+                  (self.population_kind,) if self.forward_only else ()).fetchone()[0]
         incomplete = [r['id'] for r in self.history.rows() if r.get('block', -1) < top
-                      or r.get('complete') is not True or r.get('recovery') or not self._candidate_coverage(r,top)]
+                      or r.get('complete') is not True or r.get('recovery')
+                      or not self.forward_only and not self._candidate_coverage(r,top)]
         # Reconcile every graduation against a durable native identity/disposition.
         missing = []
         pending = self.history.pending_graduations()
-        if self.restored and mature and frontier['block'] == top and not gaps and not incomplete and not pending:
+        if self.restored and domain_ready and frontier['block'] == top and not gaps and not incomplete and not pending:
             # Do not repeatedly materialize/decode the entire population during
             # each incomplete backfill turn. The final independent census check
             # streams indexed graduation rows only, with one native ABI load.
             abi=load('pons_v2_factory')['abi']
-            for body,checksum in self.history.db.execute("SELECT body,hash FROM pons_historical_events WHERE kind='population' AND valid=1 AND json_extract(body,'$.topics[0]')=?",(GRADUATION,)):
+            for body,checksum in self.history.db.execute("SELECT body,hash FROM pons_historical_events WHERE kind=? AND valid=1 AND json_extract(body,'$.topics[0]')=?",(self.population_kind,GRADUATION)):
                 e=self.history._verified((body,checksum))
                 token = decode_event(abi, e)['args']['token']
                 disposition = self.history.get_meta('pons_historical_identity:' + token)
@@ -918,15 +996,22 @@ class Preparation:
                     missing.append(event_id(e))
                 elif disposition['disposition'] is None and self.history.get(token) is None:
                     missing.append(event_id(e))
-        ready = (self.restored and mature and frontier['block'] == top and not gaps
+        ready = (self.restored and domain_ready and frontier['block'] == top and not gaps
                  and not incomplete and not missing and not pending)
+        if self.forward_only:
+            ready = self.restored and frontier['block'] == top and not gaps
         result = dict(ready=ready, category='COMPLETE' if ready else 'INCOMPLETE_EVIDENCE',
             population_through=frontier['block'], target_block=top, seven_day_domain_mature=mature,
             missing_ranges=gaps, incomplete_candidates=incomplete, missing_graduations=missing,
             pending_graduations=pending, provider_certified=False,
-            current_readiness='owned by existing Current prerequisites and startup guard')
+            current_readiness='owned by existing Current prerequisites and startup guard',
+            qualification_authority=False, observation_domain='prospective' if self.forward_only else 'historical',
+            enrollment_header=p.get('enrollment_header'),
+            pre_enrollment_coverage='UNOBSERVED' if self.forward_only else 'requested historical domain',
+            prospective_census_complete=self.restored and frontier['block']==top and not gaps,
+            historical_opportunity_recall_complete=not self.forward_only and ready)
         p.update(ready=ready, readiness=result)
-        self.history.set_meta(PLAN, p)
+        self.history.set_meta(self.plan_key, p)
         return result
 
     def _candidate_coverage(self, row, top):
@@ -951,12 +1036,12 @@ class Preparation:
         """Resume rolling acquisition; enrollment and candidate deadlines persist."""
         if not self.restored:
             raise BoundaryError('historical_restore_verification_required')
-        p = self.history.get_meta(PLAN)
+        p = self.history.get_meta(self.plan_key)
         if number(head) < number(p['target']) or self.header(number(head))['hash'] != head['hash']:
             raise BoundaryError('historical_extension_identity')
         p.update(target=compact_header(head), cutoff=max(0, int(head['timestamp'], 16) -
                  POLICY['universe']['max_seconds_after_graduation']), ready=False)
-        self.history.set_meta(PLAN, p)
+        self.history.set_meta(self.plan_key, p)
 
     def maintain(self, *, recovery_before, limit=256):
         """Retire only complete material outside strategy AND recovery retention.
@@ -965,8 +1050,11 @@ class Preparation:
         pressure target. Native candidate/controller/position journals are owned by
         their existing retention machinery and are not deleted here.
         """
-        p = self.history.get_meta(PLAN)
-        if (not self.restored or type(recovery_before) is not int or not p.get('ready')
+        p = self.history.get_meta(self.plan_key)
+        # Forward retention removes only proven expired prefixes. Catching up
+        # today's census is unrelated to the safety of those older prefixes.
+        if (not self.restored or not p or type(recovery_before) is not int
+                or not self.forward_only and not p.get('ready')
                 or type(limit) is not int or not 1 <= limit <= 512):
             raise BoundaryError('historical_retention_prerequisites')
         floor = min(recovery_before,p['cutoff'])
@@ -974,8 +1062,8 @@ class Preparation:
         cursor=self.history.get_meta('pons_historical_retention_scan') or [-1,'',-1,-1,'']
         def page(cursor):
             return self.history.db.execute('SELECT id,kind,first,last,body,hash,valid,through_at FROM pons_historical_ranges '
-                'WHERE through_at<? AND (through_at,kind,first,last,id)>(?,?,?,?,?) '
-                'ORDER BY through_at,kind,first,last,id LIMIT ?', (floor,*cursor,limit)).fetchall()
+                'WHERE through_at<? AND kind<>? AND (through_at,kind,first,last,id)>(?,?,?,?,?) '
+                'ORDER BY through_at,kind,first,last,id LIMIT ?', (floor,'population' if self.forward_only else 'forward_population',*cursor,limit)).fetchall()
         rows=page(cursor)
         if not rows:rows=page([-1,'',-1,-1,''])
         identity_cursor=self.history.get_meta('pons_historical_identity_retention_scan') or ''
@@ -991,9 +1079,9 @@ class Preparation:
             participants = e.get('participants') or ([kind.split(':',1)[1]] if kind.startswith('candidate:') else [])
             if any((self.history.get(t) or {}).get('position') for t in participants):
                 continue
-            if kind != 'population' and any((self.history.get(t) or {}).get('state') != 'retired' for t in participants):
+            if kind != self.population_kind and any((self.history.get(t) or {}).get('state') != 'retired' for t in participants):
                 continue
-            if kind == 'population' and valid:
+            if kind == self.population_kind and valid:
                 if first != next_population:
                     continue
                 next_population=last+1
@@ -1005,7 +1093,7 @@ class Preparation:
                 previous.update(count=previous['count']+1,hash=digest([previous['hash'],ident,e]),before=floor)
                 if valid:
                     self.history.set_meta('pons_historical_retention_anchor:'+kind,dict(block=last,block_hash=e['end']['hash']))
-                if kind == 'population' and valid:
+                if kind == self.population_kind and valid:
                     if first != p['first']:
                         raise BoundaryError('historical_retirement_prefix_gap')
                     p.update(first=last+1,anchor=e['end'])
@@ -1023,11 +1111,11 @@ class Preparation:
                 row=self.history.get(key.split(':',1)[1])
                 if (identity['evidence']['at'] >= floor or row and
                         (row['state'] != 'retired' or row.get('position')) or self.history.db.execute(
-                        "SELECT 1 FROM pons_historical_events WHERE kind='population' AND valid=1 AND id=?",
+                        "SELECT 1 FROM pons_historical_events WHERE kind IN ('population','forward_population') AND valid=1 AND id=?",
                         (identity['event_identity'],)).fetchone()):
                     continue
                 token=key.split(':',1)[1]
-                for oldkey in (key,'pons_historical_launch_search:'+token,
+                for oldkey in (key,'pons_historical_launch_search:'+token,'pons_historical_orphan_launches:'+token,
                                'pons_historical_authentication:'+identity['nomination']):
                     self.history.db.execute('DELETE FROM meta WHERE key=?',(oldkey,))
             if identities:
@@ -1038,7 +1126,7 @@ class Preparation:
                     group for group in cohorts if any((self.history.get(token) or {}).get('state') not in (None,'retired')
                                                      for token in group)])
             self.history.set_meta('pons_historical_retired',previous)
-            self.history.set_meta(PLAN,p)
+            self.history.set_meta(self.plan_key,p)
             if rows:
                 ident,kind,first,last,_,_,_,through_at=rows[-1]
                 self.history.set_meta('pons_historical_retention_scan',[through_at,kind,first,last,ident])

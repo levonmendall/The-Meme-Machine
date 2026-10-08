@@ -79,7 +79,8 @@ class PonsHistory(History):
 
     def invalidate_discovery(self):
         # Existing nominees/controllers survive. Only discovery's canonical
-        # range proof resets, then the same bounded seven-day bootstrap resumes.
+        # range proof resets. Forward recovery uses the preserved enrollment;
+        # invalidation never enrolls again or creates a historical market scan.
         with self.transaction():
             previous=self.get_meta('discovery_reorgs') or 0
             self.set_meta('discovery_reorgs',previous+1)

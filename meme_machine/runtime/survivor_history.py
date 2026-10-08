@@ -273,7 +273,10 @@ class Worker:
         if self.future is not None:
             if not self.future.done():return self.status
             self.status=self.future.result();self.future=None
-        if now-self.last>=5:
+        interval=getattr(self.service,'observation_interval_seconds',5)
+        if type(interval) not in (int,float) or not 1<=interval<=5:
+            raise ValueError('survivor_observation_interval')
+        if now-self.last>=interval:
             self.last=now;self.future=self.pool.submit(self._step,admit)
         return self.status
 

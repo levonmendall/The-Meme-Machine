@@ -25,6 +25,9 @@ class HistoricalTests(unittest.TestCase):
         self.env.start()
         self.addCleanup(self.env.stop)
         self.tape = Tape()
+        provider=patch('meme_machine.lanes.pons.pons_survivor_runtime.configured_rpc',
+                       side_effect=lambda *a,**kw:self.tape.provider())
+        provider.start();self.addCleanup(provider.stop)
         self.runtime = Runtime(Path(self.temp.name)/'new', 10**18, 'offline', 'https://offline.invalid')
         self.addCleanup(self.runtime.close)
         self.runtime.rpc = self.tape
@@ -108,8 +111,10 @@ class HistoricalTests(unittest.TestCase):
         self.addCleanup(old.close)
         old.rpc = self.tape
         old.now = lambda:int(self.tape.header(self.tape.top)['timestamp'],16)
-        old.history.set_meta('discovery_block',self.tape.first-1)
-        old.history.set_meta('discovery_block_hash',self.tape.header(self.tape.first-1)['hash'])
+        target=self.tape.top
+        self.tape.top=self.tape.first
+        old.discover()
+        self.tape.top=target
         for _ in range(20):
             old.discover()
             if old.history.get_meta('discovery_block') == self.tape.top and not old.history.pending_graduations():break
@@ -166,6 +171,9 @@ class HistoricalTests(unittest.TestCase):
             status=self.runtime.step(admit=False)
         self.assertEqual(actions,['position'])
         self.assertFalse(self.runtime.historical_preparation.restored)
+        self.runtime.discover()
+        self.runtime.forward_preparation=None
+        self.tape.request_log=[]
         self.runtime.discover()
         self.assertTrue(self.runtime.historical_readiness['ready'])
         self.assertFalse(any(m=='eth_getLogs' for m,p in self.tape.request_log))
