@@ -270,7 +270,7 @@ class Execution:
             attempt['ended']=self.clock()
             self.persist()
 
-    def before_http(self):
+    def before_http(self, request_bytes=0):
         # Reject exhausted work before native http_started also records a start.
         # The URL boundary below additionally validates the full actual payload.
         self.check()
@@ -283,7 +283,7 @@ class Execution:
             self.stop('BUDGET_STOP','diagnostic_cu_or_wire_element_ceiling')
         if self.storage()+16*1024*1024>STORAGE:
             self.stop('BUDGET_STOP','temporary_storage_dispatch_reservation')
-        self.native_started()
+        self.native_started(request_bytes)
 
     @contextmanager
     def install(self):

@@ -241,7 +241,7 @@ class PacedRpc(Rpc):
             return self.shared_admission.invoke(
                 lambda: parent._http(method,params),[method],
                 getattr(self.admission_scope,"value","connectivity"),getattr(self,"retry_attempt",0),
-                deadline=getattr(self,"evidence_deadline",None),timing=timing)
+                deadline=getattr(self,"evidence_deadline",None),timing=timing,role=self.role)
         return super()._http(method, params)
 
     def _http_batch(self, calls):
@@ -253,7 +253,7 @@ class PacedRpc(Rpc):
             return self.shared_admission.invoke(
                 lambda: parent._http_batch(calls),[x[0] for x in calls],
                 getattr(self.admission_scope,"value","connectivity"),getattr(self,"retry_attempt",0),
-                deadline=getattr(self,"evidence_deadline",None),timing=timing,batch=True)
+                deadline=getattr(self,"evidence_deadline",None),timing=timing,batch=True,role=self.role)
         return super()._http_batch(calls)
 
     def _record_demand(self, methods):
@@ -324,6 +324,12 @@ class PacedRpc(Rpc):
             value=super().call(method,self._wire_params(method,params,key),scope=scope)
             reuse.remember(method,params,value,key)
             return value
+
+    def receipt(self, tx_hash, block_hash, *, scope):
+        previous=getattr(self,'evidence_receipts',{})
+        self.evidence_receipts=dict(previous,**{tx_hash:block_hash})
+        try:return super().receipt(tx_hash,block_hash,scope=scope)
+        finally:self.evidence_receipts=previous
 
     def batch(self, calls, *, scope="connectivity"):
         scope=authority.safe_label(scope)

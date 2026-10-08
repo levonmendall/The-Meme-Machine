@@ -5,11 +5,39 @@ estimate using the repository's frozen schedule, never a billing measurement.
 """
 from collections import Counter
 from contextvars import ContextVar
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import sqlite3
 
 _active = ContextVar('robinhood_http_attempt', default=None)
+_purpose = ContextVar('robinhood_evidence_purpose', default=None)
+
+
+@contextmanager
+def evidence_work(category):
+    if category not in ('canonical_verification','deep_watch','final_qualification',
+                         'position_maintenance','gap_recovery','discovery','diagnostics'):
+        raise ValueError('provider_evidence_category')
+    token=_purpose.set(category)
+    try:yield
+    finally:_purpose.reset(token)
+
+
+def category(scope,role=None):
+    from meme_machine.lanes.pons.provider_admission import _position_work
+    if _position_work.get():return 'position_maintenance'
+    if _purpose.get():return _purpose.get()
+    if role and 'gap_recovery' in role:return 'gap_recovery'
+    if role and ('public_observation' in role or role=='pons_discovery_observation'):return 'discovery'
+    scope=str(scope).lower()
+    if any(x in scope for x in ('repair','gap','recovery')):return 'gap_recovery'
+    if any(x in scope for x in ('scout','discovery','startup_nomination')):return 'discovery'
+    if any(x in scope for x in ('paper','exit','unwind','monitor')):return 'position_maintenance'
+    if 'v4' in scope:return 'deep_watch'
+    if any(x in scope for x in ('survivor','entry','selective')):return 'final_qualification'
+    if 'natural' in scope:return 'canonical_verification'
+    return 'diagnostics'
 
 
 def _transient_file_size(path):
@@ -20,10 +48,11 @@ def _transient_file_size(path):
         return 0
 
 
-def http_started():
+def http_started(request_bytes=0):
     current = _active.get()
     if current is not None:
         current['physical_requests'] += 1
+        current['request_bytes']=current.get('request_bytes',0)+request_bytes
         row={k:v for k,v in current.items() if k!='path'}
         db=sqlite3.connect(current['path'],timeout=10)
         try:
@@ -37,13 +66,27 @@ def http_started():
         finally:db.close()
 
 
+def http_received(response_bytes):
+    current=_active.get()
+    if current is not None:current['response_bytes']=current.get('response_bytes',0)+response_bytes
+
+
 def record(db, row, *, wire=True):
     """Update the shared materialized counters in the transport audit transaction."""
     counts=Counter()
     n=row.get('physical_requests',0) if wire else 0
     if not wire:counts['completed_transport_attempts']=row.get('physical_requests',0)
+    purpose=row.get('category','unclassified')
+    if not wire:
+        counts['response_bytes']=row.get('response_bytes',0)
+        counts['category:'+purpose+':response_bytes']=row.get('response_bytes',0)
     counts['physical_http_requests']=n
     if n:
+        counts['request_bytes']=row.get('request_bytes',0)
+        counts['category:'+purpose+':request_bytes']=row.get('request_bytes',0)
+        counts['category:'+purpose+':physical_http_requests']=n
+        counts['category:'+purpose+':logical_rpc_calls']=len(row['methods'])
+        counts.update({'category:'+purpose+':method:'+m:v for m,v in Counter(row['methods']).items()})
         counts['logical_rpc_calls']=len(row['methods'])
         counts.update({'method:'+m:v for m,v in Counter(row['methods']).items()})
         counts['retries']=int(row.get('retry_attempt',0)>0)
@@ -55,6 +98,8 @@ def record(db, row, *, wire=True):
     counts['responses_429']=int(row.get('http_status')==429 or row.get('rpc_error_code')==429)
     counts['provider_queue_wait_seconds']=row.get('wait_seconds',0)
     counts['transport_latency_seconds']=row.get('latency_seconds',0)
+    counts['category:'+purpose+':scheduling_wait_seconds']=row.get('wait_seconds',0)
+    counts['category:'+purpose+':latency_seconds']=row.get('latency_seconds',0)
     if row.get('boundary'):counts['failure:'+row['boundary']]=1
     db.executemany('INSERT INTO provider_usage VALUES(?,?,?,?) ON CONFLICT(endpoint,lane,metric) DO UPDATE SET value=value+excluded.value',
         [(row['endpoint_fingerprint'],row['lane'],key,value) for key,value in counts.items()])
@@ -78,6 +123,11 @@ def snapshot(path, fingerprint):
         'retries','responses_429','provider_queue_wait_seconds','transport_latency_seconds','repair_transports',
         'repair_logical_calls','execution_current_state_transports','execution_current_state_logical_calls')}
     result.update(endpoint_fingerprint=fingerprint,logical_calls_by_method=methods,
+        request_bytes=totals['request_bytes'],response_bytes=totals['response_bytes'],
+        verified_billed_cu=None,billed_cu_status='UNMEASURED',
+        work_categories={purpose:{metric[len('category:'+purpose+':'):]:value for metric,value in totals.items()
+            if metric.startswith('category:'+purpose+':')} for purpose in
+            {metric.split(':')[1] for metric in totals if metric.startswith('category:')}},
         consumer_logical_calls=sum(demands.values()),consumer_calls_by_method=demands,
         sanitized_failures={k[8:]:int(v) for k,v in totals.items() if k.startswith('failure:')},
         estimated_cu=estimate(methods),
@@ -89,6 +139,9 @@ def snapshot(path, fingerprint):
             effective_interval_seconds=limits[0],cooldown_until_monotonic=limits[1],database_bytes=Path(path).stat().st_size,
             wal_bytes=_transient_file_size(str(path)+'-wal')),
         historical_physical_requests='UNMEASURABLE before boundary instrumentation')
+    for value in result['work_categories'].values():
+        value['diagnostic_estimated_cu']=estimate({k[7:]:int(n) for k,n in value.items() if k.startswith('method:')})
+        value['verified_billed_cu']=None
     return result
 
 

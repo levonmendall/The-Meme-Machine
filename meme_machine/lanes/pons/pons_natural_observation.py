@@ -27,6 +27,7 @@ from .pons import (
     CurveState, authenticate_curve, curve_abi, factory_record, raw_event,
 )
 from .provider_topology import configured_discovery_rpc, configured_rpc
+from .provider_admission import decision_work
 from .sequencer_feed import SequencerBlockClock
 
 REPORT=Path(os.environ.get("MM_ROBINHOOD_PONS_NATURAL_REPORT","robinhood-pons-natural-report.json"))
@@ -39,6 +40,313 @@ DISCOVERY_DEDICATED_COALESCE_SECONDS=0.20
 RESEARCH_BUY_WEI=10**16
 RESEARCH_RECIPIENT="0x1111111111111111111111111111111111111111"
 ZERO="0x0000000000000000000000000000000000000000"
+
+
+class MarketScout:
+    """Raw observation projection in the existing Candidate/Evidence Plane.
+
+    This is a journal, not a provider, candidate registry or qualification
+    authority. The existing cohort owns the only broad discovery loop. Both
+    strategies read the same identities; public prices never enter canonical
+    History. A cursor commits only after the entire filtered array is retained.
+    """
+    def __init__(self, plane):
+        from meme_machine.runtime.operating_families import require_active
+        require_active('pons')
+        from .pons_natural_paper import _event_topic
+        self.plane = plane
+        self.factory = load('pons_v2_factory')['address'].lower()
+        self.manager = load('uniswap_v4_manager')['address'].lower()
+        self.launch = _event_topic('pons_v2_factory', 'TokenLaunched')
+        self.graduation = _event_topic('pons_v2_factory', 'PoolGraduated')
+        self.curve_topics = [topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)'),
+                             topic('CurveSell(address,address,uint256,uint256,uint256,uint256)')]
+        self.activity_topics = [_event_topic('uniswap_v4_manager', name) for name in
+                         ('Swap', 'ModifyLiquidity', 'Donate', 'ProtocolFeeUpdated')]
+        with plane.lock:
+            plane.db.executescript('''
+                CREATE TABLE IF NOT EXISTS pons_scout_events(
+                    seq INTEGER PRIMARY KEY AUTOINCREMENT, identity TEXT UNIQUE, kind TEXT,
+                    subject TEXT, block INTEGER, body TEXT, hash TEXT, observed REAL);
+                CREATE INDEX IF NOT EXISTS pons_scout_subject ON pons_scout_events(kind,subject,block);
+                CREATE INDEX IF NOT EXISTS pons_scout_retention ON pons_scout_events(kind,observed);
+                CREATE TABLE IF NOT EXISTS pons_scout_pools(
+                    token TEXT PRIMARY KEY, pool TEXT, graduation INTEGER,
+                    expires REAL, cursor INTEGER, attempt INTEGER DEFAULT 0);
+                CREATE INDEX IF NOT EXISTS pons_scout_pool_active ON pons_scout_pools(expires,cursor);
+            ''')
+
+    def _checkpoint(self, key, value):
+        # Called inside our existing Plane transaction, never a nested BEGIN.
+        from meme_machine.runtime.journal import canonical
+        self.plane.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) '
+            'DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body',(key,canonical(value)))
+
+    def _retain(self, events, observed):
+        from collections import Counter
+        from meme_machine.runtime.journal import canonical, digest
+        from .pons_historical import event_id, order
+        counts=Counter(self.plane.checkpoint_read('pons_scout_event_counts') or {})
+        for e in events:
+            signature = e['topics'][0].lower()
+            if signature in (self.launch, self.graduation):
+                if e['address'].lower() != self.factory:
+                    continue
+                kind = 'launch' if signature == self.launch else 'graduation'
+                subject = '0x' + e['topics'][1][-40:]
+            elif signature in self.curve_topics:
+                kind, subject = 'curve', e['address'].lower()
+            else:
+                kind, subject = 'pool', e['topics'][1].lower()
+            # Variants are retained nominations. Only receipt authentication
+            # can resolve a conflicting public body on an otherwise equal id.
+            identity = event_id(e) + ':' + digest(e)
+            inserted=self.plane.db.execute('INSERT OR IGNORE INTO pons_scout_events '
+                '(identity,kind,subject,block,body,hash,observed) VALUES(?,?,?,?,?,?,?)',
+                (identity,kind,subject,order(e)[0],canonical(e),digest(e),observed))
+            counts[kind]+=inserted.rowcount
+        self._checkpoint('pons_scout_event_counts',dict(counts))
+
+    def events(self, kind, *, subject=None, after=0, limit=256):
+        from meme_machine.runtime.journal import digest
+        query = 'SELECT seq,body,hash,observed FROM pons_scout_events WHERE kind=? AND seq>?'
+        args = [kind,after]
+        if subject is not None:
+            query += ' AND subject=?'; args.append(subject.lower())
+        query += ' ORDER BY seq LIMIT ?'; args.append(limit)
+        with self.plane.lock:
+            rows = self.plane.db.execute(query,args).fetchall()
+        result = []
+        for seq,body,checksum,observed in rows:
+            e = json.loads(body)
+            if digest(e) != checksum: raise BoundaryError('scout_journal_corruption')
+            result.append((seq,e,observed))
+        return result
+
+    def gap(self, first, last, reason, *, kind='market'):
+        old=self.plane.checkpoint_read('pons_scout_gap:'+kind)
+        if old:first,last=min(first,old['first']),max(last,old['last'])
+        self.plane.checkpoint('pons_scout_gap:'+kind,dict(first=first,last=last,
+            reason=str(reason),authority='observation_only',complete=False))
+
+    def _clear_gap(self,kind,first,last):
+        key='pons_scout_gap:'+kind;old=self.plane.checkpoint_read(key)
+        if old is None:return
+        if first<=old['first'] and last>=old['last']:old=None
+        elif first<=old['first']<=last:old=dict(old,first=last+1)
+        elif first<=old['last']<=last:old=dict(old,last=first-1)
+        self._checkpoint(key,old)
+
+    def _pages(self,rpc,queries):
+        """Reuse supported RPC batching: four filters, each at most ten blocks."""
+        try:
+            pages=rpc.batch([('eth_getLogs',[q]) for q in queries],scope='pons_scout_discovery')
+        except BoundaryError as exc:
+            if str(exc)!='provider_response_capacity':raise
+            return [self._logs(rpc,q) for q in queries]
+        if not isinstance(pages,list) or len(pages)!=len(queries):
+            raise BoundaryError('scout_log_batch_shape')
+        return [self._logs(rpc,q,provided=page) for q,page in zip(queries,pages)]
+
+    def _logs(self, rpc, query, **prefetched):
+        """Split saturated responses; a single-block overflow stays an open gap."""
+        first,last = int(query['fromBlock'],16),int(query['toBlock'],16)
+        try:
+            rows = prefetched['provided'] if 'provided' in prefetched else rpc.call(
+                'eth_getLogs',[query],scope='pons_scout_discovery')
+            if not isinstance(rows,list): raise BoundaryError('scout_log_array_required')
+            if len(rows) >= 1000: raise BoundaryError('scout_response_saturation')
+        except BoundaryError as exc:
+            if str(exc) not in ('scout_response_saturation','provider_response_capacity',
+                    'provider_log_block_range_limit','provider_rpc_-32005') or first == last:
+                if query.get('address')!=self.manager:self.gap(first,last,str(exc))
+                raise
+            mid = (first+last)//2
+            return (self._logs(rpc,dict(query,toBlock=hex(mid))) +
+                    self._logs(rpc,dict(query,fromBlock=hex(mid+1))))
+        unique = {}
+        from .pons_historical import event_id, order
+        for e in rows:
+            if (e.get('removed') or not first <= order(e)[0] <= last or
+                    not e.get('topics') or e['topics'][0].lower() not in query['topics'][0] or
+                    query.get('address') and e.get('address','').lower() != query['address'] or
+                    len(query['topics']) > 1 and e['topics'][1].lower() not in query['topics'][1]):
+                raise BoundaryError('scout_log_filter_identity')
+            ident = event_id(e)
+            if ident in unique and unique[ident] != e: raise BoundaryError('scout_log_conflict')
+            unique[ident] = e
+        return sorted(unique.values(),key=order)
+
+    @decision_work(3)
+    def read_market(self, rpc, first, last, *, nominate=None):
+        """One topic-OR query serves launches, graduations, buys and sells.
+
+        Curve addresses are created dynamically; factory signatures are retained
+        only at the pinned factory. No unrelated V4/Ramses pool is scanned.
+        """
+        from .pons_historical import order
+        rows = []
+        try:
+            expected=self.plane.checkpoint_read('pons_scout_market_boundary')
+            calls=[('eth_getBlockByNumber',[hex(last),False])]
+            if expected:calls.append(('eth_getBlockByNumber',[hex(expected['block']),False]))
+            headers=rpc.batch(calls,scope='pons_scout_discovery')
+            if len(headers)!=len(calls) or headers[0].get('number')!=hex(last):
+                raise BoundaryError('scout_public_boundary_identity')
+            if expected and headers[-1].get('hash')!=expected['hash']:
+                enrollment=self.plane.checkpoint_read('pons_scout_enrollment')
+                rewind=enrollment['first']-1
+                with self.plane.transaction():
+                    self._checkpoint('pons_scout_market_cursor',rewind)
+                    self._checkpoint('pons_scout_market_boundary',None)
+                    self._checkpoint('pons_scout_reorganizations',
+                        (self.plane.checkpoint_read('pons_scout_reorganizations') or 0)+1)
+                    self.plane.db.execute('UPDATE pons_scout_pools SET cursor=graduation-1')
+                raise BoundaryError('scout_public_reorg')
+            queries=[dict(fromBlock=hex(start),toBlock=hex(min(last,start+9)),
+                topics=[[self.launch,self.graduation,*self.curve_topics]]) for start in range(first,last+1,10)]
+            for offset in range(0,len(queries),4):
+                for page in self._pages(rpc,queries[offset:offset+4]):
+                    observed = self.plane.clock()
+                    with self.plane.transaction(): self._retain(page,observed)
+                    # Current's clock starts before deferred pool scouting.
+                    if nominate:
+                        for e in page:
+                            if e['topics'][0].lower() in self.curve_topics: nominate(e,observed)
+                    rows.extend(page)
+            with self.plane.transaction():
+                if self.plane.checkpoint_read('pons_scout_enrollment') is None:
+                    self._checkpoint('pons_scout_enrollment',dict(first=first,
+                        observed_at=self.plane.clock(),pre_enrollment_coverage='UNOBSERVED'))
+                self._checkpoint('pons_scout_market_cursor',last)
+                self._checkpoint('pons_scout_market_boundary',dict(block=last,hash=headers[0]['hash']))
+                self._clear_gap('market',first,last)
+        except (BoundaryError,ValueError) as exc:
+            if str(exc)=='scout_public_reorg':first=self.plane.checkpoint_read('pons_scout_market_cursor')+1
+            self.gap(first,last,str(exc)); raise
+        return [e for e in sorted(rows,key=order) if e['topics'][0].lower() in self.curve_topics]
+
+    def register_pool(self, row):
+        grad = row['graduation']
+        with self.plane.transaction():
+            old = self.plane.db.execute('SELECT pool,graduation FROM pons_scout_pools WHERE token=?',
+                (row['id'],)).fetchone()
+            identity = (grad['transition']['market'],grad['block'])
+            if old and tuple(old) != identity:
+                # The native history has already proved the old anchor orphaned.
+                self.plane.db.execute('DELETE FROM pons_scout_pools WHERE token=?',(row['id'],))
+            self.plane.db.execute('INSERT OR IGNORE INTO pons_scout_pools '
+                '(token,pool,graduation,expires,cursor) VALUES(?,?,?,?,?)',
+                (row['id'],*identity,grad['at']+7*86400,grad['block']-1))
+
+    def maintain(self):
+        """Retain identities forever; compact raw events after their horizon.
+
+        Pending nominations and unknown pool relationships are never pruned.
+        Native funded positions own independent canonical histories. A small
+        maintenance turn cannot monopolize discovery or provider capacity.
+        """
+        from meme_machine.runtime.journal import digest
+        now=self.plane.clock()
+        with self.plane.transaction():
+            previous=self.plane.checkpoint_read('pons_scout_retention') or dict(at=0,count=0,hash=None)
+            if now-previous['at']<60:return
+            rows=self.plane.db.execute("SELECT seq,kind,body,hash FROM pons_scout_events WHERE observed<? "
+                "AND (kind='curve' OR kind='pool' AND subject IN "
+                "(SELECT pool FROM pons_scout_pools WHERE expires<?)) ORDER BY observed LIMIT 4096",
+                (now-8*86400,now-86400)).fetchall()
+            counts=self.plane.checkpoint_read('pons_scout_event_counts') or {}
+            for seq,kind,body,checksum in rows:
+                if digest(json.loads(body))!=checksum:raise BoundaryError('scout_journal_corruption')
+                self.plane.db.execute('DELETE FROM pons_scout_events WHERE seq=?',(seq,))
+                counts[kind]-=1
+            self._checkpoint('pons_scout_event_counts',counts)
+            self._checkpoint('pons_scout_retention',dict(at=now,count=previous['count']+len(rows),
+                hash=digest([previous['hash'],[(r['seq'],r['hash']) for r in rows]]),
+                basis='raw public observations outside original candidate and recovery horizons',
+                qualification_authority=False))
+
+    @decision_work(3)
+    def read_pools(self, rpc, top):
+        """One fair bounded pool cohort per turn; no population count limit."""
+        with self.plane.transaction():
+            now=self.plane.clock()
+            oldest=self.plane.db.execute('SELECT cursor FROM pons_scout_pools WHERE cursor<? AND expires>=? '
+                'ORDER BY attempt,cursor,token LIMIT 1',(top,now)).fetchone()
+            if oldest is None:return
+            first_cursor=oldest['cursor']
+            # Claim only overlapping checkpoints. An old pool's recovery may
+            # not consume a newer pool's turn without advancing its coverage.
+            rows=self.plane.db.execute('SELECT * FROM pons_scout_pools WHERE cursor<? AND expires>=? '
+                'AND cursor>=? AND cursor<? ORDER BY attempt,cursor,token LIMIT 64',
+                (top,now,first_cursor,first_cursor+40)).fetchall()
+            seq = (self.plane.checkpoint_read('pons_scout_pool_turn') or 0)+1
+            self._checkpoint('pons_scout_pool_turn',seq)
+            self.plane.db.executemany('UPDATE pons_scout_pools SET attempt=? WHERE token=?',
+                [(seq,r['token']) for r in rows])
+        first = min(r['cursor'] for r in rows)+1; end = min(top,first+39)
+        active = [r for r in rows if r['cursor'] < end]
+        ids = sorted({r['pool'] for r in active})
+        events = []
+        try:
+            queries=[dict(address=self.manager,fromBlock=hex(start),toBlock=hex(min(end,start+9)),
+                topics=[self.activity_topics,ids]) for start in range(first,end+1,10)]
+            for page in self._pages(rpc,queries):events.extend(page)
+            with self.plane.transaction():
+                self._retain(events,self.plane.clock())
+                self.plane.db.executemany('UPDATE pons_scout_pools SET cursor=? WHERE token=?',
+                    [(end,r['token']) for r in active])
+                for r in active:self._clear_gap('pools:'+r['pool'],r['cursor']+1,end)
+        except (BoundaryError,ValueError) as exc:
+            for r in active:self.gap(r['cursor']+1,end,str(exc),kind='pools:'+r['pool'])
+            raise
+
+    def signal(self, pool):
+        with self.plane.lock:
+            return self.plane.db.execute("SELECT COALESCE(MAX(seq),0) FROM pons_scout_events "
+                "WHERE kind='pool' AND subject=?",(pool,)).fetchone()[0]
+
+    def activity(self,row):
+        """Bounded provisional momentum; UNKNOWN schedules canonical recovery."""
+        from .abi import decode_event
+        from .pons_survivor_runtime import price_index
+        from .protocols import PoolKey
+        pool=row['graduation']['transition']['market']
+        with self.plane.lock:
+            checkpoint=self.plane.db.execute('SELECT cursor FROM pons_scout_pools WHERE token=?',(row['id'],)).fetchone()
+            raw=self.plane.db.execute("SELECT body FROM pons_scout_events WHERE kind='pool' AND subject=? "
+                "ORDER BY block DESC,seq DESC LIMIT 64",(pool,)).fetchall()
+        complete=(checkpoint is not None and checkpoint[0] >=
+            (self.plane.checkpoint_read('pons_scout_market_cursor') or 0) and
+            not self.plane.checkpoint_read('pons_scout_gap:pools:'+pool) and
+            not self.plane.checkpoint_read('pons_scout_gap:market'))
+        prices=[]
+        key=PoolKey(**row['graduation']['key'])
+        for body, in raw:
+            event=json.loads(body)
+            if event['topics'][0]==self.activity_topics[0]:
+                args=decode_event(load('uniswap_v4_manager')['abi'],event)['args']
+                prices.append(price_index(args['sqrtPriceX96'],row['id'],key))
+        anchor=price_index(row['graduation']['transition']['initialization_sqrt_price_x96'],row['id'],key)
+        return dict(authority='observation_only',complete=complete,activity_samples=len(raw),
+            swap_samples=len(prices),latest_price_index=prices[0] if prices else anchor,
+            high_price_index=max(prices,default=anchor),graduation_price_index=anchor,
+            improving=bool(prices and prices[0]>anchor),buyer_independence='UNKNOWN')
+
+    def snapshot(self):
+        with self.plane.lock:
+            counts = self.plane.checkpoint_read('pons_scout_event_counts') or {}
+            pools = self.plane.db.execute('SELECT COUNT(*) FROM pons_scout_pools').fetchone()[0]
+            frontier = self.plane.db.execute('SELECT MIN(cursor) FROM pons_scout_pools WHERE expires>=?',
+                (self.plane.clock(),)).fetchone()[0]
+            gaps=[json.loads(r[0]) for r in self.plane.db.execute("SELECT body FROM runtime WHERE "
+                "key LIKE 'pons_scout_gap:pools:%' AND body<>'null'")]
+        return dict(authority='observation_only',events=counts,retained_pool_identities=pools,
+            market_cursor=self.plane.checkpoint_read('pons_scout_market_cursor'),
+            market_gap=self.plane.checkpoint_read('pons_scout_gap:market'),
+            pool_gap=gaps or None,
+            minimum_active_pool_cursor=frontier,
+            pre_enrollment_coverage='UNOBSERVED',candidate_count_limit=None)
 
 
 def _one_word(raw,typ="uint256"):

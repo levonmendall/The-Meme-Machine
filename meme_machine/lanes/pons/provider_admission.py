@@ -190,11 +190,13 @@ class Admission:
         from meme_machine.runtime.robinhood.provider_usage import snapshot
         return snapshot(self.path,self.endpoint)
 
-    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None,batch=False):
+    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None,batch=False,role=None):
         from meme_machine.runtime.robinhood.provider_usage import _active
         from meme_machine.runtime.robinhood.provider_authority import failure_class
         attempt=dict(physical_requests=0,path=str(self.path),endpoint_fingerprint=self.endpoint,
             lane=self.lane,session=self.session,methods=methods,scope=scope,retry_attempt=retry_count,batch=batch)
+        from meme_machine.runtime.robinhood.provider_usage import category
+        attempt['category']=category(scope,role)
         token=_active.set(attempt)
         try:admitted=self.acquire(scope,deadline,methods=methods)
         except BaseException:
@@ -219,6 +221,7 @@ class Admission:
             if timing is not None:timing["provider_transport_seconds"]=timing.get("provider_transport_seconds",0)+self.clock()-started
             _active.reset(token)
             row=dict(lane=self.lane,endpoint_fingerprint=self.endpoint,session=self.session,
+                     category=attempt['category'],response_bytes=attempt.get('response_bytes',0),
                      methods=methods,scope=scope,http_status=http_status,rpc_error_code=rpc_code,
                      boundary=boundary,retry_count=retry_count,
                      retry_attempt=retry_count,physical_requests=attempt["physical_requests"],batch=batch,

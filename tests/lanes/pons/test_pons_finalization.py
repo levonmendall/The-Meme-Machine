@@ -4,6 +4,8 @@ Synthetic population/market paths prove mechanics, never historical recall or
 provider throughput. Native policy authority remains in the existing modules.
 """
 from collections import Counter
+from engineering.pons_history.fixtures import Tape
+from meme_machine.lanes.pons.pons_historical import FORWARD_PLAN, PLAN, Preparation
 from copy import deepcopy
 from dataclasses import asdict
 import os
@@ -51,6 +53,7 @@ def graduation(n,at=100,block=100):
 
 class OfflineRPC:
     used=0
+    chain_verified=True
     def call(self,method,params,scope):
         if method=='eth_getBlockByNumber':return block_header(int(params[0],16))
         raise AssertionError(method)
@@ -299,40 +302,31 @@ class SurvivorSchedulingTests(RuntimeCase):
         for _ in range(512):seen.append(self.runtime.history.qualification_turn(self.runtime.history.rows(),201)['id'])
         self.assertEqual(len(set(seen)),POPULATION)
 
-    def test_graduation_burst_is_retained_before_one_authentication(self):
+    def test_1025_graduation_burst_is_durable_before_one_authentication_turn(self):
         factory=load('pons_v2_factory')['address'].lower();signature=_event_topic('pons_v2_factory','PoolGraduated')
         events=[dict(observation(n),address=factory,topics=[signature,'0x'+'0'*24+address(n)[2:]]) for n in range(1,POPULATION+1)]
-        self.runtime.history.set_meta('discovery_block',99)
-        self.runtime.now=lambda:100
-        def transition(rpc,candidate,start,end,report):
-            evidence=graduation(int(candidate['token'],16))
-            return dict(evidence['transition'],graduation_at=100),PoolKey(**evidence['key']),block_header(100),evidence['record']
-        with patch(MODULE+'._latest_header',return_value=block_header(100)), \
-             patch.object(self.runtime.rpc,'batch',return_value=[list(reversed(events))]), \
-             patch(MODULE+'._factory_record_at',side_effect=lambda rpc,t,b,r:dict(curve=address(70000))), \
-             patch(MODULE+'._graduation_transition',side_effect=transition) as authenticate:
-            self.runtime.discover()
-        self.assertEqual(authenticate.call_count,1)
+        history=self.runtime.history
+        history.retain_graduations(list(reversed(events)),100,block_hash=block_header(100)['hash'])
+        self.assertEqual(history.pending_graduations(),POPULATION)
+        self.assertEqual(history.rows(),[]) # nominations never fabricate authenticated candidates
+        turn=history.graduation_batch()
+        self.assertEqual(len(turn),1)
+        history.graduation_complete(turn[0][0])
+        history.close();self.runtime.history=PonsHistory(self.root/'survivor/history.sqlite',policy=SURVIVOR_HASH)
+        self.assertEqual(self.runtime.history.pending_graduations(),POPULATION-1)
         self.assertEqual(self.runtime.history.get_meta('discovery_block'),100)
-        self.assertEqual(self.runtime.history.pending_graduations(),1024)
-        self.assertEqual(len(self.runtime.history.rows()),1)
-        self.runtime.history.close()
-        self.runtime.history=PonsHistory(self.root/'survivor/history.sqlite',policy=SURVIVOR_HASH)
-        self.assertEqual(self.runtime.history.pending_graduations(),1024)
 
-    def test_cold_start_seven_day_boundary_is_inclusive_and_resumes_search(self):
-        self.runtime.rpc.call=lambda m,p,scope:dict(number=p[0],timestamp=hex(int(p[0],16)*10000),hash=p[0])
-        head=dict(number=hex(100),timestamp=hex(1000000),hash='head')
-        self.assertIsNone(self.runtime._bootstrap_cursor(head))
-        self.runtime.history.close()
-        self.runtime.history=PonsHistory(self.root/'survivor/history.sqlite',policy=SURVIVOR_HASH)
-        cursor=None
-        for _ in range(10):
-            cursor=self.runtime._bootstrap_cursor(head)
-            if cursor is not None:break
-        # 1,000,000 - 604,800 = 395,200. Block 40 is the first eligible block.
-        self.assertEqual(cursor,39)
-        self.assertEqual(self.runtime.history.get_meta('discovery_block'),39)
+    def test_cold_start_inclusive_enrollment_has_no_seven_day_search(self):
+        tape=Tape(candidates=0);tape.top=tape.grad
+        self.runtime.rpc=tape;self.runtime.now=lambda:int(tape.header(tape.top)['timestamp'],16)
+        self.runtime.discover()
+        plan=self.runtime.history.get_meta(FORWARD_PLAN)
+        self.assertEqual(plan['first'],tape.top)
+        self.assertEqual(self.runtime.history.get_meta('discovery_block'),tape.top)
+        self.assertIsNone(self.runtime.history.get_meta(PLAN))
+        self.assertIsNone(self.runtime.history.get_meta('discovery_bootstrap'))
+        self.runtime.forward_preparation=None;self.runtime.discover()
+        self.assertEqual(self.runtime.history.get_meta(FORWARD_PLAN)['enrollment_header'],plan['enrollment_header'])
 
     def test_first_position_failure_does_not_starve_second_or_resume_discovery(self):
         for n in (1,2):
@@ -393,15 +387,19 @@ class SurvivorSchedulingTests(RuntimeCase):
         self.assertEqual(row['position'],'native-controller');self.assertFalse(row['complete'])
         self.assertFalse(self.runtime.history.finish_recovery(address(1),block=140,block_hash='fork'))
 
-    def test_graduation_discovery_fork_restarts_bounded_scan_without_losing_nominees(self):
-        self.runtime.history.retain_graduations([observation(1)],99,block_hash='orphan')
-        def batch(calls,scope):
-            return [([] if m=='eth_getLogs' else block_header(int(p[0],16))) for m,p in calls]
-        with patch(MODULE+'._latest_header',return_value=block_header(100)),patch.object(self.runtime.rpc,'batch',side_effect=batch):
-            with self.assertRaisesRegex(BoundaryError,'survivor_discovery_reorg'):self.runtime.discover()
-        self.assertIsNone(self.runtime.history.get_meta('discovery_block'))
+    def test_graduation_discovery_fork_recovers_tail_without_losing_canonical_nominee(self):
+        tape=Tape(candidates=1);tape.top=tape.grad
+        self.runtime.rpc=tape;self.runtime.now=lambda:int(tape.header(tape.top)['timestamp'],16)
+        with patch.object(Preparation,'authenticate_step',return_value=False):
+            self.runtime.discover()
+            before=self.runtime.history.graduation_batch()[0][1]
+            tape.top+=1;self.runtime.discover();tape.reorg(tape.top)
+            self.runtime.discover()
         self.assertEqual(self.runtime.history.pending_graduations(),1)
-        self.assertEqual(self.runtime.history.get_meta('discovery_reorgs'),1)
+        self.assertEqual(self.runtime.history.graduation_batch()[0][1],before)
+        self.assertEqual(self.runtime.history.get_meta('discovery_block'),tape.top)
+        self.assertIsNone(self.runtime.history.get_meta(PLAN))
+        self.assertTrue(self.runtime.history.db.execute('SELECT COUNT(*) FROM pons_historical_ranges WHERE valid=0').fetchone()[0])
 
     def test_later_canonical_graduation_reactivates_orphan_without_native_reentry(self):
         identity=address(1);row=self.runtime.history.graduate(identity,graduation(1));row.update(block=140,position='native-controller')

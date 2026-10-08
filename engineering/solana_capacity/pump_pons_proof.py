@@ -106,7 +106,9 @@ def pons(out,endpoint,budget):
 
     The Survivor controller constructor is intentionally unused: no native
     monetary book exists in this proof. Its evidence methods remain unchanged.
-    A cold seven-day startup remains mandatory and may exhaust the approved cap.
+    Survivor discovery enrolls forward with the production runtime. No seven-day
+    seed or census is an operational prerequisite. This technical harness still
+    cannot certify full candidate qualification or native position acceptance.
     """
     from meme_machine.lanes.pons import BoundaryError
     from meme_machine.lanes.pons.pons_selective_cohort import _discovery,_discovery_curve_events

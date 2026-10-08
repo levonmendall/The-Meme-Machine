@@ -5,6 +5,8 @@ from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
 from meme_machine.lanes.pons.provider import Rpc
 from meme_machine.lanes.pons.provider_topology import PacedRpc
 from meme_machine.lanes.pons import BoundaryError
+from meme_machine.lanes.pons.provider_topology import configured_rpc
+from engineering.pons_history.fixtures import Tape
 
 URL='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_RUN377_FIXTURE'
 
@@ -15,23 +17,24 @@ class SurvivorProviderTests(unittest.TestCase):
     'MM_DIRECTIONAL_SLEEVE_DB':td+'/sleeve','MM_DIRECTIONAL_COHORT_ID':'run377'},clear=True):
    runtime=Runtime(td+'/survivor',10**18,'run377',URL)
    try:
-    # Deployment authentication is independently covered. Preserve the actual
-    # configured/PacedRpc/Rpc constructors that rejected all 120 live steps.
-    runtime.deployments_verified=True
-    runtime.history.set_meta('discovery_block',0x122)
-    with patch.object(PacedRpc,'batch',return_value=[[]]), \
-         patch('meme_machine.lanes.pons.pons_survivor_runtime._latest_header',return_value={'number':'0x123','hash':'block123'}):
+    # Preserve the real configured/PacedRpc/Rpc constructors and chain guard;
+    # only their transport is injected. No provider connection is opened.
+    tape=Tape(candidates=0);tape.top=tape.grad
+    def provider(endpoint,**kwargs):return configured_rpc(endpoint,transport=tape._read,**kwargs)
+    with patch('meme_machine.lanes.pons.pons_survivor_runtime.configured_rpc',side_effect=provider):
      result=runtime.step(admit=True)
     self.assertIsNone(result['last_boundary'])
-    self.assertEqual(runtime.history.get_meta('discovery_block'),0x123)
+    self.assertEqual(runtime.history.get_meta('discovery_block'),tape.top)
     self.assertLessEqual(runtime.rpc.limit,200)
     self.assertLessEqual(runtime.rpc.per_scope,runtime.rpc.limit)
     self.assertTrue(runtime.rpc.canonical_authority)
+    self.assertTrue(runtime.rpc.chain_verified)
     self.assertEqual(runtime.rpc.shared_admission.interval,.5)
     first=runtime.rpc;first.used=151
-    with patch('meme_machine.lanes.pons.pons_survivor_runtime._latest_header',return_value={'number':'0x123','hash':'block123'}):
+    with patch('meme_machine.lanes.pons.pons_survivor_runtime.configured_rpc',side_effect=provider):
      self.assertIsNone(runtime.step(admit=True)['last_boundary'])
     self.assertIsNot(first,runtime.rpc)
+    self.assertTrue(runtime.rpc.chain_verified)
     self.assertEqual(runtime.book.reconcile()['open_positions'],0)
     self.assertTrue(runtime.sleeve.reconcile()['reconciled'])
    finally:runtime.close()

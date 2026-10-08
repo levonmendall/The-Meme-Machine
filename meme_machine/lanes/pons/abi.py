@@ -1,6 +1,7 @@
 """Small strict ABI reader for authenticated research events and read calls."""
 from . import BoundaryError
 from .keccak import keccak256
+from functools import lru_cache
 
 
 def signature(item):
@@ -11,6 +12,7 @@ def signature(item):
     return item['name'] + '(' + ','.join(typ(x) for x in item['inputs']) + ')'
 
 
+@lru_cache(maxsize=256)
 def topic(sig):
     return '0x' + keccak256(sig.encode()).hex()
 

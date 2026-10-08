@@ -20,6 +20,7 @@ from .pons_attempts import Attempts, decision_category, failure_category
 from meme_machine.runtime.survivor_paper_book import PaperBook
 from meme_machine.runtime.robinhood.plane import Plane
 from meme_machine.runtime.robinhood.pons import plane_path
+from meme_machine.runtime.robinhood.provider_usage import evidence_work
 from . import BoundaryError
 from .abi import calldata,words,scalar
 from .identity import load,authenticate
@@ -49,6 +50,8 @@ capacity. Searching cached quotes issues zero additional provider calls.
         self.runtime=runtime;self.state=state;self.cache={};self.budget=budget;self.acquired=time.monotonic()
         self.prepared=set();self.prepared_ladder=False;self.gas_price=None
 
+    @decision_work(1)
+    @evidence_work('final_qualification')
     def _fetch(self,sizes):
         from .pons_quotes import quote_deadline
         with quote_deadline(self.runtime.rpc,self.state['acquired']):
@@ -122,7 +125,12 @@ capacity. Searching cached quotes issues zero additional provider calls.
 
 
 class Runtime:
-    def __init__(self,root,capital,run_id,endpoint):
+    # Forty blocks every five seconds cannot follow the measured ~9.9 blocks/s
+    # chain. Reuse the same serialized worker more frequently; shared provider
+    # admission, range limits and position-first ordering stay authoritative.
+    observation_interval_seconds=3
+
+    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None):
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
         self.capital=capital;self.run_id=run_id;self.endpoint=endpoint
         self.sleeve=open_sleeve('pons',capital)
@@ -134,7 +142,11 @@ class Runtime:
                             policy_hash=POLICY_HASH,initial=capital)
         from meme_machine.runtime.survivor_terminal_archive import compact
         compact(self.book,self.sleeve,self.history)
-        self.plane=Plane(plane_path(self.root/'candidate-evidence.sqlite'))
+        self.plane=Plane(scout_path if scout_path is not None else plane_path(self.root/'candidate-evidence.sqlite'))
+        self.scout=None
+        if scout_path is not None:
+            from .pons_natural_observation import MarketScout
+            self.scout=MarketScout(self.plane)
         self.attempts=Attempts(self.plane)
         self.rpc=None;self.current=None;self.last_error=None
 
@@ -143,9 +155,8 @@ class Runtime:
     def historical_preparation_step(self):
         """Explicit preparation turn on this runtime's existing history authority.
 
-        The ordinary Current/Survivor scheduling and startup guard are unchanged.
-        An authorized historical executor or existing Survivor worker can drive
-        this after native position maintenance. It creates no economic decision.
+        Explicit research/recovery only: ordinary startup and scheduling never
+        call this method. It creates no economic decision or admission prerequisite.
         """
         from .pons_historical import Preparation
         def provider():
@@ -170,6 +181,9 @@ class Runtime:
     def _provider(self):
         if self.rpc is None or self.rpc.used>150:
             self.rpc=configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0)
+        # Session rotation preserves deployment pins, but each new transport
+        # still has to establish canonical chain identity before reuse.
+        if not getattr(self.rpc,'chain_verified',False):self.rpc.verify_chain()
         if not getattr(self,'deployments_verified',False):
             roles=('pons_v2_factory','pons_v2_hook','uniswap_v4_manager')
             results=self.rpc.batch([('eth_getCode',[load(role)['address'],'latest']) for role in roles],scope='pons_survivor')
@@ -178,112 +192,155 @@ class Runtime:
 
     @decision_work(4)
     def discover(self):
-        # A prepared history stays on its durable acquisition path after restart.
-        # Unseeded ordinary discovery keeps its original ten/forty-block limits.
-        # The runtime adapter also uses ten/forty: larger historical requests are
-        # confined to a separately driven preparation with a capability receipt.
-        from .pons_historical import PLAN,number
-        prepared=self.history.get_meta(PLAN)
-        if prepared is not None:
-            worker=getattr(self,'historical_preparation',None)
-            if worker is not None and worker.restored and prepared.get('ready'):
-                header=_latest_header(self.rpc)
-                if number(header)>number(prepared['target']):worker.extend(header)
-            self.historical_readiness=self.historical_preparation_step()
+        """Independent prospective factory census, never a cold market scan.
+
+        The original history database owns enrollment, launch/graduation witnesses
+        and bounded gap recovery. Its aggregate coverage is reporting only.
+        """
+        from .pons_historical import Preparation, FORWARD_PLAN, number
+        if getattr(self,'scout',None) is not None:
+            return self._discover_scout()
+        worker=getattr(self,'forward_preparation',None)
+        if worker is None:
+            def provider():
+                self._provider()
+                return self.rpc
+            worker=Preparation(self.history,provider,forward_only=True,clock=self.now)
+            self.forward_preparation=worker
+        plan=self.history.get_meta(FORWARD_PLAN)
+        if plan is None:
+            worker.begin()
+        elif not worker.restored:
+            worker.resume()
+        # A moving frontier never waits for unrelated history or census maturity.
+        header=_latest_header(self.rpc)
+        plan=self.history.get_meta(FORWARD_PLAN)
+        if number(header)==number(plan['target']) and header['hash']!=plan['target']['hash']:
+            worker.resume()
+        if number(header)>number(plan['target']):worker.extend(header)
+        worker.discover_step()
+        worker.authenticate_step()
+        self.historical_readiness=worker.readiness()
+        last=self.history.get_meta('pons_forward_maintenance_at')
+        if last is None or self.now()-last>=60:
+            plan=self.history.get_meta(FORWARD_PLAN)
+            worker.maintain(recovery_before=plan['cutoff']-86400)
+            self.history.set_meta('pons_forward_maintenance_at',self.now())
+
+    def _discover_scout(self):
+        """Consume the shared journal; zero independent broad Alchemy scans."""
+        from .pons_historical import Preparation, FORWARD_PLAN
+        after=self.history.get_meta('pons_scout_graduation_seq') or 0
+        nominations=self.scout.events('graduation',after=after)
+        if nominations:
+            with self.history.transaction():
+                for seq,event,_ in nominations:
+                    self.history.retain_graduations([event],int(event['blockNumber'],16))
+                    self.history.set_meta('pons_scout_graduation_seq',seq)
+        enrollment=self.plane.checkpoint_read('pons_scout_enrollment')
+        if enrollment is None:
+            self.historical_readiness=dict(ready=False,category='PENDING_EVIDENCE',
+                qualification_authority=False,pre_enrollment_coverage='UNOBSERVED')
             return
-        header=_latest_header(self.rpc);top=int(header['number'],16)
-        cursor=self.history.get_meta('discovery_block')
-        if cursor is None:
-            cursor=self._bootstrap_cursor(header)
-            if cursor is None:return
-        expected=self.history.get_meta('discovery_block_hash')
-        if top==cursor and expected and header['hash']!=expected:
-            self.history.invalidate_discovery()
-            raise BoundaryError('survivor_discovery_reorg')
-        if top>cursor:
-            end=min(top,cursor+40);factory=load('pons_v2_factory')['address'].lower()
-            calls=[('eth_getLogs',[dict(address=factory,fromBlock=hex(first),toBlock=hex(min(end,first+9)),
-                topics=[_event_topic('pons_v2_factory','PoolGraduated')])]) for first in range(cursor+1,end+1,10)]
-            count=len(calls)
-            if end!=top:calls.append(('eth_getBlockByNumber',[hex(end),False]))
-            if expected:calls.append(('eth_getBlockByNumber',[hex(cursor),False]))
-            values=self.rpc.batch(calls,scope='pons_survivor')
-            if len(values)!=len(calls):raise BoundaryError('survivor_graduation_range_incomplete')
-            boundary=header if end==top else values[count]
-            if int(boundary['number'],16)!=end or not boundary.get('hash'):
-                raise BoundaryError('survivor_discovery_boundary_identity')
-            if expected and (int(values[-1]['number'],16)!=cursor or values[-1]['hash']!=expected):
-                self.history.invalidate_discovery()
-                raise BoundaryError('survivor_discovery_reorg')
-            batches=values[:count]
-            if len(batches)!=count or any(not isinstance(b,list) for b in batches):
-                raise BoundaryError('survivor_graduation_range_incomplete')
-            events=[]
-            for (_,params),batch in zip(calls,batches):
-                q=params[0]
-                for event in batch:
-                    if (event.get('removed') or event.get('address','').lower()!=factory
-                            or not int(q['fromBlock'],16)<=int(event['blockNumber'],16)<=int(q['toBlock'],16)
-                            or not event.get('topics') or event['topics'][0]!=q['topics'][0]):
-                        raise BoundaryError('survivor_graduation_log_identity')
-                    events.append(event)
-            events.sort(key=lambda e:(int(e['blockNumber'],16),int(e.get('transactionIndex','0x0'),16),int(e.get('logIndex','0x0'),16)))
-            self.history.retain_graduations(events,end,block_hash=boundary['hash'])
-        # Authentication is scheduling work. Even a burst larger than 32 remains
-        # durable; a failed member rotates rather than blocking every later one.
-        for nomination,event in self.history.graduation_batch():
-            if len(event['topics'])<2:raise BoundaryError('survivor_graduation_token')
-            token='0x'+event['topics'][1][-40:].lower();block=int(event['blockNumber'],16)
-            report={'reads':[]};record=_factory_record_at(self.rpc,token,block,report)
-            result=_graduation_transition(self.rpc,dict(token=token,curve=record['curve']),block,block,report)
-            if result is None:raise BoundaryError('survivor_graduation_missing')
-            transition,key,h,record=result
-            canonical=self.rpc.call('eth_getBlockByNumber',[hex(block),False],scope='pons_survivor')
-            if int(canonical['number'],16)!=block or canonical['hash']!=h['hash']:
-                raise BoundaryError('survivor_graduation_canonical_membership_disagreement')
-            if record['pairToken']!=ZERO:
-                self.attempts.record(token,0,'graduation','STRUCTURAL_INELIGIBLE',at=transition['graduation_at'],reason='non_native_quote')
-                self.history.graduation_complete(nomination);continue
-            evidence=dict(at=transition['graduation_at'],block=block,block_hash=h['hash'],
-                transition=transition,key=asdict(key),record=record,
-                source='robinhood_authenticated_candidate_evidence_plane')
-            if (self.history.get(token) is None and (self.history.expired(evidence)
-                    or self.now()-evidence['at']>POLICY['universe']['max_seconds_after_graduation'])):
-                self.attempts.record(token,0,'graduation','EXPIRED_BY_STRATEGY_HORIZON',at=evidence['at'],reason='strategy_horizon_expired')
-                self.history.graduation_complete(nomination);continue
-            old=self.history.get(token)
-            if old and old['graduation']!=evidence and old.get('recovery')!='graduation_membership_unavailable':
-                anchor=self.rpc.call('eth_getBlockByNumber',[hex(old['graduation']['block']),False],scope='pons_survivor')
-                if anchor['hash']!=old['graduation']['block_hash']:
-                    old['complete']=False;old['recovery']='graduation_membership_unavailable';self.history.save(old)
-            if old and old.get('recovery')=='graduation_membership_unavailable':
-                p=price_index(transition['initialization_sqrt_price_x96'],token,key)
-                row=self.history.replace_orphaned_graduation(token,evidence,anchor_price=p)
-            else:row=self.history.graduate(token,evidence)
-            if row['state']=='retired':self.history.graduation_complete(nomination);continue
-            if row.get('block') is None:
-                row['block']=block;self.history.save(row)
-                p=price_index(transition['initialization_sqrt_price_x96'],token,key)
-                self.history.append(token,through=evidence['at'],events=[],points=[(evidence['at'],str(p))],complete=True)
-            self.history.graduation_complete(nomination)
+        worker=getattr(self,'forward_preparation',None)
+        if worker is None:
+            def provider():self._provider();return self.rpc
+            worker=Preparation(self.history,provider,forward_only=True,clock=self.now,observations=self.scout)
+            self.forward_preparation=worker
+        if self.history.get_meta(FORWARD_PLAN) is None:
+            worker.begin(enrollment_block=enrollment['first'])
+        elif not worker.restored:worker.resume()
+        reorgs=self.plane.checkpoint_read('pons_scout_reorganizations') or 0
+        if reorgs != self.history.get_meta('pons_scout_checked_reorganizations'):
+            worker.resume()
+            self.history.set_meta('pons_scout_checked_reorganizations',reorgs)
+        if self.history.pending_graduations():
+            with evidence_work('canonical_verification'):worker.authenticate_step()
+        if not getattr(self,'scout_registered',False):
+            for row in self.history.rows():self.scout.register_pool(row)
+            self.scout_registered=True
+        token=getattr(worker,'last_authenticated_candidate',None)
+        if token is not None:
+            row=self.history.get(token)
+            if row:self.scout.register_pool(row)
+            worker.last_authenticated_candidate=None
+        self.historical_readiness=dict(ready=True,mode='shared_public_scout',
+            qualification_authority=False,market_wide_coverage_required=False,
+            pre_enrollment_coverage='UNOBSERVED',scout=self.scout.snapshot(),
+            pending_canonical_graduations=self.history.pending_graduations())
 
-    def _bootstrap_cursor(self,header):
-        """One header per step finds the full seven-day domain on a cold start."""
-        top=int(header['number'],16);at=int(header['timestamp'],16)
-        search=self.history.get_meta('discovery_bootstrap')
-        if search is None:
-            search=dict(low=-1,high=top,cutoff=max(0,at-POLICY['universe']['max_seconds_after_graduation']))
-        if search['low']+1<search['high']:
-            mid=(search['low']+search['high'])//2
-            witness=self.rpc.call('eth_getBlockByNumber',[hex(mid),False],scope='pons_survivor')
-            if int(witness['number'],16)!=mid:raise BoundaryError('survivor_bootstrap_header_identity')
-            search['low' if int(witness['timestamp'],16)<search['cutoff'] else 'high']=mid
-            self.history.set_meta('discovery_bootstrap',search)
-        if search['low']+1==search['high']:
-            self.history.set_meta('discovery_block',search['low'])
-            return search['low']
-        return None
+    def _watch_due(self,row,now):
+        """Cheap scheduling, without deleting an economic or unknown candidate.
 
+        Every new pool observation can reactivate a weak candidate. Timed window
+        changes and the original four-hour boundary also get fresh evidence.
+        Unknown or interrupted work remains due until canonical hydration finishes.
+        """
+        age=now-row['graduation']['at']
+        if age<POLICY['universe']['min_seconds_after_graduation']:return False
+        if row.get('recovery') or row.get('complete') is not True:return True
+        if not row.get('decision'):return True
+        if self.scout.signal(row['graduation']['transition']['market']) != row.get('scout_checked_signal',-1):return True
+        return now >= row.get('scout_next_check',now)
+
+    def _deep_watch_due(self,row,now):
+        if self._watch_due(row,now):return True
+        signal=self.scout.signal(row['graduation']['transition']['market'])
+        if row.get('scout_level')=='deep_watch':
+            return signal != row.get('scout_hydrated_signal',-1)
+        activity=self.scout.activity(row)
+        if row.get('recovery') or activity['improving']:
+            row['scout_level']='deep_watch';self.history.save(row)
+            return True
+        # A newly registered pool may still be catching up in the public scout.
+        # Before the original entry age, this is pending observation, not an
+        # economic rejection or a reason to hydrate every new identity. Mature
+        # candidates and canonical recovery already remain due above.
+        return False
+
+    def _schedule_watch(self,row,now,signal):
+        # These are mathematical feature boundaries in the frozen policy, not
+        # new strategy thresholds. No future event is inspected.
+        points,events=self.history.facts(row['id'],now)
+        windows=tuple(POLICY['trend'][k] for k in ('short_window_seconds','medium_window_seconds',
+            'long_window_seconds','base_seconds','breakout_exclusion_seconds'))
+        boundaries=[p['at']+window+1 for p in points for window in windows if p['at']+window+1>now]
+        boundaries += [e['at']+window+1 for e in events for window in (1800,3600) if e['at']+window+1>now]
+        # A missed public notification cannot tombstone an identity. A bounded
+        # recovery probe checks the candidate even in a quiet public journal.
+        boundaries.append(now+60)
+        row.update(scout_next_check=min(boundaries),
+            scout_checked_signal=signal)
+        return row
+
+    def candidate_readiness(self,candidate,*,through_block=None,through_hash=None):
+        """Native contiguous history and lineage, independent of market recall.
+
+        Fresh canonical state, quotes and the frozen strategy remain mandatory.
+        A persisted readiness result has no funding or fresh-state authority.
+        """
+        row=self.history.get(candidate)
+        reasons=[]
+        if row is None:
+            reasons.append('candidate_missing')
+        else:
+            graduation=row['graduation']
+            if not all(graduation.get(k) for k in ('transition','key','record','block_hash')):
+                reasons.append('candidate_lineage_incomplete')
+            if row.get('complete') is not True or row.get('recovery'):
+                reasons.append('candidate_continuity_incomplete')
+            if row.get('block') is None or not row.get('block_hash',graduation.get('block_hash')):
+                reasons.append('candidate_checkpoint_missing')
+            if row.get('block')!=graduation.get('block') and not row.get('block_hash'):
+                reasons.append('candidate_checkpoint_missing')
+            if through_block is not None and row.get('block')!=through_block:
+                reasons.append('candidate_history_not_caught_up')
+            if through_hash is not None and row.get('block_hash',graduation.get('block_hash'))!=through_hash:
+                reasons.append('candidate_checkpoint_noncanonical')
+        return dict(ready=not reasons,category='COMPLETE' if not reasons else 'INCOMPLETE_EVIDENCE',
+                    reasons=reasons,market_wide_coverage_required=False)
+
+    @evidence_work('deep_watch')
     def _increment(self,row,end):
         start=row['block']+1
         if end<start:return
@@ -320,10 +377,16 @@ class Runtime:
                 high=str(max(int(p),int(old['high']))) if old else p)
         self.history.append_block(row['id'],block=end,header=h,events=events,points=sorted(points.items()))
 
+    @evidence_work('deep_watch')
     def _increment_candidates(self,rows,top):
         if not rows:return
         population=len(rows)
-        rows=self.history.history_batch(rows,top)
+        pending=[r for r in rows if r.get('block') is not None and r['block']<top]
+        if not pending:return
+        first=min(pending,key=lambda r:(r.get('history_attempt',0),r['block'],r['id']))['block']
+        # Separate acquisition credit for overlapping checkpoints: an older
+        # recovery cannot claim a newer pool without advancing that pool.
+        rows=self.history.history_batch([r for r in pending if first<=r['block']<first+40],top)
         if not rows:return
         start=min(row['block'] for row in rows)+1;end=min(top,start+39)
         if end<start:return
@@ -351,6 +414,8 @@ class Runtime:
             reorg_recoveries=reorgs,
             maximum_lag_blocks=max(top-self.history.get(r['id'])['block'] for r in rows))
 
+    @decision_work(1)
+    @evidence_work('final_qualification')
     def fresh_state(self,candidate):
         self._provider();self.current=self.history.get(candidate)
         from .pons_quotes import pinned_block,quote_deadline
@@ -394,15 +459,23 @@ class Runtime:
         # Available cash is tested only after the durable decision. Identical
         # market evidence is qualified against the same realized-equity target.
         cap=min(sizing['target'],flow['turnover']//POLICY['execution']['min_turnover_multiple'])
-        capacity=resize(cap,sizing["minimum"],quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
         self.facts=dict(now=now,graduation_at=row['graduation']['at'],lineage_proven=True,native_quote=True,
             evidence_acquired_monotonic=state['acquired'],
             price_points=[dict(at=p['at'],price_index=int(p['price'])) for p in points],
             flow_30m=window(now-1800,now+1),flow_previous_30m=window(now-3600,now-1800),
-            capital_quote=sizing['realized_equity'],continuity_complete=self.history.get(row['id'])['complete'],
-            execution=dict(roundtrip_loss_bps=capacity.ordinary_loss_bps,
-                double_size_roundtrip_loss_bps=capacity.double_loss_bps,capacity=capacity.telemetry()),
+            capital_quote=sizing['realized_equity'],continuity_complete=self.candidate_readiness(row['id'],
+                through_block=state['block'],through_hash=state['block_hash'])['ready'],
+            execution={},
             organic_flow=flow)
+        preview=evaluate_entry(self.facts)
+        missing_execution={'missing_roundtrip_loss_bps','missing_double_size_roundtrip_loss_bps'}
+        market_ready=(self.facts['continuity_complete'] and
+            not (set(preview['all_rejections'])-missing_execution))
+        if market_ready:
+            capacity=resize(cap,sizing["minimum"],quotes.loss,ordinary_limit=450,stress_limit=650,max_steps=4)
+            self.facts['execution']=dict(roundtrip_loss_bps=capacity.ordinary_loss_bps,
+                double_size_roundtrip_loss_bps=capacity.double_loss_bps,capacity=capacity.telemetry())
+        self.facts['execution_evidence_status']='COMPLETE' if market_ready else 'PENDING_EVIDENCE'
         return self.facts
 
     def qualify(self,facts):
@@ -534,11 +607,6 @@ class Runtime:
             from meme_machine.runtime.storage import compact_survivor
             compact_survivor(self,'pons')
             self._provider()
-            from .pons_historical import PLAN
-            historical_mode=self.history.get_meta(PLAN) is not None
-            history_verified=(not historical_mode or
-                bool(getattr(self,'historical_readiness',{}).get('ready')) and
-                bool(getattr(getattr(self,'historical_preparation',None),'restored',False)))
             def position_priority(row):
                 if not row.get('position'):return 2
                 try:position=self.book._load(row['position'])
@@ -546,7 +614,7 @@ class Runtime:
                 return 0 if position['status']=='open' and position['tokens']>0 else 1
             for row in sorted(self.history.rows(),key=position_priority):
                 if row.get('position'):
-                    try:self._position(row,admit=admit and history_verified)
+                    try:self._position(row,admit=admit)
                     except (ValueError,BoundaryError) as exc:
                         errors.append(str(exc));self._failure(row,str(exc),phase='position')
             if admit:
@@ -554,23 +622,27 @@ class Runtime:
                 try:self.discover()
                 except (ValueError,BoundaryError) as exc:
                     errors.append(str(exc))
-                    if historical_mode:self.historical_readiness=dict(ready=False,category='INCOMPLETE_EVIDENCE',reason=str(exc))
-            if historical_mode:
-                # Existing positions were maintained above. Incomplete census or
-                # histories cannot authorize new Survivor decisions or funding.
-                admit=(admit and bool(getattr(self,'historical_readiness',{}).get('ready')) and
-                    bool(getattr(getattr(self,'historical_preparation',None),'restored',False)))
+                    self.historical_readiness=dict(ready=False,category='INCOMPLETE_EVIDENCE',
+                        reason=str(exc),qualification_authority=False,pre_enrollment_coverage='UNOBSERVED')
             rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
                 for expired in list(rows):
                     if self.now()-expired['graduation']['at']>POLICY['universe']['max_seconds_after_graduation']:
                         self.history.retire(expired,expired_before=self.now()-POLICY['universe']['max_seconds_after_graduation']);rows.remove(expired)
+                if getattr(self,'scout',None) is not None:
+                    rows=[r for r in rows if self._deep_watch_due(r,self.now())]
                 if rows:
                     top=int(_latest_header(self.rpc)['number'],16)
-                    if not historical_mode:
-                        try:self._increment_candidates(rows,top)
-                        except (ValueError,BoundaryError) as exc:errors.append(str(exc))
+                    signals={r['id']:self.scout.signal(r['graduation']['transition']['market'])
+                        for r in rows} if getattr(self,'scout',None) is not None else {}
+                    try:self._increment_candidates(rows,top)
+                    except (ValueError,BoundaryError) as exc:errors.append(str(exc))
                     rows=[self.history.get(r['id']) for r in rows]
+                    if getattr(self,'scout',None) is not None:
+                        for r in rows:
+                            if r['block']==top:
+                                r['scout_hydrated_signal']=signals[r['id']]
+                                self.history.save(r)
             if admit and rows:
                 row=self.history.qualification_turn(rows,self.now())
                 age=self.now()-row['graduation']['at']
@@ -580,6 +652,7 @@ class Runtime:
                     self._increment(row,min(end,row['block']+40));row=self.history.get(row['id'])
                     if age<POLICY['universe']['min_seconds_after_graduation']:row['state']='aging';self.history.save(row)
                     elif end-row['block']<=40:
+                        signal=self.scout.signal(row['graduation']['transition']['market']) if getattr(self,'scout',None) else None
                         state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.sleeve.sizing_basis(500)["target"])
                         decision=self.qualify(self.reconstruct(state,quotes));f=decision['features']
                         regime=dict(at=state['at'],high_reset_cycle=f['reset_pullback_bps'],
@@ -597,6 +670,7 @@ class Runtime:
                             status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
+                        if getattr(self,'scout',None) is not None:self._schedule_watch(row,state['at'],signal)
                         # Qualification is durable before any funding attempt,
                         # including before the position-limit execution block.
                         self.history.save(row)
@@ -624,6 +698,7 @@ class Runtime:
                     deferred_boundaries=errors,
                     acquisition=getattr(self,'acquisition',None),
                     historical_readiness=getattr(self,'historical_readiness',None),
+                    qualification_authority='candidate_specific_authenticated_evidence',
                     accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
                     policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
                     durable_handoff=handoff_ready(self.book,self.history.rows()))

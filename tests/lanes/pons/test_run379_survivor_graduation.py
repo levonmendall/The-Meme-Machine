@@ -1,62 +1,46 @@
-"""Run 379: first graduation executes the real factory reader and report contract."""
-import os,tempfile,time,unittest
+"""Native record decoding and fail-closed lineage on a canonical offline tape."""
+import os,tempfile,unittest
 from unittest.mock import patch
+from engineering.pons_history.fixtures import Tape
 from meme_machine.lanes.pons import BoundaryError
-from meme_machine.lanes.pons.identity import load
-from meme_machine.lanes.pons.protocols import PoolKey
-from meme_machine.lanes.pons.pons_survivor_runtime import Runtime,ZERO,_event_topic
+from meme_machine.lanes.pons.pons_natural_paper import _graduation_transition
+from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
 
-TOKEN='0x'+'11'*20
-CURVE='0x'+'22'*20
-MODULE='meme_machine.lanes.pons.pons_survivor_runtime'
-
-class GraduationRPC:
- def __init__(self):self.logs=0
- def batch(self,calls,scope):return [self.call(m,p,scope) for m,p in calls]
- def call(self,method,params,scope):
-  if method=='eth_getBlockByNumber':return dict(number='0x64',hash='block100',timestamp=hex(int(time.time())))
-  if method=='eth_getLogs':
-   self.logs+=1
-   return [dict(address=load('pons_v2_factory')['address'].lower(),
-       topics=[_event_topic('pons_v2_factory','PoolGraduated'),'0x'+'0'*24+TOKEN[2:]],
-       blockNumber='0x64')] if self.logs==1 else []
-  if method=='eth_call':
-   spec=next(x for x in load('pons_v2_factory')['abi'] if x.get('name')=='getLaunchedToken')
-   values={'token':int(TOKEN,16),'curve':int(CURVE,16)}
-   return '0x'+''.join(f'{values.get(f["name"],0):064x}' for f in spec['outputs'][0]['components'])
-  raise AssertionError(method)
+MODULE='meme_machine.lanes.pons.pons_historical'
 
 class SurvivorGraduationTests(unittest.TestCase):
  def run_case(self,complete):
   with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{
       'MM_DIRECTIONAL_SLEEVE_DB':td+'/sleeve','MM_DIRECTIONAL_COHORT_ID':'run379'},clear=True):
+   tape=Tape(candidates=1);tape.top=tape.grad-10
    runtime=Runtime(td+'/survivor',10**18,'run379','https://robinhood-mainnet.g.alchemy.com/v2/offline')
-   runtime.rpc=GraduationRPC();runtime.history.set_meta('discovery_block',99)
+   runtime.rpc=tape;runtime.now=lambda:int(tape.header(tape.top)['timestamp'],16)
    try:
+    runtime.discover();tape.top=tape.grad
+    def transition(rpc,candidate,start,end,report):
+     # Preserve the actual _factory_record_at -> _call -> ABI decoding path.
+     self.assertEqual(len(report['reads']),1)
+     self.assertEqual(report['reads'][0]['signature'],'getLaunchedToken(address)')
+     self.assertEqual(candidate,dict(token=tape.tokens[0],curve=tape.records[tape.tokens[0]]['curve']))
+     return _graduation_transition(rpc,candidate,start,end,report) if complete else None
+    with patch(MODULE+'._graduation_transition',side_effect=transition):
+     if complete:runtime.discover()
+     else:
+      with self.assertRaisesRegex(BoundaryError,'historical_graduation_missing'):runtime.discover()
+    self.assertEqual(runtime.history.get_meta('discovery_block'),tape.grad)
     if complete:
-     def transition(rpc,candidate,start,end,report):
-      # Keep the actual _factory_record_at -> _call -> ABI decode path above.
-      self.assertEqual(len(report['reads']),1)
-      self.assertEqual(report['reads'][0]['signature'],'getLaunchedToken(address)')
-      self.assertEqual(candidate,dict(token=TOKEN,curve=CURVE))
-      return (dict(graduation_at=int(time.time())-1,initialization_sqrt_price_x96=1<<96),
-              PoolKey(ZERO,TOKEN,0,0,'0x'+'33'*20),dict(hash='block100'),dict(pairToken=ZERO))
-     with patch(MODULE+'._graduation_transition',side_effect=transition):runtime.discover()
-     self.assertEqual(runtime.history.get_meta('discovery_block'),100)
-     self.assertEqual(runtime.history.get(TOKEN)['block'],100)
-     self.assertTrue(runtime.history.get(TOKEN)['complete'])
-     points,events=runtime.history.facts(TOKEN,int(time.time()))
+     self.assertEqual(runtime.history.get(tape.tokens[0])['block'],tape.grad)
+     self.assertTrue(runtime.history.get(tape.tokens[0])['complete'])
+     points,events=runtime.history.facts(tape.tokens[0],runtime.now())
      self.assertEqual(len(points),1);self.assertEqual(events,[])
      runtime.discover();self.assertEqual(len(runtime.history.rows()),1)
     else:
-     # The discovery cursor may advance only with the raw nomination durably
-     # retained. Missing lineage never advances authenticated candidate history.
-     with self.assertRaisesRegex(BoundaryError,'survivor_graduation_missing'):runtime.discover()
-     self.assertEqual(runtime.history.get_meta('discovery_block'),100)
+     # Raw nomination and cursor commit together. Missing lineage never creates
+     # an authenticated candidate, and the nomination survives for retry.
      self.assertEqual(runtime.history.pending_graduations(),1)
      self.assertEqual(runtime.history.rows(),[])
     self.assertEqual(runtime.book.reconcile()['open_positions'],0)
     self.assertTrue(runtime.sleeve.reconcile()['reconciled'])
    finally:runtime.close()
  def test_first_graduation_advances_durable_candidate_history(self):self.run_case(True)
- def test_missing_lineage_still_fails_closed_without_advancing_cursor(self):self.run_case(False)
+ def test_missing_lineage_still_fails_closed_without_advancing_candidate(self):self.run_case(False)

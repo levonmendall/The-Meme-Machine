@@ -115,18 +115,27 @@ class RequestIdempotenceTests(unittest.TestCase):
 
 
 class SurvivorWitnessCountTests(RuntimeCase):
-    def test_cold_history_slice_with_independent_boundary_and_reorg_witness_advances(self):
-        self.runtime.history.set_meta('discovery_block',99)
-        self.runtime.history.set_meta('discovery_block_hash',block_header(99)['hash'])
-        def responses(calls,scope):
-            return [([] if method=='eth_getLogs' else block_header(int(params[0],16))) for method,params in calls]
-        with patch(MODULE+'._latest_header',return_value=block_header(200)), patch.object(self.runtime.rpc,'batch',side_effect=responses):
-            self.runtime.discover()
-        self.assertEqual(self.runtime.history.get_meta('discovery_block'),139)
-        self.assertEqual(self.runtime.history.get_meta('discovery_block_hash'),block_header(139)['hash'])
+    def setUp(self):
+        super().setUp()
+        from engineering.pons_history.fixtures import Tape
+        self.tape=Tape(candidates=0);self.tape.top=self.tape.grad-1
+        self.runtime.rpc=self.tape;self.runtime.now=lambda:int(self.tape.header(self.tape.top)['timestamp'],16)
+        self.runtime.discover()
+
+    def test_forward_slice_with_independent_boundary_and_reorg_witness_advances(self):
+        previous=self.tape.top;self.tape.top+=100
+        self.runtime.discover()
+        self.assertEqual(self.runtime.history.get_meta('discovery_block'),previous+40)
+        self.assertEqual(self.runtime.history.get_meta('discovery_block_hash'),self.tape.header(previous+40)['hash'])
+        queries=[params[0] for method,params in self.tape.request_log if method=='eth_getLogs']
+        self.assertTrue(all(int(q['toBlock'],16)-int(q['fromBlock'],16)<10 for q in queries))
 
     def test_missing_log_result_still_fails_closed_without_advancing(self):
-        self.runtime.history.set_meta('discovery_block',99)
-        with patch(MODULE+'._latest_header',return_value=block_header(200)), patch.object(self.runtime.rpc,'batch',return_value=[[],[],[],block_header(139)]):
-            with self.assertRaisesRegex(Exception,'survivor_graduation_range_incomplete'): self.runtime.discover()
-        self.assertEqual(self.runtime.history.get_meta('discovery_block'),99)
+        previous=self.tape.top;self.tape.top+=100
+        original=self.tape.batch
+        def incomplete(calls,**kwargs):
+            if any(m=='eth_getLogs' for m,p in calls):return [[],[],[],self.tape.header(previous+40)]
+            return original(calls,**kwargs)
+        with patch.object(self.tape,'batch',side_effect=incomplete):
+            with self.assertRaisesRegex(Exception,'historical_batch_incomplete'):self.runtime.discover()
+        self.assertEqual(self.runtime.history.get_meta('discovery_block'),previous)
