@@ -406,6 +406,8 @@ def collect(root):
     try:
         health = read_json(root/'health.json')
         value['health_at'] = health['at']; value['epoch_id'] = health['epoch_id']
+        value['position_continuation']=health.get('position_continuation')
+        value['continuation_resources']=health.get('continuation_resources')
         for lane,row in health['lanes'].items():
             value['lanes'][lane] = numeric(row)
         value['six_regimes'] = {name:dict(lane=lane,phase=value['lanes'].get(lane,{}).get('phase'),

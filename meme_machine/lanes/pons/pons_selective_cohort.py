@@ -191,7 +191,7 @@ def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary
 
 
 def _checkpoint(result,*,cursor,feed,rpc,phase):
-    active_provider=rpc.telemetry()
+    active_provider=rpc.telemetry() if rpc is not None else dict(state='CLOSED',reason='bootstrap_discovery_closed')
     from meme_machine.runtime.pons_terminal_archive import retire_controller
     retire_controller(result)
     save_cohort_checkpoint(result,cursor,phase)
@@ -236,6 +236,8 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
 def _recover_sequencer(feed,cursor,recoveries):
     last=None
     for attempt in range(1,SEQUENCER_RECONNECT_ATTEMPTS+1):
+        from meme_machine.operational.position_continuation import position_only
+        if position_only():raise BoundaryError('bootstrap_optional_work_closed')
         try:
             feed.reconnect()
             anchor=feed.wait_for_after(-1,timeout=5.0)
@@ -310,6 +312,8 @@ def _recover_discovery(
         if rate_limited or capacity_limited else PROVIDER_RECOVERY_ATTEMPTS
     )
     for attempt in range(1,attempts+1):
+        from meme_machine.operational.position_continuation import position_only
+        if position_only():raise BoundaryError('bootstrap_optional_work_closed')
         if rate_limited or capacity_limited:
             _stop_sleep(PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS*attempt)
         elif attempt>1:
@@ -582,6 +586,8 @@ def _poll(
     endpoint,rpc,cursor,tape,feed,sessions,recoveries=None,
     on_provider_failure=None, scout=None, nominate=None,
 ):
+    from meme_machine.operational.position_continuation import position_only
+    if position_only():return rpc,cursor,[]
     if recoveries is None:
         recoveries=[]
     if rpc.used>150:
@@ -598,6 +604,7 @@ def _poll(
             rpc=replacement
 
     while True:
+        if position_only():return rpc,cursor,[]
         try:
             latest=_next_discovery_end(feed,cursor,rpc,timeout=POLL_SECONDS)
             break
@@ -622,6 +629,7 @@ def _poll(
     if latest>=first:
         observed_end=latest
         while True:
+            if position_only():return rpc,cursor,[]
             try:
                 if scout is None:
                     observed_end,fresh=_read_curve_range(rpc,first,observed_end)
@@ -772,10 +780,10 @@ def run(endpoint,*,campaign=False):
         sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
     )
 
+    from .pons_selective_recovery import submit_existing_lifecycles
     if recovered:
         result=recovered
         from meme_machine.runtime.robinhood.pons import restore_position_needs
-        from .pons_selective_recovery import submit_existing_lifecycles
         restore_position_needs(plane_path(ROOT/'candidate-evidence.sqlite'),ROOT/'pons-selective-cohort-capital.sqlite')
         result['cohort_accounting']=_cohort_accounting()
     result['candidate_plane_path']=str(plane_path(ROOT/'candidate-evidence.sqlite'))
@@ -911,7 +919,10 @@ def run(endpoint,*,campaign=False):
                 survivor_pending=bool(native.get('open_positions') or native.get('reserved'))
             if current or survivor_pending:update('MANAGING',reconciled=True,observation_deferred=True)
             return current or survivor_pending
-        rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)
+        from meme_machine.operational.position_continuation import position_only,pons_current_safety
+        if position_only():
+            start_ts=int(time.time())
+        else:rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)
         startup_head=cursor
         if scout is not None:
             scout_cursor=queue.plane.checkpoint_read('pons_scout_market_cursor')
@@ -960,10 +971,29 @@ def run(endpoint,*,campaign=False):
         save_cohort_checkpoint(result,cursor,'discovery_ready')
         next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
         while (
-            time.monotonic()<deadline
+            (time.monotonic()<deadline or (campaign and position_only()))
             and (campaign or (len(result["rows"])<MAX_ENROLLED
                               and _qualifier_count(result)<COHORT_TARGET))
         ):
+            if position_only():
+                for optional in (discovery_future,priming_future,hydration):
+                    if optional is not None:optional.cancel()
+                for curve_key in list(active_curve_futures):collect_curve_future(curve_key)
+                if survivor is not None:result['survivor']=survivor.tick(time.time(),admit=False)
+                native=result.get('survivor') or {}
+                update('MANAGING',reconciled=True,restored_positions=len(active_curve_futures),
+                    native_continuation=dict(current_restored=True,
+                        position_safety=pons_current_safety(ROOT/'pons-selective-cohort-capital.sqlite')+native.get('position_safety',[]),
+                        survivor_replay_verified=(native.get('accounting_replay') or {}).get('verified') is True,
+                        survivor_handoff_ready=native.get('durable_handoff') is True,
+                        exit_path_bound=callable(submit_existing_lifecycles),
+                        flat=not active_curve_futures and not any((native.get('accounting') or {}).get(k)
+                            for k in ('open_positions','reserved'))))
+                feed.close()
+                if time.monotonic()>=next_checkpoint:
+                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_continuation')
+                    next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
+                _stop_sleep(.25);continue
             if discovery_future is None:
                 discovery_future=discovery_pool.submit(_discover_observations,
                     endpoint,rpc,cursor,tape,feed,result['discovery_sessions'],
@@ -987,6 +1017,15 @@ def run(endpoint,*,campaign=False):
             now=time.time()
             now_monotonic=time.monotonic()
             if survivor is not None:result['survivor']=survivor.tick(now,admit=True)
+            native=result.get('survivor') or {}
+            update('MANAGING' if active_curve_futures else 'DISCOVERING',reconciled=True,
+                native_continuation=dict(current_restored=True,
+                    position_safety=pons_current_safety(ROOT/'pons-selective-cohort-capital.sqlite')+native.get('position_safety',[]),
+                    survivor_replay_verified=(native.get('accounting_replay') or {}).get('verified') is True,
+                    survivor_handoff_ready=native.get('durable_handoff') is True,
+                    exit_path_bound=callable(submit_existing_lifecycles),
+                    flat=not active_curve_futures and not any((native.get('accounting') or {}).get(k)
+                        for k in ('open_positions','reserved'))))
             if scout is not None and (fresh or 'scout' not in result or time.monotonic()>=next_checkpoint):
                 scout.maintain();result['scout']=scout.snapshot()
             for event in fresh:

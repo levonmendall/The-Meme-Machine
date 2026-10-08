@@ -64,7 +64,7 @@ class Supervisor:
         self.last_publish=0
 
     def runtime_lanes(self):
-        return ACTIVE_LANES
+        return getattr(self,'continuation_lanes',ACTIVE_LANES)
 
     def _assert_paused_lanes_clear(self,account):
         from .pause import assert_clear
@@ -201,6 +201,7 @@ class Supervisor:
 
     def start_services(self):
         if self.offline:return
+        if 'pump' not in self.runtime_lanes():self.evidence=None;return
         (self.root/'shared').mkdir(exist_ok=True,mode=0o700)
         # Preserve Pump's existing relative broker location while sharing it
         # with the evidence worker, which starts before the lane process.
@@ -227,6 +228,13 @@ class Supervisor:
                     raise ValueError('health_predecessor_instance')
             except (OSError,ValueError):row=dict(phase='STARTING')
             health[lane]=dict(row,pid=proc.pid,exit_code=proc.poll(),restarts=self.restarts[lane])
+        self.last_native_health=health
+        if hasattr(self,'continuation_lanes'):
+            for lane in ACTIVE_LANES:
+                if lane not in health:
+                    health[lane]=dict(lane=lane,phase='CONTINUATION_IDLE',paper_only=True,at=utc(now),
+                        discovery_enabled=False,pid=None,process_instance=None,exit_code=None,
+                        reconciled=None,ownership_required=False,restarts=self.restarts[lane])
         for lane,reason in PAUSED_LANES.items():
             health[lane]=dict(lane=lane,phase='PAUSED',paper_only=True,at=utc(now),
                 paused=True,pause_reason=reason,discovery_enabled=False,reconciled=True,
@@ -271,6 +279,8 @@ class Supervisor:
             # healthy portfolio then failed the observer's unchanged 15s TTL.
             _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(time.time()),stopping=self.stop_requested,lanes=health,providers=providers,python=sys.version.split()[0],sqlite=sqlite3.sqlite_version,
                 admission_mode=self.admission,bootstrap_armed=getattr(self,'bootstrap_armed',False),
+                position_continuation=self.provider_budget.usage() if hasattr(getattr(self,'provider_budget',None),'usage') else None,
+                continuation_resources=getattr(self,'resource_measurement',None),
                 portfolio_observation=getattr(self,'portfolio_observation',None),
                 shared_capital_projection_error=getattr(self,'shared_capital_projection_error',None),
                 learning_observation=getattr(self,'learning_observation',None)))
@@ -334,26 +344,55 @@ class Supervisor:
     def configure_admission(self):
         import uuid
         from meme_machine.shared_capital.runtime import process_identity
-        from .bounded_provider import Budget
+        from .bounded_provider import Budget,PhaseBudget
         state=self.shared_capital.ledger()
-        if self.admission=='BOOTSTRAP' and state.get('runtime_admission',{}).get('bootstrap_used'):
-            raise RuntimeError('used_bootstrap_requires_authentic_evidence_review')
+        previous=state.get('runtime_admission',{})
+        if self.admission=='BOOTSTRAP':
+            from .position_continuation import load_envelope
+            envelope=load_envelope()
+            if previous.get('continuation_envelope'):
+                if envelope!=previous['continuation_envelope']:
+                    raise RuntimeError('continuation_allowance_cannot_expand_on_restart')
+                self.run_id=previous['run_id'];self.admission='CONTINUATION'
+                self.provider_budget=PhaseBudget(previous['provider_db'])
+                self.provider_budget.reap_orphans()
+                self.provider_budget.bootstrap.change(reason='service_restart_funding_closed',check=False)
+                self.provider_budget.set_phase('CONTINUATION','service_restart_funding_closed')
+                self.admission_data=dict(previous,mode='CONTINUATION',pid=os.getpid(),
+                    process_start=process_identity(os.getpid()))
+                # Instance token makes a repeated normal restart idempotent
+                # without resetting its economic/resource clocks or allowances.
+                self.shared_capital.command('resume-continuation:'+self.run_id+':'+
+                    self.admission_data['process_start'],'runtime_admission',self.admission_data,int(time.time()))
+                from .position_continuation import position_lanes
+                self.continuation_lanes=position_lanes(state)
+                if self.provider_budget.phase() in ('FAULT','FLAT'):
+                    self.continuation_fault=self.provider_budget.fault();self.stop_requested=True
+                return
+            if previous.get('bootstrap_used'):
+                raise RuntimeError('old_bootstrap_without_continuation_requires_disposition')
         self.run_id=uuid.uuid4().hex
         if self.admission=='BOOTSTRAP':
-            self.provider_budget=Budget.create(self.root/'shared'/('bootstrap-'+self.run_id+'.sqlite'))
+            original=Budget.create(self.root/'shared'/('bootstrap-'+self.run_id+'.sqlite'),continuation=envelope)
+            self.provider_budget=PhaseBudget(original.path)
         self.admission_data=dict(mode='OBSERVATION' if self.admission=='BOOTSTRAP' else self.admission,
             run_id=self.run_id,pid=os.getpid(),process_start=process_identity(os.getpid()))
         if getattr(self,'provider_budget',None):self.admission_data['provider_db']=str(self.provider_budget.path)
+        if self.admission=='BOOTSTRAP':self.admission_data['continuation_envelope']=envelope
         self.shared_capital.command('run-scope:'+self.run_id,'runtime_admission',self.admission_data,int(time.time()))
         self.ready_since=None;self.ready_frontiers={};self.bootstrap_armed=False
 
     def bootstrap_tick(self):
         """Reuse operational health; readiness never replaces native qualification."""
         from .acceptance import observe
-        if self.provider_budget.snapshot()['reason']:
-            self.stop_requested=True;return
+        budget=getattr(self.provider_budget,'bootstrap',self.provider_budget)
+        if budget.snapshot()['reason']:
+            from .position_continuation import close_bootstrap
+            close_bootstrap(self,'bootstrap_provider_exposure_closed');return
         try:
             health,portfolio,rss=observe(self.root)
+            from .position_continuation import readiness
+            proof=readiness(health,portfolio,rss,self.admission_data['continuation_envelope'])
             if rss>=6*1024**3:raise ValueError('bootstrap_memory_limit')
             for provider in ('solana','robinhood'):
                 row=health['providers'].get(provider,{})
@@ -369,48 +408,110 @@ class Supervisor:
                 if any(frontiers[k]<=old for k,old in self.ready_frontiers.items()):
                     raise ValueError('bootstrap_canonical_progress_required')
                 self.shared_capital.command('arm-bootstrap:'+self.run_id,'runtime_admission',
-                    dict(self.admission_data,mode='BOOTSTRAP'),int(time.time()))
+                    dict(self.admission_data,mode='BOOTSTRAP',continuation_ready=proof),int(time.time()))
                 self.bootstrap_armed=True
         except (OSError,ValueError,KeyError) as error:
             self.ready_since=None;self.ready_frontiers={}
             if self.bootstrap_armed:
                 # Fail closed on new exposure immediately; existing native
                 # safety/recovery events never depend on an admission grant.
-                self.provider_budget.change(reason='bootstrap_health_or_deadline_failure',check=False)
-                self.stop_requested=True
+                from .position_continuation import close_bootstrap
+                close_bootstrap(self,'bootstrap_health_or_deadline_failure')
         if not self.bootstrap_armed and time.monotonic()-self.provider_budget.started>=600:
-            self.provider_budget.change(reason='bootstrap_readiness_not_demonstrated',check=False)
-            self.stop_requested=True
+            from .position_continuation import close_bootstrap
+            close_bootstrap(self,'bootstrap_readiness_not_demonstrated')
+
+    def continuation_health(self):
+        from .position_continuation import outstanding,provider_failure,provider_recovered
+        budget=getattr(self,'provider_budget',None)
+        if budget is None:return
+        providers=self.provider_health();now=time.time();reason=None
+        for lane in self.runtime_lanes():
+            provider='solana' if lane=='pump' else 'robinhood'
+            row=providers.get(provider,{})
+            if row.get('state')!='CURRENT':reason=provider+'_provider_unavailable'
+            elif row.get('queue_depth',0)>budget.envelope['maximum_queue_depth']:
+                reason=provider+'_protective_queue_depth_exceeded'
+            elif row.get('oldest_wait_seconds',0)>budget.envelope['maximum_queue_wait_seconds']:
+                reason=provider+'_protective_queue_latency_exceeded'
+            native=getattr(self,'last_native_health',{}).get(lane,{})
+            if not 0<=now-native.get('progress_at',0)<=15 or native.get('reconciled') is not True:
+                reason=lane+'_native_manager_or_evidence_not_ready'
+            for safety in native.get('native_continuation',{}).get('position_safety',[]):
+                if safety.get('evidence_current') is not True or not 0<=now-safety.get('at',0)<=15:
+                    reason=safety.get('blocker') or lane+'_position_evidence_stale'
+        if 'pump' in self.runtime_lanes():
+            row=providers.get('evidence',{})
+            if row.get('phase')!='ACTIVE' or not 0<=now-row.get('heartbeat',0)<=15:
+                reason='authenticated_solana_position_evidence_unavailable'
+        try:
+            group=Path('/sys/fs/cgroup/system.slice/meme-machine-paper.service')
+            memory=int((group/'memory.current').read_text())
+            use=int(dict(line.split() for line in (group/'cpu.stat').read_text().splitlines())['usage_usec'])
+            prior=getattr(self,'resource_prior',(now,use))
+            cpu=(use-prior[1])/1000000/max(.001,now-prior[0]);self.resource_prior=(now,use)
+            quota,period=(group/'cpu.max').read_text().split()
+            verified=(quota!='max' and int(quota)/int(period)<=1.8 and
+                int((group/'memory.high').read_text())<=6*1024**3 and
+                int((group/'memory.max').read_text())<=7*1024**3)
+            self.resource_measurement=dict(cgroup_memory_bytes=memory,cpu_cores=cpu,
+                cpu_quota_cores=1.8,maximum_queue_depth=64,maximum_queue_wait_seconds=5,limits_verified=verified)
+            if not verified:reason='continuation_existing_service_resource_limits_unavailable'
+            if memory>=budget.envelope['maximum_rss_bytes']:reason='continuation_cgroup_memory_exhausted'
+        except (OSError,ValueError,KeyError):
+            self.resource_measurement=dict(state='UNAVAILABLE',reason='existing_PAPER_cgroup_measurement_unavailable')
+            reason=reason or 'continuation_cgroup_resource_measurement_unavailable'
+        if outstanding(self.shared_capital.ledger()):
+            if reason:provider_failure(self,reason)
+            else:provider_recovered(self)
 
     def run(self,*,seconds=None):
         self.initialize()
         started=time.monotonic()
-        if not self.offline and self.admission=='BOOTSTRAP':seconds=1735
         prior={sig:signal.getsignal(sig) for sig in (signal.SIGTERM,signal.SIGINT)}
         for sig in prior:signal.signal(sig,lambda *_:setattr(self,'stop_requested',True))
         try:
-            self.start_services()
-            for lane in self.runtime_lanes():self.start_lane(lane)
+            if not self.stop_requested:
+                self.start_services()
+                for lane in self.runtime_lanes():self.start_lane(lane)
             while not self.stop_requested and (seconds is None or time.monotonic()-started<seconds):
                 for lane,proc in list(self.processes.items()):
+                    if lane not in self.runtime_lanes():
+                        self.stop_process(proc)
+                        del self.processes[lane];continue
                     if lane in ACTIVE_LANES and proc.poll() is not None and time.monotonic()>=self.next_start[lane]:
                         self.restarts[lane]+=1
                         self.next_start[lane]=time.monotonic()+min(30,2**min(self.restarts[lane],5))
                         self.start_lane(lane)
-                if not self.offline and self.evidence.poll() is not None:
+                if not self.offline and self.evidence is not None and self.evidence.poll() is not None:
                     # Stop lane owners before shared evidence replacement; their
                     # next start must prove native journals and pending delivery.
                     self.stop_lanes()
+                    if getattr(self,'provider_budget',None):
+                        from .position_continuation import provider_failure
+                        provider_failure(self,'shared_authenticated_evidence_process_failed')
+                    # Native state is durable; close funding before reconnecting.
+                    time.sleep(2)
                     self.start_services()
                     for lane in self.runtime_lanes():self.start_lane(lane)
+                if not self.offline and self.evidence is not None and 'pump' not in self.runtime_lanes():
+                    self.stop_process(self.evidence,45);self.evidence=None
                 if time.monotonic()-self.last_publish>=2:
+                    if self.admission in ('BOOTSTRAP','CONTINUATION') and not self.offline:
+                        self.continuation_health()
                     self.publish()
                     if self.admission=='BOOTSTRAP' and not self.offline:self.bootstrap_tick()
-                if getattr(self,'provider_budget',None) and self.provider_budget.snapshot()['reason']:
-                    self.stop_requested=True
+                    if self.admission in ('BOOTSTRAP','CONTINUATION') and not self.offline:
+                        from .position_continuation import tick
+                        tick(self)
                 time.sleep(.05)
         finally:
             self.stop_requested=True
+            budget=getattr(self,'provider_budget',None)
+            if budget and hasattr(budget,'bootstrap'):
+                # Termination never leaves a grant that a child or restart can
+                # spend. The same continuation usage/state resumes on failure.
+                budget.bootstrap.change(reason='service_stopping_funding_closed',check=False)
             self.stop_lanes()
             evidence=getattr(self,'evidence',None)
             if evidence is not None:self.stop_process(evidence,45)

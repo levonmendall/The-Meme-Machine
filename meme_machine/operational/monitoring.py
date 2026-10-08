@@ -9,13 +9,23 @@ from .observation import atomic_json,read_json,stamp,SAMPLE_BOUND
 from .artifact_storage import storage_conditions
 
 PERSISTENCE=300
-CRITICAL=frozenset(('epoch_mismatch','reconciliation_failure','database_integrity_failure'))
+CRITICAL=frozenset(('epoch_mismatch','reconciliation_failure','database_integrity_failure','position_continuation_fault'))
+
+def continuation_idle(sample,lane):
+    phase=(sample.get('position_continuation') or {}).get('phase')
+    p=sample.get('portfolio',{})
+    return (phase in ('CONTINUATION','RECOVERY','FLAT') and p.get('state')=='CURRENT'
+        and sample.get('lanes',{}).get(lane,{}).get('phase')=='CONTINUATION_IDLE'
+        and all(p.get(k,{}).get(lane,0)==0 for k in
+            ('positions_by_lane','reservations_by_lane','pending_by_lane')))
 
 def conditions(sample,epoch,now):
     found=set()
     if not sample or not 0<=now-sample.get('timestamp',0)<=60:
         return {'observation_unavailable'}
     p=sample.get('portfolio',{})
+    continuation=sample.get('position_continuation') or {}
+    if continuation.get('phase')=='FAULT':found.add('position_continuation_fault')
     if p.get('epoch_id') and p['epoch_id']!=epoch:found.add('epoch_mismatch')
     if p.get('reconciliation_failure') or any(v is False for v in p.get('checks',{}).values()):
         found.add('reconciliation_failure')
@@ -28,15 +38,17 @@ def conditions(sample,epoch,now):
     if service.get('ActiveState')!='active':found.add('paper_service_unavailable')
     found.update(storage_conditions(sample))
     s=sample.get('solana',{})
-    if s.get('state')!='CURRENT':found.add('evidence_unavailable')
+    need_solana=not continuation_idle(sample,'pump')
+    if need_solana and s.get('state')!='CURRENT':found.add('evidence_unavailable')
     gap=s.get('repair_backlog',{})
     required=gap.get('required_gaps',gap.get('open_gaps',0))
     created=gap.get('oldest_required_created',gap.get('oldest_created'))
-    if required and created is not None and now-created>PERSISTENCE:
+    if need_solana and required and created is not None and now-created>PERSISTENCE:
         found.add('persistent_evidence_gap')
     heartbeat=s.get('heartbeat')
-    if isinstance(heartbeat,(int,float)) and now-heartbeat>60:found.add('evidence_heartbeat_stale')
+    if need_solana and isinstance(heartbeat,(int,float)) and now-heartbeat>60:found.add('evidence_heartbeat_stale')
     for provider in ('solana','robinhood'):
+        if continuation_idle(sample,'pump' if provider=='solana' else 'pons'):continue
         row=sample.get(provider+'_provider',{})
         if row.get('state')!='CURRENT':found.add(provider+'_provider_unavailable')
         if row.get('oldest_wait_seconds',0)>30:found.add(provider+'_request_queue_stalled')
@@ -49,6 +61,7 @@ def conditions(sample,epoch,now):
             if p.get('positions_by_lane',{}).get(lane,0) or p.get('reservations_by_lane',{}).get(lane,0) or p.get('pending_by_lane',{}).get(lane,0):
                 found.add(lane+'_paused_with_obligation')
             continue
+        if continuation_idle(sample,lane):continue
         if row.get('reconciled') is not True:found.add(lane+'_reconciliation_unavailable')
         if row.get('phase')=='VALUATION_UNAVAILABLE':found.add(lane+'_valuation_unavailable')
         if p.get('positions_by_lane',{}).get(lane,0)>0 and now-row.get('progress_at',0)>PERSISTENCE:
@@ -77,7 +90,7 @@ def evaluate(sample,previous,epoch,now=None,*,expect_running=True):
         old=previous.get('progress',{}).get(code,{})
         at=now if value!=old.get('value') else old.get('at',now)
         progress[code]=dict(value=value,at=at)
-        if expect_running and now-at>PERSISTENCE:current.add(code+'_stalled')
+        if expect_running and not continuation_idle(sample or {},'pump') and now-at>PERSISTENCE:current.add(code+'_stalled')
     counters={'service':int(sample.get('host',{}).get('service',{}).get('NRestarts','0'))} if sample else {}
     counters.update({lane:int(row.get('restarts',0)) for lane,row in (sample or {}).get('lanes',{}).items()})
     restarts={}
@@ -92,6 +105,7 @@ def evaluate(sample,previous,epoch,now=None,*,expect_running=True):
     cleared=sorted(set(first)-current)
     state='OWNER_ACTION_REQUIRED' if actionable else 'FAIL_CLOSED' if current & CRITICAL else 'DEGRADED' if current else 'SELF_HEALING_EVENT' if cleared else 'CURRENT'
     return dict(at=stamp(),timestamp=now,state=state,actionable=actionable,conditions=sorted(current),
+        position_continuation_fault=((sample or {}).get('position_continuation') or {}).get('fault'),
         first_seen=times,self_healed=cleared,restart_counters=counters,restart_events=restarts,
         progress=progress,
         paper_only=True,observation_only=True,expect_running=expect_running)

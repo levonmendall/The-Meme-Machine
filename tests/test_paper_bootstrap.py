@@ -22,12 +22,14 @@ class AdmissionTests(unittest.TestCase):
     native_position=native_tests.RuntimeIntegrationTests.native_position
 
     def scope(self,a,now,root,*,arm=True):
-        budget=Budget.create(root/'bootstrap-test.sqlite')
+        from tests.test_position_continuation import envelope,proof
+        from meme_machine.operational.bounded_provider import PhaseBudget
+        budget=Budget.create(root/'bootstrap-test.sqlite',continuation=envelope())
         data=dict(mode='OBSERVATION',run_id='offline-test',pid=os.getpid(),
-            process_start=process_identity(os.getpid()),provider_db=str(budget.path))
+            process_start=process_identity(os.getpid()),provider_db=str(budget.path),continuation_envelope=envelope())
         a.command('observe','runtime_admission',data,now)
-        if arm:a.command('arm','runtime_admission',dict(data,mode='BOOTSTRAP'),now)
-        return budget,data
+        if arm:a.command('arm','runtime_admission',dict(data,mode='BOOTSTRAP',continuation_ready=proof()),now)
+        return PhaseBudget(budget.path),data
 
     def test_observation_denies_funding_without_changing_cash_or_qualification(self):
         from meme_machine.runtime.directional_sleeve import open_sleeve,policies
@@ -59,7 +61,7 @@ class AdmissionTests(unittest.TestCase):
         from meme_machine.runtime.directional_continuation import native_sync
         root,a,now,_=self.fixture();budget,data=self.scope(a,now,root)
         book,sleeve,identity=self.native_position(root,now)
-        budget.change(reason='offline-budget-stop',check=False)
+        budget.bootstrap.change(reason='offline-budget-stop',check=False)
         book.transition(identity,'mark',now+1,amount=6250)
         book.transition(identity,'settled',now+2,amount=6250);native_sync(book,sleeve,identity)
         self.assertEqual(Decimal(a.snapshot()['capital']['actual_cash']),Decimal('500'))
@@ -90,10 +92,11 @@ class AdmissionTests(unittest.TestCase):
         service.provider_budget=budget;service.shared_capital=a;service.run_id=data['run_id']
         service.admission_data=data;service.ready_since=None;service.ready_frontiers={};service.bootstrap_armed=False
         def healthy(slot):
-            return dict(providers=dict(solana=dict(state='CURRENT',oldest_wait_seconds=0),
-                robinhood=dict(state='CURRENT',oldest_wait_seconds=0),
-                evidence=dict(frontiers=[dict(scope='program:pump',slot=slot),dict(scope='program:pumpswap',slot=slot)])),
-                active_evidence=dict(pons_canonical_cursor=slot)),{},1024
+            from tests.test_position_continuation import healthy as base
+            health,portfolio,rss=base()
+            health['providers']['evidence']['frontiers']=[dict(scope='program:pump',slot=slot),dict(scope='program:pumpswap',slot=slot)]
+            health['active_evidence']=dict(pons_canonical_cursor=slot)
+            return health,portfolio,rss
         t=budget.started
         with patch('meme_machine.operational.acceptance.observe',return_value=healthy(1)),patch('time.monotonic',return_value=t):
             service.bootstrap_tick()
@@ -109,8 +112,8 @@ class AdmissionTests(unittest.TestCase):
         self.assertFalse(a.ledger()['positions'])
         with patch('meme_machine.operational.acceptance.observe',side_effect=ValueError('health-failure')):
             service.bootstrap_tick()
-        self.assertTrue(service.stop_requested)
-        self.assertEqual(available(a.ledger(),now,live=True),'bootstrap_provider_exposure_closed')
+        self.assertFalse(service.stop_requested)
+        self.assertEqual(available(a.ledger(),now,live=True),'observation_only_funding_closed')
         a.verify_replay()
 
     def test_restart_observation_does_not_replenish_a_used_claim(self):

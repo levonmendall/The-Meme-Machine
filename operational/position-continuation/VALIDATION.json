@@ -1,0 +1,99 @@
+{
+  "base_commit": "6d14ceec7167b29b5a38c686e4abbfe07a2d4cfa",
+  "branch": "engineering/autonomous-position-continuation-20261008",
+  "broad_suites_run": false,
+  "disposition": "BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT",
+  "failed": 0,
+  "first_position_funding": "CLOSED",
+  "initial_failures": {
+    "disposition": "repaired; logs and failed scratch preserved outside Git",
+    "logs": [
+      "continuation-focused-initial.log",
+      "continuation-focused-repaired.log"
+    ]
+  },
+  "market_provider_calls": 0,
+  "passed": 261,
+  "python": "3.12.14",
+  "receipts": [
+    {
+      "command": "python -m operational.tests FAST --modules tests.test_position_continuation tests.test_paper_bootstrap --verbose",
+      "failed": 0,
+      "log": "continuation-focused-final.log",
+      "log_sha256": "5e11d7f04c3fef94b1b50338529b81ab181c602833d5b0f24f02cc77a078b254",
+      "passed": 36,
+      "skipped": 0
+    },
+    {
+      "command": "python -m operational.tests OPERATIONAL --modules tests.test_operational_supervisor tests.test_survivor_commit tests.test_survivor_history tests.test_native_pump_continuation tests.lanes.pons.test_pons_current_recovery tests.lanes.pons.test_pons_position_provider_recovery tests.test_pons_ongoing_scale tests.test_operational_monitoring --verbose",
+      "failed": 0,
+      "log": "continuation-native-final.log",
+      "log_sha256": "db71148c355d0e2dc3b4e46b69ba1d1153a80eefe359b34f5ea0a8dc85704619",
+      "passed": 86,
+      "skipped": 0
+    },
+    {
+      "command": "python -m operational.tests FAST --modules tests.test_final_acquisition tests.test_robinhood_payg tests.test_forward_survivor tests.test_pump_pons_capital_preparation tests.test_solana_rolling_prewarm --verbose",
+      "failed": 0,
+      "log": "continuation-efficiency-final.log",
+      "log_sha256": "e94c55fac029522c1a69aa9d1d1e9cae7f78dbaec8fe35458a7faf9d28427ed9",
+      "passed": 125,
+      "skipped": 0
+    },
+    {
+      "command": "python -m operational.tests OPERATIONAL --modules tests.lanes.pump.test_pump_continuous_campaign tests.lanes.pump.test_pump_campaign_tail_drain tests.lanes.pons.test_pons_continuous_campaign --verbose",
+      "failed": 0,
+      "log": "continuation-campaign-final.log",
+      "log_sha256": "296dca9512720e3eb557e041407d56f76246aa734dd366254800a33b324cb878",
+      "passed": 14,
+      "skipped": 0
+    }
+  ],
+  "repeat_checks": [
+    {
+      "command": "python -m operational.tests OPERATIONAL --modules tests.test_operational_supervisor tests.test_operational_monitoring --verbose",
+      "failed": 0,
+      "included_in_unique_total": false,
+      "log": "continuation-monitor-final.log",
+      "log_sha256": "1f3d9df85079ed6d7a1781be70b54f2770dbde1ee96845b7fb6193bd2734ccf3",
+      "passed": 32,
+      "skipped": 0
+    }
+  ],
+  "runtime_provider_capacity_verified": false,
+  "schema": "focused-position-continuation-validation-v1",
+  "skipped": 0,
+  "source_files_sha256": {
+    "deployment/paper-bootstrap.conf": "ddf320a489856523bc1c3988d19ad9747e350d0148f13fa8e5745b5f9a10e837",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "63cea2c2c4899200c1d468c1a869309d0108f4ac496448650047c20e194fda8f",
+    "meme_machine/lanes/pons/pons_selective_paper.py": "f21b177ab0135f9d0b1ed1b9e3d188e14ca079245df82e43860f9ec9c8af9366",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "6d3a9407cace6a04dd6f10847f2189dad6e4cc693e68ac22c6596db9ce16c185",
+    "meme_machine/lanes/pons/provider_admission.py": "5f3a42f365214418d2f0080ded63b5b548ffabb9a4846ab70db7069506c59412",
+    "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": "ace3687919046fede01402dc4b46887c11986295063725864bd56dda724ff8be",
+    "meme_machine/lanes/pump/runner.py": "e0b2c32793c433a17790d6c3da1ce9845c6f2ebcacb50ab18a144f64039cbcc1",
+    "meme_machine/operational/admission.py": "6559d84d6b280d595954d5f73951b1c9acd18bab655074b5f7dce266ee7f996e",
+    "meme_machine/operational/bounded_provider.py": "3bbbc9d2d7fdeef617629d92fc8f6ffca593c381c899a5520933c69bd9967c87",
+    "meme_machine/operational/lane.py": "7d2880f61de1c3d09d778a519bc32a6f6b74989f5650eff572709ebcd73fa434",
+    "meme_machine/operational/monitoring.py": "81ce964cf8e7e05666c2ecd2eb500a8e6453d141969ef579386fff8b3b39276b",
+    "meme_machine/operational/observation.py": "a826431b51dc8d21fabe7df457640a91b8b2c1e66fd45998b95740f5f4cde402",
+    "meme_machine/operational/position_continuation.py": "2493cc176aa66355cfa367d6d675afc7d7051822603c99eb3db42f57c261c721",
+    "meme_machine/operational/supervisor.py": "acd5f767eea0613d8ef2b4f2e7633886e193e2c1ada449fdbd386e61c1eb88b5",
+    "meme_machine/runtime/survivor_commit.py": "c902d93ef2334b2d47a2056ee1e89675889849fe26ba1c53b77ee5b63318a699",
+    "meme_machine/runtime/survivor_history.py": "36e91b75db173c40b3a6e5720e4264e23a9aec64da66e861310fe3f29b7a76b1",
+    "meme_machine/solana_selective_history.py": "554eeb6caf29da245c649a7aac92350fa6e66d93afeff87c10c30d8d43dac5ba",
+    "meme_machine/solana_selective_source.py": "542b20bfb87573ede8de207ed984e61755ae9cf40b5ba2493271c70ba3011622",
+    "operational/position-continuation/RESOURCE_ENVELOPE.example.json": "cb1f0da81c0a4d8bf920033777aaa65b6da62ffeb480c5b5a9c5e1d6673719fe",
+    "operational/tests.py": "39a7034ba140528d9856bef97ff11b9ffa0ad93f12116ef324901cdbeb1fc9da",
+    "tests/test_paper_bootstrap.py": "43aa4bea68cc1e468ea3c5fa8b39709fcef0bf67cee3a8d04f84c85298a34c89",
+    "tests/test_position_continuation.py": "9cb6e01164355b96e430d9645007f8a7117ae7dee76d2577031833cf06872c0f"
+  },
+  "source_manifest_sha256": "85852f575f0bb07e45be4148bfc45beb33416e2107dbe164a0b52565e4e4e245",
+  "sqlite": "3.45.1",
+  "unchanged_additional_earlier_native_checks": {
+    "failed": 0,
+    "included_in_final_total": false,
+    "log": "continuation-native-regressions.log",
+    "passed": 99,
+    "skipped": 0
+  }
+}

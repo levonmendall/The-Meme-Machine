@@ -561,6 +561,8 @@ class Runtime:
 
     @position_work
     def _position(self,row,*,admit=True):
+        from meme_machine.operational.position_continuation import cancel_unfilled
+        if cancel_unfilled(self.book,self.sleeve,self.history,row,self.now()):return
         self.current=row
         try:p=self.book._load(row['position'])
         except ValueError:
@@ -598,6 +600,10 @@ class Runtime:
             soft_deterioration=None if flow is None else flow['buy_flow']*10000<flow['sell_flow']*8000 and flow['new_buyers']==0)
         action=monitor(book=self.book,sleeve=self.sleeve,identity=row['position'],observation=observation,
                        policy=risk_policy(),adapter=self)
+        row['position_safety']=dict(at=self.now(),evidence_current=header is not None and flow is not None and q is not None,
+            exit_quote_available=q is not None,pending_exit=action['action']=='exit_pending',
+            blocker='pons_survivor_authenticated_flow_or_exit_quote_unavailable')
+        self.history.save(row)
         if action['action']=='hold':
             scale(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],
                 generation=row['generation'],adapter=self,qualify=self.qualify,ordinary_limit=450,
@@ -696,6 +702,8 @@ class Runtime:
         from meme_machine.runtime.directional_accounting import execution_cost
         self.attempts.maintain(self.now(),protected=(r['id'] for r in self.history.rows()))
         return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,
+                        blocker='pons_survivor_position_not_observed')) for r in self.history.rows() if r.get('position')],
                     native_execution_cost=execution_cost(self.book),
                     candidate_count=len(self.history.rows()),last_boundary=self.last_error,
                     discovery_capacity_deferred=False,

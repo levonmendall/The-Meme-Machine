@@ -1346,6 +1346,11 @@ def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_unit
 
 
 def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units,store,facts,position,*,trajectory=None,demand):
+    from meme_machine.operational.position_continuation import position_only
+    if position_only():
+        store.put('continuation_addition_rejection',identity,
+            dict(reason='funding_authorization_closed',exposure_increased=False))
+        return None
     from contextlib import closing
     from meme_machine.runtime.directional_sleeve import open_sleeve
     from meme_machine.runtime.directional_continuation import scale_budget

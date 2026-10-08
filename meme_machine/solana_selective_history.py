@@ -238,6 +238,8 @@ class SelectiveHistory:
         """Recheck shared evidence at dispatch; retain each original obligation."""
         from .runtime.operating_families import active_sql
         live=active_sql('family',solana=True)
+        from .operational.position_continuation import position_only
+        if position_only():live+=' AND priority<=2'
         now=self.clock()
         with self.writer.transaction():
             for identity in [r[0] for r in self.db.execute("SELECT id FROM acquisition_jobs WHERE "+live+" AND status='pending' AND deadline<=?",(now,))]:

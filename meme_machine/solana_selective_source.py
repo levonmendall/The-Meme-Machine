@@ -277,7 +277,8 @@ def plan_live(state):
         with state.writer.transaction():history._observation(None,'capacity_pressure',dict(live_requested=len(desired),live_capacity=MAX_LIVE_CANDIDATES,economic_rejection=False))
     # The provider's filter-map limit is a shard size, never rejection authority.
     # Every requested scope remains serviced; rich acquisition is separately EDF.
-    chosen=desired
+    from .operational.position_continuation import position_only
+    chosen=[row for row in desired if row[0]<=2] if position_only() else desired
     return [dict(family=f,address=a,scope=history.scope_for(f,a),priority=p,deadline=d,lower_slot=lo)
             for p,d,_,f,a,lo in chosen]
 
@@ -424,6 +425,8 @@ class SelectiveSource:
         from .runtime.operating_families import require_active
         require_active(family)
         for attempt in range(3):
+            from .operational.position_continuation import position_only
+            if priority>2 and position_only():raise EvidenceUnavailable('bootstrap_optional_work_closed')
             try:result,receipt=await asyncio.to_thread(self.rpc.call_delivered,method,params,priority)
             except ValueError as exc:
                 receipt=getattr(exc,'receipt',None)
@@ -437,7 +440,7 @@ class SelectiveSource:
             await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
                 rpc_cu=receipt['cu'],calls=receipt.get('calls',1)),priority)
             return result
-    async def stream(self,channel,request,handler,family,local_stop=None):
+    async def stream(self,channel,request,handler,family,local_stop=None,*,optional=False):
         from .runtime.operating_families import require_active
         require_active(family)
         stream_id=uuid.uuid4().hex
@@ -452,6 +455,9 @@ class SelectiveSource:
             await call.write(request)
             phase='stream_read'
             while not self.stop.is_set() and not (local_stop and local_stop.is_set()):
+                if optional:
+                    from .operational.position_continuation import position_only
+                    if position_only():return
                 if pending is None:pending=asyncio.create_task(call.read())
                 try:raw=await asyncio.wait_for(asyncio.shield(pending),1)
                 except TimeoutError:continue
@@ -493,9 +499,12 @@ class SelectiveSource:
         """
         retry=0
         while not self.stop.is_set():
+            from .operational.position_continuation import position_only
+            if position_only():await asyncio.sleep(.5);continue
             request=scout_request();request.from_slot=max(1,tip-CONTROL_OVERLAP)
             try:
-                await self.stream(channel,request,handler,'pump' if not enabled('meteora') else 'discovery');return
+                await self.stream(channel,request,handler,'pump' if not enabled('meteora') else 'discovery',optional=True)
+                if not position_only():return
             except EvidenceUnavailable as exc:
                 if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled','candidate_native_resource_exhausted'):raise
                 retry+=1
@@ -517,7 +526,10 @@ class SelectiveSource:
         work=source_work(work,stop,self.observe)
         self.work=work;self.stop=stop;self.batched=True
         def boot(state):
-            h=install(state);h.startup.begin();return str(state.writer.path)
+            from .operational.position_continuation import position_only
+            h=install(state)
+            if not position_only():h.startup.begin()
+            return str(state.writer.path)
         self.canonical_path=await work(boot,0)
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
@@ -665,17 +677,26 @@ class SelectiveSource:
         """
         from .solana_rolling_history import program_scope
         while not self.stop.is_set():
+            from .operational.position_continuation import position_only
+            if position_only():await asyncio.sleep(.5);continue
             def rows(state):
                 h=install(state)
                 return [dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,
                     deadline=h.clock()+120,lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
             desired=await self.work(rows,6)
-            try:await self.live(channel,desired,self.stop)
+            task=asyncio.create_task(self.live(channel,desired,self.stop))
+            try:
+                while not task.done() and not self.stop.is_set() and not position_only():
+                    await asyncio.sleep(.25)
+                if task.done():await task
             except (EvidenceUnavailable,ConnectionClosed,OSError) as exc:
                 reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
                 self.observe('rolling_retry',reason=reason)
                 await self.work(lambda state:install(state)._observation(None,'rolling_retry',dict(reason=reason,complete=False)),1)
                 await asyncio.sleep(.5)
+            finally:
+                if not task.done():task.cancel()
+                await asyncio.gather(task,return_exceptions=True)
 
     async def cold_maintenance(self):
         from .solana_scoped_retirement import ScopedRetirement
@@ -699,6 +720,7 @@ class SelectiveSource:
             await asyncio.gather(*tasks,return_exceptions=True)
 
     async def acquire(self):
+        from .operational.position_continuation import position_only
         while not self.stop.is_set():
             def request_development(state):
                 from .lanes.pump.pump_acceleration_strategy import POLICY
@@ -706,7 +728,7 @@ class SelectiveSource:
                 if not hasattr(state,'acquisition_inflight'):state.acquisition_inflight=set()
                 if not h.startup.snapshot().get('released'):return None
                 frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
-                if frontier is not None:
+                if frontier is not None and not position_only():
                     for addr,fields in db.execute('''SELECT address,fields FROM market_observations m WHERE family='pump'
                         AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)'''):
                         value=json.loads(fields);upper=value.get('development_upper_bps')
@@ -798,6 +820,11 @@ class SelectiveSource:
                                     candidate_retained=True,economic_rejection=False,complete=False,deadline=job['deadline']))
                         await self.work(unavailable,job['priority'])
                     else:raise
+            except EvidenceUnavailable as exc:
+                if str(exc)!='bootstrap_optional_work_closed':raise
+                await self.work(lambda state:install(state)._observation(job['id'],
+                    'bootstrap_optional_work_closed',dict(candidate_retained=True,complete=False,
+                        deadline=job['deadline'],funding_closed=True)),1)
             finally:
                 await self.work(lambda state:state.acquisition_inflight.discard(job['id']),1)
 
@@ -809,13 +836,15 @@ class SelectiveSource:
             while not self.stop.is_set():
                 # A read-only revision peek cannot mutate or fork membership.
                 # Many changes coalesce into one plan of the latest owner state.
-                requested=self.read_revision()
+                from .operational.position_continuation import position_only
+                requested=(self.read_revision(),position_only())
                 self.observe('membership_requested',revision=requested)
                 if requested!=revision:
                     def plan(state):
                         rows=plan_live(state)
                         return state.writer.db.execute('SELECT revision FROM prewarm_membership_revision WHERE id=1').fetchone()[0],rows
-                    revision,desired=await self.work(plan,2)
+                    _revision,desired=await self.work(plan,2)
+                    revision=requested
                     # Pump/PumpSwap candidates consume the fixed program feeds.
                     # Only position/continuation interests need extra priority
                     # filters; promotion never installs a historical RPC stream.

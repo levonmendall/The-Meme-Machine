@@ -1,5 +1,10 @@
 # First-position PAPER bootstrap
 
+Historical receipt: the shutdown/`Restart=no` architecture below is superseded by
+[autonomous native position continuation](../position-continuation/HANDOFF.md).
+Use that descendant's deployment plan and disposition. This retained receipt
+does not authorize terminating the owner of an open position at bootstrap expiry.
+
 The zero-position epoch previously could not start its evidence worker because
 funded-position latency had not been proved. Read-only acquisition now starts
 independently. The existing latency guard has moved to normal capital admission,

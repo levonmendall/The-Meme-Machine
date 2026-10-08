@@ -243,8 +243,13 @@ class Worker:
 
     def _step(self,admit):
         if self.service is None:self.service=self.factory()
-        status=self.service.step(admit=admit)
-        if self.enrichment_enabled:
+        from meme_machine.operational.position_continuation import position_only
+        maintenance=position_only();admit=admit and not maintenance
+        if maintenance:
+            from meme_machine.lanes.pons.provider_admission import position_work
+            status=position_work(self.service.step)(admit=False)
+        else:status=self.service.step(admit=admit)
+        if self.enrichment_enabled and not position_only():
             try:
                 from meme_machine.runtime.opportunity_telemetry import enrich_service
                 telemetry=enrich_service(self.service,now=time.time())
@@ -273,6 +278,13 @@ class Worker:
         if self.future is not None:
             if not self.future.done():return self.status
             self.status=self.future.result();self.future=None
+        from meme_machine.operational.position_continuation import position_only
+        accounting=self.status.get('accounting') or {}
+        if (position_only() and self.status.get('durable_handoff') is True and
+                accounting and not any(accounting.get(k) for k in ('open_positions','reserved'))):
+            # The other native Current manager can still own a position. An
+            # empty Survivor worker needs no repeated provider reconnection.
+            return self.status
         interval=getattr(self.service,'observation_interval_seconds',5)
         if type(interval) not in (int,float) or not 1<=interval<=5:
             raise ValueError('survivor_observation_interval')

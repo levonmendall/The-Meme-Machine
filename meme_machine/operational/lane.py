@@ -131,7 +131,8 @@ def run_native(root,lane):
                 if requested.wait(15):return
         install_ramses(ramses_extended_test)
         ramses_extended_test.main(campaign=True)
-    health(root,lane,'STOPPED',reconciled=True)
+    value=status.snapshot();value.pop('phase',None)
+    health(root,lane,'STOPPED',**value)
 
 
 def empty_native_reconciliation(root,lane):

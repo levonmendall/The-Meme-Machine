@@ -983,7 +983,10 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 if getattr(sessions,'plane',None) is not None:
                     for scope in (PUMP_SCOPE,SWAP_SCOPE):sessions.plane.command(op='release',owner=life.lifecycle_id,scope=scope,resolved=True)
                 active.pop(key,None)
+            row['position_safety']=dict(at=now,evidence_current=True,exit_quote_available=True,blocker=None)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
+            row['position_safety']=dict(at=now,evidence_current=False,
+                blocker='pump_current_native_monitor_failed:'+type(exc).__name__)
             row.setdefault("monitor_failures",[]).append(dict(
                 observed_at=now,reason=str(exc) or type(exc).__name__))
             row["monitor_failures"]=row["monitor_failures"][-20:]
@@ -1011,6 +1014,9 @@ def _scale_current(life,row,current,qualification,snapshot,facts,now):
     from meme_machine.runtime.directional_continuation import scale_budget,native_sync
     from meme_machine.runtime.execution_capacity import breadth_retained
     p=life.position
+    from meme_machine.operational.position_continuation import position_only,addition_rejection
+    if position_only():
+        addition_rejection(life.book,life.lifecycle_id,'funding_authorization_closed',now);return None
     if (life.sleeve is None or p.scale_committed or not p.partial_harvest_taken
             or p.first_tail_crossed_at is None or now-p.first_tail_crossed_at<900
             or p.exit_reason or qualification is None or not qualification.qualified):return None
@@ -1226,8 +1232,10 @@ def main(*,campaign=False,discovery_seconds=None):
     stream=PumpLogStream(primary_rpc_url(required=True),discovery_tape,ws_url=discovery_ws_url())
     pumpswap_stream=LocalInterestRegistry(plane)
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
-    thread.start()
-    if not ready.wait(15):report['limitations'].append('public_discovery_start_timeout')
+    from meme_machine.operational.position_continuation import position_only
+    if not position_only():
+        thread.start()
+        if not ready.wait(15):report['limitations'].append('public_discovery_start_timeout')
 
     sessions=Sessions();sessions.plane=plane
     survivor=None
@@ -1239,7 +1247,7 @@ def main(*,campaign=False,discovery_seconds=None):
     cursor=0;full_attempts=0
     attempt_budget=RollingAttemptBudget()
     created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
-    report['restored_observed_candidates']=_restore_observed_pump_candidates(
+    report['restored_observed_candidates']=0 if position_only() else _restore_observed_pump_candidates(
         created,postgrad,pumpswap_stream,plane,confirmations,int(time.time()))
     if survivor is not None:survivor.prime()
     from meme_machine.runtime.status import update
@@ -1254,11 +1262,27 @@ def main(*,campaign=False,discovery_seconds=None):
     report["discovery_deadline"]=discovery_end
 
     try:
-        while int(time.time())<end:
+        while int(time.time())<end or (campaign and position_only()):
             now=int(time.time())
             _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
             _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
-            if survivor is not None:report['survivor']=survivor.tick(now,admit=now<discovery_end)
+            maintenance_only=position_only()
+            if survivor is not None:report['survivor']=survivor.tick(now,admit=not maintenance_only and now<discovery_end)
+            native=report.get('survivor') or {}
+            update('MANAGING' if active or pending or (native.get('accounting') or {}).get('open_positions') else 'DISCOVERING',
+                reconciled=True,restored_positions=len(active)+len(pending),
+                native_continuation=dict(current_restored=True,
+                    position_safety=[row.get('position_safety',dict(at=0,evidence_current=False,
+                        blocker='pump_current_position_not_observed')) for row in active.values()]+native.get('position_safety',[]),
+                    survivor_replay_verified=(native.get('accounting_replay') or {}).get('verified') is True,
+                    survivor_handoff_ready=native.get('durable_handoff') is True,
+                    exit_path_bound=callable(_monitor_positions),
+                    flat=not active and not pending and not any((native.get('accounting') or {}).get(k)
+                        for k in ('open_positions','reserved'))))
+            if maintenance_only:
+                stop.set()
+                if now-last_save>=2:_save(report);last_save=now
+                _stop_sleep(.25);continue
             if campaign:_retire_postgrad(report,postgrad,pending,active,pumpswap_stream,int(time.time()))
             health=plane.health(PUMP_SCOPE)
             if health['usable']:health=plane.health(SWAP_SCOPE)
@@ -1641,7 +1665,8 @@ def main(*,campaign=False,discovery_seconds=None):
             _stop_sleep(1)
     finally:
         if survivor is not None:report['survivor']=survivor.close()
-        stop.set();thread.join(timeout=5)
+        stop.set()
+        if thread.ident is not None:thread.join(timeout=5)
         sessions.finish()
         report["sessions"]=sessions.history
         report["stream"]=tape.status(int(time.time()))

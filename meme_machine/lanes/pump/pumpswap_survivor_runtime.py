@@ -220,6 +220,8 @@ class Runtime:
             raise ValueError('survivor_exit_quote_stale')
 
     def _position(self,row,*,admit=True):
+        from meme_machine.operational.position_continuation import cancel_unfilled
+        if cancel_unfilled(self.book,self.sleeve,self.history,row,self.now()):return
         self.current=row
         try:position=self.book._load(row['position'])
         except ValueError:
@@ -249,6 +251,10 @@ class Runtime:
             soft_deterioration=None if not flow else flow['buy_flow']<=flow['sell_flow'] and flow['new_buyers']==0)
         action=monitor(book=self.book,sleeve=self.sleeve,identity=row['position'],observation=observation,
                        policy=POLICY['exits'],adapter=self)
+        row['position_safety']=dict(at=self.now(),evidence_current=state is not None and facts is not None and q is not None,
+            exit_quote_available=q is not None,pending_exit=action['action']=='exit_pending',
+            blocker='pump_survivor_authenticated_state_flow_or_exit_quote_unavailable')
+        self.history.save(row)
         if action['action']=='hold':
             scale(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],
                 generation=row['generation'],adapter=self,qualify=evaluate_entry,ordinary_limit=600,
@@ -375,6 +381,8 @@ class Runtime:
         except (ValueError,Unavailable) as exc:
             self.last_error=str(exc)
         return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,
+                        blocker='pump_survivor_position_not_observed')) for r in self.history.rows() if r.get('position')],
                     candidate_count=len(self.history.rows()),last_boundary=self.last_error,
                     discovery_capacity_deferred=discovery_deferred,
                     candidate_capacity_pressure=(

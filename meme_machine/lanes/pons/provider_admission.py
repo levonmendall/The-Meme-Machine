@@ -45,6 +45,9 @@ def decision_work(priority_class):
     def decorate(function):
         @wraps(function)
         def wrapped(*args,**kwargs):
+            from meme_machine.operational.position_continuation import position_only
+            if priority_class>=3 and not _position_work.get() and position_only():
+                raise BoundaryError('bootstrap_optional_work_closed')
             token=_decision_priority.set((0,5,10,20,30,50)[priority_class])
             try:return function(*args,**kwargs)
             finally:_decision_priority.reset(token)
@@ -137,6 +140,9 @@ class Admission:
         db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
         return db
     def acquire(self,scope,deadline=None,*,methods=None):
+        from meme_machine.operational.position_continuation import position_only
+        if (_decision_priority.get() or 0)>=20 and not _position_work.get() and position_only():
+            raise BoundaryError('bootstrap_optional_work_closed')
         from meme_machine.runtime.operating_families import active_scope_sql
         live="id IN (SELECT q.id FROM queue q LEFT JOIN queue_meta m ON m.id=q.id WHERE "+active_scope_sql("COALESCE(m.lane,'shared')")+")"
         ticket=uuid.uuid4().hex;started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30

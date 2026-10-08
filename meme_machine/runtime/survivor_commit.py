@@ -164,6 +164,9 @@ def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_l
     """Fresh native requalification and one incremental economic event."""
     from .directional_continuation import scale_budget,native_sync,BRIDGE_GATES
     native_sync(book,sleeve,identity)
+    from meme_machine.operational.position_continuation import position_only,addition_rejection
+    if position_only():
+        addition_rejection(book,identity,'funding_authorization_closed',adapter.now());return None
     risk=restore_risk(book,identity);p=book._load(identity);now=adapter.now()
     if (p['status']!='open' or risk.get('scale_committed') or not risk.get('realization_taken')
             or risk.get('first_tail_crossed_at') is None or now-risk['first_tail_crossed_at']<900
