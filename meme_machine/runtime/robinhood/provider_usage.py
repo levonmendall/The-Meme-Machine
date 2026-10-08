@@ -9,6 +9,7 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 import sqlite3
+import time
 
 _active = ContextVar('robinhood_http_attempt', default=None)
 _purpose = ContextVar('robinhood_evidence_purpose', default=None)
@@ -113,6 +114,19 @@ def snapshot(path, fingerprint):
         has_demand=db.execute("SELECT 1 FROM sqlite_master WHERE name='logical_demand'").fetchone()
         demands=dict(db.execute('SELECT method,n FROM logical_demand WHERE endpoint=?',(fingerprint,))) if has_demand else {}
         limits=db.execute('SELECT interval,cooldown FROM limits WHERE endpoint=?',(fingerprint,)).fetchone()
+        now=time.monotonic()
+        tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        queue_rows=db.execute(('SELECT q.created,q.deadline,COALESCE(m.lane,\'shared\') FROM queue q '
+            'LEFT JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? AND q.deadline>?' if 'queue_meta' in tables else
+            "SELECT created,deadline,'shared' FROM queue WHERE endpoint=? AND deadline>?"),(fingerprint,now)).fetchall()
+        # Bounded retained audit samples. Old records without a start clock are
+        # explicitly absent from rate estimates; lifetime counters stay intact.
+        starts=[json.loads(r[0]) for r in db.execute('SELECT body FROM transport_starts '
+            'WHERE json_extract(body,\'$.endpoint_fingerprint\')=? ORDER BY seq DESC LIMIT 4096',(fingerprint,))] \
+            if 'transport_starts' in tables else []
+        arrivals=[json.loads(r[0]) for r in db.execute('SELECT body FROM admissions '
+            'WHERE json_extract(body,\'$.endpoint_fingerprint\')=? ORDER BY seq DESC LIMIT 4096',(fingerprint,))] \
+            if 'admissions' in tables else []
     finally:db.close()
     from meme_machine.runtime.cu import estimate
     by_lane={};totals=Counter()
@@ -142,6 +156,39 @@ def snapshot(path, fingerprint):
     for value in result['work_categories'].values():
         value['diagnostic_estimated_cu']=estimate({k[7:]:int(n) for k,n in value.items() if k.startswith('method:')})
         value['verified_billed_cu']=None
+    recent=[row for row in starts if now-10<=row.get('admitted_at',-float('inf'))<=now]
+    recent_methods=Counter(m for row in recent for m in row.get('methods',[]))
+    bill=estimate(recent_methods)
+    # Throughput has different method weights (notably chainId and receipts).
+    schedule=json.loads((Path(__file__).resolve().parents[1]/'alchemy-cu-schedule.json').read_text())
+    weights=dict(schedule['methods'],**schedule.get('throughput_overrides',{}))
+    unpriced={m:n for m,n in recent_methods.items() if m not in weights}
+    known_throughput=sum(weights[m]*n for m,n in recent_methods.items() if m in weights)
+    throughput=None if unpriced else known_throughput
+    completed=[r for r in arrivals if now-10<=r.get('ended',-float('inf'))<=now]
+    arrived=[r for r in arrivals if now-10<=r.get('created',-float('inf'))<=now]
+    result['health'].update(oldest_queue_wait_seconds=max([0.]+[max(0.,now-a) for a,_,_ in queue_rows]),
+        queue_wait_by_consumer={lane:max([0.]+[max(0.,now-a) for a,_,l in queue_rows if l==lane])
+                                for lane in {l for _,_,l in queue_rows}},
+        original_deadline_remaining_seconds=min([b-now for _,b,_ in queue_rows],default=None))
+    result['rolling_10_seconds']=dict(available='transport_starts' in tables and 'admissions' in tables,
+        missing_rate_instrumentation_tables=sorted({'transport_starts','admissions'}-tables),
+        records_without_start_clock=sum('admitted_at' not in r for r in starts),
+        physical_http_attempts=sum(r.get('physical_requests',0) for r in recent),
+        physical_rps=sum(r.get('physical_requests',0) for r in recent)/10,
+        logical_rpc_elements=sum(recent_methods.values()),logical_calls_by_method=dict(recent_methods),
+        diagnostic_method_cu=bill,diagnostic_throughput_cu=throughput,
+        diagnostic_throughput_cups=None if throughput is None else throughput/10,
+        known_diagnostic_throughput_cu=known_throughput,unpriced_throughput_methods=unpriced,
+        completed_admissions=len(completed),admissions_arrived=len(arrived),
+        admission_arrival_rate=len(arrived)/10,
+        granted_admission_service_rate=sum(r.get('granted') is True for r in completed)/10,
+        rates_are_retained_audit_samples=True,sample_capacity=4096,
+        actual_account_capacity=None,verified_billed_cu=None)
+    if not result['rolling_10_seconds']['available']:
+        for key in ('physical_rps','diagnostic_throughput_cu','diagnostic_throughput_cups',
+                    'admission_arrival_rate','granted_admission_service_rate'):
+            result['rolling_10_seconds'][key]=None
     return result
 
 

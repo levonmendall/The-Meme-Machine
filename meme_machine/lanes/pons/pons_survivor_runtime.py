@@ -384,16 +384,21 @@ class Runtime:
         pending=[r for r in rows if r.get('block') is not None and r['block']<top]
         if not pending:return
         first=min(pending,key=lambda r:(r.get('history_attempt',0),r['block'],r['id']))['block']
+        from .pons_selective_v4 import acquisition_windows
+        proposed=[r for r in pending if first<=r['block']<first+160][:64]
+        window=acquisition_windows(self.endpoint,
+            [r['graduation']['transition']['market'] for r in proposed],self.history).turn_blocks()
         # Separate acquisition credit for overlapping checkpoints: an older
         # recovery cannot claim a newer pool without advancing that pool.
-        rows=self.history.history_batch([r for r in pending if first<=r['block']<first+40],top)
+        rows=self.history.history_batch([r for r in pending if first<=r['block']<first+window],top)
         if not rows:return
-        start=min(row['block'] for row in rows)+1;end=min(top,start+39)
+        start=min(row['block'] for row in rows)+1;end=min(top,start+window-1)
         if end<start:return
         active=[row for row in rows if row['block']<end]
         markets=[dict(pool_id=r['graduation']['transition']['market'],
             key=PoolKey(**r['graduation']['key']),token=r['id']) for r in active]
-        tapes=collect_v4_activities(self.endpoint,markets=markets,start_block=start,end_block=end)
+        tapes=collect_v4_activities(self.endpoint,markets=markets,start_block=start,end_block=end,
+            acquisition_state=self.history)
         blocks=sorted({end}|{r['block'] for r in active})
         values=[]
         for offset in range(0,len(blocks),50):

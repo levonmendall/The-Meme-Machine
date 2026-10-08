@@ -1,0 +1,50 @@
+{
+  "schema": "pons-payg-integration-snapshot-v1",
+  "branch": "engineering/robinhood-payg-optimization-20261008",
+  "base_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c",
+  "peers": {
+    "pump": {
+      "directory": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "branch": "engineering/pumpswap-provider-bandwidth-20261008",
+      "head": "874e94a915900215993566822e8adc9ce9524a6b",
+      "outstanding_paths": [],
+      "modified_by_this_task": false
+    },
+    "maintenance": {
+      "directory": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo",
+      "branch": "engineering/maintenance-provider-proof-20261008",
+      "head": "cf614f024c8df7bbf6601ccb331ec83d9cc6bf74",
+      "outstanding_paths": [],
+      "modified_by_this_task": false
+    },
+    "scout": {
+      "directory": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo",
+      "branch": "engineering/robinhood-scout-first-20261008",
+      "head": "842c99c462f42dda582d9211b16242ae12dff225",
+      "outstanding_paths": [],
+      "modified_by_this_task": false
+    },
+    "forward_survivor": {
+      "directory": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo",
+      "branch": "engineering/forward-survivor-20261008",
+      "head": "481bd11e918cda9c5de624a619f44688dc97fefb",
+      "outstanding_paths": [],
+      "modified_by_this_task": false
+    }
+  },
+  "remote_pons_capability_reference": "b1f215edd3dc079b623401c7e09e9c91a380e6a0",
+  "pump_production_paths_changed": [],
+  "maintenance_harness_import_only": true,
+  "epoch": "paper-1791089005190643467",
+  "canonical_volume": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1",
+  "production_state_written": false,
+  "deployment_performed": false,
+  "service_state_changed": false,
+  "service_inactive_at_initial_read_only_inspection": true,
+  "host": {
+    "dedicated_vcpu": 2,
+    "ram_gib": 8,
+    "infrastructure_purchased": false
+  },
+  "instruction": "Resolve only actual scope conflicts against latest committed Pump/proof source; do not reset dirty worktrees or overwrite Pons with older Pump branch tree"
+}

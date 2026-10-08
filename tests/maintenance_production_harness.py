@@ -159,11 +159,6 @@ async def run_case(*,seed=None,before=None,after=None,turns=32,
     class State(service.ServiceState):
         def __init__(self,path,config):
             super().__init__(path,config);self.writer.clock=clock.time
-            try:
-                if seed:seed(self,clock)
-            except BaseException:
-                self.close()
-                raise
         def archive_commit_slice_and_plan(self,plan,receipt):
             box['operations'].append(('archive',clock.monotonic(),len(plan[:512])))
             if archive_hook:
@@ -193,13 +188,36 @@ async def run_case(*,seed=None,before=None,after=None,turns=32,
         box['owner']=owner;return original_owner_init(owner,*args,**kwargs)
     def pool(*args,**kwargs):
         box['pool']=pool_class(*args,**kwargs);return box['pool']
+    from meme_machine.solana_owner_admission import OwnerAdmission
+    native_idle=OwnerAdmission.idle
+    async def clocked_idle(admission,stop,worker=None):
+        # Idle cadence is simulated by this fixture's controlled clock, just
+        # like archive/retirement execution. Keep all requested turns and yield
+        # through the real admission/condition machinery. An unfinished native
+        # worker still uses the real wait: its completion cannot be invented.
+        if worker is None or worker.done():
+            clock.advance(1.0)
+            admission.wake.set()
+        await native_idle(admission,stop,worker)
     with ExitStack() as stack:
         if path is None:path=Path(stack.enter_context(tempfile.TemporaryDirectory()))/'db'
         path=Path(path);box['path']=path
         stack.enter_context(ipc_transport())
         for obj,name,value in [(service,'time',clock),(service,'ServiceState',State),
-                (production,'MaintenanceRuntime',Runtime),(PriorityOwner,'__init__',owner_init)]:
+                (production,'MaintenanceRuntime',Runtime),(PriorityOwner,'__init__',owner_init),
+                (OwnerAdmission,'idle',clocked_idle)]:
             stack.enter_context(patch.object(obj,name,value))
+        # Construct the prescribed durable workload before timing its service.
+        # Large SQLite inserts/archive publication are fixture construction,
+        # not owner service or held-reader retirement. They previously consumed
+        # several seconds of the unchanged 12-second liveness deadline, and
+        # doubled under two-CPU contention. Reopen through the actual serve()
+        # owner; no records, scopes, turns, reader pressure or assertions change.
+        if seed:
+            from meme_machine.solana_provider_config import AlchemyEndpoint
+            seeded=State(path,AlchemyEndpoint.parse(ENDPOINT))
+            try:seed(seeded,clock)
+            finally:seeded.writer.close()
         stack.enter_context(patch('concurrent.futures.ProcessPoolExecutor',pool))
         stack.enter_context(patch('websockets.asyncio.client.connect',return_value=Wire(clock)))
         async def source_driver(work,stop):await model_b_feed(work,stop,clock)

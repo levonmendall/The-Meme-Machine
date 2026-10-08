@@ -1,0 +1,39 @@
+{
+  "schema": "alchemy-administrative-status-v1",
+  "owner_verified": {
+    "correct_payg_team_visible": true,
+    "applications": {
+      "pons": "v5h0vqr0wpp9zscj",
+      "pump": "9bin99s96t7ga5e9"
+    },
+    "compute_units_approximately": 1730000,
+    "reported_usage_usd_approximately": 0.91,
+    "granular_usage_visible": true,
+    "solana_primary_drivers": [
+      "address-history queries",
+      "WebSocket logs"
+    ]
+  },
+  "session_queries": {
+    "status": "MCP_TOOL_BINDING_UNAVAILABLE",
+    "error_code": -32001,
+    "error_kind": "Unknown tool",
+    "calls": [
+      "list_apps",
+      "get_app for both supplied IDs",
+      "get_usage_summary",
+      "get_usage_time_series grouped app/network/method",
+      "get_usage_time_series grouped app/requestType/network"
+    ],
+    "requested_start": "2026-10-07T00:00:00Z",
+    "granularity": "hour",
+    "numeric_usage_received": false
+  },
+  "interpretation": "Owner restored account data supersedes old paid-plan HTTP403. Unknown tool is this agent session binding failure, not an account entitlement rejection.",
+  "exact_team_id_received": false,
+  "exact_invoice_tariff_received": false,
+  "independent_masked_or_whole_key_comparison_performed": false,
+  "provider_rpc_work_dispatched": false,
+  "billing_changed": false,
+  "credentials_changed": false
+}

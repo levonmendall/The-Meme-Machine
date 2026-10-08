@@ -1,6 +1,12 @@
 Robinhood scout-first implementation and operational handoff
 ===========================================================
 
+Historical report. The owner's restored PAYG account and correct app IDs
+supersede the earlier administrative billing-access findings below. See the
+[PAYG implementation report](../robinhood_payg/REPORT.md) for current account
+evidence, capability boundaries and the prepared bounded proof. Historical
+measurements and artifacts below are preserved as originally recorded.
+
 Implemented on `engineering/robinhood-scout-first-20261008`, based on
 `63ec2352`, which descends from the owner's Pons reference
 `b1f215edd3dc079b623401c7e09e9c91a380e6a0`. This branch is PAPER engineering

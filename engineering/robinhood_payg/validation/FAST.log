@@ -1,0 +1,4 @@
+opportunity publication failed: IntegrityError
+opportunity schema unavailable: RuntimeError
+opportunity schema unavailable: RuntimeError
+opportunity publication failed: ValueError

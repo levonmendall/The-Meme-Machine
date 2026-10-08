@@ -1,0 +1,29 @@
+{
+  "schema": "pons-payg-validated-source-inventory-v1",
+  "base_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c",
+  "branch": "engineering/robinhood-payg-optimization-20261008",
+  "sources": {
+    "meme_machine/lanes/pons/log_windows.py": "bba8cfafcedb7223c4259d2c2a509ec8cb786307cea24ac6ffcbf2b241bf3e84",
+    "meme_machine/lanes/pons/pons_historical.py": "face540dd5e5032857389f2b27452e19f42aab0d7715eeb6cdfc87e2666182f7",
+    "meme_machine/lanes/pons/pons_natural_observation.py": "96246496bd50e03168179493cc60b1c10fae8eb49daeeb541d86627151a5b387",
+    "meme_machine/lanes/pons/pons_selective_v4.py": "1636cbf9d283a4b24f6fef9a26c1c44b5fe2ed19a764668c53fb364e811d4165",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "6f53e399cfac8ae9f0ddc61de6be7c47caf18b25e90bece31223bac889de409c",
+    "meme_machine/lanes/pons/provider.py": "37b3e5a2d6f2980071329ec97e11fe1bcfe4030ed27aa04f93cb209569a424ff",
+    "meme_machine/lanes/pons/provider_admission.py": "4d59523bde5fdcd929d08e3582a4991aeb21eb2f43a690655c764bcbe9d70d10",
+    "meme_machine/runtime/robinhood/provider_usage.py": "577be6e6f366ae9a85c7c271d1f331b573b882b487466579e4afe5ae0d3aaccd",
+    "operational/tests.py": "1783da7ffb0f22468f26c109120bb0977a06773800beeb87d08e8b5521387375",
+    "tests/test_robinhood_payg.py": "05324da59db4725d5bd426ba093f324da00a021aff5868bc6ca4f7ba808ee7c1",
+    "tests/maintenance_production_harness.py": "35532118566d561a46b0af27feb78580161474db1bb548d54e63b3e97db60891",
+    "tests/lanes/pons/test_pons_finalization.py": "969ce9ac82e98a96f87e754f21fe0c5f5bb3038a7c989c6c1d18525baa1c5196",
+    "engineering/robinhood_payg/proof.py": "dca7eb0813d9db04b24c84693990d683c30a177706ce5005b08694c453ad5b48",
+    "engineering/robinhood_payg/capability.py": "5777272e6e42afea227cfdc114a9146c62513dec6063578ad88132961c7cd121",
+    "engineering/robinhood_payg/identity.py": "1cbc760cce5da2efdb5a258950268633823077dcda133aea5ad2f0cbfb053821",
+    "engineering/robinhood_payg/replay.py": "d05901ac9ff2c8e5a1bdb9dee2dff7140ffbc10e0b9d420f5c50cb46c6ff2d1a",
+    "engineering/robinhood_payg/cost_model.py": "bdbd6110cb1968c767c65d2c806b29495bb8bee870b4e12ebe883f72f5d791e2"
+  },
+  "original_current_window_byte_identical_to_base": true,
+  "original_reviewed_proof_byte_identical": true,
+  "pump_production_paths_changed": [],
+  "canonical_governor_capacity_changed": false,
+  "credentials_included": false
+}

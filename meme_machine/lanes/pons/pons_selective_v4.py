@@ -12,6 +12,7 @@ from .abi import signature, topic
 from .identity import load
 from .pons import raw_event
 from .pons_selective_acquisition import _batched, SelectiveEvidenceContext
+from .log_windows import LogWindows
 
 
 def _event_topic(role,name):
@@ -39,58 +40,44 @@ def _signed(value,bits=128):
     return value
 
 
-def _transport(endpoint,*,pool_ids,start_block,end_block,max_events):
+def acquisition_windows(endpoint, pool_ids, state=None):
+    return LogWindows(endpoint, dict(address=load('uniswap_v4_manager')['address'].lower(),
+        topics=[_event_topic('uniswap_v4_manager','Swap'),list(pool_ids)]),state=state)
+
+
+def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_state=None):
     manager=load("uniswap_v4_manager")["address"].lower()
-    # Each logical request retains the canonical ten-block range bound.
+    # One range planner serves both strategies. Wider queries require an exact
+    # credential/filter comparison; unverified endpoints retain ten blocks.
     raw=[];sessions=[]
     context=SelectiveEvidenceContext(endpoint)
     def acquire(calls):
-        return _batched(endpoint,calls,'pons_selective_v4',evidence_context=context)
-    def page(query,provided=None):
-        first,last=int(query['fromBlock'],16),int(query['toBlock'],16)
-        try:
-            if provided is None:
-                values,_=acquire([('eth_getLogs',[query])]);provided=values[0]
-            if not isinstance(provided,list):raise BoundaryError('selective_v4_log_array_required')
-            if len(provided)>=1000:raise BoundaryError('selective_v4_response_saturation')
-            return provided
-        except BoundaryError as exc:
-            if str(exc) not in ('provider_response_capacity','provider_log_block_range_limit',
-                    'provider_rpc_-32005','selective_v4_response_saturation') or first==last:raise
-            middle=(first+last)//2
-            return page(dict(query,toBlock=hex(middle)))+page(dict(query,fromBlock=hex(middle+1)))
-    calls=[("eth_getLogs",[dict(
-        fromBlock=hex(first),toBlock=hex(min(int(end_block),first+9)),
-        address=manager,topics=[_event_topic("uniswap_v4_manager","Swap"),list(pool_ids)],
-    )]) for first in range(int(start_block),int(end_block)+1,10)]
-    # Bound physical batches too; the canonical context owns rate admission.
-    for offset in range(0,len(calls),4):
-        chunk=calls[offset:offset+4]
-        try:values,_=acquire(chunk)
-        except BoundaryError as exc:
-            if str(exc)!='provider_response_capacity':raise
-            values=[page(p[0]) for _,p in chunk]
-        if not isinstance(values,list) or len(values)!=len(chunk):
-            raise BoundaryError('selective_v4_log_batch_shape')
-        for (_,params),value in zip(chunk,values):raw.extend(page(params[0],value))
+        return _batched(endpoint,calls,'pons_selective_v4',evidence_context=context)[0]
+    windows=acquisition_windows(endpoint,pool_ids,acquisition_state)
+    raw=windows.read(int(start_block),int(end_block),acquire)
     for event in raw:
         if (event.get('address','').lower()!=manager or len(event.get('topics',[]))<2
                 or event['topics'][1] not in pool_ids
                 or not int(start_block)<=int(event['blockNumber'],16)<=int(end_block)):
             raise BoundaryError('selective_v4_range_or_pool_identity')
     raw.sort(key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),int(e['logIndex'],16)))
-    hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
-    headers_v,_=acquire([("eth_getBlockByHash",[h,False]) for h in hashes])
+    blocks=list(dict.fromkeys((int(event['blockNumber'],16),event['blockHash']) for event in raw))
+    # Hash bodies can survive a reorganization in the immutable cache. Numeric
+    # reads establish current canonical membership for every economic block.
+    headers_v=acquire([("eth_getBlockByNumber",[hex(n),False]) for n,_ in blocks])
+    if any(header.get('hash')!=h or int(header['number'],16)!=n for (n,h),header in zip(blocks,headers_v)):
+        raise BoundaryError('selective_v4_canonical_header_membership')
+    hashes=[h for _,h in blocks]
     headers=dict(zip(hashes,headers_v))
     tx_rows=list(dict.fromkeys(
         (event["transactionHash"],event["blockHash"]) for event in raw
     ))
     context.receipt_pins=dict(tx_rows)
-    receipts_v,_=acquire([("eth_getTransactionReceipt",[tx]) for tx,_ in tx_rows])
+    receipts_v=acquire([("eth_getTransactionReceipt",[tx]) for tx,_ in tx_rows])
     # Authenticated standard receipts carry the transaction sender. Keep the
     # original transaction-body path for providers/captures missing that field.
     missing=[(tx,bh) for (tx,bh),r in zip(tx_rows,receipts_v) if not r.get('from')]
-    txs_v,_=acquire([("eth_getTransactionByHash",[tx]) for tx,_ in missing])
+    txs_v=acquire([("eth_getTransactionByHash",[tx]) for tx,_ in missing])
     fallback=dict(zip(missing,txs_v))
     receipts={};txs={}
     for keyrow,receipt in zip(tx_rows,receipts_v):
@@ -109,12 +96,13 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events):
     telemetry=context.telemetry()
     sessions=list(telemetry['completed_sessions'])
     if telemetry['current_session']:sessions.append(telemetry['current_session'])
+    if sessions:sessions[-1]=dict(sessions[-1],log_windows=windows.telemetry())
     return dict(raw=raw,sessions=sessions,headers=headers,receipts=receipts,txs=txs)
 
 
 def collect_v4_activity(
     endpoint,*,pool_id,key,token,start_block,end_block,
-    preholder_groups=(),max_events=256,_shared=None,
+    preholder_groups=(),max_events=256,_shared=None,acquisition_state=None,
 ):
     manager=load("uniswap_v4_manager")["address"].lower()
     if int(end_block)<int(start_block):
@@ -126,7 +114,8 @@ def collect_v4_activity(
         )
 
     shared=_shared or _transport(endpoint,pool_ids=[_pool_topic(pool_id)],
-        start_block=start_block,end_block=end_block,max_events=max_events)
+        start_block=start_block,end_block=end_block,max_events=max_events,
+        acquisition_state=acquisition_state)
     raw=[e for e in shared['raw'] if e['topics'][1]==pool_id]
     sessions=shared['sessions'];headers=shared['headers'];receipts=shared['receipts'];txs=shared['txs']
 
@@ -204,17 +193,20 @@ def collect_v4_activity(
     )
 
 
-def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=256):
+def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=256,acquisition_state=None):
     """One authenticated bounded range for at most 64 independent markets.
 
     Shared transport does not share candidate populations: each result traverses
     the same native receipt/ABI/transaction-sender authentication and pool filter.
     """
-    if not markets or len(markets)>64 or not 0<=end_block-start_block<40:
+    if not markets or len(markets)>64:
         raise BoundaryError('survivor_shared_range_bound')
     ids=[_pool_topic(m['pool_id']) for m in markets]
     if len(set(ids))!=len(ids):raise BoundaryError('survivor_duplicate_pool')
+    windows=acquisition_windows(endpoint,ids,acquisition_state)
+    if not 0<=end_block-start_block<min(160,4*windows.ceiling):
+        raise BoundaryError('survivor_shared_range_bound')
     shared=_transport(endpoint,pool_ids=ids,start_block=start_block,end_block=end_block,
-        max_events=max_events*len(markets))
+        max_events=max_events*len(markets),acquisition_state=acquisition_state)
     return {m['token']:collect_v4_activity(endpoint,**m,start_block=start_block,
         end_block=end_block,max_events=max_events,_shared=shared) for m in markets}
