@@ -1,0 +1,57 @@
+{
+  "active_lanes": [
+    "pump",
+    "pons"
+  ],
+  "capital_allocation_changes": 0,
+  "credential_changes": 0,
+  "deployment": false,
+  "durable_state_inventory_files": 64,
+  "durable_state_inventory_method": "Compare size, inode and mtime_ns; exclude shared-memory and lock files. Not a content hash of every large database.",
+  "durable_state_metadata_changed": [],
+  "epoch_policy_hash_note": "Observed portfolio policy_hash is preserved as observed. It is not substituted for a separately hashed historical approved policy document.",
+  "market_provider_calls": 0,
+  "observed_at": "2026-10-08T18:54:15.371746+00:00",
+  "observed_original_epoch": {
+    "currency": "USD",
+    "epoch_id": "paper-1791089005190643467",
+    "inception_at": "2026-10-04T04:43:25.289609Z",
+    "paper_only": true,
+    "policy_hash": "89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5b972",
+    "portfolio_epoch_id": "paper-1791089005190643467",
+    "starting_capital": "500.00"
+  },
+  "operating_family_source_unchanged": true,
+  "original_base_commit": "91ad8b608da357049c8c02e783fc41904634a535",
+  "original_tracked_files_changed": [],
+  "original_tracked_files_checked_by_git_diff": 1200,
+  "paper_service_after_properties": "MainPID=0\nExecMainStartTimestamp=Tue 2026-10-06 16:35:27 UTC\nExecMainExitTimestamp=Tue 2026-10-06 16:47:24 UTC\nEnvironmentFiles=/etc/meme-machine/paper.env (ignore_errors=no)\nActiveState=inactive\nSubState=dead\n",
+  "paper_service_before_properties": "MainPID=0\nExecMainStartTimestamp=Tue 2026-10-06 16:35:27 UTC\nExecMainExitTimestamp=Tue 2026-10-06 16:47:24 UTC\nEnvironmentFiles=/etc/meme-machine/paper.env (ignore_errors=no)\nActiveState=inactive\nSubState=dead\n",
+  "paper_service_properties_unchanged": true,
+  "paper_service_restarted": false,
+  "paused_lanes": [
+    "meteora",
+    "ramses"
+  ],
+  "production_source_files_hash_checked": 363,
+  "production_source_files_unchanged": 363,
+  "production_state_opened_for_write": false,
+  "production_subscription_switch": false,
+  "protected_file_after_sha256": {
+    "inception.json": "2f3ca8d2f2ce6eb8750fb63622c70f5e87943b1a222e5e29f892c6d9c727aeef",
+    "portfolio.json": "42e459c7c3b54caa1b1a67e938e09103e84aeedab89aebf47e52797159a0a17f",
+    "portfolio.sqlite": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087",
+    "portfolio.sqlite-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pump/native-genesis.json": "2fb1cddc05c30cf9416e2ed5d1189bc3c6a5898f8bb37ef50429263e148282a0"
+  },
+  "protected_file_before_sha256": {
+    "inception.json": "2f3ca8d2f2ce6eb8750fb63622c70f5e87943b1a222e5e29f892c6d9c727aeef",
+    "portfolio.json": "42e459c7c3b54caa1b1a67e938e09103e84aeedab89aebf47e52797159a0a17f",
+    "portfolio.sqlite": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087",
+    "portfolio.sqlite-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pump/native-genesis.json": "2fb1cddc05c30cf9416e2ed5d1189bc3c6a5898f8bb37ef50429263e148282a0"
+  },
+  "protected_files_content_unchanged": true,
+  "schema": "pump-final-provider-validation-preservation-v1",
+  "strategy_changes": 0
+}

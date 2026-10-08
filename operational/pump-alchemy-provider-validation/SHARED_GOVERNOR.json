@@ -1,0 +1,70 @@
+{
+  "account_wide_headroom_proven": false,
+  "connection_stream_reservation_tables": [],
+  "grants_last_60_seconds": 0,
+  "limitation": "This governor schedules local physical requests and priorities; it has no account-wide live connection or stream occupancy ledger.",
+  "method_pressure": [
+    {
+      "cooldown": 0.0,
+      "cooldown_remaining_seconds": 0,
+      "method": "getGenesisHash",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    },
+    {
+      "cooldown": 0.0,
+      "cooldown_remaining_seconds": 0,
+      "method": "getMultipleAccounts",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    },
+    {
+      "cooldown": 0.0,
+      "cooldown_remaining_seconds": 0,
+      "method": "getBlockTime",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    },
+    {
+      "cooldown": 0.0,
+      "cooldown_remaining_seconds": 0,
+      "method": "getTransactionsForAddress",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    },
+    {
+      "cooldown": 0.0,
+      "cooldown_remaining_seconds": 0,
+      "method": "getBlock",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    }
+  ],
+  "observed_at": "2026-10-08T18:45:12.158124+00:00",
+  "opened_read_only": true,
+  "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1/shared/solana-provider.sqlite",
+  "providers": [
+    {
+      "cooldown": 0.0,
+      "cooldown_remaining_seconds": 0,
+      "grants": 2038,
+      "next_at": 398584.86896909,
+      "next_wait_seconds": 0,
+      "provider": "solana",
+      "rate_errors": 0
+    }
+  ],
+  "queues": [],
+  "sample_monotonic": 567284.738633397,
+  "schema": "shared-governor-read-only-observation-v1"
+}

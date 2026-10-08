@@ -1,0 +1,43 @@
+{
+  "additional_experiment_topology": {
+    "candidate_filters": 5,
+    "native_channels": 1,
+    "native_subscribe_rpcs": 3,
+    "websocket_connections": 1,
+    "websocket_subscriptions": 2
+  },
+  "app_id": "9bin99s96t7ga5e9",
+  "authorization_consumed": false,
+  "authorization_received": true,
+  "authorization_reference": "owner-request-20261008-final-provider-validation",
+  "authorized_experiments": 1,
+  "blocker_code": "current_account_headroom_required",
+  "checked_at": 1791485362.4192584,
+  "credential_app_binding_verified": true,
+  "endpoint_identity": "8f3feda9d10baa64d74b5ecb3a97cfa48af379982666f93a425e537668a51749",
+  "exact_blocker": "No current authenticated account-wide connection/Subscribe-stream occupancy, effective connection/stream limits, rolling throughput headroom or complete concurrent-workload reservation is available through the connected administrative tools. The shared governor only schedules local physical requests. A published allowance, local empty queue, inactive PAPER process and historical usage do not establish account-wide available capacity.",
+  "executor_live_mode_invoked": false,
+  "experiments_started": 0,
+  "expires_at": 1791485662.4192584,
+  "headroom_verified": false,
+  "market_provider_requests_dispatched": 0,
+  "offline_guard_check": {
+    "market_provider_calls": 0,
+    "reason": "current_account_headroom_required",
+    "result": "REJECTED_AS_REQUIRED"
+  },
+  "production_changes_required": false,
+  "receipt_is_executable": false,
+  "required_resolution": "A trusted current observation or binding reservation covering all account workloads and this exact additional topology, within the executor receipt validity of at most 300 seconds, without production changes or capacity purchases.",
+  "schema": "pump-provider-final-preflight-v1",
+  "status": "BLOCKED",
+  "unknowns": [
+    "current_account_native_channels_and_subscribe_streams",
+    "effective_account_native_connection_and_stream_limits",
+    "current_app_and_account_websocket_connections_and_subscriptions",
+    "effective_websocket_connection_and_subscription_limits",
+    "current_account_rolling_provider_throughput",
+    "external_concurrent_workloads_and_binding_capacity_reservation",
+    "effective_candidate_filter_admission"
+  ]
+}

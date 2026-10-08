@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "configured_credential_and_url_scan": true,
+    "decimal_usage_reconciliation": true,
+    "no_false_native_or_parity_sample": true,
+    "no_savings_credited_from_estimates": true,
+    "original_cost_scenarios_unchanged": true,
+    "production_preservation": true,
+    "public_value_secret_boundary": true,
+    "report_json_parse": true,
+    "source_identity_and_limits_unchanged": true,
+    "unverified_headroom_rejected_by_existing_guard": true,
+    "zero_market_provider_initiations": true
+  },
+  "engineering_regression_suites_rerun": false,
+  "github_push_workflow": "Evidence-only publication commit requests [skip ci]; existing offline FAST workflow has no deployment step; no CI result is claimed.",
+  "live_experiment_attempted": false,
+  "market_provider_calls": 0,
+  "observed_at": "2026-10-08T18:54:15.394617+00:00",
+  "report_collection_runtime_note": "The existing production venv lacks grpc; receipt verification used the executor previously validated engineering venv without installing or changing dependencies.",
+  "result": "REPORT_CHECKS_PASS_EXPERIMENT_BLOCKED",
+  "runtime": "3.12.14",
+  "schema": "pump-final-provider-report-validation-v1",
+  "validation_scope": "Read-only preflight guard, report consistency, arithmetic, source/state preservation and publication credential scan."
+}

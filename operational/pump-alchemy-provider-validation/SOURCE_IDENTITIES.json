@@ -1,0 +1,40 @@
+{
+  "base_commit": "91ad8b608da357049c8c02e783fc41904634a535",
+  "base_remote_head_verified": "91ad8b608da357049c8c02e783fc41904634a535",
+  "existing_storage_policy_source_sha256": "24d4362f465586d08fe8f917dcf69b553d39a2b9b0c87635e5b0ae9200bce87d",
+  "limits_unchanged": {
+    "cancellation_reserve": 67108864,
+    "channels": 1,
+    "frame_bytes": 16777216,
+    "http_cu": 90,
+    "http_requests": 5,
+    "native_rpcs": 3,
+    "native_writes": 3,
+    "paired_seconds": 45,
+    "physical_methods": 11,
+    "ping_writes": 12,
+    "receive_stop": 50331648,
+    "records": 100000,
+    "rss_bytes": 536870912,
+    "shutdown_seconds": 2,
+    "stopping_ceiling": 67108864,
+    "storage_bytes": 268435456,
+    "storage_stop": 234881024,
+    "wall_seconds": 60,
+    "ws_connections": 1,
+    "ws_subscribes": 2,
+    "ws_unsubscribes": 1
+  },
+  "live_executor_invoked": false,
+  "publication_branch": "reports/pump-alchemy-provider-validation-20261008",
+  "published_base_branch": "engineering/pump-alchemy-capability-executor-20261008",
+  "runtime": "CPython 3.12.14",
+  "unchanged_source_sha256": {
+    "engineering/solana_capacity/capability_evidence.py": "aec19291ea65924a0c1961abebdff91b9f6e44d5350a69eab8d750fe16a176ec",
+    "engineering/solana_capacity/capability_executor.py": "68f5f0a4f002cb12e8a1cec13e833bcc263fdeef4f5a7dcb5ac38388c403ad89",
+    "engineering/solana_capacity/capability_limits.py": "5434ea599590892f99780fdc51faa6fea173c7186f6af77d848e5db62e15437a",
+    "engineering/solana_capacity/credential_reconciliation.py": "49c49bff50711086c427eaacfe9047bdbd90d80b1452b5b383c4364a4e2fbb52",
+    "meme_machine/runtime/governor.py": "ba77d183345037366333b7e7b81ceac9443b8d603254423d7be0e1ff61165034",
+    "meme_machine/yellowstone/geyser.proto": "80ee337f361198a0722cb5bdf244fe41838949ab7a3af6d1b182b7fdca9abf02"
+  }
+}

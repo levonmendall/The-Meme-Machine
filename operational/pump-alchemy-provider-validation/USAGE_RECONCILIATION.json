@@ -1,0 +1,39 @@
+{
+  "account_summary_change_is_experiment_delta": false,
+  "account_summary_cu_change": "0.0000",
+  "account_summary_cu_initial": "1730149.7724",
+  "account_summary_cu_later": "1730149.7724",
+  "account_summary_reported_usd_initial": "0.91",
+  "account_summary_reported_usd_later": "0.91",
+  "billed_savings_bytes": null,
+  "billed_savings_percent": null,
+  "billing_update_cadence": "minute",
+  "cautions": [
+    "Earlier workloads remain included; no historical meter is an A/B comparison.",
+    "The summary USD value is CU-denominated and does not establish total gRPC cost.",
+    "Decimal TB conversion and WS tariff inversion are derived billing-unit equivalents, not a measured wire or application capture.",
+    "The CU and native queries have different dataThrough timestamps and hourly/daily resolution.",
+    "A zero short-window change cannot establish instantaneous headroom or zero provider traffic.",
+    "A finalized invoice, custom prices, transport overhead attribution and experiment-scoped billing reconciliation are unavailable."
+  ],
+  "classification": "AUTHENTICATED_USAGE_METERS_AND_DERIVED_VALUES_NOT_FINAL_INVOICE",
+  "cu_data_through": "2026-10-08T18:44:00.000Z",
+  "current_day_partial": true,
+  "experiment_usage_delta": "NOT_APPLICABLE_EXPERIMENT_NOT_STARTED",
+  "native_data_through": "2026-10-08T18:45:00.000Z",
+  "pump_combined_usd_derived_at_list_price": "1.38047401551",
+  "pump_cu_usd_derived_at_list_price": "0.90832338051",
+  "pump_native_decimal_bytes_derived": "6295341800.0000000000",
+  "pump_native_usd_derived_at_list_price": "0.4721506350",
+  "pump_reported_cu_by_transport": {
+    "grpc": "0",
+    "http": "1154690",
+    "websocket": "575449.7724"
+  },
+  "pump_reported_native_tb": "0.0062953418",
+  "pump_reported_total_cu": "1730139.7724",
+  "pump_ws_billing_bytes_derived": "2877248862",
+  "query_end": "2026-10-08T18:45:12.329Z",
+  "query_start": "2026-10-02T00:00:00Z",
+  "schema": "pump-alchemy-authenticated-usage-reconciliation-v1"
+}

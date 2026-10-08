@@ -1,0 +1,460 @@
+{
+  "summary_initial": {
+    "data": {
+      "billingPeriod": {
+        "startTime": "2026-10-01T00:00:00.000Z",
+        "endTime": "2026-11-01T00:00:00.000Z"
+      },
+      "totals": {
+        "monthToDate": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last7Days": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last30Days": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        }
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:39:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      }
+    }
+  },
+  "summary_later": {
+    "data": {
+      "billingPeriod": {
+        "startTime": "2026-10-01T00:00:00.000Z",
+        "endTime": "2026-11-01T00:00:00.000Z"
+      },
+      "totals": {
+        "monthToDate": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last7Days": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last30Days": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        }
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:44:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      }
+    }
+  },
+  "recent_core_usage": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-08T12:00:00Z",
+        "endTime": "2026-10-08T18:40:49.816Z",
+        "granularity": "hour",
+        "products": [
+          "SUPERNODE_CU"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "groupBy": [
+          "app",
+          "network",
+          "requestType"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:40:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": [
+        {
+          "startTime": "2026-10-08T16:00:00.000Z",
+          "endTime": "2026-10-08T17:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "v5h0vqr0wpp9zscj",
+            "network": "robinhood-mainnet",
+            "requestType": "http"
+          },
+          "amount": "10",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        }
+      ]
+    }
+  },
+  "recent_native_usage": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-08T12:00:00Z",
+        "endTime": "2026-10-08T18:42:45.867Z",
+        "granularity": "hour",
+        "products": [
+          "SOLANA_GRPC_TB"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "groupBy": [
+          "app",
+          "network",
+          "requestType"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:42:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": [
+        {
+          "startTime": "2026-10-08T16:00:00.000Z",
+          "endTime": "2026-10-08T17:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "v5h0vqr0wpp9zscj",
+            "network": "robinhood-mainnet",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        }
+      ]
+    }
+  },
+  "historical_cu_usage": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-02T00:00:00Z",
+        "endTime": "2026-10-08T18:44:25.968Z",
+        "granularity": "day",
+        "products": [
+          "SUPERNODE_CU",
+          "SUPERNODE_ENHANCED_CU",
+          "SOLANA_ARCHIVAL_CU"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "filters": {
+          "appIds": [
+            "9bin99s96t7ga5e9",
+            "v5h0vqr0wpp9zscj"
+          ]
+        },
+        "groupBy": [
+          "app",
+          "network",
+          "requestType"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:44:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": [
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "2130",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "28572.893",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "1152350",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "537033.5636",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "210",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "9843.3158",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "app": "v5h0vqr0wpp9zscj",
+            "network": "robinhood-mainnet",
+            "requestType": "http"
+          },
+          "amount": "10",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        }
+      ]
+    }
+  },
+  "historical_native_usage": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-02T00:00:00Z",
+        "endTime": "2026-10-08T18:45:12.329Z",
+        "granularity": "day",
+        "products": [
+          "SOLANA_GRPC_TB"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "filters": {
+          "appIds": [
+            "9bin99s96t7ga5e9",
+            "v5h0vqr0wpp9zscj"
+          ]
+        },
+        "groupBy": [
+          "app",
+          "network",
+          "requestType"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:45:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": [
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0.0046426064",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0.0016483698",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0.0000043656",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "app": "v5h0vqr0wpp9zscj",
+            "network": "robinhood-mainnet",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        }
+      ]
+    }
+  },
+  "schema": "authenticated-alchemy-usage-observations-v1",
+  "source": "Connected Alchemy authenticated administration tools",
+  "read_only_administrative_calls_in_task": 9,
+  "experiment_market_provider_calls": 0,
+  "cautions": [
+    "Reported usage is not a finalized invoice.",
+    "The summary is denominated in CU; native gRPC TB is queried separately.",
+    "Snapshots have different dataThrough timestamps, minute cadence and partial current-day buckets.",
+    "Historical usage includes earlier workloads and cannot be attributed to this unstarted experiment.",
+    "Hourly or daily consumption does not prove live connection, stream or instantaneous throughput headroom.",
+    "No Pump rows in the recent query do not certify zero active interests or instantaneous capacity."
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "accounting_components": {
+    "failed_status": "NOT_MEASURED",
+    "heartbeat": "NOT_MEASURED",
+    "protocol_and_tls_overhead": "NOT_MEASURED",
+    "shutdown": "NOT_MEASURED",
+    "startup_overlap": "NOT_MEASURED",
+    "transition_overlap": "NOT_MEASURED"
+  },
+  "admission": {
+    "account_wide_headroom": "UNVERIFIED",
+    "local_active_cooldown": false,
+    "local_shared_queue_depth": 0,
+    "provider_admission": "NOT_ATTEMPTED"
+  },
+  "architecture_A_total_provider_delivered_bytes": null,
+  "architecture_B_total_provider_delivered_bytes": null,
+  "authorized_runs": 1,
+  "base_commit": "91ad8b608da357049c8c02e783fc41904634a535",
+  "blocker": "current_account_headroom_required",
+  "economics": {
+    "action": "RETAIN_EXISTING_WEBSOCKETS",
+    "monthly_cost": "SCENARIO_ESTIMATES_ONLY",
+    "production_change_recommendation": "NOT_PREPARED_VALIDATION_DID_NOT_PASS",
+    "winner": "UNDETERMINED"
+  },
+  "experiment_wall_seconds": null,
+  "extensions": 0,
+  "historical_validations": "Preserved existing offline results; no completed engineering validation rerun or promoted to a live pass.",
+  "native_success_payload_distribution": {
+    "N": 0,
+    "max": null,
+    "mean": null,
+    "min": null,
+    "p50": null,
+    "p95": null,
+    "p99": null
+  },
+  "parity": {
+    "candidate_discovery": "NOT_RUN",
+    "candidate_state": "NOT_RUN",
+    "canonical_completeness": "NOT_RUN",
+    "current_survivor_independence": "NOT_RUN",
+    "economic_events": "NOT_RUN",
+    "independent_status_witnesses": "NOT_RUN",
+    "live_held_position_safety": "NOT_RUN",
+    "observable_latency": "NOT_RUN",
+    "ordered_history": "NOT_RUN",
+    "original_deadlines": "NOT_RUN"
+  },
+  "protections": {
+    "active_lanes": [
+      "pump",
+      "pons"
+    ],
+    "capital_allocation_changes": 0,
+    "credential_changes": 0,
+    "deployment": false,
+    "live_money": false,
+    "original_500_usd_paper_epoch": "paper-1791089005190643467",
+    "paper_restart": false,
+    "paused_lanes": {
+      "meteora": "owner_indefinite_pause",
+      "ramses": "market_opportunity_insufficient"
+    },
+    "production_switch": false,
+    "strategy_changes": 0
+  },
+  "provider_initiations": {
+    "http_published_cu": 0,
+    "http_requests": 0,
+    "initial_ws_subscriptions": 0,
+    "subscribe_rpcs": 0,
+    "websocket_connections": 0,
+    "ws_unsubscribes": 0,
+    "yellowstone_channels": 0
+  },
+  "received_experiment_application_bytes": 0,
+  "reconnects": 0,
+  "requested_maximum_wall_seconds": 60,
+  "resources": {
+    "enforced_limits": {
+      "cancellation_reserve": 67108864,
+      "channels": 1,
+      "frame_bytes": 16777216,
+      "http_cu": 90,
+      "http_requests": 5,
+      "native_rpcs": 3,
+      "native_writes": 3,
+      "paired_seconds": 45,
+      "physical_methods": 11,
+      "ping_writes": 12,
+      "receive_stop": 50331648,
+      "records": 100000,
+      "rss_bytes": 536870912,
+      "shutdown_seconds": 2,
+      "stopping_ceiling": 67108864,
+      "storage_bytes": 268435456,
+      "storage_stop": 234881024,
+      "wall_seconds": 60,
+      "ws_connections": 1,
+      "ws_subscribes": 2,
+      "ws_unsubscribes": 1
+    },
+    "experiment_output_bytes": 0,
+    "experiment_process_started": false,
+    "limit_relaxations": 0,
+    "peak_experiment_rss_bytes": null
+  },
+  "retries": 0,
+  "runs_started": 0,
+  "schema": "pump-alchemy-final-provider-validation-v1",
+  "status": "BLOCKED",
+  "verified_provider_savings_bytes": null,
+  "verified_provider_savings_percent": null,
+  "verified_savings_credited_bytes": 0
+}

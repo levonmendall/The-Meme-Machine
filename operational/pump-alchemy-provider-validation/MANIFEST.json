@@ -1,0 +1,60 @@
+{
+  "base_commit": "91ad8b608da357049c8c02e783fc41904634a535",
+  "experiment_capture_files": 0,
+  "files": {
+    "ADMIN_USAGE.json": {
+      "bytes": 13137,
+      "sha256": "d2f5e99b495556dba22509841468d722dbbab36c9f1ca68933b35c5689a877ed"
+    },
+    "COST_ESTIMATES.json": {
+      "bytes": 30656,
+      "sha256": "fb7f0e60aae7a6416ca80a349dc5474a8301209549c43b98d7e567cf408d2555"
+    },
+    "CREDENTIAL_RECONCILIATION.json": {
+      "bytes": 1517,
+      "sha256": "754c7b6565a8f0ca084cb0acf2a551708371e94564970a5784a58032c69d4798"
+    },
+    "LOCAL_WORKLOADS.json": {
+      "bytes": 2429,
+      "sha256": "dc782cb4118a1b49897389b1444448f7e115ce246c25aba0a57ea4fc1a2dde59"
+    },
+    "PREFLIGHT.json": {
+      "bytes": 2268,
+      "sha256": "0b717215437e201450a912b14d9b5b6f17d4c60a5156ba08c27821d8644e3958"
+    },
+    "PRESERVATION.json": {
+      "bytes": 3162,
+      "sha256": "f04ff0e963114fcb1e3353635f2a0d064a4a3586d33b2f381779a6df543cd742"
+    },
+    "REPORT.md": {
+      "bytes": 12843,
+      "sha256": "c9293dbf1655fa12ca4ef567b78f879eef0ae15acbacdc79efa79d13134fd990"
+    },
+    "RESULT.json": {
+      "bytes": 3526,
+      "sha256": "976bc5318b9d14775746bc7af84f6957d4804518120a2c8c3d32935e787224ae"
+    },
+    "SHARED_GOVERNOR.json": {
+      "bytes": 1883,
+      "sha256": "948cad41a8853d0f196a49dce7c5b2985a43bfa4ed7af7abf0b2f94620345ec0"
+    },
+    "SOURCE_IDENTITIES.json": {
+      "bytes": 1825,
+      "sha256": "23599d19291eae999053158b3ffd6424b7c8fe5f200e495fa117f48d1c1a01d6"
+    },
+    "USAGE_RECONCILIATION.json": {
+      "bytes": 1988,
+      "sha256": "037dc89a3b0df3b6c9a2d34e25bd7bfac4a18c03768c225595e9259cd51aa481"
+    },
+    "VALIDATION.json": {
+      "bytes": 1327,
+      "sha256": "fba4b9383c8b7d4c20eed3efd54e24dee1fa75f0688fe29408a3040b059558fe"
+    }
+  },
+  "generated_at": "2026-10-08T18:54:15.395467+00:00",
+  "manifest_self_excluded": true,
+  "raw_secrets_published": false,
+  "report_branch": "reports/pump-alchemy-provider-validation-20261008",
+  "schema": "pump-final-provider-validation-manifest-v1",
+  "total_listed_bytes": 76561
+}

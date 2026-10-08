@@ -1,0 +1,91 @@
+{
+  "account_wide_occupancy_known": false,
+  "established_443_sockets_total": 3,
+  "limitations": [
+    "Socket counts are local TCP connections; no hostname, app binding, gRPC stream count or WebSocket subscription count is inferred.",
+    "A passive service or an offline test does not enumerate other hosts or external account workloads.",
+    "Generic process executables cannot establish provider inactivity."
+  ],
+  "observed_at": "2026-10-08T18:51:32.922926+00:00",
+  "processes": [
+    {
+      "established_443_sockets": 0,
+      "executable_basename": "python3",
+      "modules": [],
+      "pid": 940,
+      "script_basenames": []
+    },
+    {
+      "established_443_sockets": 3,
+      "executable_basename": "codex",
+      "modules": [],
+      "pid": 67742,
+      "script_basenames": []
+    },
+    {
+      "established_443_sockets": 0,
+      "executable_basename": "python",
+      "modules": [
+        "meme_machine.operational.metrics"
+      ],
+      "pid": 677764,
+      "script_basenames": []
+    },
+    {
+      "established_443_sockets": 0,
+      "executable_basename": "python",
+      "modules": [
+        "meme_machine.operational.uptime_health"
+      ],
+      "pid": 677765,
+      "script_basenames": []
+    },
+    {
+      "established_443_sockets": 0,
+      "executable_basename": "python",
+      "modules": [
+        "meme_machine.operational.observation"
+      ],
+      "pid": 1053186,
+      "script_basenames": []
+    },
+    {
+      "established_443_sockets": 0,
+      "executable_basename": "python",
+      "modules": [
+        "meme_machine.operational.monitoring"
+      ],
+      "pid": 1053263,
+      "script_basenames": []
+    },
+    {
+      "established_443_sockets": 0,
+      "executable_basename": "python",
+      "modules": [
+        "engineering.solana_capacity.pump_pons_proof"
+      ],
+      "pid": 1306702,
+      "script_basenames": []
+    },
+    {
+      "established_443_sockets": 0,
+      "executable_basename": "python",
+      "modules": [
+        "engineering.solana_capacity.pump_pons_proof"
+      ],
+      "pid": 1306708,
+      "script_basenames": []
+    },
+    {
+      "established_443_sockets": 0,
+      "executable_basename": "python",
+      "modules": [],
+      "pid": 1307248,
+      "script_basenames": []
+    }
+  ],
+  "provider_addresses_or_credentials_published": false,
+  "schema": "local-workload-observation-v1",
+  "scope": "THIS_DROPLET_ONLY",
+  "unattributed_socket_count": 0
+}
