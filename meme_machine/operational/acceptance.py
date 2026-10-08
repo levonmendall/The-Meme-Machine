@@ -115,6 +115,23 @@ def measure(root,seconds,*,clock=time.monotonic,sleeper=time.sleep):
         elapsed_seconds=clock()-started,self_healing_events=recovered_events,transient_outage_seconds=outage_seconds)
 
 
+def verify_recovery_identity(before,after):
+    """Same economic continuity checks for legacy and selected shared ledgers."""
+    from meme_machine.shared_capital.model import FAMILIES
+    prior=before['replayed_state'];latest=after['replayed_state']
+    if (after['epoch_id']!=before['epoch_id'] or after['inception_sha256']!=before['inception_sha256']
+            or after['sequence']<before['sequence']):
+        raise ValueError('recovery_lost_portfolio_identity_or_journal')
+    def family(p):return p['lane'] if 'lane' in p else FAMILIES[p['regime']]
+    def retired(state,lane):
+        return (state['retired'][lane]['count'] if lane in state['retired'] else
+            sum(v['count'] for r,v in state['retired'].items() if FAMILIES[r]==lane))
+    for lane in ('pump','pons','meteora','ramses'):
+        missing=[p for key,p in prior['positions'].items() if family(p)==lane and key not in latest['positions']]
+        if retired(latest,lane)-retired(prior,lane)<len(missing):raise ValueError('recovery_lost_position')
+    return not after['pending_deliveries']
+
+
 def recovery(root):
     import fcntl
     from .backup import state_identity
@@ -145,14 +162,7 @@ def recovery(root):
                     ids=[p['id'] for p in current['positions']]
                     if len(ids)!=len(set(ids)):raise ValueError('duplicate_economic_lifecycle')
                     after=state_identity(root)
-                    prior=before['replayed_state'];latest=after['replayed_state']
-                    if (after['inception_sha256']!=before['inception_sha256'] or after['sequence']<before['sequence']):
-                        raise ValueError('recovery_lost_portfolio_identity_or_journal')
-                    for family in ('pump','pons','meteora','ramses'):
-                        missing=[p for key,p in prior['positions'].items() if p['lane']==family and key not in latest['positions']]
-                        if latest['retired'][family]['count']-prior['retired'][family]['count']<len(missing):
-                            raise ValueError('recovery_lost_position')
-                    if after['pending_deliveries']:
+                    if not verify_recovery_identity(before,after):
                         continue
                     # Existing native restoration/reconciliation is a mandatory
                     # precursor to discovery, exercised by the native regressions.

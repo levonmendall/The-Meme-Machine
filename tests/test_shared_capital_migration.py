@@ -19,8 +19,8 @@ class MigrationTests(unittest.TestCase):
         self.old = legacy_fixture(self.path); self.addCleanup(self.old.close)
         self.mapping = empty_mapping()
 
-    def enter(self, r, i):
-        family = r.split("_")[0]; life, req = "original-life:" + r, "original-reservation:" + r
+    def enter(self, r, i, life=None):
+        family = r.split("_")[0]; life, req = life or "original-life:" + r, "original-reservation:" + r
         proof = legacy_proof(family, i)
         self.old.reserve(epoch_id=EPOCH, event_id="reserve:" + r, reservation_id=req, lane=family,
             amount="7.25", lifecycle_id=life, at=utc(i), provenance=proof)
@@ -30,6 +30,39 @@ class MigrationTests(unittest.TestCase):
         self.mapping["position_meta"][life] = dict(regime=r, economic_keys=["economic-asset:" + r],
             original_basis="6.25", original_native_basis=6250, partials=0, scale_committed=False, capital_seconds="0")
         return life
+
+    def test_migrated_native_backing_uses_preserved_alias_and_actual_basis_only(self):
+        from types import SimpleNamespace
+        from meme_machine.shared_capital.runtime import RuntimeCapital
+        from meme_machine.shared_capital.native_sleeve import legacy_backing
+        self.old.db.execute("INSERT INTO portfolio_native_ids(lane,native) VALUES(?,?)",('pump','preserved-native'))
+        self.enter('pump_current',1,life='pump:n1')
+        plan=plan_migration(self.path,self.mapping)
+        a=RuntimeCapital(self.root/'native-shared.sqlite');self.addCleanup(a.close);a.install_migration(plan)
+        book=SimpleNamespace(_shared_authority=a,identity={'lane':'pump_current'})
+        self.assertTrue(legacy_backing(book,'preserved-native',6250))
+        self.assertFalse(legacy_backing(book,'preserved-native',6251))
+        self.assertFalse(legacy_backing(book,'invented-native',1))
+        book.identity['lane']='pons_current'
+        self.assertFalse(legacy_backing(book,'preserved-native',1));a.verify_replay()
+
+    def test_original_zero_floor_policy_journal_replays_without_rewriting_its_identity(self):
+        from copy import deepcopy
+        from contextlib import closing
+        from meme_machine.shared_capital.migration import validate_plan
+        from meme_machine.shared_capital.model import digest
+        from meme_machine.shared_capital.authority import CapitalAuthority
+        plan=plan_migration(self.path,self.mapping)
+        for key in ('cash_floor_bps','transaction_cost_floor'):
+            del plan['policy'][key];del plan['seed']['policy'][key]
+        plan['migration_sha256']=digest({k:v for k,v in plan.items() if k!='migration_sha256'})
+        original=deepcopy(plan);self.assertEqual(validate_plan(plan),original)
+        path=self.root/'original-shared.sqlite'
+        with closing(CapitalAuthority(path)) as a:
+            a.install_migration(plan);before=a.snapshot();proof=a.verify_replay()
+        with closing(CapitalAuthority(path)) as a:
+            self.assertEqual(a.snapshot(),before);self.assertEqual(a.verify_replay(),proof)
+            self.assertEqual(a.snapshot()['ledger']['policy'],original['policy'])
 
     def test_all_six_regimes_epoch_basis_realized_costs_marks_and_identity_map_exactly(self):
         for i, r in enumerate(REGIMES, 1): self.enter(r, i)

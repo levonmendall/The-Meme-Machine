@@ -46,6 +46,8 @@ class NativeBoundary:
                 self._abort(native,event)
 
     def _abort(self, native, event):
+        if getattr(self.client,'shared',False):
+            return self.client.abort(native,event)
         # No lane writer exists concurrently with its own recovery. The verified
         # absence of this exact native event proves that its fill never committed.
         with self.client.writer() as (account, producer):
@@ -166,13 +168,18 @@ class NativeBoundary:
         add_reserved=False
         try:
             validate_value()
-            if action=='scale_add':
+            if action=='scale_add' and not getattr(self.client,'shared',False):
                 self.client.deliver(native,event_key="add-reserve:"+checksum,journal_hash=checksum,
                     kind="rebalance_reserve",at=utc(native_at),data={"amount":amount(raw),"native_reservation_id":reservation})
                 add_reserved=True
                 validate_value()
+            extra={}
+            if getattr(self.client,'shared',False):
+                units=position.get('basis',position.get('remaining_cost',position.get('reserved',0)))
+                if action=='scale_add':units=raw
+                extra['metadata']=dict(native_basis_units=int(units))
             event = self.client.prepare(native,event_key="native:"+checksum,journal_hash=checksum,kind=kind,at=utc(at),data=facts,
-                value_evidence=evidence if kind not in ("reserve","release") and facts.get("state")!="UNAVAILABLE" else None)
+                value_evidence=evidence if kind not in ("reserve","release") and facts.get("state")!="UNAVAILABLE" else None,**extra)
         except BaseException:
             if add_reserved:
                 self.client.deliver(native,event_key="failed-add-release:"+checksum,journal_hash=checksum,

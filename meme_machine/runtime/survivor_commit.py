@@ -41,7 +41,8 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
     if not decision['candidate'] or decision['policy_hash']!=policy_hash or breadth<=0:
         raise ValueError('survivor_qualified_decision_required')
     held=sleeve.get(identity)
-    budget=held['amount'] if held is not None else min(target,sleeve.reconcile()['available'])
+    available=target if hasattr(sleeve,'authority') else sleeve.reconcile()['available']
+    budget=held['amount'] if held is not None else min(target,available)
     if budget<minimum:raise ValueError('survivor_minimum_capital')
     sleeve.reserve(identity,strategy=strategy,amount=budget,at=at,candidate=candidate,
                    generation=generation,regime=regime)
@@ -188,7 +189,8 @@ def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_l
     if size<minimum:return None
     execution=quotes.entry(size);cost=execution['cost'];request=identity+':scale:1'
     if cost>size:raise ValueError('scale_execution_overdraw')
-    sleeve.reserve_scale(identity,amount=cost,original_basis=risk['original_basis'],at=now,request=request)
+    sleeve.reserve_scale(identity,amount=cost,original_basis=risk['original_basis'],at=now,request=request,
+        scale_state=risk,scale_facts=risk_facts)
     try:
         with adapter.generation_fence(candidate,generation),sleeve.scale_fence(identity,request):
             adapter.validate_current(state,execution,adapter.now())

@@ -37,7 +37,13 @@ def open_sleeve(lane,capital):
         return None
     cohort=os.environ.get('MM_DIRECTIONAL_COHORT_ID')
     if not cohort:raise ValueError('directional_cohort_required')
-    return SleeveReservations(path,lane=lane,capital=capital,policies=policies(lane),cohort=cohort)
+    from meme_machine.shared_capital.runtime import selected
+    database=os.environ.get('MM_PORTFOLIO_ACCOUNTING_DB')
+    constructor=SleeveReservations
+    if database and selected(database):
+        from meme_machine.shared_capital.native_sleeve import SharedSleeve
+        constructor=SharedSleeve
+    return constructor(path,lane=lane,capital=capital,policies=policies(lane),cohort=cohort)
 
 
 def native_terminal(sleeve,identity,position,at,*,verified):
@@ -83,6 +89,8 @@ def recover_pump_terminals(book):
             native_ids[position['id']]=position
             if position['status'] in ('settled','cancelled') and held and held['held']:
                 native_terminal(sleeve,position['id'],position,position['last_at'],verified=verified)
+        if hasattr(sleeve,'recover_unmaterialized'):
+            sleeve.recover_unmaterialized(native_ids,strategy=current_strategy,verified=verified)
         # Startup occurs before current-Pump admission. A crash before the native
         # reservation leaves an allocation only; verified absence releases it.
         for raw, in sleeve.db.execute('SELECT body FROM sleeve_positions'):

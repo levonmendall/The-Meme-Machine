@@ -48,6 +48,21 @@ def snapshot_database(source, target, deadline):
 
 
 def state_identity(root):
+    from meme_machine.shared_capital.runtime import selected
+    shared=selected(Path(root)/'portfolio.sqlite')
+    if shared:
+        from meme_machine.shared_capital.reporting import read_authority
+        with closing(sqlite3.connect(shared.as_uri()+'?mode=ro',uri=True)) as db:
+            db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
+            reader=read_authority(db);state=reader._read()
+            # Read-only recovery identity includes every shared obligation,
+            # native cursor, pending fact and the complete preserved source.
+            from meme_machine.shared_capital.model import digest
+            return dict(epoch_id=state['epoch_id'],inception_sha256=state['inception_sha256'],
+                sequence=state['migration_source']['sequence']+db.execute('SELECT count(*) FROM shared_capital_events').fetchone()[0],
+                journal_hash=db.execute('SELECT hash FROM shared_capital_events ORDER BY sequence DESC LIMIT 1').fetchone()[0],
+                reconciliation='PASS',funding_authority='SHARED',replayed_state=state,replayed_sha256=digest(state),
+                pending_deliveries=[*state['pending_deliveries'],*state.get('runtime_pending',{}).values()])
     with closing(sqlite3.connect((Path(root)/'portfolio.sqlite').absolute().as_uri()+'?mode=ro',uri=True)) as db:
         db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
         from meme_machine.portfolio_accounting import PortfolioAccounting,_encode_checkpoint,digest
@@ -135,6 +150,17 @@ def prove_replay(root):
     root=require_isolated(root)
     from meme_machine.portfolio_accounting import PortfolioAccounting
     before=state_identity(root)
+    if before.get('funding_authority')=='SHARED':
+        from meme_machine.shared_capital.runtime import RuntimeCapital
+        for _ in range(2):
+            with closing(RuntimeCapital(root/'shared-capital.sqlite')) as authority:authority.verify_replay()
+        try:PortfolioAccounting(root/'portfolio.sqlite')
+        except RuntimeError as error:
+            if str(error)!='legacy_funding_authority_retired':raise
+        else:raise RuntimeError('restored_legacy_funding_authority_not_fenced')
+        if state_identity(root)!=before:raise RuntimeError('restored_replay_changed_economic_state')
+        return dict(passed=True,epoch_id=before['epoch_id'],reconciliation='PASS',replay_idempotent=True,
+            single_funding_authority=True,legacy_funding_fenced=True)
     with closing(PortfolioAccounting(root/'portfolio.sqlite')) as account:
         account._reconcile(account.snapshot())
         try:

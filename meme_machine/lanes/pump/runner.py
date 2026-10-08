@@ -481,7 +481,8 @@ def _reserve_position(
     # execution admission input only; it must never change the qualification.
     reserved_at=max(int(snapshot["available_time"]),int(time.time()))
     sizing=_current_pump_sizing()
-    intended=min(sizing['target'],max(0,sizing['available']-GAS))
+    intended=(sizing['target'] if sizing.get('sizing_basis')=='effective_family_equivalence'
+        else min(sizing['target'],max(0,sizing['available']-GAS)))
     if intended<=0:
         # Strategy qualification already completed. Funding is a later execution
         # decision and may not erase the opportunity or suppress Survivor.
@@ -539,7 +540,8 @@ def _reserve_position(
         life.reserve(qualification,intended+GAS,reserved_at)
     except ValueError as exc:
         reason=str(exc)
-        if reason not in ('sleeve_capital_exhausted','paper_capital_exhausted'):
+        from meme_machine.shared_capital.native_sleeve import FundingDenied
+        if not isinstance(exc,FundingDenied) and reason not in ('sleeve_capital_exhausted','paper_capital_exhausted'):
             raise
         denial=dict(
             mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
@@ -560,12 +562,12 @@ def _reserve_position(
             mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
             policy_hash=qualification.policy_hash,
             entry_status='qualified_but_capital_unavailable',
-            funding_reason='sleeve_capital_exhausted',
+            funding_reason=reason,
             sizing=dict(sizing),
         )
         report.setdefault('qualified_unfunded',[]).append(unfunded)
         _progress(qualification.mint,'qualified_but_capital_unavailable',
-                  'sleeve_capital_exhausted',mode=mode,
+                  reason,mode=mode,
                   qualified_at=qualification.observed_at,economic_rejection=False)
         _progress(qualification.mint,'funding_denied',reason,mode=mode,
                   decision_id=decision_id,qualification_preserved=True)
@@ -1031,7 +1033,8 @@ def _scale_current(life,row,current,qualification,snapshot,facts,now):
         quote=buy_quote(snapshot,amount-GAS);quantity,cost,fee=quote.output_amount,quote.input_amount,quote.fee_amount
     cost+=GAS;request=life.lifecycle_id+':scale:1'
     if cost>amount:raise ValueError('scale_execution_overdraw')
-    life.sleeve.reserve_scale(life.lifecycle_id,amount=cost,original_basis=p.original_basis,at=now,request=request)
+    life.sleeve.reserve_scale(life.lifecycle_id,amount=cost,original_basis=p.original_basis,at=now,request=request,
+        scale_state=state,scale_facts=dict(facts,fresh_execution_requalified=capacity.final_size>0))
     try:
         with life.sleeve.scale_fence(life.lifecycle_id,request):
             if not 0<=int(time.time())-int(snapshot['available_time'])<=5:raise ValueError('scale_stale_quote')

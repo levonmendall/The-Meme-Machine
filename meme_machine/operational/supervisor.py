@@ -80,6 +80,23 @@ class Supervisor:
             raise RuntimeError('one_PAPER_supervisor_already_running') from None
         database=self.root/'portfolio.sqlite'
         try:
+            from meme_machine.shared_capital.runtime import selected,connection
+            shared=selected(database)
+            if shared:
+                self.shared_capital=connection(shared)
+                state=self.shared_capital.snapshot()['ledger']
+                self.epoch=state['epoch_id']
+                if self.offline != self.epoch.startswith('offline-fixture-'):
+                    raise RuntimeError('offline_and_operational_state_must_be_separate')
+                from contextlib import closing
+                with closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True)) as db:
+                    reader=object.__new__(PortfolioAccounting);reader.db=db
+                    reader.snapshot=lambda:reader._replay()
+                    frozen=reader.snapshot();reader._reconcile(frozen)
+                    if frozen['receipt_hash']!=state['inception_sha256'] or frozen['receipt']['epoch_id']!=self.epoch:
+                        raise RuntimeError('shared_authority_epoch_mismatch')
+                    self.pause_proof=self._assert_paused_lanes_clear(reader)
+                return
             existing_state=self.existing_epoch_state()
             if existing_state and not database.exists():
                 raise RuntimeError('existing_epoch_state_requires_bound_portfolio')
@@ -167,6 +184,9 @@ class Supervisor:
         env=self.environment(lane);env['MM_LANE_PROCESS_INSTANCE']=instance
         self.processes[lane]=subprocess.Popen(args,cwd=folder,env=env,start_new_session=True)
         self.process_instances[lane]=instance
+        if getattr(self,'shared_capital',None):
+            for suffix in ('current','survivor'):
+                self.shared_capital.owner(lane+'_'+suffix,instance,self.processes[lane].pid,ready=False,at=int(time.time()))
 
     def start_services(self):
         if self.offline:return
@@ -197,7 +217,12 @@ class Supervisor:
             health[lane]=dict(lane=lane,phase='PAUSED',paper_only=True,at=utc(now),
                 paused=True,pause_reason=reason,discovery_enabled=False,reconciled=True,
                 pid=None,process_instance=None,exit_code=None,restarts=0)
+        if getattr(self,'shared_capital',None):
+            try:self.publish_shared_capital(health,now)
+            except (OSError,ValueError,RuntimeError,sqlite3.Error) as error:
+                self.shared_capital_projection_error=str(error)
         try:
+            if getattr(self,'shared_capital',None):raise RuntimeError('shared_projection_already_published')
             with self.account() as account:
                 sequence=account.snapshot()['sequence']
                 account.export_path=self.root/'portfolio.json'
@@ -232,10 +257,31 @@ class Supervisor:
             # healthy portfolio then failed the observer's unchanged 15s TTL.
             _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(time.time()),stopping=self.stop_requested,lanes=health,providers=providers,python=sys.version.split()[0],sqlite=sqlite3.sqlite_version,
                 portfolio_observation=getattr(self,'portfolio_observation',None),
+                shared_capital_projection_error=getattr(self,'shared_capital_projection_error',None),
                 learning_observation=getattr(self,'learning_observation',None)))
         except OSError as error:
             print('health publication failed:',type(error).__name__,flush=True)
         self.last_publish=time.monotonic()
+
+    def publish_shared_capital(self,health,now):
+        from meme_machine.shared_capital.reporting import export,summary
+        from meme_machine.portfolio_snapshot_transport import publish_snapshot
+        for lane in ACTIVE_LANES:
+            row=health.get(lane,{})
+            proc=self.processes.get(lane)
+            if proc is None or proc.poll() is not None:continue
+            ready=row.get('reconciled') is True and row.get('phase') in ('DISCOVERING','MANAGING')
+            for suffix in ('current','survivor'):
+                self.shared_capital.owner(lane+'_'+suffix,self.process_instances[lane],proc.pid,
+                    ready=ready and not self.stop_requested,at=int(now))
+        projection=export(self.shared_capital,at=int(now))
+        projection['shared_capital']['allocation_latency']={lane:health.get(lane,{}).get('shared_capital_metrics',
+            {'state':'UNMEASURED'}) for lane in ACTIVE_LANES}
+        self.portfolio_observation=dict(state='CURRENT',timestamp=now,valid_until=projection['valid_until'],
+            **summary(self.shared_capital,int(now)))
+        _atomic_json(self.root/'inception.json',self.shared_capital.snapshot()['ledger']['inception'])
+        _atomic_json(self.root/'portfolio.json',projection)
+        publish_snapshot(self.root/'inception.json',self.root/'portfolio.json',self.root/'dashboard-snapshot.json')
 
     def provider_health(self):
         result={}

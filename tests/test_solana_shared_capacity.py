@@ -8,6 +8,46 @@ from meme_machine.solana_stable_shards import StableShards
 from meme_machine.runtime.governor import Governor
 
 class SharedCapacityTests(unittest.TestCase):
+    def test_separate_pump_pons_proof_counts_wire_batches_retries_and_stops_before_next_rpc(self):
+        from engineering.solana_capacity.pump_pons_proof import Budget,CeilingReached
+        from urllib.request import Request
+        limits=json.loads(Path('operational/shared-capital-activation/provider-ceilings.proposed.json').read_text())
+        limits.update(solana_rpc_requests=2,estimated_rpc_cu=40)
+        with tempfile.TemporaryDirectory() as tmp:
+            budget=Budget(limits,Path(tmp));physical=[];budget.original=lambda *a,**kw:physical.append(a)
+            request=Request('https://solana-mainnet.g.alchemy.com/v2/OFFLINE',data=json.dumps([
+                dict(jsonrpc='2.0',id=i,method='getSlot',params=[]) for i in range(2)]).encode())
+            budget.open(request)
+            with self.assertRaisesRegex(CeilingReached,'solana_request_ceiling'):budget.open(request)
+            self.assertEqual(len(physical),1)
+            self.assertEqual(budget.snapshot()['requests'],{'solana':2})
+            self.assertEqual(budget.snapshot()['estimated_rpc_cu'],40)
+
+    def test_separate_proof_denies_writes_and_unapproved_hosts_and_counts_native_payload(self):
+        from engineering.solana_capacity.pump_pons_proof import Budget,CeilingReached
+        from urllib.request import Request
+        limits=json.loads(Path('operational/shared-capital-activation/provider-ceilings.proposed.json').read_text())
+        with tempfile.TemporaryDirectory() as tmp:
+            for host,method in [('solana-mainnet.g.alchemy.com','sendTransaction'),('example.com','getSlot')]:
+                b=Budget(limits,Path(tmp));b.original=lambda *a,**kw:self.fail('must not open a physical connection')
+                request=Request('https://'+host+'/v2/OFFLINE',data=json.dumps(dict(method=method,params=[])).encode())
+                with self.assertRaises(CeilingReached):b.open(request)
+                self.assertEqual(b.snapshot()['requests'],{})
+            limits['native_delivery_bytes']=10;b=Budget(limits,Path(tmp))
+            b.delivery('delivery',dict(raw=b'12345'))
+            with self.assertRaisesRegex(CeilingReached,'native_delivery_byte_ceiling'):b.delivery('delivery',dict(raw=b'123456'))
+            self.assertEqual(b.snapshot()['native_delivery_bytes'],11)
+
+    def test_proof_stops_before_full_native_allowance_with_production_frame_margin(self):
+        from engineering.solana_capacity.pump_pons_proof import Budget,CeilingReached
+        limits=json.loads(Path('operational/shared-capital-activation/provider-ceilings.proposed.json').read_text())
+        with tempfile.TemporaryDirectory() as tmp:
+            b=Budget(limits,Path(tmp));b.native_bytes=48*1024*1024-2
+            with self.assertRaisesRegex(CeilingReached,'inflight_margin_stop'):
+                b.delivery('delivery',dict(raw=b'12'))
+            self.assertLess(b.native_bytes,limits['native_delivery_bytes'])
+            self.assertTrue(b.stop.is_set())
+
     def test_subscription_rebuild_shares_pending_history_without_claiming_coverage(self):
         from tests.test_solana_closure import state_at,NOW
         with tempfile.TemporaryDirectory() as d:

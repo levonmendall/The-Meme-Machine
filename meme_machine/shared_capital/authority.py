@@ -190,6 +190,12 @@ def funding_decision(state, request, at):
         "EXECUTION_CAPACITY": money(request["execution_capacity"]),
         "STRATEGY_CAPACITY": money(request["strategy_capacity"]),
     }
+    # An uncommitted floor is a new-risk ceiling, never a reservation or a
+    # fabricated funding obligation. Existing settlement remains independent.
+    floor = scaled(base, policy.get("cash_floor_bps", 0)) + money(policy.get("transaction_cost_floor", "0"))
+    if floor:
+        limits["CASH_AND_TRANSACTION_COST_FLOOR"] = max(ZERO,
+            money(capital_view(state)["free_cash"]) - overhead - floor)
     for key in keys:
         limits["ASSET_CONCENTRATION:" + key] = max(ZERO, scaled(base, policy["asset_bps"]) - exposure["asset"].get(key, ZERO))
     for group in policy["groups"][r]:
@@ -336,7 +342,7 @@ class CapitalAuthority:
         with self._transaction(write=True):
             duplicate = self.db.execute("SELECT body,result FROM shared_capital_events WHERE operation_id=?", (operation_id,)).fetchone()
             if duplicate:
-                if duplicate[0] != raw:
+                if not self._duplicate_matches(duplicate[0], raw):
                     raise CapitalError("conflicting_operation_identity")
                 return json.loads(duplicate[1])
             state = self._read()
@@ -357,6 +363,9 @@ class CapitalAuthority:
             self._fault("before_commit")
         self._fault("after_commit")
         return result
+
+    def _duplicate_matches(self, previous, current):
+        return previous == current
 
     def install_migration(self, plan, *, operation_id="install-preserved-epoch"):
         from .migration import validate_plan

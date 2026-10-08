@@ -94,6 +94,7 @@ class Certification:
         from meme_machine.runtime.evidence_worker import RepairRPC
         from meme_machine.solana_selective_source import SelectiveSource
         self.out=out;self.seconds=seconds;self.env=env;self.config=AlchemyEndpoint.parse(env['MM_SOLANA_READ_RPC_URL'])
+        self.position_families=('pump','pumpswap','meteora')
         self.governor=Governor(out/'governor.sqlite');self.rpc=RepairRPC(self.config.http_url,self.governor)
         self.source=SelectiveSource(self.config,self.rpc,token=env.get('MM_SOLANA_YELLOWSTONE_TOKEN',self.config.credential))
         native_measured=self.source.measured_rpc
@@ -147,20 +148,23 @@ class Certification:
             # These are position-only prerequisites after startup, not a hidden
             # startup or ordinary-promotion cold-reconstruction fallback.
             tip=await asyncio.to_thread(self.rpc.call,'getSlot',[dict(commitment='finalized')],True)
-            latest=await asyncio.to_thread(self.rpc.call,'getTransactionsForAddress',[POSITIVE,dict(transactionDetails='full',sortOrder='desc',limit=1,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters=dict(slot=dict(gte=0,lte=tip)))],True)
-            last_slot=latest['data'][0]['slot'] if latest.get('data') else max(1,tip-32)
+            if 'meteora' in self.position_families:
+                latest=await asyncio.to_thread(self.rpc.call,'getTransactionsForAddress',[POSITIVE,dict(transactionDetails='full',sortOrder='desc',limit=1,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters=dict(slot=dict(gte=0,lte=tip)))],True)
+                last_slot=latest['data'][0]['slot'] if latest.get('data') else max(1,tip-32)
+            else:last_slot=max(1,tip-32)
             def seed(s):
                 h=install(s);h.bind('meteora',POSITIVE)
                 job=h.request('meteora',POSITIVE,last_slot,tip,priority=0,deadline=time.time()+150)
                 h.db.execute('INSERT OR IGNORE INTO backfill_reasons VALUES(?,?,?)',(job,'POSITION_REQUIRED_GAP','{}'))
                 return job
-            await work(seed,0)
+            if 'meteora' in self.position_families:await work(seed,0)
             for family,address in [('pump',PUMP),('pumpswap',pumpswap_pool(SWAP_MINT)),('meteora',POSITIVE)]:
+                if family not in self.position_families:continue
                 def pin(s,f=family,a=address):
                     install(s);return s.fence.command(dict(op='interest',owner='capacity:position:'+f,scope=FAMILIES[f],lower_slot=last_slot if f=='meteora' else max(1,tip-32),addresses=[a],lifecycle='open',priority=0,evidence_class='transactions' if f=='meteora' else 'logs'))
                 await work(pin,0)
-            for family in ('pump','pumpswap','meteora'):tasks.append(asyncio.create_task(self.position_loop(family)))
-            tasks.append(asyncio.create_task(self.candidate_loop()))
+            for family in self.position_families:tasks.append(asyncio.create_task(self.position_loop(family)))
+            if 'meteora' in self.position_families:tasks.append(asyncio.create_task(self.candidate_loop()))
             tasks.append(asyncio.create_task(self.pump_candidate_loop()))
             drain_until=self.cutoff+150
             while time.time()<drain_until and not stop.is_set():

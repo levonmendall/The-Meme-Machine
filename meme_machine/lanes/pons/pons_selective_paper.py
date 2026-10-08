@@ -1424,7 +1424,8 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
                 now=int(time.time()),sleeve=sleeve,execution_allowance=cost)
             if cost>size:return None
             request=identity+':scale:1'
-            sleeve.reserve_scale(identity,amount=cost,original_basis=view['original_basis'],at=int(time.time()),request=request)
+            sleeve.reserve_scale(identity,amount=cost,original_basis=view['original_basis'],at=int(time.time()),request=request,
+                scale_state=view,scale_facts=dict(facts,fresh_strategy_requalified=requalified,fresh_execution_requalified=True))
             callback=paper.on_commit;paper.on_commit=None
             try:
                 with sleeve.scale_fence(identity,request):

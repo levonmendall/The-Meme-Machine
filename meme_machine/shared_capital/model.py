@@ -112,6 +112,8 @@ class RiskPolicy:
     reference_seconds: int = 30 * 86400
     max_samples: int = 512
     drawdown_stop_bps: int = 2000
+    cash_floor_bps: int = 0
+    transaction_cost_floor: str = "0"
     sizing_basis: str = "effective_family_equivalence"
     adaptive: bool = False
 
@@ -121,8 +123,9 @@ class RiskPolicy:
             raise ValueError("all_six_regime_budgets_required")
         if set(v["family_max_bps"]) != set(FAMILIES.values()) or set(v["groups"]) != set(REGIMES):
             raise ValueError("family_and_correlation_coverage_required")
-        for key in ("portfolio_bps", "asset_bps", "drawdown_stop_bps", "hysteresis_bps", "maximum_step_bps"):
+        for key in ("portfolio_bps", "asset_bps", "drawdown_stop_bps", "hysteresis_bps", "maximum_step_bps", "cash_floor_bps"):
             bps(v[key])
+        v["transaction_cost_floor"] = amount(v["transaction_cost_floor"], nonnegative=True)
         for mapping in (v["regime_base_bps"], v["regime_max_bps"], v["family_max_bps"], v["group_bps"]):
             for value in mapping.values():
                 bps(value, 1)

@@ -47,6 +47,8 @@ class CohortCapital:
                         raise BoundaryError('selective_terminal_recovery_proof')
                     native_terminal(sleeve,row['id'],position,row['at'],verified=True)
             if release_absent:
+                if hasattr(sleeve,'recover_unmaterialized'):
+                    sleeve.recover_unmaterialized(native_ids,strategy=STRATEGY_NAMESPACE,verified=True)
                 # Only the cohort startup, before lifecycle workers, can prove
                 # no current reservation is concurrently being materialized.
                 for raw, in sleeve.db.execute('SELECT body FROM sleeve_positions'):
@@ -98,13 +100,15 @@ class CohortCapital:
         reserved=sum(x['reserved'] for x in rows)
         realized=folded.get('realized',0)+sum(x['pnl'] for x in rows)
         available=self.capital+realized-reserved
-        if available<0:raise BoundaryError('selective_cohort_capital_invariant')
+        from meme_machine.shared_capital.native_sleeve import cohort_backing
+        shared=cohort_backing(db,rows)
+        if available<0 and not shared:raise BoundaryError('selective_cohort_capital_invariant')
         observed=[x for x in rows if 'native_position' in x]
         complete=len(observed)==len(rows) and all(x['native_accounting']['replay_verified'] for x in observed)
         cash=self.capital+folded.get('realized',0)-sum(x['native_position']['cost'] for x in observed)+sum(x['native_position']['realized_proceeds'] for x in observed)
         basis=sum(x['native_position']['remaining_cost'] for x in observed)
         booked=folded.get('realized',0)+sum(x['native_position']['realized_pnl'] for x in observed)
-        if complete and (cash<0 or self.capital+booked!=cash+basis):
+        if complete and (cash<0 and not shared or self.capital+booked!=cash+basis):
             raise BoundaryError('selective_cohort_cash_basis_invariant')
         return dict(genesis=self.capital,available=available,reserved=reserved,realized=realized,
                     unsettled=sum(x['status']!='settled' for x in rows),positions=folded.get('positions',0)+len(rows),
@@ -221,17 +225,21 @@ class CohortCapital:
         if sleeve is not None:
             try:
                 with closing(sleeve):sleeve.reserve(identity,strategy=STRATEGY_NAMESPACE,amount=amount,at=int(at),
-                    asset=(native_reservation_intent or {}).get("features",{}).get("token"))
+                    asset=((native_reservation_intent or {}).get('features') or {}).get('token') or (native_reservation_intent or {}).get("market"),
+                    funding_evidence=dict(native_reservation_intent=native_reservation_intent,decision_hash=decision_hash))
             except ValueError as exc:raise BoundaryError(str(exc)) from None
         with closing(self._connect()) as db:
             db.execute('BEGIN IMMEDIATE')
             try:
                 if db.execute('SELECT 1 FROM capital_positions WHERE id=?',(identity,)).fetchone():
                     raise BoundaryError('selective_cohort_duplicate_reservation')
-                if amount>self._reconcile(db)['available']:
+                from meme_machine.shared_capital.native_sleeve import cohort_receipt
+                funding=cohort_receipt(db,identity,amount)
+                if amount>self._reconcile(db)['available'] and not funding:
                     raise BoundaryError('selective_cohort_capital_exhausted')
                 row=dict(id=identity,status='reserved',reserved=amount,initial_reserved=amount,pnl=0,
                          at=int(at),decision_hash=decision_hash,trial_path=str(trial_path),policy_hash=POLICY_HASH)
+                if funding:row['shared_funding']=funding
                 if native_reservation_intent is not None:row['native_reservation_intent']=native_reservation_intent
                 self._write(db,row,'reserve');db.execute('COMMIT');return row
             except BaseException:

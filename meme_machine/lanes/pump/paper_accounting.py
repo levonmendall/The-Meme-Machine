@@ -263,5 +263,5 @@ class PaperBook:
 # The preserved accounting primitive has identical native transitions; only
 # terminal history representation and cumulative replay are extended.
 from meme_machine.runtime.survivor_paper_book import PaperBook as _PreservedBook
-for _method in ("_record","_archive","_compact_preserved","reconcile","replay","transition"):
+for _method in ("_record","_archive","_compact_preserved","reconcile","replay","transition","reserve","_shared_backing"):
     setattr(PaperBook,_method,getattr(_PreservedBook,_method))

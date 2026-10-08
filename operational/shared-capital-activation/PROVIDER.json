@@ -1,0 +1,327 @@
+{
+  "schema": "bounded-pump-pons-provider-proof-v1",
+  "classification": "INCONCLUSIVE_STOPPED_AT_NATIVE_ALLOWANCE",
+  "owner_authorization": "OWNER_APPROVAL.json",
+  "authorized_runs": 1,
+  "attempts": 2,
+  "window_seconds": 27.430150032043457,
+  "total_elapsed_seconds": 146.560344,
+  "meaningful_observation_started_at": "2026-10-07T23:52:40.903877+00:00",
+  "steady_started": 1791417169.3871853,
+  "original_total_limits": {
+    "wall_seconds": 600,
+    "steady_seconds": 180,
+    "solana_rpc_requests": 2000,
+    "robinhood_rpc_requests": 1000,
+    "estimated_rpc_cu": 150000,
+    "native_delivery_bytes": 67108864,
+    "estimated_native_delivery_cu": 131072,
+    "storage_bytes": 536870912,
+    "native_errors": 32
+  },
+  "logical_wire_requests": {
+    "solana": 99,
+    "robinhood": 13
+  },
+  "physical_http_attempts": {
+    "solana": 99,
+    "robinhood": 9
+  },
+  "estimated_rpc_cu": 4770,
+  "estimated_native_delivery_cu": 131085,
+  "native_payload_bytes": 67115097,
+  "native_payload_limit_excess_bytes": 6233,
+  "billed_provider_cu": "UNMEASURED",
+  "stop_reason": "native_delivery_byte_ceiling",
+  "storage_bytes_total": 35825425,
+  "native_stream_subscription_attempts": 16,
+  "confirmed_delivering_native_streams": 16,
+  "confirmed_websocket_connections": 3,
+  "websocket_opened": 3,
+  "peak_client_tracked_native_streams": 16,
+  "physical_tcp_connections": "UNMEASURED",
+  "provider_native_rejections": {},
+  "raw_native_errors": [],
+  "rpc_response_errors": {
+    "RPC_-32600": 4,
+    "CeilingReached": 6
+  },
+  "payload_by_transport_and_family": [
+    {
+      "transport": "yellowstone",
+      "family": "discovery",
+      "bytes": 42311,
+      "messages": 175,
+      "duplicate_bytes": 0
+    },
+    {
+      "transport": "yellowstone",
+      "family": "shared",
+      "bytes": 92433,
+      "messages": 766,
+      "duplicate_bytes": 6160
+    },
+    {
+      "transport": "websocket",
+      "family": "candidate_logs",
+      "bytes": 57920465,
+      "messages": 21379,
+      "duplicate_bytes": 0
+    },
+    {
+      "transport": "yellowstone",
+      "family": "candidate_live",
+      "bytes": 9050197,
+      "messages": 14409,
+      "duplicate_bytes": 198294
+    }
+  ],
+  "owner_queue": {
+    "N": 549,
+    "peak": 43,
+    "depth": {
+      "N": 385,
+      "p50": 23,
+      "p95": 32,
+      "p99": 42,
+      "max": 43
+    },
+    "oldest_wait_seconds": 2.597007244010456,
+    "time_at_75_percent_seconds": 0.0,
+    "time_at_90_percent_seconds": 0.0
+  },
+  "sustained_natural_drain": {
+    "proven": false,
+    "peak_depth": 43,
+    "peak_at": 1791417186.235185,
+    "ordinary_baseline_depth": 18,
+    "peak_to_half_seconds": 0.35416650772094727,
+    "peak_to_baseline_seconds": 1.5122504234313965,
+    "normal_tail_stable": false,
+    "normal_tail_seconds": 9.960613489151001,
+    "last_running_depth": 1
+  },
+  "model_b_startup": {
+    "session": "447437b8773d498db5ffa959f81f9b1e",
+    "phase": "STEADY_STATE",
+    "started": 1791417161.7352824,
+    "changed": 1791417167.499072,
+    "released": true,
+    "canonical_control_frontier": 454375369,
+    "consumers_released_at": 1791417167.4957845,
+    "coverage_verified_at": 1791417167.4925263,
+    "feeds_connected_at": 1791417167.0344408,
+    "first_rolling_event_at": 1791417166.793502,
+    "legacy_startup_active": false,
+    "model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+    "normalized_records": 0,
+    "required_intervals": {
+      "pump": [
+        454375352,
+        454375352
+      ],
+      "pumpswap": [
+        454375352,
+        454375352
+      ]
+    },
+    "restored_frontiers": {
+      "pump": null,
+      "pumpswap": null
+    },
+    "steady_at": 1791417167.4989843
+  },
+  "canonical_reconciliation": {
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "canonical_events": 1789,
+    "distinct_identities": 1789,
+    "canonical_max_slot": 454375422,
+    "startup_phase": "STEADY_STATE",
+    "consumer_released": true,
+    "checkpoint_not_regressed": true,
+    "canonical_not_lost": true,
+    "status": "PASS"
+  },
+  "candidate_samples": 14,
+  "candidate_full_hydration": 0,
+  "candidate_outcomes": {
+    "NO_RICH_HYDRATION_REQUIRED": 13,
+    "candidate_history_continuity_missing": 1
+  },
+  "candidate_original_deadline_certification": "NOT_PROVEN",
+  "complete_executable_position_samples": 0,
+  "position_samples": [
+    {
+      "family": "pump",
+      "seconds": 1.161590337753296,
+      "ready": false,
+      "reason": "insufficient real exit liquidity",
+      "schedule_lateness_seconds": 0.008015155792236328
+    },
+    {
+      "family": "pumpswap",
+      "seconds": 3.1087028980255127,
+      "ready": true,
+      "schedule_lateness_seconds": 0.00806427001953125,
+      "safety": false,
+      "dependencies": {
+        "ordered_history_ready": false,
+        "qualification": false,
+        "reason": "position_pregraduation_history_missing"
+      }
+    },
+    {
+      "family": "pumpswap",
+      "seconds": 3.0779054164886475,
+      "ready": true,
+      "schedule_lateness_seconds": 0.08926105499267578,
+      "safety": false,
+      "dependencies": {
+        "ordered_history_ready": false,
+        "qualification": false,
+        "reason": "position_pregraduation_history_missing"
+      }
+    },
+    {
+      "family": "pump",
+      "seconds": 3.3013741970062256,
+      "ready": true,
+      "schedule_lateness_seconds": 0.08922123908996582,
+      "safety": false,
+      "dependencies": {
+        "ordered_history_ready": false,
+        "qualification": false,
+        "reason": "unresolved_evidence_gap"
+      }
+    },
+    {
+      "family": "pump",
+      "seconds": 2.7120277881622314,
+      "ready": true,
+      "schedule_lateness_seconds": 0.08874940872192383,
+      "safety": false,
+      "dependencies": {
+        "ordered_history_ready": false,
+        "qualification": false,
+        "reason": "unresolved_evidence_gap"
+      }
+    },
+    {
+      "family": "pumpswap",
+      "seconds": 3.095282554626465,
+      "ready": true,
+      "schedule_lateness_seconds": 0.08880615234375,
+      "safety": false,
+      "dependencies": {
+        "ordered_history_ready": false,
+        "qualification": false,
+        "reason": "position_pregraduation_history_missing"
+      }
+    },
+    {
+      "family": "pumpswap",
+      "seconds": 2.0921339988708496,
+      "ready": false,
+      "reason": "provider_request_failed",
+      "schedule_lateness_seconds": 0.0010402202606201172
+    },
+    {
+      "family": "pump",
+      "seconds": 3.1898305416107178,
+      "ready": false,
+      "reason": "concentration_unavailable",
+      "schedule_lateness_seconds": 0.0009732246398925781
+    }
+  ],
+  "pons": {
+    "discovery_cursor": 82873962,
+    "survivor_discovery_cursor": null,
+    "survivor_bootstrap": {
+      "cutoff": 1790812363,
+      "high": 82873954,
+      "low": 41436976
+    },
+    "coverage": [
+      {
+        "first": 82873934,
+        "last": 82873934,
+        "events": 0
+      },
+      {
+        "first": 82873935,
+        "last": 82873962,
+        "events": 2
+      }
+    ],
+    "candidates": [],
+    "position_equivalence": [],
+    "errors": [
+      {
+        "type": "TypeError",
+        "reason": "unexpected_provider_proof_error"
+      }
+    ],
+    "ramses_acquisition_calls": 0,
+    "full_provider_coverage_certified": false
+  },
+  "main_process_cpu_seconds": 24.769413121,
+  "main_process_peak_rss_mib": 190.375,
+  "full_process_group_cpu_and_rss": "UNMEASURED",
+  "paused_strategy_workers": 0,
+  "monetary_books_opened": 0,
+  "deployed_epoch_modified": false,
+  "harness_limitations": [
+    "Pons evaluation omitted required tape/capital arguments and stopped with TypeError; corrected offline.",
+    "Proof omitted the existing operational pause flag, so Meteora scout/census/interest acquisition remained eligible; corrected offline. This is not a valid two-family capacity proof.",
+    "Native stop was reactive and crossed the payload cap by 6233 bytes (13 planning CU); corrected offline with one maximum-frame stopping margin and immediate shutdown.",
+    "Initial socket path exceeded the Unix limit and official public Robinhood observation host was rejected; continuation subtracted initial usage/time/storage from the one authorization."
+  ],
+  "certification_blocker_retained": true,
+  "source_sha256": {
+    "meme_machine/solana_prewarm_startup.py": "9291fac388444d0c3f4799cab81c9172aa8d8bf55f769dd616034b5d863b03c0",
+    "meme_machine/solana_rolling_history.py": "b2f165a780a7dbb432db6252e0db3e16c72527d01ad7c173061737f0f0d188b5",
+    "meme_machine/solana_selective_source.py": "0c1a23908350dcf09eea5ceaec9fba11ad0f1220dd7e93c7a175401405e975a8",
+    "meme_machine/solana_selective_history.py": "ce6bfe39c68465b1fbe3a263ab964f630cff2fb019f7a39419f3dbcdac0eb6c0",
+    "meme_machine/solana_scoped_retirement.py": "9082576aa9588145fdab400cbda1d0d88c5512d45a3cbc6a4adc4fbcbe4539ed",
+    "meme_machine/solana_candidate_lifecycle.py": "0bcf8f0e3b560b2fdacf9c286829b01b08ba4b9e97dd66bae649b6bfcd784575",
+    "meme_machine/solana_candidate_join.py": "d35773573b7bbf75e4f56090b78470bc924b8cb576aca231b39e6c98602ffaaf",
+    "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+    "meme_machine/runtime/governor.py": "ba77d183345037366333b7e7b81ceac9443b8d603254423d7be0e1ff61165034",
+    "meme_machine/runtime/solana_warming.py": "e129796e56ecd0b5f918e6ba080a7accfebb789f088d25ce5bb5d6d32b58f552",
+    "meme_machine/runtime/candidate_history.py": "5446621a87cccaf28ba61d41dc6272437c5f830515523aff5dfab4a84ea2b7ea",
+    "meme_machine/runtime/lifecycle_timing.py": "1ceeae9b384768afc2c6a7faf1ddbb7913b59dc371381adb5770d72280c48070",
+    "meme_machine/runtime/evidence_worker.py": "e5a88fdcf48ef2105d3271e975c6a96c3acde34fd73860d9743c49e07ed2ecdd",
+    "meme_machine/lanes/meteora/runner.py": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b",
+    "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+    "engineering/solana_capacity/certify.py": "dd88c5e01a985f99b64798395ddca3ca84015dea3629951defbb162fcc42a533",
+    "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+    "engineering/solana_capacity/transport_meter.py": "936977b097c8351b8a877a175cc9ea37a417743c3d69077556d213a1cd029b54",
+    "meme_machine/solana_evidence_service.py": "786860ce143badb54a7bb1550d119a0d544c333657463ffc238b21e5428f1df7",
+    "meme_machine/solana_evidence_control.py": "914941124cc5c2174969c928281061d92b1c18e050bf692d1ffe978eeb31db44",
+    "meme_machine/solana_checkpoint.py": "63977d26d04bc2fd6f38e43e5fc7d6358ebe70d1bfe1c79a88036a87cc1d99e0",
+    "engineering/solana_capacity/final_mixed.py": "d1aa10dc78cbe7a304cdb6f1f5655291254e0cb03cbcef5fae4e83157d136c60",
+    "engineering/solana_capacity/live_probe.py": "8c643c938b06e00d859e16bd69c057ef403e914474886e001d81aac40d2d8588",
+    "engineering/solana_capacity/pump_pons_proof.py": "b3ce5f9b76d3a0c1923838605fa7b2c2d090e13e89e8859ef300767e648923ac",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "9dc886b33ed7bf11df3fafff97ac365176719e3257916dc25024cf5e83e19d72",
+    "meme_machine/lanes/pons/pons_selective_acquisition.py": "9671df69f7e61ec60c223cce888f1c843b194527b6e5d7c3c3572823fd459f13",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "17bd2b803f7877b6311afa05561ee460fd8bde815ef7351f5c79009a985ad615",
+    "meme_machine/lanes/pons/pons_selective_paper.py": "d483aa4f1241d102614cbba1073cef36499148c4396b5faa6c278e018d3556b8",
+    "meme_machine/lanes/pons/provider.py": "21e75b3dc7951d0657aade83cc1ed9f8ea5050d2bcaf00eb8a107346ab9ffcc1"
+  },
+  "artifact_sha256": {
+    "sc-proof-20261007/READINESS.json": "6fb8dbc6026ab93fa1ff3c032cd021a1ba5238a29fd4c2a4c437530a465f1b16",
+    "sc-proof-20261007/process.json": "993f16b3be171ea814a08cf7ee8ae10cd5d78a150ee4746962c895da74d352c6",
+    "sc-proof-20261007/result.json": "ec60245a15785b77ef2613abb3f01cfeb8ca3c037db1e2c25e232c80bc1df200",
+    "sc-proof-20261007/progress.json": "e57a407e7375309b574292076bf0fc3ff0e3f58a35a360452e07c3554d7d355a",
+    "sc-proof-20261007/reconciliation.json": "4248d527443170301b29cc0599339c25a53fe358336306291eb4abf6fb13c953",
+    "sc-proof-20261007/ceilings.json": "fa0a633be803df9ef61c7168efaf201133351156d52448b102536a16fe61cba1",
+    "pump-pons-provider-proof/READINESS.json": "6fb8dbc6026ab93fa1ff3c032cd021a1ba5238a29fd4c2a4c437530a465f1b16",
+    "pump-pons-provider-proof/process.json": "6380cb5634aa5e52e9319c0f0036c05efbca57ff8672f26295632965b99fc0c2",
+    "pump-pons-provider-proof/result.json": "aa4eacc53f0c1d760bd60579eb6dd7fde6350b832d8d69c7fb98fc11a78fb337",
+    "pump-pons-provider-proof/ceilings.json": "3058470f9e6620ab89c98dd5656ee5c053182697e5f362cdafa7fde25a4ccef2"
+  }
+}

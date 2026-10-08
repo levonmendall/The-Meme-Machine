@@ -1,0 +1,70 @@
+{
+  "approved_at": "2026-10-07T23:44:22.467684+00:00",
+  "authority": "Explicit owner answers in this task",
+  "risk_answer": "Approve these fixed caps",
+  "risk_policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
+  "provider_answer": "Authorize this bounded proof",
+  "provider_ceilings": {
+    "wall_seconds": 600,
+    "steady_seconds": 180,
+    "solana_rpc_requests": 2000,
+    "robinhood_rpc_requests": 1000,
+    "estimated_rpc_cu": 150000,
+    "native_delivery_bytes": 67108864,
+    "estimated_native_delivery_cu": 131072,
+    "storage_bytes": 536870912,
+    "native_errors": 32
+  },
+  "provider_runs_authorized": 2,
+  "provider_runs_executed": 2,
+  "deployed_activation_authorized_only_after_verified_prerequisites": true,
+  "provider_run_started_at": "2026-10-07T23:50:42.796054+00:00",
+  "provider_output": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/pump-pons-provider-proof",
+  "provider_attempts": [
+    {
+      "output": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/pump-pons-provider-proof",
+      "classification": "HARNESS_SETUP_FAILURE",
+      "physical_sol_rpc": 1,
+      "estimated_rpc_cu": 10
+    },
+    {
+      "output": "/mnt/volume_nyc1_1790918115030/sc-proof-20261007",
+      "limits": {
+        "wall_seconds": 481,
+        "steady_seconds": 180,
+        "solana_rpc_requests": 1999,
+        "robinhood_rpc_requests": 1000,
+        "estimated_rpc_cu": 149990,
+        "native_delivery_bytes": 67108864,
+        "estimated_native_delivery_cu": 131072,
+        "storage_bytes": 536219359,
+        "native_errors": 32
+      },
+      "classification": "CONTINUATION_WITHIN_ORIGINAL_TOTAL_CEILINGS"
+    }
+  ],
+  "provider_run_finished_at": "2026-10-07T23:53:09.356398+00:00",
+  "provider_outcome": "INCONCLUSIVE_STOPPED_AT_NATIVE_ALLOWANCE",
+  "provider_native_limit_excess_bytes": 6233,
+  "corrected_provider_authorization": {
+    "answer": "Authorize corrected bounded proof",
+    "approved_at": "2026-10-08T00:13:50.110207+00:00",
+    "limits": {
+      "wall_seconds": 600,
+      "steady_seconds": 180,
+      "solana_rpc_requests": 2000,
+      "robinhood_rpc_requests": 1000,
+      "estimated_rpc_cu": 150000,
+      "native_delivery_bytes": 67108864,
+      "estimated_native_delivery_cu": 131072,
+      "storage_bytes": 536870912,
+      "native_errors": 32
+    },
+    "native_early_stop_bytes": 50331648,
+    "output": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+    "started_at": "2026-10-08T00:13:50.536454+00:00",
+    "finished_evidence_at": "2026-10-08T00:14:11.070783+00:00",
+    "outcome": "INCONCLUSIVE_NATIVE_PAYLOAD_STOP",
+    "ceilings_respected": true
+  }
+}

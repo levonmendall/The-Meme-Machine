@@ -264,10 +264,22 @@ def validate_export(raw, epoch, mode):
         if lane not in LANES or type(totals['count']) is not int or totals['count']<0:raise ValueError('retired_lane_totals')
         decimal(totals['realized_pnl'])
         if decimal(totals['fees'])<0:raise ValueError('retired_lane_costs')
+    shared=raw.get('shared_capital')
+    if shared is not None:
+        if not isinstance(shared,dict) or shared.get('sizing_basis')!='effective_family_equivalence':
+            raise ValueError('shared_capital_sizing_contract')
+        amounts={k:decimal(shared[k]) for k in ('inception_equity','realized_equity','actual_cash','free_cash',
+            'deployed_basis','active_reservations','pending_authoritative_commitments','required_funding_obligations')}
+        if (amounts['inception_equity']!=CAPITAL or min(amounts.values())<0 or
+                amounts['actual_cash']+amounts['deployed_basis']!=amounts['realized_equity'] or
+                amounts['free_cash']+amounts['active_reservations']+amounts['pending_authoritative_commitments']+
+                amounts['required_funding_obligations']!=amounts['actual_cash']):
+            raise ValueError('shared_capital_conservation')
     return dict(epoch=epoch, as_of=raw['as_of'], valid_until=raw['valid_until'],
                 sequence=raw['sequence'], positions=positions, balances=balance,
                 history=histories, excluded_positions=len(raw['positions'])-len(positions),
-                identities=safe_identities(raw), history_complete=raw.get('history_complete') is True,retired=retired)
+                identities=safe_identities(raw), history_complete=raw.get('history_complete') is True,retired=retired,
+                shared_capital=deepcopy(shared))
 
 
 def performance(rows, now, state, retired=None):
@@ -474,6 +486,7 @@ class Reader:
                 history = data['history']
                 portfolio.update(epoch=data['epoch'], starting_capital=metric(CAPITAL), as_of=data['as_of'],
                                  excluded_historical_positions=data['excluded_positions'], identities=data['identities'])
+                if data.get('shared_capital') is not None:portfolio['shared_capital']=deepcopy(data['shared_capital'])
                 for lane in LANES:
                     lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state,data['retired'].get(lane)), as_of=data['as_of'])
                 retired=dict(count=sum(r['count'] for r in data['retired'].values()),

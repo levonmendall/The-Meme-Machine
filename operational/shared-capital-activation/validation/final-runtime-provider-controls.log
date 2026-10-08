@@ -1,0 +1,94 @@
+test_paused_admissions_cannot_acquire_new_claims_or_block_pons (tests.test_pump_pons_capital_preparation.PreparedCapitalTests.test_paused_admissions_cannot_acquire_new_claims_or_block_pons) ... ok
+test_paused_empty_manifests_survive_restart_but_active_silence_still_blocks (tests.test_pump_pons_capital_preparation.PreparedCapitalTests.test_paused_empty_manifests_survive_restart_but_active_silence_still_blocks) ... ok
+test_shared_cash_can_fund_beyond_old_sleeve_without_enlarging_native_targets (tests.test_pump_pons_capital_preparation.PreparedCapitalTests.test_shared_cash_can_fund_beyond_old_sleeve_without_enlarging_native_targets) ... ok
+test_unapproved_sizing_and_adaptive_economics_fail_closed_on_restore (tests.test_pump_pons_capital_preparation.PreparedCapitalTests.test_unapproved_sizing_and_adaptive_economics_fail_closed_on_restore) ... ok
+test_crash_after_scale_grant_before_local_hold_cannot_strand_actual_cash (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_crash_after_scale_grant_before_local_hold_cannot_strand_actual_cash) ... ok
+test_four_native_regimes_share_one_atomic_round_from_independent_connections (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_four_native_regimes_share_one_atomic_round_from_independent_connections) ... ok
+test_identical_cutover_and_unused_rollback_keep_original_epoch (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_identical_cutover_and_unused_rollback_keep_original_epoch) ... ok
+test_legacy_authority_fenced_and_unused_rollback_preserves_epoch (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_legacy_authority_fenced_and_unused_rollback_preserves_epoch) ... ok
+test_missing_active_manifest_blocks_grants_but_not_settlement (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_missing_active_manifest_blocks_grants_but_not_settlement) ... ok
+test_native_crash_before_and_after_commit_and_duplicate_acknowledgement (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_native_crash_before_and_after_commit_and_duplicate_acknowledgement) ... ok
+test_native_pump_shared_funding_exceeds_125_with_original_625_targets (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_native_pump_shared_funding_exceeds_125_with_original_625_targets) ... ERROR
+test_partial_profit_compounds_family_only_and_settlement_releases_cash (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_partial_profit_compounds_family_only_and_settlement_releases_cash) ... ok
+test_pons_current_native_partial_settlement_and_replay_use_shared_authority (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_pons_current_native_partial_settlement_and_replay_use_shared_authority) ... ok
+test_pons_survivor_and_dashboard_distinguish_shared_cash_from_sizing (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_pons_survivor_and_dashboard_distinguish_shared_cash_from_sizing) ... ERROR
+test_queued_deadline_is_preserved_and_expired_qualification_is_not_erased (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_queued_deadline_is_preserved_and_expired_qualification_is_not_erased) ... ok
+test_runtime_duplicate_identity_is_atomic_across_connections_with_changed_retry_clock (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_runtime_duplicate_identity_is_atomic_across_connections_with_changed_retry_clock) ... ok
+test_staged_add_is_an_actual_hold_and_preserves_original_native_basis (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_staged_add_is_an_actual_hold_and_preserves_original_native_basis) ... ok
+test_unmaterialized_grant_and_queued_request_release_only_on_native_absence (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_unmaterialized_grant_and_queued_request_release_only_on_native_absence) ... ok
+test_census_source_then_real_activity_keeps_existing_identity (tests.test_solana_shared_capacity.DurableBatchTests.test_census_source_then_real_activity_keeps_existing_identity) ... ok
+test_committed_archive_page_retry_preserves_cursor_and_rejects_changed_response (tests.test_solana_shared_capacity.DurableBatchTests.test_committed_archive_page_retry_preserves_cursor_and_rejects_changed_response) ... ok
+test_creation_lookup_uses_slot_from_selective_canonical_record (tests.test_solana_shared_capacity.DurableBatchTests.test_creation_lookup_uses_slot_from_selective_canonical_record) ... ok
+test_external_commit_before_consumed_receipt_survives_retry (tests.test_solana_shared_capacity.DurableBatchTests.test_external_commit_before_consumed_receipt_survives_retry) ... ok
+test_parallel_archive_pages_exclude_claimed_work_without_deadline_reset (tests.test_solana_shared_capacity.DurableBatchTests.test_parallel_archive_pages_exclude_claimed_work_without_deadline_reset) ... ok
+test_selective_reconstruction_after_hot_metadata_retirement_keeps_availability (tests.test_solana_shared_capacity.DurableBatchTests.test_selective_reconstruction_after_hot_metadata_retirement_keeps_availability) ... ok
+test_shared_lane_history_uses_independent_thread_transactions (tests.test_solana_shared_capacity.DurableBatchTests.test_shared_lane_history_uses_independent_thread_transactions) ... ok
+test_verified_physical_refetch_restores_archived_body_without_rewriting_hash (tests.test_solana_shared_capacity.DurableBatchTests.test_verified_physical_refetch_restores_archived_body_without_rewriting_hash) ... ok
+test_candidate_arrivals_and_demotion_preserve_position_subscription (tests.test_solana_shared_capacity.SharedCapacityTests.test_candidate_arrivals_and_demotion_preserve_position_subscription) ... ok
+test_candidate_priority_changes_do_not_reset_continuity_session (tests.test_solana_shared_capacity.SharedCapacityTests.test_candidate_priority_changes_do_not_reset_continuity_session) ... ok
+test_curve_to_mint_upgrade_rebuilds_only_its_coverage_namespace (tests.test_solana_shared_capacity.SharedCapacityTests.test_curve_to_mint_upgrade_rebuilds_only_its_coverage_namespace) ... ok
+test_partial_repair_preserves_unproved_suffix_and_original_gap_audit_after_restart (tests.test_solana_shared_capacity.SharedCapacityTests.test_partial_repair_preserves_unproved_suffix_and_original_gap_audit_after_restart) ... ok
+test_position_promotion_moves_only_affected_candidate_shard (tests.test_solana_shared_capacity.SharedCapacityTests.test_position_promotion_moves_only_affected_candidate_shard) ... ok
+test_reactivation_keeps_proven_curve_mint_binding_and_original_deadline (tests.test_solana_shared_capacity.SharedCapacityTests.test_reactivation_keeps_proven_curve_mint_binding_and_original_deadline) ... ok
+test_separate_proof_denies_writes_and_unapproved_hosts_and_counts_native_payload (tests.test_solana_shared_capacity.SharedCapacityTests.test_separate_proof_denies_writes_and_unapproved_hosts_and_counts_native_payload) ... ok
+test_separate_pump_pons_proof_counts_wire_batches_retries_and_stops_before_next_rpc (tests.test_solana_shared_capacity.SharedCapacityTests.test_separate_pump_pons_proof_counts_wire_batches_retries_and_stops_before_next_rpc) ... ok
+test_solana_capacity_does_not_raise_other_provider_ceiling (tests.test_solana_shared_capacity.SharedCapacityTests.test_solana_capacity_does_not_raise_other_provider_ceiling) ... ok
+test_structural_candidate_native_identity_uses_authoritative_snapshot (tests.test_solana_shared_capacity.SharedCapacityTests.test_structural_candidate_native_identity_uses_authoritative_snapshot) ... ok
+test_structural_deadline_is_not_rejected_by_campaign_end_estimate (tests.test_solana_shared_capacity.SharedCapacityTests.test_structural_deadline_is_not_rejected_by_campaign_end_estimate) ... ok
+test_subscription_rebuild_shares_pending_history_without_claiming_coverage (tests.test_solana_shared_capacity.SharedCapacityTests.test_subscription_rebuild_shares_pending_history_without_claiming_coverage) ... ok
+test_batched_delivery_counts_every_duplicate_byte (tests.test_solana_shared_capacity.SourceLifetimeTests.test_batched_delivery_counts_every_duplicate_byte) ... ok
+test_completed_structural_census_keeps_live_source_running (tests.test_solana_shared_capacity.SourceLifetimeTests.test_completed_structural_census_keeps_live_source_running) ... ok
+test_control_reconnect_begins_before_durable_checkpoint (tests.test_solana_shared_capacity.SourceLifetimeTests.test_control_reconnect_begins_before_durable_checkpoint) ... ok
+test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools (tests.test_solana_shared_capacity.SourceLifetimeTests.test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools) ... Executing <Task finished name='Task-37' coro=<SourceLifetimeTests.test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:281> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.957 seconds
+ok
+test_rpc_retry_counts_failed_delivery_without_resetting_candidate_deadline (tests.test_solana_shared_capacity.SourceLifetimeTests.test_rpc_retry_counts_failed_delivery_without_resetting_candidate_deadline) ... Executing <Task pending name='Task-42' coro=<SourceLifetimeTests.test_rpc_retry_counts_failed_delivery_without_resetting_candidate_deadline() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:236> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.544 seconds
+ok
+test_scout_reconnect_reuses_original_overlap_without_coverage_claim (tests.test_solana_shared_capacity.SourceLifetimeTests.test_scout_reconnect_reuses_original_overlap_without_coverage_claim) ... ok
+test_unsupported_archive_page_preserves_scope_gap_and_position_interest (tests.test_solana_shared_capacity.SourceLifetimeTests.test_unsupported_archive_page_preserves_scope_gap_and_position_interest) ... Executing <Task finished name='Task-52' coro=<SourceLifetimeTests.test_unsupported_archive_page_preserves_scope_gap_and_position_interest() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:245> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.840 seconds
+ok
+test_delayed_body_free_logs_fit_the_existing_ten_second_join_bound (tests.test_solana_shared_capacity.TriggerWaitTests.test_delayed_body_free_logs_fit_the_existing_ten_second_join_bound) ... ok
+test_quiet_wait_releases_worker_and_survives_restart_without_new_deadline (tests.test_solana_shared_capacity.TriggerWaitTests.test_quiet_wait_releases_worker_and_survives_restart_without_new_deadline) ... ok
+
+======================================================================
+ERROR: test_native_pump_shared_funding_exceeds_125_with_original_625_targets (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_native_pump_shared_funding_exceeds_125_with_original_625_targets)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_pump_pons_capital_preparation.py", line 114, in test_native_pump_shared_funding_exceeds_125_with_original_625_targets
+    sleeve.reserve(identity,strategy=strategy,amount=6250,at=now,asset='asset-'+str(i),
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/shared_capital/native_sleeve.py", line 165, in reserve
+    grant=self._grant(identity,strategy=strategy,units=amount,at=at,asset=asset or candidate,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/shared_capital/native_sleeve.py", line 28, in measured
+    try:return fn(self,*args,**kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/exact_money.py", line 87, in wrapped
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/shared_capital/native_sleeve.py", line 148, in _grant
+    raise FundingDenied(req.get('reason') or 'shared_capital_unavailable')
+meme_machine.shared_capital.native_sleeve.FundingDenied: ORIGINAL_FUNDING_DEADLINE_EXPIRED
+
+======================================================================
+ERROR: test_pons_survivor_and_dashboard_distinguish_shared_cash_from_sizing (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_pons_survivor_and_dashboard_distinguish_shared_cash_from_sizing)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_pump_pons_capital_preparation.py", line 311, in test_pons_survivor_and_dashboard_distinguish_shared_cash_from_sizing
+    projection=export(a);validated=validate_export(projection,a.snapshot()['ledger']['inception'],'canonical')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/exact_money.py", line 87, in wrapped
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/dashboard/model.py", line 234, in validate_export
+    positions = [position(r, epoch, observed) for r in selected]
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/exact_money.py", line 87, in wrapped
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/dashboard/model.py", line 184, in position
+    raise ValueError('mark_clock')
+ValueError: mark_clock
+
+----------------------------------------------------------------------
+Ran 47 tests in 25.937s
+
+FAILED (errors=2)

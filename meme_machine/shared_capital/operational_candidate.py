@@ -1,8 +1,9 @@
-"""Prepared two-family coordinator, deliberately absent from the PAPER runtime.
+"""Preserved two-family coordinator used by the gated PAPER runtime bridge.
 
 Reuses the published allocator and preserved-epoch migration. RiskPolicy must be
 selected explicitly when preparing a plan; feature defaults are not approved
-deployment limits. Native accounting remains the runtime funding authority.
+deployment limits. A verified preserved-epoch cutover selects shared funding;
+native journals retain their economic identities and accounting.
 """
 from .authority import CapitalAuthority
 from .migration import plan_migration,validate_plan

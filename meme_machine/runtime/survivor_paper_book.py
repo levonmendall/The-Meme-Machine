@@ -120,11 +120,14 @@ class PaperBook:
             from meme_machine.runtime.lifecycle_identity import validate_new
             anchor=self._archive()
             validate_new(identity,archived=anchor.get('archived_entry_scope') if anchor else None)
-            if amount > self.reconcile()['cash']:
+            from meme_machine.shared_capital.native_sleeve import funded
+            funding=funded(self,identity,amount)
+            if amount > self.reconcile()['cash'] and not funding:
                 raise ValueError('paper_capital_exhausted')
             position = dict(id=identity, status='reserved', reserved=amount, basis=0,
                             mark=0, tokens=0, realized=0, capital_unit_seconds=0,
                             capital_at_risk=amount, risk_at=at, last_at=at)
+            if funding:position['shared_funding']=funding
             if 'candidate' in evidence:position['candidate']=evidence['candidate']
             self._record(position, 'reserved', at, evidence)
 
@@ -159,12 +162,15 @@ class PaperBook:
                     if p['scale_cost']!=amount or p['scale_tokens']!=tokens:
                         raise ValueError('scale_duplicate_conflict')
                     return self.reconcile()
+                from meme_machine.shared_capital.native_sleeve import funded
+                funding=funded(self,identity,amount,scale=True)
                 if (p['status']!='open' or p.get('scale_request') or not request
-                        or not amount or not tokens or amount>self.reconcile()['cash']):
+                        or not amount or not tokens or amount>self.reconcile()['cash'] and not funding):
                     raise ValueError('invalid_paper_scale_add')
                 p.update(basis=p['basis']+amount,mark=p['mark']+amount,
                     tokens=p['tokens']+tokens,capital_at_risk=p['capital_at_risk']+amount,
                     scale_request=request,scale_cost=amount,scale_tokens=tokens)
+                if funding:p['shared_scale_funding']=funding
             elif action == 'partial_harvest':
                 if p['status'] != 'open' or not tokens or tokens >= p['tokens']:
                     raise ValueError('invalid_paper_partial_harvest')
@@ -201,7 +207,7 @@ class PaperBook:
             basis = sum(x['basis'] for x in positions)
             marks = sum(x['mark'] for x in positions)
             cash = self.identity['initial'] + realized - reserved - basis
-            if cash < 0:
+            if cash < 0 and not self._shared_backing(positions):
                 raise ValueError('paper_capital_conservation')
             return dict(**self.identity, cash=cash, reserved=reserved, basis=basis,
                         realized=realized, unrealized=marks-basis,
@@ -227,7 +233,11 @@ class PaperBook:
                     raise ValueError('paper_journal_corruption')
                 old = positions.get(identity); action = body['action']
                 if action == 'reserved':
-                    if old is not None or p['reserved'] > cash:
+                    funding=p.get('shared_funding')
+                    if funding:
+                        from meme_machine.shared_capital.native_sleeve import verify_receipt
+                        verify_receipt(self,funding,p['reserved'])
+                    if old is not None or p['reserved'] > cash and not funding:
                         raise ValueError('paper_replay_duplicate_or_overdraw')
                     cash -= p['reserved']
                 elif action == 'filled':
@@ -261,6 +271,9 @@ class PaperBook:
                             or p['realized']!=old['realized']):
                         raise ValueError('paper_replay_scale_add')
                     cash-=cost
+                    if p.get('shared_scale_funding'):
+                        from meme_machine.shared_capital.native_sleeve import verify_receipt
+                        verify_receipt(self,p['shared_scale_funding'],cost)
                 elif action == 'settled':
                     if (not old or old['status'] != 'open'
                             or p['realized'] != old['realized']+p['proceeds']-old['basis']):
@@ -274,13 +287,32 @@ class PaperBook:
                         raise ValueError('paper_replay_graduation')
                 elif action != 'mark' or not old or old['status'] != 'open':
                     raise ValueError('paper_replay_transition')
-                if cash < 0:
+                if cash < 0 and not self._shared_backing([*positions.values(),p]):
                     raise ValueError('paper_replay_negative_cash')
                 positions[identity] = p; previous = checksum
             actual = {identity: json.loads(raw) for identity, raw in self.db.execute('SELECT * FROM positions')}
             if positions != actual or cash != self.reconcile()['cash']:
                 raise ValueError('paper_projection_differs_from_replay')
             return dict(verified=True, events=count, final_hash=previous, cash=cash)
+
+    def _shared_backing(self,positions):
+        # Signed native cash is family attribution after shared funding, never
+        # spendable cash. Every overdrawn native step needs a durable grant.
+        from meme_machine.shared_capital.native_sleeve import verify_receipt,legacy_backing
+        active=[p for p in positions if p['status'] in ('reserved','open')]
+        if not active:return False
+        for p in active:
+            value=p.get('shared_funding')
+            if value is None:
+                if not legacy_backing(self,p['id'],p['reserved']+p['basis']):return False
+                continue
+            verify_receipt(self,value,value['maximum_native_units'])
+            maximum=value['maximum_native_units']
+            scale=p.get('shared_scale_funding')
+            if scale:
+                verify_receipt(self,scale,scale['maximum_native_units']);maximum+=scale['maximum_native_units']
+            if p['reserved']+p['basis']>maximum:raise ValueError('native_shared_funding_overdraw')
+        return True
 
     def _archive(self):
         if not self.db.execute("SELECT 1 FROM sqlite_master WHERE name='journal_archive'").fetchone():return None

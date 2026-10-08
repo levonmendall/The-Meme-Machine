@@ -264,6 +264,8 @@ class PortfolioAccounting:
             self.db = sqlite3.connect(
                 self.path, isolation_level=None, timeout=30, check_same_thread=False
             )
+            if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='portfolio_funding_authority'").fetchone():
+                raise PortfolioIntegrityError('legacy_funding_authority_retired')
             self.db.execute("PRAGMA journal_mode=WAL")
             self.db.execute("PRAGMA synchronous=FULL")
             self.db.executescript("""

@@ -80,6 +80,33 @@ function hero(p,chart) {
     </div>
   </section>`;
 }
+function sharedCapital(p) {
+  const c=p.shared_capital;
+  if (!c) return '';
+  const amount = key => ({value:c[key],state:p.state});
+  const labels = {inception_equity:'Portfolio inception',realized_equity:'Realized portfolio equity',
+    marked_equity:'Marked portfolio equity',free_cash:'Available shared cash',actual_cash:'Actual shared cash',
+    deployed_basis:'Deployed basis',active_reservations:'Reserved cash',
+    pending_authoritative_commitments:'Pending commitments',required_funding_obligations:'Funding obligations'};
+  const regimes=['pump_current','pump_survivor','pons_current','pons_survivor'];
+  const limits=c.risk_limits,base=Number(c.risk.risk_base);
+  const riskRows=limits ? [['Portfolio',c.risk.exposure.portfolio,limits.portfolio_bps],
+    ...['pump','pons'].map(f=>[names[f],c.risk.exposure.family[f],limits.family_max_bps[f]]),
+    ['Most exposed asset / lineage',Math.max(0,...Object.values(c.risk.exposure.asset).map(Number)),limits.asset_bps],
+    ...['solana','robinhood','directional','crypto_beta'].map(g=>[title(g),c.risk.exposure.group[g],limits.group_bps[g]])] : [];
+  const riskUse=(exposure,bps)=>{const ceiling=base*Number(bps)/10000;return ceiling>0 ? `${(Number(exposure)/ceiling*100).toFixed(1)}% of ${ceiling.toFixed(2)} USD` : 'Unavailable'};
+  const latency=Object.values(c.allocation_latency||{}).flatMap(row=>Object.entries(row.regimes||{})).map(([r,v])=>`${title(r)}: median ${(v.median_us/1000).toFixed(1)} ms, p95 ${(v.p95_us/1000).toFixed(1)} ms, p99 ${(v.p99_us/1000).toFixed(1)} ms (${v.samples} requests)`).join(' · ') || 'Unmeasured';
+  return `<section class="panel"><h2>Shared capital</h2><p>Authority ${esc(c.authority_health)} · Cutover ${esc(c.cutover_status)}</p>
+    <div class="summary-stats">${Object.entries(labels).map(([key,label])=>stat(label,amount(key))).join('')}</div>
+    <p>Individual targets use 5% of realized family-equivalent equity.</p>
+    <p>${['pump','pons'].map(f=>`${esc(names[f])} sizing equity: ${value({value:c.family_equivalent_equity[f],state:p.state})}`).join(' · ')}</p>
+    <table><thead><tr><th>Regime</th><th>Deployed basis</th><th>Risk utilization</th><th>Qualified, unfunded</th><th>Funding constraints</th></tr></thead>
+    <tbody>${regimes.map(r=>{const row=c.regimes[r];return `<tr><td>${esc(title(r))}</td><td>${value({value:row.deployed_basis,state:p.state})}</td><td>${esc(limits ? riskUse(row.aggregate_exposure,limits.regime_max_bps[r]) : 'Unavailable')}</td><td>${esc(row.qualified_but_unfunded)}</td><td>${esc(Object.entries(row.denials).map(([reason,n])=>`${reason}: ${n}`).join(', ')||'None')}</td></tr>`}).join('')}</tbody></table>
+    <p>${riskRows.map(([label,exposure,bps])=>`${esc(label)} risk: ${esc(riskUse(exposure,bps))}`).join(' · ')}</p>
+    <p>Meteora: PAUSED · Ramses: PAUSED. Historical attribution remains in the portfolio.</p>
+    <p>Portfolio exposure: ${value({value:c.risk.exposure.portfolio,state:p.state})} · Drawdown: ${esc(c.risk.drawdown_bps)} bps · Allocation latency: ${esc(latency)}</p>
+    </section>`;
+}
 function plot(points,reference,series='portfolio',small=false) {
   const valid=points.filter(p=>p.value!==null);
   if (!valid.length) return small?'<div class="spark muted">History unavailable</div>':empty('No equity samples for this portfolio epoch');
@@ -208,7 +235,7 @@ async function overview(p) {
   const [lanes,chart,positions,trades,system,...laneCharts] = await Promise.all([
     api('lanes'),api('equity',{period:state.period,series:state.series}),api('positions',{limit:5}),api('trades',{limit:5}),api('system'),...LANES.map(l=>api('equity',{series:l,limit:60}))]);
   const charts=Object.fromEntries(LANES.map((l,i)=>[l,laneCharts[i]]));
-  return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}
+  return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}${sharedCapital(p)}
     ${laneCards(lanes.data,charts)}
     <div class="chart-row overview-charts">
       ${chartPanel(chart)}

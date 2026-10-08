@@ -208,7 +208,7 @@ class SleeveReservations:
         return None
 
     @_opportunity_native
-    def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None):
+    def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None,funding_evidence=None):
         if strategy not in self.identity['policies'] or type(amount) is not int or amount<=0:
             raise ValueError('sleeve_reservation')
         with self.transaction():
@@ -232,7 +232,8 @@ class SleeveReservations:
                         if p.get('cancelled'):continue
                         if p['status']!='settled' or not new_regime(p['regime'],regime):
                             raise ValueError('same_survivor_regime')
-            if amount>self.reconcile()['available']:
+            if amount>self.reconcile()['available'] and not (
+                    hasattr(self,'_shared_reserved') and self._shared_reserved(identity,amount)):
                 raise ValueError('sleeve_capital_exhausted')
             key=self.asset_key(asset or candidate)
             if self.fill_blocker(key,except_identity=identity):
@@ -240,6 +241,7 @@ class SleeveReservations:
             row=dict(id=identity,strategy=strategy,amount=amount,held=amount,at=at,
                      candidate=candidate,generation=generation,regime=regime,status='reserved',pnl=0,
                      asset=key,scale_committed=False)
+            if getattr(self,'_grant_receipt',None):row['shared_funding']=dict(self._grant_receipt)
             self._event('reserve',row)
             return row
 
@@ -297,7 +299,7 @@ class SleeveReservations:
             self.reconcile()
             return row
 
-    def reserve_scale(self,identity,*,amount,original_basis,at,request):
+    def reserve_scale(self,identity,*,amount,original_basis,at,request,scale_state=None,scale_facts=None):
         if type(amount) is not int or amount<=0 or not request:
             raise ValueError('scale_reservation')
         with self.transaction():
@@ -310,7 +312,7 @@ class SleeveReservations:
                 raise ValueError('scale_reservation_conflict')
             state=self.sizing_basis(250)
             if (amount>state['target'] or amount>original_basis//2
-                    or amount>state['available']
+                    or (amount>state['available'] and not getattr(self,'_shared_reserved',lambda *args:False)(identity,amount))
                     or original_basis+amount>max(0,state['realized_equity'])*750//10000):
                 raise ValueError('scale_capital_limit')
             reservation=dict(amount=amount,original_basis=original_basis,at=at,request=request,status='reserved')
@@ -432,7 +434,8 @@ class SleeveReservations:
         folded=archive.get('folded',{}) if archive else {}
         held=sum(p['held'] for p in positions.values());realized=folded.get('realized',0)+sum(p['pnl'] for p in positions.values())
         available=self.identity['capital']+realized-held
-        if available<0:raise ValueError('sleeve_capital_invariant')
+        shared=hasattr(self,'_shared_attribution') and self._shared_attribution(positions,available)
+        if available<0 and not shared:raise ValueError('sleeve_capital_invariant')
         return dict(capital=self.identity['capital'],available=available,reserved=held,realized=realized,
                     positions=folded.get('positions',0)+len(positions),reconciled=True,final_hash=previous)
 

@@ -140,8 +140,8 @@ SCENARIOS = ("one_lane_dominates", "leadership_rotates", "several_lanes_strong",
 
 
 @exact
-def run_tape(tape, model, *, sizing_basis="effective_family_equivalence"):
-    policy = RiskPolicy(adaptive=model == "C_SHARED_ADAPTIVE", sizing_basis=sizing_basis)
+def run_tape(tape, model, *, sizing_basis="effective_family_equivalence", policy=None):
+    policy = policy or RiskPolicy(adaptive=model == "C_SHARED_ADAPTIVE", sizing_basis=sizing_basis)
     with tempfile.TemporaryDirectory() as td:
         h = Harness(td, policy)
         h.authority.close(); h.authority = ReducerReplay(h.plan, model)

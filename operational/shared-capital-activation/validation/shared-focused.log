@@ -1,0 +1,295 @@
+test_all_funding_constraints_bound_grants (tests.test_shared_capital.SharedCapitalTests.test_all_funding_constraints_bound_grants) ... ok
+test_all_six_regimes_and_sufficient_capital_preserve_request_economics (tests.test_shared_capital.SharedCapitalTests.test_all_six_regimes_and_sufficient_capital_preserve_request_economics) ... ok
+test_atomic_accounting_costs_partial_realization_settlement_and_no_double_charge (tests.test_shared_capital.SharedCapitalTests.test_atomic_accounting_costs_partial_realization_settlement_and_no_double_charge) ... ok
+test_capitalized_fee_buffer_counts_against_gross_risk_headroom (tests.test_shared_capital.SharedCapitalTests.test_capitalized_fee_buffer_counts_against_gross_risk_headroom) ... ok
+test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting (tests.test_shared_capital.SharedCapitalTests.test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting) ... ok
+test_generated_command_sequences_conserve_capital_and_replay (tests.test_shared_capital.SharedCapitalTests.test_generated_command_sequences_conserve_capital_and_replay) ... ok
+test_hostile_decimal_context_does_not_change_money (tests.test_shared_capital.SharedCapitalTests.test_hostile_decimal_context_does_not_change_money) ... ok
+test_missing_or_stale_valuation_fails_closed_for_new_allocation (tests.test_shared_capital.SharedCapitalTests.test_missing_or_stale_valuation_fails_closed_for_new_allocation) ... ok
+test_native_equivalence_preserves_integer_sizing_despite_currency_price_changes (tests.test_shared_capital.SharedCapitalTests.test_native_equivalence_preserves_integer_sizing_despite_currency_price_changes) ... ok
+test_no_lane_owns_cash_and_idle_budgets_reserve_zero (tests.test_shared_capital.SharedCapitalTests.test_no_lane_owns_cash_and_idle_budgets_reserve_zero) ... ok
+test_position_size_is_separate_from_shared_cash_and_lane_exposure (tests.test_shared_capital.SharedCapitalTests.test_position_size_is_separate_from_shared_cash_and_lane_exposure) ... ok
+test_qualified_unfunded_remains_distinct_and_observable_after_restart (tests.test_shared_capital.SharedCapitalTests.test_qualified_unfunded_remains_distinct_and_observable_after_restart) ... ok
+test_request_identity_conflicts_stale_generation_and_supersession (tests.test_shared_capital.SharedCapitalTests.test_request_identity_conflicts_stale_generation_and_supersession) ... ok
+test_required_obligation_priority_existing_commitment_and_cancellation (tests.test_shared_capital.SharedCapitalTests.test_required_obligation_priority_existing_commitment_and_cancellation) ... ok
+test_unbound_request_economics_and_priority_cannot_bypass_qualification (tests.test_shared_capital.SharedCapitalTests.test_unbound_request_economics_and_priority_cannot_bypass_qualification) ... ok
+test_unrealized_gains_never_compound_and_losses_lower_risk_base (tests.test_shared_capital.SharedCapitalTests.test_unrealized_gains_never_compound_and_losses_lower_risk_base) ... ok
+test_every_nonempty_regime_subset_is_sealed_and_conserves_capital (tests.test_shared_capital_concurrency.ConcurrentCapitalTests.test_every_nonempty_regime_subset_is_sealed_and_conserves_capital) ... ok
+test_every_pair_of_six_regimes_observes_same_cash_and_only_one_gets_it (tests.test_shared_capital_concurrency.ConcurrentCapitalTests.test_every_pair_of_six_regimes_observes_same_cash_and_only_one_gets_it) ... ok
+test_incomplete_manifest_never_awards_capital_and_late_delivery_rejected (tests.test_shared_capital_concurrency.ConcurrentCapitalTests.test_incomplete_manifest_never_awards_capital_and_late_delivery_rejected) ... ok
+test_required_management_precedes_continuation_and_new_opportunity (tests.test_shared_capital_concurrency.ConcurrentCapitalTests.test_required_management_precedes_continuation_and_new_opportunity) ... ok
+test_reversed_arrival_order_has_identical_priority_and_capital_results (tests.test_shared_capital_concurrency.ConcurrentCapitalTests.test_reversed_arrival_order_has_identical_priority_and_capital_results) ... ok
+test_six_processes_cannot_spend_the_same_observed_cash (tests.test_shared_capital_concurrency.ConcurrentCapitalTests.test_six_processes_cannot_spend_the_same_observed_cash) ... Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+ERROR
+test_after_reservation_commit_retry_returns_original_grant (tests.test_shared_capital_recovery.RecoveryTests.test_after_reservation_commit_retry_returns_original_grant) ... ok
+test_before_and_during_position_creation_preserve_commitment_and_single_basis (tests.test_shared_capital_recovery.RecoveryTests.test_before_and_during_position_creation_preserve_commitment_and_single_basis) ... ok
+test_before_reservation_and_during_decision_leave_no_partial_grants (tests.test_shared_capital_recovery.RecoveryTests.test_before_reservation_and_during_decision_leave_no_partial_grants) ... ok
+test_cancellation_interruption_cannot_strand_or_double_release_capital (tests.test_shared_capital_recovery.RecoveryTests.test_cancellation_interruption_cannot_strand_or_double_release_capital) ... ok
+test_commitment_and_native_ack_cannot_fork_the_request_lifecycle (tests.test_shared_capital_recovery.RecoveryTests.test_commitment_and_native_ack_cannot_fork_the_request_lifecycle) ... ok
+test_conflicting_native_delivery_and_projection_corruption_fail_closed (tests.test_shared_capital_recovery.RecoveryTests.test_conflicting_native_delivery_and_projection_corruption_fail_closed) ... ok
+test_journal_is_append_only_and_missing_capital_cannot_be_reinitialized (tests.test_shared_capital_recovery.RecoveryTests.test_journal_is_append_only_and_missing_capital_cannot_be_reinitialized) ... ok
+test_partial_and_terminal_settlement_restart_never_duplicate_pnl (tests.test_shared_capital_recovery.RecoveryTests.test_partial_and_terminal_settlement_restart_never_duplicate_pnl) ... ok
+test_process_death_before_and_after_full_synchronous_commit (tests.test_shared_capital_recovery.RecoveryTests.test_process_death_before_and_after_full_synchronous_commit) ... Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+
+  test_process_death_before_and_after_full_synchronous_commit (tests.test_shared_capital_recovery.RecoveryTests.test_process_death_before_and_after_full_synchronous_commit) (stage='during_allocation') ... FAIL
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+  test_process_death_before_and_after_full_synchronous_commit (tests.test_shared_capital_recovery.RecoveryTests.test_process_death_before_and_after_full_synchronous_commit) (stage='before_commit') ... FAIL
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/spawn.py", line 297, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 254, in _get_code_from_file
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/<stdin>'
+  test_process_death_before_and_after_full_synchronous_commit (tests.test_shared_capital_recovery.RecoveryTests.test_process_death_before_and_after_full_synchronous_commit) (stage='after_commit') ... FAIL
+test_all_six_regimes_epoch_basis_realized_costs_marks_and_identity_map_exactly (tests.test_shared_capital_migration.MigrationTests.test_all_six_regimes_epoch_basis_realized_costs_marks_and_identity_map_exactly) ... ok
+test_existing_reservation_and_backed_pending_delivery_count_once (tests.test_shared_capital_migration.MigrationTests.test_existing_reservation_and_backed_pending_delivery_count_once) ... ok
+test_incremental_native_pending_and_required_obligation_remain_funded (tests.test_shared_capital_migration.MigrationTests.test_incremental_native_pending_and_required_obligation_remain_funded) ... ok
+test_migration_interruption_is_atomic_and_restart_safe (tests.test_shared_capital_migration.MigrationTests.test_migration_interruption_is_atomic_and_restart_safe) ... ok
+test_plan_tampering_and_incorrect_attribution_cannot_rewrite_history (tests.test_shared_capital_migration.MigrationTests.test_plan_tampering_and_incorrect_attribution_cannot_rewrite_history) ... ok
+test_preserved_alias_sequence_and_retired_native_identity_fence (tests.test_shared_capital_migration.MigrationTests.test_preserved_alias_sequence_and_retired_native_identity_fence) ... ok
+test_unknown_pending_duplicate_backing_and_unfunded_commitments_fail_closed (tests.test_shared_capital_migration.MigrationTests.test_unknown_pending_duplicate_backing_and_unfunded_commitments_fail_closed) ... ok
+test_authoritative_terminal_cancels_unused_scale_commitment (tests.test_shared_capital_strategy.StrategyCapitalTests.test_authoritative_terminal_cancels_unused_scale_commitment) ... ok
+test_current_rejection_denial_cancel_exit_or_loss_never_suppresses_survivor (tests.test_shared_capital_strategy.StrategyCapitalTests.test_current_rejection_denial_cancel_exit_or_loss_never_suppresses_survivor) ... ok
+test_current_survivor_alias_and_lineage_exposure_is_not_diversification (tests.test_shared_capital_strategy.StrategyCapitalTests.test_current_survivor_alias_and_lineage_exposure_is_not_diversification) ... ok
+test_family_regime_portfolio_and_correlation_limits_all_apply (tests.test_shared_capital_strategy.StrategyCapitalTests.test_family_regime_portfolio_and_correlation_limits_all_apply) ... ok
+test_scale_cancellation_and_interruption_preserve_original_position (tests.test_shared_capital_strategy.StrategyCapitalTests.test_scale_cancellation_and_interruption_preserve_original_position) ... ok
+test_scaling_preserves_all_approved_gates_and_requests_only_when_eligible (tests.test_shared_capital_strategy.StrategyCapitalTests.test_scaling_preserves_all_approved_gates_and_requests_only_when_eligible) ... ok
+test_unselected_epoch_keeps_native_authority_and_frozen_economics (tests.test_shared_capital_strategy.StrategyCapitalTests.test_unselected_epoch_keeps_native_authority_and_frozen_economics) ... ok
+test_bounded_hysteresis_cooldown_and_no_sale_of_existing_positions (tests.test_shared_capital_performance.PerformanceTests.test_bounded_hysteresis_cooldown_and_no_sale_of_existing_positions) ... ok
+test_profit_factor_drawdown_downside_tail_costs_and_capital_time_are_reported (tests.test_shared_capital_performance.PerformanceTests.test_profit_factor_drawdown_downside_tail_costs_and_capital_time_are_reported) ... ok
+test_recent_winning_streak_cannot_erase_longer_losses (tests.test_shared_capital_performance.PerformanceTests.test_recent_winning_streak_cannot_erase_longer_losses) ... ok
+test_return_per_capital_time_does_not_reward_gross_pnl_or_holding_period_alone (tests.test_shared_capital_performance.PerformanceTests.test_return_per_capital_time_does_not_reward_gross_pnl_or_holding_period_alone) ... ok
+test_single_outlier_shrinks_toward_neutral (tests.test_shared_capital_performance.PerformanceTests.test_single_outlier_shrinks_toward_neutral) ... ok
+test_all_ten_required_scenarios_are_frozen_and_cover_six_regimes (tests.test_shared_capital_economics.EconomicsTests.test_all_ten_required_scenarios_are_frozen_and_cover_six_regimes) ... ok
+test_controlled_hard_cash_comparator_matches_existing_accountant (tests.test_shared_capital_economics.EconomicsTests.test_controlled_hard_cash_comparator_matches_existing_accountant) ... ok
+test_identical_tape_replay_is_deterministic_and_sizing_is_explicit (tests.test_shared_capital_economics.EconomicsTests.test_identical_tape_replay_is_deterministic_and_sizing_is_explicit) ... ok
+test_offline_reducer_and_sqlite_return_the_same_decisions_and_ledger (tests.test_shared_capital_economics.EconomicsTests.test_offline_reducer_and_sqlite_return_the_same_decisions_and_ledger) ... ok
+test_paused_admissions_cannot_acquire_new_claims_or_block_pons (tests.test_pump_pons_capital_preparation.PreparedCapitalTests.test_paused_admissions_cannot_acquire_new_claims_or_block_pons) ... ok
+test_paused_empty_manifests_survive_restart_but_active_silence_still_blocks (tests.test_pump_pons_capital_preparation.PreparedCapitalTests.test_paused_empty_manifests_survive_restart_but_active_silence_still_blocks) ... ok
+test_shared_cash_can_fund_beyond_old_sleeve_without_enlarging_native_targets (tests.test_pump_pons_capital_preparation.PreparedCapitalTests.test_shared_cash_can_fund_beyond_old_sleeve_without_enlarging_native_targets) ... ok
+test_unapproved_sizing_and_adaptive_economics_fail_closed_on_restore (tests.test_pump_pons_capital_preparation.PreparedCapitalTests.test_unapproved_sizing_and_adaptive_economics_fail_closed_on_restore) ... ok
+test_legacy_authority_fenced_and_unused_rollback_preserves_epoch (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_legacy_authority_fenced_and_unused_rollback_preserves_epoch) ... ok
+test_missing_active_manifest_blocks_grants_but_not_settlement (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_missing_active_manifest_blocks_grants_but_not_settlement) ... ok
+test_native_pump_shared_funding_exceeds_125_with_original_625_targets (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_native_pump_shared_funding_exceeds_125_with_original_625_targets) ... ok
+test_all_four_tail_examples_and_safety_precedence (tests.test_operational_nine.NineChanges.test_all_four_tail_examples_and_safety_precedence) ... ok
+test_bridge_exact_age_and_all_required_evidence (tests.test_operational_nine.NineChanges.test_bridge_exact_age_and_all_required_evidence) ... ok
+test_current_outcomes_never_tombstone_survivor_observation (tests.test_operational_nine.NineChanges.test_current_outcomes_never_tombstone_survivor_observation) ... ok
+test_current_pons_bridge_scale_same_lifecycle_native_replay (tests.test_operational_nine.NineChanges.test_current_pons_bridge_scale_same_lifecycle_native_replay) ... ok
+test_current_pump_bridge_scale_and_controller_replay (tests.test_operational_nine.NineChanges.test_current_pump_bridge_scale_and_controller_replay) ... ok
+test_current_stop_profit_and_proportional_trails (tests.test_operational_nine.NineChanges.test_current_stop_profit_and_proportional_trails) ... ok
+test_failed_incremental_reservation_preserves_original (tests.test_operational_nine.NineChanges.test_failed_incremental_reservation_preserves_original) ... ok
+test_four_targets_share_existing_family (tests.test_operational_nine.NineChanges.test_four_targets_share_existing_family) ... ok
+test_meteora_adverse_flow_strict_and_conjunctive_boundary (tests.test_operational_nine.NineChanges.test_meteora_adverse_flow_strict_and_conjunctive_boundary) ... ERROR
+test_meteora_three_verified_segments_and_entry_unchanged (tests.test_operational_nine.NineChanges.test_meteora_three_verified_segments_and_entry_unchanged) ... ERROR
+test_native_scale_replay_duplicate_and_interrupted_ack (tests.test_operational_nine.NineChanges.test_native_scale_replay_duplicate_and_interrupted_ack) ... ok
+test_nonpositive_equity_has_no_entry (tests.test_operational_nine.NineChanges.test_nonpositive_equity_has_no_entry) ... ok
+test_pons_immediate_ratio_boundary (tests.test_operational_nine.NineChanges.test_pons_immediate_ratio_boundary) ... ok
+test_realized_only_compounding_partial_and_terminal (tests.test_operational_nine.NineChanges.test_realized_only_compounding_partial_and_terminal) ... ok
+test_receipt_failure_does_not_suppress_fresh_survivor_evaluation (tests.test_operational_nine.NineChanges.test_receipt_failure_does_not_suppress_fresh_survivor_evaluation) ... opportunity publication failed: IntegrityError
+ok
+test_scale_time_price_and_capital_boundaries (tests.test_operational_nine.NineChanges.test_scale_time_price_and_capital_boundaries) ... ok
+test_two_confirmation_deterioration_survives (tests.test_operational_nine.NineChanges.test_two_confirmation_deterioration_survives) ... ok
+test_exited_current_allows_survivor_but_observation_survives_active_fence (tests.test_current_survivor_independence.CurrentSurvivorIndependenceTests.test_exited_current_allows_survivor_but_observation_survives_active_fence) ... ok
+test_rejection_reason_cannot_suppress_later_survivor_across_restart (tests.test_current_survivor_independence.CurrentSurvivorIndependenceTests.test_rejection_reason_cannot_suppress_later_survivor_across_restart) ... ok
+
+======================================================================
+ERROR: test_six_processes_cannot_spend_the_same_observed_cash (tests.test_shared_capital_concurrency.ConcurrentCapitalTests.test_six_processes_cannot_spend_the_same_observed_cash)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital_concurrency.py", line 80, in test_six_processes_cannot_spend_the_same_observed_cash
+    reports = [output.get(timeout=40) for _ in processes]
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/multiprocessing/queues.py", line 114, in get
+    raise Empty
+_queue.Empty
+
+======================================================================
+ERROR: test_meteora_adverse_flow_strict_and_conjunctive_boundary (tests.test_operational_nine.NineChanges.test_meteora_adverse_flow_strict_and_conjunctive_boundary)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_operational_nine.py", line 207, in test_meteora_adverse_flow_strict_and_conjunctive_boundary
+    from meme_machine.lanes.meteora import runner
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/lanes/meteora/runner.py", line 41, in <module>
+    from meme_machine.lanes.meteora.solana_evidence_runtime import RuntimeEvidence,METEORA_SCOPE
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/lanes/meteora/solana_evidence_runtime.py", line 178, in <module>
+    from meme_machine.solana_selective_runtime import SelectiveRuntime
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_selective_runtime.py", line 5, in <module>
+    from .solana_selective_history import ConsumerReader,FAMILIES
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_selective_history.py", line 16, in <module>
+    from .solana_native_evidence import normalize_zero_display
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_native_evidence.py", line 12, in <module>
+    import based58
+ModuleNotFoundError: No module named 'based58'
+
+======================================================================
+ERROR: test_meteora_three_verified_segments_and_entry_unchanged (tests.test_operational_nine.NineChanges.test_meteora_three_verified_segments_and_entry_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_operational_nine.py", line 197, in test_meteora_three_verified_segments_and_entry_unchanged
+    from meme_machine.lanes.meteora import runner
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/lanes/meteora/runner.py", line 41, in <module>
+    from meme_machine.lanes.meteora.solana_evidence_runtime import RuntimeEvidence,METEORA_SCOPE
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/lanes/meteora/solana_evidence_runtime.py", line 178, in <module>
+    from meme_machine.solana_selective_runtime import SelectiveRuntime
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_selective_runtime.py", line 5, in <module>
+    from .solana_selective_history import ConsumerReader,FAMILIES
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_selective_history.py", line 16, in <module>
+    from .solana_native_evidence import normalize_zero_display
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_native_evidence.py", line 12, in <module>
+    import based58
+ModuleNotFoundError: No module named 'based58'
+
+======================================================================
+FAIL: test_process_death_before_and_after_full_synchronous_commit (tests.test_shared_capital_recovery.RecoveryTests.test_process_death_before_and_after_full_synchronous_commit) (stage='during_allocation')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital_recovery.py", line 112, in test_process_death_before_and_after_full_synchronous_commit
+    self.assertEqual(process.exitcode, 88)
+AssertionError: 1 != 88
+
+======================================================================
+FAIL: test_process_death_before_and_after_full_synchronous_commit (tests.test_shared_capital_recovery.RecoveryTests.test_process_death_before_and_after_full_synchronous_commit) (stage='before_commit')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital_recovery.py", line 112, in test_process_death_before_and_after_full_synchronous_commit
+    self.assertEqual(process.exitcode, 88)
+AssertionError: 1 != 88
+
+======================================================================
+FAIL: test_process_death_before_and_after_full_synchronous_commit (tests.test_shared_capital_recovery.RecoveryTests.test_process_death_before_and_after_full_synchronous_commit) (stage='after_commit')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital_recovery.py", line 112, in test_process_death_before_and_after_full_synchronous_commit
+    self.assertEqual(process.exitcode, 88)
+AssertionError: 1 != 88
+
+----------------------------------------------------------------------
+Ran 80 tests in 86.320s
+
+FAILED (failures=3, errors=3)

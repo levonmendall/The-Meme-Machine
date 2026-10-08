@@ -136,6 +136,12 @@ def fresh_health(root,health):
 
 
 def observed_portfolio(root,health,now=None):
+    from meme_machine.shared_capital.runtime import selected
+    from meme_machine.shared_capital.reporting import observe
+    try:shared=selected(Path(root)/'portfolio.sqlite')
+    except (OSError,ValueError,RuntimeError,sqlite3.Error) as error:
+        return dict(state='FAIL_CLOSED',reason=str(error))
+    if shared:return database(shared,observe)
     result=database(Path(root)/'portfolio.sqlite',portfolio)
     if not projection_allowed(result):return result
     if now is None:

@@ -47,7 +47,7 @@ class PaperPosition:
 
 
 class PumpAccelerationPaperLifecycle:
-    """One independent strategy lifecycle; no shared-capital authority."""
+    """Independent native lifecycle; funding follows the selected authority."""
 
     def __init__(self, *, book=None, lifecycle_id=None, entry_evidence=None):
         self.reservation=None
@@ -76,7 +76,8 @@ class PumpAccelerationPaperLifecycle:
             raise ValueError("lifecycle_already_active")
         if self.sleeve is not None:
             self.sleeve.reserve(self.lifecycle_id,strategy=STRATEGY_ID,
-                amount=int(budget_quote_units),at=int(now),asset=qualification.mint)
+                amount=int(budget_quote_units),at=int(now),asset=qualification.mint,
+                funding_evidence=dict(qualification=asdict(qualification),snapshot=self.entry_evidence))
         if self.book is not None:
             try:
                 self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),

@@ -1,0 +1,15 @@
+{
+  "mode": "OFFLINE_DESCRIPTION",
+  "limits": {
+    "wall_seconds": 600,
+    "steady_seconds": 180,
+    "solana_rpc_requests": 2000,
+    "robinhood_rpc_requests": 1000,
+    "estimated_rpc_cu": 150000,
+    "native_delivery_bytes": 67108864,
+    "estimated_native_delivery_cu": 131072,
+    "storage_bytes": 536870912,
+    "native_errors": 32
+  },
+  "provider_calls": 0
+}

@@ -141,7 +141,7 @@ class StrategyCapitalTests(unittest.TestCase):
         self.assertEqual(money(s["capital"]["pending_authoritative_commitments"]), 0)
         h.restart()
 
-    def test_no_new_alpha_or_operational_activation_imports(self):
+    def test_unselected_epoch_keeps_native_authority_and_frozen_economics(self):
         from pathlib import Path
         import subprocess
         root = Path(__file__).resolve().parents[1]
@@ -149,9 +149,17 @@ class StrategyCapitalTests(unittest.TestCase):
         # requested integration still must not activate the new authority or
         # change economics. Check that contract directly, with the existing
         # native sizing/exit/bridge/add behavioral regressions alongside it.
-        for path in (root/'meme_machine/operational').glob('*.py'):
-            self.assertNotIn('import shared_capital',path.read_text())
-            self.assertNotIn('from meme_machine.shared_capital',path.read_text())
+        from meme_machine.runtime.portfolio import NativePortfolio
+        from meme_machine.shared_capital.runtime import selected
+        from tests.shared_capital_support import legacy_fixture
+        with tempfile.TemporaryDirectory() as td:
+            database=Path(td)/'portfolio.sqlite'
+            old=legacy_fixture(database);old.close()
+            self.assertIsNone(selected(database))
+            native=NativePortfolio(database,'pump')
+            self.assertIs(type(native),NativePortfolio)
+            self.assertEqual(native.equity(),money('125'))
+            self.assertFalse((Path(td)/'shared-capital.sqlite').exists())
         preserved = ('meme_machine/lanes/pump/pump_acceleration_strategy.py',
                      'meme_machine/lanes/pump/pumpswap_survivor.py',
                      'meme_machine/lanes/pons/pons_postgrad_survivor.py',

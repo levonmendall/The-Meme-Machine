@@ -81,6 +81,11 @@ def validate_plan(plan):
     if digest(body) != checksum(plan["migration_sha256"]):
         raise CapitalError("migration_plan_checksum")
     policy = RiskPolicy(**plan["policy"]).value()
+    # Existing journals predate these optional, zero-default new-risk floors.
+    # Validate their original policy/hash verbatim; never rewrite a seed on replay.
+    for key in ("cash_floor_bps", "transaction_cost_floor"):
+        if key not in plan["policy"] and money(policy[key]) == ZERO:
+            del policy[key]
     if policy != plan["policy"] or _build_seed(plan["source"], plan["mapping"], policy) != plan["seed"]:
         raise CapitalError("migration_seed_reconciliation_failure")
     return deepcopy(plan)

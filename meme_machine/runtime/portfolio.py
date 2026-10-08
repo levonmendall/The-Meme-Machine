@@ -13,6 +13,12 @@ from meme_machine.portfolio_lane_integration import LaneEvent, PortfolioLaneProd
 
 
 class NativePortfolio:
+    def __new__(cls,database,lane):
+        if cls is NativePortfolio:
+            from meme_machine.shared_capital.runtime import selected,SharedNativePortfolio
+            if selected(database):return SharedNativePortfolio(database,lane)
+        return super().__new__(cls)
+
     def __init__(self, database, lane):
         self.database = Path(database)
         self.lane = lane
