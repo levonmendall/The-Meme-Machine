@@ -41,6 +41,8 @@ class Rpc:
         self.used = 0
         self.transport_used = 0
         self.physical_http_requests = 0
+        self.request_bytes = 0
+        self.response_bytes = 0
         self.logical = 0
         self.retry_count = 0
         self.methods, self.logical_methods = Counter(), Counter()
@@ -68,13 +70,17 @@ class Rpc:
             timeout=self._transport_timeout()
             http_started()
             self.physical_http_requests += 1
+            self.request_bytes += len(body)
             with urlopen(request, timeout=timeout) as response:
                 raw = response.read(self.max_response + 1)
+                self.response_bytes += len(raw)
         except HTTPError as exc:
             # Never include str(exc): a URL can include the full credential.
             if exc.code == 400:
                 try:
-                    error = json.loads(exc.read(8192)).get('error', {})
+                    error_body = exc.read(8192)
+                    self.response_bytes += len(error_body)
+                    error = json.loads(error_body).get('error', {})
                     message = str(error.get('message', '')).lower()
                     if 'block' in message and ('range' in message or 'limit' in message):
                         raise BoundaryError('provider_log_block_range_limit') from None
@@ -167,9 +173,21 @@ class Rpc:
             timeout=self._transport_timeout()
             http_started()
             self.physical_http_requests += 1
+            self.request_bytes += len(body)
             with urlopen(request,timeout=timeout) as response:
                 raw=response.read(self.max_response+1)
+                self.response_bytes += len(raw)
         except HTTPError as exc:
+            if exc.code == 400:
+                try:
+                    error_body=exc.read(8192)
+                    self.response_bytes += len(error_body)
+                    error=json.loads(error_body).get('error',{})
+                    message=str(error.get('message','')).lower()
+                    if 'block' in message and ('range' in message or 'limit' in message):
+                        raise BoundaryError('provider_log_block_range_limit') from None
+                except BoundaryError:raise
+                except (ValueError,AttributeError):pass
             raise BoundaryError(f'provider_http_{exc.code}') from None
         except (URLError,TimeoutError,OSError):
             self._check_transport_deadline()
@@ -244,6 +262,8 @@ class Rpc:
     def telemetry(self):
         return dict(requests=self.used, transport_requests=self.transport_used,
                     physical_http_requests=self.physical_http_requests,
+                    request_bytes=self.request_bytes,response_bytes=self.response_bytes,
+                    byte_basis='HTTP request payload attempted; response payload read; excludes headers/TLS/unread error bodies',
                     logical_requests=self.logical, retries=self.retry_count,
                     methods=dict(self.methods), logical_methods=dict(self.logical_methods),
                     scopes=dict(self.counts), failures=dict(self.failures))

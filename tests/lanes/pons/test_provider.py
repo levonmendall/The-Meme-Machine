@@ -113,3 +113,28 @@ class ProviderHeaderTests(unittest.TestCase):
                 ]),
                 ['0x1237', '0x1'],
             )
+
+    def test_http_payload_bytes_and_range_error_are_accounted(self):
+        import io
+        from urllib.error import HTTPError
+        attempted=[]
+        error_body=b'{"error":{"message":"block range limit exceeded"}}'
+        def fail(request,timeout):
+            attempted.append(len(request.data))
+            raise HTTPError(request.full_url,400,'error',{},io.BytesIO(error_body))
+        with patch('meme_machine.lanes.pons.provider.urlopen',side_effect=fail):
+            rpc=Rpc('https://example.invalid',retries=0)
+            with self.assertRaisesRegex(BoundaryError,'provider_log_block_range_limit'):
+                rpc.batch([('eth_getLogs',[dict(fromBlock='0x1',toBlock='0x28')])])
+        t=rpc.telemetry()
+        self.assertEqual(t['physical_http_requests'],1)
+        self.assertEqual(t['request_bytes'],sum(attempted))
+        self.assertEqual(t['response_bytes'],len(error_body))
+
+    def test_rejected_large_response_bytes_are_still_counted(self):
+        payload=b'0123456789'
+        with patch('meme_machine.lanes.pons.provider.urlopen',return_value=self._Response(payload)):
+            rpc=Rpc('https://example.invalid',retries=0,max_response=9)
+            with self.assertRaisesRegex(BoundaryError,'provider_response_capacity'):
+                rpc.call('eth_chainId',[])
+        self.assertEqual(rpc.telemetry()['response_bytes'],len(payload))

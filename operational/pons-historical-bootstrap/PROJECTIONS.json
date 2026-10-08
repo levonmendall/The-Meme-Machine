@@ -1,0 +1,75 @@
+{
+  "schema": "pons-history-planning-estimates-v1",
+  "planning_blocks": 5985970,
+  "planning_chain_growth_blocks_per_second": 9.89743716931217,
+  "projections": [
+    {
+      "approach": "legacy10",
+      "historical_blocks": 5985970,
+      "logical_census_elements": 1047547,
+      "physical_census_attempts_without_cache_or_errors": 299300,
+      "estimated_census_cu": 104754700,
+      "static_census_hours": 41.56944444444444,
+      "moving_head_census_hours": 55.23680670634949,
+      "checkpointed_empty_history_projected_bytes": 49152,
+      "cumulative_history_wal_write_projected_bytes": 2631289778,
+      "supported_live_range": "preserved tested runtime bound",
+      "limitations": [
+        "empty census excludes all event witnesses, launch authentication, mandatory economic histories, failures and competing traffic",
+        "all projections assume useful 0.5-second physical slots at existing rate, not higher rates",
+        "linear empty storage/write extrapolation, not real populated capacity"
+      ],
+      "storage_projection_basis": "fixed cursor-only empty DB; no authenticated range journal"
+    },
+    {
+      "approach": "prepared10",
+      "historical_blocks": 5985970,
+      "logical_census_elements": 897897,
+      "physical_census_attempts_without_cache_or_errors": 149650,
+      "estimated_census_cu": 89789700,
+      "static_census_hours": 20.78472222222222,
+      "moving_head_census_hours": 23.71909638254419,
+      "checkpointed_empty_history_projected_bytes": 245518978,
+      "cumulative_history_wal_write_projected_bytes": 12505895539,
+      "supported_live_range": "preserved tested runtime bound",
+      "limitations": [
+        "empty census excludes all event witnesses, launch authentication, mandatory economic histories, failures and competing traffic",
+        "all projections assume useful 0.5-second physical slots at existing rate, not higher rates",
+        "linear empty storage/write extrapolation, not real populated capacity"
+      ],
+      "storage_projection_basis": "fixed empty DB plus linearly scaled range table/index pages; economic and shared cache storage additional"
+    },
+    {
+      "approach": "prepared40_if_verified",
+      "historical_blocks": 5985970,
+      "logical_census_elements": 224476,
+      "physical_census_attempts_without_cache_or_errors": 37413,
+      "estimated_census_cu": 22447600,
+      "static_census_hours": 5.19625,
+      "moving_head_census_hours": 5.361998395841366,
+      "checkpointed_empty_history_projected_bytes": 101855698,
+      "cumulative_history_wal_write_projected_bytes": 4016129907,
+      "supported_live_range": "UNVERIFIED",
+      "limitations": [
+        "empty census excludes all event witnesses, launch authentication, mandatory economic histories, failures and competing traffic",
+        "all projections assume useful 0.5-second physical slots at existing rate, not higher rates",
+        "linear empty storage/write extrapolation, not real populated capacity"
+      ],
+      "storage_projection_basis": "fixed empty DB plus linearly scaled range table/index pages; economic and shared cache storage additional"
+    }
+  ],
+  "actual_billed_cu": null,
+  "dollar_price": null,
+  "warm_five_minute_census_projection": {
+    "outage_seconds": 300,
+    "new_blocks": 2970,
+    "physical_packets": 75,
+    "logical_elements": 447,
+    "restoration_and_economic_history": "ADDITIONAL_AND_UNMEASURED_LIVE"
+  },
+  "limitations": [
+    "not a measured complete bootstrap",
+    "old report rounds to 1047550 elements; exact ceil model here is 1047547",
+    "actual seven-day boundary is obtained by canonical timestamp search, not this estimated block rate"
+  ]
+}

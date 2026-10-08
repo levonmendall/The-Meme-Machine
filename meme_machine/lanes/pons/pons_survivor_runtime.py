@@ -139,6 +139,34 @@ class Runtime:
         self.rpc=None;self.current=None;self.last_error=None
 
     def now(self):return int(time.time())
+
+    def historical_preparation_step(self):
+        """Explicit preparation turn on this runtime's existing history authority.
+
+        The ordinary Current/Survivor scheduling and startup guard are unchanged.
+        An authorized historical executor or existing Survivor worker can drive
+        this after native position maintenance. It creates no economic decision.
+        """
+        from .pons_historical import Preparation
+        def provider():
+            self._provider()
+            return self.rpc
+        preparation=getattr(self,'historical_preparation',None)
+        if preparation is None:
+            preparation=Preparation(self.history,provider)
+            self.historical_preparation=preparation
+        status=preparation.step(self)
+        if status.get('ready'):
+            # Keep the seven-day domain plus one full day of acquisition overlap.
+            # Retire at most 256 expired range records per minute, after native
+            # position work; existing economic archives remain independently owned.
+            last=self.history.get_meta('pons_historical_maintenance_at')
+            if last is None or self.now()-last>=60:
+                plan=self.history.get_meta('pons_historical_plan')
+                preparation.maintain(recovery_before=plan['cutoff']-86400)
+                self.history.set_meta('pons_historical_maintenance_at',self.now())
+        return status
+
     def _provider(self):
         if self.rpc is None or self.rpc.used>150:
             self.rpc=configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0)
@@ -150,6 +178,19 @@ class Runtime:
 
     @decision_work(4)
     def discover(self):
+        # A prepared history stays on its durable acquisition path after restart.
+        # Unseeded ordinary discovery keeps its original ten/forty-block limits.
+        # The runtime adapter also uses ten/forty: larger historical requests are
+        # confined to a separately driven preparation with a capability receipt.
+        from .pons_historical import PLAN,number
+        prepared=self.history.get_meta(PLAN)
+        if prepared is not None:
+            worker=getattr(self,'historical_preparation',None)
+            if worker is not None and worker.restored and prepared.get('ready'):
+                header=_latest_header(self.rpc)
+                if number(header)>number(prepared['target']):worker.extend(header)
+            self.historical_readiness=self.historical_preparation_step()
+            return
         header=_latest_header(self.rpc);top=int(header['number'],16)
         cursor=self.history.get_meta('discovery_block')
         if cursor is None:
@@ -493,6 +534,11 @@ class Runtime:
             from meme_machine.runtime.storage import compact_survivor
             compact_survivor(self,'pons')
             self._provider()
+            from .pons_historical import PLAN
+            historical_mode=self.history.get_meta(PLAN) is not None
+            history_verified=(not historical_mode or
+                bool(getattr(self,'historical_readiness',{}).get('ready')) and
+                bool(getattr(getattr(self,'historical_preparation',None),'restored',False)))
             def position_priority(row):
                 if not row.get('position'):return 2
                 try:position=self.book._load(row['position'])
@@ -500,13 +546,20 @@ class Runtime:
                 return 0 if position['status']=='open' and position['tokens']>0 else 1
             for row in sorted(self.history.rows(),key=position_priority):
                 if row.get('position'):
-                    try:self._position(row,admit=admit)
+                    try:self._position(row,admit=admit and history_verified)
                     except (ValueError,BoundaryError) as exc:
                         errors.append(str(exc));self._failure(row,str(exc),phase='position')
             if admit:
                 # Discovery never depends on population or allocatable capital.
                 try:self.discover()
-                except (ValueError,BoundaryError) as exc:errors.append(str(exc))
+                except (ValueError,BoundaryError) as exc:
+                    errors.append(str(exc))
+                    if historical_mode:self.historical_readiness=dict(ready=False,category='INCOMPLETE_EVIDENCE',reason=str(exc))
+            if historical_mode:
+                # Existing positions were maintained above. Incomplete census or
+                # histories cannot authorize new Survivor decisions or funding.
+                admit=(admit and bool(getattr(self,'historical_readiness',{}).get('ready')) and
+                    bool(getattr(getattr(self,'historical_preparation',None),'restored',False)))
             rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
                 for expired in list(rows):
@@ -514,8 +567,9 @@ class Runtime:
                         self.history.retire(expired,expired_before=self.now()-POLICY['universe']['max_seconds_after_graduation']);rows.remove(expired)
                 if rows:
                     top=int(_latest_header(self.rpc)['number'],16)
-                    try:self._increment_candidates(rows,top)
-                    except (ValueError,BoundaryError) as exc:errors.append(str(exc))
+                    if not historical_mode:
+                        try:self._increment_candidates(rows,top)
+                        except (ValueError,BoundaryError) as exc:errors.append(str(exc))
                     rows=[self.history.get(r['id']) for r in rows]
             if admit and rows:
                 row=self.history.qualification_turn(rows,self.now())
@@ -569,6 +623,7 @@ class Runtime:
                     pending_graduations=self.history.pending_graduations(),
                     deferred_boundaries=errors,
                     acquisition=getattr(self,'acquisition',None),
+                    historical_readiness=getattr(self,'historical_readiness',None),
                     accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
                     policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
                     durable_handoff=handoff_ready(self.book,self.history.rows()))
