@@ -22,14 +22,18 @@ physical HTTP attempts** for the initial frozen domain alone. Caching may reduce
 some calls; authentication and candidate history add work. These counts are
 estimates, not recorded full-bootstrap usage.
 
-Even a hypothetical Survivor-only turn taking two 0.5-second physical admission
-slots plus the existing proof loop's 0.5-second wait advances at most about 26.67
-blocks/s. With ongoing chain growth, the optimistic catch-up projection is
-`5,985,970 / (26.67 − 9.897436) ≈ 99.2 hours`. Current discovery/evaluation,
-Survivor authentication/increments, RPC latency and fairness make it slower.
-Using 12 blocks/s for market variability projects roughly 137.5 hours. No exact
-seven-day block boundary or complete candidate-hydration volume is known from
-this small capture. Do not treat these projections as a cost guarantee.
+The most optimistic bound allows free/cached headers and one physical batch
+per forty-block turn at 0.5-second pacing: 80 blocks/s. Ongoing chain growth then
+projects `5,985,970 / (80 − 9.897436) ≈ 23.7 hours`. Two fresh physical requests
+per turn imply approximately 40 blocks/s and **55.2 hours** of catch-up before
+Current discovery/evaluation, authentication/increments, RPC latency or fairness.
+The proof loop's 0.5-second wait overlaps the gap to the next physical admission;
+do not double-count that wait as an extra independent slot. Using 12 blocks/s
+for variability yields about 29.6 / 72.0 hours for the same two scenarios. No
+exact seven-day block boundary or complete candidate-hydration volume is known
+from this small capture. These are planning projections, not actual cost or
+duration guarantees. Existing cache reuse is a saving only when physical delivery
+is genuinely avoided; the optimistic cached scenario is not a measured saving.
 
 The corrected capture establishes one bootstrap binary step and no complete
 Survivor discovery cursor. The attached inspected captures provide **no complete

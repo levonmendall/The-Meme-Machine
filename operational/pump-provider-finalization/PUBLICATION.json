@@ -4,10 +4,10 @@
   "artifact_sha256": {
     "BYTE_LATENCY.json": "0ea03cbdf0bfb38371db57ade786abb26d750272620fb867571353799c93e79e",
     "CONTENTION.json": "604a32587dc74daeb078a3ef0a898a06c95330523a0a60e796f327823bb03f15",
-    "HANDOFF.md": "4a99cc6e260212136445729b34cc2ebe1709eaa62e22f4e3160403435df77da6",
+    "HANDOFF.md": "88059ba86ca7e43afc645ba0a18bedc86bdc7af307091c3192b77aca561f19f5",
     "JOURNAL.json": "94868b96dea04e5a6a98a3b564f458a2affb6753ef46112e7d10e5f4e8fe0871",
-    "NEXT_PROOF.json": "31ad4eee49528a9cc123b28b6286786241c43be5bb20465e106e3b6775db6f5a",
-    "NEXT_PROOF.md": "677e32cdc74365be962dd186ed1b801fab399bb20eb56407349fc7882ac9a221",
+    "NEXT_PROOF.json": "9c1741e05cc4d8162adb956c2714fa83d2584783e5d3a2fd374af1c22ccec197",
+    "NEXT_PROOF.md": "5a1a09a6404a5c01ff6f8daf670e1c858b6ebb2ecc962d6204f9103d58001f91",
     "PARITY.json": "2f6c8222fcdf326aa8340d270a596e97cfe4e60b21db919e4fad3a04d8a4214a",
     "PRESERVATION.json": "40acba61b5911f28760cab9ad521c832dda17070a2c8e959376e7a6f456b4cc5",
     "PRIOR_CAPTURE.json": "98fd52f91c052cfaa87aff8aab81a9494a12b3cb48f1027fbe86105331fcd720",
@@ -62,6 +62,7 @@
   "original_blocker": "combined_position_and_candidate_provider_latency_not_certified",
   "original_captures_preserved": true,
   "original_epoch": "paper-1791089005190643467",
+  "pons_pacing_projection_correction": "Physical spacing overlaps the proof-loop wait: absolute optimistic one-request turn 0.5s (~23.7h), two fresh requests 1.0s (~55.2h), not 1.5s. No source/economic change.",
   "production_epoch_opened": false,
   "production_services": {
     "meme-machine-paper.service": "inactive",

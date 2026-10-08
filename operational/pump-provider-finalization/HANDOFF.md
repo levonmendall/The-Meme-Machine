@@ -312,8 +312,11 @@ budgets, samples, clocks, stop rules and a separate authorization request. A col
 Pons seven-day start is **not compatible with a minutes-long combined proof**:
 captured header pairs imply approximately 9.90 blocks/s, almost 6 million blocks,
 and about 149,650 forty-block turns before ongoing chain growth or candidate
-hydration. At native pacing and the existing proof loop, even an optimistic
-Survivor-only catch-up estimate is about **99.2 hours**, not three minutes.
+hydration. An absolute optimistic floor allowing one physical batch per turn
+and free/cached headers is about **23.7 hours** with ongoing chain growth;
+two fresh physical calls per turn project about **55.2 hours**, before Current
+work and candidate hydration. The loop wait overlaps physical pacing and must
+not be added twice. Neither estimate is compatible with three minutes.
 Existing captures contain no complete authenticated seven-day Pons seed.
 
 The proposed short combined proof is therefore **BLOCKED before spending** until
