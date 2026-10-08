@@ -1,0 +1,46 @@
+{
+  "command": [
+    "/usr/bin/time",
+    "-v",
+    "-o",
+    "operational/pump-alchemy-capability-executor/validation/frozen-reference-resources.txt",
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-m",
+    "engineering.solana_capacity.offline_replay",
+    "--source",
+    "/root/Documents/Codex/2026-10-08/codex-pump-pumpswap-alchemy-provider-optimization/repository",
+    "--capture",
+    "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+    "--output",
+    "/tmp/mm-engineering-cvzfepqa/replay"
+  ],
+  "exit_code": 0,
+  "frozen_comparison": {
+    "canonical_count_matches": true,
+    "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+    "canonical_digest_matches": true,
+    "projections": {
+      "candidate_checkpoints": true,
+      "candidate_coverage": true,
+      "candidate_gaps": true,
+      "candidate_lifecycle": true,
+      "candidate_pending_proofs": true,
+      "committed_native_witnesses": true,
+      "consumer:candidates": true,
+      "consumer:canonical_event_refs": true,
+      "consumer:work": true,
+      "evidence_bindings": true,
+      "market_observations": true,
+      "rolling_origins": true
+    },
+    "provider_calls": 0
+  },
+  "label": "frozen-reference",
+  "market_provider_calls": 0,
+  "network_guard": true,
+  "scratch_policy": "maintenance/engineering-storage-retention-20261008",
+  "scratch_retained": false,
+  "tests": null,
+  "validation": "OFFLINE_ONLY",
+  "wall_seconds": 12.47298011300154
+}

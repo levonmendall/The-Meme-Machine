@@ -1,0 +1,39 @@
+{
+  "default_mode": "OFFLINE_PLAN",
+  "limits": {
+    "cancellation_reserve": 67108864,
+    "channels": 1,
+    "frame_bytes": 16777216,
+    "http_cu": 90,
+    "http_requests": 5,
+    "native_rpcs": 3,
+    "native_writes": 3,
+    "paired_seconds": 45,
+    "physical_methods": 11,
+    "ping_writes": 12,
+    "receive_stop": 50331648,
+    "records": 100000,
+    "rss_bytes": 536870912,
+    "shutdown_seconds": 2,
+    "stopping_ceiling": 67108864,
+    "storage_bytes": 268435456,
+    "storage_stop": 234881024,
+    "wall_seconds": 60,
+    "ws_connections": 1,
+    "ws_subscribes": 2,
+    "ws_unsubscribes": 1
+  },
+  "live_requirements": [
+    "separate_authorization",
+    "current_account_headroom_receipt",
+    "configured_pump_credential_matches_app_9bin99s96t7ga5e9",
+    "existing_shared_governor",
+    "pinned_engineering_storage_admission"
+  ],
+  "production_configuration_changed": false,
+  "provider_calls": 0,
+  "provider_execution_authorized": false,
+  "request_topology": "one_channel_three_Subscribe_RPCs_one_WS_two_logsSubscribe",
+  "status": "PUMP_ALCHEMY_OPTIMIZATION_READY_FOR_PROVIDER_VALIDATION",
+  "verified_provider_savings_bytes": 0
+}

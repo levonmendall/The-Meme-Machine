@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/usr/bin/time",
+    "-v",
+    "-o",
+    "operational/pump-alchemy-capability-executor/validation/executor-resources.txt",
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-c",
+    "from operational.tests import network_guard; network_guard(); import unittest; r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(['tests.test_pump_capability_executor'])); raise SystemExit(not r.wasSuccessful())"
+  ],
+  "exit_code": 0,
+  "label": "executor",
+  "market_provider_calls": 0,
+  "network_guard": true,
+  "scratch_policy": "maintenance/engineering-storage-retention-20261008",
+  "scratch_retained": false,
+  "tests": 35,
+  "validation": "OFFLINE_ONLY",
+  "wall_seconds": 6.867886150954291
+}

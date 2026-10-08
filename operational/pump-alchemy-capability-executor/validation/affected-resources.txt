@@ -1,0 +1,23 @@
+	Command being timed: "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python -c from operational.tests import network_guard; network_guard(); import unittest; r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(['tests.test_pump_capability_executor', 'tests.test_provider_efficiency', 'tests.test_solana_selective_evidence', 'tests.test_solana_rolling_prewarm', 'tests.test_solana_prewarm_startup', 'tests.test_candidate_history', 'tests.test_current_survivor_independence', 'tests.lanes.pump.test_pumpswap_survivor_evidence', 'tests.lanes.pump.test_pump_acceleration_history', 'tests.lanes.pump.test_pump_durable_strategy_recovery', 'tests.test_shared_capital_economics', 'tests.test_shared_capital_recovery'])); raise SystemExit(not r.wasSuccessful())"
+	User time (seconds): 9.35
+	System time (seconds): 2.53
+	Percent of CPU this job got: 46%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:25.56
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 74288
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 44631
+	Voluntary context switches: 68348
+	Involuntary context switches: 2118
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 1241752
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

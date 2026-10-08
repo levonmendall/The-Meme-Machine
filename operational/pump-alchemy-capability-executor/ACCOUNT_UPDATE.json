@@ -1,0 +1,33 @@
+{
+  "account_usage_cu_approximate": 1730000,
+  "app_ids": {
+    "pons_robinhood": "v5h0vqr0wpp9zscj",
+    "pump_solana": "9bin99s96t7ga5e9"
+  },
+  "app_key_mask_comparison": "PENDING_ADMIN_TOOL_ROUTING_OR_OWNER_LAST_FOUR",
+  "classification": "OWNER_VERIFIED_ACCOUNT_INFORMATION",
+  "configured_service_environment": "/etc/meme-machine/paper.env",
+  "credential_changes": 0,
+  "payg_administrative_visibility": "RESTORED_AND_OWNER_VERIFIED",
+  "provider_workloads_dispatched": 0,
+  "pump_configured_endpoint_matches_authoritative_capture": true,
+  "reported_primary_solana_drivers": [
+    "address-history queries",
+    "WebSocket logs"
+  ],
+  "reported_usage_usd_approximate": 0.91,
+  "runtime_credential_binding": "NOT_OBSERVED; queried meme-machine-paper.service has MainPID=0",
+  "schema": "alchemy-administrative-update-v1",
+  "this_thread_admin_read_attempts": [
+    {
+      "operation": "list_apps",
+      "result": "Unknown tool: alchemy.list_apps"
+    },
+    {
+      "operation": "get_usage_summary",
+      "result": "Unknown tool: alchemy.get_usage_summary"
+    }
+  ],
+  "this_thread_independent_admin_export_obtained": false,
+  "usage_interval": "NOT_SUPPLIED; NOT_A_MONTHLY_FORECAST"
+}

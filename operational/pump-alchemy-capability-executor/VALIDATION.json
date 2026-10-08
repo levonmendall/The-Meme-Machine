@@ -1,0 +1,185 @@
+{
+  "affected_modules": "175 PASS; final executor-only run covers subsequent engineering hardening",
+  "as_of": "2026-10-08T18:21:17.038218+00:00",
+  "evidence_sha256": {
+    "validation/FAST-receipt.json": "f62b459bcb6b64208de1a64f92a9ddfefedbb6e524083a6529e4aca9d13ac80f",
+    "validation/FAST-resources.txt": "b12b9e18992dc6d50c672ffb8536902e3b756dc702c732d3818fab779dbec668",
+    "validation/FAST.log": "36f34c6ec6244116ab0912d654a5c90d43de1fe2b8a62458359c5eac4cb63402",
+    "validation/affected-receipt.json": "54f689450082bc3a2fa1750705533aa8f1ef618849542486cdf4e41b0cbf9f69",
+    "validation/affected-resources.txt": "a1c8663d071f661484a1a0fc0c503ae28dd74c15376e868497824950264b1387",
+    "validation/affected.log": "5cce68bda886ba8e197e21791e05d15f25a7fa73c944f93cfbefafa60e2bca55",
+    "validation/executor-receipt.json": "da4fd8f4803727e649888855a074cb4bb895fe1912e238f07fa38ae0e75c3df4",
+    "validation/executor-resources.txt": "01d4d75a14f4779a565d4eccd778e3e1a35e53e76bba2f7d5ab71929dd4b9f56",
+    "validation/executor.log": "508afd73bd70b806bc1b01bfd6ce93bf97b43fc257a4491a542360e836c75d31",
+    "validation/frozen-reference-profile.txt.gz": "89960d3851a7bce835b8c280406ac2adc5566faa755ad6e5ca9e4678252e552d",
+    "validation/frozen-reference-receipt.json": "5bff1261a09b3f80be21fcecd79b60931fc65847fd32ad8b4f0e195c0f0e28bd",
+    "validation/frozen-reference-resources.txt": "ef34677675ab9aeec1404b9e65ba8fcfb289dce0812a8cd7ab77123686659ad0",
+    "validation/frozen-reference-result.json": "08959d0faeb2716bcba73cc42412e91d7631be1c5bdb0d5d2e4be25587346bbc",
+    "validation/frozen-reference.log": "3bdac4482cc9ab4c5269e1b01583866cf8cf638949660d6a3aeec6ef2eb5910b",
+    "validation/initial-affected-receipt.json": "b10e48aafa6df73b906cbaf49d4be6fff9231700982013fd388d9466253386b8",
+    "validation/initial-affected-resources.txt": "0a0b875ff0f0cb83ef25d88da1cc0fb6bb647a3511eae20ef7fcc1fdef30dd23",
+    "validation/initial-affected.log": "a4f42d01a4420c4b356cd7f6289ba52bdf89fd1fa1e3747c0e711274bfb4c592"
+  },
+  "final_module_tests": "35 PASS after final executor/evidence/limits/reconciliation changes",
+  "historical_FAST_failure": "Pons historical source-freeze mismatch; original files unchanged",
+  "initial_failure_disposition": "Synthetic phase timer under parallel CPU load; fake phases now delivery-synchronized; live clock override forbidden; original tests untouched",
+  "market_provider_calls": 0,
+  "network_guard": true,
+  "production_configuration_changed": false,
+  "profile_archive": {
+    "compression": "LOSSLESS_GZIP",
+    "decompressed_sha256": "6b5373ab6d47bb3ac4daae0c4ad86e07d9b9b66137fe24138504830ea5d3c9bd",
+    "path": "validation/frozen-reference-profile.txt.gz"
+  },
+  "python_runtime": "CPython 3.12.14",
+  "receipts": {
+    "FAST": {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "operational/pump-alchemy-capability-executor/validation/FAST-resources.txt",
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-m",
+        "operational.tests",
+        "FAST"
+      ],
+      "exit_code": 1,
+      "label": "FAST",
+      "market_provider_calls": 0,
+      "network_guard": true,
+      "receipt_sha256": "f62b459bcb6b64208de1a64f92a9ddfefedbb6e524083a6529e4aca9d13ac80f",
+      "scratch_policy": "maintenance/engineering-storage-retention-20261008",
+      "scratch_retained": true,
+      "tests": 857,
+      "validation": "OFFLINE_ONLY",
+      "wall_seconds": 389.73864502599463
+    },
+    "affected": {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "operational/pump-alchemy-capability-executor/validation/affected-resources.txt",
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard; network_guard(); import unittest; r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(['tests.test_pump_capability_executor', 'tests.test_provider_efficiency', 'tests.test_solana_selective_evidence', 'tests.test_solana_rolling_prewarm', 'tests.test_solana_prewarm_startup', 'tests.test_candidate_history', 'tests.test_current_survivor_independence', 'tests.lanes.pump.test_pumpswap_survivor_evidence', 'tests.lanes.pump.test_pump_acceleration_history', 'tests.lanes.pump.test_pump_durable_strategy_recovery', 'tests.test_shared_capital_economics', 'tests.test_shared_capital_recovery'])); raise SystemExit(not r.wasSuccessful())"
+      ],
+      "exit_code": 0,
+      "label": "affected",
+      "market_provider_calls": 0,
+      "network_guard": true,
+      "receipt_sha256": "54f689450082bc3a2fa1750705533aa8f1ef618849542486cdf4e41b0cbf9f69",
+      "scratch_policy": "maintenance/engineering-storage-retention-20261008",
+      "scratch_retained": false,
+      "tests": 175,
+      "validation": "OFFLINE_ONLY",
+      "wall_seconds": 25.661991651984863
+    },
+    "executor": {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "operational/pump-alchemy-capability-executor/validation/executor-resources.txt",
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard; network_guard(); import unittest; r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(['tests.test_pump_capability_executor'])); raise SystemExit(not r.wasSuccessful())"
+      ],
+      "exit_code": 0,
+      "label": "executor",
+      "market_provider_calls": 0,
+      "network_guard": true,
+      "receipt_sha256": "da4fd8f4803727e649888855a074cb4bb895fe1912e238f07fa38ae0e75c3df4",
+      "scratch_policy": "maintenance/engineering-storage-retention-20261008",
+      "scratch_retained": false,
+      "tests": 35,
+      "validation": "OFFLINE_ONLY",
+      "wall_seconds": 6.867886150954291
+    },
+    "frozen-reference": {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "operational/pump-alchemy-capability-executor/validation/frozen-reference-resources.txt",
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-m",
+        "engineering.solana_capacity.offline_replay",
+        "--source",
+        "/root/Documents/Codex/2026-10-08/codex-pump-pumpswap-alchemy-provider-optimization/repository",
+        "--capture",
+        "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+        "--output",
+        "/tmp/mm-engineering-cvzfepqa/replay"
+      ],
+      "exit_code": 0,
+      "frozen_comparison": {
+        "canonical_count_matches": true,
+        "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+        "canonical_digest_matches": true,
+        "projections": {
+          "candidate_checkpoints": true,
+          "candidate_coverage": true,
+          "candidate_gaps": true,
+          "candidate_lifecycle": true,
+          "candidate_pending_proofs": true,
+          "committed_native_witnesses": true,
+          "consumer:candidates": true,
+          "consumer:canonical_event_refs": true,
+          "consumer:work": true,
+          "evidence_bindings": true,
+          "market_observations": true,
+          "rolling_origins": true
+        },
+        "provider_calls": 0
+      },
+      "label": "frozen-reference",
+      "market_provider_calls": 0,
+      "network_guard": true,
+      "receipt_sha256": "5bff1261a09b3f80be21fcecd79b60931fc65847fd32ad8b4f0e195c0f0e28bd",
+      "scratch_policy": "maintenance/engineering-storage-retention-20261008",
+      "scratch_retained": false,
+      "tests": null,
+      "validation": "OFFLINE_ONLY",
+      "wall_seconds": 12.47298011300154
+    },
+    "initial-affected": {
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "operational/pump-alchemy-capability-executor/validation/affected-resources.txt",
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard; network_guard(); import unittest; r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(['tests.test_pump_capability_executor', 'tests.test_provider_efficiency', 'tests.test_solana_selective_evidence', 'tests.test_solana_rolling_prewarm', 'tests.test_solana_prewarm_startup', 'tests.test_candidate_history', 'tests.test_current_survivor_independence', 'tests.lanes.pump.test_pumpswap_survivor_evidence', 'tests.lanes.pump.test_pump_acceleration_history', 'tests.lanes.pump.test_pump_durable_strategy_recovery', 'tests.test_shared_capital_economics', 'tests.test_shared_capital_recovery'])); raise SystemExit(not r.wasSuccessful())"
+      ],
+      "exit_code": 1,
+      "label": "affected",
+      "market_provider_calls": 0,
+      "network_guard": true,
+      "receipt_sha256": "b10e48aafa6df73b906cbaf49d4be6fff9231700982013fd388d9466253386b8",
+      "scratch_policy": "maintenance/engineering-storage-retention-20261008",
+      "scratch_retained": true,
+      "tests": 168,
+      "validation": "OFFLINE_ONLY",
+      "wall_seconds": 45.580280411057174
+    }
+  },
+  "resource_validation": "Every configured initiation/receive/queue/storage/memory/shutdown budget has explicit offline trip checks; real child wall/RSS/disk/kill behavior tested",
+  "retained_failure_scratch": [
+    "/tmp/mm-engineering-cs_cpuy5",
+    "/tmp/mm-engineering-gukobo8r"
+  ],
+  "schema": "pump-capability-offline-validation-v1",
+  "service_restarted": false,
+  "source_sha256": {
+    "engineering/solana_capacity/capability_evidence.py": "aec19291ea65924a0c1961abebdff91b9f6e44d5350a69eab8d750fe16a176ec",
+    "engineering/solana_capacity/capability_executor.py": "68f5f0a4f002cb12e8a1cec13e833bcc263fdeef4f5a7dcb5ac38388c403ad89",
+    "engineering/solana_capacity/capability_limits.py": "5434ea599590892f99780fdc51faa6fea173c7186f6af77d848e5db62e15437a",
+    "engineering/solana_capacity/credential_reconciliation.py": "49c49bff50711086c427eaacfe9047bdbd90d80b1452b5b383c4364a4e2fbb52",
+    "engineering/solana_capacity/validate_capability.py": "1ecd5df7195b1ae4f8ca82c81f2f61ae714bc09471c45ec3f4f8bb3ce7c32edb",
+    "tests/test_pump_capability_executor.py": "547a6808238831c5548c79128aea0fa4c9bfbd309aa319d7cbf436d397b8cd64"
+  },
+  "verified_provider_savings_bytes": 0
+}

@@ -1,0 +1,13 @@
+{
+  "candidate_success_failed_presence": true,
+  "candidate_success_failed_value": false,
+  "classification": "OFFLINE_PINNED_PROTOCOL_VALIDATION",
+  "finality": "FINALIZED",
+  "proto_sha256": "80ee337f361198a0722cb5bdf244fe41838949ab7a3af6d1b182b7fdca9abf02",
+  "protocol_version": "Yellowstone 14.0.1",
+  "provider_calls": 0,
+  "round_trip_wire_identity": true,
+  "sample_from_slot_is_synthetic": 123,
+  "scout_scope": "Pump BondingCurve owner/discriminator slice offset=0 length=56",
+  "status_failed_unset": true
+}

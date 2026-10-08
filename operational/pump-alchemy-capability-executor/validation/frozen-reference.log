@@ -1,0 +1,30 @@
+{
+  "canonical_count": 287,
+  "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+  "pending": {
+    "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+      "slots": 0,
+      "bytes": 0,
+      "missing_logs": 0,
+      "early_logs": 0
+    },
+    "2f41d7ca1923436d8adbb109c6bfc13b": {
+      "slots": 0,
+      "bytes": 0,
+      "missing_logs": 0,
+      "early_logs": 10210
+    }
+  },
+  "wall_seconds": 11.45045578898862,
+  "cpu_seconds": 8.275083062,
+  "process_io_delta": {
+    "rchar": 27645547,
+    "wchar": 70510120,
+    "syscr": 5396,
+    "syscw": 28992,
+    "read_bytes": 0,
+    "write_bytes": 87232512,
+    "cancelled_write_bytes": 29380608
+  },
+  "sqlite_changes": 8440
+}
