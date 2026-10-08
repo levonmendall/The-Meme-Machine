@@ -1,0 +1,30 @@
+[Unit]
+Description=Meme Machine independent read-only dashboard snapshot push
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/meme-machine-dashboard
+Environment=PYTHONPATH=/opt/meme-machine
+Environment=GIT_OPTIONAL_LOCKS=0
+EnvironmentFile=/etc/meme-machine/dashboard-publisher.env
+ExecStart=/opt/meme-machine/.venv/bin/python -m dashboard.publisher
+TimeoutStartSec=18
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=read-only
+InaccessiblePaths=/etc/meme-machine/paper.env /etc/meme-machine/digitalocean.env /etc/meme-machine/acceptance.env /root/.config /root/.ssh
+PrivateTmp=true
+PrivateDevices=true
+ReadOnlyPaths=/mnt/volume_nyc1_1790918115030 /var/lib/meme-machine-observer /var/lib/meme-machine-monitor /var/lib/meme-machine-acceptance
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=20%
+MemoryMax=128M
+StandardOutput=journal
+StandardError=journal

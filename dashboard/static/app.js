@@ -2,7 +2,7 @@
 const LANES = ['pump', 'pons', 'ramses', 'meteora'];
 const names = {pump:'Pump', pons:'Pons', ramses:'Ramses', meteora:'Meteora'};
 const main = document.querySelector('#main');
-const state = {period:'ALL', series:'portfolio', offset:0, filters:{}, generation:0, busy:false};
+const state = {period:'ALL', series:'portfolio', offset:0, filters:{}, generation:0, busy:false, lastPortfolio:null};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const title = word => word.replaceAll('_',' ');
 const badge = (value, label) => `<span class="badge ${esc(value)}">${esc(label || title(value))}</span>`;
@@ -210,8 +210,8 @@ function overviewAlerts(p) {
 function overviewStatus(s,p) {
   const laneStates=LANES.map(l=>s.lanes?.[l]?.operational?.state||'UNKNOWN');
   const coreStates=[s.accounting.state,s.read_model.state,s.telemetry.state];
-  const allHealthy=[...laneStates,...coreStates].every(x=>x==='CURRENT');
-  const headline=p.mode==='fixture'?'Development fixture active':allHealthy&&p.state==='CURRENT'?'All systems operational':p.state==='NOT_INITIALIZED'?'Awaiting portfolio initialization':'System attention required';
+  const allHealthy=[...laneStates,...coreStates].every(x=>x==='CURRENT')&&(!p.paper_state||p.paper_state==='RUNNING');
+  const headline=p.mode==='fixture'?'Development fixture active':p.paper_state==='STOPPED'?'PAPER STOPPED':allHealthy&&p.state==='CURRENT'?'All systems operational':p.state==='NOT_INITIALIZED'?'Awaiting portfolio initialization':'System attention required';
   const headlineState=allHealthy&&p.state==='CURRENT'?'positive':p.state==='FAIL_CLOSED'?'negative':'caution';
   const notification=p.mode==='fixture'?'Fixture mode is clearly separated from genuine portfolio performance.':p.state==='CURRENT'&&allHealthy?'No critical alerts. Read-only paper telemetry is current.':p.state==='NOT_INITIALIZED'?'The genuine $500 paper portfolio has not been initialized.':'One or more persisted states are stale, unavailable, or fail-closed.';
   return `<div class="overview-bottom">
@@ -231,12 +231,64 @@ function overviewStatus(s,p) {
     </section>
   </div>`;
 }
+function seconds(v) {
+  if(v===null||v===undefined) return 'Unmeasured';
+  return `${Math.floor(v/3600)}h ${Math.floor(v%3600/60)}m ${Math.floor(v%60)}s`;
+}
+function measuredRows(obj,prefix='',depth=0) {
+  if(!obj||depth>4) return [];
+  return Object.entries(obj).flatMap(([k,v])=>{
+    const key=prefix?prefix+' · '+title(k):title(k);
+    return typeof v==='number'?[[key,v]]:v&&typeof v==='object'?measuredRows(v,key,depth+1):[];
+  }).slice(0,100);
+}
+function observationsTable(rows) {
+  return rows.length?`<div class="table-wrap"><table><thead><tr><th>Recorded measure</th><th>Value</th></tr></thead><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>`:empty('No authentic measurements available');
+}
+function operationsPanel(s,detailed=false) {
+  const o=s.operations;
+  if(!o) return '';
+  const observed=o.observer||{}, src=o.source||{}, phases=o.acceptance||{};
+  const regimes=observed.six_regimes||{}, sol=observed.solana||{}, rh=observed.robinhood_provider||{};
+  const phaseRows=['CAPACITY','RECOVERY','AUTONOMY'].map(name=>{
+    const r=phases[name]||{status:'UNAVAILABLE'}, previous=r.previous_attempt;
+    return `<tr><td>${name}</td><td>${badge(r.status)}${previous?`<small>Previous source: ${esc(previous.status)} · ${seconds(previous.elapsed_seconds)} · ${esc(previous.commit)}</small>`:''}</td><td>${seconds(r.elapsed_seconds)}${r.required_seconds?` / ${seconds(r.required_seconds)}`:''}</td><td>${r.status==='PASS'&&r.verified_result?'PASS':r.status==='NOT_STARTED'?'No current-candidate result':esc(r.status)}</td></tr>`;
+  }).join('');
+  const statusRows=['Pump Current','Pump Survivor','Pons Current','Pons Survivor','Meteora','Ramses'].map(name=>{
+    const r=regimes[name]||{}, paused=['Meteora','Ramses'].includes(name);
+    const phase=o.paper_state==='STOPPED'?(paused?'PAUSED (PAPER stopped)':'STOPPED'):(r.phase||'UNAVAILABLE');
+    const evidence=o.observer_state==='CURRENT'?(r.report_state||'UNAVAILABLE'):o.observer_state;
+    return `<tr><td>${name}</td><td>${badge(phase)}</td><td>${badge(evidence)}${r.report_age_seconds!=null?`<small>Report age ${seconds(r.report_age_seconds)}</small>`:''}</td></tr>`;
+  }).join('');
+  const candidates=Object.entries(regimes).flatMap(([name,r])=>measuredRows(r.machinery).filter(([k])=>/candidate|qualif|evidence|completed steps|successful steps|processed events|completed windows/.test(k)).map(([k,v])=>[name+' · '+k,v]));
+  const errors=(rh.usage||[]).filter(r=>r.metric.startsWith('failure:')||['responses_429','retries'].includes(r.metric));
+  const usage=(rh.usage||[]).filter(r=>['physical_http_requests','logical_rpc_calls','completed_transport_attempts'].includes(r.metric));
+  const providers=[
+    ['Solana queue depth',observed.solana_provider?.queue_depth], ['Robinhood queue depth',rh.queue_depth],
+    ['Solana rate errors',observed.solana_provider?.pressure?(observed.solana_provider.pressure).reduce((a,r)=>a+(r.rate_errors||0),0):undefined],
+    ['Open evidence gaps',sol.repair_backlog?.open_gaps], ['Required evidence gaps',sol.repair_backlog?.required_gaps],
+    ['Retained stream bytes',sol.counters?.stream_bytes],
+    ...usage.map(r=>[`${r.lane} · ${title(r.metric)}`,r.value]), ...errors.map(r=>[`${r.lane} · ${title(r.metric)}`,r.value])
+  ].filter(([,v])=>v!==undefined);
+  const estimate=sol.repair_http?.estimated_alchemy;
+  return `<section class="panel"><div class="panelhead"><h2>Operational reporting</h2>${badge(o.snapshot_state)}</div><div class="panelbody">
+    <p>PAPER ${esc(o.paper_state)} · Snapshot ${esc(o.captured_at||'UNAVAILABLE')} · Observer ${esc(observed.at||'UNAVAILABLE')}</p>
+    <p class="identity">Deployed PAPER: ${esc(src.deployed_commit||'UNAVAILABLE')}<br>Acceptance candidate: ${esc(src.candidate_commit||'UNAVAILABLE')}<br>Dashboard: ${esc(o.dashboard_commit||'UNAVAILABLE')}<br>Epoch: ${esc(src.epoch_id||'UNAVAILABLE')}</p>
+    <p>Observer ${badge(o.observer_state)} · Monitor ${badge(o.monitor_state)} · Portfolio replay ${badge(o.portfolio_state)}</p>
+    <div class="table-wrap"><table><thead><tr><th>Acceptance</th><th>Status</th><th>Elapsed / required</th><th>Result</th></tr></thead><tbody>${phaseRows}</tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Strategy</th><th>Service status</th><th>Persisted evidence</th></tr></thead><tbody>${statusRows}</tbody></table></div>
+    <p>${(o.alerts||[]).length?'Current alerts: '+o.alerts.map(a=>esc(title(typeof a==='string'?a:JSON.stringify(a)))).join(' · '):o.monitor_state==='CURRENT'?'No recorded health alerts':'Health alerts unavailable'}</p>
+    <details ${detailed?'open':''}><summary>Discovery, qualification and evidence progress</summary><p>Recorded measures retain their original report age above. Missing measures are unavailable.</p>${observationsTable(candidates)}<p>Evidence heartbeat: ${sol.heartbeat?esc(new Date(sol.heartbeat*1000).toISOString()):'UNAVAILABLE'} · Coverage read: ${esc(sol.state||'UNAVAILABLE')}</p>${observationsTable(measuredRows(sol.all_frontiers))}</details>
+    <details ${detailed?'open':''}><summary>Provider queues, errors, coverage and local usage</summary><p>Cumulative local counters, including historical activity; queue ${esc(observed.solana_provider?.state||'UNAVAILABLE')} / ${esc(rh.state||'UNAVAILABLE')}. They do not prove current market coverage.</p>${observationsTable(providers)}${estimate?`<p>Recorded Alchemy repair usage estimate: ${esc(estimate.known_estimated_cu)} known CU. Billing estimate only; unpriced methods remain unpriced.</p>${observationsTable(measuredRows(estimate.unpriced_methods))}`:'<p>Local CU estimate unavailable.</p>'}${observationsTable(measuredRows(sol.repair_http?.counters))}</details>
+    ${detailed?Object.entries(phases).filter(([,r])=>r.results).map(([name,r])=>`<details><summary>${name} recorded results</summary>${observationsTable(measuredRows(r.results))}</details>`).join(''):''}
+    </div></section>`;
+}
 async function overview(p) {
   const [lanes,chart,positions,trades,system,...laneCharts] = await Promise.all([
     api('lanes'),api('equity',{period:state.period,series:state.series}),api('positions',{limit:5}),api('trades',{limit:5}),api('system'),...LANES.map(l=>api('equity',{series:l,limit:60}))]);
   const charts=Object.fromEntries(LANES.map((l,i)=>[l,laneCharts[i]]));
   return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}${sharedCapital(p)}
-    ${laneCards(lanes.data,charts)}
+    ${operationsPanel(system.data)}${laneCards(lanes.data,charts)}
     <div class="chart-row overview-charts">
       ${chartPanel(chart)}
       <section class="panel"><div class="panelhead"><h2>P&L by lane</h2></div><div class="panelbody">${laneDonut(lanes.data,p)}</div></section>
@@ -275,7 +327,7 @@ async function analytics(p) {
 }
 async function systemPage(p) {
   const s=(await api('system')).data;
-  return header('System & evidence',p)+systemStrip(s)+`<p class="status-notice">Telemetry snapshot: ${date(s.observed_at)}. Polling reads local persisted state only. Each lane retains its own operational and evidence status.</p><div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div><section class="panel detail-chart"><div class="panelhead"><h2>Portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}</details></div></section>`;
+  return header('System & evidence',p)+operationsPanel(s,true)+systemStrip(s)+`<p class="status-notice">Telemetry snapshot: ${date(s.observed_at)}. Polling reads local persisted state only. Each lane retains its own operational and evidence status.</p><div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div><section class="panel detail-chart"><div class="panelhead"><h2>Portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}</details></div></section>`;
 }
 async function showPosition(id) {
   try {
@@ -288,11 +340,12 @@ function syncTopbar(p) {
   const indicator=document.querySelector('#live-indicator');
   const updated=document.querySelector('#last-update');
   if(indicator) {
-    const label=p.mode==='fixture'?'FIXTURE (Paper)':p.state==='CURRENT'?'LIVE (Paper)':`PAPER · ${title(p.state)}`;
+    const label=p.mode==='fixture'?'FIXTURE (Paper)':p.snapshot_state&&p.snapshot_state!=='CURRENT'?`PAPER · ${title(p.snapshot_state)}`:p.paper_state==='STOPPED'?'PAPER · STOPPED':p.paper_state==='UNAVAILABLE'?'PAPER · UNAVAILABLE':p.state==='CURRENT'?'LIVE (Paper)':`PAPER · ${title(p.state)}`;
     indicator.textContent=label;
-    indicator.className='live-indicator '+(p.state==='CURRENT'&&p.mode!=='fixture'?'is-live':p.state==='FAIL_CLOSED'?'is-error':'is-caution');
+    indicator.className='live-indicator '+(p.state==='CURRENT'&&p.mode!=='fixture'&&(!p.paper_state||p.paper_state==='RUNNING')&&(!p.snapshot_state||p.snapshot_state==='CURRENT')?'is-live':p.state==='FAIL_CLOSED'?'is-error':'is-caution');
   }
-  if(updated) updated.textContent=p.as_of?new Date(p.as_of).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Unavailable';
+  const at=p.snapshot_at||p.as_of;
+  if(updated) updated.textContent=at?new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Unavailable';
 }
 function bind() {
   document.querySelectorAll('[data-period]').forEach(b=>b.addEventListener('click',()=>{state.period=b.dataset.period;render();}));
@@ -321,9 +374,14 @@ async function render() {
     else if(route==='analytics') html=await analytics(p);
     else if(route==='system') html=await systemPage(p);
     else html=empty('Page not found');
-    if(generation===state.generation){main.innerHTML=html;bind();}
+    if(generation===state.generation){main.innerHTML=html;state.lastPortfolio=p;bind();}
   } catch {
-    if(generation===state.generation) main.innerHTML='<div class="banner error"><strong>Dashboard unavailable.</strong> Local state could not be read. No previous balances are represented as current.</div><button id="retry">Retry local read</button>';
+    if(generation===state.generation) {
+      syncTopbar({...state.lastPortfolio,state:'STALE',snapshot_state:'UNAVAILABLE'});
+      const warning='<div id="unavailable-banner" class="banner error"><strong>Dashboard UNAVAILABLE.</strong> Last displayed observations are STALE.</div>';
+      if(state.lastPortfolio) { if(!document.querySelector('#unavailable-banner'))main.insertAdjacentHTML('afterbegin',warning); }
+      else main.innerHTML=warning+'<button id="retry">Retry read</button>';
+    }
     document.querySelector('#retry')?.addEventListener('click',render);
   } finally { if(generation===state.generation) state.busy=false; }
 }

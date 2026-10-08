@@ -1,8 +1,10 @@
-"""Public read-only dashboard observer with bounded deployment controls.
+"""Owner-only read-only dashboard with one authenticated snapshot receiver.
 
 This service never starts market execution and never initializes portfolio state.
 """
 import argparse
+import base64
+import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -13,6 +15,7 @@ from urllib.parse import urlsplit
 
 from .api import Dashboard
 from .model import Reader
+from .snapshots import MAX_BYTES, SnapshotReader, SnapshotStore
 
 
 DEFAULT_MAX_CONCURRENCY = 16
@@ -78,8 +81,12 @@ def make_server(
     max_concurrency=DEFAULT_MAX_CONCURRENCY,
     rate_limit_per_minute=DEFAULT_RATE_LIMIT_PER_MINUTE,
     clock=time.monotonic,
+    owner=None, ingest_token=None, snapshot_store=None,
 ):
     limiter = FixedWindowRateLimiter(rate_limit_per_minute, clock=clock)
+    owner = owner or (os.environ.get('MM_DASHBOARD_OWNER_USER'),
+                      os.environ.get('MM_DASHBOARD_OWNER_PASSWORD'))
+    ingest_token = ingest_token or os.environ.get('MM_DASHBOARD_INGEST_TOKEN')
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "MemeMachineDashboard/1"
@@ -103,16 +110,8 @@ def make_server(
             self.close_connection = True
 
         def _handle(self):
+            self.connection.settimeout(10)
             path = urlsplit(self.path).path
-            if path == "/":
-                self.send_response(302)
-                self.send_header("Location", "/dashboard")
-                self.send_header("Cache-Control", "no-store")
-                self.send_header("Content-Length", "0")
-                self.send_header("Connection", "close")
-                self.end_headers()
-                self.close_connection = True
-                return
             if path == "/healthz":
                 if self.command not in ("GET", "HEAD"):
                     self._json(
@@ -122,17 +121,70 @@ def make_server(
                 else:
                     self._json(200, {"status": "ok"})
                 return
+            client = self.client_address[0] if self.client_address else "unknown"
+            if not limiter.allow(client):
+                self._json(429, {"error": "rate_limited"}, headers={"Retry-After": "60"})
+                return
+            if path == '/api/dashboard/snapshot':
+                if not ingest_token or snapshot_store is None:
+                    self._json(503, {'error': 'ingestion_unavailable'})
+                    return
+                expected = ('Bearer '+ingest_token).encode()
+                if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), expected):
+                    self._json(401, {'error': 'unauthorized'})
+                    return
+                if self.command != 'POST':
+                    self._json(405, {'error': 'ingestion_post_only'}, headers={'Allow': 'POST'})
+                    return
+                try:
+                    if (urlsplit(self.path).query or self.headers.get('Transfer-Encoding')
+                            or self.headers.get('Content-Encoding', 'identity') != 'identity'
+                            or self.headers.get('Content-Type', '').split(';')[0] != 'application/json'):
+                        raise ValueError('snapshot_content_type')
+                    size = int(self.headers.get('Content-Length', '0'))
+                    if not 0 < size <= MAX_BYTES:
+                        self._json(413, {'error': 'snapshot_capacity'})
+                        return
+                    body = self.rfile.read(size)
+                    if len(body) != size:
+                        raise ValueError('snapshot_incomplete')
+                    value = json.loads(body)
+                    snapshot_store.accept(value)
+                except (ValueError, TypeError, KeyError, RuntimeError, OverflowError, RecursionError):
+                    self._json(400, {'error': 'invalid_snapshot'})
+                    return
+                except OSError:
+                    self._json(503, {'error': 'snapshot_unavailable'})
+                    return
+                self._json(202, {'status': 'accepted', 'captured_at': value['captured_at']})
+                return
+            if not all(owner):
+                self._json(503, {'error': 'owner_access_not_configured'})
+                return
+            try:
+                scheme, encoded = self.headers.get('Authorization', '').split(' ', 1)
+                supplied = base64.b64decode(encoded, validate=True) if scheme == 'Basic' else b''
+                authorized = hmac.compare_digest(supplied, (owner[0]+':'+owner[1]).encode())
+            except (ValueError, UnicodeError):
+                authorized = False
+            if not authorized:
+                self._json(401, {'error': 'owner_authentication_required'}, headers={
+                    'WWW-Authenticate': 'Basic realm="Meme Machine owner", charset="UTF-8"'})
+                return
+            if path == '/':
+                if self.command not in ('GET', 'HEAD'):
+                    self._json(405, {'error': 'read_only'}, headers={'Allow': 'GET, HEAD'})
+                    return
+                self.send_response(302)
+                self.send_header('Location', '/dashboard')
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
             if path != "/dashboard" and not path.startswith(
                 ("/dashboard/", "/api/dashboard/")
             ):
                 self._json(404, {"error": "not_found"})
-                return
-            client = self.client_address[0] if self.client_address else "unknown"
-            if not limiter.allow(client):
-                self._json(
-                    429, {"error": "rate_limited"},
-                    headers={"Retry-After": "60"},
-                )
                 return
             if not app.serve(self):
                 self._json(404, {"error": "not_found"})
@@ -203,6 +255,13 @@ def main():
     if mode == "fixture":
         from .fixtures import FIXTURE_NOW
         reader.clock = lambda: FIXTURE_NOW
+    store = None
+    if os.environ.get('MM_DASHBOARD_SNAPSHOT_PATH'):
+        if args.fixture_dir or any((args.inception, args.accounting, args.telemetry)):
+            parser.error('snapshot mode cannot read fixture or canonical paths')
+        store = SnapshotStore(os.environ['MM_DASHBOARD_SNAPSHOT_PATH'],
+            epoch=os.environ['MM_DASHBOARD_EPOCH'], candidate=os.environ['MM_DASHBOARD_CANDIDATE'])
+        reader = SnapshotReader(store)
 
     try:
         server = make_server(
@@ -211,6 +270,7 @@ def main():
             args.port,
             max_concurrency=args.max_concurrency,
             rate_limit_per_minute=args.rate_limit_per_minute,
+            snapshot_store=store,
         )
     except ValueError as error:
         parser.error(str(error))
