@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit, unquote
 
-from .model import LANES, Reader, stamp
+from .model import Reader, stamp
 
 # Presentation only: canonical accounting retains every historical strategy.
 VISIBLE_LANES = ('pump', 'pons')
@@ -18,7 +18,7 @@ def viewer_data(value):
         for key, item in value.items():
             if isinstance(key, str) and key.lower() in HIDDEN_NAMES:
                 continue
-            name = re.sub(r'\b(ramses|meteora)\b', 'inactive_strategy', key,
+            name = re.sub(r'(?<![A-Za-z0-9])(ramses|meteora)(?![A-Za-z0-9])', 'inactive_strategy', key,
                           flags=re.IGNORECASE) if isinstance(key, str) else key
             visible[name] = viewer_data(item)
         return visible
@@ -26,7 +26,7 @@ def viewer_data(value):
         return [viewer_data(item) for item in value
                 if not (isinstance(item, dict) and item.get('lane') in HIDDEN_NAMES)]
     if isinstance(value, str):
-        return re.sub(r'\b(ramses|meteora)\b', 'inactive_strategy', value,
+        return re.sub(r'(?<![A-Za-z0-9])(ramses|meteora)(?![A-Za-z0-9])', 'inactive_strategy', value,
                       flags=re.IGNORECASE)
     return value
 
