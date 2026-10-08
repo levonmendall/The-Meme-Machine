@@ -223,6 +223,12 @@ class BudgetTests(unittest.TestCase):
         calls=[];t=Transports(self.b,QueueEvidence(self.b),offline=True,opener=lambda *a,**kw:calls.append(1))
         with self.assertRaises(CeilingReached):t.open(Request(SOL,json.dumps(call('sendTransaction')).encode()))
         self.assertEqual(calls,[])
+    def test_transport_helper_defaults_to_offline_and_requires_explicit_fake_opener(self):
+        t=Transports(self.b,QueueEvidence(self.b))
+        self.assertTrue(t.offline)
+        with self.assertRaises(ValueError) as e:t.install()
+        self.assertEqual(str(e.exception),'offline_transport_required')
+        self.assertEqual(self.b.dispatched,0)
 
 
 class SchedulerTests(unittest.TestCase):

@@ -56,7 +56,7 @@ class Response:
 
 
 class Transports:
-    def __init__(self,budget,queues,*,opener=None,offline=False):
+    def __init__(self,budget,queues,*,opener=None,offline=True):
         self.budget=budget;self.queues=queues;self.offline=offline;self.opener=opener;self.originals=[]
         self.pid=os.getpid();self.owner_count=0;self.owner_lock=threading.Lock();self.owners=[];self.disconnect=False;self.disconnect_receipt=None
         self.recovery_probe=None
