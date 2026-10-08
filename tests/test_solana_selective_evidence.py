@@ -236,15 +236,16 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         self.assertEqual(len(first),1024);self.assertEqual(first,second)
         self.assertEqual(first[0]['address'],'pool-1');self.assertEqual(first[0]['priority'],1)
         self.assertTrue(self.history.telemetry()['capacity_pressure'])
-    def test_uncertified_source_cannot_open_a_provider_connection(self):
+    def test_read_only_startup_is_separate_from_funded_admission(self):
         import asyncio
         from unittest.mock import AsyncMock,MagicMock
-        from meme_machine.solana_selective_source import SelectiveSource,PRODUCTION_BLOCKERS
+        from meme_machine.solana_selective_source import SelectiveSource,PRODUCTION_BLOCKERS,require_certified
         self.assertTrue(PRODUCTION_BLOCKERS)
         source=SelectiveSource(MagicMock(),MagicMock(),token='offline')
         owner=AsyncMock()
-        with self.assertRaisesRegex(EvidenceUnavailable,'solana_candidate_topology_not_certified'):
-            asyncio.run(source(owner,asyncio.Event()))
+        source.run=AsyncMock(return_value='observation')
+        self.assertEqual(asyncio.run(source(owner,asyncio.Event())),'observation')
+        with self.assertRaisesRegex(EvidenceUnavailable,PRODUCTION_BLOCKERS[0]):require_certified()
         owner.assert_not_called();source.rpc.call_delivered.assert_not_called()
 
     def test_current_rpc_receipt_counts_slot_cost_and_failed_physical_calls(self):

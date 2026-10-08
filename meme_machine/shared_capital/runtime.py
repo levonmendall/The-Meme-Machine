@@ -83,6 +83,13 @@ class RuntimeCapital(PumpPonsCapital):
         with self._transaction(write=False):return self._read()
 
     def command(self,op,action,data,at):
+        # Live process/transport checks stay outside the deterministic replay
+        # reducer. Journal replay must remain valid after every process dies.
+        from meme_machine.operational.admission import available,require_normal
+        if action=='runtime_admission' and data['mode'] in ('NORMAL','AUTONOMY'):require_normal()
+        if action in ('runtime_queue','runtime_allocate') or (action=='runtime_prepare' and data['kind'] in ('enter','rebalance')):
+            reason=available(self.ledger(),max(at,int(time.time())),live=True)
+            if reason:raise CapitalError(reason)
         return self._write(op,action,at,wire(data))
 
     def _duplicate_matches(self,previous,current):
@@ -132,6 +139,9 @@ class RuntimeCapital(PumpPonsCapital):
             nonlocal state
             state,result=super(RuntimeCapital,self)._apply(state,dict(action=action,at=at,data=data))
             return result
+        if action=='runtime_admission':
+            from meme_machine.operational.admission import configure
+            return state,configure(state,data,at)
         if action=='runtime_owner':
             state.setdefault('runtime_owners',{})[data['regime']]=deepcopy(data)
             state['runtime_owner_version']=state.get('runtime_owner_version',0)+1
@@ -199,6 +209,9 @@ class RuntimeCapital(PumpPonsCapital):
                 sequence=seq,journal_sha256=data['journal_hash'])
             item=dict(data,native=native,request_id=req_id,lifecycle_id=life)
             if kind in ('enter','rebalance'):
+                from meme_machine.operational.admission import available
+                reason=available(state,at)
+                if reason:raise CapitalError(reason)
                 # Prove the fill fits its durable hold before the native journal
                 # commits. The simulation does not spend cash or release a hold.
                 facts=data['data'];valuation=data['value_evidence']
@@ -271,7 +284,8 @@ class RuntimeCapital(PumpPonsCapital):
     def _decision(self,state,request,at):
         if at>request.get('funding_deadline',at):
             return dict(status='QUALIFIED_BUT_CAPITAL_UNAVAILABLE',reason='FUNDING_EVIDENCE_EXPIRED',basis='0',total='0')
-        return super()._decision(state,request,at)
+        from meme_machine.operational.admission import decision
+        return decision(state,request,super()._decision(state,request,at),at)
 
 
 class SharedNativePortfolio:

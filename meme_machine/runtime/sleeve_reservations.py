@@ -218,6 +218,8 @@ class SleeveReservations:
                 if all(old[k]==v for k,v in dict(strategy=strategy,amount=amount,candidate=candidate,generation=generation).items()):
                     return old
                 raise ValueError('sleeve_reservation_conflict')
+            from meme_machine.operational.admission import legacy_funding_guard
+            legacy_funding_guard(self)
             from meme_machine.runtime.lifecycle_identity import validate_new
             archive=self._archive()
             validate_new(identity,archived=(archive or {}).get('archived_entry_scopes',{}).get(strategy))
@@ -310,6 +312,8 @@ class SleeveReservations:
             if prior and prior['status']=='reserved':
                 if (prior['amount'],prior['request'])==(amount,request):return prior
                 raise ValueError('scale_reservation_conflict')
+            from meme_machine.operational.admission import legacy_funding_guard
+            legacy_funding_guard(self)
             state=self.sizing_basis(250)
             if (amount>state['target'] or amount>original_basis//2
                     or (amount>state['available'] and not getattr(self,'_shared_reserved',lambda *args:False)(identity,amount))

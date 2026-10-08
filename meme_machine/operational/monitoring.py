@@ -108,6 +108,18 @@ def write_metrics(folder,value):
         stream.write('\n'.join(lines)+'\n');stream.flush();os.fsync(stream.fileno())
     temp.chmod(0o644);os.replace(temp,path)
 
+def expected_run(sample,previous,enabled,now=None):
+    """A finite manual run needs alerts without enabling a repeat on reboot."""
+    if enabled:return True
+    now=time.time() if now is None else now
+    if sample.get('host',{}).get('service',{}).get('ActiveState')=='active':return True
+    portfolio=sample.get('portfolio',{})
+    if any(count>0 for field in ('positions_by_lane','reservations_by_lane','pending_by_lane')
+           for count in portfolio.get(field,{}).values()):return True
+    if not 0<=now-sample.get('timestamp',0)<=60 or portfolio.get('state')!='CURRENT':
+        return bool(previous.get('expect_running'))
+    return False
+
 def main():
     import subprocess
     parser=argparse.ArgumentParser(description=__doc__)
@@ -121,7 +133,8 @@ def main():
         except (OSError,ValueError):sample={}
         try:previous=read_json(folder/'status.json')
         except (OSError,ValueError):previous={}
-        expect=subprocess.run(['systemctl','is-enabled','--quiet','meme-machine-paper.service'],timeout=3).returncode==0
+        enabled=subprocess.run(['systemctl','is-enabled','--quiet','meme-machine-paper.service'],timeout=3).returncode==0
+        expect=expected_run(sample,previous,enabled)
         row=evaluate(sample,previous,epoch,expect_running=expect)
         atomic_json(folder/'status.json',row);write_metrics(folder,row)
         if args.once:return 0

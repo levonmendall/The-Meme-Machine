@@ -6,6 +6,19 @@ import unittest
 from meme_machine.operational import monitoring
 
 class Conditions(unittest.TestCase):
+    def test_disabled_finite_run_and_remaining_obligations_still_expect_management(self):
+        sample=self.sample()
+        self.assertTrue(monitoring.expected_run(sample,{},False,1000))
+        sample['host']['service']['ActiveState']='inactive'
+        self.assertFalse(monitoring.expected_run(sample,{},False,1000))
+        sample['portfolio']['positions_by_lane']={'pump':1}
+        self.assertTrue(monitoring.expected_run(sample,{},False,1000))
+        sample['portfolio'].update(positions_by_lane={},pending_by_lane={'pons':1})
+        self.assertTrue(monitoring.expected_run(sample,{},False,1000))
+
+    def test_lost_observation_cannot_hide_obligations_after_a_finite_run(self):
+        self.assertTrue(monitoring.expected_run({},dict(expect_running=True),False,1000))
+        self.assertFalse(monitoring.expected_run({},dict(expect_running=False),False,1000))
     def test_sealed_unreferenced_history_is_not_a_current_evidence_failure(self):
         sample=self.sample()
         sample['solana']['repair_backlog']=dict(open_gaps=13,oldest_created=1,

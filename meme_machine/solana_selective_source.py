@@ -32,14 +32,15 @@ MAX_FRAME_BYTES=16*1024*1024
 MAX_LIVE_CANDIDATES=48 # StableShards subtracts the one Meteora content filter.
 ARCHIVE_WORKERS=8
 SCOUT_COMMIT_BATCH=64
-# This integration candidate must never silently activate an unproved source.
-# These are implementation/validation gaps, not owner-approval requirements.
+# Acquisition cannot prove funded-position latency before a position exists.
+# Enforce this guard at capital admission, never at read-only source startup.
 PRODUCTION_BLOCKERS=(
     'combined_position_and_candidate_provider_latency_not_certified',
 )
 
 def require_certified():
-    if PRODUCTION_BLOCKERS:raise EvidenceUnavailable('solana_candidate_topology_not_certified')
+    if PRODUCTION_BLOCKERS:
+        raise EvidenceUnavailable(PRODUCTION_BLOCKERS[0])
 REPLAY_SLOTS=6000
 CONTROL_OVERLAP=256
 WARM_OVERLAP=32
@@ -506,13 +507,11 @@ class SelectiveSource:
                 await asyncio.sleep(min(8,.5*2**min(retry-1,4)))
 
     async def __call__(self,work,stop):
-        require_certified()
         return await self.run(work,stop)
 
     async def run(self,work,stop):
         """The production read-only driver; also used by bounded certification.
 
-        The supported service still applies require_certified before entering.
         This method neither starts a PAPER lifecycle nor grants entry authority.
         """
         work=source_work(work,stop,self.observe)

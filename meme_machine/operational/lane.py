@@ -205,6 +205,8 @@ def main():
     try:
         if args.offline:run_offline(args.state_root,args.lane,stop)
         else:
+            from .bounded_provider import install
+            install()
             try:run_native(args.state_root,args.lane)
             except Shutdown:health(args.state_root,args.lane,'STOPPED',reconciled=True)
             except ValuationUnavailable as error:

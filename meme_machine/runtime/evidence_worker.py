@@ -124,10 +124,11 @@ class RepairRPC:
 
 
 async def main_async():
-    from meme_machine.solana_selective_source import SelectiveSource,require_certified
-    # Fail before a provider call until the complete topology is certified;
-    # never fall back to the superseded global full-block production stream.
-    require_certified()
+    from meme_machine.solana_selective_source import SelectiveSource
+    # Read-only acquisition is independent of funded-position admission. The
+    # supervisor and capital authority enforce the retained latency guard.
+    from meme_machine.operational.bounded_provider import install
+    install()
     token=os.environ.get('MM_SOLANA_YELLOWSTONE_TOKEN')
     endpoint=os.environ['MM_SOLANA_READ_RPC_URL']
     path=Path(os.environ['MM_SOLANA_EVIDENCE_PLANE_DB'])

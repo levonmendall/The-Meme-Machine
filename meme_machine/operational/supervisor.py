@@ -49,9 +49,12 @@ def validate_environment(*,offline=False,environ=None):
 
 
 class Supervisor:
-    def __init__(self,state_root,*,offline=False):
+    def __init__(self,state_root,*,offline=False,admission='NORMAL'):
         self.root=Path(state_root).resolve()
         self.offline=offline
+        from .admission import MODES
+        if admission not in MODES:raise ValueError('PAPER_admission_mode')
+        self.admission=admission
         self.processes={}
         self.process_instances={}
         self.restarts={lane:0 for lane in LANES}
@@ -70,6 +73,9 @@ class Supervisor:
     def initialize(self):
         validate_environment(offline=self.offline)
         if not self.offline:
+            from .admission import require_normal,require_autonomy
+            if self.admission=='NORMAL':require_normal()
+            if self.admission=='AUTONOMY':require_autonomy(self.root)
             from .storage_guard import verify_storage
             verify_storage(self.root)
         self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -82,6 +88,8 @@ class Supervisor:
         try:
             from meme_machine.shared_capital.runtime import selected,connection
             shared=selected(database)
+            if not self.offline and self.admission=='BOOTSTRAP' and shared is None:
+                raise RuntimeError('bootstrap_requires_observation_only_shared_cutover')
             if shared:
                 self.shared_capital=connection(shared)
                 state=self.shared_capital.snapshot()['ledger']
@@ -96,6 +104,7 @@ class Supervisor:
                     if frozen['receipt_hash']!=state['inception_sha256'] or frozen['receipt']['epoch_id']!=self.epoch:
                         raise RuntimeError('shared_authority_epoch_mismatch')
                     self.pause_proof=self._assert_paused_lanes_clear(reader)
+                if not self.offline:self.configure_admission()
                 return
             existing_state=self.existing_epoch_state()
             if existing_state and not database.exists():
@@ -158,6 +167,7 @@ class Supervisor:
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
+        if getattr(self,'provider_budget',None):env['MM_BOUNDED_PROVIDER_DB']=str(self.provider_budget.path)
         if solana:
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
                 MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'),
@@ -260,6 +270,7 @@ class Supervisor:
             # building them inserted a full extra cycle of age under load; a
             # healthy portfolio then failed the observer's unchanged 15s TTL.
             _atomic_json(self.root/'health.json',dict(paper_only=True,offline=self.offline,pid=os.getpid(),epoch_id=self.epoch,at=utc(time.time()),stopping=self.stop_requested,lanes=health,providers=providers,python=sys.version.split()[0],sqlite=sqlite3.sqlite_version,
+                admission_mode=self.admission,bootstrap_armed=getattr(self,'bootstrap_armed',False),
                 portfolio_observation=getattr(self,'portfolio_observation',None),
                 shared_capital_projection_error=getattr(self,'shared_capital_projection_error',None),
                 learning_observation=getattr(self,'learning_observation',None)))
@@ -320,9 +331,61 @@ class Supervisor:
                 if db:db.close()
         return result
 
+    def configure_admission(self):
+        import uuid
+        from meme_machine.shared_capital.runtime import process_identity
+        from .bounded_provider import Budget
+        state=self.shared_capital.ledger()
+        if self.admission=='BOOTSTRAP' and state.get('runtime_admission',{}).get('bootstrap_used'):
+            raise RuntimeError('used_bootstrap_requires_authentic_evidence_review')
+        self.run_id=uuid.uuid4().hex
+        if self.admission=='BOOTSTRAP':
+            self.provider_budget=Budget.create(self.root/'shared'/('bootstrap-'+self.run_id+'.sqlite'))
+        self.admission_data=dict(mode='OBSERVATION' if self.admission=='BOOTSTRAP' else self.admission,
+            run_id=self.run_id,pid=os.getpid(),process_start=process_identity(os.getpid()))
+        if getattr(self,'provider_budget',None):self.admission_data['provider_db']=str(self.provider_budget.path)
+        self.shared_capital.command('run-scope:'+self.run_id,'runtime_admission',self.admission_data,int(time.time()))
+        self.ready_since=None;self.ready_frontiers={};self.bootstrap_armed=False
+
+    def bootstrap_tick(self):
+        """Reuse operational health; readiness never replaces native qualification."""
+        from .acceptance import observe
+        if self.provider_budget.snapshot()['reason']:
+            self.stop_requested=True;return
+        try:
+            health,portfolio,rss=observe(self.root)
+            if rss>=6*1024**3:raise ValueError('bootstrap_memory_limit')
+            for provider in ('solana','robinhood'):
+                row=health['providers'].get(provider,{})
+                if row.get('state')!='CURRENT' or row['oldest_wait_seconds']>5:
+                    raise ValueError('bootstrap_provider_queue_or_health')
+            frontiers={row['scope']:row['slot'] for row in health['providers']['evidence']['frontiers']
+                       if row['scope'] in ('program:pump','program:pumpswap')}
+            frontiers['pons:canonical']=health['active_evidence']['pons_canonical_cursor']
+            if len(frontiers)!=3:raise ValueError('bootstrap_full_coverage_required')
+            if self.ready_since is None:
+                self.ready_since=time.monotonic();self.ready_frontiers=frontiers
+            if not self.bootstrap_armed and time.monotonic()-self.ready_since>=60:
+                if any(frontiers[k]<=old for k,old in self.ready_frontiers.items()):
+                    raise ValueError('bootstrap_canonical_progress_required')
+                self.shared_capital.command('arm-bootstrap:'+self.run_id,'runtime_admission',
+                    dict(self.admission_data,mode='BOOTSTRAP'),int(time.time()))
+                self.bootstrap_armed=True
+        except (OSError,ValueError,KeyError) as error:
+            self.ready_since=None;self.ready_frontiers={}
+            if self.bootstrap_armed:
+                # Fail closed on new exposure immediately; existing native
+                # safety/recovery events never depend on an admission grant.
+                self.provider_budget.change(reason='bootstrap_health_or_deadline_failure',check=False)
+                self.stop_requested=True
+        if not self.bootstrap_armed and time.monotonic()-self.provider_budget.started>=600:
+            self.provider_budget.change(reason='bootstrap_readiness_not_demonstrated',check=False)
+            self.stop_requested=True
+
     def run(self,*,seconds=None):
         self.initialize()
         started=time.monotonic()
+        if not self.offline and self.admission=='BOOTSTRAP':seconds=1735
         prior={sig:signal.getsignal(sig) for sig in (signal.SIGTERM,signal.SIGINT)}
         for sig in prior:signal.signal(sig,lambda *_:setattr(self,'stop_requested',True))
         try:
@@ -340,7 +403,11 @@ class Supervisor:
                     self.stop_lanes()
                     self.start_services()
                     for lane in self.runtime_lanes():self.start_lane(lane)
-                if time.monotonic()-self.last_publish>=2:self.publish()
+                if time.monotonic()-self.last_publish>=2:
+                    self.publish()
+                    if self.admission=='BOOTSTRAP' and not self.offline:self.bootstrap_tick()
+                if getattr(self,'provider_budget',None) and self.provider_budget.snapshot()['reason']:
+                    self.stop_requested=True
                 time.sleep(.05)
         finally:
             self.stop_requested=True

@@ -357,7 +357,8 @@ class Runtime:
                                 try:
                                     self._enter(row,decision,observed['generation'],regime,row['position'])
                                 except ValueError as exc:
-                                    if str(exc) not in ('survivor_minimum_capital','sleeve_capital_exhausted'):
+                                    from meme_machine.shared_capital.native_sleeve import FundingDenied
+                                    if not isinstance(exc,FundingDenied) and str(exc) not in ('survivor_minimum_capital','sleeve_capital_exhausted'):
                                         raise
                                     row=self.history.get(row['id'])
                                     row['position']=None
@@ -366,7 +367,7 @@ class Runtime:
                                     self.sleeve.opportunity(
                                         row['id'],identity=row['id'],regime='survivor',
                                         status=row['state'],at=state.get('market_time',state.get('at')),
-                                        decision=dict(decision,funding_reason='survivor_minimum_capital'))
+                                        decision=dict(decision,funding_reason=str(exc)))
                                 else:
                                     row=self.history.get(row['id']);row['state']='filled'
                         self.history.save(row)

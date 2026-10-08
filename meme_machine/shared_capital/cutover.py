@@ -19,7 +19,7 @@ from .runtime import RuntimeCapital
 TABLES=('portfolio_events','portfolio_native_pending','portfolio_native_ids','portfolio_sleeves','portfolio_checkpoint')
 
 
-def install(root,plan,*,approved_policy,prerequisites):
+def install(root,plan,*,approved_policy,prerequisites,observation_only=False):
     root=Path(root).resolve();database=root/'portfolio.sqlite';shared=root/'shared-capital.sqlite'
     checked=verify_two_family_plan(plan)
     # Native recovery must finish against the preserved authority before its
@@ -29,8 +29,13 @@ def install(root,plan,*,approved_policy,prerequisites):
         raise CapitalError('native_pending_recovery_required_before_cutover')
     if approved_policy!=checked['policy']:raise CapitalError('explicit_matching_risk_cap_approval_required')
     required=('writers_stopped','coherent_backup_verified','native_mapping_verified','recovery_verified','provider_proof_verified')
-    if set(prerequisites)!=set(required) or any(prerequisites[k] is not True for k in required):
+    proofs=required[:-1] if observation_only else required
+    if (set(prerequisites)!=set(required) or any(prerequisites[k] is not True for k in proofs)
+            or observation_only and prerequisites['provider_proof_verified'] is not False):
         raise CapitalError('unverified_cutover_prerequisites')
+    if observation_only and any(checked['seed'].get(k) for k in
+            ('positions','reservations','commitments','pending_deliveries','obligations')):
+        raise CapitalError('observation_cutover_requires_empty_preserved_epoch')
     with open(str(database)+'.lock','a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         with closing(sqlite3.connect(database,timeout=1,isolation_level=None)) as db:
@@ -49,10 +54,16 @@ def install(root,plan,*,approved_policy,prerequisites):
                 if fresh!=checked:raise CapitalError('preserved_epoch_changed_before_cutover')
                 with closing(RuntimeCapital(shared)) as authority:
                     authority.install_migration(checked)
+                    if observation_only:
+                        from .runtime import process_identity
+                        authority.command('cutover-observation','runtime_admission',dict(mode='OBSERVATION',
+                            run_id='cutover-observation',pid=os.getpid(),process_start=process_identity(os.getpid())),
+                            checked['seed']['at'])
                     authority.verify_replay()
                 marker=dict(schema='paper-funding-authority-v1',state='SHARED',epoch_id=checked['seed']['epoch_id'],
                     inception_sha256=checked['seed']['inception_sha256'],migration_sha256=checked['migration_sha256'],
-                    policy_sha256=digest(approved_policy),prerequisites=prerequisites)
+                    policy_sha256=digest(approved_policy),prerequisites=prerequisites,
+                    admission='OBSERVATION' if observation_only else 'NORMAL')
                 db.execute('CREATE TABLE portfolio_funding_authority(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL)')
                 db.execute('INSERT INTO portfolio_funding_authority VALUES(1,?)',(canonical(marker),))
                 for table in TABLES:

@@ -147,11 +147,17 @@ def execute(phase, output=OUTPUT, observer=OBSERVER):
         expected=dict(commit=os.environ['MM_ACCEPTANCE_COMMIT'],tree=os.environ['MM_ACCEPTANCE_TREE'])
         if any(identity[k]!=v for k,v in expected.items()) or storage['epoch_id']!=os.environ['MM_ACCEPTANCE_EPOCH']:
             raise ValueError('acceptance_candidate_identity_mismatch')
+        if phase=='CAPACITY':
+            from .admission import require_normal
+            require_normal()
         if phase!='CAPACITY':
             previous='CAPACITY' if phase=='RECOVERY' else 'RECOVERY'
             prior=read_json(output/f'latest-{previous}.json')
             if prior['status']!='PASS' or prior['identity']!=identity or prior['epoch_id']!=storage['epoch_id']:
                 raise ValueError('same_candidate_preceding_phase_required')
+        if phase=='AUTONOMY':
+            from .admission import require_autonomy
+            require_autonomy(root)
         observed(observer,storage['epoch_id'])
         folder=output/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+phase+'-'+uuid.uuid4().hex[:8])
         folder.mkdir(mode=0o700)
