@@ -34,7 +34,7 @@ try {
   const source = await readFile('dashboard/static/app.js','utf8');
   vm.runInContext(source,context);
   const snapshots={};
-  for(const route of ['overview','lanes','lane/pump','lane/pons','lane/ramses','lane/meteora','positions','trades','analytics','system']) {
+  for(const route of ['overview','lanes','lane/pump','lane/pons','positions','trades','analytics','system']) {
     context.location.hash='#'+route;
     await vm.runInContext('render()',context);
     const html=element('#main').innerHTML;
@@ -42,12 +42,16 @@ try {
     assert.ok(html.includes('DEVELOPMENT FIXTURE'),route);
     assert.ok(!html.includes('NaN'),route);
     assert.ok(!html.includes('[object Object]'),route);
+    assert.ok(!/ramses|meteora/i.test(html),'inactive strategies must be hidden from '+route);
     snapshots[route]=html;
   }
   assert.ok(snapshots.overview.includes('$512.34'));
   assert.ok(snapshots.overview.includes('+2.47%'));
   assert.ok(snapshots['lane/pons'].includes('+$4.40'));
-  assert.ok(snapshots.system.includes('progress_stalled'));
+  assert.ok(snapshots.system.includes('System & evidence'));
+  assert.ok(snapshots.lanes.includes('Active paper lanes'));
+  assert.ok(snapshots.lanes.includes('PUMP LANE')&&snapshots.lanes.includes('PONS LANE'));
+  assert.ok(!snapshots.lanes.includes('PAUSED'));
   assert.ok(snapshots.analytics.includes('Completed P&L by settlement day'));
   assert.ok(snapshots.positions.includes('fixture-open-pons'));
   assert.equal(vm.runInContext('fixed("0.005")',context),'0.00');
@@ -85,7 +89,9 @@ try {
   assert.ok(connected.includes('PAPER STOPPED'));
   assert.ok(connected.includes('NOT STARTED'));
   assert.ok(connected.includes('Pump Current')&&connected.includes('Pons Survivor'));
-  assert.ok(connected.includes('PAUSED (PAPER stopped)'));
+  assert.ok(!/ramses|meteora/i.test(connected));
+  assert.ok(!connected.includes('PAUSED (PAPER stopped)'));
+  assert.ok(connected.includes('PAPER STOPPED'));
   assert.ok(connected.includes('No authentic measurements available'));
   if(process.argv[2]) {
     // Static captures contain the exact renderer output and stylesheet. They
@@ -99,7 +105,7 @@ try {
       await writeFile(path.join(process.argv[2],name+'.html'),html);
     }
   }
-  console.log('PASS: 10 rendered routes, exact presentation rounding, fixture labeling, lifecycle details, API integration, mutating-method rejection, CSP, responsive rules. Browser geometry not tested.');
+  console.log('PASS: 8 active-lane rendered routes, exact presentation rounding, fixture labeling, lifecycle details, API integration, mutating-method rejection, CSP, responsive rules. Browser geometry not tested.');
 } finally {
   server.kill('SIGTERM');
   await once(server,'exit');
