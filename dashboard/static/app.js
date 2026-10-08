@@ -1,6 +1,6 @@
 'use strict';
-const LANES = ['pump', 'pons', 'ramses', 'meteora'];
-const names = {pump:'Pump', pons:'Pons', ramses:'Ramses', meteora:'Meteora'};
+const LANES = ['pump', 'pons'];
+const names = {pump:'Pump', pons:'Pons'};
 const main = document.querySelector('#main');
 const state = {period:'ALL', series:'portfolio', offset:0, filters:{}, generation:0, busy:false, lastPortfolio:null};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -103,7 +103,7 @@ function sharedCapital(p) {
     <table><thead><tr><th>Regime</th><th>Deployed basis</th><th>Risk utilization</th><th>Qualified, unfunded</th><th>Funding constraints</th></tr></thead>
     <tbody>${regimes.map(r=>{const row=c.regimes[r];return `<tr><td>${esc(title(r))}</td><td>${value({value:row.deployed_basis,state:p.state})}</td><td>${esc(limits ? riskUse(row.aggregate_exposure,limits.regime_max_bps[r]) : 'Unavailable')}</td><td>${esc(row.qualified_but_unfunded)}</td><td>${esc(Object.entries(row.denials).map(([reason,n])=>`${reason}: ${n}`).join(', ')||'None')}</td></tr>`}).join('')}</tbody></table>
     <p>${riskRows.map(([label,exposure,bps])=>`${esc(label)} risk: ${esc(riskUse(exposure,bps))}`).join(' · ')}</p>
-    <p>Meteora: PAUSED · Ramses: PAUSED. Historical attribution remains in the portfolio.</p>
+    <p>Portfolio totals preserve all historical accounting.</p>
     <p>Portfolio exposure: ${value({value:c.risk.exposure.portfolio,state:p.state})} · Drawdown: ${esc(c.risk.drawdown_bps)} bps · Allocation latency: ${esc(latency)}</p>
     </section>`;
 }
@@ -147,8 +147,6 @@ function laneIcon(lane) {
   const icons={
     pump:'<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10"/><path d="M8 22 23 7M21 7h4v4"/></svg>',
     pons:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16c4-7 8-7 11 0s7 7 11 0"/><path d="M5 11c4-5 8-5 11 0s7 5 11 0"/></svg>',
-    ramses:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 21c2-8 5-12 9-12s7 4 9 12"/><path d="M10 10 6 7M22 10l4-3M12 17c1 5 3 8 4 8s3-3 4-8"/></svg>',
-    meteora:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 24c10-2 15-8 16-17-8 2-14 7-16 17Z"/><path d="m8 24 13-13M8 18l-4 2M12 12l-3-3"/></svg>'
   };
   return icons[lane]||'';
 }
@@ -198,7 +196,7 @@ function tablePanel(name,res,completed,link) {
   return `<section class="panel"><div class="panelhead"><h2>${name}</h2>${link?`<a class="link" href="#${link}">View all →</a>`:''}</div>${res.total===null?empty('Position state unavailable'):positionsTable(res.data,completed)}</section>`;
 }
 function systemStrip(s) {
-  return `<section class="panel system-strip"><div><h3>Portfolio accounting</h3>${badge(s.accounting.state)}</div><div><h3>Read model</h3>${badge(s.read_model.state)}</div><div><h3>Persisted telemetry</h3>${badge(s.telemetry.state)}</div><div><h3>Lane state</h3><a href="#system" class="link">Inspect all four lanes →</a></div></section>`;
+  return `<section class="panel system-strip"><div><h3>Portfolio accounting</h3>${badge(s.accounting.state)}</div><div><h3>Read model</h3>${badge(s.read_model.state)}</div><div><h3>Persisted telemetry</h3>${badge(s.telemetry.state)}</div><div><h3>Lane state</h3><a href="#system" class="link">Inspect active lanes →</a></div></section>`;
 }
 function overviewAlerts(p) {
   const demo=p.mode==='fixture';
@@ -221,7 +219,7 @@ function overviewStatus(s,p) {
         <div><span>Accounting</span>${badge(s.accounting.state)}</div>
         <div><span>Read model</span>${badge(s.read_model.state)}</div>
         <div><span>Telemetry</span>${badge(s.telemetry.state)}</div>
-        <div><span>Lane health</span><strong>${laneStates.filter(x=>x==='CURRENT').length}/4 current</strong></div>
+        <div><span>Lane health</span><strong>${laneStates.filter(x=>x==='CURRENT').length}/${LANES.length} current</strong></div>
       </div>
     </section>
     <section class="panel notification-card">
@@ -243,6 +241,7 @@ function measuredRows(obj,prefix='',depth=0) {
   }).slice(0,100);
 }
 function observationsTable(rows) {
+  rows=rows.filter(([key])=>!/inactive[_ ]strategy/i.test(key));
   return rows.length?`<div class="table-wrap"><table><thead><tr><th>Recorded measure</th><th>Value</th></tr></thead><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>`:empty('No authentic measurements available');
 }
 function operationsPanel(s,detailed=false) {
@@ -254,15 +253,16 @@ function operationsPanel(s,detailed=false) {
     const r=phases[name]||{status:'UNAVAILABLE'}, previous=r.previous_attempt;
     return `<tr><td>${name}</td><td>${badge(r.status)}${previous?`<small>Previous source: ${esc(previous.status)} · ${seconds(previous.elapsed_seconds)} · ${esc(previous.commit)}</small>`:''}</td><td>${seconds(r.elapsed_seconds)}${r.required_seconds?` / ${seconds(r.required_seconds)}`:''}</td><td>${r.status==='PASS'&&r.verified_result?'PASS':r.status==='NOT_STARTED'?'No current-candidate result':esc(r.status)}</td></tr>`;
   }).join('');
-  const statusRows=['Pump Current','Pump Survivor','Pons Current','Pons Survivor','Meteora','Ramses'].map(name=>{
-    const r=regimes[name]||{}, paused=['Meteora','Ramses'].includes(name);
-    const phase=o.paper_state==='STOPPED'?(paused?'PAUSED (PAPER stopped)':'STOPPED'):(r.phase||'UNAVAILABLE');
+  const activeRegimes=['Pump Current','Pump Survivor','Pons Current','Pons Survivor'];
+  const statusRows=activeRegimes.map(name=>{
+    const r=regimes[name]||{};
+    const phase=o.paper_state==='STOPPED'?'STOPPED':(r.phase||'UNAVAILABLE');
     const evidence=o.observer_state==='CURRENT'?(r.report_state||'UNAVAILABLE'):o.observer_state;
     return `<tr><td>${name}</td><td>${badge(phase)}</td><td>${badge(evidence)}${r.report_age_seconds!=null?`<small>Report age ${seconds(r.report_age_seconds)}</small>`:''}</td></tr>`;
   }).join('');
-  const candidates=Object.entries(regimes).flatMap(([name,r])=>measuredRows(r.machinery).filter(([k])=>/candidate|qualif|evidence|completed steps|successful steps|processed events|completed windows/.test(k)).map(([k,v])=>[name+' · '+k,v]));
-  const errors=(rh.usage||[]).filter(r=>r.metric.startsWith('failure:')||['responses_429','retries'].includes(r.metric));
-  const usage=(rh.usage||[]).filter(r=>['physical_http_requests','logical_rpc_calls','completed_transport_attempts'].includes(r.metric));
+  const candidates=Object.entries(regimes).filter(([name])=>activeRegimes.includes(name)).flatMap(([name,r])=>measuredRows(r.machinery).filter(([k])=>/candidate|qualif|evidence|completed steps|successful steps|processed events|completed windows/.test(k)).map(([k,v])=>[name+' · '+k,v]));
+  const errors=(rh.usage||[]).filter(r=>(r.metric.startsWith('failure:')||['responses_429','retries'].includes(r.metric))&&r.lane!=='inactive_strategy');
+  const usage=(rh.usage||[]).filter(r=>['physical_http_requests','logical_rpc_calls','completed_transport_attempts'].includes(r.metric)&&r.lane!=='inactive_strategy');
   const providers=[
     ['Solana queue depth',observed.solana_provider?.queue_depth], ['Robinhood queue depth',rh.queue_depth],
     ['Solana rate errors',observed.solana_provider?.pressure?(observed.solana_provider.pressure).reduce((a,r)=>a+(r.rate_errors||0),0):undefined],
@@ -368,7 +368,7 @@ async function render() {
     syncTopbar(p);
     let html;
     if(route==='overview') html=await overview(p);
-    else if(route==='lanes') html=header('Four paper lanes',p)+laneCards((await api('lanes')).data)+`<a class="link" href="#analytics">Portfolio analytics →</a>`;
+    else if(route==='lanes') html=header('Active paper lanes',p)+laneCards((await api('lanes')).data)+`<a class="link" href="#analytics">Portfolio analytics →</a>`;
     else if(route.startsWith('lane/')&&LANES.includes(route.slice(5))) html=await lanePage(route.slice(5),p);
     else if(route==='positions'||route==='trades') html=await historyPage(route==='trades',p);
     else if(route==='analytics') html=await analytics(p);
