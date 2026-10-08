@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from . import BoundaryError, CHAIN_ID
-from meme_machine.runtime.robinhood.provider_usage import http_started
+from meme_machine.runtime.robinhood.provider_usage import http_started, http_received
 from meme_machine.runtime.robinhood.provider_authority import failure_class, protect_response
 
 RPC_HTTP_HEADERS = {
@@ -68,18 +68,20 @@ class Rpc:
         request = Request(self._endpoint, data=body, headers=RPC_HTTP_HEADERS)
         try:
             timeout=self._transport_timeout()
-            http_started()
+            http_started(len(body))
             self.physical_http_requests += 1
             self.request_bytes += len(body)
             with urlopen(request, timeout=timeout) as response:
                 raw = response.read(self.max_response + 1)
                 self.response_bytes += len(raw)
+                http_received(len(raw))
         except HTTPError as exc:
             # Never include str(exc): a URL can include the full credential.
             if exc.code == 400:
                 try:
                     error_body = exc.read(8192)
                     self.response_bytes += len(error_body)
+                    http_received(len(error_body))
                     error = json.loads(error_body).get('error', {})
                     message = str(error.get('message', '')).lower()
                     if 'block' in message and ('range' in message or 'limit' in message):
@@ -171,17 +173,19 @@ class Rpc:
         request=Request(self._endpoint,data=body,headers=RPC_HTTP_HEADERS)
         try:
             timeout=self._transport_timeout()
-            http_started()
+            http_started(len(body))
             self.physical_http_requests += 1
             self.request_bytes += len(body)
             with urlopen(request,timeout=timeout) as response:
                 raw=response.read(self.max_response+1)
                 self.response_bytes += len(raw)
+                http_received(len(raw))
         except HTTPError as exc:
             if exc.code == 400:
                 try:
                     error_body=exc.read(8192)
                     self.response_bytes += len(error_body)
+                    http_received(len(error_body))
                     error=json.loads(error_body).get('error',{})
                     message=str(error.get('message','')).lower()
                     if 'block' in message and ('range' in message or 'limit' in message):

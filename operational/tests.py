@@ -2,6 +2,7 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_robinhood_scout',
  'tests.test_forward_survivor',
  'tests.test_pons_capability_executor',
  'tests.test_pons_historical',
@@ -181,11 +182,17 @@ def network_guard():
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('level',choices=('FAST','OPERATIONAL'))
+    parser.add_argument('--modules',nargs='+',help='Run selected modules from the chosen offline suite')
+    parser.add_argument('--verbose',action='store_true',help='Print test names, including the last test before a worker interruption')
     parser.add_argument('--worker',action='store_true',help=argparse.SUPPRESS)
     args=parser.parse_args();network_guard()
+    modules=FAST if args.level=='FAST' else OPERATIONAL
+    if args.modules:
+        if any(name not in modules for name in args.modules):parser.error('module is outside the selected offline suite')
+        modules=args.modules
     if args.worker:
-        suite=unittest.defaultTestLoader.loadTestsFromNames(FAST if args.level=='FAST' else OPERATIONAL)
-        result=unittest.TextTestRunner(verbosity=1).run(suite)
+        suite=unittest.defaultTestLoader.loadTestsFromNames(modules)
+        result=unittest.TextTestRunner(verbosity=2 if args.verbose else 1).run(suite)
         return 0 if result.wasSuccessful() else 1
     from meme_machine.operational.artifact_storage import Scratch,ArtifactStorageFull
     try:
@@ -193,7 +200,10 @@ def main():
             # Supervise just this offline process group; native PAPER services
             # and other engineering jobs are outside it. Check during a single
             # long test too, rather than allowing it to fill disk until return.
-            child=subprocess.Popen([sys.executable,'-m','operational.tests',args.level,'--worker'],start_new_session=True)
+            command=[sys.executable,'-m','operational.tests',args.level,'--worker']
+            if args.modules:command+=['--modules',*args.modules]
+            if args.verbose:command+=['--verbose']
+            child=subprocess.Popen(command,start_new_session=True)
             try:
                 while child.poll() is None:
                     scratch.check();time.sleep(.25)

@@ -11,7 +11,7 @@ from . import BoundaryError
 from .abi import signature, topic
 from .identity import load
 from .pons import raw_event
-from .pons_selective_acquisition import _batched
+from .pons_selective_acquisition import _batched, SelectiveEvidenceContext
 
 
 def _event_topic(role,name):
@@ -43,15 +43,36 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events):
     manager=load("uniswap_v4_manager")["address"].lower()
     # Each logical request retains the canonical ten-block range bound.
     raw=[];sessions=[]
+    context=SelectiveEvidenceContext(endpoint)
+    def acquire(calls):
+        return _batched(endpoint,calls,'pons_selective_v4',evidence_context=context)
+    def page(query,provided=None):
+        first,last=int(query['fromBlock'],16),int(query['toBlock'],16)
+        try:
+            if provided is None:
+                values,_=acquire([('eth_getLogs',[query])]);provided=values[0]
+            if not isinstance(provided,list):raise BoundaryError('selective_v4_log_array_required')
+            if len(provided)>=1000:raise BoundaryError('selective_v4_response_saturation')
+            return provided
+        except BoundaryError as exc:
+            if str(exc) not in ('provider_response_capacity','provider_log_block_range_limit',
+                    'provider_rpc_-32005','selective_v4_response_saturation') or first==last:raise
+            middle=(first+last)//2
+            return page(dict(query,toBlock=hex(middle)))+page(dict(query,fromBlock=hex(middle+1)))
     calls=[("eth_getLogs",[dict(
         fromBlock=hex(first),toBlock=hex(min(int(end_block),first+9)),
         address=manager,topics=[_event_topic("uniswap_v4_manager","Swap"),list(pool_ids)],
     )]) for first in range(int(start_block),int(end_block)+1,10)]
     # Bound physical batches too; the canonical context owns rate admission.
     for offset in range(0,len(calls),4):
-        values,telem=_batched(endpoint,calls[offset:offset+4],"pons_selective_v4")
-        sessions.extend(telem)
-        for value in values:raw.extend(value)
+        chunk=calls[offset:offset+4]
+        try:values,_=acquire(chunk)
+        except BoundaryError as exc:
+            if str(exc)!='provider_response_capacity':raise
+            values=[page(p[0]) for _,p in chunk]
+        if not isinstance(values,list) or len(values)!=len(chunk):
+            raise BoundaryError('selective_v4_log_batch_shape')
+        for (_,params),value in zip(chunk,values):raw.extend(page(params[0],value))
     for event in raw:
         if (event.get('address','').lower()!=manager or len(event.get('topics',[]))<2
                 or event['topics'][1] not in pool_ids
@@ -59,30 +80,35 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events):
             raise BoundaryError('selective_v4_range_or_pool_identity')
     raw.sort(key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),int(e['logIndex'],16)))
     hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
-    headers_v,telem=_batched(
-        endpoint,[("eth_getBlockByHash",[h,False]) for h in hashes],"pons_selective_v4"
-    )
-    sessions.extend(telem);headers=dict(zip(hashes,headers_v))
+    headers_v,_=acquire([("eth_getBlockByHash",[h,False]) for h in hashes])
+    headers=dict(zip(hashes,headers_v))
     tx_rows=list(dict.fromkeys(
         (event["transactionHash"],event["blockHash"]) for event in raw
     ))
-    receipts_v,telem=_batched(
-        endpoint,[("eth_getTransactionReceipt",[tx]) for tx,_ in tx_rows],"pons_selective_v4"
-    )
-    sessions.extend(telem)
-    txs_v,telem=_batched(
-        endpoint,[("eth_getTransactionByHash",[tx]) for tx,_ in tx_rows],"pons_selective_v4"
-    )
-    sessions.extend(telem)
+    context.receipt_pins=dict(tx_rows)
+    receipts_v,_=acquire([("eth_getTransactionReceipt",[tx]) for tx,_ in tx_rows])
+    # Authenticated standard receipts carry the transaction sender. Keep the
+    # original transaction-body path for providers/captures missing that field.
+    missing=[(tx,bh) for (tx,bh),r in zip(tx_rows,receipts_v) if not r.get('from')]
+    txs_v,_=acquire([("eth_getTransactionByHash",[tx]) for tx,_ in missing])
+    fallback=dict(zip(missing,txs_v))
     receipts={};txs={}
-    for keyrow,receipt,txrow in zip(tx_rows,receipts_v,txs_v):
+    for keyrow,receipt in zip(tx_rows,receipts_v):
         tx,bh=keyrow
+        sender=receipt.get('from')
+        if sender and (not isinstance(sender,str) or len(sender)!=42 or
+                not sender.startswith('0x') or any(c not in '0123456789abcdef' for c in sender[2:].lower())):
+            raise BoundaryError('selective_v4_receipt_sender_identity')
+        txrow=fallback[keyrow] if not sender else dict(hash=tx,blockHash=bh,**{'from':sender})
         if receipt["transactionHash"]!=tx or receipt["blockHash"]!=bh:
             raise BoundaryError("selective_v4_receipt_identity")
         if txrow["hash"]!=tx or txrow["blockHash"]!=bh:
             raise BoundaryError("selective_v4_transaction_identity")
         receipts[keyrow]=receipt;txs[keyrow]=txrow
 
+    telemetry=context.telemetry()
+    sessions=list(telemetry['completed_sessions'])
+    if telemetry['current_session']:sessions.append(telemetry['current_session'])
     return dict(raw=raw,sessions=sessions,headers=headers,receipts=receipts,txs=txs)
 
 

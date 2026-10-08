@@ -156,7 +156,16 @@ class PonsHistory(History):
     def qualification_turn(self, rows, now):
         if not rows:
             return None
-        chosen = min(rows, key=lambda r: (r.get('qualification_attempt', 0), r['last_checked'], r['id']))
+        from .pons_postgrad_survivor import POLICY
+        horizon=POLICY['universe']['max_seconds_after_graduation']
+        def priority(row):
+            deadline=row['graduation']['at']+horizon
+            urgent=deadline-now<=5
+            # Deadline work precedes the original fair order. Outside that
+            # final window, preserve its existing tie-breaks exactly.
+            return (0 if urgent else 1,deadline if urgent else 0,
+                row.get('qualification_attempt',0),row['last_checked'],row['id'])
+        chosen = min(rows,key=priority)
         with self.transaction():
             sequence = (self.get_meta('qualification_attempt_sequence') or 0) + 1
             row = self.get(chosen['id'])

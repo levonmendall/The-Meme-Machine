@@ -93,12 +93,15 @@ class _NativeReads:
 
 class Preparation:
     def __init__(self, history, provider, *, range_blocks=10, support=None,
-                 response_log_limit=1024, clock=time.time, forward_only=False):
+                 response_log_limit=1024, clock=time.time, forward_only=False, observations=None):
         if history.get_meta('policy') != POLICY_HASH:
             raise BoundaryError('historical_policy_identity')
         if not 1 <= range_blocks <= 10000 or not 2 <= response_log_limit <= 1024:
             raise BoundaryError('historical_work_bound')
         self.history = history
+        self.observations = observations
+        if observations is not None and not forward_only:
+            raise BoundaryError('scout_requires_forward_acquisition')
         self.forward_only = forward_only
         self.plan_key = FORWARD_PLAN if forward_only else PLAN
         self.population_kind = 'forward_population' if forward_only else 'population'
@@ -217,7 +220,7 @@ class Preparation:
         return h
 
     @decision_work(5)
-    def begin(self, *, prospective=False):
+    def begin(self, *, prospective=False, enrollment_block=None):
         """Enroll forward at a canonical head, or freeze an explicit research head."""
         if self.history.get_meta(self.plan_key) is not None:
             return self.history.get_meta(self.plan_key)
@@ -240,24 +243,23 @@ class Preparation:
         if self.forward_only:
             # Include the enrollment block, with its authenticated predecessor.
             # This is a block frontier, never a claim about earlier opportunity recall.
-            enrollment = head
-            cursor = self.history.get_meta('discovery_block')
-            checkpoint = self.history.get_meta('discovery_block_hash')
-            if cursor is not None and checkpoint and self.history.get_meta(PLAN) is None:
-                # Migrate ordinary native observation without dropping an outage
-                # tail. A partial research census is not an enrollment frontier.
-                if type(cursor) is not int or not 0 <= cursor <= top:
+            first = top if enrollment_block is None else enrollment_block
+            cursor=self.history.get_meta('discovery_block')
+            checkpoint=self.history.get_meta('discovery_block_hash')
+            if enrollment_block is None and cursor is not None and checkpoint and self.history.get_meta(PLAN) is None:
+                if type(cursor) is not int or not 0<=cursor<=top:
                     raise BoundaryError('forward_restore_checkpoint_identity')
-                enrollment = compact_header(self.header(cursor))
-                if enrollment['hash'] != checkpoint:
-                    raise BoundaryError('forward_restore_checkpoint_noncanonical')
-                plan['restored_from'] = 'preserved_native_discovery_checkpoint'
-            first = number(enrollment)
+                restored=compact_header(self.header(cursor))
+                if restored['hash']!=checkpoint:raise BoundaryError('forward_restore_checkpoint_noncanonical')
+                first=cursor;plan['restored_from']='preserved_native_discovery_checkpoint'
+            if type(first) is not int or not 0 <= first <= top:
+                raise BoundaryError('forward_enrollment_height')
+            enrolled = head if first == top else compact_header(self.header(first))
             prior = self.header(first - 1) if first else None
-            if prior and enrollment['parentHash'] != prior['hash']:
+            if prior and enrolled['parentHash'] != prior['hash']:
                 raise BoundaryError('forward_enrollment_parent_identity')
             plan.update(prospective=True, first=first, anchor=None if prior is None else compact_header(prior),
-                        enrollment_header=enrollment, enrollment_at=int(enrollment['timestamp'],16),mode='forward_only')
+                        enrollment_header=enrolled, enrollment_at=int(enrolled['timestamp'],16),mode='forward_only')
             plan.pop('search')
         elif prospective:
             # Keep the seven-day requirement; readiness can mature only once the
@@ -485,6 +487,14 @@ class Preparation:
         return sorted((self.history._verified(r) for r in rows), key=order)
 
     def _launch_step(self, token, record, graduation_block):
+        if self.observations is not None:
+            # A retained public launch avoids the timestamp/binary-search path,
+            # but only after exact receipt/header membership authentication.
+            for _,hint,_ in self.observations.events('launch',subject=token):
+                if order(hint)[0] > graduation_block: continue
+                if self.history.db.execute('SELECT 1 FROM pons_historical_events WHERE kind=? AND id=? AND valid=1',
+                        ('launch:'+token,event_id(hint))).fetchone(): continue
+                self._authenticate_observed(hint,'launch:'+token)
         known = [self.history._verified(r) for r in self.history.db.execute(
             "SELECT body,hash FROM pons_historical_events WHERE kind IN ('population','forward_population') AND valid=1 "
             "AND json_extract(body,'$.topics[1]')=? AND json_extract(body,'$.topics[0]')=?",
@@ -563,7 +573,34 @@ class Preparation:
             raise BoundaryError('historical_launch_identity_missing')
         return None
 
-    @decision_work(5)
+    def _authenticate_observed(self, event, kind):
+        """A nomination supplies request identity, never an economic value."""
+        rejected='pons_scout_invalid_nomination:'+digest(event)
+        if self.history.get_meta(rejected):return False
+        block = order(event)[0]
+        rpc = _NativeReads(self)
+        h = self.header(block)
+        if h['hash'] != event['blockHash']:
+            self.history.set_meta(rejected,dict(event=event,reason='noncanonical_block',
+                header=h,category='INVALID_OBSERVATION',candidate_ineligibility=False))
+            return False
+        receipt = rpc.receipt(event['transactionHash'],event['blockHash'],scope=SCOPE)
+        try:
+            raw_event(load('pons_v2_factory')['abi'],event,address=FACTORY,
+                receipt=receipt,header=h,observed_at=int(self.clock()),confirmation='confirmed')
+        except BoundaryError as exc:
+            # Only an available authenticated receipt can disprove a public
+            # witness. Provider absence/errors still leave retryable work.
+            if str(exc) not in ('raw_event_identity_disagreement','removed_log_reorg',
+                                'receipt_block_disagreement','receipt_log_missing'):
+                raise
+            self.history.set_meta(rejected,dict(event=event,reason=str(exc),
+                header=h,receipt=receipt,category='INVALID_OBSERVATION',candidate_ineligibility=False))
+            return False
+        with self.history.transaction(): self._put_events(kind,[event])
+        return True
+
+    @decision_work(2)
     def authenticate_step(self):
         """Reuse native factory/graduation/curve authentication; never price-select."""
         if not self.restored:
@@ -572,10 +609,14 @@ class Preparation:
         if not nominations:
             return False
         ident, event = nominations[0]
-        enumerated = self.history.db.execute("SELECT 1 FROM pons_historical_events WHERE kind IN ('population','forward_population') AND valid=1 AND id=?",
-                                            (event_id(event),)).fetchone()
+        if self.observations is not None:
+            if not self._authenticate_observed(event,self.population_kind):
+                self.history.graduation_complete(ident)
+                return False
+        enumerated=self.history.db.execute("SELECT 1 FROM pons_historical_events WHERE kind IN ('population','forward_population') AND valid=1 AND id=?",
+                                          (event_id(event),)).fetchone()
         if not enumerated and (not self.forward_only or
-                order(event)[0] > number(self.history.get_meta(self.plan_key)['enrollment_header'])):
+                order(event)[0]>number(self.history.get_meta(self.plan_key)['enrollment_header'])):
             raise BoundaryError('historical_nomination_outside_census')
         args = decode_event(load('pons_v2_factory')['abi'], event)['args']
         token = args['token']
@@ -584,9 +625,8 @@ class Preparation:
         pending = self.history.get_meta(pending_key)
         if pending is None:
             if not enumerated:
-                # A durable nomination from the previous ordinary observer may
-                # predate this frontier. Authenticate its exact native event;
-                # never backfill unrelated factory history to recover it.
+                # Recover a prior observer's durable nomination with exact
+                # native witnesses, without a pre-enrollment market census.
                 self._witness([event],self.population_filter(),block,block)
             rpc = _NativeReads(self)
             report = {'reads': []}
@@ -652,6 +692,7 @@ class Preparation:
                         points=[(evidence['at'], str(price_index(transition['initialization_sqrt_price_x96'], token, key)))])
             self.history.graduation_complete(ident)
             self.history.set_meta(pending_key,None)
+        self.last_authenticated_candidate=token
         return True
 
     @decision_work(5)

@@ -60,6 +60,7 @@ class SequencerFeedState:
     """Bounded continuity telemetry for Nitro broadcast envelopes."""
 
     def __init__(self):
+        self.delivered_bytes = 0
         self.envelopes = 0
         self.messages = 0
         self.signed_messages = 0
@@ -92,6 +93,8 @@ class SequencerFeedState:
 
     def ingest(self, payload, *, received_at=None):
         now = time.time() if received_at is None else float(received_at)
+        self.delivered_bytes += len(payload) if isinstance(payload,bytes) else len(
+            (payload if isinstance(payload,str) else json.dumps(payload,separators=(',',':'))).encode())
         try:
             if isinstance(payload, bytes):
                 payload = payload.decode("utf-8")
@@ -162,6 +165,8 @@ class SequencerFeedState:
         observed = time.time() if now is None else float(now)
         return dict(
             authority="observation_only",
+            subscription_delivered_bytes=self.delivered_bytes,
+            subscription_byte_basis='decoded JSON payload; excludes compression, framing and TLS',
             envelopes=self.envelopes,
             messages=self.messages,
             signed_messages=self.signed_messages,

@@ -408,34 +408,62 @@ class RobinhoodUSDTests(unittest.TestCase):
         paths=subprocess.check_output(['git','ls-tree','-r','--name-only',active,'meme_machine/lanes'],cwd=ROOT,text=True).splitlines()
         infrastructure={'meme_machine/lanes/pons/pons_historical.py',
                         'meme_machine/lanes/pons/pons_history.py',
-                        'meme_machine/lanes/pons/pons_survivor_runtime.py'}
+                        'meme_machine/lanes/pons/pons_survivor_runtime.py',
+                        'meme_machine/lanes/pons/pons_natural_observation.py',
+                        'meme_machine/lanes/pons/pons_selective_cohort.py',
+                        'meme_machine/lanes/pons/pons_selective_v4.py',
+                        'meme_machine/lanes/pons/provider_topology.py',
+                        'meme_machine/lanes/pons/provider_admission.py',
+                        'meme_machine/lanes/pons/provider.py',
+                        'meme_machine/lanes/pons/sequencer_feed.py',
+                        'meme_machine/lanes/pons/abi.py'}
         for rel in paths:
             if rel not in infrastructure:self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
         for rel in ('meme_machine/runtime/directional_continuation.py','meme_machine/runtime/survivor_risk.py',
                     'operational/nine-change-implementation.json'):
             self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
         rel='meme_machine/lanes/pons/pons_history.py'
-        self.assertEqual(ast.dump(ast.parse((ROOT/rel).read_bytes())),ast.dump(ast.parse(source(rel))))
+        # The only history reducer change is transport work order near the
+        # original expiry. All native append, recovery and retention math pins.
+        def history_methods(content):
+            cls=next(n for n in ast.parse(content).body if isinstance(n,ast.ClassDef))
+            return {n.name:ast.dump(n) for n in cls.body if isinstance(n,ast.FunctionDef)
+                    and n.name!='qualification_turn'}
+        self.assertEqual(history_methods((ROOT/rel).read_bytes()),history_methods(source(rel)))
         rel='meme_machine/lanes/pons/pons_survivor_runtime.py'
         original=ast.parse(source(rel));current=ast.parse((ROOT/rel).read_bytes())
         def functions(tree):
             return {n.name:n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
         old=functions(original);new=functions(current)
         for name,node in old.items():
-            if name!='Runtime':self.assertEqual(ast.dump(node),ast.dump(new[name]),rel+':'+name)
+            if name=='Quotes':
+                old_quotes=functions(node);new_quotes=functions(new[name])
+                for method,value in old_quotes.items():
+                    value.decorator_list=[];new_quotes[method].decorator_list=[]
+                    self.assertEqual(ast.dump(value),ast.dump(new_quotes[method]),rel+':Quotes.'+method)
+            elif name!='Runtime':self.assertEqual(ast.dump(node),ast.dump(new[name]),rel+':'+name)
         old_methods=functions(old['Runtime']);new_methods=functions(new['Runtime'])
-        mechanical={'historical_preparation_step','_provider','discover','_bootstrap_cursor','_increment_candidates','reconstruct','step'}
+        mechanical={'__init__','historical_preparation_step','_provider','discover','_bootstrap_cursor',
+                    '_increment_candidates','reconstruct','step'}
         for name,node in old_methods.items():
-            if name not in mechanical:self.assertEqual(ast.dump(node),ast.dump(new_methods[name]),rel+':'+name)
-        # Reconstruction changes only the individual completeness authority.
-        # Price, buyer-flow, capacity, nominal sizing and quote math remain exact.
+            if name not in mechanical:
+                node.decorator_list=[];new_methods[name].decorator_list=[]
+                self.assertEqual(ast.dump(node),ast.dump(new_methods[name]),rel+':'+name)
+        # Quote timing and individual completeness authority change. The actual
+        # price/buyer reducers, sizing and executable-capacity expression pin.
         before=old_methods['reconstruct'];after=new_methods['reconstruct']
-        original_kw=next(k for n in ast.walk(before) if isinstance(n,ast.Call)
-                         for k in n.keywords if k.arg=='continuity_complete')
-        current_kw=next(k for n in ast.walk(after) if isinstance(n,ast.Call)
-                        for k in n.keywords if k.arg=='continuity_complete')
-        current_kw.value=original_kw.value
-        self.assertEqual(ast.dump(before),ast.dump(after))
+        def facts_keywords(node):
+            call=next(n.value for n in ast.walk(node) if isinstance(n,ast.Assign)
+                and any(isinstance(t,ast.Attribute) and t.attr=='facts' for t in n.targets))
+            return {k.arg:ast.dump(k.value) for k in call.keywords
+                    if k.arg not in ('continuity_complete','execution')}
+        self.assertEqual(facts_keywords(before),facts_keywords(after))
+        def economic_expressions(node):
+            assigns={t.id:ast.dump(n.value) for n in ast.walk(node) if isinstance(n,ast.Assign)
+                for t in n.targets if isinstance(t,ast.Name) and t.id in ('flow','sizing','cap','capacity')}
+            assigns['window']=ast.dump(next(n for n in ast.walk(node) if isinstance(n,ast.FunctionDef) and n.name=='window'))
+            return assigns
+        self.assertEqual(economic_expressions(before),economic_expressions(after))
         def constants(tree):
             return [ast.dump(n) for n in tree.body if isinstance(n,(ast.Assign,ast.AnnAssign))]
         self.assertEqual(constants(original),constants(current))

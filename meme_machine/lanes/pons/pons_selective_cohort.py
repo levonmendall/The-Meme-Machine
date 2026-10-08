@@ -19,6 +19,7 @@ from .pipeline import Pipeline,censor_class
 from .provider_admission import foreground_work, decision_work
 from .pons_natural_observation import (
     _next_discovery_end as _next_single_discovery_end,
+    MarketScout,
 )
 from .provider_topology import configured_discovery_rpc
 from .sequencer_feed import SequencerBlockClock, SequencerTransportError
@@ -579,7 +580,7 @@ def _read_curve_range(rpc,first,observed_end):
 @foreground_work
 def _poll(
     endpoint,rpc,cursor,tape,feed,sessions,recoveries=None,
-    on_provider_failure=None,
+    on_provider_failure=None, scout=None, nominate=None,
 ):
     if recoveries is None:
         recoveries=[]
@@ -613,15 +614,34 @@ def _poll(
             )
 
     if latest is None:
+        if scout is not None:
+            try:scout.read_pools(rpc,cursor)
+            except (BoundaryError,ValueError):pass
         return rpc,cursor,[]
     first=cursor+1;fresh=[]
     if latest>=first:
         observed_end=latest
         while True:
             try:
-                observed_end,fresh=_read_curve_range(rpc,first,observed_end)
+                if scout is None:
+                    observed_end,fresh=_read_curve_range(rpc,first,observed_end)
+                else:
+                    fresh=scout.read_market(rpc,first,observed_end,nominate=nominate)
                 break
             except BoundaryError as exc:
+                if scout is not None and str(exc)=='scout_public_reorg':
+                    cursor=scout.plane.checkpoint_read('pons_scout_market_cursor')
+                    first=cursor+1;observed_end=min(latest,cursor+40)
+                    continue
+                if scout is not None and str(exc)=='provider_rpc_-32602':
+                    # A sequencer frontier can precede public RPC availability.
+                    # Never mark unseen blocks covered or switch to costly
+                    # per-block polling when the filter capability is uncertain.
+                    frontier=int(rpc.call('eth_blockNumber',[],scope='pons_selective_frontier'),16)
+                    if frontier<first:return rpc,cursor,[]
+                    if frontier<observed_end:
+                        observed_end=frontier
+                        continue
                 if not _recoverable_provider_boundary(exc):
                     raise
                 rpc._last_boundary=str(exc)
@@ -635,6 +655,11 @@ def _poll(
         if len(tape)>MAX_TAPE_EVENTS:
             del tape[:-MAX_TAPE_EVENTS]
         cursor=observed_end
+        if scout is not None:
+            # Primary discovery and Current nomination are already durable.
+            # A pool interruption keeps its own cursor/gap without blocking them.
+            try:scout.read_pools(rpc,cursor)
+            except (BoundaryError,ValueError):pass  # Per-pool gaps are durable.
     return rpc,cursor,fresh
 
 
@@ -774,11 +799,13 @@ def run(endpoint,*,campaign=False):
         from meme_machine.runtime.survivor_history import Worker
         from .pons_survivor_runtime import Runtime
         run_id=os.environ['MM_PAPER_EPOCH']
-        survivor=Worker(lambda:Runtime(ROOT/'pons-survivor',STRATEGY_CAPITAL_QUOTE,run_id,endpoint))
+        survivor=Worker(lambda:Runtime(ROOT/'pons-survivor',STRATEGY_CAPITAL_QUOTE,run_id,endpoint,
+            scout_path=plane_path(ROOT/'candidate-evidence.sqlite')))
         result['active_regimes']=['pons-selective-continuation-v1','pons-postgrad-survivor-momentum-v1']
     feed=SequencerBlockClock();cursor=0;start_ts=None
     tape=[]
     queue=Broker(plane_path(ROOT/'candidate-evidence.sqlite'),POLICY_HASH,clock=time.time,source=endpoint,config=result['operational_configuration_hash'])
+    scout=MarketScout(queue.plane) if campaign else None
     attempts=Attempts(queue.plane)
     saved=queue.plane.checkpoint_read('pons_cohort') if recovered else None
     if recovered and saved is None:raise BoundaryError('selective_discovery_recovery_watermark')
@@ -822,7 +849,9 @@ def run(endpoint,*,campaign=False):
         )
 
     def _discover_observations(*args,**kwargs):
-        discovered=_poll(*args,**kwargs)
+        def nominate(event,observed):
+            queue.enqueue(event,now=observed,needs_work=event['topics'][0].lower()==scout.curve_topics[0])
+        discovered=_poll(*args,**kwargs,scout=scout,nominate=nominate if scout else None)
         observed=time.time()
         for event in discovered[2]:
             is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
@@ -884,6 +913,11 @@ def run(endpoint,*,campaign=False):
             return current or survivor_pending
         rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)
         startup_head=cursor
+        if scout is not None:
+            scout_cursor=queue.plane.checkpoint_read('pons_scout_market_cursor')
+            # Inclusive enrollment catches graduations during startup. Retained
+            # gaps resume at their original height; no seven-day startup census.
+            cursor=scout_cursor if scout_cursor is not None else max(-1,cursor-1)
         if startup_enabled and queue.plane.checkpoint_read('pons_current_startup') is None:
             queue.plane.checkpoint('pons_current_startup',dict(head=cursor,phase='anchor',complete=False,covered_from=None))
 
@@ -953,6 +987,8 @@ def run(endpoint,*,campaign=False):
             now=time.time()
             now_monotonic=time.monotonic()
             if survivor is not None:result['survivor']=survivor.tick(now,admit=True)
+            if scout is not None and (fresh or 'scout' not in result or time.monotonic()>=next_checkpoint):
+                scout.maintain();result['scout']=scout.snapshot()
             for event in fresh:
                 identity=(event["transactionHash"],event["logIndex"])
                 is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
