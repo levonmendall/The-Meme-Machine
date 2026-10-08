@@ -1,0 +1,130 @@
+{
+  "baseline": {
+    "capture": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+    "decode_trials": [
+      {
+        "cpu_seconds": 0.778858582,
+        "wall_seconds": 0.787349610007368
+      },
+      {
+        "cpu_seconds": 0.6743336919999998,
+        "wall_seconds": 0.6745320089976303
+      },
+      {
+        "cpu_seconds": 0.7387306109999998,
+        "wall_seconds": 0.7389201910118572
+      }
+    ],
+    "limitations": [
+      "Observer profiling overhead is included; production observer settings remain unchanged.",
+      "Request replay uses the captured final immutable bounds/priority/deadline and repeated pressure observations; original unrecorded caller arguments cannot be recovered.",
+      "Source JSON validation still scans full physical payload; materialized string savings are local only."
+    ],
+    "observer": {
+      "compressed_bytes": 7593810,
+      "cpu_seconds": 2.6023314959999997,
+      "raw_ws_bytes": 48501501,
+      "wall_seconds": 2.603679949999787,
+      "ws_header_digest": "cde431836c9fb0d9e4a7d3131b4410b0be1fcb3ae52066acdf945ea8aedec214",
+      "ws_python_log_bytes_materialized": 40775483
+    },
+    "physical_ws_bytes": 48501501,
+    "provider_calls": 0,
+    "python_materialized_log_bytes": 40775483,
+    "python_materialized_log_lines": 571849,
+    "requests": {
+      "calls": 1516,
+      "cpu_seconds": 0.28163393900000067,
+      "job_projection_digest": "7686da25e762c36e433ce0351c324893484e58216bdadd524196e7d93c31ce54",
+      "observations": 1675,
+      "process_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 327797,
+        "read_bytes": 0,
+        "syscr": 82,
+        "syscw": 6527,
+        "wchar": 13602416,
+        "write_bytes": 19800064
+      },
+      "sqlite_changes": 3032,
+      "wall_seconds": 1.8028100299998187
+    },
+    "rss_peak_kib": 270652,
+    "semantic_digest": "14b99fef8b0722e379a2faafe6af6be8572562e17cb3b9e8f3a0ae9e4ce63912",
+    "source": "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007",
+    "source_ws_parse_passes": 2
+  },
+  "raw_delivery_receipts": {
+    "baseline": {
+      "bytes": 50330766,
+      "digest": "7aaa39a1c49ab2da560e245d0f84b648f341b1e9f1625c63b20dc5ceff87e65c",
+      "messages": 39761
+    },
+    "capture": {
+      "bytes": 50330766,
+      "digest": "7aaa39a1c49ab2da560e245d0f84b648f341b1e9f1625c63b20dc5ceff87e65c",
+      "messages": 39761
+    },
+    "repaired": {
+      "bytes": 50330766,
+      "digest": "7aaa39a1c49ab2da560e245d0f84b648f341b1e9f1625c63b20dc5ceff87e65c",
+      "messages": 39761
+    }
+  },
+  "repaired": {
+    "capture": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+    "decode_trials": [
+      {
+        "cpu_seconds": 0.72794023,
+        "wall_seconds": 0.7920625770348124
+      },
+      {
+        "cpu_seconds": 0.48514629099999995,
+        "wall_seconds": 0.48533017199952155
+      },
+      {
+        "cpu_seconds": 0.5320858420000003,
+        "wall_seconds": 0.5322389699867927
+      }
+    ],
+    "limitations": [
+      "Observer profiling overhead is included; production observer settings remain unchanged.",
+      "Request replay uses the captured final immutable bounds/priority/deadline and repeated pressure observations; original unrecorded caller arguments cannot be recovered.",
+      "Source JSON validation still scans full physical payload; materialized string savings are local only."
+    ],
+    "observer": {
+      "compressed_bytes": 7593821,
+      "cpu_seconds": 2.7246131569999994,
+      "raw_ws_bytes": 48501501,
+      "wall_seconds": 2.7276679020142183,
+      "ws_header_digest": "cde431836c9fb0d9e4a7d3131b4410b0be1fcb3ae52066acdf945ea8aedec214",
+      "ws_python_log_bytes_materialized": 0
+    },
+    "physical_ws_bytes": 48501501,
+    "provider_calls": 0,
+    "python_materialized_log_bytes": 28117100,
+    "python_materialized_log_lines": 389046,
+    "requests": {
+      "calls": 1516,
+      "cpu_seconds": 0.019859630000000017,
+      "job_projection_digest": "7686da25e762c36e433ce0351c324893484e58216bdadd524196e7d93c31ce54",
+      "observations": 159,
+      "process_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 117,
+        "read_bytes": 0,
+        "syscr": 2,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "sqlite_changes": 0,
+      "wall_seconds": 0.01986014499561861
+    },
+    "rss_peak_kib": 244320,
+    "semantic_digest": "14b99fef8b0722e379a2faafe6af6be8572562e17cb3b9e8f3a0ae9e4ce63912",
+    "source": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+    "source_ws_parse_passes": 1
+  },
+  "schema": "pump-provider-processing-receipt-v1"
+}

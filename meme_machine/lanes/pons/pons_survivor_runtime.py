@@ -175,7 +175,7 @@ class Runtime:
                 self.history.invalidate_discovery()
                 raise BoundaryError('survivor_discovery_reorg')
             batches=values[:count]
-            if len(batches)!=len(calls) or any(not isinstance(b,list) for b in batches):
+            if len(batches)!=count or any(not isinstance(b,list) for b in batches):
                 raise BoundaryError('survivor_graduation_range_incomplete')
             events=[]
             for (_,params),batch in zip(calls,batches):

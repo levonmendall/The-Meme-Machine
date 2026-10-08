@@ -1,0 +1,60 @@
+{
+  "affected": {
+    "seconds": 105.505,
+    "skipped": 1,
+    "status": "PASS",
+    "tests": 173
+  },
+  "final_FAST": {
+    "baseline_reproduced": true,
+    "before_final_observer_only_projection_and_tool_temp_directory_changes": true,
+    "failure": "pre_existing_strategy_source_freeze_against_earlier_revision",
+    "failures": 1,
+    "seconds": 427.69,
+    "tests": 846
+  },
+  "final_focused": {
+    "after_observer_projection_and_capture_bound_changes": true,
+    "seconds": 0.957,
+    "status": "PASS",
+    "tests": 37
+  },
+  "logs": {
+    "FAST-final.log": {
+      "bytes": 16607,
+      "sha256": "4e1f7ad835d34c9fe772a65c98f1fa52c70cb77e6f20c34ad0b526bfe4394c52"
+    },
+    "affected.log": {
+      "bytes": 36696,
+      "sha256": "4ce229f6f0a57854315630aab5b860e8f4acf1235c6fdebae59cfe8274814a9a"
+    },
+    "focused-final.log": {
+      "bytes": 6745,
+      "sha256": "b712f8c57272fb71b53567ed8af350ce5af344227db6f8ef5512b52e2bf11600"
+    },
+    "source-freeze-baseline.log": {
+      "bytes": 1259,
+      "sha256": "c15a6a5cddb7aeda2dc36d7881e924822e3801e35f58af6c33a072a827bd1899"
+    },
+    "targeted-baseline.log": {
+      "bytes": 2487,
+      "sha256": "8c90fac4db51a34f3724027f41dac027c3e6257c70b539e47851c76ea64d00ef"
+    },
+    "targeted-repaired.log": {
+      "bytes": 698,
+      "sha256": "0e6223648da575b9aae4cd9d3fcd3b43fa73c87276cfa493f9fa3d07bf4e36c8"
+    }
+  },
+  "market_network_guard": true,
+  "python": "CPython 3.12.14",
+  "schema": "pump-provider-tests-v1",
+  "targeted_baseline": {
+    "errors": 1,
+    "failures": 1,
+    "tests": 3
+  },
+  "targeted_repaired": {
+    "status": "PASS",
+    "tests": 3
+  }
+}

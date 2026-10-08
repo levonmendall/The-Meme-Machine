@@ -107,6 +107,35 @@ def _economic_projection(transaction,message,meta,normalized):
     )
 
 
+def candidate_log_message(raw, *, max_bytes):
+    """Parse a body-free WS delivery once; failed log strings stay native.
+
+    The provider still delivers and is charged for the complete frame. Failed
+    attempts require independent native statuses, but have no committed economic
+    logs. Successful messages retain their exact logs and original line indices.
+    Native JSON validation visits the entire input even for failed attempts.
+    """
+    if not isinstance(raw,(str,bytes)):
+        raise EvidenceUnavailable('source_message_shape')
+    size=len(raw.encode()) if isinstance(raw,str) else len(raw)
+    if size>max_bytes:raise EvidenceUnavailable('source_message_size_limit')
+    try:
+        root=_object(simdjson.Parser(max_bytes).parse(raw),'source_message_shape')
+        if 'id' in root:return root.as_dict()
+        params=_object(root['params'],'source_message_shape')
+        result=_object(params['result'],'source_message_shape')
+        value=_object(result['value'],'source_message_shape')
+        if value['err'] is None:return root.as_dict()
+        selected_value=_except(value,'logs')
+        selected_result=_except(result,'value');selected_result['value']=selected_value
+        selected_params=_except(params,'result');selected_params['result']=selected_result
+        selected=_except(root,'params');selected['params']=selected_params
+        return selected
+    except EvidenceUnavailable:raise
+    except (KeyError,TypeError,AttributeError,ValueError,RuntimeError,UnicodeError):
+        raise EvidenceUnavailable('source_message_shape') from None
+
+
 def select_frame(raw, credential, program_addresses, *, max_bytes, full_transaction_addresses=None):
     """Select losslessly; never decode events, hash bodies, write state or use RPC.
 

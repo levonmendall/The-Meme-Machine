@@ -23,6 +23,14 @@ import urllib.request
 class CeilingReached(RuntimeError):pass
 
 
+def observe_budgeted(budget,observer,kind,value):
+    try:budget.delivery(kind,value)
+    finally:
+        # The stopping frame was already physically received and charged.
+        # Capturing it adds no canonical completeness authority.
+        observer(kind,value)
+
+
 class Budget:
     def __init__(self,limits,out):
         required={'wall_seconds','solana_rpc_requests','robinhood_rpc_requests','estimated_rpc_cu',
@@ -209,10 +217,9 @@ async def child(args,limits):
         c.source_hashes[name]=hashlib.sha256(Path(name).read_bytes()).hexdigest()
     native_observer=c.source.observer
     def observed(kind,value):
-        try:budget.delivery(kind,value)
+        try:observe_budgeted(budget,native_observer,kind,value)
         except CeilingReached:
             stop.set();c.worker_stop.set();raise
-        native_observer(kind,value)
         if kind=='native_error' and len(c.transport.native_errors)>=limits['native_errors']:
             budget.reason=budget.reason or 'native_error_ceiling';budget.stop.set()
     c.source.observer=observed;stop=asyncio.Event()

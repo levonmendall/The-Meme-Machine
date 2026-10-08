@@ -214,6 +214,11 @@ class SelectiveHistory:
         if type(lo) is not int or type(hi) is not int or not 0<=lo<=hi or not 0<=priority<=6:
             raise EvidenceUnavailable('candidate_history_request_shape')
         now=self.clock();identity=digest([family,address,lo,hi])
+        # This code runs on the sole canonical owner. An already stronger request
+        # needs no transaction, cursor rewrite or repeated pressure observation.
+        # A genuinely earlier deadline/higher priority still takes the old path.
+        prior=self.db.execute('SELECT priority,deadline FROM acquisition_jobs WHERE id=?',(identity,)).fetchone()
+        if prior and prior[0]<=priority and prior[1]<=deadline:return identity
         with self.writer.transaction():
             self.db.execute('''INSERT OR IGNORE INTO acquisition_jobs VALUES(?,?,?,?,?,?,?,
                 'pending',NULL,0,NULL,NULL,?,?,?,NULL)''',

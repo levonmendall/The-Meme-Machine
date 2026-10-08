@@ -2,6 +2,13 @@
 import time
 from .certify import safe_reason
 
+def completed_observation(row,finished):
+    """A skipped/failed hydration is a disposition, never qualification readiness."""
+    row['disposition_finished']=finished
+    if row.get('full_hydration') and 'qualification' in row and not row.get('error'):
+        row['qualification_ready']=finished
+    return row
+
 class PumpCandidates:
     def __init__(self,cert):
         from meme_machine.lanes.pump import runner
@@ -59,7 +66,8 @@ class PumpCandidates:
             except Exception as exc:row.update(error=type(exc).__name__,reason=safe_reason(exc))
             finally:
                 rows=[r for r in self.cert.meter.rows[before:] if r['family']=='pump_hydration'];finish=time.time()
-                row.update(qualification_ready=finish,seconds=finish-start,calls=sum(r['calls'] for r in rows),cu=sum(r['cu'] for r in rows),bytes=sum(r['bytes'] for r in rows),bodies=sum(r['transaction_bodies'] for r in rows),blocks=sum(r['blocks'] for r in rows))
+                completed_observation(row,finish)
+                row.update(seconds=finish-start,calls=sum(r['calls'] for r in rows),cu=sum(r['cu'] for r in rows),bytes=sum(r['bytes'] for r in rows),bodies=sum(r['transaction_bodies'] for r in rows),blocks=sum(r['blocks'] for r in rows))
                 if row.get('original_decision_deadline') is not None:row['deadline_margin']=row['original_decision_deadline']-finish
                 self.rows.append(row);self.cert.family_context.reset(token)
         # The actual incremental, non-lossy Survivor path retains all graduations;
@@ -82,7 +90,7 @@ class PumpCandidates:
                     self.history.record_decision('pump',candidate['id'],mode='survivor',observed_at=state['market_time'],qualified=decision['candidate'],decision=decision)
             except Exception as exc:row.update(error=type(exc).__name__,reason=safe_reason(exc))
             finally:
-                finished=time.time();requests=[r for r in self.cert.meter.rows[before:] if r['family']=='pumpswap_hydration'];row.update(qualification_ready=finished,seconds=finished-start,calls=sum(r['calls'] for r in requests),cu=sum(r['cu'] for r in requests),bytes=sum(r['bytes'] for r in requests),bodies=sum(r['transaction_bodies'] for r in requests),blocks=sum(r['blocks'] for r in requests));self.rows.append(row);self.cert.family_context.reset(token)
+                finished=time.time();requests=[r for r in self.cert.meter.rows[before:] if r['family']=='pumpswap_hydration'];completed_observation(row,finished);row.update(seconds=finished-start,calls=sum(r['calls'] for r in requests),cu=sum(r['cu'] for r in requests),bytes=sum(r['bytes'] for r in requests),bodies=sum(r['transaction_bodies'] for r in requests),blocks=sum(r['blocks'] for r in requests));self.rows.append(row);self.cert.family_context.reset(token)
         except Exception as exc:self.errors.append(dict(at=now,stage='survivor',reason=safe_reason(exc)))
     def close(self):
         self.plane.close();self.survivor.plane.close();self.survivor.history.close();self.history.close()

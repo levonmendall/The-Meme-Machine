@@ -1,0 +1,31 @@
+{
+  "approved_canonical_policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
+  "autonomy": false,
+  "baseline_commit": "510b61d1950ae54c8b0435b7b7cae3aad0bcc1fe",
+  "baseline_tree": "ec76868b459c504b81bd4240f6f8c0236e3d897a",
+  "branch": "repair/pump-provider-offline-20261008",
+  "capacity": false,
+  "deployment": false,
+  "diff_whitespace": "PASS",
+  "implementation_commit": null,
+  "implementation_tree": null,
+  "market_provider_calls": 0,
+  "next_proof_readiness": "BLOCKED",
+  "original_blocker": "combined_position_and_candidate_provider_latency_not_certified",
+  "original_captures_preserved": true,
+  "original_epoch": "paper-1791089005190643467",
+  "production_epoch_opened": false,
+  "production_services": {
+    "meme-machine-paper.service": "inactive",
+    "meme-machine.service": "inactive"
+  },
+  "publication_note": "Implementation revision is pinned in the subsequent documentation-only receipt commit; final branch head/tree are reported after remote verification.",
+  "raw_evidence_directory": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-evidence-20261008",
+  "raw_or_disposable_databases_in_git": 0,
+  "recovery": false,
+  "report_json_parse": "PASS",
+  "repository": "levonmendall/The-Meme-Machine",
+  "schema": "pump-provider-publication-v1",
+  "source_compile": "PASS",
+  "unique_snapshots_created": 0
+}

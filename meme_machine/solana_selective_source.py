@@ -21,6 +21,7 @@ from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,digest,cano
 from .solana_evidence_transport import Subscription
 from .solana_selective_history import SelectiveHistory,FAMILIES,PROGRAMS,coverage_scope,economic_records
 from .solana_selective_runtime import CONTROL
+from .solana_source_intake import candidate_log_message
 from .yellowstone import geyser_pb2 as pb
 from .runtime.operating_families import enabled,active_sql,active_scope_sql,operational
 
@@ -362,10 +363,18 @@ class SelectiveSource:
             while not self.stop.is_set():
                 await self.flush_delivery()
                 revision=self.native_revision;native=self.stream_telemetry()
+                ready=time.monotonic();timing={}
                 def publish(s):
+                    timing['owner_claim_monotonic']=time.monotonic()
                     if revision!=self.native_published:s.fence._health('native_streams',native)
-                    h=install(s);h.lifecycle.publish();return h.startup.advance()
+                    h=install(s);timing['publication_started_monotonic']=time.monotonic()
+                    h.lifecycle.publish()
+                    timing['publication_finished_monotonic']=time.monotonic()
+                    timing['publication_finished_wall']=time.time()
+                    return h.startup.advance()
                 await self.work(publish,2,label='source_commit')
+                self.observe('publication_timing',work_ready_monotonic=ready,
+                    work_returned_monotonic=time.monotonic(),**timing)
                 self.native_published=revision
                 await asyncio.sleep(.1)
         finally:await self.flush_delivery()
@@ -448,11 +457,13 @@ class SelectiveSource:
                 pending=None
                 if raw is grpc.aio.EOF:raise EvidenceUnavailable('candidate_native_eof')
                 if len(raw)>MAX_FRAME_BYTES:raise EvidenceUnavailable('candidate_native_frame_bound')
-                at=time.time()
-                self.observe('delivery',stream_id=stream_id,family=family,transport='yellowstone',raw=raw,seen=at)
+                at=time.time();received=time.monotonic()
+                self.observe('delivery',stream_id=stream_id,family=family,transport='yellowstone',raw=raw,seen=at,received_monotonic=received)
                 # Delivery counts before parsing, routing, filtering or dedup.
                 await self.delivered(family,'yellowstone',len(raw),at)
+                decode_started=time.monotonic()
                 update=pb.SubscribeUpdate.FromString(raw);kind=update.WhichOneof('update_oneof')
+                self.observe('decode_timing',stream_id=stream_id,family=family,transport='yellowstone',bytes=len(raw),seconds=time.monotonic()-decode_started)
                 if kind=='ping':await call.write(pb.SubscribeRequest(ping=pb.SubscribeRequestPing(id=1)));continue
                 if kind=='pong':continue
                 await handler(update,len(raw),at)
@@ -891,10 +902,21 @@ class SelectiveSource:
             nonlocal native_announced
             grouped=all(r['family']=='meteora' and r['priority']>1 for r in desired)
             if frame:
+                ready=time.monotonic();ready_wall=time.time();claimed=[];finished_wall=[]
                 def durable(state):
+                    claimed.append(time.monotonic())
                     (commit_rolling_group if grouped else commit_candidates)(state,frame,addresses,session,publish=not self.batched)
                     if rolling and not native_announced:install(state).startup.native([r['family'] for r in desired])
+                    claimed.append(time.monotonic())
+                    finished_wall.append(time.time())
                 await self.work(durable,0 if any(r['priority']<=1 for r in desired) else 2,label='source_commit')
+                self.observe('evidence_timing',session=session,slot=frame.update.block.slot,
+                    native_last_receipt_wall=frame.seen,
+                    economic_available_wall=max((r[4] for r in frame.candidate_statuses),default=frame.seen),
+                    join_ready_wall=ready_wall,durable_finished_wall=finished_wall[-1],
+                    join_ready_monotonic=ready,owner_claim_monotonic=claimed[-2],
+                    durable_finished_monotonic=claimed[-1],work_returned_monotonic=time.monotonic(),
+                    published_inline=not self.batched)
                 if rolling:native_announced=True
         acknowledged=asyncio.Event()
         async def native(update,size,seen):
@@ -924,10 +946,11 @@ class SelectiveSource:
                         params=[dict(mentions=[row['address']]),dict(commitment='finalized')])))
                 if not pending:acknowledged.set()
                 while not self.stop.is_set() and not local_stop.is_set():
-                    raw=await ws.recv();seen=time.time();size=len(raw.encode() if isinstance(raw,str) else raw)
-                    self.observe('delivery',stream_id=ws_id,family='candidate_logs',transport='websocket',raw=raw.encode() if isinstance(raw,str) else raw,seen=seen)
-                    await self.delivered('candidate_logs','websocket',size,seen,0 if 'id' in json.loads(raw) else (0 if any(r['priority']<=1 for r in desired) else 2))
-                    value=json.loads(raw)
+                    raw=await ws.recv();seen=time.time();received=time.monotonic();size=len(raw.encode() if isinstance(raw,str) else raw)
+                    self.observe('delivery',stream_id=ws_id,family='candidate_logs',transport='websocket',raw=raw.encode() if isinstance(raw,str) else raw,seen=seen,received_monotonic=received)
+                    decode_started=time.monotonic();value=candidate_log_message(raw,max_bytes=MAX_FRAME_BYTES)
+                    self.observe('decode_timing',stream_id=ws_id,family='candidate_logs',transport='websocket',bytes=size,seconds=time.monotonic()-decode_started)
+                    await self.delivered('candidate_logs','websocket',size,seen,0 if 'id' in value else (0 if any(r['priority']<=1 for r in desired) else 2))
                     if 'id' in value:
                         if 'error' in value or value['id'] not in pending:raise EvidenceUnavailable('authoritative_subscription_rejected')
                         registered[value['result']]=pending.pop(value['id'])
