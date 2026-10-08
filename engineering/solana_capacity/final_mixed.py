@@ -52,13 +52,15 @@ def required_gap_census(db):
 
 
 class FinalMixed(certify.Certification):
-    def __init__(self,*args,**kwargs):
+    def __init__(self,*args,proof_source=None,**kwargs):
         super().__init__(*args,**kwargs)
         self.probe=LiveProbe(self.out/'owner.samples.ndjson.zlib');self.probe.install()
         for name in ('engineering/solana_capacity/final_mixed.py','engineering/solana_capacity/live_probe.py'):
             self.source_hashes[name]=hashlib.sha256(Path(name).read_bytes()).hexdigest()
-        self.source_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-        self.source_tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip()
+        # The finite proof supplies preflight identity: its worker cannot exec
+        # child programs after the independent isolation filter is installed.
+        self.source_commit=proof_source['commit'] if proof_source else subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+        self.source_tree=proof_source['tree'] if proof_source else subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip()
         self.final_debt=None
 
     def state(self,s):

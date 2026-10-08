@@ -2,6 +2,7 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_pump_pons_proof',
  'tests.test_robinhood_scout',
  'tests.test_forward_survivor',
  'tests.test_pons_capability_executor',
@@ -183,6 +184,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('level',choices=('FAST','OPERATIONAL'))
     parser.add_argument('--modules',nargs='+',help='Run selected modules from the chosen offline suite')
+    parser.add_argument('--cases',nargs='+',help='Run exact cases within modules of the chosen offline suite')
     parser.add_argument('--verbose',action='store_true',help='Print test names, including the last test before a worker interruption')
     parser.add_argument('--worker',action='store_true',help=argparse.SUPPRESS)
     args=parser.parse_args();network_guard()
@@ -190,6 +192,10 @@ def main():
     if args.modules:
         if any(name not in modules for name in args.modules):parser.error('module is outside the selected offline suite')
         modules=args.modules
+    if args.cases:
+        if any(not any(name.startswith(module+'.') for module in modules) for name in args.cases):
+            parser.error('case is outside the selected offline suite')
+        modules=args.cases
     if args.worker:
         suite=unittest.defaultTestLoader.loadTestsFromNames(modules)
         result=unittest.TextTestRunner(verbosity=2 if args.verbose else 1).run(suite)
@@ -202,6 +208,7 @@ def main():
             # long test too, rather than allowing it to fill disk until return.
             command=[sys.executable,'-m','operational.tests',args.level,'--worker']
             if args.modules:command+=['--modules',*args.modules]
+            if args.cases:command+=['--cases',*args.cases]
             if args.verbose:command+=['--verbose']
             child=subprocess.Popen(command,start_new_session=True)
             try:
