@@ -1,0 +1,78 @@
+{
+  "disposable_databases_retained_outside_git": true,
+  "files": {
+    "alternative/candidate.sqlite": {
+      "bytes": 315392,
+      "sha256": "587647a323fbb7a366b8769550a9dbbc0326608c316aab0209a259f7c7a6a7b0"
+    },
+    "alternative/candidate.sqlite-shm": {
+      "bytes": 32768,
+      "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+    },
+    "alternative/candidate.sqlite-wal": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "alternative/canonical.sqlite": {
+      "bytes": 958464,
+      "sha256": "19d863a9b46eee1fa09cbadd2c0a900fe623828ceb1c4bf42208ed7b0621929b"
+    },
+    "alternative/canonical.sqlite.writer.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "child.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "comparison.sqlite": {
+      "bytes": 5771264,
+      "sha256": "07658b38baf4a370261f7d5f14c7edc4204fa11176e161ba0f731dcca8b2fba2"
+    },
+    "engineering-artifact.json": {
+      "bytes": 241,
+      "sha256": "aff35d4a328a2180f96c0a71e81d001de7ed26680ea259d8686cf515bae6880a"
+    },
+    "provider.frames.zlib": {
+      "bytes": 3959406,
+      "sha256": "3fa61443255084a857c4d7efa658d0440ab8e09fac7f44f4b8cc95170631e8ac"
+    },
+    "reference/candidate.sqlite": {
+      "bytes": 315392,
+      "sha256": "587647a323fbb7a366b8769550a9dbbc0326608c316aab0209a259f7c7a6a7b0"
+    },
+    "reference/candidate.sqlite-shm": {
+      "bytes": 32768,
+      "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+    },
+    "reference/candidate.sqlite-wal": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reference/canonical.sqlite": {
+      "bytes": 958464,
+      "sha256": "3e0761509052c4344fcc8e8730a40faaca323eb3c151a19405cb4bed4a4d80d4"
+    },
+    "reference/canonical.sqlite.writer.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "result.json": {
+      "bytes": 15158,
+      "sha256": "19ca359bc24779a5ba661dfa733fde0931129c4766df48cd49b971f9f8c1e152"
+    },
+    "supervisor.json": {
+      "bytes": 934,
+      "sha256": "531e4dc7ce8b4820b77f85b94d7b0550f3b51ffc6627f68317c130caea8c7d37"
+    }
+  },
+  "output": "/tmp/mm-engineering-pump-capability-admission-first-20261008T190142Z",
+  "production_databases_not_copied": true,
+  "published_capture_files": [
+    "capture/provider.frames.zlib",
+    "capture/result.json",
+    "capture/supervisor.json",
+    "capture/engineering-artifact.json"
+  ],
+  "schema": "pump-admission-first-artifact-retention-v1"
+}

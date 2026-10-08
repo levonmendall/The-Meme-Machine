@@ -1,0 +1,24 @@
+{
+  "additional_experiment_topology": {
+    "candidate_filters": 5,
+    "native_channels": 1,
+    "native_subscribe_rpcs": 3,
+    "websocket_connections": 1,
+    "websocket_subscriptions": 2
+  },
+  "admission_policy": "OWNER_AUTHORIZED_ADMISSION_FIRST",
+  "app_id": "9bin99s96t7ga5e9",
+  "authorization_reference": "owner-20261008-one-admission-first-pump-experiment",
+  "checked_at": 1791486102.5281217,
+  "credential_app_binding_verified": true,
+  "endpoint_identity": "8f3feda9d10baa64d74b5ecb3a97cfa48af379982666f93a425e537668a51749",
+  "existing_shared_governor_verified": true,
+  "expires_at": 1791486402.5281217,
+  "external_yellowstone_occupancy": "UNKNOWN",
+  "headroom_verified": false,
+  "known_competing_workloads_clear": true,
+  "paper_stopped_verified": true,
+  "production_changes_required": false,
+  "resource_protections_verified": true,
+  "unknown_external_occupancy_accepted": true
+}

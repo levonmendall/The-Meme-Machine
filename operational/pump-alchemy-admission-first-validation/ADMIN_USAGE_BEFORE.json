@@ -1,0 +1,92 @@
+{
+  "schema": "pump-admission-first-authenticated-usage-before-v1",
+  "account_summary": {
+    "data": {
+      "billingPeriod": {
+        "startTime": "2026-10-01T00:00:00.000Z",
+        "endTime": "2026-11-01T00:00:00.000Z"
+      },
+      "totals": {
+        "monthToDate": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last7Days": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last30Days": {
+          "amount": "1730149.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        }
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:56:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      }
+    }
+  },
+  "pump_cu": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-08T18:00:00Z",
+        "endTime": "2026-10-08T18:59:43.084Z",
+        "granularity": "hour",
+        "products": [
+          "SUPERNODE_CU"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "filters": {
+          "appIds": [
+            "9bin99s96t7ga5e9"
+          ]
+        },
+        "groupBy": [
+          "requestType",
+          "method"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:59:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": []
+    }
+  },
+  "pump_native_tb": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-08T18:00:00Z",
+        "endTime": "2026-10-08T18:59:43.109Z",
+        "granularity": "hour",
+        "products": [
+          "SOLANA_GRPC_TB"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "filters": {
+          "appIds": [
+            "9bin99s96t7ga5e9"
+          ]
+        },
+        "groupBy": [
+          "requestType"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T18:59:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": []
+    }
+  }
+}

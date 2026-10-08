@@ -1,0 +1,300 @@
+{
+  "all_delivery_records": 19414,
+  "allocated_difference_bytes": 20342155,
+  "allocation_status": "COUNTERFACTUAL_COMPONENT_ALLOCATION_WITH_INCOMPLETE_EVIDENCE_NOT_VERIFIED_SAVINGS",
+  "architecture_a_allocated_application_bytes": 28778095,
+  "architecture_b_allocated_application_bytes": 8435940,
+  "archive_records": 19622,
+  "billed_provider_bytes": "PARTIAL_ADMINISTRATIVE_USAGE_AND_PROTOCOL_ACCOUNTING_NOT_RECONCILED",
+  "by_transport": {
+    "http": 167,
+    "websocket": 28742236,
+    "yellowstone": 73683
+  },
+  "cancellation_bytes": 8090482,
+  "complete_same_evidence_architecture_a_bytes": null,
+  "complete_same_evidence_architecture_b_bytes": null,
+  "components": [
+    {
+      "bytes": 81,
+      "component": "getGenesisHash",
+      "phase": "paired",
+      "transport": "http"
+    },
+    {
+      "bytes": 86,
+      "component": "getSlot",
+      "phase": "paired",
+      "transport": "http"
+    },
+    {
+      "bytes": 39,
+      "component": "ack:1",
+      "phase": "paired",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 39,
+      "component": "ack:2",
+      "phase": "paired",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 2869265,
+      "component": "pump_failed",
+      "phase": "paired",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 1040013,
+      "component": "pump_failed",
+      "phase": "shutdown",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 63172,
+      "component": "pump_failed",
+      "phase": "transition",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 3397842,
+      "component": "pump_successful",
+      "phase": "paired",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 973736,
+      "component": "pump_successful",
+      "phase": "shutdown",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 18023,
+      "component": "pump_successful",
+      "phase": "transition",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 5628273,
+      "component": "pumpswap_failed",
+      "phase": "paired",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 2121327,
+      "component": "pumpswap_failed",
+      "phase": "shutdown",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 87943,
+      "component": "pumpswap_failed",
+      "phase": "transition",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 8468277,
+      "component": "pumpswap_successful",
+      "phase": "paired",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 3955406,
+      "component": "pumpswap_successful",
+      "phase": "shutdown",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 118881,
+      "component": "pumpswap_successful",
+      "phase": "transition",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 23488,
+      "component": "pump:account",
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 240,
+      "component": "pump:account",
+      "phase": "transition",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 33,
+      "component": "pumpswap:slot",
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 23093,
+      "component": "pumpswap:transaction",
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 14898,
+      "component": "pumpswap:transaction",
+      "phase": "transition",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 1250,
+      "component": "pumpswap:transaction_status",
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 9209,
+      "component": "shared:block_meta",
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 1439,
+      "component": "shared:slot",
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 33,
+      "component": "shared:slot",
+      "phase": "transition",
+      "transport": "yellowstone"
+    }
+  ],
+  "duplicate_delivery_bytes_not_deducted": true,
+  "full_native_packet_bytes": 37991,
+  "heartbeat_bytes": 0,
+  "measured_application_bytes": 28816086,
+  "native_errors": [],
+  "native_slot_ranges": {
+    "pump": {
+      "maximum": 454631900,
+      "minimum": 454631894
+    },
+    "pumpswap": {
+      "maximum": 454632166,
+      "minimum": 454632166
+    },
+    "shared": {
+      "maximum": 454631938,
+      "minimum": 454631894
+    }
+  },
+  "native_subscriptions": [
+    {
+      "family": "pump",
+      "filter_types": {
+        "accounts": 1,
+        "blocks": 0,
+        "blocks_meta": 0,
+        "slots": 0,
+        "transactions": 0,
+        "transactions_status": 0
+      },
+      "filters": 1,
+      "from_slot": 454631925,
+      "id": "47762b27258a467bbbb0940cb2824731"
+    },
+    {
+      "family": "shared",
+      "filter_types": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 0,
+        "transactions_status": 0
+      },
+      "filters": 2,
+      "from_slot": 454631925,
+      "id": "a1262df119d74682bd404cb5cad63b66"
+    },
+    {
+      "family": "pumpswap",
+      "filter_types": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 2
+      },
+      "filters": 5,
+      "from_slot": 454632197,
+      "id": "1c8cf901e5eb47d7bada1274a2b16d93"
+    }
+  ],
+  "phases": [
+    {
+      "bytes": 167,
+      "phase": "paired",
+      "transport": "http"
+    },
+    {
+      "bytes": 20363735,
+      "phase": "paired",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 58512,
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 8090482,
+      "phase": "shutdown",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 288019,
+      "phase": "transition",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 15171,
+      "phase": "transition",
+      "transport": "yellowstone"
+    }
+  ],
+  "protocol_tls_and_dispatched_unobserved_bytes": "UNKNOWN",
+  "raw_archive_complete": true,
+  "raw_delivery_matches_receive_budget": true,
+  "raw_transition_packet_included": true,
+  "schema": "pump-admission-first-raw-delivery-accounting-v1",
+  "simultaneous_session": true,
+  "uncaptured_observable_bytes": 0,
+  "verified_provider_savings_bytes": null,
+  "verified_provider_savings_percent": null,
+  "verified_savings_credited_bytes": 0,
+  "websocket_message_census": [
+    {
+      "family": "pump",
+      "messages": 5812,
+      "outcome": "failed",
+      "transport": "websocket"
+    },
+    {
+      "family": "pump",
+      "messages": 2072,
+      "outcome": "successful",
+      "transport": "websocket"
+    },
+    {
+      "family": "pumpswap",
+      "messages": 5594,
+      "outcome": "failed",
+      "transport": "websocket"
+    },
+    {
+      "family": "pumpswap",
+      "messages": 5727,
+      "outcome": "successful",
+      "transport": "websocket"
+    }
+  ]
+}

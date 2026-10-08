@@ -1,0 +1,187 @@
+{
+  "all_native_packets_below_requested_floor": true,
+  "caveats": [
+    "Activity rates are independent scenario assumptions, not capture time extrapolations.",
+    "Captured packet averages are traffic-mix estimates and may change with market conditions.",
+    "Full steady-state native transaction size distribution, replay overhead and provider protocol/billing overhead remain unmeasured; four captured below-floor payload sizes are measured.",
+    "No free-tier allowances, credits, taxes or custom account prices are assumed.",
+    "Published general WS 0.04 CU/byte is not the Solana-specific tariff.",
+    "No throughput/connection allowance is inferred; admission must pass on existing account capacity.",
+    "HTTP response bytes for selective acquisition are unmeasured; method CU counts remain separate.",
+    "Exceptional reactivation history RPCs are explicitly modeled, not required for already complete retained histories.",
+    "Capital availability never reduces the modeled discovery/economic universe.",
+    "Independent position subscriptions and their duplicate bytes are retained in both modeled configurations.",
+    "Position traffic rates are assumptions; the capture has no complete funded-position sample.",
+    "Four prefix packets are not a representative native production mix.",
+    "Application-payload mean is not reconciled to native billing TB or protocol/dispatched bytes.",
+    "No complete same-evidence interval exists; projections cannot certify an economic winner."
+  ],
+  "classification": "MODELED_NOT_STEADY_STATE_OR_BILLED_MEASUREMENTS",
+  "monthly_scenarios": [
+    {
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.01",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "0.2",
+            "successful": "0.2"
+          },
+          "pumpswap": {
+            "failed": "1",
+            "successful": "2"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "0.1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline_usage_usd": "2.863452552723690863918448964",
+      "native_size_sensitivity_usage_usd": "4.506117513538941956965847877",
+      "scenario": "quiet"
+    },
+    {
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.1",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "2",
+            "successful": "2"
+          },
+          "pumpswap": {
+            "failed": "15",
+            "successful": "20"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline_usage_usd": "29.24357178367060479785421745",
+      "native_size_sensitivity_usage_usd": "43.05289519554819108357436706",
+      "scenario": "normal"
+    },
+    {
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "1",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "15",
+            "successful": "10"
+          },
+          "pumpswap": {
+            "failed": "150",
+            "successful": "100"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "5",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline_usage_usd": "200.8165018136580946607264991",
+      "native_size_sensitivity_usage_usd": "230.6032253787221564180196541",
+      "scenario": "busy"
+    },
+    {
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "4",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "120",
+            "successful": "40"
+          },
+          "pumpswap": {
+            "failed": "1600",
+            "successful": "400"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "20",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline_usage_usd": "1360.229422498341373476249966",
+      "native_size_sensitivity_usage_usd": "955.9110699562126915546546805",
+      "scenario": "high_volume_stress"
+    }
+  ],
+  "native_mean_application_bytes": "9497.75",
+  "prices": {
+    "rpc_cu": {
+      "getBlockTime": 20,
+      "getGenesisHash": 10,
+      "getMultipleAccounts": 20,
+      "getSlot": 20,
+      "getTransaction": 40,
+      "getTransactionsForAddress": 100
+    },
+    "solana_ws_cu_per_byte": "0.0002",
+    "sources": [
+      "https://www.alchemy.com/docs/reference/compute-unit-costs",
+      "https://www.alchemy.com/pricing"
+    ],
+    "tb_bytes_assumed": "1000000000000",
+    "usd_per_million_cu": "0.525",
+    "yellowstone_usd_per_tb": "75"
+  },
+  "sample_N": 4,
+  "schema": "pump-admission-first-cost-sensitivity-v1"
+}

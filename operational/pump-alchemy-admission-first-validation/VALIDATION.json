@@ -1,0 +1,46 @@
+{
+  "PAPER_service_still_stopped": true,
+  "checked_at": "2026-10-08T19:24:58.561189+00:00",
+  "github_ci": "EXPLICITLY_SKIPPED_FOR_REPORT_PUBLICATION_LOCAL_FAST_RESULT_RETAINED",
+  "inherited_limits_unchanged": true,
+  "measured_and_reported_arithmetic_consistent": true,
+  "native_success_packet_count": 4,
+  "no_complete_evidence_or_savings_claim": true,
+  "offline_receipt_gate_and_original_boundary_tests": {
+    "log": "validation/preflight-gate.log",
+    "status": "PASS",
+    "tests": 11
+  },
+  "original_boundary_tests_unmodified": true,
+  "production_activation": false,
+  "production_source_files_unchanged": 363,
+  "protected_production_content_hashes_unchanged": true,
+  "provider_experiment": {
+    "attempts": 1,
+    "outcome": "INCONCLUSIVE",
+    "repeats": 0
+  },
+  "publication_secret_scan": {
+    "configured_provider_values_and_keys_absent": true,
+    "decompressed_frame_metadata_and_payloads_checked": true,
+    "secret_bearing_alchemy_urls_absent": true,
+    "status": "PASS"
+  },
+  "raw_archive_validated_records": 19622,
+  "raw_delivery_records": 19414,
+  "received_application_bytes": 28816086,
+  "required_offline_FAST": {
+    "completed_error_identities": [],
+    "completed_failure_identities": [],
+    "current_failure_identity_not_confirmed": true,
+    "failure_marker_observed": true,
+    "log": "validation/FAST.log",
+    "network_guard": true,
+    "production_environment_selectors_removed": true,
+    "receipt": "validation/FAST-receipt.json",
+    "status": "TIMEOUT",
+    "tests": null,
+    "timeout_seconds": 180
+  },
+  "schema": "pump-admission-first-publication-validation-v1"
+}

@@ -1,0 +1,109 @@
+{
+  "base_commit": "91ad8b608da357049c8c02e783fc41904634a535",
+  "excludes_self": true,
+  "files": {
+    "ADMIN_USAGE_AFTER_FINAL.json": {
+      "bytes": 4286,
+      "sha256": "e27d0e8ad92b078c1397c9ac5a0d3e060abd301d3a6d59d1d42b38b80ca44b16"
+    },
+    "ADMIN_USAGE_AFTER_INITIAL.json": {
+      "bytes": 3333,
+      "sha256": "060b294d22d39ccc29d663437b315526c53c9c3b9722145b75e3e0a358a2ce8b"
+    },
+    "ADMIN_USAGE_BEFORE.json": {
+      "bytes": 2104,
+      "sha256": "0e37e96dae69a2b4df382fb391680e32139f423aa2307ba425d6fa9846546087"
+    },
+    "ADMISSION_POLICY.json": {
+      "bytes": 903,
+      "sha256": "09c4bc15fe002e5a43094867fd1852f02be8d1fc9f9b8d5d904d45ac88695147"
+    },
+    "ADMISSION_RESULTS.json": {
+      "bytes": 3467,
+      "sha256": "927506d4aa69e68886d700828811952e6c3293c5b4de0e46004f4e5428983c02"
+    },
+    "BYTE_ACCOUNTING.json": {
+      "bytes": 6901,
+      "sha256": "774bbe4205fa4201b42d1fea689413cb71761f1dac70a372fc180debefee52c1"
+    },
+    "COST_ESTIMATES.json": {
+      "bytes": 7677,
+      "sha256": "5f7aa22c836072ecb06e35228d8371a1fd0da32f04c4a54b90afabd1c7a22510"
+    },
+    "CREDENTIAL_RECONCILIATION.json": {
+      "bytes": 1257,
+      "sha256": "e9cbf3b90c587d3a062898f470169f23283f8244eb42093ecd3396ccf6354ca1"
+    },
+    "DISPATCH.json": {
+      "bytes": 1193,
+      "sha256": "a5c7eb1ec06f6893f0663fd0e6dcbd5192fc8bd404b0844fa925c995615fc9c8"
+    },
+    "EXPERIMENT_ARTIFACTS.json": {
+      "bytes": 2771,
+      "sha256": "2f795aab92d6501a37645a042c30c587d1d60b091458be350ba3e18341fd265e"
+    },
+    "LOCAL_PREFLIGHT.json": {
+      "bytes": 4291,
+      "sha256": "6207568039d2454c71f2eb3a5dd3de4bcba0b0aab603e2632b3def2306439cb9"
+    },
+    "NATIVE_PAYLOAD_DISTRIBUTION.json": {
+      "bytes": 2158,
+      "sha256": "3c5ed94773f4a241241ee507fbe95ce6e56d32452802744615cdff71c29b4912"
+    },
+    "PRESERVATION.json": {
+      "bytes": 2561,
+      "sha256": "3a5b07e183fa758db7cec31f7444114f3fd6e2d8db71006681030710638301b3"
+    },
+    "REPORT.md": {
+      "bytes": 13819,
+      "sha256": "d0055ff74a3dc6427bcbef5c9c4093c74efd08430c168374b279a182f38f18bb"
+    },
+    "RESULT.json": {
+      "bytes": 4919,
+      "sha256": "8962fda7a0d0080f62126448a398b7e764f11f7eb9b6517142611f1cbd234f99"
+    },
+    "SOURCE_IDENTITIES.json": {
+      "bytes": 5691,
+      "sha256": "b1fa31bda35ea0de8f1b3621484e72708ccecda954a0d6f5e08263b753b14a05"
+    },
+    "USAGE_RECONCILIATION.json": {
+      "bytes": 2201,
+      "sha256": "f70232f69a8ce5a3839a4de5cb75724ca90f482256c19d62714345889d8f7569"
+    },
+    "VALIDATION.json": {
+      "bytes": 1618,
+      "sha256": "bc23a832ce951d6fbb9f9ce8edfbb5f33be7338eaaea4c7767102126fac6fafc"
+    },
+    "capture/engineering-artifact.json": {
+      "bytes": 241,
+      "sha256": "aff35d4a328a2180f96c0a71e81d001de7ed26680ea259d8686cf515bae6880a"
+    },
+    "capture/provider.frames.zlib": {
+      "bytes": 3959406,
+      "sha256": "3fa61443255084a857c4d7efa658d0440ab8e09fac7f44f4b8cc95170631e8ac"
+    },
+    "capture/result.json": {
+      "bytes": 15158,
+      "sha256": "19ca359bc24779a5ba661dfa733fde0931129c4766df48cd49b971f9f8c1e152"
+    },
+    "capture/supervisor.json": {
+      "bytes": 934,
+      "sha256": "531e4dc7ce8b4820b77f85b94d7b0550f3b51ffc6627f68317c130caea8c7d37"
+    },
+    "validation/FAST-receipt.json": {
+      "bytes": 481,
+      "sha256": "62fe484dfaba1c4862a7e01fe502fe8b3a5117daa1630b3801304be930ce5c21"
+    },
+    "validation/FAST.log": {
+      "bytes": 6531,
+      "sha256": "59600fd1db4b413831151cfd545e722d536e5fad967167683eb5c7d9387fd7c3"
+    },
+    "validation/preflight-gate.log": {
+      "bytes": 2653,
+      "sha256": "59812c6cbc02bc9436b9920f3a21dd7417a6ed6b569b6a0a35184d49eae2d199"
+    }
+  },
+  "outside_git": "Production credentials/state and disposable experiment databases; only secret-free evidence is published.",
+  "raw_frame_archive_sha256": "3fa61443255084a857c4d7efa658d0440ab8e09fac7f44f4b8cc95170631e8ac",
+  "schema": "pump-admission-first-publication-manifest-v1"
+}

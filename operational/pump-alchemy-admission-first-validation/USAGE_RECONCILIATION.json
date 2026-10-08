@@ -1,0 +1,43 @@
+{
+  "after_account_cu": "1737101.5362",
+  "after_buckets_partial": true,
+  "after_data_through": "2026-10-08T19:12:00.000Z",
+  "attribution": "APP_SCOPED_BUCKET_CHANGE_DURING_EXPERIMENT_OBSERVATION_INTERVAL_NOT_EXCLUSIVE_INVOICE_ATTRIBUTION",
+  "before_account_cu": "1730149.7724",
+  "before_pump_usage_rows": {
+    "cu": 0,
+    "native_tb": 0
+  },
+  "billing_finality": "NOT_FINALIZED_INVOICE",
+  "caveats": [
+    "Before queries returned no rows for this window, not certified zero instantaneous occupancy.",
+    "The after window includes the experiment plus any unknown external Pump-app activity.",
+    "Metered bandwidth is not raw application capture; protocol/buffering/dispatched-but-unread bytes are not allocated.",
+    "Both transport interests ran simultaneously, and no complete common interval or WS suppression occurred.",
+    "The USD sum is derived from published list prices, not an authenticated invoice amount.",
+    "No further polling or provider experiment is performed in this task."
+  ],
+  "combined_usage_usd_derived_from_published_prices": "0.006303948495",
+  "external_occupancy": "UNKNOWN",
+  "initial_after_snapshot_note": "At 19:04 only 40 CU and 9.616e-7 TB were reported; missing genesis/WS and increasing native TB demonstrate delayed reporting.",
+  "native_billing_bytes_derived_decimal_tb": "35390300.0000000000",
+  "native_billing_minus_received_application_bytes": "35316617.0000000000",
+  "other_known_local_provider_workloads": 0,
+  "pump_reported_cu_by_transport": {
+    "grpc": "0",
+    "http": "50",
+    "websocket": "6901.7638"
+  },
+  "pump_reported_native_tb": "0.0000353903",
+  "received_native_application_bytes": 73683,
+  "received_ws_application_bytes": 28742236,
+  "reported_account_cu_delta": "6951.7638",
+  "reported_account_usd_after": "0.91",
+  "reported_account_usd_before": "0.91",
+  "same_evidence_A_B_billed_savings_bytes": null,
+  "same_evidence_A_B_billed_savings_percent": null,
+  "schema": "pump-admission-first-authenticated-usage-reconciliation-v1",
+  "total_streaming_billing_bytes_derived": "69899119.0000000000",
+  "ws_billing_bytes_derived_from_reported_cu": "34508819",
+  "ws_billing_minus_received_application_bytes": "5766583"
+}

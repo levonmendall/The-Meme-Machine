@@ -1,0 +1,7 @@
+{
+  "classification": "DISPOSABLE_PROVIDER_CAPABILITY_ENGINEERING",
+  "max_bytes": 268435456,
+  "purpose": "Pump/PumpSwap finite probe; no PAPER or portfolio authority",
+  "started_monotonic": 568275.356223047,
+  "supervisor_pid": 1313181
+}

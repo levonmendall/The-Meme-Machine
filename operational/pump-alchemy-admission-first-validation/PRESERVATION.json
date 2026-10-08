@@ -1,0 +1,46 @@
+{
+  "capital_allocation_changes": 0,
+  "credential_changes": 0,
+  "deployment": false,
+  "durable_state_inventory_files": 64,
+  "durable_state_metadata_changed": [
+    "shared/solana-provider.sqlite",
+    "shared/solana-provider.sqlite-wal"
+  ],
+  "economic_state_metadata_changes": [],
+  "executor_except_preflight_gate_unchanged": true,
+  "expected_shared_governor_write_scope": [
+    "shared/solana-provider.sqlite",
+    "shared/solana-provider.sqlite-wal"
+  ],
+  "original_500_usd_paper_epoch": "paper-1791089005190643467",
+  "paper_service_after": "MainPID=0\nExecMainStartTimestamp=Tue 2026-10-06 16:35:27 UTC\nExecMainExitTimestamp=Tue 2026-10-06 16:47:24 UTC\nActiveState=inactive\nSubState=dead\n",
+  "paper_service_before": "MainPID=0\nExecMainStartTimestamp=Tue 2026-10-06 16:35:27 UTC\nExecMainExitTimestamp=Tue 2026-10-06 16:47:24 UTC\nActiveState=inactive\nSubState=dead\n",
+  "paused_lanes": [
+    "meteora",
+    "ramses"
+  ],
+  "production_source_files_unchanged": 363,
+  "production_state_content_hash_scope": "Five protected inception/portfolio/genesis files; other durable state is checked by size/inode/mtime, excluding shared-memory and locks.",
+  "production_subscription_switch": false,
+  "protected_after_sha256": {
+    "inception.json": "2f3ca8d2f2ce6eb8750fb63622c70f5e87943b1a222e5e29f892c6d9c727aeef",
+    "portfolio.json": "42e459c7c3b54caa1b1a67e938e09103e84aeedab89aebf47e52797159a0a17f",
+    "portfolio.sqlite": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087",
+    "portfolio.sqlite-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pump/native-genesis.json": "2fb1cddc05c30cf9416e2ed5d1189bc3c6a5898f8bb37ef50429263e148282a0"
+  },
+  "protected_before_sha256": {
+    "inception.json": "2f3ca8d2f2ce6eb8750fb63622c70f5e87943b1a222e5e29f892c6d9c727aeef",
+    "portfolio.json": "42e459c7c3b54caa1b1a67e938e09103e84aeedab89aebf47e52797159a0a17f",
+    "portfolio.sqlite": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087",
+    "portfolio.sqlite-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pump/native-genesis.json": "2fb1cddc05c30cf9416e2ed5d1189bc3c6a5898f8bb37ef50429263e148282a0"
+  },
+  "protected_files_unchanged": true,
+  "resource_limits_unchanged": true,
+  "schema": "pump-admission-first-production-preservation-v1",
+  "service_restart": false,
+  "shared_governor_note": "Authorized physical admission appends grants and method-pressure metadata; no PAPER economic authority is opened for writing.",
+  "strategy_changes": 0
+}

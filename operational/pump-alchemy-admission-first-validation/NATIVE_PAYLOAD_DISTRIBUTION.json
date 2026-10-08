@@ -1,0 +1,76 @@
+{
+  "N": 4,
+  "all_packets_below_requested_floor": true,
+  "candidate_floor": 454632197,
+  "complete_common_interval_sample": false,
+  "distinct_signatures": 4,
+  "maximum": 14898,
+  "mean": 9497.75,
+  "minimum": 6688,
+  "ordinary_median": 8202.5,
+  "p50": 6688,
+  "p95": 14898,
+  "p99": 14898,
+  "packets": [
+    {
+      "bytes": 6688,
+      "filters": [
+        "t"
+      ],
+      "meta_error_present": false,
+      "payload_sha256": "02b28dbe77b951107c34d9eff4d04634da4797eb2efed8adf28226f32b28b702",
+      "phase": "paired",
+      "signature": "fk77FRvatvkwaeGJATf2DGLHUmV1BHFUvyfoEu7MJcx1ZHPWbbB4HpdoP6SYUtP3n2txye6PGGKAHQhGxsEQ6ig",
+      "slot": 454632166,
+      "transaction_index": 269
+    },
+    {
+      "bytes": 6688,
+      "filters": [
+        "t"
+      ],
+      "meta_error_present": false,
+      "payload_sha256": "29500dcc516703c80b15682755b37231590f0df634188a371ea726b2425a816b",
+      "phase": "paired",
+      "signature": "5U1UXM8dZVQBB6Ys6LDpvGM4jsUYpKLByCZDN7Fo4mx1tb7CdXgjtoE8Zj62t9ZwVx1XUGtE9X4Q12bz76rHDKtx",
+      "slot": 454632166,
+      "transaction_index": 279
+    },
+    {
+      "bytes": 9717,
+      "filters": [
+        "t"
+      ],
+      "meta_error_present": false,
+      "payload_sha256": "c992f441f80d4aee0d9104b908578ebf677724e6203e130c0b244277d84f8351",
+      "phase": "paired",
+      "signature": "3Vos3ywDUx5TArhWw9T2GoMEykRXcpGNuooCfa5FCrzt6hfPei2x8DHd6eBNBW6PjxjvKBwELQT8Qg6yVNuQvfF6",
+      "slot": 454632166,
+      "transaction_index": 281
+    },
+    {
+      "bytes": 14898,
+      "filters": [
+        "t"
+      ],
+      "meta_error_present": false,
+      "payload_sha256": "297788c90ab1d7fc888eddade4e3623eea9c27d677ea400198edfb18925e13c4",
+      "phase": "transition",
+      "signature": "2vPg9XkPSWtBQjN8oStQMfykAqmypHk437TgTzceDdtFr6LmVQsgbuGNEFcRTHzQj9jom6hEvbezzxCGRmtNLcJQ",
+      "slot": 454632166,
+      "transaction_index": 308
+    }
+  ],
+  "paired_bytes": 23093,
+  "paired_messages": 3,
+  "quantile_method": "NEAREST_RANK; ordinary_median listed separately",
+  "sorted_bytes": [
+    6688,
+    6688,
+    9717,
+    14898
+  ],
+  "total_bytes": 37991,
+  "transition_bytes": 14898,
+  "transition_messages": 1
+}

@@ -1,0 +1,22 @@
+test_explicit_policy_accepts_unknown_without_relabeling_it_verified (tests.test_pump_admission_first_preflight.AdmissionFirstPreflightTests.test_explicit_policy_accepts_unknown_without_relabeling_it_verified) ... ok
+test_missing_owner_policy_or_any_local_safeguard_blocks (tests.test_pump_admission_first_preflight.AdmissionFirstPreflightTests.test_missing_owner_policy_or_any_local_safeguard_blocks) ... ok
+test_plain_unverified_receipt_remains_rejected (tests.test_pump_admission_first_preflight.AdmissionFirstPreflightTests.test_plain_unverified_receipt_remains_rejected) ... ok
+test_topology_identity_time_and_production_constraints_still_block (tests.test_pump_admission_first_preflight.AdmissionFirstPreflightTests.test_topology_identity_time_and_production_constraints_still_block) ... ok
+test_credentials_are_compared_without_emitting_keys_paths_or_suffixes (tests.test_pump_capability_executor.BoundaryTests.test_credentials_are_compared_without_emitting_keys_paths_or_suffixes) ... ok
+test_default_cli_and_request_validation_open_no_network (tests.test_pump_capability_executor.BoundaryTests.test_default_cli_and_request_validation_open_no_network) ... usage: -c [-h] [--execute-provider-experiment]
+          [--authorization-reference AUTHORIZATION_REFERENCE]
+          [--headroom-receipt HEADROOM_RECEIPT]
+          [--storage-policy-source STORAGE_POLICY_SOURCE] [--output OUTPUT]
+          [--env-file ENV_FILE]
+-c: error: live execution requires separate authorization, current headroom, admitted disposable output and the existing storage policy
+ok
+test_headroom_is_identity_topology_time_and_authorization_specific (tests.test_pump_capability_executor.BoundaryTests.test_headroom_is_identity_topology_time_and_authorization_specific) ... ok
+test_http_byte_meter_rejects_redirects_batches_and_unplanned_endpoints (tests.test_pump_capability_executor.BoundaryTests.test_http_byte_meter_rejects_redirects_batches_and_unplanned_endpoints) ... ok
+test_http_errors_and_response_overruns_are_metered_without_retries (tests.test_pump_capability_executor.BoundaryTests.test_http_errors_and_response_overruns_are_metered_without_retries) ... ok
+test_invalid_or_foreign_endpoints_cannot_pass_credential_role_reconciliation (tests.test_pump_capability_executor.BoundaryTests.test_invalid_or_foreign_endpoints_cannot_pass_credential_role_reconciliation) ... ok
+test_live_clock_cannot_be_replaced_with_a_synthetic_phase_clock (tests.test_pump_capability_executor.BoundaryTests.test_live_clock_cannot_be_replaced_with_a_synthetic_phase_clock) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.011s
+
+OK

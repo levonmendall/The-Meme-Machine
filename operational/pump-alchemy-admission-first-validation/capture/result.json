@@ -1,0 +1,531 @@
+{
+  "all_received_components": [
+    {
+      "bytes": 81,
+      "family": "getGenesisHash",
+      "messages": 1,
+      "phase": "paired",
+      "transport": "http"
+    },
+    {
+      "bytes": 86,
+      "family": "getSlot",
+      "messages": 2,
+      "phase": "paired",
+      "transport": "http"
+    },
+    {
+      "bytes": 20363735,
+      "family": "candidate_logs",
+      "messages": 13993,
+      "phase": "paired",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 23488,
+      "family": "pump",
+      "messages": 97,
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 24376,
+      "family": "pumpswap",
+      "messages": 16,
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 10648,
+      "family": "shared",
+      "messages": 88,
+      "phase": "paired",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 8090482,
+      "family": "candidate_logs",
+      "messages": 4974,
+      "phase": "shutdown",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 288019,
+      "family": "candidate_logs",
+      "messages": 240,
+      "phase": "transition",
+      "transport": "websocket"
+    },
+    {
+      "bytes": 240,
+      "family": "pump",
+      "messages": 1,
+      "phase": "transition",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 14898,
+      "family": "pumpswap",
+      "messages": 1,
+      "phase": "transition",
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 33,
+      "family": "shared",
+      "messages": 1,
+      "phase": "transition",
+      "transport": "yellowstone"
+    }
+  ],
+  "blockers": [
+    "combined_position_and_candidate_provider_latency_not_certified"
+  ],
+  "budget": {
+    "billed_traffic": "UNVERIFIED",
+    "failures": [
+      "ConnectionClosedError"
+    ],
+    "initiations": {
+      "channels": 1,
+      "http:getGenesisHash": 1,
+      "http:getSlot": 2,
+      "http_cu": 50,
+      "http_requests": 3,
+      "native_cancellations": 3,
+      "native_rpcs": 3,
+      "native_writes": 3,
+      "physical_methods": 8,
+      "records": 19414,
+      "ws_connections": 1,
+      "ws_published_cu_ceiling": 5749,
+      "ws_subscribes": 2
+    },
+    "limits": {
+      "cancellation_reserve": 67108864,
+      "channels": 1,
+      "frame_bytes": 16777216,
+      "http_cu": 90,
+      "http_requests": 5,
+      "native_rpcs": 3,
+      "native_writes": 3,
+      "paired_seconds": 45,
+      "physical_methods": 11,
+      "ping_writes": 12,
+      "receive_stop": 50331648,
+      "records": 100000,
+      "rss_bytes": 536870912,
+      "shutdown_seconds": 2,
+      "stopping_ceiling": 67108864,
+      "storage_bytes": 268435456,
+      "storage_stop": 234881024,
+      "wall_seconds": 60,
+      "ws_connections": 1,
+      "ws_subscribes": 2,
+      "ws_unsubscribes": 1
+    },
+    "native_compute_units": "NOT_CONVERTED_FROM_BYTES",
+    "peak_rss_bytes": 89300992,
+    "peak_storage_bytes": 20590592,
+    "protocol_overhead": "UNMEASURED",
+    "received_application_bytes": {
+      "cancellation": 8090482,
+      "http": 167,
+      "streaming": 28815919,
+      "total_application": 28816086,
+      "websocket": 28742236,
+      "yellowstone": 73683
+    },
+    "stopping_frame_total": null,
+    "storage_inventory_entry_limit": 256,
+    "wall_seconds": 46.30025778396521
+  },
+  "classification": "MEASURED_PROVIDER_APPLICATION",
+  "engineering_resources": {
+    "cpu_seconds": 20.835442902,
+    "peak_rss_bytes": 89300992,
+    "process_io_delta": {
+      "cancelled_write_bytes": 22224896,
+      "rchar": 33457920,
+      "read_bytes": 6623232,
+      "syscr": 125659,
+      "syscw": 412182,
+      "wchar": 747174670,
+      "write_bytes": 995827712
+    },
+    "sqlite_changes": 32155
+  },
+  "limitations": [
+    "No protocol/TLS overhead or vendor invoice measurement.",
+    "No funded positions, long-horizon recovery or market acceptance in this probe.",
+    "Missing/late native facts and original clock differences cannot be normalized away."
+  ],
+  "local_decode": {
+    "websocket.bytes": 20651754,
+    "websocket.messages": 14233,
+    "websocket.seconds": 0.6452635071473196,
+    "yellowstone.bytes": 58512,
+    "yellowstone.messages": 201,
+    "yellowstone.seconds": 0.003141012159176171
+  },
+  "native_streams": {
+    "by_consumer": {
+      "pump": {
+        "attempts": 1,
+        "client_open": 0,
+        "delivering": 0
+      },
+      "pumpswap": {
+        "attempts": 1,
+        "client_open": 0,
+        "delivering": 0
+      },
+      "shared": {
+        "attempts": 1,
+        "client_open": 0,
+        "delivering": 0
+      }
+    },
+    "client_open_streams": 0,
+    "delivering_streams": 0,
+    "errors": {},
+    "peak_client_streams": 3,
+    "provider_quota_verified": false
+  },
+  "paired": {
+    "alternative": {
+      "candidate_checkpoints": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "candidate_coverage": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "candidate_gaps": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "candidate_history_outbox": {
+        "rows": 246,
+        "sha256": "4ecd1c45c1d8445285f662402e96fae0b418d072592fece92ab025731203d51b"
+      },
+      "candidate_lifecycle": {
+        "rows": 52,
+        "sha256": "e76fb651c4dbd6adebd89b85e86729746905324f9b663d7b6c5253c6150230ec"
+      },
+      "candidate_pending_proofs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canonical_evidence": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "consumer:candidates": {
+        "rows": 52,
+        "sha256": "2d54de113a8a622733dd81f1c3199ddc3376b014f2cc18aba9869f91d9e5ddc7"
+      },
+      "consumer:canonical_event_refs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "consumer:work": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "evidence_bindings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "market_observations": {
+        "rows": 52,
+        "sha256": "0c35167a5f8a4d336519963cc2c3f27261de0f189021d3ca5f1b73bcca7ee704"
+      },
+      "native_witnesses": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "rolling_economic_addresses": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "rolling_origins": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "alternative_pending": {
+      "bytes": 0,
+      "early_log_bytes": 2682457,
+      "early_logs": 1570,
+      "missing_logs": 0,
+      "prefix_bytes": 24376,
+      "recent_bytes": 0,
+      "recent_slots": 0,
+      "slots": 0
+    },
+    "clocks": "ORIGINAL_RECEIPTS_UNMODIFIED",
+    "common_intervals": [],
+    "complete": false,
+    "differing_projections": [],
+    "funded_position_sample": "UNSAMPLED",
+    "missing_bodies": 0,
+    "missing_statuses": 0,
+    "reasons": [
+      "fewer_than_three_complete_common_intervals",
+      "pump_or_pumpswap_success_unsampled",
+      "model_b_publication_not_released"
+    ],
+    "reference": {
+      "candidate_checkpoints": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "candidate_coverage": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "candidate_gaps": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "candidate_history_outbox": {
+        "rows": 246,
+        "sha256": "4ecd1c45c1d8445285f662402e96fae0b418d072592fece92ab025731203d51b"
+      },
+      "candidate_lifecycle": {
+        "rows": 52,
+        "sha256": "e76fb651c4dbd6adebd89b85e86729746905324f9b663d7b6c5253c6150230ec"
+      },
+      "candidate_pending_proofs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canonical_evidence": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "consumer:candidates": {
+        "rows": 52,
+        "sha256": "2d54de113a8a622733dd81f1c3199ddc3376b014f2cc18aba9869f91d9e5ddc7"
+      },
+      "consumer:canonical_event_refs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "consumer:work": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "evidence_bindings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "market_observations": {
+        "rows": 52,
+        "sha256": "0c35167a5f8a4d336519963cc2c3f27261de0f189021d3ca5f1b73bcca7ee704"
+      },
+      "native_witnesses": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "rolling_economic_addresses": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "rolling_origins": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "reference_pending": {
+      "bytes": 0,
+      "early_log_bytes": 9213371,
+      "early_logs": 5214,
+      "missing_logs": 0,
+      "prefix_bytes": 1283,
+      "recent_bytes": 0,
+      "recent_slots": 0,
+      "slots": 0
+    },
+    "sampled_successes": {},
+    "unmatched_successes": 0
+  },
+  "production_configuration_changed": false,
+  "schema": "pump-alchemy-capability-v1",
+  "shutdown": {
+    "completed": true,
+    "failed_steps": [],
+    "native_cancelled": true,
+    "seconds": 0.2784531650831923
+  },
+  "status": "INCONCLUSIVE",
+  "suppression_acknowledged": false,
+  "suppression_attempted": false,
+  "suppression_evidence": {
+    "attempted": false,
+    "complete": false
+  },
+  "traffic": {
+    "additional_http_requests": 0,
+    "all_delivery_components": [
+      {
+        "bytes": 39,
+        "component": "ack:1",
+        "messages": 1,
+        "phase": "paired",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 39,
+        "component": "ack:2",
+        "messages": 1,
+        "phase": "paired",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 2869265,
+        "component": "pump_failed",
+        "messages": 4188,
+        "phase": "paired",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 63172,
+        "component": "pump_failed",
+        "messages": 86,
+        "phase": "transition",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 3397842,
+        "component": "pump_success",
+        "messages": 1711,
+        "phase": "paired",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 18023,
+        "component": "pump_success",
+        "messages": 10,
+        "phase": "transition",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 5628273,
+        "component": "pumpswap_failed",
+        "messages": 4127,
+        "phase": "paired",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 87943,
+        "component": "pumpswap_failed",
+        "messages": 75,
+        "phase": "transition",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 8468277,
+        "component": "pumpswap_success",
+        "messages": 3965,
+        "phase": "paired",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 118881,
+        "component": "pumpswap_success",
+        "messages": 69,
+        "phase": "transition",
+        "transport": "websocket"
+      },
+      {
+        "bytes": 23488,
+        "component": "pump:account",
+        "messages": 97,
+        "phase": "paired",
+        "transport": "yellowstone"
+      },
+      {
+        "bytes": 33,
+        "component": "pumpswap:slot",
+        "messages": 1,
+        "phase": "paired",
+        "transport": "yellowstone"
+      },
+      {
+        "bytes": 23093,
+        "component": "pumpswap:transaction",
+        "messages": 3,
+        "phase": "paired",
+        "transport": "yellowstone"
+      },
+      {
+        "bytes": 1250,
+        "component": "pumpswap:transaction_status",
+        "messages": 12,
+        "phase": "paired",
+        "transport": "yellowstone"
+      },
+      {
+        "bytes": 9209,
+        "component": "shared:block_meta",
+        "messages": 44,
+        "phase": "paired",
+        "transport": "yellowstone"
+      },
+      {
+        "bytes": 1439,
+        "component": "shared:slot",
+        "messages": 44,
+        "phase": "paired",
+        "transport": "yellowstone"
+      }
+    ],
+    "allocated_architecture_a_streaming_bytes": 20399154,
+    "allocated_architecture_b_streaming_bytes": 6325658,
+    "allocation": "MEASURED_COMPONENTS_ON_ONE_SIMULTANEOUS_SESSION_NOT_TWO_INDEPENDENT_PROVIDER_RUNS",
+    "break_even_limit": "PAIRED_COMPONENT_ALLOCATION_ONLY; DIFFERENTIAL_RECOVERY_HTTP_AND_POSITION_OVERHEAD_UNMEASURED",
+    "disposition": "INCONCLUSIVE_UNTIL_ALL_SESSION_OVERHEAD_AND_RECOVERY_ARE_RECONCILED",
+    "engineering_commit_metrics": {
+      "alternative": {
+        "count": 0,
+        "maximum_seconds": 0.0,
+        "seconds": 0.0
+      },
+      "reference": {
+        "count": 0,
+        "maximum_seconds": 0.0,
+        "seconds": 0.0
+      }
+    },
+    "full_native_success_application_bytes": 23093,
+    "full_native_success_messages": 3,
+    "matching_interval_break_even": null,
+    "matching_interval_distinct_native_success_identities": 0,
+    "matching_interval_native_full_bytes": 0,
+    "matching_interval_native_success_count": 0,
+    "matching_interval_ws_replacement_bytes": 0,
+    "mean_full_native_success_bytes": 7697.666666666667,
+    "observed_paired_http_bytes": 167,
+    "observed_paired_streaming_total": 20422247,
+    "original_native_minus_ws_receipt_seconds": {
+      "average": null,
+      "maximum": null,
+      "minimum": null,
+      "samples": 0
+    },
+    "paired_allocation_break_even_per_common_success": null,
+    "paired_component_delta_bytes": null,
+    "paired_native_full_outside_common_intervals": 23093,
+    "paired_session_component_delta_bytes": 14073496,
+    "paired_streaming_bytes_not_routed_to_evidence": 0,
+    "paired_ws_replacement_outside_common_intervals": 14096589,
+    "positions": "INDEPENDENT_PRODUCTION_INTERESTS_PRESERVED_NOT_INSTANTIATED",
+    "recovery": "NO_RECONNECT_OR_RETRY_AUTHORIZED",
+    "unrouted_bytes": "CHARGED_IN_BOTH_ALLOCATIONS_INCLUDING_HEARTBEAT_STOPPING_AND_CANCELLATION_DATA",
+    "verified_provider_savings_bytes": 0
+  },
+  "verified_provider_savings_bytes": 0
+}

@@ -1,0 +1,130 @@
+{
+  "base_commit": "91ad8b608da357049c8c02e783fc41904634a535",
+  "executor_except_receipt_gate_ast_identical": true,
+  "limits": {
+    "cancellation_reserve": 67108864,
+    "channels": 1,
+    "frame_bytes": 16777216,
+    "http_cu": 90,
+    "http_requests": 5,
+    "native_rpcs": 3,
+    "native_writes": 3,
+    "paired_seconds": 45,
+    "physical_methods": 11,
+    "ping_writes": 12,
+    "receive_stop": 50331648,
+    "records": 100000,
+    "rss_bytes": 536870912,
+    "shutdown_seconds": 2,
+    "stopping_ceiling": 67108864,
+    "storage_bytes": 268435456,
+    "storage_stop": 234881024,
+    "wall_seconds": 60,
+    "ws_connections": 1,
+    "ws_subscribes": 2,
+    "ws_unsubscribes": 1
+  },
+  "no_resource_limit_relaxation": true,
+  "pinned_external_storage_policy_sha256": "24d4362f465586d08fe8f917dcf69b553d39a2b9b0c87635e5b0ae9200bce87d",
+  "preflight_only_diff": {
+    "deletions": 1,
+    "insertions": 12
+  },
+  "production_source_files_unchanged": 363,
+  "python": "3.12.14",
+  "schema": "pump-admission-first-source-attestation-v1",
+  "shared_governor": "EXISTING_PRODUCTION_SOLANA_GOVERNOR",
+  "source_files": {
+    "engineering/solana_capacity/bandwidth_audit.py": {
+      "base_sha256": "ccd8294acc32a7fa8bef3eb9268e1d23b662ccf1cdc73e794f8894b6d626008f",
+      "executed_sha256": "ccd8294acc32a7fa8bef3eb9268e1d23b662ccf1cdc73e794f8894b6d626008f",
+      "unchanged": true
+    },
+    "engineering/solana_capacity/capability_evidence.py": {
+      "base_sha256": "aec19291ea65924a0c1961abebdff91b9f6e44d5350a69eab8d750fe16a176ec",
+      "executed_sha256": "aec19291ea65924a0c1961abebdff91b9f6e44d5350a69eab8d750fe16a176ec",
+      "unchanged": true
+    },
+    "engineering/solana_capacity/capability_executor.py": {
+      "base_sha256": "68f5f0a4f002cb12e8a1cec13e833bcc263fdeef4f5a7dcb5ac38388c403ad89",
+      "executed_sha256": "fa418431054bae542befa02e17ca75c3a904c1960ddaba7a81dcbf7f50a84b61",
+      "unchanged": false
+    },
+    "engineering/solana_capacity/capability_limits.py": {
+      "base_sha256": "5434ea599590892f99780fdc51faa6fea173c7186f6af77d848e5db62e15437a",
+      "executed_sha256": "5434ea599590892f99780fdc51faa6fea173c7186f6af77d848e5db62e15437a",
+      "unchanged": true
+    },
+    "engineering/solana_capacity/credential_reconciliation.py": {
+      "base_sha256": "49c49bff50711086c427eaacfe9047bdbd90d80b1452b5b383c4364a4e2fbb52",
+      "executed_sha256": "49c49bff50711086c427eaacfe9047bdbd90d80b1452b5b383c4364a4e2fbb52",
+      "unchanged": true
+    },
+    "engineering/solana_capacity/transport_meter.py": {
+      "base_sha256": "208142e70219936197915e7e304a470e904231f16d666f6312c5d76290eea066",
+      "executed_sha256": "208142e70219936197915e7e304a470e904231f16d666f6312c5d76290eea066",
+      "unchanged": true
+    },
+    "meme_machine/runtime/governor.py": {
+      "base_sha256": "ba77d183345037366333b7e7b81ceac9443b8d603254423d7be0e1ff61165034",
+      "executed_sha256": "ba77d183345037366333b7e7b81ceac9443b8d603254423d7be0e1ff61165034",
+      "unchanged": true
+    },
+    "meme_machine/solana_candidate_join.py": {
+      "base_sha256": "d35773573b7bbf75e4f56090b78470bc924b8cb576aca231b39e6c98602ffaaf",
+      "executed_sha256": "d35773573b7bbf75e4f56090b78470bc924b8cb576aca231b39e6c98602ffaaf",
+      "unchanged": true
+    },
+    "meme_machine/solana_selective_source.py": {
+      "base_sha256": "ef5542f3909679eb564b36b8cb5e1bb18fae7acf75f3668e19e9271a04db2bdf",
+      "executed_sha256": "ef5542f3909679eb564b36b8cb5e1bb18fae7acf75f3668e19e9271a04db2bdf",
+      "unchanged": true
+    },
+    "meme_machine/solana_source_intake.py": {
+      "base_sha256": "8dacbd0f2052d4654041bfc74b4141549faccd3430eb8043266a05a51ea32f6c",
+      "executed_sha256": "8dacbd0f2052d4654041bfc74b4141549faccd3430eb8043266a05a51ea32f6c",
+      "unchanged": true
+    },
+    "meme_machine/yellowstone/geyser.proto": {
+      "base_sha256": "80ee337f361198a0722cb5bdf244fe41838949ab7a3af6d1b182b7fdca9abf02",
+      "executed_sha256": "80ee337f361198a0722cb5bdf244fe41838949ab7a3af6d1b182b7fdca9abf02",
+      "unchanged": true
+    },
+    "meme_machine/yellowstone/geyser_pb2.py": {
+      "base_sha256": "49b69068e8187f7ac4c008f8a368568f4a579d63deb57674a12865ddc9917215",
+      "executed_sha256": "49b69068e8187f7ac4c008f8a368568f4a579d63deb57674a12865ddc9917215",
+      "unchanged": true
+    },
+    "meme_machine/yellowstone/solana-storage.proto": {
+      "base_sha256": "e5d16ba9a9e83f6ed8c92a96b6b75dfd64c43f897b976011eb3ec5abe2f3c818",
+      "executed_sha256": "e5d16ba9a9e83f6ed8c92a96b6b75dfd64c43f897b976011eb3ec5abe2f3c818",
+      "unchanged": true
+    },
+    "meme_machine/yellowstone/solana_storage_pb2.py": {
+      "base_sha256": "71038c6f244fccdb15f118c55391604ff6a25305f22060252fbd7b6ada4fa710",
+      "executed_sha256": "71038c6f244fccdb15f118c55391604ff6a25305f22060252fbd7b6ada4fa710",
+      "unchanged": true
+    },
+    "operational/tests.py": {
+      "base_sha256": "f3c325fa2dcef86dedcc31ea031dca0c3e05193eb8e22b53ff090c832c8ef5e3",
+      "executed_sha256": "f3c325fa2dcef86dedcc31ea031dca0c3e05193eb8e22b53ff090c832c8ef5e3",
+      "unchanged": true
+    },
+    "tests/test_pump_admission_first_preflight.py": {
+      "added_sha256": "a3c6c9464fd56a21af769549345fbc8520452bb298187b9b1963fed638521e8b",
+      "offline_tests": 4
+    },
+    "tests/test_pump_capability_executor.py": {
+      "base_sha256": "547a6808238831c5548c79128aea0fa4c9bfbd309aa319d7cbf436d397b8cd64",
+      "executed_sha256": "547a6808238831c5548c79128aea0fa4c9bfbd309aa319d7cbf436d397b8cd64",
+      "unchanged": true
+    }
+  },
+  "transport_packages": {
+    "based58": "0.1.1",
+    "grpcio": "1.84.0",
+    "protobuf": "7.36.2",
+    "pysimdjson": "7.0.2",
+    "websockets": "17.1"
+  }
+}

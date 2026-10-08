@@ -1,0 +1,136 @@
+{
+  "schema": "pump-admission-first-authenticated-usage-after-v1",
+  "account_summary": {
+    "data": {
+      "billingPeriod": {
+        "startTime": "2026-10-01T00:00:00.000Z",
+        "endTime": "2026-11-01T00:00:00.000Z"
+      },
+      "totals": {
+        "monthToDate": {
+          "amount": "1730189.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last7Days": {
+          "amount": "1730189.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last30Days": {
+          "amount": "1730189.7724",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        }
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T19:04:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      }
+    }
+  },
+  "pump_cu": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-08T18:00:00Z",
+        "endTime": "2026-10-08T19:04:01.966Z",
+        "granularity": "hour",
+        "products": [
+          "SUPERNODE_CU"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "filters": {
+          "appIds": [
+            "9bin99s96t7ga5e9"
+          ]
+        },
+        "groupBy": [
+          "requestType",
+          "method"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T19:04:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": [
+        {
+          "startTime": "2026-10-08T19:00:00.000Z",
+          "endTime": "2026-10-08T20:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "requestType": "http",
+            "method": "getSlot"
+          },
+          "amount": "40",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T19:00:00.000Z",
+          "endTime": "2026-10-08T20:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "requestType": "grpc",
+            "method": "subscribe"
+          },
+          "amount": "0",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        }
+      ]
+    }
+  },
+  "pump_native_tb": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-08T18:00:00Z",
+        "endTime": "2026-10-08T19:04:01.902Z",
+        "granularity": "hour",
+        "products": [
+          "SOLANA_GRPC_TB"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "filters": {
+          "appIds": [
+            "9bin99s96t7ga5e9"
+          ]
+        },
+        "groupBy": [
+          "requestType"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-08T19:04:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": [
+        {
+          "startTime": "2026-10-08T19:00:00.000Z",
+          "endTime": "2026-10-08T20:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "requestType": "grpc"
+          },
+          "amount": "9.616e-7",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T19:00:00.000Z",
+          "endTime": "2026-10-08T20:00:00.000Z",
+          "isPartial": true,
+          "dimensions": {
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        }
+      ]
+    }
+  }
+}

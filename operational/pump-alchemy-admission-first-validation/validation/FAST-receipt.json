@@ -1,0 +1,19 @@
+{
+  "failure_marker_observed": true,
+  "final_failure_identity_unavailable": true,
+  "final_test_count": null,
+  "network_guard": true,
+  "production_environment_selectors_removed": true,
+  "provider_experiment_repeated": false,
+  "remaining_FAST_processes": 0,
+  "schema": "pump-admission-first-offline-fast-check-v1",
+  "status": "TIMEOUT",
+  "test_command": [
+    "python",
+    "-m",
+    "operational.tests",
+    "FAST"
+  ],
+  "timeout_seconds": 180,
+  "wrapper_exit_code": 1
+}

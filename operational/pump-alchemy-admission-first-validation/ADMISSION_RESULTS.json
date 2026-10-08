@@ -1,0 +1,144 @@
+{
+  "channel_count": 1,
+  "denied_grants": 0,
+  "external_yellowstone_occupancy": "UNKNOWN",
+  "grants": [
+    {
+      "ended": 568275.893055878,
+      "granted": 1,
+      "id": 2075,
+      "lane": "evidence",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568275.884124824,
+      "wait": 0.008931054035201669
+    },
+    {
+      "ended": 568276.394803803,
+      "granted": 1,
+      "id": 2076,
+      "lane": "evidence",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568275.964413891,
+      "wait": 0.4303899119840935
+    },
+    {
+      "ended": 568276.894291832,
+      "granted": 1,
+      "id": 2077,
+      "lane": "pump",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568276.449847944,
+      "wait": 0.44444388803094625
+    },
+    {
+      "ended": 568277.395131199,
+      "granted": 1,
+      "id": 2078,
+      "lane": "pump",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568276.912891985,
+      "wait": 0.48223921400494874
+    },
+    {
+      "ended": 568277.895702199,
+      "granted": 1,
+      "id": 2079,
+      "lane": "pump",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568276.913066269,
+      "wait": 0.982635929947719
+    },
+    {
+      "ended": 568278.397306933,
+      "granted": 1,
+      "id": 2080,
+      "lane": "pump",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568276.913466882,
+      "wait": 1.4838400509906933
+    },
+    {
+      "ended": 568278.897071508,
+      "granted": 1,
+      "id": 2081,
+      "lane": "pump",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568277.545801034,
+      "wait": 1.3512704740278423
+    },
+    {
+      "ended": 568279.398547989,
+      "granted": 1,
+      "id": 2082,
+      "lane": "pump",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568278.9061048,
+      "wait": 0.49244318902492523
+    },
+    {
+      "ended": 568282.754198989,
+      "granted": 1,
+      "id": 2083,
+      "lane": "evidence",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568282.744842417,
+      "wait": 0.00935657205991447
+    },
+    {
+      "ended": 568285.242545368,
+      "granted": 1,
+      "id": 2084,
+      "lane": "pump",
+      "priority": 50,
+      "provider": "solana",
+      "reason": "granted",
+      "requested": 568285.230657973,
+      "wait": 0.011887395055964589
+    }
+  ],
+  "initial_ws_subscriptions": 2,
+  "local_physical_requests_admitted": true,
+  "maximum_wait_seconds": 1.4838400509906933,
+  "native_error_receipts": [],
+  "original_candidate_and_position_deadline_parity": "UNSAMPLED_NO_WORK_OR_POSITION_UNITS",
+  "original_native_minus_ws_receipt_seconds": {
+    "average": null,
+    "maximum": null,
+    "minimum": null,
+    "samples": 0
+  },
+  "peak_native_subscribe_streams": 3,
+  "provider_pressure_after": [
+    {
+      "cooldown": 0.0,
+      "grants": 2048,
+      "next_at": 568285.738688469,
+      "provider": "solana",
+      "rate_errors": 0
+    }
+  ],
+  "provider_quota_verified": false,
+  "queue_after": [],
+  "resource_exhausted_observed": false,
+  "schema": "pump-admission-first-shared-governor-results-v1",
+  "total_grants": 10,
+  "websocket_connections": 1
+}

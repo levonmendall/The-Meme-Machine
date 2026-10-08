@@ -252,6 +252,17 @@ class HTTPBoundary:
 def validate_headroom(receipt, endpoint_identity, authorization, *, now=time.time):
     if type(receipt) is not dict:
         raise CapabilityStop('current_account_headroom_required')
+    # The owner may explicitly accept unknown external occupancy and validate
+    # admission on the finite probe. Preserve that fact rather than asserting
+    # account-wide headroom. All identity/time/topology and resource gates stay.
+    admission_first = (
+        receipt.get('admission_policy') == 'OWNER_AUTHORIZED_ADMISSION_FIRST' and
+        receipt.get('headroom_verified') is False and
+        receipt.get('external_yellowstone_occupancy') == 'UNKNOWN' and
+        receipt.get('unknown_external_occupancy_accepted') is True and
+        all(receipt.get(check) is True for check in (
+            'paper_stopped_verified', 'known_competing_workloads_clear',
+            'existing_shared_governor_verified', 'resource_protections_verified')))
     expected = dict(native_channels=1, native_subscribe_rpcs=3, websocket_connections=1,
                     websocket_subscriptions=2, candidate_filters=5)
     if (not authorization or receipt.get('authorization_reference') != authorization or
@@ -259,7 +270,7 @@ def validate_headroom(receipt, endpoint_identity, authorization, *, now=time.tim
             receipt.get('app_id') != APP_IDS['pump'] or
             receipt.get('credential_app_binding_verified') is not True or
             receipt.get('additional_experiment_topology') != expected or
-            receipt.get('headroom_verified') is not True or
+            not (receipt.get('headroom_verified') is True or admission_first) or
             receipt.get('production_changes_required') is not False or
             type(receipt.get('checked_at')) not in (int, float) or
             type(receipt.get('expires_at')) not in (int, float) or

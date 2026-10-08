@@ -1,0 +1,164 @@
+{
+  "account_wide_headroom_verified": false,
+  "existing_shared_governor": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1/shared/solana-provider.sqlite",
+  "external_yellowstone_occupancy": "UNKNOWN",
+  "governor_last_grant_id": 2074,
+  "governor_methods": [
+    {
+      "cooldown": 0.0,
+      "method": "getGenesisHash",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    },
+    {
+      "cooldown": 0.0,
+      "method": "getMultipleAccounts",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    },
+    {
+      "cooldown": 0.0,
+      "method": "getBlockTime",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    },
+    {
+      "cooldown": 0.0,
+      "method": "getTransactionsForAddress",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    },
+    {
+      "cooldown": 0.0,
+      "method": "getBlock",
+      "provider": "solana",
+      "rate_errors": 0,
+      "rate_streak": 0,
+      "success_streak": 0
+    }
+  ],
+  "governor_pressure": [
+    {
+      "cooldown": 0.0,
+      "grants": 2038,
+      "next_at": 398584.86896909,
+      "provider": "solana",
+      "rate_errors": 0
+    }
+  ],
+  "governor_queue": [],
+  "known_competing_workloads": [],
+  "limits": {
+    "cancellation_reserve": 67108864,
+    "channels": 1,
+    "frame_bytes": 16777216,
+    "http_cu": 90,
+    "http_requests": 5,
+    "native_rpcs": 3,
+    "native_writes": 3,
+    "paired_seconds": 45,
+    "physical_methods": 11,
+    "ping_writes": 12,
+    "receive_stop": 50331648,
+    "records": 100000,
+    "rss_bytes": 536870912,
+    "shutdown_seconds": 2,
+    "stopping_ceiling": 67108864,
+    "storage_bytes": 268435456,
+    "storage_stop": 234881024,
+    "wall_seconds": 60,
+    "ws_connections": 1,
+    "ws_subscribes": 2,
+    "ws_unsubscribes": 1
+  },
+  "observed_at": "2026-10-08T19:01:42.526296+00:00",
+  "owner_dashboard_facts": {
+    "live_occupancy_established": false,
+    "monthly_cu_allowance": "UNLIMITED",
+    "payg_active": true,
+    "provenance": "OWNER_DASHBOARD_CONFIRMATION",
+    "seven_day_peak_cu_per_second": "431.667",
+    "throughput_capacity_cu_per_second": 10000
+  },
+  "packages": {
+    "based58": "0.1.1",
+    "grpcio": "1.84.0",
+    "protobuf": "7.36.2",
+    "pysimdjson": "7.0.2",
+    "websockets": "17.1"
+  },
+  "paper_service": "MainPID=0\nExecMainStartTimestamp=Tue 2026-10-06 16:35:27 UTC\nExecMainExitTimestamp=Tue 2026-10-06 16:47:24 UTC\nActiveState=inactive\nSubState=dead\n",
+  "processes": [
+    {
+      "executable": "/usr/bin/python3",
+      "modules": [],
+      "pid": 940,
+      "provider_variable_names": [],
+      "script_paths": []
+    },
+    {
+      "executable": "/opt/meme-machine/.venv/bin/python",
+      "modules": [
+        "meme_machine.operational.metrics"
+      ],
+      "pid": 677764,
+      "provider_variable_names": [],
+      "script_paths": []
+    },
+    {
+      "executable": "/opt/meme-machine/.venv/bin/python",
+      "modules": [
+        "meme_machine.operational.uptime_health"
+      ],
+      "pid": 677765,
+      "provider_variable_names": [],
+      "script_paths": []
+    },
+    {
+      "executable": "/opt/meme-machine/.venv/bin/python",
+      "modules": [
+        "meme_machine.operational.observation"
+      ],
+      "pid": 1053186,
+      "provider_variable_names": [],
+      "script_paths": []
+    },
+    {
+      "executable": "/opt/meme-machine/.venv/bin/python",
+      "modules": [
+        "meme_machine.operational.monitoring"
+      ],
+      "pid": 1053263,
+      "provider_variable_names": [],
+      "script_paths": []
+    }
+  ],
+  "retained_engineering_bytes": 6377472,
+  "runtime": "3.12.14",
+  "storage_admission": {
+    "destination": {
+      "device": 64769,
+      "free_bytes": 16421834752,
+      "percent_used": 67.71634287484876,
+      "total_bytes": 50867331072,
+      "used_bytes": 34445496320
+    },
+    "estimated_bytes": 268435456,
+    "root": {
+      "device": 64769,
+      "free_bytes": 16421834752,
+      "percent_used": 67.71634287484876,
+      "total_bytes": 50867331072,
+      "used_bytes": 34445496320
+    }
+  },
+  "storage_policy_sha256": "24d4362f465586d08fe8f917dcf69b553d39a2b9b0c87635e5b0ae9200bce87d"
+}

@@ -1,0 +1,26 @@
+{
+  "attempts": 1,
+  "authorization_reference": "owner-20261008-one-admission-first-pump-experiment",
+  "command_without_credentials": [
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-m",
+    "engineering.solana_capacity.capability_executor",
+    "--execute-provider-experiment",
+    "--authorization-reference",
+    "owner-20261008-one-admission-first-pump-experiment",
+    "--headroom-receipt",
+    "/root/Documents/Codex/2026-10-08/pump-alchemy-authorize-final-provider-validation/admission-first-private/admission-receipt.json",
+    "--storage-policy-source",
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo/meme_machine/operational/artifact_storage.py",
+    "--env-file",
+    "/etc/meme-machine/paper.env",
+    "--output",
+    "/tmp/mm-engineering-pump-capability-admission-first-20261008T190142Z"
+  ],
+  "executor_exit_code": 1,
+  "finished_at": "2026-10-08T19:02:29.191002+00:00",
+  "output": "/tmp/mm-engineering-pump-capability-admission-first-20261008T190142Z",
+  "retry_authorized": false,
+  "schema": "one-pump-experiment-dispatch-v1",
+  "started_at": "2026-10-08T19:01:42.536152+00:00"
+}

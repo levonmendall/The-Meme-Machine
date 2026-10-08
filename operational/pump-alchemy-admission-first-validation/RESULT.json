@@ -1,0 +1,148 @@
+{
+  "base_commit": "91ad8b608da357049c8c02e783fc41904634a535",
+  "blockers": [
+    "no_complete_common_finalized_intervals",
+    "native_candidate_delivery_only_below_requested_floor",
+    "billed_usage_not_reconciled",
+    "combined_position_and_candidate_provider_latency_not_certified"
+  ],
+  "bounded_shutdown_seconds": 0.2784531650831923,
+  "candidate_locator_projection_equal": true,
+  "candidate_locator_projection_rows": 52,
+  "candidate_state_and_deadline_parity": "NOT_ESTABLISHED",
+  "canonical_failure_trades_committed": 0,
+  "committed_economic_rows": 0,
+  "complete_common_intervals": 0,
+  "complete_economic_history_parity": "NOT_ESTABLISHED",
+  "current_survivor_independence": "UNCHANGED_SOURCES_NOT_LIVE_CERTIFIED",
+  "economic_winner": "UNDETERMINED",
+  "experiments_completed": 1,
+  "experiments_started": 1,
+  "extensions": 0,
+  "further_provider_experiment_requires_fresh_authorization": true,
+  "hard_kill": false,
+  "incomplete_evidence_reasons": [
+    "fewer_than_three_complete_common_intervals",
+    "pump_or_pumpswap_success_unsampled",
+    "model_b_publication_not_released"
+  ],
+  "payload_distribution": {
+    "N": 4,
+    "all_packets_below_requested_floor": true,
+    "candidate_floor": 454632197,
+    "complete_common_interval_sample": false,
+    "distinct_signatures": 4,
+    "maximum": 14898,
+    "mean": 9497.75,
+    "minimum": 6688,
+    "ordinary_median": 8202.5,
+    "p50": 6688,
+    "p95": 14898,
+    "p99": 14898,
+    "packets": [
+      {
+        "bytes": 6688,
+        "filters": [
+          "t"
+        ],
+        "meta_error_present": false,
+        "payload_sha256": "02b28dbe77b951107c34d9eff4d04634da4797eb2efed8adf28226f32b28b702",
+        "phase": "paired",
+        "signature": "fk77FRvatvkwaeGJATf2DGLHUmV1BHFUvyfoEu7MJcx1ZHPWbbB4HpdoP6SYUtP3n2txye6PGGKAHQhGxsEQ6ig",
+        "slot": 454632166,
+        "transaction_index": 269
+      },
+      {
+        "bytes": 6688,
+        "filters": [
+          "t"
+        ],
+        "meta_error_present": false,
+        "payload_sha256": "29500dcc516703c80b15682755b37231590f0df634188a371ea726b2425a816b",
+        "phase": "paired",
+        "signature": "5U1UXM8dZVQBB6Ys6LDpvGM4jsUYpKLByCZDN7Fo4mx1tb7CdXgjtoE8Zj62t9ZwVx1XUGtE9X4Q12bz76rHDKtx",
+        "slot": 454632166,
+        "transaction_index": 279
+      },
+      {
+        "bytes": 9717,
+        "filters": [
+          "t"
+        ],
+        "meta_error_present": false,
+        "payload_sha256": "c992f441f80d4aee0d9104b908578ebf677724e6203e130c0b244277d84f8351",
+        "phase": "paired",
+        "signature": "3Vos3ywDUx5TArhWw9T2GoMEykRXcpGNuooCfa5FCrzt6hfPei2x8DHd6eBNBW6PjxjvKBwELQT8Qg6yVNuQvfF6",
+        "slot": 454632166,
+        "transaction_index": 281
+      },
+      {
+        "bytes": 14898,
+        "filters": [
+          "t"
+        ],
+        "meta_error_present": false,
+        "payload_sha256": "297788c90ab1d7fc888eddade4e3623eea9c27d677ea400198edfb18925e13c4",
+        "phase": "transition",
+        "signature": "2vPg9XkPSWtBQjN8oStQMfykAqmypHk437TgTzceDdtFr6LmVQsgbuGNEFcRTHzQj9jom6hEvbezzxCGRmtNLcJQ",
+        "slot": 454632166,
+        "transaction_index": 308
+      }
+    ],
+    "paired_bytes": 23093,
+    "paired_messages": 3,
+    "quantile_method": "NEAREST_RANK; ordinary_median listed separately",
+    "sorted_bytes": [
+      6688,
+      6688,
+      9717,
+      14898
+    ],
+    "total_bytes": 37991,
+    "transition_bytes": 14898,
+    "transition_messages": 1
+  },
+  "peak_output_bytes": 20660224,
+  "peak_rss_bytes": 89300992,
+  "position_safety": "UNSAMPLED_NO_POSITION_WORK",
+  "received_application_bytes": {
+    "cancellation": 8090482,
+    "http": 167,
+    "streaming": 28815919,
+    "total_application": 28816086,
+    "websocket": 28742236,
+    "yellowstone": 73683
+  },
+  "recommended_next_action": "RETAIN_WEBSOCKETS_AND_REVIEW_PREFIX_ONLY_NATIVE_PROGRESS_OFFLINE",
+  "reconnects": 0,
+  "recorded_failure_codes": [
+    "ConnectionClosedError"
+  ],
+  "replacement_path_activated": false,
+  "request_counts": {
+    "channels": 1,
+    "http:getGenesisHash": 1,
+    "http:getSlot": 2,
+    "http_cu": 50,
+    "http_requests": 3,
+    "native_cancellations": 3,
+    "native_rpcs": 3,
+    "native_writes": 3,
+    "physical_methods": 8,
+    "records": 19414,
+    "ws_connections": 1,
+    "ws_published_cu_ceiling": 5749,
+    "ws_subscribes": 2
+  },
+  "resource_bound_breach": false,
+  "retries": 0,
+  "schema": "pump-admission-first-final-outcome-v1",
+  "shutdown_failure_causality": "ConnectionClosedError was recorded while closing after the incomplete paired comparison; no earlier native admission rejection is in the capture.",
+  "status": "INCONCLUSIVE",
+  "stop_cause": "paired_comparison_failed_completeness_at_45_second_boundary",
+  "suppression_attempted": false,
+  "verified_provider_savings_bytes": null,
+  "verified_provider_savings_percent": null,
+  "verified_savings_credited_bytes": 0,
+  "wall_seconds": 46.37405045994092
+}
