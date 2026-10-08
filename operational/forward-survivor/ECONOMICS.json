@@ -1,0 +1,149 @@
+{
+  "actual_account_billing": "UNMEASURED",
+  "as_of": "2026-10-08",
+  "cold_start": {
+    "removed_whole_market_seed_cu": 0,
+    "retained_costs": [
+      "chain/genesis/deployment/head verification",
+      "targeted pre-enrollment launch lookup when nominated",
+      "new candidate canonical economic histories",
+      "only previously observed outage tails"
+    ],
+    "whole_market_cold_seed_rpc_elements": 0,
+    "whole_market_scan_dispatched": false
+  },
+  "market_provider_calls_this_task": 0,
+  "normal_30_day_factory_only": {
+    "excludes": [
+      "canonical heads",
+      "launch/graduation receipt witnesses",
+      "lineage authentication",
+      "economic pool cohorts",
+      "Current",
+      "quotes",
+      "positions",
+      "outage/reorg retries",
+      "Pump"
+    ],
+    "free_allowance_days_factory_only": "5.847005581384470687290447497",
+    "log_method_elements": 2565416,
+    "payg_equivalent_usd": "80.810604",
+    "published_cu": 153924960
+  },
+  "obsolete_seven_day_factory_only": {
+    "dispatch_allowed": false,
+    "four_log_batch_http_attempts": 149650,
+    "free_allowance_excess_cu": 5915820,
+    "log_method_elements": 598597,
+    "published_cu": 35915820
+  },
+  "outage_factory_only": [
+    {
+      "log_method_elements": 60,
+      "published_cu": 3600,
+      "seconds": 60
+    },
+    {
+      "log_method_elements": 297,
+      "published_cu": 17820,
+      "seconds": 300
+    },
+    {
+      "log_method_elements": 3564,
+      "published_cu": 213840,
+      "seconds": 3600
+    }
+  ],
+  "prospective_cost_formula": "C_total = 60 L + 20 (H + R + T + code) + 26 calls + C_pump_rpc + .04 B_evm + .0002 B_solana; add Yellowstone bytes * 75/10^12 dollars separately. L includes every economic cohort and recovery range, not just factory discovery.",
+  "published": {
+    "eth_call_cu": 26,
+    "eth_getBlockByNumber_cu": 20,
+    "eth_getCode_cu": 20,
+    "eth_getLogs_cu": 60,
+    "eth_getTransactionByHash_cu": 20,
+    "eth_getTransactionReceipt_cu": 20,
+    "eth_subscribe_cu": 10,
+    "eth_unsubscribe_cu": 10,
+    "evm_subscription_cu_per_byte": ".04",
+    "free_monthly_cu": 30000000,
+    "payg_free_30m_credit": false,
+    "payg_usd_per_million_cu": ".525",
+    "robinhood_free_max_range_blocks": 10,
+    "solana_subscription_cu_per_byte": ".0002",
+    "yellowstone_usd_per_decimal_tb": "75"
+  },
+  "resource_model": {
+    "candidate_population_cap": null,
+    "economic_transport_cohort_candidates": 64,
+    "factory_batch_blocks": 40,
+    "http_response_bound_bytes": 2000000,
+    "normal_storage_growth": "UNMEASURED; retain strategy/recovery evidence and all position obligations; report per-event and durable write traffic during next proof, not tape bytes/second extrapolation",
+    "range_bound_blocks": 10,
+    "response_log_limit": 1024,
+    "serialized_pons_interval_seconds": 3,
+    "throughput_ceiling_ignoring_work_seconds": 13.333333333333334,
+    "unchanged_provider_admission_seconds": ".5"
+  },
+  "retained_pump_delivery_model": {
+    "active_captured_delivery_seconds": 13.764220476150513,
+    "excludes": "TLS/framing/account billing/error charge policy; this capture cannot certify a mature steady rate",
+    "post_release_captured_delivery_seconds": 2.3786072731018066,
+    "prior_diagnostic_native_cu": 98305,
+    "prior_diagnostic_rpc_cu": 12210,
+    "published_rpc_cu_equivalent": 2984,
+    "reported_rpc_elements": 132,
+    "sha256": "0ea03cbdf0bfb38371db57ade786abb26d750272620fb867571353799c93e79e",
+    "solana_ws_payload_bytes": 48501501,
+    "solana_ws_published_cu_equivalent": "9700.3002",
+    "source": "operational/pump-provider-finalization/BYTE_LATENCY.json",
+    "valid_monthly_projection": false,
+    "yellowstone_payload_bytes": 1829265,
+    "yellowstone_published_usd_equivalent": "0.000137194875"
+  },
+  "saved_planning_basis": {
+    "blocks_per_second": "9.897437169312169312169312169",
+    "new_live_measurement": false,
+    "path": "operational/pons-historical-bootstrap/PROJECTIONS.json",
+    "seven_day_blocks": 5985970,
+    "sha256": "898d1be2b9a403ef33088f2c679fa270422e52a0026f0f57b74ae05c72297d05"
+  },
+  "schema": "forward-survivor-provider-model-v1",
+  "sources": {
+    "method_costs": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+    "plans": "https://www.alchemy.com/pricing",
+    "robinhood_logs": "https://www.alchemy.com/docs/chains/robinhood-chain/robinhood-chain-api-endpoints/eth-get-logs",
+    "robinhood_subscription": "https://www.alchemy.com/docs/chains/robinhood-chain/robinhood-chain-api-endpoints/eth-subscribe"
+  },
+  "subscription_model": {
+    "completeness": "Uptime and head checks alone cannot prove absence of missing factory events. Canonical interval enumeration or an authenticated equivalent completeness contract remains necessary; a hybrid may retain the same polling floor.",
+    "factory_only_break_even_delivered_bytes": 3848124000.0,
+    "fifteen_second_head_checks_30_day_cu": 3456000,
+    "filtered_pons_delivered_bytes": "UNMEASURED",
+    "implementation_enabled": false,
+    "one_decimal_mb_cu": 40000,
+    "one_decimal_mb_payg_equivalent_usd": ".021"
+  },
+  "wider_payg_research_only": [
+    {
+      "dispatch_allowed": false,
+      "log_method_elements": 59860,
+      "operational_prerequisite": false,
+      "published_factory_only_cu": 3591600,
+      "range_blocks": 100
+    },
+    {
+      "dispatch_allowed": false,
+      "log_method_elements": 5986,
+      "operational_prerequisite": false,
+      "published_factory_only_cu": 359160,
+      "range_blocks": 1000
+    },
+    {
+      "dispatch_allowed": false,
+      "log_method_elements": 599,
+      "operational_prerequisite": false,
+      "published_factory_only_cu": 35940,
+      "range_blocks": 10000
+    }
+  ]
+}
