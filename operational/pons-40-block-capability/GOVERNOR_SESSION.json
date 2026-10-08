@@ -1,0 +1,158 @@
+{
+  "local_pacer_wait_seconds": 1.100190581928473,
+  "minimum_admission_start_interval_seconds": 0.5002560329739936,
+  "physical_http_attempts": 7,
+  "retries": 0,
+  "rows": [
+    {
+      "admitted_at": 517122.149199931,
+      "batch": false,
+      "boundary": null,
+      "endpoint_fingerprint": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+      "http_status": 200,
+      "lane": "pons",
+      "latency_seconds": 0.0722527609905228,
+      "methods": [
+        "eth_chainId"
+      ],
+      "physical_requests": 1,
+      "queue_depth": 1,
+      "retry_attempt": 0,
+      "retry_count": 0,
+      "rpc_error_code": null,
+      "scope": "connectivity",
+      "session": "921c099e52a340e988c57e94f830ec37",
+      "wait_seconds": 0.002858521998859942
+    },
+    {
+      "admitted_at": 517122.649945047,
+      "batch": true,
+      "boundary": null,
+      "endpoint_fingerprint": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+      "http_status": 200,
+      "lane": "pons",
+      "latency_seconds": 0.3188881639507599,
+      "methods": [
+        "eth_getBlockByNumber",
+        "eth_getCode"
+      ],
+      "physical_requests": 1,
+      "queue_depth": 1,
+      "retry_attempt": 0,
+      "retry_count": 0,
+      "rpc_error_code": null,
+      "scope": "pons_historical_preparation",
+      "session": "921c099e52a340e988c57e94f830ec37",
+      "wait_seconds": 0.0034691159962676466
+    },
+    {
+      "admitted_at": 517123.151170574,
+      "batch": true,
+      "boundary": null,
+      "endpoint_fingerprint": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+      "http_status": 200,
+      "lane": "pons",
+      "latency_seconds": 0.21881442604353651,
+      "methods": [
+        "eth_getBlockByNumber",
+        "eth_getBlockByNumber",
+        "eth_getBlockByNumber"
+      ],
+      "physical_requests": 1,
+      "queue_depth": 1,
+      "retry_attempt": 0,
+      "retry_count": 0,
+      "rpc_error_code": null,
+      "scope": "pons_historical_preparation",
+      "session": "921c099e52a340e988c57e94f830ec37",
+      "wait_seconds": 0.004628447990398854
+    },
+    {
+      "admitted_at": 517123.651426607,
+      "batch": true,
+      "boundary": null,
+      "endpoint_fingerprint": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+      "http_status": 200,
+      "lane": "pons",
+      "latency_seconds": 0.3076158430194482,
+      "methods": [
+        "eth_getLogs",
+        "eth_getLogs",
+        "eth_getLogs",
+        "eth_getLogs"
+      ],
+      "physical_requests": 1,
+      "queue_depth": 1,
+      "retry_attempt": 0,
+      "retry_count": 0,
+      "rpc_error_code": null,
+      "scope": "pons_historical_preparation",
+      "session": "921c099e52a340e988c57e94f830ec37",
+      "wait_seconds": 0.0047887819819152355
+    },
+    {
+      "admitted_at": 517124.151753373,
+      "batch": true,
+      "boundary": null,
+      "endpoint_fingerprint": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+      "http_status": 200,
+      "lane": "pons",
+      "latency_seconds": 0.28433522599516436,
+      "methods": [
+        "eth_getBlockByNumber"
+      ],
+      "physical_requests": 1,
+      "queue_depth": 1,
+      "retry_attempt": 0,
+      "retry_count": 0,
+      "rpc_error_code": null,
+      "scope": "pons_historical_preparation",
+      "session": "921c099e52a340e988c57e94f830ec37",
+      "wait_seconds": 0.00502653099829331
+    },
+    {
+      "admitted_at": 517124.652013442,
+      "batch": true,
+      "boundary": null,
+      "endpoint_fingerprint": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+      "http_status": 200,
+      "lane": "pons",
+      "latency_seconds": 0.3148725539795123,
+      "methods": [
+        "eth_getTransactionReceipt"
+      ],
+      "physical_requests": 1,
+      "queue_depth": 1,
+      "retry_attempt": 0,
+      "retry_count": 0,
+      "rpc_error_code": null,
+      "scope": "pons_historical_preparation",
+      "session": "921c099e52a340e988c57e94f830ec37",
+      "wait_seconds": 0.005107681034132838
+    },
+    {
+      "admitted_at": 517125.157922625,
+      "batch": true,
+      "boundary": null,
+      "endpoint_fingerprint": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+      "http_status": null,
+      "lane": "pons",
+      "latency_seconds": 0.07389296998735517,
+      "methods": [
+        "eth_getLogs"
+      ],
+      "physical_requests": 1,
+      "queue_depth": 1,
+      "retry_attempt": 0,
+      "retry_count": 0,
+      "rpc_error_code": null,
+      "scope": "pons_historical_preparation",
+      "session": "921c099e52a340e988c57e94f830ec37",
+      "wait_seconds": 0.010904006019700319
+    }
+  ],
+  "session": "921c099e52a340e988c57e94f830ec37",
+  "shared_admission_wait_seconds": 0.036783086019568145,
+  "transport_seconds": 1.5906719439662993,
+  "wire_elements": 13
+}

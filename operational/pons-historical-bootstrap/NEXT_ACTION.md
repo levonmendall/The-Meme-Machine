@@ -1,17 +1,23 @@
 # Finite next action, not a provider authorization
 
-Status: **OPTIMIZED_BOOTSTRAP_READY_FOR_BOUNDED_PROVIDER_VALIDATION**.
-No authenticated seed exists in inspected local resources. Market-provider
-requests, deployment, epoch changes and production PAPER writes remain outside
-this task. The combined latency-certification blocker remains in source.
+Status: **UNSUPPORTED_40_BLOCK_RANGE**, measured once on 2026-10-08.
+The existing account explicitly rejects more than ten blocks for this method.
+See [the capability handoff](../pons-40-block-capability/HANDOFF.md).
+The range-comparison authorization is consumed; no repeat or additional scan
+follows. Prospective seven-day accumulation is the recommended next path under
+separate operational/provider authorization. No complete seed exists; deployment,
+epoch changes and production PAPER writes remain unauthorized. The combined
+latency-certification blocker remains in source.
 
-## First: a nonempty historical range comparison
+## Recorded nonempty historical range comparison (closed)
 
-The reviewed callable is
+The executed callable is
 `engineering.pons_history.capability.compare(disposable_history, existing_governed_provider, first)`.
 Importing it makes no request. The caller must supply the original canonical
 Robinhood authority and governor, a disposable PonsHistory, and separately
-authorized provider usage. It opens no alternative connection or authority.
+authorized provider usage. The repaired
+`engineering.pons_history.run_capability` executor bounds the underlying physical
+transport, including nested calls. It opens no alternative connection or authority.
 
 Use the preserved authentic V2 graduation at block **56,882,711** as a locator:
 first **56,882,701**, last **56,882,740**. Original captured transaction:
@@ -24,11 +30,11 @@ empty, return an evidence constraint instead of trying thousands of other ranges
 |---|---|
 | Duration | 45 seconds, including governor waits and response work; inherited deadline can shorten it |
 | Logical elements | 64, checked before every batch |
-| Physical HTTP attempts | At most 32 batches; retries must be zero; normal cache hits may reduce attempts |
-| RPC methods | Existing chain/genesis/header reads, standard `eth_getLogs`, receipt witnesses only |
+| Physical HTTP attempts | At most 32 actual attempts, including failures and nested witnesses; all retries zero |
+| RPC methods | Chain/genesis/header reads, one pinned historical factory `eth_getCode`, standard `eth_getLogs`, receipt witnesses |
 | Ranges | Four ten-block factory OR-topic requests vs one forty-block request over exactly the same interval |
 | Response size | Existing 2,000,000-byte client ceiling; cap failures count and stop |
-| Response payload upper bound | 32 × 2,000,001 bytes read = 64,000,032 bytes; headers/TLS/unread bodies are not included |
+| Response payload upper bound | 32 × 2,000,000 bytes read = 64,000,000 bytes; no excess-byte probe; headers/TLS/unread bodies excluded |
 | Request payload | Small fixed filters and witness hashes; record actual attempted payload bytes using native telemetry |
 | Diagnostic CU | ≤6,400 at 100 per dispatched element; billed CU/dollars unavailable without independent account data |
 | Temporary stock | ≤128 MiB on the existing attached volume, no root capture or full-state snapshot |
@@ -50,10 +56,11 @@ throughput or seven-day parity. Manager queries still retain adaptive safeguards
 any unsupported filter/range response remains incomplete. No automatic batch
 widening or account-tier change follows. Ordinary runtime stays ten/forty blocks.
 
-Exact authorization needed: permission for this one bounded historical
-Robinhood RPC capability comparison through the existing account, with the above
-duration/request/CU/storage ceilings, writing only disposable evidence. This
-document does not supply that permission and the comparison has not run.
+The owner authorized exactly one comparison with these ceilings. It completed
+with an explicit forty-block rejection: 7 physical attempts, 14 logical demands,
+13 dispatched elements, 1,300 diagnostic CU, and 3.242420 seconds including
+worker shutdown. The four ten-block responses contain one authenticated
+graduation. No successful support receipt or widening was published.
 
 ## Then choose prospective acquisition or a phased backfill
 
@@ -66,12 +73,13 @@ Survivor opportunities before maturity are unavailable. Provider cost is spread
 over the week, not eliminated. New-graduation economic histories are accumulated
 continuously, so future ordinary outages need only tail catch-up.
 
-For backfill, use these finite review gates rather than authorize an uncapped
-seven-day run. The implementation is resumable between gates; no completed range
-needs repeating after a transient failure.
+The following backfill proposals remain historical contingencies, not the next
+recommended execution or authorization. This account's forty-block gate failed.
+No independently measured complete-population economic envelope supports cold
+backfill over prospective accumulation. The implementation remains resumable.
 
-1. **Capability gate above:** maximum 64 elements / 32 attempts / 45 seconds.
-   If it fails, retain ten-block queries; do not purchase a tier or switch providers.
+1. **Capability gate above: completed, unsupported.** Retain ten-block queries;
+   do not repeat, purchase a tier or switch providers.
 2. **Density/economic sizing gate, new authorization required:** a fixed 400-block
    canonical factory interval containing an authentic graduation, with complete
    receipts and one bounded 40-block economic slice for each discovered eligible

@@ -49,11 +49,12 @@
       "moving_head_census_hours": 5.361998395841366,
       "checkpointed_empty_history_projected_bytes": 101855698,
       "cumulative_history_wal_write_projected_bytes": 4016129907,
-      "supported_live_range": "UNVERIFIED",
+      "supported_live_range": "UNSUPPORTED_40_BLOCK_RANGE",
       "limitations": [
         "empty census excludes all event witnesses, launch authentication, mandatory economic histories, failures and competing traffic",
         "all projections assume useful 0.5-second physical slots at existing rate, not higher rates",
-        "linear empty storage/write extrapolation, not real populated capacity"
+        "linear empty storage/write extrapolation, not real populated capacity",
+        "hypothetical projection unavailable on tested existing account; no achieved request or actual cost savings"
       ],
       "storage_projection_basis": "fixed empty DB plus linearly scaled range table/index pages; economic and shared cache storage additional"
     }
@@ -71,5 +72,17 @@
     "not a measured complete bootstrap",
     "old report rounds to 1047550 elements; exact ceil model here is 1047547",
     "actual seven-day boundary is obtained by canonical timestamp search, not this estimated block rate"
-  ]
+  ],
+  "provider_capability_result": {
+    "classification": "UNSUPPORTED_40_BLOCK_RANGE",
+    "provider_fingerprint": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+    "first": 56882701,
+    "last": 56882740,
+    "event_count": 1,
+    "forty_block_savings_available": false,
+    "actual_billed_cu": null,
+    "actual_dollars": null,
+    "recommended_path": "prospective_seven_day_accumulation",
+    "evidence": "../pons-40-block-capability/RESULT.json"
+  }
 }

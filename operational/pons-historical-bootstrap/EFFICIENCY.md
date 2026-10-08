@@ -1,6 +1,18 @@
 # Acquisition costs and practical choice
 
-Numbers below distinguish local measurements, generated transport batches and live projections. No market-provider request or billed-CU measurement occurred.
+Numbers below distinguish the original local measurements, generated transport
+batches and live projections. The single subsequent live capability comparison
+returned **UNSUPPORTED_40_BLOCK_RANGE**; the existing provider explicitly permits
+up to ten blocks for this method/account. Its four ten-block responses contain
+one authenticated graduation; its forty-block request was rejected. The complete
+[capability report](../pons-40-block-capability/HANDOFF.md) records 7 physical
+attempts, 14 logical demands, 13 dispatched elements, 1,300 diagnostic CU and
+3.242420 seconds. Actual billed CU and dollar cost remain unknown.
+
+The forty-block column below is a hypothetical cost comparison unavailable under
+the tested conditions. Its projected 75% request reduction is **not** achieved
+request or actual cost savings. Retain the ten-block default; increasing budgets
+cannot overcome this explicit per-query restriction.
 
 ## Measured empty factory census
 
@@ -31,7 +43,7 @@ This is not a demonstrated whole-bootstrap speedup. Dense economic work remains 
 
 These are empty-census estimates for the prior planning 5,985,970 blocks. Actual boundaries use canonical timestamps. Event witnesses, older-launch searches, candidate histories, failures, fairness and Current/position maintenance are additional. None of the times is a measured complete bootstrap.
 
-| Requirement | Existing cold scan | Prepared ten-block path | Prepared forty-block path, if verified |
+| Requirement | Existing cold scan | Prepared ten-block path | Hypothetical forty-block path, rejected by this account |
 |---|---:|---:|---:|
 | Historical block intervals covered | 5,985,970 | 5,985,970 | 5,985,970 |
 | Logical census RPC elements | 1,047,547 | 897,897 | 224,476 |
@@ -41,7 +53,7 @@ These are empty-census estimates for the prior planning 5,985,970 blocks. Actual
 | Moving-head catch-up hours | 55.24 | 23.72 | 5.36 |
 | Empty durable history projection | 49,152 B cursor only | 245.5 MB | 101.9 MB |
 | Empty cumulative WAL-write projection | 2.63 GB | 12.51 GB | 4.02 GB |
-| Complete candidate recall | required | required; native parity on fixtures | required; live capability unverified |
+| Complete candidate recall | required | required; native parity on fixtures | required; query rejected in the live sample |
 | Canonical completeness | required | checkpointed ranges plus native witnesses | same, with comparison/subdivision safeguards |
 | Provider dollars / billed CU | unmeasured | unmeasured | unmeasured |
 | CPU/RAM at populated seven-day scale | unmeasured | unmeasured; local measurements above | unmeasured; local measurements above |
@@ -59,6 +71,18 @@ At the planning chain growth rate, a five-minute outage produces about 2,970 blo
 
 Prospective accumulation has no immediate seven-day seed. It avoids a catch-up burst and spread-only census demand is roughly 0.247 four-range packets/second at the planning block rate, before latest/extension checks, witnesses, histories or other traffic. Readiness requires the original inclusive domain to mature and complete candidate evidence; seven days of elapsed wall time alone is insufficient. The rolling census does not eliminate seven-day RPC count or economic work. Opportunity loss before Survivor readiness is the explicit tradeoff.
 
-Given the inspected evidence, prefer the finite forty-block capability comparison first. If the account cannot widen, prefer prospective accumulation over a tens-of-millions-CU cold census unless the owner authorizes and values earlier Survivor readiness. If widening succeeds, measure candidate density before cost/stock approval for a full campaign. No projected orders-of-magnitude whole-bootstrap saving is asserted.
+The capability gate is closed. Prefer prospective accumulation: Survivor's
+inclusive seven-day domain must move strictly past authenticated enrollment,
+and every required candidate history must be complete. This delays Survivor
+availability by at least seven days plus any outstanding evidence work. Cold
+backfill offers potentially earlier availability but its estimated empty census
+alone needs 897,897 logical elements, 149,650 attempts and 89.79M diagnostic CU;
+the moving-head model takes 23.72 hours of otherwise available provider slots.
+Prospective accumulation spreads census work over the enrollment week instead
+of eliminating it (about 0.247 four-range physical packets/second at the planning
+block rate, before other evidence). Actual graduation authentication, pool
+activity, receipts, sender evidence, price histories and candidate evaluations
+remain additional in either path. No measured dollar saving or full acquisition
+duration is established. Prospective enrollment was not started by this test.
 
 Native telemetry now records logical elements, actual physical attempts, batches, cache avoidance, provider errors and payload bytes. Bytes mean attempted HTTP JSON payload and response payload actually read; TLS/headers/partial sends and unread error bodies are excluded. Estimated CU is the existing diagnostic weight. Actual billed CU requires independent account evidence and stays null. Public RPC calls count as consumption.

@@ -1,5 +1,13 @@
 # Pons historical preparation and warm restart
 
+**2026-10-08 provider follow-up: UNSUPPORTED_40_BLOCK_RANGE.** The single
+authorized comparison authenticated one event through four ten-block queries;
+the configured provider explicitly rejected the forty-block query. Retain
+ten-block requests and prefer prospective seven-day accumulation. See the
+[capability handoff](../pons-40-block-capability/HANDOFF.md) for exact usage,
+filters, evidence and preservation checks. No further provider test is authorized.
+The original offline implementation handoff below remains its publication record.
+
 **Outcome: OPTIMIZED_BOOTSTRAP_READY_FOR_BOUNDED_PROVIDER_VALIDATION.**
 The implementation and deterministic offline validation are complete. No
 authenticated complete seven-day Pons seed was recovered. No live historical
