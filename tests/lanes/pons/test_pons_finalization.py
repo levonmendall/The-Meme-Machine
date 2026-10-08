@@ -278,7 +278,7 @@ class SurvivorSchedulingTests(RuntimeCase):
 
     def test_failed_64_member_batch_rotates_and_all_1025_advance_after_restart(self):
         self.seed();attempts=[];failed=[False]
-        def collect(endpoint,*,markets,start_block,end_block):
+        def collect(endpoint,*,markets,start_block,end_block,**kwargs):
             self.assertLessEqual(len(markets),64);self.assertEqual((start_block,end_block),(101,140))
             attempts.append([m['token'] for m in markets])
             if not failed[0]:failed[0]=True;raise BoundaryError('provider_http_429')

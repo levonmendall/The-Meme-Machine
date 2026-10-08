@@ -1,0 +1,66 @@
+test_historical_witness_receipt_sender_matches_transaction_body_fallback (tests.test_robinhood_payg.EvidenceCase.test_historical_witness_receipt_sender_matches_transaction_body_fallback) ... ok
+test_range_rejection_in_success_http_envelope_is_classified_and_not_retried (tests.test_robinhood_payg.EvidenceCase.test_range_rejection_in_success_http_envelope_is_classified_and_not_retried) ... ok
+test_runtime_rates_keep_physical_billing_and_throughput_units_distinct (tests.test_robinhood_payg.EvidenceCase.test_runtime_rates_keep_physical_billing_and_throughput_units_distinct) ... ok
+test_two_application_binding_and_rotation_are_secret_free (tests.test_robinhood_payg.EvidenceCase.test_two_application_binding_and_rotation_are_secret_free) ... ok
+test_unknown_method_is_never_zero_priced_in_throughput_telemetry (tests.test_robinhood_payg.EvidenceCase.test_unknown_method_is_never_zero_priced_in_throughput_telemetry) ... ok
+test_default_preflight_is_provider_free_and_keeps_all_reviewed_limits (tests.test_robinhood_payg.ProofCase.test_default_preflight_is_provider_free_and_keeps_all_reviewed_limits) ... ok
+test_edited_proof_contract_is_rejected_before_any_work (tests.test_robinhood_payg.ProofCase.test_edited_proof_contract_is_rejected_before_any_work) ... ok
+test_historical_malformed_receipt_sender_never_triggers_untrusted_buyer_evidence (tests.test_robinhood_payg.ProofCase.test_historical_malformed_receipt_sender_never_triggers_untrusted_buyer_evidence) ... ok
+test_native_forward_workload_runs_offline_without_creating_a_paper_book (tests.test_robinhood_payg.ProofCase.test_native_forward_workload_runs_offline_without_creating_a_paper_book) ... ok
+test_original_physical_limit_cannot_be_overrun_by_a_batch (tests.test_robinhood_payg.ProofCase.test_original_physical_limit_cannot_be_overrun_by_a_batch) ... ok
+test_original_wall_deadline_is_not_extended_by_retries (tests.test_robinhood_payg.ProofCase.test_original_wall_deadline_is_not_extended_by_retries) ... ok
+test_paused_and_unpriced_provider_endpoints_are_refused (tests.test_robinhood_payg.ProofCase.test_paused_and_unpriced_provider_endpoints_are_refused) ... ok
+test_physical_logical_cu_and_response_reservations_are_independent (tests.test_robinhood_payg.ProofCase.test_physical_logical_cu_and_response_reservations_are_independent) ... ok
+test_proof_stop_is_not_caught_by_native_provider_retry_handlers (tests.test_robinhood_payg.ProofCase.test_proof_stop_is_not_caught_by_native_provider_retry_handlers) ... ok
+test_provider_errors_are_terminal_without_retry_or_error_text (tests.test_robinhood_payg.ProofCase.test_provider_errors_are_terminal_without_retry_or_error_text) ... ok
+test_resource_and_subscription_byte_ceilings_stop_before_more_work (tests.test_robinhood_payg.ProofCase.test_resource_and_subscription_byte_ceilings_stop_before_more_work) ... ok
+test_separate_wider_comparison_preserves_original_proof_and_authenticates_nonempty_union (tests.test_robinhood_payg.ProofCase.test_separate_wider_comparison_preserves_original_proof_and_authenticates_nonempty_union) ... ok
+test_transport_counts_real_http_boundary_without_revealing_endpoint (tests.test_robinhood_payg.ProofCase.test_transport_counts_real_http_boundary_without_revealing_endpoint) ... ok
+test_unreviewed_wider_query_is_refused_before_dispatch (tests.test_robinhood_payg.ProofCase.test_unreviewed_wider_query_is_refused_before_dispatch) ... ok
+test_unscoped_wider_comparison_and_unreviewed_subscription_filters_are_refused (tests.test_robinhood_payg.ProofCase.test_unscoped_wider_comparison_and_unreviewed_subscription_filters_are_refused) ... ok
+test_aggregate_byte_overflow_splits_batch_before_block_ranges (tests.test_robinhood_payg.WindowsCase.test_aggregate_byte_overflow_splits_batch_before_block_ranges) ... ok
+test_bad_density_hint_never_expands_the_capability_ceiling (tests.test_robinhood_payg.WindowsCase.test_bad_density_hint_never_expands_the_capability_ceiling) ... ok
+test_credential_rotation_invalidates_capability_and_density_domain (tests.test_robinhood_payg.WindowsCase.test_credential_rotation_invalidates_capability_and_density_domain) ... ok
+test_current_keeps_fifty_element_batching_without_omitting_any_block (tests.test_robinhood_payg.WindowsCase.test_current_keeps_fifty_element_batching_without_omitting_any_block) ... ok
+test_dense_saturation_subdivides_deterministically_without_buyer_loss (tests.test_robinhood_payg.WindowsCase.test_dense_saturation_subdivides_deterministically_without_buyer_loss) ... ok
+test_entitlement_empty_sample_wrong_chain_and_incomplete_comparison_fall_back (tests.test_robinhood_payg.WindowsCase.test_entitlement_empty_sample_wrong_chain_and_incomplete_comparison_fall_back) ... ok
+test_new_comparison_can_clear_prior_rejection_but_not_reuse_an_old_proof (tests.test_robinhood_payg.WindowsCase.test_new_comparison_can_clear_prior_rejection_but_not_reuse_an_old_proof) ... ok
+test_one_wide_success_never_authorizes_larger_windows (tests.test_robinhood_payg.WindowsCase.test_one_wide_success_never_authorizes_larger_windows) ... ok
+test_range_rejection_uses_exact_ten_block_fallback_and_survives_restart (tests.test_robinhood_payg.WindowsCase.test_range_rejection_uses_exact_ten_block_fallback_and_survives_restart) ... ok
+test_rate_limit_and_slow_provider_do_not_start_duplicate_recovery (tests.test_robinhood_payg.WindowsCase.test_rate_limit_and_slow_provider_do_not_start_duplicate_recovery) ... ok
+test_recovery_exhaustion_has_no_false_checkpoint_or_infinite_retry (tests.test_robinhood_payg.WindowsCase.test_recovery_exhaustion_has_no_false_checkpoint_or_infinite_retry) ... ok
+test_removed_and_conflicting_logs_are_gaps_never_complete (tests.test_robinhood_payg.WindowsCase.test_removed_and_conflicting_logs_are_gaps_never_complete) ... ok
+test_reordered_duplicates_reduce_to_exact_order (tests.test_robinhood_payg.WindowsCase.test_reordered_duplicates_reduce_to_exact_order) ... ok
+test_single_block_saturation_never_advances_canonical_checkpoint (tests.test_robinhood_payg.WindowsCase.test_single_block_saturation_never_advances_canonical_checkpoint) ... ok
+test_unknown_pagination_envelope_is_not_a_complete_array (tests.test_robinhood_payg.WindowsCase.test_unknown_pagination_envelope_is_not_a_complete_array) ... ok
+test_unproved_filter_or_larger_pool_union_falls_back_without_dropping_pools (tests.test_robinhood_payg.WindowsCase.test_unproved_filter_or_larger_pool_union_falls_back_without_dropping_pools) ... ok
+test_unverified_endpoint_stays_at_ten_blocks (tests.test_robinhood_payg.WindowsCase.test_unverified_endpoint_stays_at_ten_blocks) ... ok
+test_verified_filter_reduces_log_elements_without_changing_the_tape (tests.test_robinhood_payg.WindowsCase.test_verified_filter_reduces_log_elements_without_changing_the_tape) ... ok
+
+----------------------------------------------------------------------
+Ran 38 tests in 6.265s
+
+OK
+	Command being timed: "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/.venv/bin/python -m operational.tests FAST --modules tests.test_robinhood_payg --verbose"
+	User time (seconds): 1.92
+	System time (seconds): 0.22
+	Percent of CPU this job got: 30%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:06.98
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 38572
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 16078
+	Voluntary context switches: 1671
+	Involuntary context switches: 1230
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 21504
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

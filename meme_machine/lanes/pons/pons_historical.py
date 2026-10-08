@@ -360,11 +360,24 @@ class Preparation:
             vals = self.calls([('eth_getTransactionReceipt', [tx]) for tx, _ in batch],receipt_pins=dict(batch))
             receipts.update(zip(batch, vals))
             if query['address'] == MANAGER:
-                vals = self.calls([('eth_getTransactionByHash', [tx]) for tx, _ in batch])
-                for (tx, bh), row in zip(batch, vals):
+                # The standard canonical receipt supplies the transaction's
+                # sender. Swap.sender is never buyer identity. Old captures
+                # without receipt.from retain the transaction-body fallback.
+                missing=[(tx,bh) for tx,bh in batch if not receipts[(tx,bh)].get('from')]
+                vals = self.calls([('eth_getTransactionByHash', [tx]) for tx, _ in missing]) if missing else []
+                fallback=dict(zip(missing,vals))
+                for tx,bh in batch:
+                    receipt=receipts[(tx,bh)]
+                    if receipt.get('transactionHash')!=tx or receipt.get('blockHash')!=bh:
+                        raise BoundaryError('historical_receipt_identity')
+                    sender=receipt.get('from')
+                    if sender and (not isinstance(sender,str) or len(sender)!=42 or
+                            not sender.startswith('0x') or any(c not in '0123456789abcdef' for c in sender[2:].lower())):
+                        raise BoundaryError('historical_receipt_sender_identity')
+                    row=dict(hash=tx,blockHash=bh,**{'from':sender}) if sender else fallback[(tx,bh)]
                     if row.get('hash') != tx or row.get('blockHash') != bh:
                         raise BoundaryError('historical_transaction_identity')
-                transactions.update(zip(batch, vals))
+                    transactions[(tx,bh)]=row
         role = 'pons_v2_factory' if query['address'] == FACTORY else 'uniswap_v4_manager'
         abi = load(role)['abi']
         for event in logs:

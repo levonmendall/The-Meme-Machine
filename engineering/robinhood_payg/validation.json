@@ -1,0 +1,202 @@
+{
+  "schema": "robinhood-payg-offline-validation-v1",
+  "outcome": "OPTIMIZED_OFFLINE_READY",
+  "branch": "engineering/robinhood-payg-optimization-20261008",
+  "source_inventory": "source-inventory.json",
+  "python": "3.12.14",
+  "interpreter": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/.venv/bin/python",
+  "dependencies": {
+    "websockets": "17.1",
+    "pysimdjson": "7.0.2",
+    "grpcio": "1.84.0",
+    "protobuf": "7.36.2",
+    "based58": "0.1.1"
+  },
+  "suites": [
+    {
+      "name": "FAST-complete",
+      "status": "PASS",
+      "tests": 1003,
+      "test_elapsed_seconds": 361.995,
+      "skipped": 0,
+      "resources": {
+        "user_cpu_seconds": 274.83,
+        "system_cpu_seconds": 39.04,
+        "peak_rss_kib": 234472.0,
+        "wall_elapsed": "6:02.80"
+      },
+      "log": "engineering/robinhood_payg/validation/FAST-complete-resources.txt",
+      "log_sha256": "5c110e5bc650b0b629631b766f2167b78a6dc99d91d6c63ca42226b6a56575d1"
+    },
+    {
+      "name": "OPERATIONAL-complete",
+      "status": "PASS",
+      "tests": 2424,
+      "test_elapsed_seconds": 860.486,
+      "skipped": 33,
+      "resources": {
+        "user_cpu_seconds": 634.16,
+        "system_cpu_seconds": 72.76,
+        "peak_rss_kib": 239036.0,
+        "wall_elapsed": "14:21.63"
+      },
+      "log": "engineering/robinhood_payg/validation/OPERATIONAL-complete-resources.txt",
+      "log_sha256": "3f6b334fbdf67598da2ba571b58914483b51b25f2326ba85df83bc4efd11bee8"
+    },
+    {
+      "name": "proof-reviewed",
+      "status": "PASS",
+      "tests": 61,
+      "test_elapsed_seconds": 25.174,
+      "skipped": 0,
+      "resources": {
+        "user_cpu_seconds": 11.0,
+        "system_cpu_seconds": 0.65,
+        "peak_rss_kib": 45588.0,
+        "wall_elapsed": "0:25.67"
+      },
+      "log": "engineering/robinhood_payg/validation/proof-reviewed-resources.txt",
+      "log_sha256": "2cabdec4eb0cb609a8a0556b2068caecf6d38bdfe4f4ffe3893171bc79fc4a4a"
+    },
+    {
+      "name": "focused-v2",
+      "status": "PASS",
+      "tests": 208,
+      "test_elapsed_seconds": 241.972,
+      "skipped": 5,
+      "resources": {
+        "user_cpu_seconds": 194.96,
+        "system_cpu_seconds": 31.62,
+        "peak_rss_kib": 185404.0,
+        "wall_elapsed": "4:02.62"
+      },
+      "log": "engineering/robinhood_payg/validation/focused-v2-resources.txt",
+      "log_sha256": "1553e42a88e28774feeecab541078f6ed40429ca3b1cc4b16519f2954e940e29"
+    },
+    {
+      "name": "compatibility",
+      "status": "PASS",
+      "tests": 75,
+      "test_elapsed_seconds": 7.9,
+      "skipped": 0,
+      "resources": {
+        "user_cpu_seconds": 3.43,
+        "system_cpu_seconds": 0.67,
+        "peak_rss_kib": 44296.0,
+        "wall_elapsed": "0:08.41"
+      },
+      "log": "engineering/robinhood_payg/validation/compatibility-resources.txt",
+      "log_sha256": "9455e8afd54f3e9dbfc6f4e3216809e6fe9488420e819687d3df13a3e4eb7b15"
+    },
+    {
+      "name": "committed-proof-reconciliation",
+      "status": "PASS",
+      "tests": 221,
+      "test_elapsed_seconds": 59.168,
+      "skipped": 0,
+      "log": "engineering/robinhood_payg/validation/reconciliation-fixed-resources.txt",
+      "log_sha256": "c48e2d5772c81747f75e21c1dcb68804d9202a4c5c05e6bf63d12dd00a9206a8",
+      "resources": {
+        "user_cpu_seconds": 38.46,
+        "system_cpu_seconds": 2.52,
+        "peak_rss_kib": 82116,
+        "wall_elapsed": "0:59.96"
+      }
+    }
+  ],
+  "full_suite_scope": "Full FAST and OPERATIONAL cover final production planner/evidence/metrics code. Subsequent engineering proof telemetry/final-artifact guard and two added supervisor/report regressions are covered by the final 61-test focused run. No production code changed after the full suites began. Completed shared-proof commits cf614f02, 1f05e058 and e39784a were subsequently integrated; 221 affected OPERATIONAL regressions pass. Pump production code remains unchanged.",
+  "skips": "33 existing OPERATIONAL archived MODEL A tests; no new skip or suppressed assertion",
+  "replays": [
+    {
+      "name": "canonical collector original/scout/final comparison",
+      "status": "PASS",
+      "log": "validation/replay-complete-resources.txt",
+      "artifact": "efficiency.json",
+      "fixture_basis": "Synthetic ABI-shaped events through production RPC encoding",
+      "measures": [
+        "physical attempts",
+        "logical elements",
+        "HTTP payload bytes",
+        "method-estimated CU",
+        "CPU"
+      ],
+      "provider_requests": 0
+    },
+    {
+      "name": "chronological native decisions/accounting",
+      "status": "PASS",
+      "log": "validation/decisions-complete-resources.txt",
+      "artifact": "decisions.json",
+      "fixture_basis": "Synthetic complete chronological activity with retained authentic lineage basis; actual native reducers/quotes and isolated PAPER accounting",
+      "provider_requests": 0
+    }
+  ],
+  "proof_preflight": {
+    "status": "PREFLIGHT_ONLY",
+    "execution_status": "NOT_RUN",
+    "live_authorization": "NOT_GRANTED",
+    "original_limit_contract_unchanged": true
+  },
+  "wider_range_preflight": {
+    "status": "NOT_RUN",
+    "authorization": "SEPARATE_REVISED_REVIEW_REQUIRED"
+  },
+  "resolved_failures": [
+    {
+      "log": "validation/focused-resources.txt",
+      "cause": "Initial batched return unpack/fixture dictionary comparison plus wrong deployed interpreter lacking based58; repaired return handling and exact core evidence comparison; switched to existing pinned engineering interpreter",
+      "status": "RESOLVED"
+    },
+    {
+      "log": "validation/focused-v3-resources.txt",
+      "cause": "Selected OPERATIONAL-only modules under FAST; suite loader correctly rejected before tests; reran at correct level",
+      "status": "RESOLVED"
+    },
+    {
+      "log": "validation/focused-v4-resources.txt",
+      "cause": "Attempted Current-window planner expected endpoint on minimal contexts; Current file restored byte-identical to original",
+      "status": "RESOLVED"
+    },
+    {
+      "log": "validation/FAST-resources.txt",
+      "cause": "Current source pin and legacy provider ledger optional tables; Current original restored, runtime metrics handle absent old instrumentation explicitly",
+      "scratch": "/tmp/mm-engineering-8o4wj8p4",
+      "status": "RESOLVED"
+    },
+    {
+      "log": "validation/dense-reorg-resources.txt",
+      "cause": "BoundaryError inherits ValueError, so fork error was relabeled as shape failure; explicitly rethrow domain failures",
+      "scratch": "/tmp/mm-engineering-1_x631oi",
+      "status": "RESOLVED"
+    },
+    {
+      "log": "validation/reconciliation-resources.txt",
+      "cause": "Three legacy fixtures passed a limits dict into the new contract-bound Budget interface. Integrated already committed e39784a fixture migrations and offline transport default; safety assertions preserved.",
+      "status": "RESOLVED",
+      "scratch": "/tmp/mm-engineering-fbnhhm8b"
+    }
+  ],
+  "maintenance_repair_provenance": "maintenance-import.json",
+  "tests_weakened": false,
+  "production_epoch_accessed": false,
+  "live_provider_work_dispatched": false,
+  "paused_provider_work": 0,
+  "transcript_publication": {
+    "trailing_whitespace_normalized_only": true,
+    "normalized_files": [
+      {
+        "path": "engineering/robinhood_payg/validation/focused-v4-resources.txt",
+        "original_sha256": "465da62bf95d50bcbc7276af081f18ec94eb0d02c0b0a2a285e9173a1bdee2dd",
+        "published_sha256": "244ba0753b3f386c4f0919ba5421ee0b127648f602164cf3a7f463eaaa0c3df5"
+      }
+    ],
+    "tracebacks_assertions_counts_preserved": true
+  },
+  "remaining_blocker": "combined_position_and_candidate_provider_latency_not_certified",
+  "operational_proven": false,
+  "integrated_completed_maintenance_commits": [
+    "cf614f024c8df7bbf6601ccb331ec83d9cc6bf74",
+    "1f05e058fd29ec387b8ae204a2aa179d45a7b647",
+    "e39784a59cfc585cfea972250dc72954e0adf134"
+  ]
+}

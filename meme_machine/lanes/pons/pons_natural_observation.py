@@ -138,7 +138,24 @@ class MarketScout:
         self._checkpoint(key,old)
 
     def _pages(self,rpc,queries):
-        """Reuse supported RPC batching: four filters, each at most ten blocks."""
+        """Public reads stay proven; canonical fallback can use verified windows."""
+        from .log_windows import LogWindows,CheckpointHints
+        endpoint=getattr(rpc,'endpoint',None)
+        if getattr(rpc,'canonical_authority',False) and endpoint and queries:
+            windows=LogWindows(endpoint,queries[0],state=CheckpointHints(self.plane))
+            if windows.support:
+                # Callers supply contiguous pages of one complete filter. Never
+                # infer a curve address list or remove a pool/topic here.
+                base={k:v for k,v in queries[0].items() if k not in ('fromBlock','toBlock')}
+                cursor=int(queries[0]['fromBlock'],16)
+                for query in queries:
+                    if ({k:v for k,v in query.items() if k not in ('fromBlock','toBlock')}!=base
+                            or int(query['fromBlock'],16)!=cursor):
+                        raise BoundaryError('scout_adaptive_page_identity')
+                    cursor=int(query['toBlock'],16)+1
+                rows=windows.read(int(queries[0]['fromBlock'],16),cursor-1,
+                    lambda calls:rpc.batch(calls,scope='pons_scout_discovery'))
+                return [rows]
         try:
             pages=rpc.batch([('eth_getLogs',[q]) for q in queries],scope='pons_scout_discovery')
         except BoundaryError as exc:

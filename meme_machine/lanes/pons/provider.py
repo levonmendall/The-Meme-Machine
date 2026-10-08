@@ -25,6 +25,22 @@ READ_METHODS = frozenset({
 })
 
 
+def rpc_boundary(method, error):
+    """Classify log range rejection without persisting provider error text."""
+    code=error.get('code')
+    message=str(error.get('message','')).lower()
+    if method=='eth_getLogs' and 'block' in message and ('range' in message or 'limit' in message):
+        return 'provider_log_block_range_limit'
+    return f'provider_rpc_{code if isinstance(code,int) else "unknown"}'
+
+
+NO_RETRY = frozenset({'provider_log_block_range_limit','provider_response_capacity',
+    'provider_http_400','provider_http_401','provider_http_403','provider_http_429',
+    'provider_rpc_429','provider_rpc_-32005','provider_invalid_envelope',
+    'provider_invalid_json','provider_response_contains_credential',
+    'evidence_deadline_before_transport','evidence_deadline_during_transport'})
+
+
 class Rpc:
     def __init__(self, endpoint, *, limit=80, per_scope=40, retries=1,
                  timeout=10, max_response=2_000_000, transport=None):
@@ -111,9 +127,7 @@ class Rpc:
         try:
             reply = json.loads(raw)
             if reply.get('error'):
-                code = reply['error'].get('code')
-                code = code if isinstance(code, int) else 'unknown'
-                raise BoundaryError(f'provider_rpc_{code}')
+                raise BoundaryError(rpc_boundary(method,reply['error']))
             if reply.get('id') != 1 or 'result' not in reply:
                 raise BoundaryError('provider_invalid_envelope')
             return reply['result']
@@ -161,7 +175,7 @@ class Rpc:
             except BoundaryError as exc:
                 self.failures[failure_class(exc)] += 1
                 # A quota boundary is terminal for this session, never retry it.
-                if '429' in str(exc) or attempt == self.retries:
+                if str(exc) in NO_RETRY or '429' in str(exc) or attempt == self.retries:
                     raise
                 _stop_sleep(0.1 * (attempt + 1))
 
@@ -210,9 +224,7 @@ class Rpc:
             for i in range(1,len(calls)+1):
                 item=rows[i]
                 if item.get('error'):
-                    code=item['error'].get('code')
-                    code=code if isinstance(code,int) else 'unknown'
-                    raise BoundaryError(f'provider_rpc_{code}')
+                    raise BoundaryError(rpc_boundary(calls[i-1][0],item['error']))
                 if 'result' not in item or item['result'] is None:
                     raise BoundaryError('provider_missing_result')
                 out.append(item['result'])
