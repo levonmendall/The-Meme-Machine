@@ -1,0 +1,15 @@
+test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged) ... FAIL
+
+======================================================================
+FAIL: test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008/tests/test_robinhood_usd_valuation.py", line 424, in test_strategy_sources_and_nine_change_tests_byte_unchanged
+    if rel not in infrastructure:self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: b'"""[355 chars]sdict, replace\nimport time\nimport json\nimpo[62665 chars] )\n' != b'"""[355 chars]sdict\nimport time\nimport json\nimport os\nfr[53760 chars] )\n' : meme_machine/lanes/pons/pons_selective_acquisition.py
+
+----------------------------------------------------------------------
+Ran 1 test in 0.491s
+
+FAILED (failures=1)

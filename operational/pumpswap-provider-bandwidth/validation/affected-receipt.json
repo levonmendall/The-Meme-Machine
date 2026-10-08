@@ -1,0 +1,14 @@
+{
+  "label": "affected",
+  "command": [
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-c",
+    "from operational.tests import network_guard;network_guard();import unittest;names=['tests.test_provider_efficiency', 'tests.test_solana_selective_evidence', 'tests.test_solana_rolling_prewarm', 'tests.test_solana_prewarm_startup', 'tests.test_candidate_history', 'tests.test_current_survivor_independence', 'tests.lanes.pump.test_pumpswap_survivor_evidence', 'tests.lanes.pump.test_pump_acceleration_history', 'tests.test_shared_capital_economics', 'tests.test_shared_capital_recovery'];r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names));raise SystemExit(not r.wasSuccessful())"
+  ],
+  "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+  "exit_code": 0,
+  "wall_seconds": 32.96955370798241,
+  "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+  "scratch_path": "/tmp/mm-engineering-5errqsc2",
+  "scratch_retained": false
+}

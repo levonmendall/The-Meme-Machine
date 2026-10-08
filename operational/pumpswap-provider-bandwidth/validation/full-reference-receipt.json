@@ -1,0 +1,20 @@
+{
+  "label": "full-reference",
+  "command": [
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-m",
+    "engineering.solana_capacity.offline_replay",
+    "--source",
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+    "--capture",
+    "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+    "--output",
+    "/tmp/mm-engineering-3vpf97o7/replay"
+  ],
+  "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+  "exit_code": 0,
+  "wall_seconds": 11.069058755994774,
+  "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+  "scratch_path": "/tmp/mm-engineering-3vpf97o7/mm-engineering-aqj8uhn6",
+  "scratch_retained": false
+}
