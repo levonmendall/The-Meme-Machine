@@ -63,13 +63,13 @@ class ProofTimingTests(unittest.TestCase):
 
     def test_stopping_frame_is_charged_and_captured_without_suppressing_ceiling(self):
         from engineering.solana_capacity.pump_pons_proof import Budget,CeilingReached,observe_budgeted
-        limits={key:1 for key in ('wall_seconds','solana_rpc_requests','robinhood_rpc_requests',
-            'estimated_rpc_cu','native_delivery_bytes','estimated_native_delivery_cu','storage_bytes','native_errors','steady_seconds')}
-        budget=Budget(limits,Path('/unused'));captured=[];value=dict(raw=b'physically_received')
+        from engineering.solana_capacity.proof_limits import load_contract
+        budget=Budget(load_contract(),Path('/unused'));budget.limits['native_stream_bytes']=1
+        captured=[];value=dict(raw=b'physically_received')
         with self.assertRaises(CeilingReached):
             observe_budgeted(budget,lambda kind,v:captured.append((kind,v)), 'delivery',value)
         self.assertEqual(captured,[('delivery',value)])
-        self.assertEqual(budget.native_bytes,len(value['raw']))
+        self.assertEqual(budget.counts['native_stream_bytes'],len(value['raw']))
         self.assertTrue(budget.stop.is_set())
 
     def test_publication_timing_is_recorded_without_a_transport_identity(self):
