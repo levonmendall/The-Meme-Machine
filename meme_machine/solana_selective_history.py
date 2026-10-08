@@ -235,7 +235,7 @@ class SelectiveHistory:
             (job,kind,self.clock(),canonical(body)))
 
     def plan(self,*,excluding=()):
-        """Priority for safety/positions/continuations, then deadline and age."""
+        """Recheck shared evidence at dispatch; retain each original obligation."""
         from .runtime.operating_families import active_sql
         live=active_sql('family',solana=True)
         now=self.clock()
@@ -243,12 +243,53 @@ class SelectiveHistory:
             for identity in [r[0] for r in self.db.execute("SELECT id FROM acquisition_jobs WHERE "+live+" AND status='pending' AND deadline<=?",(now,))]:
                 self.db.execute("UPDATE acquisition_jobs SET status='deadline_missed',updated=?,error='candidate_decision_deadline_missed' WHERE id=?",(now,identity))
                 self._observation(identity,'deadline_missed',dict(economic_rejection=False))
-            exclusion='' if not excluding else ' AND id NOT IN ('+','.join('?' for _ in excluding)+')'
-            row=self.db.execute('''SELECT id,family,address,lo,hi,priority,deadline,token,pages,last_slot,last_index,lineage
-                FROM acquisition_jobs WHERE '''+live+''' AND status='pending'
-                '''+exclusion+''' ORDER BY CASE WHEN priority<=2 THEN priority ELSE 3 END,deadline,priority,created,id LIMIT 1''',tuple(excluding)).fetchone()
-        if row is None:return None
-        job=dict(zip(('id','family','address','lo','hi','priority','deadline','token','pages','last_slot','last_index','lineage'),row))
+            # In-flight work is an obligation, never a completeness witness.
+            # Waiting consumers keep their own deadlines and can be serviced by
+            # the same physical acquisition even when their bounds differ.
+            flights=[]
+            for identity in excluding:
+                row=self.db.execute('SELECT family,address,lo,hi FROM acquisition_jobs WHERE id=? AND status=\'pending\'',(identity,)).fetchone()
+                if row:flights.append((identity,*row))
+            skipped=set(excluding)
+            while True:
+                exclusion='' if not skipped else ' AND id NOT IN ('+','.join('?' for _ in skipped)+')'
+                row=self.db.execute('''SELECT id,family,address,lo,hi,priority,deadline,token,pages,last_slot,last_index,lineage
+                    FROM acquisition_jobs WHERE '''+live+''' AND status='pending'
+                    '''+exclusion+''' ORDER BY CASE WHEN priority<=2 THEN priority ELSE 3 END,deadline,priority,created,id LIMIT 1''',tuple(skipped)).fetchone()
+                if row is None:return None
+                job=dict(zip(('id','family','address','lo','hi','priority','deadline','token','pages','last_slot','last_index','lineage'),row))
+                if not hasattr(self,'rolling'):break
+                scope=self.scope_for(job['family'],job['address'])
+                missing=self.rolling.missing(job['family'],scope,job['lo'],job['hi'])
+                if not missing:
+                    self.db.execute("UPDATE acquisition_jobs SET status='complete',updated=? WHERE id=?",(now,job['id']))
+                    self._observation(job['id'],'shared_coverage_reused',dict(scope=scope,lo=job['lo'],hi=job['hi'],deadline_reset=False))
+                    continue
+                overlapping=[identity for identity,family,address,lo,hi in flights
+                    if family==job['family'] and self.scope_for(family,address)==scope
+                    and any(lo<=b and hi>=a for a,b in missing)]
+                if overlapping:
+                    for identity in overlapping:
+                        self.db.execute('UPDATE acquisition_jobs SET priority=MIN(priority,?),deadline=MIN(deadline,?) WHERE id=?',
+                            (job['priority'],job['deadline'],identity))
+                    skipped.add(job['id']);continue
+                scopes=self.rolling.scopes(job['family'],scope)
+                marks=','.join('?' for _ in scopes)
+                publishing=self.db.execute('SELECT lo,hi FROM candidate_pending_proofs WHERE scope IN ('+marks+') AND lo<=? AND hi>=?',
+                    (*scopes,job['hi'],job['lo'])).fetchall()
+                required=missing
+                for lo,hi in publishing:
+                    required=[p for a,b in required for p in ((a,min(b,lo-1)),(max(a,hi+1),b)) if p[0]<=p[1]]
+                if not required:
+                    skipped.add(job['id']);continue
+                if not job['pages'] and required!=[(job['lo'],job['hi'])]:
+                    # Children buy only the missing pieces. The original row is
+                    # completed only when real coverage satisfies every piece;
+                    # no cursor, launch boundary or deadline is rewritten.
+                    for lo,hi in required:
+                        self.request(job['family'],job['address'],lo,hi,priority=job['priority'],deadline=job['deadline'])
+                    skipped.add(job['id']);continue
+                break
         config=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',
             encoding='json',maxSupportedTransactionVersion=1,filters=dict(slot=dict(gte=job['lo'],lte=job['hi'])))
         if job['token'] is not None:config['paginationToken']=job['token']

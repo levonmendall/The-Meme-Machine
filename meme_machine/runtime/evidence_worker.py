@@ -25,7 +25,13 @@ class RepairRPC:
         import threading
         self.config=AlchemyEndpoint.parse(endpoint)
         self.endpoint=self.config.http_url;self.governor=governor
+        self.genesis_reads=None
+        cache=os.environ.get('MM_SOLANA_EVIDENCE_BROKER_DB')
+        if cache:
+            from meme_machine.lanes.pump.solana_immutable_rpc import ImmutableReads
+            self.genesis_reads=ImmutableReads(cache,self.endpoint)
         self.counts=Counter({k:0 for k in ('physical_requests','logical_calls','repair_calls','identity_calls','failures','429s','unsupported_methods','queue_microseconds','transport_microseconds')});self.lock=threading.Lock()
+        self.flights={}
     def _count(self,key,n=1):
         with self.lock:self.counts[key]+=n
     def telemetry(self):
@@ -41,6 +47,41 @@ class RepairRPC:
     def call(self,method,params,priority=False):
         return self.call_delivered(method,params,1 if priority else 4)[0]
     def call_delivered(self,method,params,priority=4):
+        if method=='getGenesisHash' and not params and self.genesis_reads is not None:
+            receipt=dict(bytes=0,cu=0,calls=0)
+            def fetch():
+                value,physical=self._call_delivered(method,params,priority)
+                receipt.update(physical,calls=1)
+                return value
+            value=self.genesis_reads.call(method,params,fetch)
+            return value,receipt
+        if (method in ('getTransactionsForAddress','getTransaction') and len(params)==2
+                and isinstance(params[1],dict) and params[1].get('commitment')=='finalized'):
+            # Join only concurrent immutable content reads at the same safety
+            # priority. Fresh head samples must still occur after each WS ACK.
+            from concurrent.futures import Future
+            key=(method,json.dumps(params,sort_keys=True,separators=(',',':')),priority)
+            with self.lock:
+                future=self.flights.get(key);leader=future is None
+                if leader:future=self.flights[key]=Future()
+            if not leader:
+                try:
+                    value,_=future.result()
+                    from copy import deepcopy
+                    return deepcopy(value),dict(bytes=0,cu=0,calls=0)
+                except DeliveredRPCError as exc:
+                    raise DeliveredRPCError(str(exc),dict(bytes=0,cu=0,calls=0),
+                        retryable=exc.retryable,cause_kind=exc.cause_kind) from None
+            try:
+                result=self._call_delivered(method,params,priority)
+                from copy import deepcopy
+                future.set_result(deepcopy(result));return result
+            except BaseException as exc:future.set_exception(exc);raise
+            finally:
+                with self.lock:self.flights.pop(key,None)
+        return self._call_delivered(method,params,priority)
+
+    def _call_delivered(self,method,params,priority=4):
         import time
         if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction'):
             raise ValueError('repair_method_forbidden')

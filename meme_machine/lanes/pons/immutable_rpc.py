@@ -98,6 +98,8 @@ class Reuse:
             return canonical(['eth_getBlockByHash',[pins[params[0]],False]])
         if method=='eth_getTransactionReceipt' and params[0] in receipts:
             return canonical([method,params[0],receipts[params[0]]])
+        if method=='eth_getTransactionByHash' and len(params)==1 and params[0] in receipts:
+            return canonical([method,params[0],receipts[params[0]]])
         if method in ('eth_call','eth_getCode','eth_getBalance','eth_getStorageAt'):
             index=2 if method=='eth_getStorageAt' else 1
             if len(params)<=index:return None
@@ -169,6 +171,10 @@ class Reuse:
             if method=='eth_getTransactionReceipt':
                 expected=json.loads(key)
                 if value.get('transactionHash')!=expected[1] or value.get('blockHash')!=expected[2]:raise BoundaryError('receipt_block_disagreement')
+            if method=='eth_getTransactionByHash':
+                expected=json.loads(key)
+                if not isinstance(value,dict) or value.get('hash')!=expected[1] or value.get('blockHash')!=expected[2]:
+                    raise BoundaryError('transaction_block_disagreement')
             if method=='eth_getLogs':
                 expected=json.loads(key)[1][0]['blockHash']
                 if not isinstance(value,list) or any(r.get('blockHash')!=expected or r.get('removed') for r in value):

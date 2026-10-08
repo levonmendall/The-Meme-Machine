@@ -170,9 +170,7 @@ class RollingHistory:
                 # a creation proof, never an inference from a quiet interval.
                 lo=origin[0]
                 if hi<lo:return []
-        scopes=self.scopes(family,scope);marks=','.join('?' for _ in scopes);spans=[]
-        for packed,checksum in self.db.execute('SELECT points,hash FROM candidate_coverage WHERE scope IN ('+marks+') AND hi>=? AND lo<=?',(*scopes,lo,hi)):
-            spans.extend((a,b) for a,b,available in coverage_points(packed,checksum) if available<=at)
+        scopes=self.scopes(family,scope)
         # Remove unsealed gaps from their own coverage branch. An independently
         # proved overlapping program/candidate branch may genuinely repair one.
         valid=[]

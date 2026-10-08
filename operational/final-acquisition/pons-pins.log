@@ -1,0 +1,8 @@
+test_historical_fallback_supplies_authenticated_canonical_block_pins (tests.test_final_acquisition.PonsSenderTests.test_historical_fallback_supplies_authenticated_canonical_block_pins) ... ok
+test_pinned_fallback_sender_shared_across_current_and_survivor (tests.test_final_acquisition.PonsSenderTests.test_pinned_fallback_sender_shared_across_current_and_survivor) ... ok
+test_historical_witness_receipt_sender_matches_transaction_body_fallback (tests.test_robinhood_payg.EvidenceCase.test_historical_witness_receipt_sender_matches_transaction_body_fallback) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.476s
+
+OK

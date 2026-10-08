@@ -162,6 +162,7 @@ class Supervisor:
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
                 MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'),
                 MM_SOLANA_CANDIDATE_HISTORY_DB=str(self.root/'shared/solana-candidate-history.sqlite'),
+                MM_SOLANA_EVIDENCE_BROKER_DB=str(self.root/'pump/solana-evidence-broker.sqlite3'),
                 MM_SOLANA_EXPENSIVE_WORKERS='2')
         else:
             env.update(MM_PROVIDER_DB=str(self.root/'shared/robinhood-provider.sqlite'),
@@ -191,6 +192,9 @@ class Supervisor:
     def start_services(self):
         if self.offline:return
         (self.root/'shared').mkdir(exist_ok=True,mode=0o700)
+        # Preserve Pump's existing relative broker location while sharing it
+        # with the evidence worker, which starts before the lane process.
+        (self.root/'pump').mkdir(exist_ok=True,mode=0o700)
         env=self.environment('solana')
         self.evidence=subprocess.Popen([sys.executable,'-m','meme_machine.runtime.evidence_worker'],cwd=self.root,env=env,start_new_session=True)
         deadline=time.monotonic()+15

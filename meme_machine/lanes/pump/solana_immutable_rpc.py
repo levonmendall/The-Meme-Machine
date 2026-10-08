@@ -6,7 +6,10 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
+from contextvars import ContextVar
 from .provider import Unavailable
+
+_BATCH_TRANSPORT=ContextVar('solana_immutable_batch_transport',default=())
 
 
 class ImmutableReads:
@@ -48,9 +51,24 @@ class ImmutableReads:
             row=db.execute('SELECT slot FROM solana_finalized_frontier WHERE endpoint=?',(self.endpoint,)).fetchone()
         return row is not None and 0<=params[0]<=row[0]
 
+    @staticmethod
+    def lease_owner():
+        from meme_machine.runtime.robinhood.plane import process_identity
+        return process_identity()+'|'+uuid.uuid4().hex
+
+    @staticmethod
+    def reclaim(db):
+        from meme_machine.runtime.robinhood.plane import alive
+        for owner,expires in db.execute('SELECT owner,MAX(expires) FROM solana_read_leases GROUP BY owner').fetchall():
+            # A slow live batch cannot be bought again on lease expiry. Dead
+            # processes are reclaimed immediately; legacy UUID leases retain
+            # their bounded expiry for upgrade/restart compatibility.
+            stale=not alive(owner.split('|')[0]) if '|' in owner else expires<time.time()
+            if stale:db.execute('DELETE FROM solana_read_leases WHERE owner=?',(owner,))
+
     def call(self,method,params,fetch,deadline=None):
         if not self.eligible(method,params):return fetch()
-        key=json.dumps(params,separators=(',',':'));owner=uuid.uuid4().hex
+        key=json.dumps(params,separators=(',',':'));owner=self.lease_owner()
         deadline=time.time()+30 if deadline is None else deadline
         while time.time()<deadline:
             with self.connect() as db:
@@ -61,7 +79,7 @@ class ImmutableReads:
                     return json.loads(row[0])
                 # Lease lasts beyond the bounded HTTP retry path, and cannot be
                 # stolen during a live fetch merely because a consumer expired.
-                db.execute('DELETE FROM solana_read_leases WHERE expires<?',(time.time(),))
+                self.reclaim(db)
                 changed=db.execute('INSERT OR IGNORE INTO solana_read_leases VALUES(?,?,?,?,?)',
                     (self.endpoint,method,key,owner,time.time()+60)).rowcount
                 if changed:self.event(db,method,'miss')
@@ -79,6 +97,53 @@ class ImmutableReads:
             return value
         finally:
             with self.connect() as db:db.execute('DELETE FROM solana_read_leases WHERE endpoint=? AND method=? AND key=? AND owner=?',(self.endpoint,method,key,owner))
+
+    def call_many(self,method,params_list,fetch,deadline=None):
+        """Share immutable batch members while retaining one bounded miss batch."""
+        deadline=time.time()+30 if deadline is None else deadline
+        owner=self.lease_owner();out=[None]*len(params_list);items={};uncached=[]
+        for index,params in enumerate(params_list):
+            if self.eligible(method,params):
+                key=json.dumps(params,separators=(',',':'))
+                items.setdefault(key,dict(params=params,indices=[]))['indices'].append(index)
+            else:uncached.append((params,[index],None))
+        while time.time()<deadline:
+            pending=[]
+            with self.connect() as db:
+                db.execute('BEGIN IMMEDIATE')
+                self.reclaim(db)
+                for key,item in items.items():
+                    row=db.execute('SELECT value,lane FROM solana_immutable_reads WHERE endpoint=? AND method=? AND key=?',
+                        (self.endpoint,method,key)).fetchone()
+                    if row:
+                        self.event(db,method,'cross_lane_hit' if row[1]!=os.environ.get('MM_RUNTIME_LANE','unknown') else 'hit')
+                        for index in item['indices']:out[index]=json.loads(row[0])
+                    else:pending.append((item['params'],item['indices'],key))
+                busy=any(db.execute('SELECT 1 FROM solana_read_leases WHERE endpoint=? AND method=? AND key=?',
+                    (self.endpoint,method,key)).fetchone() for _,_,key in pending)
+                if not busy:
+                    for _,_,key in pending:
+                        db.execute('INSERT INTO solana_read_leases VALUES(?,?,?,?,?)',(self.endpoint,method,key,owner,time.time()+60))
+                        self.event(db,method,'miss')
+            if not busy:break
+            _stop_sleep(min(.01,max(0,deadline-time.time())))
+        else:raise Unavailable('immutable_read_consumer_deadline')
+        try:
+            missing=pending+uncached
+            if missing:
+                values=fetch([params for params,_,_ in missing])
+                if len(values)!=len(missing):raise Unavailable('immutable_read_batch_shape')
+                with self.connect() as db:
+                    for (_,indices,key),value in zip(missing,values):
+                        for index in indices:out[index]=value
+                        valid=(method=='getGenesisHash' and isinstance(value,str) and bool(value)) or (method=='getBlockTime' and type(value) is int and value>0)
+                        if key and valid:
+                            db.execute('INSERT OR IGNORE INTO solana_immutable_reads VALUES(?,?,?,?,?,?)',
+                                (self.endpoint,method,key,json.dumps(value),time.time(),os.environ.get('MM_RUNTIME_LANE','unknown')))
+                    db.execute('DELETE FROM solana_immutable_reads WHERE rowid NOT IN (SELECT rowid FROM solana_immutable_reads ORDER BY at DESC LIMIT 8192)')
+            return out
+        finally:
+            with self.connect() as db:db.execute('DELETE FROM solana_read_leases WHERE endpoint=? AND owner=?',(self.endpoint,owner))
 
 
 class ImmutableRPCMixin:
@@ -126,7 +191,10 @@ class ImmutableRPCMixin:
         return [result[p[0]] for p in params_list]
 
     def call(self,method,params=None,priority=False,**kwargs):
-        params=params or [];shared=self._shared_reads()
+        params=params or []
+        if id(self) in _BATCH_TRANSPORT.get():
+            return super().call(method,params,priority,**kwargs)
+        shared=self._shared_reads()
         if shared and method=='getTransaction' and not getattr(self,'_broker_transport',False) and self._body_params(params):
             return self._body_read([params],1)[0]
         fetch=lambda:super(ImmutableRPCMixin,self).call(method,params,priority,**kwargs)
@@ -138,6 +206,20 @@ class ImmutableRPCMixin:
 
     def call_many(self,method,params_list,priority=False,batch_size=8):
         shared=self._shared_reads()
+        params_list=list(params_list)
+        if shared and method in ('getGenesisHash','getBlockTime'):
+            if not 1<=batch_size<=16:raise ValueError('batch_size must be 1..16')
+            if not params_list:return []
+            parent=super()
+            def fetch(missing):
+                # Injected/captured transports implement call_many using self.call.
+                # The batch already holds these leases, so do not reacquire them.
+                token=_BATCH_TRANSPORT.set((*_BATCH_TRANSPORT.get(),id(self)))
+                try:return parent.call_many(method,missing,priority,batch_size=batch_size)
+                finally:_BATCH_TRANSPORT.reset(token)
+            return shared.call_many(method,params_list,
+                fetch,
+                getattr(self,'evidence_deadline',None))
         if shared and method=='getTransaction' and not getattr(self,'_broker_transport',False) and all(self._body_params(p) for p in params_list):
             return self._body_read(params_list,batch_size)
         if shared and method=='getTransaction' and all(self._body_params(p) for p in params_list):self._assert_transaction_authority()

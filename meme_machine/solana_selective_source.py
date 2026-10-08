@@ -428,13 +428,13 @@ class SelectiveSource:
                 receipt=getattr(exc,'receipt',None)
                 if receipt is not None:
                     await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
-                        rpc_cu=receipt['cu'],calls=1),priority)
+                        rpc_cu=receipt['cu'],calls=receipt.get('calls',1)),priority)
                 if not getattr(exc,'retryable',False) or attempt==2:raise
                 await self.work(lambda s:install(s)._observation(None,'rpc_retry',dict(method=method,
                     family=family,attempt=attempt+1,deadline_reset=False,cause_kind=getattr(exc,'cause_kind',None))),priority)
                 await asyncio.sleep(.2*(attempt+1));continue
             await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
-                rpc_cu=receipt['cu'],calls=1),priority)
+                rpc_cu=receipt['cu'],calls=receipt.get('calls',1)),priority)
             return result
     async def stream(self,channel,request,handler,family,local_stop=None):
         from .runtime.operating_families import require_active
@@ -1001,13 +1001,34 @@ class SelectiveSource:
                 # that native rolling coverage cannot supply them.
                 recovery=[r for r in desired if not r.get('rolling') and r['family']!='meteora' and r['priority']<5]
                 h.lifecycle.repair(recovery,tip);h.lifecycle.publish()
-            await self.work(warm,1 if any(r['priority']<=1 for r in desired) else 3)
+                return bool(recovery) and len(recovery)==len(desired) and all(
+                    r['family'] in ('pump','pumpswap') and not h.rolling.missing(r['family'],r['scope'],floor,tip)
+                    for r in recovery)
+            shared_replay=await self.work(warm,1 if any(r['priority']<=1 for r in desired) else 3)
+            if shared_replay:
+                # The fixed program feeds have already published this exact
+                # recovery prefix. Keep that history and observe only its new
+                # tail instead of buying identical per-position replay logs.
+                floor=tip+1
+                buffered=tuple(join.early_logs.items())
+                join=CandidateTransactionJoin(addresses,full,filtered_from_slot=floor,max_join_seconds=120)
+                for (slot,sig),(content,error,seen) in buffered:join.feed_log(slot,sig,content,error,seen)
             # The native replay supplies independent identity/order witnesses;
             # RPC supplies only the old log content unavailable from WS ACKs.
             for row in sorted(desired,key=lambda r:r['priority']):
                 if row['family']=='meteora' or row.get('rolling') or floor>tip:continue
                 token=None
                 while True:
+                    def published(state):
+                        h=install(state)
+                        return not rolling and all(r['family'] in ('pump','pumpswap') and r['priority']<5
+                            and not h.rolling.missing(r['family'],r['scope'],floor,tip) for r in desired)
+                    if await self.work(published,min(row['priority'],3)):
+                        floor=tip+1
+                        buffered=tuple(join.early_logs.items())
+                        join=CandidateTransactionJoin(addresses,full,filtered_from_slot=floor,max_join_seconds=120)
+                        for (slot,sig),(content,error,seen) in buffered:join.feed_log(slot,sig,content,error,seen)
+                        break
                     config=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',
                         encoding='json',maxSupportedTransactionVersion=1,filters=dict(slot=dict(gte=floor,lte=tip)))
                     if token:config['paginationToken']=token

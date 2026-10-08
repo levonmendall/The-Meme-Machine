@@ -364,7 +364,8 @@ class Preparation:
                 # sender. Swap.sender is never buyer identity. Old captures
                 # without receipt.from retain the transaction-body fallback.
                 missing=[(tx,bh) for tx,bh in batch if not receipts[(tx,bh)].get('from')]
-                vals = self.calls([('eth_getTransactionByHash', [tx]) for tx, _ in missing]) if missing else []
+                vals = self.calls([('eth_getTransactionByHash', [tx]) for tx, _ in missing],
+                    receipt_pins=dict(missing)) if missing else []
                 fallback=dict(zip(missing,vals))
                 for tx,bh in batch:
                     receipt=receipts[(tx,bh)]
