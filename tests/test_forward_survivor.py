@@ -210,6 +210,35 @@ class ForwardSurvivorTests(unittest.TestCase):
         self.assertEqual(fresh['first'],self.tape.top)
         self.assertNotIn('restored_from',fresh)
 
+    def test_retained_pre_frontier_nomination_recovers_only_its_authenticated_lineage(self):
+        h=self.runtime.history;self.tape.top=self.tape.grad+4
+        event=next(e for e in self.tape.logs if e['address']==FACTORY and e['topics'][0]==GRADUATION)
+        h.retain_graduations([event],self.tape.top,block_hash=self.tape.header(self.tape.top)['hash'])
+        plan=self.enroll();self.observe()
+        self.assertEqual(plan['first'],self.tape.top)
+        self.assertIsNotNone(h.get(self.tape.tokens[0]))
+        self.assertEqual(h.pending_graduations(),0)
+        for method,params in self.tape.request_log:
+            if method=='eth_getLogs' and int(params[0]['fromBlock'],16)<plan['first']:
+                self.assertEqual(len(params[0]['topics']),2)
+        self.assertEqual(self.runtime.historical_readiness['pre_enrollment_coverage'],'UNOBSERVED')
+
+    def test_old_recovery_never_claims_or_delays_newer_candidate_acquisition(self):
+        self.enroll();self.observe(self.tape.grad+2)
+        h=self.runtime.history;old=h.get(self.tape.tokens[0]);new=h.get(self.tape.tokens[1])
+        old['history_attempt']=100;h.save(old)
+        h.set_meta('history_attempt_sequence',100)
+        self.tape.top+=80;before=self.tape.top-1
+        h.append_block(new['id'],block=before,header=self.tape.header(before),events=[],points=[])
+        with patch('meme_machine.lanes.pons.pons_survivor_runtime.collect_v4_activities',side_effect=self.activities):
+            self.runtime._increment_candidates(h.rows(),self.tape.top)
+            self.assertEqual(h.get(new['id'])['block'],self.tape.top)
+            self.assertEqual(h.get(old['id'])['block'],old['block'])
+            self.assertEqual(h.get(old['id'])['history_attempt'],100)
+            self.runtime._increment_candidates(h.rows(),self.tape.top)
+        self.assertEqual(h.get(old['id'])['block'],old['block']+40)
+        self.assertGreater(h.get(old['id'])['history_attempt'],100)
+
     def test_reorg_affects_only_forked_checkpoints_and_preserves_controllers(self):
         token,state=self.seed_complete_winner();h=self.runtime.history
         other=deepcopy(h.get(self.tape.tokens[1]));row=h.get(token)

@@ -572,8 +572,10 @@ class Preparation:
         if not nominations:
             return False
         ident, event = nominations[0]
-        if not self.history.db.execute("SELECT 1 FROM pons_historical_events WHERE kind IN ('population','forward_population') AND valid=1 AND id=?",
-                                       (event_id(event),)).fetchone():
+        enumerated = self.history.db.execute("SELECT 1 FROM pons_historical_events WHERE kind IN ('population','forward_population') AND valid=1 AND id=?",
+                                            (event_id(event),)).fetchone()
+        if not enumerated and (not self.forward_only or
+                order(event)[0] > number(self.history.get_meta(self.plan_key)['enrollment_header'])):
             raise BoundaryError('historical_nomination_outside_census')
         args = decode_event(load('pons_v2_factory')['abi'], event)['args']
         token = args['token']
@@ -581,6 +583,11 @@ class Preparation:
         pending_key = 'pons_historical_authentication:' + ident
         pending = self.history.get_meta(pending_key)
         if pending is None:
+            if not enumerated:
+                # A durable nomination from the previous ordinary observer may
+                # predate this frontier. Authenticate its exact native event;
+                # never backfill unrelated factory history to recover it.
+                self._witness([event],self.population_filter(),block,block)
             rpc = _NativeReads(self)
             report = {'reads': []}
             record = _factory_record_at(rpc, token, block, report)

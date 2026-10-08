@@ -284,7 +284,12 @@ class Runtime:
     def _increment_candidates(self,rows,top):
         if not rows:return
         population=len(rows)
-        rows=self.history.history_batch(rows,top)
+        pending=[r for r in rows if r.get('block') is not None and r['block']<top]
+        if not pending:return
+        first=min(pending,key=lambda r:(r.get('history_attempt',0),r['block'],r['id']))['block']
+        # Fairly claim only overlapping checkpoints. A recovering older pool
+        # must not set the range of a newer pool, or consume its work credit.
+        rows=self.history.history_batch([r for r in pending if first<=r['block']<first+40],top)
         if not rows:return
         start=min(row['block'] for row in rows)+1;end=min(top,start+39)
         if end<start:return

@@ -424,7 +424,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         for name,node in old.items():
             if name!='Runtime':self.assertEqual(ast.dump(node),ast.dump(new[name]),rel+':'+name)
         old_methods=functions(old['Runtime']);new_methods=functions(new['Runtime'])
-        mechanical={'historical_preparation_step','_provider','discover','_bootstrap_cursor','reconstruct','step'}
+        mechanical={'historical_preparation_step','_provider','discover','_bootstrap_cursor','_increment_candidates','reconstruct','step'}
         for name,node in old_methods.items():
             if name not in mechanical:self.assertEqual(ast.dump(node),ast.dump(new_methods[name]),rel+':'+name)
         # Reconstruction changes only the individual completeness authority.
