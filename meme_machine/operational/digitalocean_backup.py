@@ -53,7 +53,9 @@ def execute(config='/etc/meme-machine/backup.json',output=OUTPUT):
             volume_id=c['volume_id'],snapshot_name=name,point=str(point),snapshot_id=None)
         path=output/'latest.json';atomic_json(path,row)
         try:
-            row['coherent_point']=prepare(root,point);row['status']='CREATING_SNAPSHOT';atomic_json(path,row)
+            # Existing verified-volume recovery backups use destination reserve,
+            # independently of the quota for optional root engineering copies.
+            row['coherent_point']=prepare(root,point,nonessential=False);row['status']='CREATING_SNAPSHOT';atomic_json(path,row)
             # The frozen application copy was synced and its writers thawed.
             # Only this complete point is restored from a running-volume snapshot.
             status,data=request('POST','/v2/volumes/'+c['volume_id']+'/snapshots',{'name':name})

@@ -6,6 +6,7 @@ from pathlib import Path
 import time
 
 from .observation import atomic_json,read_json,stamp,SAMPLE_BOUND
+from .artifact_storage import storage_conditions
 
 PERSISTENCE=300
 CRITICAL=frozenset(('epoch_mismatch','reconciliation_failure','database_integrity_failure'))
@@ -25,8 +26,7 @@ def conditions(sample,epoch,now):
         found.add('database_integrity_failure')
     service=sample.get('host',{}).get('service',{})
     if service.get('ActiveState')!='active':found.add('paper_service_unavailable')
-    for disk in sample.get('host',{}).get('disks',{}).values():
-        if disk.get('free_bytes',0)<max(2*1024**3,disk.get('total_bytes',0)*.05) or disk.get('percent_used',0)>=85:found.add('storage_exhaustion_risk')
+    found.update(storage_conditions(sample))
     s=sample.get('solana',{})
     if s.get('state')!='CURRENT':found.add('evidence_unavailable')
     gap=s.get('repair_backlog',{})
@@ -57,7 +57,8 @@ def conditions(sample,epoch,now):
 
 def evaluate(sample,previous,epoch,now=None,*,expect_running=True):
     now=time.time() if now is None else now
-    current=conditions(sample,epoch,now) if expect_running else set()
+    # Host storage still needs attention while PAPER is deliberately stopped.
+    current=conditions(sample,epoch,now) if expect_running else storage_conditions(sample or {})
     previous=previous or {};first=previous.get('first_seen',{})
     progress={}
     solana=(sample or {}).get('solana',{})
