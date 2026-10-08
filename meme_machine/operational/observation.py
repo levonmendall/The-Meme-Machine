@@ -315,7 +315,7 @@ def host(root):
         fs = os.statvfs(path)
         total=fs.f_blocks*fs.f_frsize;used=(fs.f_blocks-fs.f_bfree)*fs.f_frsize
         mounts[path] = dict(free_bytes=fs.f_bavail*fs.f_frsize, total_bytes=total,
-                            used_bytes=used,percent_used=100*used/total if total else 100)
+                            used_bytes=used,percent_used=100*used/(used+fs.f_bavail*fs.f_frsize) if used+fs.f_bavail*fs.f_frsize else 100)
     properties = subprocess.run(['systemctl','show','meme-machine-paper.service',
         '-p','ActiveState','-p','SubState','-p','MainPID','-p','NRestarts','-p','ControlGroup'],
         capture_output=True, text=True, check=True, timeout=3).stdout

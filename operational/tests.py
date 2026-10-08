@@ -1,5 +1,5 @@
 """FAST / OPERATIONAL deterministic suites. No market providers or real epoch."""
-import argparse,ipaddress,socket,unittest,urllib.request
+import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
  'tests.test_pons_capability_executor',
@@ -13,6 +13,7 @@ FAST=[
  'tests.test_canonical_money',
  'tests.test_learning_retention','tests.test_startup_storage','tests.test_native_genesis_wait','tests.test_operational_configuration','tests.test_storage_measurement',
  'tests.test_operational_uptime_health',
+ 'tests.test_engineering_artifact_storage',
  'tests.test_operational_ramses_pause',
  'tests.test_operational_backup','tests.test_operational_observation','tests.test_durable_acceptance','tests.test_operational_monitoring','tests.test_operational_acceptance','tests.test_operational_metrics',
  'tests.test_operational_storage_guard',
@@ -179,8 +180,31 @@ def network_guard():
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('level',choices=('FAST','OPERATIONAL'))
+    parser.add_argument('--worker',action='store_true',help=argparse.SUPPRESS)
     args=parser.parse_args();network_guard()
-    suite=unittest.defaultTestLoader.loadTestsFromNames(FAST if args.level=='FAST' else OPERATIONAL)
-    result=unittest.TextTestRunner(verbosity=1).run(suite)
-    return 0 if result.wasSuccessful() else 1
+    if args.worker:
+        suite=unittest.defaultTestLoader.loadTestsFromNames(FAST if args.level=='FAST' else OPERATIONAL)
+        result=unittest.TextTestRunner(verbosity=1).run(suite)
+        return 0 if result.wasSuccessful() else 1
+    from meme_machine.operational.artifact_storage import Scratch,ArtifactStorageFull
+    try:
+        with Scratch() as scratch:
+            # Supervise just this offline process group; native PAPER services
+            # and other engineering jobs are outside it. Check during a single
+            # long test too, rather than allowing it to fill disk until return.
+            child=subprocess.Popen([sys.executable,'-m','operational.tests',args.level,'--worker'],start_new_session=True)
+            try:
+                while child.poll() is None:
+                    scratch.check();time.sleep(.25)
+                scratch.check();scratch.success=child.returncode==0
+                return child.returncode
+            finally:
+                if child.poll() is None:
+                    os.killpg(child.pid,signal.SIGTERM)
+                    try:child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid,signal.SIGKILL);child.wait(timeout=5)
+    except ArtifactStorageFull as error:
+        print('Offline suite stopped: '+str(error),file=sys.stderr)
+        return 1
 if __name__=='__main__':raise SystemExit(main())

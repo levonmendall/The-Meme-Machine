@@ -82,6 +82,16 @@ class Conditions(unittest.TestCase):
         x=self.sample();x['host']['service']['ActiveState']='inactive'
         self.assertFalse(monitoring.evaluate(x,{},'paper-existing',1000,expect_running=False)['conditions'])
 
+    def test_storage_still_warns_and_becomes_actionable_while_paper_is_stopped(self):
+        x=self.sample();x['host']['service']['ActiveState']='inactive'
+        x['host']['disks']={'/':dict(percent_used=75,free_bytes=25*1024**3,total_bytes=100*1024**3)}
+        first=monitoring.evaluate(x,{},'paper-existing',1000,expect_running=False)
+        self.assertEqual(first['conditions'],['storage_warning'])
+        later=monitoring.evaluate(x,first,'paper-existing',1301,expect_running=False)
+        self.assertIn('storage_warning',later['actionable'])
+        x['host']['disks']['/']['percent_used']=85
+        self.assertIn('storage_exhaustion_risk',monitoring.conditions(x,'paper-existing',1000))
+
     def test_current_progress_does_not_hide_persistent_survivor_position_management_failure(self):
         x=self.sample();x['lanes']['pump']['progress_at']=1000
         x['six_regimes']={'Pump Survivor':dict(machinery=dict(accounting={'open_positions':1},

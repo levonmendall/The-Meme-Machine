@@ -93,6 +93,39 @@ class BackupRestore(unittest.TestCase):
         self.assertFalse((target/'backup.json').exists())
         self.assertFalse(json.loads((target/'backup-failed.json').read_text())['usable'])
 
+    def test_verified_exact_snapshot_reuse_makes_no_new_copy(self):
+        point=self.base/'point';backup.copy_state(self.root,point)
+        target=self.base/'unnecessary-copy'
+        with patch('meme_machine.operational.artifact_storage.admit_snapshot',side_effect=AssertionError('new copy admission')):
+            row=backup.copy_state(self.root,target,reuse=point)
+        self.assertTrue(row['reused']);self.assertEqual(row['directory'],str(point))
+        self.assertFalse(target.exists())
+
+    def test_same_portfolio_does_not_allow_reuse_after_native_cursor_changes(self):
+        extra=self.root/'native-cursor.txt';extra.write_text('original cursor')
+        point=self.base/'point';backup.copy_state(self.root,point)
+        extra.write_text('advanced native cursor')
+        self.assertIsNone(backup.reusable_point(self.root,point))
+        extra.write_text('original cursor');(point/'native-cursor.txt').write_text('corrupt survivor')
+        self.assertIsNone(backup.reusable_point(self.root,point))
+
+    def test_disk_rejection_precedes_partial_copy_and_does_not_change_source(self):
+        from meme_machine.operational.artifact_storage import ArtifactStorageFull
+        target=self.base/'rejected';source=(self.root/'portfolio.sqlite').read_bytes()
+        with patch('meme_machine.operational.artifact_storage.admit_snapshot',side_effect=ArtifactStorageFull('root_headroom')):
+            with self.assertRaises(ArtifactStorageFull):backup.copy_state(self.root,target)
+        self.assertFalse(target.exists());self.assertEqual((self.root/'portfolio.sqlite').read_bytes(),source)
+
+    def test_space_loss_during_copy_retains_partial_failure_without_restore_authority(self):
+        from meme_machine.operational.artifact_storage import ArtifactStorageFull
+        target=self.base/'partial';before=backup.state_identity(self.root)
+        with patch('meme_machine.operational.artifact_storage.headroom',side_effect=[{},ArtifactStorageFull('destination_copy_reserve')]):
+            with self.assertRaises(ArtifactStorageFull):backup.copy_state(self.root,target)
+        self.assertFalse((target/'backup.json').exists())
+        self.assertTrue((target/'backup-incomplete.json').exists())
+        self.assertTrue((target/'backup-failed.json').exists())
+        self.assertEqual(backup.state_identity(self.root),before)
+
     def test_verify_refuses_authoritative_target(self):
         with patch.dict(os.environ,MM_STATE_ROOT=str(self.root)):
             with self.assertRaisesRegex(ValueError,'isolated_target'):backup.verify_copy(self.root)

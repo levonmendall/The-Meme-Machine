@@ -35,24 +35,40 @@ def sqlite_file(path):
         return stream.read(16)==b'SQLite format 3\0'
 
 
-def snapshot_database(source, target, deadline):
+def file_sha256(path):
+    h=hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for chunk in iter(lambda:stream.read(4*1024**2),b''):h.update(chunk)
+    return h.hexdigest()
+
+
+def snapshot_database(source, target, deadline, check_space=None):
     with closing(sqlite3.connect(Path(source).absolute().as_uri()+'?mode=ro',uri=True,timeout=.2)) as src, \
             closing(sqlite3.connect(target)) as dst:
         src.execute('PRAGMA query_only=ON')
         def progress(*_):
             if time.monotonic()>deadline:raise TimeoutError('coherent_backup_deadline')
+            if check_space is not None:check_space()
         src.backup(dst,pages=256,progress=progress,sleep=.05)
         dst.set_progress_handler(lambda:int(time.monotonic()>deadline),1000)
         if dst.execute('PRAGMA integrity_check').fetchall()!=[('ok',)]:
             raise RuntimeError('backup_database_integrity')
 
 
-def state_identity(root):
+def state_identity(root, *, immutable=False):
     from meme_machine.shared_capital.runtime import selected
     shared=selected(Path(root)/'portfolio.sqlite')
+    database=shared or (Path(root)/'portfolio.sqlite').absolute()
+    uri=database.as_uri()+'?mode=ro'
+    if immutable:
+        for suffix in ('-wal','-journal'):
+            sidecar=Path(str(database)+suffix)
+            if sidecar.is_file() and sidecar.stat().st_size:
+                raise ValueError('immutable_reader_requires_quiescent_database')
+        uri+='&immutable=1'
     if shared:
         from meme_machine.shared_capital.reporting import read_authority
-        with closing(sqlite3.connect(shared.as_uri()+'?mode=ro',uri=True)) as db:
+        with closing(sqlite3.connect(uri,uri=True)) as db:
             db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
             reader=read_authority(db);state=reader._read()
             # Read-only recovery identity includes every shared obligation,
@@ -63,7 +79,7 @@ def state_identity(root):
                 journal_hash=db.execute('SELECT hash FROM shared_capital_events ORDER BY sequence DESC LIMIT 1').fetchone()[0],
                 reconciliation='PASS',funding_authority='SHARED',replayed_state=state,replayed_sha256=digest(state),
                 pending_deliveries=[*state['pending_deliveries'],*state.get('runtime_pending',{}).values()])
-    with closing(sqlite3.connect((Path(root)/'portfolio.sqlite').absolute().as_uri()+'?mode=ro',uri=True)) as db:
+    with closing(sqlite3.connect(uri,uri=True)) as db:
         db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
         from meme_machine.portfolio_accounting import PortfolioAccounting,_encode_checkpoint,digest
         reader=object.__new__(PortfolioAccounting);reader.db=db
@@ -81,11 +97,51 @@ def state_identity(root):
             sleeves=[list(row) for row in db.execute('SELECT * FROM portfolio_sleeves ORDER BY lane')])
 
 
-def copy_state(root, target, *, seconds=60):
+def reusable_point(root, point):
+    """Strict byte equality to a complete coherent point; no copies or SQLite writes."""
+    root=Path(root).resolve();point=require_isolated(point)
+    if any(p.stat().st_size for base in (root,point) for pattern in ('*-wal','*-journal')
+           for p in base.rglob(pattern) if p.is_file()):
+        return None
+    if any((point/name).exists() for name in ('backup-incomplete.json','backup-failed.json')):
+        return None
+    index=read_json(point/'backup.json')
+    if not index.get('sqlite_consistent') or not index.get('application_writers_quiesced'):
+        return None
+    sources={str(p.relative_to(root)):p for p in root.rglob('*')
+             if p.is_file() and classification(str(p.relative_to(root)))!='EPHEMERAL'}
+    if set(sources)!=set(index['inventory']):return None
+    original={relative:(p.stat().st_size,p.stat().st_mtime_ns) for relative,p in sources.items()}
+    for relative,source in sources.items():
+        dest=point/relative;row=index['inventory'][relative]
+        if source.is_symlink() or dest.is_symlink() or point not in dest.resolve().parents:
+            return None
+        before=source.stat()
+        # SQLite backup rewrites bookkeeping headers. New engineering points
+        # record the exact quiescent source digest as well as the backup digest.
+        expected_source=row.get('source_sha256') or row['sha256']
+        if file_sha256(source)!=expected_source or file_sha256(dest)!=row['sha256']:return None
+        after=source.stat()
+        if (before.st_size,before.st_mtime_ns)!=(after.st_size,after.st_mtime_ns):return None
+    if any((p.stat().st_size,p.stat().st_mtime_ns)!=original[relative] for relative,p in sources.items()):return None
+    if any(p.stat().st_size for pattern in ('*-wal','*-journal') for p in root.rglob(pattern) if p.is_file()):return None
+    if state_identity(root,immutable=True)!=index['portfolio'] or state_identity(point,immutable=True)!=index['portfolio']:
+        return None
+    return dict(epoch_id=index['epoch_id'],files=len(index['inventory']),
+        sqlite_databases=sum(row['sqlite'] for row in index['inventory'].values()),
+        directory=str(point),reused=True,verification='exact source and recovery point hashes')
+
+
+def copy_state(root, target, *, seconds=60, nonessential=True, reuse=None):
     """Call only with all application writers stopped or the cgroup frozen."""
     root=Path(root).resolve();target=Path(target).resolve()
     if root==target or root in target.parents or target.exists():
         raise ValueError('new_isolated_backup_target_required')
+    if reuse is not None:
+        result=reusable_point(root,reuse)
+        if result is not None:return result
+    from .artifact_storage import admit_snapshot, headroom
+    remaining=admit_snapshot(root,target.parent,nonessential=nonessential)
     target.mkdir(parents=True,mode=0o700)
     # A process killed mid-copy leaves an identifiable disposable partial point.
     atomic_json(target/'backup-incomplete.json',dict(at=stamp(),usable=False))
@@ -99,12 +155,27 @@ def copy_state(root, target, *, seconds=60):
             if kind=='EPHEMERAL':continue
             if time.monotonic()>deadline:raise TimeoutError('coherent_backup_deadline')
             dest=target/relative;dest.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
+            headroom(target,remaining,nonessential=nonessential,warn=False)
             is_sqlite=sqlite_file(source)
-            if is_sqlite:snapshot_database(source,dest,deadline)
+            source_before=source.stat()
+            def check_space():
+                allocated=max(dest.stat().st_size,dest.stat().st_blocks*512) if dest.exists() else 0
+                headroom(target,max(0,remaining-allocated),nonessential=nonessential,warn=False)
+            if is_sqlite:snapshot_database(source,dest,deadline,check_space)
             else:shutil.copy2(source,dest)
+            remaining=max(0,remaining-max(source.stat().st_size,source.stat().st_blocks*512))
+            headroom(target,remaining,nonessential=nonessential,warn=False)
             dest.chmod(0o600)
             inventory[relative]=dict(classification=kind,sqlite=is_sqlite,bytes=dest.stat().st_size,
-                sha256=hashlib.sha256(dest.read_bytes()).hexdigest())
+                sha256=file_sha256(dest))
+            # Optional engineering reuse evidence must not extend the bounded
+            # runtime backup's frozen window or ignore WAL/rollback contents.
+            if nonessential and not any(Path(str(source)+suffix).is_file() and
+                    Path(str(source)+suffix).stat().st_size for suffix in ('-wal','-journal')):
+                inventory[relative]['source_sha256']=file_sha256(source)
+                source_after=source.stat()
+                if (source_before.st_size,source_before.st_mtime_ns)!=(source_after.st_size,source_after.st_mtime_ns):
+                    raise RuntimeError('backup_source_changed_during_copy')
         restored=state_identity(target)
         if baseline!=restored or state_identity(root)!=baseline:
             raise RuntimeError('backup_application_point_changed')
@@ -134,7 +205,7 @@ def verify_copy(root):
         p=root/relative
         if p.is_symlink() or root not in p.resolve().parents:
             raise ValueError('restore_path_escape')
-        if hashlib.sha256(p.read_bytes()).hexdigest()!=row['sha256']:
+        if file_sha256(p)!=row['sha256']:
             raise RuntimeError('restored_state_hash_mismatch')
         if row['sqlite']:
             with closing(sqlite3.connect(p.as_uri()+'?mode=ro',uri=True)) as db:
@@ -176,10 +247,12 @@ def prove_replay(root):
                 replay_idempotent=True,single_writer_fencing=True)
 
 
-def prepare(root,target,*,freeze_seconds=5):
+def prepare(root,target,*,freeze_seconds=5,nonessential=True):
     from .storage_guard import verify_storage
     verify_storage(Path(root).resolve())
     target=Path(target).resolve()
+    from .artifact_storage import admit_snapshot
+    admit_snapshot(root,target.parent,nonessential=nonessential)
     target.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
     with (target.parent/'backup.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -208,7 +281,7 @@ def prepare(root,target,*,freeze_seconds=5):
                 fcntl.flock(supervisor_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
                 # A manual supervisor cannot start while this existing lock is
                 # held; no new economic lock file or epoch is created here.
-            return copy_state(root,target,seconds=freeze_seconds if active else 60)
+            return copy_state(root,target,seconds=freeze_seconds if active else 60,nonessential=nonessential)
         finally:
             if frozen:subprocess.run(['systemctl','thaw',PAPER_UNIT],check=True,timeout=5)
             if supervisor_lock is not None:supervisor_lock.close()

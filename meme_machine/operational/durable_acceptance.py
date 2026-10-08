@@ -32,7 +32,8 @@ def retain_completed(output,keep=8):
         if not folder.is_dir() or folder.is_symlink():continue
         try:row=read_json(folder/'status.json')
         except (OSError,ValueError):continue
-        if row.get('status') in ('PASS','FAIL') and str(folder) not in referenced:
+        # Failed acceptance evidence needs explicit disposition, not age pruning.
+        if row.get('status')=='PASS' and str(folder) not in referenced:
             complete.append(folder)
     import shutil
     for folder in sorted(complete,reverse=True)[keep:]:shutil.rmtree(folder)
@@ -70,6 +71,16 @@ def run_child(command, folder, record, observer=None, pointer=None):
         previous={sig:signal.signal(sig,terminate) for sig in (signal.SIGTERM,signal.SIGINT)}
         try:
             while True:
+                from .artifact_storage import headroom,ArtifactStorageFull
+                try:
+                    headroom(folder,max(0,OBSERVATION_BOUND-observation_bytes)+2*LOG_BOUND,warn=False)
+                except ArtifactStorageFull:
+                    issues.append('engineering_storage_headroom')
+                    if child.poll() is None:
+                        child.terminate()
+                        try:child.wait(timeout=15)
+                        except subprocess.TimeoutExpired:child.kill();child.wait(timeout=5)
+                    break
                 if observer is not None:
                     try:
                         sample=observed(observer,record['epoch_id'])
@@ -120,7 +131,13 @@ def execute(phase, output=OUTPUT, observer=OBSERVER):
     except BlockingIOError:
         lock.close();raise RuntimeError('acceptance_already_running') from None
     try:
+        from .artifact_storage import headroom,tree_bytes,Policy,ArtifactStorageFull
+        policy=Policy.environment()
         retain_completed(output)
+        expected_bytes=OBSERVATION_BOUND+2*LOG_BOUND
+        if tree_bytes(output,limit=policy.snapshot_total_bytes)+expected_bytes>policy.snapshot_total_bytes:
+            raise ArtifactStorageFull('engineering_acceptance_retained_quota')
+        headroom(output,expected_bytes,policy=policy)
         from .storage_guard import verify_storage
         # This unit deliberately bind-mounts economic storage read-only. The
         # runtime's default guard still requires a writable original volume.
