@@ -1,0 +1,29 @@
+{
+  "historical_source_commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+  "historical_path": "tests/lanes/meteora/test_meteora_evidence_recovery.py",
+  "historical_sha256": "71e54960523dcc02c0ae836eff665a2b2527b669a65bade2f8595197f18d4ddf",
+  "current_path": "tests/test_meteora_evidence_recovery.py",
+  "fixture": {
+    "historical_path": "tests/lanes/meteora/fixtures/meteora_trigger_account_lag.json",
+    "current_path": "tests/fixtures/meteora_trigger_account_lag.json",
+    "sha256": "4992985327c5679cdc01f63a37d727f131029934a8663f4ecf695adcd7d8bc1e"
+  },
+  "adaptation": "None; original complete test and captured fixture bytes unchanged, relative fixture layout preserved.",
+  "coverage": [
+    "Gap hydration/rate-limit/reconnect obligations cannot be falsely acknowledged",
+    "Authenticated trigger survives lagging account endpoint but original wait limit still applies",
+    "Captured lag cannot invent successor snapshot or no-activity proof",
+    "Pipeline terminal/supersession attribution durable across restart",
+    "Native rejection checkpoint matches durable observation state",
+    "Pending pre-entry context and verified-zero warmup remain distinct"
+  ],
+  "suite": "OPERATIONAL",
+  "authority": "Mocked offline providers and disposable state. Captured fixture proves only its recorded lag, never fabricated catch-up or natural qualification.",
+  "suite_isolation": {
+    "runner": "tests/test_meteora_evidence_recovery_isolated.py",
+    "runner_sha256": "bdea69000554dd34d79d0ae57fc591c11cd824a998dfea6deec72da56ed98dc7",
+    "reason": "Native run enforces whole-process strategy import independence. Combined suite legitimately preloads other lanes; execute original full fourteen tests unchanged in clean guarded subprocess instead.",
+    "guard": "network_guard before test imports; MM_ variables excluded only from disposable child, no configured state/provider authority; original independence check never mocked or weakened.",
+    "negative_result": "OPERATIONAL880 FAILED1error207.663s: native Meteora test rejected combined-suite Pons/Ramses imports; all other879tests passed."
+  }
+}

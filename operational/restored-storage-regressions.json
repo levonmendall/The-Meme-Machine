@@ -1,0 +1,19 @@
+{
+  "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "source_path": "tests/test_run370_storage.py",
+  "current_path": "tests/test_run370_storage.py",
+  "suite": "OPERATIONAL",
+  "test_count": 8,
+  "changes": "Only legacy fixture removes modern orphan-witness version markers before reverting address schema; original assertions unchanged. Existing modern corrupted-trigger rejection remains covered by test_orphan_schema_compatibility.",
+  "behaviors": [
+    "snapshot survives archive GC",
+    "restart interval authority",
+    "scope filtered block bound",
+    "repaired gaps and retention floor",
+    "lossless transaction/archive hashes",
+    "legacy address migration",
+    "corrupt shared material fails closed",
+    "safe disconnect classifications"
+  ],
+  "result": "8 tests PASS; combined storage/batch/schema15PASS"
+}

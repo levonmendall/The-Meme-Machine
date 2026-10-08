@@ -1,0 +1,10 @@
+{
+  "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "source_path": "tests/test_provider_partial_batch_retry.py",
+  "current_path": "tests/test_provider_partial_batch_retry.py",
+  "suite": "OPERATIONAL",
+  "test_count": 6,
+  "change": "Original three incident assertions unchanged, also exercised against operational Pump provider.",
+  "scope_review": "Meteora is independently pinned to a3579b4cc748fdbb7b4a466680f8a224773adc8b: its original call_many bound is1..8 and distinct retry accounting. The later Pump16-member/429 batch shrink contract is not attributed to Meteora; no provider behavior changed.",
+  "result": "Root+Pump six tests PASS"
+}

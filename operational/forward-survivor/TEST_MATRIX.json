@@ -1,0 +1,120 @@
+{
+  "additional_boundaries": [
+    "tests.test_forward_survivor.ForwardSurvivorTests.test_fork_at_enrollment_parent_rewinds_same_prospective_domain",
+    "tests.test_forward_survivor.ForwardSurvivorTests.test_required_individual_interval_crossing_outage_stays_incomplete",
+    "tests.test_forward_survivor.ForwardSurvivorTests.test_first_forward_start_migrates_native_checkpoint_but_not_partial_research",
+    "tests.test_forward_survivor.ForwardSurvivorTests.test_pump_discovers_independently_from_canonical_interval_on_cold_and_warm_start",
+    "tests.test_forward_survivor.ForwardSurvivorTests.test_shared_worker_cadence_follows_pons_without_changing_pump_or_provider_rate",
+    "tests.test_forward_survivor.ForwardSurvivorTests.test_retained_pre_frontier_nomination_recovers_only_its_authenticated_lineage",
+    "tests.test_forward_survivor.ForwardSurvivorTests.test_old_recovery_never_claims_or_delays_newer_candidate_acquisition"
+  ],
+  "limitations": [
+    "Synthetic canonical RPC and gate-passing market paths are unit evidence, never successful market validation.",
+    "Position-priority test instruments the unchanged position handler; native economic/exit behavior is covered by existing suites.",
+    "Actual provider dispatch, original candidate/position deadlines and steady resource use are unproved."
+  ],
+  "mandatory_requirements": [
+    {
+      "name": "less_than_seven_days",
+      "requirement": 1,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital"
+    },
+    {
+      "name": "new_pons_candidate_at_minimum_age",
+      "requirement": 2,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital"
+    },
+    {
+      "name": "incomplete_individual_evidence",
+      "requirement": 3,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_incomplete_individual_continuity_cannot_qualify"
+    },
+    {
+      "name": "no_global_readiness_gate",
+      "requirement": 4,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_obsolete_historical_plan_never_starts_or_gates_normal_operation"
+    },
+    {
+      "name": "independent_pump_timing",
+      "requirement": 5,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_pump_uses_its_own_four_hour_age_and_six_hour_price_requirement"
+    },
+    {
+      "name": "current_rejection_preserves_survivor",
+      "requirement": 6,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital"
+    },
+    {
+      "name": "cold_start_without_historical_seed",
+      "requirement": 7,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_cold_start_enrolls_inclusively_without_seed_or_backdated_coverage"
+    },
+    {
+      "name": "warm_restart_preserves_evidence",
+      "requirement": 8,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_warm_restart_retains_frontier_candidate_times_and_complete_history"
+    },
+    {
+      "name": "short_outage_without_market_bootstrap",
+      "requirement": 9,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_short_outage_keeps_gap_and_recovers_only_uncovered_tail"
+    },
+    {
+      "name": "only_forked_histories_invalidated",
+      "requirement": 10,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_reorg_affects_only_forked_checkpoints_and_preserves_controllers"
+    },
+    {
+      "name": "original_maximum_age",
+      "requirement": 11,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_original_inclusive_maximum_age_and_frozen_policies"
+    },
+    {
+      "name": "qualification_while_capital_committed",
+      "requirement": 12,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital"
+    },
+    {
+      "name": "durable_funding_denial_after_qualification",
+      "requirement": 13,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital"
+    },
+    {
+      "name": "position_priority_without_census",
+      "requirement": 14,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_positions_keep_original_admission_during_missing_market_census"
+    },
+    {
+      "name": "uncapped_independent_prospective_discovery",
+      "requirement": 15,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_prospective_factory_discovery_retains_more_than_transport_cohort_bound"
+    },
+    {
+      "name": "no_backdated_pre_enrollment_coverage",
+      "requirement": 16,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_cold_start_enrolls_inclusively_without_seed_or_backdated_coverage"
+    },
+    {
+      "name": "nine_changes_unchanged",
+      "requirement": 17,
+      "test": "tests.test_forward_survivor.ForwardSurvivorTests.test_original_inclusive_maximum_age_and_frozen_policies"
+    },
+    {
+      "name": "paused_families_do_no_operational_work",
+      "requirement": 18,
+      "test": "tests.test_pump_pons_consolidation"
+    }
+  ],
+  "new_test_cases": 18,
+  "preserved_regressions": [
+    "tests.test_operational_nine",
+    "tests.test_shared_capital_strategy",
+    "tests.test_current_survivor_independence",
+    "tests.test_pons_ongoing_scale",
+    "tests.lanes.pump.test_pumpswap_survivor.SurvivorTests.test_age_inclusive_exact_bounds",
+    "tests.lanes.pons.test_pons_finalization",
+    "tests.test_pons_historical",
+    "tests.test_robinhood_usd_valuation"
+  ],
+  "schema": "forward-survivor-regressions-v1"
+}

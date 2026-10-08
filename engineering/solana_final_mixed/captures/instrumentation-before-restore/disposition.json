@@ -1,0 +1,12 @@
+{
+  "source_commit": "daad4640a6dab35ffcabca4e17ba9b3e3ae6c927",
+  "source_tree": "cf22dfc48b2dde386145d8b3b9fb2fe9e3f3021e",
+  "defect": "New read-only observer queried lazy CandidateHistory schema before restore initialized it.",
+  "production_runtime_defect": false,
+  "mixed_proof": false,
+  "repair": "Observe missing/uninitialized database without creating or mutating it.",
+  "RPC_calls": 2,
+  "RPC_CU": 30,
+  "HTTP_bytes": 124,
+  "estimated_RPC_spend_USD": 1.575e-05
+}

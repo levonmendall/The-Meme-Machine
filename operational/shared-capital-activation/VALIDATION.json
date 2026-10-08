@@ -1,0 +1,87 @@
+{
+  "schema": "shared-capital-validation-v1",
+  "runtime_and_operational": {
+    "tests": 73,
+    "seconds": 34.429,
+    "result": "PASS"
+  },
+  "preserved_shared_schema_and_recovery": {
+    "tests": 18,
+    "seconds": 1.846,
+    "result": "PASS"
+  },
+  "reporting_final": {
+    "tests": 3,
+    "seconds": 0.677,
+    "result": "PASS"
+  },
+  "native_recovery_and_nine": {
+    "tests": 32,
+    "seconds": 11.444,
+    "result": "PASS"
+  },
+  "preserved_maintenance_quiet": {
+    "tests": 1,
+    "seconds": 11.931,
+    "result": "PASS"
+  },
+  "FAST": {
+    "tests": 832,
+    "seconds": 499.337,
+    "result": "FAIL",
+    "failures": 1,
+    "baseline_reproduced": true
+  },
+  "OPERATIONAL": {
+    "tests": 2246,
+    "seconds": 1121.049,
+    "result": "FAIL",
+    "failures": 7,
+    "errors": 3,
+    "skipped": 33,
+    "subsequent_integration_repairs_tested": true
+  },
+  "acceptance": {
+    "CAPACITY": {
+      "status": "BLOCKED",
+      "executed": false,
+      "required_seconds": 3600
+    },
+    "RECOVERY": {
+      "status": "BLOCKED",
+      "executed": false,
+      "required_seconds": null
+    },
+    "AUTONOMY": {
+      "status": "BLOCKED",
+      "executed": false,
+      "required_seconds": 129600
+    }
+  },
+  "syntax_and_whitespace": "PASS",
+  "logs_sha256": {
+    "FAST-final.log": "5356eb79441c666bdfe6c48c6f66673c1edf507f5e82aba8adfeba5d7c144f2f",
+    "OPERATIONAL.log": "2759c89a413dbbaea29ed27e7ecdd744ca768ecba71abca27fcb76b22979a699",
+    "actual-migration-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "actual-migration.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ancestry-fetch.log": "240f72ca5a93db27730b2c80c192de2dccb7637056cb13e8218917d89f4a90e8",
+    "baseline-9ee-confirmation.log": "85d7d46a29b8a9839618b17718faf83280d14b6f224b5842a2c53225b2cecde9",
+    "baseline-failures-current.log": "df243c260813e5013689a7618fc26b9871f02d98f3d4ba385fbc1e566f0e610e",
+    "final-integration-delta.log": "4aa9644313b2a9c2bfbd0e2bb5c15c735e03a014e4cc60e532f3cf0705a95bc1",
+    "final-runtime-provider-controls.log": "e72a2fb5f50944ae659182263c65f7d6e594e69440d5bc4ae07bed4e413a6f93",
+    "maintenance-quiet-final.log": "a9400eb3dfa1704eb297ee7dd59d81b2bd2b41463e8ae0b9602559eed7d2e083",
+    "migrated-native-backing.log": "708feba68f2d954bffaf77ffd887b10b9a9b074c696163446c774053bf176a32",
+    "native-runtime.log": "c98ae3b9f58652641006cf2ec2596456af853599617ae9bc6036a20dc0edbdfb",
+    "operational-integration-delta.log": "5162650fcb317aa4659a1424f6742b1c6391a69480ef42c60da90833fcd8de74",
+    "performance-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "performance.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "preserved-ledger-final.log": "4a6e2e25a419683e5c81fe07143420845df0aceeeb946573145a0c3086e62d2a",
+    "provider-offline-description.json": "975f1e499e112d484e618831b99b4e7cc08ac89d34fd70d90d139cc273112134",
+    "recovery-pinned.log": "ffd121293846cc1c69f94856523de428e4b0ed1fa584ed3d5f0fc1e2014971d2",
+    "remote-heads-before.txt": "32f0edeb4b56e854b83a2c44fdcb90069f84a16ce976ec19aa95bafa9f4e218c",
+    "reporting-final.log": "8605a044f6273b9a9a52427b537a40cf8072085430830d2858af0cd97982c3a1",
+    "runtime-controls-final.log": "6a007df75fa70bc8f27c656c4429b5df610910089a2ec77e93363dc7094bc5ef",
+    "runtime-initial.log": "603f9e77b5080e952218b151b26dddac444a30517e952aba6dc521d4d70548e6",
+    "shared-focused.log": "5905a60ad7396f408c88b1e63c122c7984c24071b86ae57bfb17c79b86597326"
+  }
+}

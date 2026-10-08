@@ -1,0 +1,23 @@
+{
+  "verified_UTC": "2026-10-07T11:27:31.951620+00:00",
+  "sources": [
+    "https://www.alchemy.com/pricing",
+    "https://www.alchemy.com/solana-grpc",
+    "https://www.alchemy.com/docs/reference/compute-unit-costs"
+  ],
+  "yellowstone_USD_per_decimal_TB": 75,
+  "PAYG_USD_per_million_CU": 0.525,
+  "Solana_WebSocket_CU_per_delivered_byte": 0.0002,
+  "getSlot_CU": 20,
+  "getTransactionsForAddress_CU": 100,
+  "getTransaction_CU": 40,
+  "getBlock_CU": 40,
+  "getSignaturesForAddress_CU": 40,
+  "getMultipleAccounts_CU": 20,
+  "PAYG_included_CU_per_second": 10000,
+  "PAYG_included_RPS": 300,
+  "additional_5000_CU_per_second_block_monthly_USD": 160,
+  "free_plan_allowance_not_applied_as_PAYG_credit": true,
+  "HTTP_bytes_not_priced_as_Yellowstone": true,
+  "getAccountInfo_CU": 10
+}

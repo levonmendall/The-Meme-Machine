@@ -1,0 +1,45 @@
+{
+  "baseline_scheduling_regressions": {
+    "coverage": [
+      "owner work admission",
+      "M1 completion",
+      "housekeeping ordering",
+      "maintenance fairness/recovery"
+    ],
+    "local_ipc": "enabled; market HTTP/TCP acquisition forbidden",
+    "passed": true,
+    "tests": 106
+  },
+  "compared_tests_per_arm": 245,
+  "comparisons": {
+    "meteora": {
+      "materialized_tests": 67,
+      "passed": true,
+      "reference_tests": 67
+    },
+    "pons": {
+      "materialized_tests": 88,
+      "passed": true,
+      "reference_tests": 88
+    },
+    "pump": {
+      "materialized_tests": 57,
+      "passed": true,
+      "reference_tests": 57
+    },
+    "ramses": {
+      "materialized_tests": 33,
+      "passed": true,
+      "reference_tests": 33
+    }
+  },
+  "materialized_commit": "216a7007",
+  "network": "forbidden; no provider calls",
+  "python_tested": "3.12.14",
+  "result": "PASS",
+  "scope": "focused deterministic comparisons; no Stage-E qualification; no market execution",
+  "source_equivalence": "561 Python files inverse-byte/AST equal plus copied native JSON/ABI resources",
+  "sqlite_tested": "3.53.1",
+  "strategy_changes_applied": 0,
+  "websockets_tested": "17.1"
+}

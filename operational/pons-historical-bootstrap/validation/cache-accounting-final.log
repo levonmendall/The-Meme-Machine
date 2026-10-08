@@ -1,0 +1,6 @@
+test_native_local_receipt_cache_hits_are_counted_with_shared_telemetry (tests.test_pons_historical.HistoricalTests.test_native_local_receipt_cache_hits_are_counted_with_shared_telemetry) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.821s
+
+OK

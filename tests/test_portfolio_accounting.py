@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sqlite3
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -160,6 +161,67 @@ class SharedPortfolioAccountingTests(unittest.TestCase):
         self.assertEqual(self.account.verify_archive()["sequence"], 0)
         self.assertFalse(self.receipt_path.exists())
         self.assertFalse(self.export_path.exists())
+
+    def test_read_only_observer_cannot_delay_writer_close_or_fence_release(self):
+        self.activate()
+        lifecycle = self.reserve_enter()
+        self.settle("pump", lifecycle, "115.12345678901234567890123456789", fee="0")
+        expected = self.publish()
+        reader = sqlite3.connect(self.database, isolation_level=None)
+        reader.execute("BEGIN")
+        sequence = reader.execute("SELECT MAX(sequence) FROM portfolio_events").fetchone()[0]
+        self.publish()
+        expected = self.account._export(self.account.snapshot())
+        self.account.db.execute("PRAGMA busy_timeout=2000")
+        errors = []
+        finished = threading.Event()
+
+        def close_writer():
+            try:
+                self.account.compact()
+                self.account.close()
+            except BaseException as error:
+                errors.append(error)
+            finally:
+                finished.set()
+
+        worker = threading.Thread(target=close_writer)
+        worker.start()
+        try:
+            self.assertTrue(finished.wait(.5), "observer delayed closing the economic writer")
+            self.assertEqual(errors, [])
+            self.account = None
+            # The observer retains its original read snapshot while the next
+            # writer opens, replays exact accounting and still fences rivals.
+            self.assertEqual(reader.execute("SELECT MAX(sequence) FROM portfolio_events").fetchone()[0], sequence)
+            self.account = PortfolioAccounting(self.database)
+            self.assertEqual(self.account._export(self.account.snapshot()), expected)
+            with self.assertRaisesRegex(RuntimeError, "portfolio_writer_already_running"):
+                PortfolioAccounting(self.database)
+        finally:
+            reader.close()
+            worker.join(3)
+
+    def test_nonblocking_close_reuses_wal_and_preserves_replay(self):
+        self.activate()
+        self.reserve_enter()
+        peak = 0
+        for index in range(100):
+            reader = sqlite3.connect(self.database, isolation_level=None)
+            reader.execute("BEGIN")
+            reader.execute("SELECT COUNT(*) FROM portfolio_events").fetchone()
+            expected = self.publish()
+            if index % 10 == 0:
+                self.account.compact()
+            self.account.close()
+            self.account = None
+            wal = Path(str(self.database) + "-wal")
+            peak = max(peak, wal.stat().st_size)
+            reader.close()
+            self.account = PortfolioAccounting(self.database)
+            self.assertEqual(self.account._export(self.account.snapshot()), expected)
+            self.assertTrue(all(self.account._reconcile(self.account.snapshot())["checks"].values()))
+        self.assertLess(peak, 1024 * 1024)
 
     def test_exact_inception_contract_and_dashboard_hash_semantics(self):
         receipt, receipt_hash = self.activate()

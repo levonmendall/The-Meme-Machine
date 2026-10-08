@@ -1,0 +1,87 @@
+test_disconnected_client_commit_retry_and_service_survival (tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival) ... ERROR
+test_response_after_old_250ms_limit_is_acknowledged_once (tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once) ... ERROR
+test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged) ... FAIL
+test_scope_fairness_under_new_dense_meteora_arrivals (tests.test_production_maintenance_arbiter.ProductionServeTests.test_scope_fairness_under_new_dense_meteora_arrivals) ... Executing <Task pending name='Task-16' coro=<serve.<locals>.selected_source() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_evidence_service.py:1052> wait_for=<Future pending cb=[shield.<locals>._outer_done_callback() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:922, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_wait.<locals>._on_completion() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:534] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:420> took 0.100 seconds
+FAIL
+
+======================================================================
+ERROR: test_disconnected_client_commit_retry_and_service_survival (tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run369_runtime.py", line 281, in test_disconnected_client_commit_retry_and_service_survival
+    await asyncio.to_thread(disconnect);await asyncio.sleep(.2)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run369_runtime.py", line 280, in disconnect
+    stream.connect(str(path)+'.sock');stream.sendall((json.dumps(request)+'\n').encode())
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/evidence_ipc_harness.py", line 26, in connect
+    if 'callback' not in state:raise ConnectionRefusedError()
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run369_runtime.py", line 291, in test_disconnected_client_commit_retry_and_service_survival
+    finally:stop.set();await task;loop.set_exception_handler(previous)
+                       ^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_evidence_service.py", line 779, in serve
+    raise EvidenceUnavailable('legacy_startup_archived_model_b_driver_required')
+meme_machine.solana_evidence_plane.EvidenceUnavailable: legacy_startup_archived_model_b_driver_required
+
+======================================================================
+ERROR: test_response_after_old_250ms_limit_is_acknowledged_once (tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run369_runtime.py", line 262, in test_response_after_old_250ms_limit_is_acknowledged_once
+    finally: stop.set(); await task
+                         ^^^^^^^^^^
+meme_machine.solana_evidence_plane.EvidenceUnavailable: legacy_startup_archived_model_b_driver_required
+
+======================================================================
+FAIL: test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_robinhood_usd_valuation.py", line 424, in test_strategy_sources_and_nine_change_tests_byte_unchanged
+    if rel not in infrastructure:self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: b'"""[355 chars]sdict, replace\nimport time\nimport json\nimpo[62665 chars] )\n' != b'"""[355 chars]sdict\nimport time\nimport json\nimport os\nfr[53760 chars] )\n' : meme_machine/lanes/pons/pons_selective_acquisition.py
+
+======================================================================
+FAIL: test_scope_fairness_under_new_dense_meteora_arrivals (tests.test_production_maintenance_arbiter.ProductionServeTests.test_scope_fairness_under_new_dense_meteora_arrivals)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_production_maintenance_arbiter.py", line 114, in test_scope_fairness_under_new_dense_meteora_arrivals
+    self.healthy(box)
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_production_maintenance_arbiter.py", line 23, in healthy
+    self.assertFalse(box['errors'],[str(x) for x in box['errors']])
+AssertionError: [TimeoutError()] is not false : ['']
+
+----------------------------------------------------------------------
+Ran 4 tests in 14.677s
+
+FAILED (failures=2, errors=2)

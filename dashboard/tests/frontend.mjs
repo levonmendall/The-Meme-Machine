@@ -12,7 +12,9 @@ const root = await mkdtemp(path.join(os.tmpdir(),'mm-dashboard-ui-'));
 const fixture = path.join(root,'fixtures');
 const generated = spawnSync('python',['-m','dashboard.fixtures',fixture],{encoding:'utf8'});
 assert.equal(generated.status,0,generated.stderr);
-const server = spawn('python',['-m','dashboard','--fixture-dir',fixture,'--port','0'],{stdio:['ignore','pipe','pipe']});
+const auth = 'Basic '+Buffer.from('owner:synthetic-frontend-password').toString('base64');
+const server = spawn('python',['-m','dashboard','--fixture-dir',fixture,'--port','0'],{
+  stdio:['ignore','pipe','pipe'], env:{...process.env,MM_DASHBOARD_OWNER_USER:'owner',MM_DASHBOARD_OWNER_PASSWORD:'synthetic-frontend-password'}});
 let stderr='';server.stderr.on('data',b=>{stderr+=b;});
 try {
   const [out] = await Promise.race([once(server.stdout,'data'),new Promise((_,reject)=>setTimeout(()=>reject(Error('preview startup timeout '+stderr)),8000))]);
@@ -26,13 +28,13 @@ try {
   const context = vm.createContext({
     document:{hidden:true,activeElement:{tagName:'BODY'},querySelector:element,querySelectorAll:()=>[]},
     window:{addEventListener(){}},location:{hash:'#overview'},
-    fetch:(url,options)=>{assert.ok(url.startsWith('/api/dashboard/'));return fetch(base+url,options);},
+    fetch:(url,options)=>{assert.ok(url.startsWith('/api/dashboard/'));return fetch(base+url,{...options,headers:{Authorization:auth}});},
     AbortController,URLSearchParams,setTimeout,clearTimeout,setInterval(){},console,FormData,
   });
   const source = await readFile('dashboard/static/app.js','utf8');
   vm.runInContext(source,context);
   const snapshots={};
-  for(const route of ['overview','lanes','lane/pump','lane/pons','lane/ramses','lane/meteora','positions','trades','analytics','system']) {
+  for(const route of ['overview','lanes','lane/pump','lane/pons','positions','trades','analytics','system']) {
     context.location.hash='#'+route;
     await vm.runInContext('render()',context);
     const html=element('#main').innerHTML;
@@ -40,12 +42,16 @@ try {
     assert.ok(html.includes('DEVELOPMENT FIXTURE'),route);
     assert.ok(!html.includes('NaN'),route);
     assert.ok(!html.includes('[object Object]'),route);
+    assert.ok(!/ramses|meteora/i.test(html),'inactive strategies must be hidden from '+route);
     snapshots[route]=html;
   }
   assert.ok(snapshots.overview.includes('$512.34'));
   assert.ok(snapshots.overview.includes('+2.47%'));
   assert.ok(snapshots['lane/pons'].includes('+$4.40'));
-  assert.ok(snapshots.system.includes('progress_stalled'));
+  assert.ok(snapshots.system.includes('System & evidence'));
+  assert.ok(snapshots.lanes.includes('Active paper lanes'));
+  assert.ok(snapshots.lanes.includes('PUMP LANE')&&snapshots.lanes.includes('PONS LANE'));
+  assert.ok(!snapshots.lanes.includes('PAUSED'));
   assert.ok(snapshots.analytics.includes('Completed P&L by settlement day'));
   assert.ok(snapshots.positions.includes('fixture-open-pons'));
   assert.equal(vm.runInContext('fixed("0.005")',context),'0.00');
@@ -56,9 +62,9 @@ try {
   assert.ok(element('#detail-content').innerHTML.includes('partial realization'));
   assert.ok(element('#detail-content').innerHTML.includes('Remaining basis'));
   for(const method of ['POST','PUT','DELETE']) {
-    const r=await fetch(base+'/api/dashboard/portfolio',{method});assert.equal(r.status,405);
+    const r=await fetch(base+'/api/dashboard/portfolio',{method,headers:{Authorization:auth}});assert.equal(r.status,405);
   }
-  const response=await fetch(base+'/dashboard');
+  const response=await fetch(base+'/dashboard',{headers:{Authorization:auth}});
   assert.equal(response.status,200);
   assert.ok(response.headers.get('content-security-policy').includes("connect-src 'self'"));
   const css=await readFile('dashboard/static/style.css','utf8');
@@ -76,6 +82,17 @@ try {
   assert.ok(element('#main').innerHTML.includes('Planned starting capital'));
   assert.ok(!element('#main').innerHTML.includes('$512.34'));
   assert.ok(!element('#main').innerHTML.includes('LIVE PAPER'));
+  const stopped={operations:{snapshot_state:'CURRENT',paper_state:'STOPPED',observer_state:'CURRENT',
+    monitor_state:'CURRENT',portfolio_state:'UNAVAILABLE',captured_at:'2026-10-08T00:00:00Z',
+    source:{},observer:{},acceptance:Object.fromEntries(['CAPACITY','RECOVERY','AUTONOMY'].map(p=>[p,{status:'NOT_STARTED',elapsed_seconds:0}])),alerts:['paper_stopped']}};
+  const connected=vm.runInContext('operationsPanel',context)(stopped,true);
+  assert.ok(connected.includes('PAPER STOPPED'));
+  assert.ok(connected.includes('NOT STARTED'));
+  assert.ok(connected.includes('Pump Current')&&connected.includes('Pons Survivor'));
+  assert.ok(!/ramses|meteora/i.test(connected));
+  assert.ok(!connected.includes('PAUSED (PAPER stopped)'));
+  assert.ok(connected.includes('PAPER STOPPED'));
+  assert.ok(connected.includes('No authentic measurements available'));
   if(process.argv[2]) {
     // Static captures contain the exact renderer output and stylesheet. They
     // deliberately have no scripts/API access and are always synthetic.
@@ -88,7 +105,7 @@ try {
       await writeFile(path.join(process.argv[2],name+'.html'),html);
     }
   }
-  console.log('PASS: 10 rendered routes, exact presentation rounding, fixture labeling, lifecycle details, API integration, mutating-method rejection, CSP, responsive rules. Browser geometry not tested.');
+  console.log('PASS: 8 active-lane rendered routes, exact presentation rounding, fixture labeling, lifecycle details, API integration, mutating-method rejection, CSP, responsive rules. Browser geometry not tested.');
 } finally {
   server.kill('SIGTERM');
   await once(server,'exit');

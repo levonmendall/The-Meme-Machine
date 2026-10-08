@@ -1,0 +1,11 @@
+{
+  "existing_snapshot_status": "SNAPSHOT_READY",
+  "snapshot_id": "3884b6cb-c204-11f1-b1b3-0210d2110bba",
+  "volume_id": "580be5d5-be20-11f1-bb2f-3ee8be45f379",
+  "epoch_id": "paper-1791089005190643467",
+  "local_point_manifest_matches_current_accounting": true,
+  "independent_off_host_restoration": "NOT_RUN",
+  "provider_response": 200,
+  "off_host_object_verified": true,
+  "created_at": "2026-10-07T04:04:40Z"
+}

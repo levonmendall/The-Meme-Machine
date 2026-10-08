@@ -1,0 +1,42 @@
+{
+  "schema": "pons-history-offline-test-receipts-v1",
+  "receipts": [
+    {
+      "path": "operational/pons-historical-bootstrap/validation/FAST-reviewed.log",
+      "bytes": 16752,
+      "sha256": "c2c78cde79a814b6e7bdeb0a7bc06ca13776ecdee0214efab91b7948cba2111a"
+    },
+    {
+      "path": "operational/pons-historical-bootstrap/validation/affected-final.log",
+      "bytes": 440,
+      "sha256": "cd3cf85e168f7861dd2bba8866d3a219e010e93ba0d40d47f077e5ca6ae740b1"
+    },
+    {
+      "path": "operational/pons-historical-bootstrap/validation/focused-reviewed.log",
+      "bytes": 7307,
+      "sha256": "e49e7bdf89c1a7d50d90367df74ab90a1ba855289b6f9d29b809ad50fcc2addc"
+    },
+    {
+      "path": "operational/pons-historical-bootstrap/validation/native-decoder-final.log",
+      "bytes": 403,
+      "sha256": "c50a8f838e5139d14e05ea8001fcf867eb769cde7478ad92941ceb38175f0d48"
+    },
+    {
+      "path": "operational/pons-historical-bootstrap/validation/source-freeze-starting-commit.log",
+      "bytes": 1254,
+      "sha256": "9c654a0ffdb7e4af2df8b7393d5ef33f490e5dec89f6a99d2a2b7f4cae16ecca"
+    },
+    {
+      "path": "operational/pons-historical-bootstrap/validation/focused-published.log",
+      "bytes": 7487,
+      "sha256": "0385946a14106ec79b9cdffa91f1527d82477416c712b5156346ab1fee1d4eec"
+    },
+    {
+      "path": "operational/pons-historical-bootstrap/validation/cache-accounting-final.log",
+      "bytes": 291,
+      "sha256": "6f40a01c07dda9a395ca163c265a19011477e9a03dbde58257dc003c2d9e9cf8"
+    }
+  ],
+  "market_provider_calls": 0,
+  "production_economic_database_mutations": 0
+}

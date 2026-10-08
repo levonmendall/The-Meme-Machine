@@ -1,0 +1,285 @@
+import unittest
+
+from meme_machine.lanes.pump.pump_acceleration_strategy import (
+    CreatorQualityRecord,
+    MODE_LATE_CURVE,
+    MODE_POSTGRAD,
+    MODE_SECOND_LEG,
+    POLICY,
+    SignalVector,
+    WalletSkillRecord,
+    creator_confirmation,
+    entry_signal_persistence,
+    flow_metrics,
+    policy_hash,
+    qualify,
+    relative_return_bps,
+    skilled_wallet_convergence,
+    trajectory_metrics,
+)
+
+
+class PumpAccelerationStrategyTests(unittest.TestCase):
+    def strong_late(self, **updates):
+        row=dict(
+            mint="MINT",
+            observed_at=1_000,
+            surface="pump.fun",
+            phase=MODE_LATE_CURVE,
+            curve_progress_bps=8200,
+            curve_velocity_bps_per_s=80,
+            curve_acceleration_bps_per_s2=5,
+            independent_buyer_clusters=30,
+            buyer_growth=8,
+            repeat_buyer_clusters=4,
+            repeat_buy_share_bps=3000,
+            net_buy_share_bps=8500,
+            concentration_bps=1500,
+            extension_bps=2500,
+            immediate_roundtrip_loss_bps=300,
+            skilled_wallet_clusters=2,
+            creator_quality_bps=7000,
+            creator_history_launches=10,
+            quote_relative_return_bps=800,
+        )
+        row.update(updates)
+        return SignalVector(**row)
+
+    def test_fast_and_slow_same_curve_location_are_distinct(self):
+        fast=trajectory_metrics([(0,3000),(10,4500),(20,6300),(30,8200)])
+        slow=trajectory_metrics([(0,7500),(60,7700),(120,7900),(180,8200)])
+        self.assertEqual(fast["curve_progress_bps"],slow["curve_progress_bps"])
+        self.assertGreater(fast["curve_velocity_bps_per_s"],slow["curve_velocity_bps_per_s"])
+
+    def test_backward_curve_movement_is_signed_evidence(self):
+        result=trajectory_metrics([(0,7000),(10,7600),(20,7300)])
+        self.assertEqual(result["curve_progress_bps"],7300)
+        self.assertLess(result["curve_velocity_bps_per_s"],0)
+        decision=qualify(self.strong_late(
+            curve_progress_bps=result["curve_progress_bps"],
+            curve_velocity_bps_per_s=result["curve_velocity_bps_per_s"],
+            curve_acceleration_bps_per_s2=result["curve_acceleration_bps_per_s2"],
+        ))
+        self.assertFalse(decision.qualified)
+        self.assertIn("curve_velocity",decision.reasons)
+
+    def test_curve_position_alone_is_not_enough(self):
+        result=qualify(self.strong_late(
+            curve_velocity_bps_per_s=0,
+            buyer_growth=0,
+            net_buy_share_bps=5000,
+            independent_buyer_clusters=1,
+        ))
+        self.assertFalse(result.qualified)
+        self.assertIn("curve_velocity",result.reasons)
+        self.assertIn("independent_buyers",result.reasons)
+
+    def test_strong_late_curve_can_qualify(self):
+        result=qualify(self.strong_late())
+        self.assertTrue(result.qualified,result.reasons)
+        self.assertIn("skilled_wallet_convergence",result.confirmations)
+        self.assertIn("creator_quality",result.confirmations)
+        self.assertEqual(result.policy_hash,policy_hash())
+
+    def test_machinery_grade_candidate_no_longer_has_profitability_authority(self):
+        result=qualify(self.strong_late(
+            curve_progress_bps=6000,
+            curve_velocity_bps_per_s=12,
+            curve_acceleration_bps_per_s2=-2,
+            independent_buyer_clusters=2,
+            buyer_growth=1,
+            net_buy_share_bps=5600,
+            concentration_bps=4900,
+            extension_bps=15000,
+            immediate_roundtrip_loss_bps=300,
+            skilled_wallet_clusters=0,
+            creator_quality_bps=None,
+            creator_history_launches=0,
+            quote_relative_return_bps=0,
+        ))
+        self.assertFalse(result.qualified)
+        self.assertIn("independent_buyers",result.reasons)
+        self.assertIn("buyer_growth",result.reasons)
+        self.assertIn("concentration",result.reasons)
+
+    def test_profitability_late_curve_rejects_terminal_and_costly_entries(self):
+        too_late=qualify(self.strong_late(curve_progress_bps=9000))
+        self.assertFalse(too_late.qualified)
+        self.assertIn("curve_too_late",too_late.reasons)
+        costly=qualify(self.strong_late(immediate_roundtrip_loss_bps=700))
+        self.assertFalse(costly.qualified)
+        self.assertIn("executable_downside",costly.reasons)
+        missing=qualify(self.strong_late(immediate_roundtrip_loss_bps=None))
+        self.assertFalse(missing.qualified)
+        self.assertIn("executable_downside_unavailable",missing.reasons)
+
+    def test_profitability_late_curve_allows_moderate_deceleration_but_not_collapse(self):
+        moderate=qualify(self.strong_late(curve_acceleration_bps_per_s2=-5))
+        self.assertTrue(moderate.qualified,moderate.reasons)
+        collapse=qualify(self.strong_late(curve_acceleration_bps_per_s2=-20))
+        self.assertFalse(collapse.qualified)
+        self.assertIn("curve_deceleration",collapse.reasons)
+
+    def test_repeat_buyer_persistence_is_entry_authority(self):
+        weak=qualify(self.strong_late(
+            repeat_buyer_clusters=1,repeat_buy_share_bps=500
+        ))
+        self.assertFalse(weak.qualified)
+        self.assertIn("repeat_buyers",weak.reasons)
+        self.assertIn("repeat_buy_share",weak.reasons)
+
+        durable=qualify(self.strong_late(
+            repeat_buyer_clusters=3,repeat_buy_share_bps=2500
+        ))
+        self.assertTrue(durable.qualified,durable.reasons)
+
+    def test_fill_time_persistence_rejects_decayed_thesis(self):
+        decision=self.strong_late()
+        persistent=self.strong_late(
+            observed_at=1008,independent_buyer_clusters=24,
+            buyer_growth=6,repeat_buyer_clusters=3,repeat_buy_share_bps=2200,
+            net_buy_share_bps=7600,curve_velocity_bps_per_s=50,
+        )
+        kept=entry_signal_persistence(decision,persistent)
+        self.assertTrue(kept["persistent"],kept["reasons"])
+        self.assertGreaterEqual(
+            kept["breadth_retention_bps"],POLICY.min_fill_breadth_retention_bps
+        )
+
+        decayed=self.strong_late(
+            observed_at=1010,independent_buyer_clusters=10,
+            buyer_growth=1,repeat_buyer_clusters=0,repeat_buy_share_bps=0,
+            net_buy_share_bps=4000,curve_velocity_bps_per_s=-5,
+        )
+        rejected=entry_signal_persistence(decision,decayed)
+        self.assertFalse(rejected["persistent"])
+        self.assertIn("fill_buyer_breadth_decay",rejected["reasons"])
+        self.assertTrue(
+            any(reason.startswith("fill_") for reason in rejected["reasons"])
+        )
+
+    def test_creator_quality_cannot_override_weak_trajectory(self):
+        result=qualify(self.strong_late(
+            curve_velocity_bps_per_s=1,
+            curve_acceleration_bps_per_s2=-5,
+            buyer_growth=-1,
+            creator_quality_bps=10_000,
+        ))
+        self.assertFalse(result.qualified)
+        self.assertIn("curve_velocity",result.reasons)
+
+    def test_skilled_wallet_convergence_is_point_in_time_and_funding_independent(self):
+        rows=[
+            WalletSkillRecord("a",900,10,8,2000,"fund-1"),
+            WalletSkillRecord("b",900,20,14,3000,"fund-1"),
+            WalletSkillRecord("c",900,10,7,1000,"fund-2"),
+            WalletSkillRecord("future",1100,100,100,9999,"fund-3"),
+            WalletSkillRecord("creator-linked",900,100,100,9999,"fund-4",True),
+        ]
+        self.assertEqual(skilled_wallet_convergence(rows,1000),2)
+
+    def test_creator_history_after_observation_is_ignored(self):
+        future=CreatorQualityRecord("creator",1001,20,20)
+        self.assertIsNone(creator_confirmation(future,1000))
+        current=CreatorQualityRecord("creator",999,10,7)
+        self.assertEqual(creator_confirmation(current,1000),7000)
+
+    def test_flow_metrics_excludes_related_clusters(self):
+        events=[
+            dict(wallet="w1",market_time=995,amount=100,buy=True),
+            dict(wallet="w2",market_time=996,amount=100,buy=True),
+            dict(wallet="creator",market_time=997,amount=900,buy=True),
+            dict(wallet="s1",market_time=998,amount=50,buy=False),
+        ]
+        result=flow_metrics(events,1000,cluster_map={"creator":"related"},excluded_clusters={"related"})
+        self.assertEqual(result["independent_buyer_clusters"],2)
+        self.assertEqual(result["gross_buy"],200)
+        self.assertEqual(result["gross_sell"],50)
+
+    def test_postgrad_requires_graduation_and_new_demand(self):
+        strong=SignalVector(
+            mint="M",observed_at=1000,surface="pumpswap",phase=MODE_POSTGRAD,
+            graduated=True,seconds_since_graduation=25,independent_buyer_clusters=10,
+            buyer_growth=3,net_buy_share_bps=8500,concentration_bps=1600,
+            price_vs_graduation_bps=1400,volume_acceleration_bps=3000,
+            early_holder_sell_share_bps=1200,recovery_bps=1000,
+            skilled_wallet_clusters=2,quote_relative_return_bps=500,
+        )
+        self.assertTrue(qualify(strong).qualified,qualify(strong).reasons)
+        weak=SignalVector(**{**strong.__dict__,"graduated":False})
+        self.assertFalse(qualify(weak).qualified)
+
+    def test_postgrad_price_retention_is_confirmation_not_binary_veto(self):
+        strong=SignalVector(
+            mint="M-retention",observed_at=1000,surface="pumpswap",phase=MODE_POSTGRAD,
+            graduated=True,seconds_since_graduation=25,independent_buyer_clusters=10,
+            buyer_growth=3,net_buy_share_bps=8500,concentration_bps=1600,
+            price_vs_graduation_bps=-200,volume_acceleration_bps=3000,
+            early_holder_sell_share_bps=1200,recovery_bps=1000,
+            skilled_wallet_clusters=2,quote_relative_return_bps=500,
+        )
+        result=qualify(strong)
+        self.assertTrue(result.qualified,result.reasons)
+        self.assertNotIn("price_retention",result.reasons)
+        self.assertNotIn("price_retention",result.confirmations)
+        retained=qualify(SignalVector(**{**strong.__dict__,"price_vs_graduation_bps":200}))
+        self.assertTrue(retained.qualified,retained.reasons)
+        self.assertIn("price_retention",retained.confirmations)
+
+    def test_second_leg_requires_pullback_consolidation_and_breakout(self):
+        strong=SignalVector(
+            mint="M",observed_at=1000,surface="pumpswap",phase=MODE_SECOND_LEG,
+            graduated=True,seconds_since_graduation=120,independent_buyer_clusters=10,
+            buyer_growth=3,net_buy_share_bps=8500,concentration_bps=1700,
+            early_holder_sell_share_bps=1000,pullback_depth_bps=1200,
+            recovery_bps=1600,consolidation_seconds=45,breakout_bps=1500,
+            price_vs_graduation_bps=1800,skilled_wallet_clusters=2,
+            quote_relative_return_bps=800,
+        )
+        self.assertTrue(qualify(strong).qualified,qualify(strong).reasons)
+        weak=SignalVector(**{**strong.__dict__,"breakout_bps":100})
+        self.assertFalse(qualify(weak).qualified)
+        self.assertIn("breakout",qualify(weak).reasons)
+
+    def test_postgrad_zero_values_are_valid_observations(self):
+        signal=SignalVector(
+            mint="M0",observed_at=1000,surface="pumpswap",phase=MODE_POSTGRAD,
+            graduated=True,seconds_since_graduation=25,independent_buyer_clusters=8,
+            buyer_growth=5,net_buy_share_bps=9000,concentration_bps=1000,
+            price_vs_graduation_bps=2000,volume_acceleration_bps=0,
+            early_holder_sell_share_bps=0,recovery_bps=1500,
+            skilled_wallet_clusters=3,quote_relative_return_bps=2000,
+        )
+        result=qualify(signal)
+        self.assertNotIn("volume_acceleration",result.reasons)
+        self.assertNotIn("early_holder_distribution",result.reasons)
+
+    def test_second_leg_zero_early_holder_selling_is_not_missing(self):
+        signal=SignalVector(
+            mint="M1",observed_at=1000,surface="pumpswap",phase=MODE_SECOND_LEG,
+            graduated=True,seconds_since_graduation=120,independent_buyer_clusters=8,
+            buyer_growth=5,net_buy_share_bps=9000,concentration_bps=1000,
+            early_holder_sell_share_bps=0,pullback_depth_bps=1200,
+            recovery_bps=2000,consolidation_seconds=45,breakout_bps=1500,
+            price_vs_graduation_bps=2000,skilled_wallet_clusters=3,
+            quote_relative_return_bps=2000,
+        )
+        result=qualify(signal)
+        self.assertNotIn("early_holder_distribution",result.reasons)
+
+    def test_relative_strength_removes_quote_asset_move(self):
+        # token/USD +29.6%, quote/USD +8% => token/quote exactly +20%
+        self.assertEqual(relative_return_bps(2960,800),2000)
+
+    def test_non_sol_quote_is_strategy_supported(self):
+        result=qualify(self.strong_late(quote_asset="NVDAX"))
+        self.assertTrue(result.qualified)
+        # Execution support is deliberately a separate adapter concern.
+
+    def test_future_data_fails_closed(self):
+        with self.assertRaises(ValueError):
+            qualify(self.strong_late(future_data_used=True))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,13 @@
+{
+  "root_cause": "Copied Pons source-deduplication cleanup referenced an absent table in Pump, Meteora and Ramses observation pipelines.",
+  "affected_paths": [
+    "meme_machine/lanes/pump/pipeline.py",
+    "meme_machine/lanes/meteora/pipeline.py",
+    "meme_machine/lanes/ramses/pipeline.py"
+  ],
+  "repair": "Remove only invalid cleanup statement; preserve Pons source deduplication, retention thresholds and all accounting/strategy behavior.",
+  "schema_compatibility": "No schema change or migration. Regression opens populated original databases before crossing retention and again after cleanup.",
+  "regression": "tests.test_pipeline_retention_boundary",
+  "negative_reproduction": "Three missing-table OperationalErrors; Pons passed.",
+  "ramses_economics": "UNCHANGED; existing retention adapter and historical economic hashes unchanged."
+}

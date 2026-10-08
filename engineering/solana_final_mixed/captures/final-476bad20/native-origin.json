@@ -1,0 +1,51 @@
+{
+  "first_RESOURCE_EXHAUSTED": {
+    "at": 1791402955.2647908,
+    "server_reason": "too many active connections",
+    "client_active_streams": 51,
+    "active_by_family": {
+      "shared": 1,
+      "candidate_live": 49,
+      "discovery": 1
+    },
+    "native_filter_count_distribution": {
+      "2": 1,
+      "26": 1,
+      "4": 3,
+      "50": 25,
+      "19": 2,
+      "20": 10,
+      "21": 2,
+      "3": 1,
+      "36": 1,
+      "37": 4,
+      "43": 1
+    },
+    "unique_addresses": 1649,
+    "address_families": {
+      "meteora": 1646,
+      "pump": 2,
+      "pumpswap": 1
+    },
+    "streams_that_already_delivered": 50
+  },
+  "native_error_reasons": [
+    {
+      "status": "INTERNAL",
+      "detail": "Stream removed (RST_STREAM (Received RST_STREAM with error code 2))",
+      "count": 43
+    },
+    {
+      "status": "RESOURCE_EXHAUSTED",
+      "detail": "too many active connections",
+      "count": 665
+    },
+    {
+      "status": "INTERNAL",
+      "detail": "Internal error from Core",
+      "count": 12
+    }
+  ],
+  "numeric_provider_connection_limit": "NOT_INDEPENDENTLY_ESTABLISHED",
+  "interpretation": "Provider concurrent-subscription rejection. Client-active count includes subscription attempts; 51 is not a certified account quota."
+}

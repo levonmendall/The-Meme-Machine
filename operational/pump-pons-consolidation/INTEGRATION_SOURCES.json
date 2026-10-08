@@ -1,0 +1,42 @@
+{
+  "branch": "integration/pump-pons-paper-20261007",
+  "conflicts": {
+    "operational_tests": "Combined additive Pons, Solana and shared-capital module lists",
+    "pons_survivor_runtime": "Preserved validated lossless discovery and ValueError/BoundaryError handling; no funding/population discovery gate"
+  },
+  "deployment": {
+    "access_blocker": "No configured SSH workspace/credential binding or TCP grant",
+    "droplet_id": 605465049,
+    "mutation_performed": false,
+    "new_resources": false,
+    "observed_memory_mib": 8192,
+    "observed_size": "gd-2vcpu-8gb",
+    "observed_vcpus": 2,
+    "paper_state": "UNVERIFIED",
+    "revision": "UNVERIFIED"
+  },
+  "pons_validated_implementation": "f6f21a3d10e1e3460122ffb8db016e929ffa5b44",
+  "preserved_remote_heads": {
+    "engineering/pons-finalization-20261007": "30b289d50529595431bbe8b01d70cf881273cc9a",
+    "engineering/pons-finalization-wip-preservation-20261007": "2ca2afd3f2ae9d5fcfa7d935a8d898a2b1ba7210",
+    "engineering/pons-three-defect-repair-20261007": "07ca4d0a8a61b20409a04b849d39b872316dda10",
+    "feature/shared-capital-pool": "062f4aef04a35539e83f32282de2937497d3d6df",
+    "operational/paper-v1": "9f08f0db68fd3161c84bb955800db9a200a70f77",
+    "repair/final-alchemy-solana-20261007": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99"
+  },
+  "repository": "levonmendall/The-Meme-Machine",
+  "shared_capital": {
+    "adaptive": false,
+    "implementation_preserved": true,
+    "native_funding_authority_unchanged": true,
+    "prepared_sizing_basis": "effective_family_equivalence",
+    "production_migration_performed": false,
+    "runtime_activated": false
+  },
+  "wip_merged": false,
+  "worktrees": {
+    "candidate": "/workspace/pump-pons-integration",
+    "comparison": "/workspace/pump-pons-baseline",
+    "original": "/workspace/The-Meme-Machine"
+  }
+}

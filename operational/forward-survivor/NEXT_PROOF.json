@@ -1,0 +1,98 @@
+{
+  "authorization": "NOT_GRANTED",
+  "classifications": [
+    "PASS",
+    "FAIL",
+    "INSUFFICIENT_SAMPLE",
+    "BLOCKED"
+  ],
+  "cu_enforcement": "Independently meter published method weights, including Solana getTokenLargestAccounts at 3000 CU. Unknown/unpriced methods stop before dispatch. Legacy diagnostic weights are additional limits, never account billing.",
+  "current_harness": "engineering/solana_capacity/pump_pons_proof.py; technical-only, cannot certify acceptance",
+  "deployment_allowed": false,
+  "dispatch_allowed": false,
+  "exact_pons_factory_filter": {
+    "address": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+    "topics": [
+      [
+        "0x8d4aad4953d0ca700d468f3753aa14432d1b35b43ec6409f051fb6aa43a89607",
+        "0x0a44ef75df69c534f43cd6c1aa3ef8983065fe5fe79ef9e79f6494e6f258c259"
+      ]
+    ]
+  },
+  "executor_status": "ADAPT_EXISTING_FINITE_EXECUTOR_BEFORE_DISPATCH; full resource and HTTP-byte ceilings are not yet wired in old harness",
+  "limits": {
+    "consecutive_candidate_deadline_violations": 2,
+    "cumulative_process_write_bytes": 2147483648,
+    "diagnostic_native_cu": 4194304,
+    "diagnostic_rpc_cu": 720000,
+    "http_response_bytes": 134217728,
+    "maximum_group_cpu_cores_30_second_average": 1.8,
+    "maximum_log_range_blocks": 10,
+    "minimum_system_available_bytes": 2147483648,
+    "native_inflight_shutdown_reserve_bytes": 268435456,
+    "native_stream_bytes": 2147483648,
+    "output_stock_bytes": 805306368,
+    "per_http_response_bytes": 2000000,
+    "physical_http_attempts": 7200,
+    "position_deadline_violations": 0,
+    "proof_group_rss_bytes": 4294967296,
+    "published_rpc_cu": 720000,
+    "queue_capacity": 64,
+    "robinhood_rpc_elements": 1200,
+    "rpc_retries": 0,
+    "solana_rpc_elements": 6000,
+    "sustained_queue_stop_depth": 32,
+    "sustained_queue_stop_seconds": 5,
+    "total_diagnostic_cu": 4914304,
+    "total_rpc_elements": 7200
+  },
+  "mandatory_unknowns": [
+    "Account billed CUs and currency are unmeasured without authenticated usage records",
+    "A run without mature complete Survivor candidates cannot certify their qualification latency",
+    "Quotes without authentic native positions cannot certify position maintenance",
+    "A ceiling stop is a failed/incomplete proof, never implicit authorization to extend"
+  ],
+  "mode": "PAPER_READ_ONLY_ISOLATED",
+  "native_published_limit_model": {
+    "evm_ws_bytes": 0,
+    "note": "Bounds assume the entire 2 GiB cap in each transport separately; actual mixed transport bytes must be metered. No EVM subscription in this normal-operation proof.",
+    "solana_ws_cu_max": "429496.7296",
+    "yellowstone_usd_max": "0.1610612736"
+  },
+  "paid_upgrade_allowed": false,
+  "paused_operational_workloads": {
+    "meteora": 0,
+    "ramses": 0
+  },
+  "preserved_original_epoch": "paper-1791089005190643467",
+  "production_epoch_access": false,
+  "production_service_restart_allowed": false,
+  "required_observation_domain": "authenticated canonical forward enrollment; candidate-specific preserved/recovered intervals",
+  "schema": "forward-survivor-next-proof-v1",
+  "subsequent_operational_acceptance": {
+    "autonomy_seconds": 129600,
+    "capacity_seconds": 3600,
+    "model": "B",
+    "requires_separate_validation_and_activation_scope": true
+  },
+  "time": {
+    "kill_after_shutdown_seconds": 30,
+    "maximum_startup_seconds": 60,
+    "minimum_steady_seconds": 180,
+    "shutdown_reserve_seconds": 30,
+    "stop_new_work_at_seconds": 270,
+    "term_after_shutdown_seconds": 20,
+    "total_wall_seconds": 300
+  },
+  "unchanged_startup_blocker": "combined_position_and_candidate_provider_latency_not_certified",
+  "whole_market_historical_seed_required": false,
+  "workload": [
+    "Pump/PumpSwap independent discovery and candidate histories",
+    "Pons Current scoped acquisition",
+    "Pons Survivor forward factory census, targeted lineage and shared pool acquisition",
+    "Fresh position monitoring/exit quote paths using authentic preserved positions where available",
+    "All four qualification paths on individually complete evidence; no minimum success/trade count",
+    "Original shared-capital fixture contention, with qualification preceding funding",
+    "One bounded disconnect and checkpoint resume without rewriting source clocks"
+  ]
+}

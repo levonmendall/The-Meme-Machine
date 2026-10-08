@@ -1,0 +1,387 @@
+{
+  "controlled_identical_tape": {
+    "A_HARD_SLEEVES": {
+      "allocation_changes": 0,
+      "allocation_path": [
+        {
+          "multipliers": {
+            "meteora": 10000,
+            "pons_current": 10000,
+            "pons_survivor": 10000,
+            "pump_current": 10000,
+            "pump_survivor": 10000,
+            "ramses": 10000
+          },
+          "slot": 0
+        },
+        {
+          "multipliers": {
+            "meteora": 10000,
+            "pons_current": 10000,
+            "pons_survivor": 10000,
+            "pump_current": 10000,
+            "pump_survivor": 10000,
+            "ramses": 10000
+          },
+          "slot": 1
+        },
+        {
+          "multipliers": {
+            "meteora": 10000,
+            "pons_current": 10000,
+            "pons_survivor": 10000,
+            "pump_current": 10000,
+            "pump_survivor": 10000,
+            "ramses": 10000
+          },
+          "slot": 2
+        }
+      ],
+      "average_requested_position_usd": 6.25,
+      "capital_time_utilization_pct": 12.4425,
+      "conservation": true,
+      "denial_reasons": {
+        "HARD_SLEEVE_CAPITAL": 1
+      },
+      "downside_pct": 0.0,
+      "drawdown_pct": 0.0,
+      "granted": 20,
+      "lane_costs": {
+        "meteora": 0.0,
+        "pons_current": 0.0,
+        "pons_survivor": 0.0,
+        "pump_current": 0.25,
+        "pump_survivor": 0.0,
+        "ramses": 0.0
+      },
+      "lane_granted": {
+        "meteora": 0,
+        "pons_current": 0,
+        "pons_survivor": 0,
+        "pump_current": 20,
+        "pump_survivor": 0,
+        "ramses": 0
+      },
+      "lane_realized_pnl": {
+        "meteora": 0.0,
+        "pons_current": 0.0,
+        "pons_survivor": 0.0,
+        "pump_current": 4.625,
+        "pump_survivor": 0.0,
+        "ramses": 0.0
+      },
+      "lane_unfunded": {
+        "meteora": 0,
+        "pons_current": 0,
+        "pons_survivor": 0,
+        "pump_current": 1,
+        "pump_survivor": 0,
+        "ramses": 0
+      },
+      "maximum_multiplier_change_bps": 0,
+      "model": "A_HARD_SLEEVES",
+      "opportunities": 21,
+      "peak_asset_exposure_pct": 1.25,
+      "peak_deployed_usd": 125.0,
+      "peak_marked_risk_exposure_usd": 125.0,
+      "peak_regime_exposure_nav_pct": 25.0,
+      "peak_regime_exposure_pct": 25.0,
+      "qualified_unfunded": 1,
+      "realized_return_pct": 0.925,
+      "realized_usd_per_capital_day": 0.037,
+      "sizing_basis": "effective_family_equivalence",
+      "stranded_idle_sleeve_usd": 461.4167,
+      "terminal_free_cash": "504.62500000000000000000000000000",
+      "turnover_usd": 254.625,
+      "utilization_pct": 8.3333,
+      "volatility_pct": 0.4625
+    },
+    "B_SHARED_FIXED": {
+      "allocation_changes": 0,
+      "allocation_path": [
+        {
+          "multipliers": {
+            "meteora": 10000,
+            "pons_current": 10000,
+            "pons_survivor": 10000,
+            "pump_current": 10000,
+            "pump_survivor": 10000,
+            "ramses": 10000
+          },
+          "slot": 0
+        },
+        {
+          "multipliers": {
+            "meteora": 10000,
+            "pons_current": 10000,
+            "pons_survivor": 10000,
+            "pump_current": 10000,
+            "pump_survivor": 10000,
+            "ramses": 10000
+          },
+          "slot": 1
+        },
+        {
+          "multipliers": {
+            "meteora": 10000,
+            "pons_current": 10000,
+            "pons_survivor": 10000,
+            "pump_current": 10000,
+            "pump_survivor": 10000,
+            "ramses": 10000
+          },
+          "slot": 2
+        }
+      ],
+      "average_requested_position_usd": 6.25,
+      "capital_time_utilization_pct": 13.0565,
+      "conservation": true,
+      "denial_reasons": {},
+      "downside_pct": 0.0,
+      "drawdown_pct": 0.0,
+      "granted": 21,
+      "lane_costs": {
+        "meteora": 0.0,
+        "pons_current": 0.0,
+        "pons_survivor": 0.0,
+        "pump_current": 0.2625,
+        "pump_survivor": 0.0,
+        "ramses": 0.0
+      },
+      "lane_granted": {
+        "meteora": 0,
+        "pons_current": 0,
+        "pons_survivor": 0,
+        "pump_current": 21,
+        "pump_survivor": 0,
+        "ramses": 0
+      },
+      "lane_realized_pnl": {
+        "meteora": 0.0,
+        "pons_current": 0.0,
+        "pons_survivor": 0.0,
+        "pump_current": 5.25,
+        "pump_survivor": 0.0,
+        "ramses": 0.0
+      },
+      "lane_unfunded": {
+        "meteora": 0,
+        "pons_current": 0,
+        "pons_survivor": 0,
+        "pump_current": 0,
+        "pump_survivor": 0,
+        "ramses": 0
+      },
+      "maximum_multiplier_change_bps": 0,
+      "model": "B_SHARED_FIXED",
+      "opportunities": 21,
+      "peak_asset_exposure_pct": 1.25,
+      "peak_deployed_usd": 131.25,
+      "peak_marked_risk_exposure_usd": 131.25,
+      "peak_regime_exposure_nav_pct": 26.25,
+      "peak_regime_exposure_pct": 26.25,
+      "qualified_unfunded": 0,
+      "realized_return_pct": 1.05,
+      "realized_usd_per_capital_day": 0.04,
+      "sizing_basis": "effective_family_equivalence",
+      "stranded_idle_sleeve_usd": 0.0,
+      "terminal_free_cash": "505.25000000000000000000000000000",
+      "turnover_usd": 267.75,
+      "utilization_pct": 8.75,
+      "volatility_pct": 0.525
+    }
+  },
+  "market_provider_calls": 0,
+  "native_21_position_case": {
+    "actual_cash": "368.75",
+    "deployed_basis": "131.25",
+    "evidence_test": "RuntimeIntegrationTests.test_native_pump_shared_funding_exceeds_125_with_original_625_targets",
+    "position_size": "6.25"
+  },
+  "performance": {
+    "application_retries": 0,
+    "begin_wait_over_1ms": 51,
+    "capital": {
+      "active_reservations": "0",
+      "actual_cash": "125.00",
+      "authoritative_fundable_capital": "500.00",
+      "conservation": true,
+      "deployed_basis": "375.00",
+      "free_cash": "125.00",
+      "pending_authoritative_commitments": "0",
+      "realized_equity": "500.00",
+      "required_funding_obligations": "0"
+    },
+    "classification": "OFFLINE_SYNTHETIC_MEASURED_ON_EXISTING_DROPLET",
+    "concurrent_requests_per_second": 5.654352719683974,
+    "conservation": true,
+    "cpu_seconds": 8.936465834,
+    "database_files_bytes": {
+      "shared-capital.sqlite": 1474560,
+      "shared-capital.sqlite-shm": 32768,
+      "shared-capital.sqlite-wal": 5817472
+    },
+    "durable_transactions": 440,
+    "errors": {},
+    "grant_latency": {
+      "median_ms": 189.83904397464357,
+      "p95_ms": 307.0466989884153,
+      "p99_ms": 314.5533589995466,
+      "samples": 64
+    },
+    "granted_by_regime": {
+      "pons_current": 15,
+      "pons_survivor": 15,
+      "pump_current": 15,
+      "pump_survivor": 15
+    },
+    "idle_reason": "approved-in-this-offline-fixture aggregate risk cap; production policy remains unapproved",
+    "independent_authority_connections": 4,
+    "journal_events": 445,
+    "latency_includes": "concurrent durable queue admission and fixed allocation round; excludes native quote/provider time",
+    "mean_cpu_percent_of_two_vcpu": 39.47650772878188,
+    "missed_funding_ceiling_5s": {},
+    "peak_process_rss_mib": 47.2109375,
+    "process_io_delta": {
+      "cancelled_write_bytes": 1290240,
+      "rchar": 82395643,
+      "read_bytes": 0,
+      "syscr": 20363,
+      "syscw": 90500,
+      "wchar": 197664632,
+      "write_bytes": 200892416
+    },
+    "qualified_but_unfunded": [
+      {
+        "constraint": "CORRELATED_EXPOSURE:crypto_beta",
+        "count": 1,
+        "regime": "pons_current"
+      },
+      {
+        "constraint": "CORRELATED_EXPOSURE:crypto_beta",
+        "count": 1,
+        "regime": "pons_survivor"
+      },
+      {
+        "constraint": "CORRELATED_EXPOSURE:crypto_beta",
+        "count": 1,
+        "regime": "pump_current"
+      },
+      {
+        "constraint": "CORRELATED_EXPOSURE:crypto_beta",
+        "count": 1,
+        "regime": "pump_survivor"
+      }
+    ],
+    "replay_seconds": 1.8594679809757508,
+    "requests": 64,
+    "risk": {
+      "drawdown_bps": 0,
+      "exposure": {
+        "asset": {
+          "asset:perf:0:pons_current": "6.25",
+          "asset:perf:0:pons_survivor": "6.25",
+          "asset:perf:0:pump_current": "6.25",
+          "asset:perf:0:pump_survivor": "6.25",
+          "asset:perf:10:pons_current": "6.25",
+          "asset:perf:10:pons_survivor": "6.25",
+          "asset:perf:10:pump_current": "6.25",
+          "asset:perf:10:pump_survivor": "6.25",
+          "asset:perf:11:pons_current": "6.25",
+          "asset:perf:11:pons_survivor": "6.25",
+          "asset:perf:11:pump_current": "6.25",
+          "asset:perf:11:pump_survivor": "6.25",
+          "asset:perf:12:pons_current": "6.25",
+          "asset:perf:12:pons_survivor": "6.25",
+          "asset:perf:12:pump_current": "6.25",
+          "asset:perf:12:pump_survivor": "6.25",
+          "asset:perf:13:pons_current": "6.25",
+          "asset:perf:13:pons_survivor": "6.25",
+          "asset:perf:13:pump_current": "6.25",
+          "asset:perf:13:pump_survivor": "6.25",
+          "asset:perf:14:pons_current": "6.25",
+          "asset:perf:14:pons_survivor": "6.25",
+          "asset:perf:14:pump_current": "6.25",
+          "asset:perf:14:pump_survivor": "6.25",
+          "asset:perf:1:pons_current": "6.25",
+          "asset:perf:1:pons_survivor": "6.25",
+          "asset:perf:1:pump_current": "6.25",
+          "asset:perf:1:pump_survivor": "6.25",
+          "asset:perf:2:pons_current": "6.25",
+          "asset:perf:2:pons_survivor": "6.25",
+          "asset:perf:2:pump_current": "6.25",
+          "asset:perf:2:pump_survivor": "6.25",
+          "asset:perf:3:pons_current": "6.25",
+          "asset:perf:3:pons_survivor": "6.25",
+          "asset:perf:3:pump_current": "6.25",
+          "asset:perf:3:pump_survivor": "6.25",
+          "asset:perf:4:pons_current": "6.25",
+          "asset:perf:4:pons_survivor": "6.25",
+          "asset:perf:4:pump_current": "6.25",
+          "asset:perf:4:pump_survivor": "6.25",
+          "asset:perf:5:pons_current": "6.25",
+          "asset:perf:5:pons_survivor": "6.25",
+          "asset:perf:5:pump_current": "6.25",
+          "asset:perf:5:pump_survivor": "6.25",
+          "asset:perf:6:pons_current": "6.25",
+          "asset:perf:6:pons_survivor": "6.25",
+          "asset:perf:6:pump_current": "6.25",
+          "asset:perf:6:pump_survivor": "6.25",
+          "asset:perf:7:pons_current": "6.25",
+          "asset:perf:7:pons_survivor": "6.25",
+          "asset:perf:7:pump_current": "6.25",
+          "asset:perf:7:pump_survivor": "6.25",
+          "asset:perf:8:pons_current": "6.25",
+          "asset:perf:8:pons_survivor": "6.25",
+          "asset:perf:8:pump_current": "6.25",
+          "asset:perf:8:pump_survivor": "6.25",
+          "asset:perf:9:pons_current": "6.25",
+          "asset:perf:9:pons_survivor": "6.25",
+          "asset:perf:9:pump_current": "6.25",
+          "asset:perf:9:pump_survivor": "6.25"
+        },
+        "family": {
+          "meteora": "0",
+          "pons": "187.50",
+          "pump": "187.50",
+          "ramses": "0"
+        },
+        "group": {
+          "crypto_beta": "375.00",
+          "directional": "375.00",
+          "lp": "0",
+          "robinhood": "187.50",
+          "solana": "187.50"
+        },
+        "portfolio": "375.00",
+        "regime": {
+          "meteora": "0",
+          "pons_current": "93.75",
+          "pons_survivor": "93.75",
+          "pump_current": "93.75",
+          "pump_survivor": "93.75",
+          "ramses": "0"
+        }
+      },
+      "marked_equity": "500.00",
+      "marked_exposure": "375.00",
+      "risk_base": "500.00",
+      "valuation_ready": true
+    },
+    "rounds": 16,
+    "sqlite_begin_wait": {
+      "median_ms": 19.300151499919593,
+      "p95_ms": 81.7995920078829,
+      "p99_ms": 104.9992649932392,
+      "samples": 64
+    },
+    "stranded_cash_by_historical_partition": "0",
+    "transactions_per_second": 38.87367494782732,
+    "vcpus": 2,
+    "wall_seconds": 11.318713771994226
+  },
+  "profits_are_not_predictions": true,
+  "proposal_policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
+  "returns_are_scripted": true,
+  "schema": "shared-capital-offline-performance-v1"
+}

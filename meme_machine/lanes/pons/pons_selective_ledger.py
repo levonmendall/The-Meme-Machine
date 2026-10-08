@@ -1,0 +1,493 @@
+"""Pons-selective-only restart-safe paper ledger with partial exits.
+
+This ledger is physically isolated from the generic Robinhood Paper ledger:
+- its own SQLite position table;
+- strategy-prefixed immutable record categories;
+- required pons-selective experiment namespace;
+- partial-exit state exists only here.
+
+It may consume the generic Quote value object because executable quote validation is a
+neutral execution primitive. No generic Paper state or behavior is inherited.
+"""
+import json
+import time
+from dataclasses import asdict
+
+from . import BoundaryError
+from .evidence import canonical, digest
+
+STRATEGY_NAMESPACE="pons-selective-continuation-v1"
+TABLE="pons_selective_paper"
+GENESIS_CATEGORY="pons_selective_paper_genesis"
+DECISION_CATEGORY="pons_selective_paper_decision"
+JOURNAL_CATEGORY="pons_selective_paper_journal"
+
+
+class SelectivePaper:
+    def __init__(self, store, experiment, capital, *, delay=2, natural_policy_hash=None,
+                 on_commit=None, clock_ns=time.time_ns):
+        if not str(experiment).startswith(STRATEGY_NAMESPACE):
+            raise BoundaryError("pons_selective_experiment_namespace")
+        if capital <= 0 or delay < 1:
+            raise BoundaryError("invalid_selective_paper_config")
+        if not natural_policy_hash:
+            raise BoundaryError("selective_policy_hash_required")
+        self.store=store
+        self.experiment=str(experiment)
+        self.delay=int(delay)
+        self.natural_policy_hash=str(natural_policy_hash)
+        self.on_commit=on_commit
+        self.clock_ns=clock_ns
+        self.store.db.execute('CREATE TABLE IF NOT EXISTS pons_journal_checkpoint(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL,hash TEXT NOT NULL)')
+        self.portfolio=None
+        self.store.db.execute(
+            """CREATE TABLE IF NOT EXISTS pons_selective_paper(
+                   id TEXT PRIMARY KEY, body TEXT NOT NULL)"""
+        )
+        # Only this strategy's immutable records are protected here. Generic
+        # paper machinery and other research evidence retain their own rules.
+        for operation in ("UPDATE", "DELETE"):
+            self.store.db.execute(f"""CREATE TRIGGER IF NOT EXISTS
+                pons_selective_records_no_{operation.lower()} BEFORE {operation} ON records
+                WHEN OLD.category IN ('{GENESIS_CATEGORY}','{DECISION_CATEGORY}','{JOURNAL_CATEGORY}')
+                BEGIN SELECT RAISE(ABORT,'pons_selective_append_only'); END""")
+        self.store.put(
+            GENESIS_CATEGORY,self.experiment,
+            dict(
+                capital=int(capital),delay=self.delay,
+                authority="pons_selective_continuation_only",
+                strategy_namespace=STRATEGY_NAMESPACE,
+                shared_allocator=False,
+                natural_policy_hash=self.natural_policy_hash,
+                position_table=TABLE,
+            ),
+        )
+
+        from meme_machine.runtime.native_boundary import attach
+        self.portfolio=attach(self,'pons')
+
+    def events(self,identity):
+        events=[self.store.get(JOURNAL_CATEGORY,key) for key, in self.store.db.execute('SELECT id FROM records WHERE category=?',(JOURNAL_CATEGORY,))]
+        return sorted((e for e in events if e['position']['id']==identity),key=lambda e:e['position']['version'])
+
+    def positions(self):
+        out=[]
+        for body, in self.store.db.execute(
+            f"SELECT body FROM {TABLE}"
+        ):
+            row=json.loads(body)
+            if row.get("experiment")==self.experiment:
+                out.append(row)
+        replay={}
+        for identity, in self.store.db.execute(
+            "SELECT id FROM records WHERE category=?",(JOURNAL_CATEGORY,)
+        ):
+            event=self.store.get(JOURNAL_CATEGORY,identity)
+            p=event["position"]
+            if p.get("experiment")!=self.experiment:
+                continue
+            if identity!=f'{p["id"]}:{p["version"]}':
+                raise BoundaryError("selective_journal_identity_mismatch")
+            replay.setdefault(p["id"],[]).append(event)
+        from meme_machine.runtime.storage import pons_prefix
+        prefix=pons_prefix(self)
+        latest={identity:value['event']['position'] for identity,value in prefix.items()}
+        for identity,events in replay.items():
+            events.sort(key=lambda e:e["position"]["version"])
+            previous=prefix.get(identity,{}).get('event')
+            events=[e for e in events if previous is None or e['position']['version']>previous['position']['version']]
+            start=previous['position']['version']+1 if previous else 0
+            for version,event in enumerate(events,start):
+                p=event["position"]
+                if p["version"]!=version or (previous is None and event["action"]!="reserve"):
+                    raise BoundaryError("selective_journal_sequence_mismatch")
+                if "previous_hash" in event and event["previous_hash"]!=(digest(previous) if previous else None):
+                    raise BoundaryError("selective_journal_chain_mismatch")
+                if previous and event.get("recorded_at_ns",0)<previous.get("recorded_at_ns",0):
+                    raise BoundaryError("selective_accounting_clock_regression")
+                self._verify_flow(previous,event)
+                previous=event
+            if events:latest[identity]=events[-1]["position"]
+        if {p["id"]:p for p in out}!=latest:
+            raise BoundaryError("selective_projection_mismatch")
+        return out
+
+    @staticmethod
+    def _verify_flow(previous,event):
+        """Replay booked native units from durable executable quotes.
+
+        Historical records without quote payloads remain readable, but are not
+        advertised as economic replay proof by reconciliation.
+        """
+        p=event["position"]
+        if not previous or "quote" not in event:
+            return
+        before=previous["position"];q=event["quote"]
+        expected={k:before[k] for k in ("cost","remaining_cost","realized_proceeds","realized_pnl","tokens")}
+        if event["action"]=="resize":
+            if (before['status']!='reserved' or p['status']!='reserved'
+                    or not 0<p['amount']<=before['amount'] or p['reserved']!=before['reserved']):
+                raise BoundaryError('selective_resize_replay_mismatch')
+        if event["action"]=="entry":
+            if q is None or q["amount_in"]!=before["amount"]:
+                raise BoundaryError("selective_entry_replay_mismatch")
+            cost=q["amount_in"]+q["gas_quote"]
+            expected.update(cost=cost,remaining_cost=cost,tokens=q["amount_out"])
+        elif event['action']=='scale_add':
+            if (q is None or before['status']!='open' or before.get('scale_request')
+                    or not p.get('scale_request') or q['amount_in']<=0 or q['amount_out']<=0):
+                raise BoundaryError('selective_scale_replay_mismatch')
+            cost=q['amount_in']+q['gas_quote']
+            expected.update(cost=before['cost']+cost,remaining_cost=before['remaining_cost']+cost,
+                tokens=before['tokens']+q['amount_out'])
+        elif event["action"]=="exit" and p.get("reason") is None:
+            amount=before["pending_exit_tokens"]
+            if q is None or q["amount_in"]!=amount or not 0<amount<=before["tokens"]:
+                raise BoundaryError("selective_exit_replay_mismatch")
+            basis=before["remaining_cost"]*amount//before["tokens"]
+            net=q["amount_out"]-q["gas_quote"]
+            expected.update(tokens=before["tokens"]-amount,
+                remaining_cost=before["remaining_cost"]-basis,
+                realized_proceeds=before["realized_proceeds"]+net,
+                realized_pnl=before["realized_pnl"]+net-basis)
+        elif event["action"]=="liquidity_writeoff":
+            if (q is not None or before["status"] not in ("open","exit_pending")
+                    or p.get("reason")!="liquidity_writeoff:impossible_full_position_exit"):
+                raise BoundaryError("selective_writeoff_replay_mismatch")
+            expected.update(
+                tokens=0,remaining_cost=0,
+                realized_pnl=before["realized_pnl"]-before["remaining_cost"],
+            )
+        if any(p[k]!=v for k,v in expected.items()):
+            raise BoundaryError("selective_economic_replay_mismatch")
+
+    def reconcile(self):
+        genesis=self.store.get(GENESIS_CATEGORY,self.experiment)["capital"]
+        rows=self.positions()
+        realized=sum(int(p["pnl"]) for p in rows if p["status"]=="settled")
+        committed=sum(int(p["reserved"]) for p in rows if p["status"]!="settled")
+        available=int(genesis)+realized-committed
+        if available<0:
+            raise BoundaryError("selective_paper_capital_invariant")
+        cash=int(genesis)-sum(p["cost"] for p in rows)+sum(p["realized_proceeds"] for p in rows)
+        basis=sum(p["remaining_cost"] for p in rows)
+        booked=sum(p["realized_pnl"] for p in rows)
+        if int(genesis)+booked!=cash+basis:
+            raise BoundaryError("selective_cash_basis_invariant")
+        open_rows=[p for p in rows if p['tokens']>0]
+        marks_complete=all(p.get('mark',{}).get('tokens')==p['tokens'] for p in open_rows)
+        unrealized=sum(p['mark']['unrealized_pnl'] for p in open_rows) if marks_complete else None
+        return dict(
+            genesis=int(genesis),realized=realized,committed=committed,
+            available=available,
+            cash=cash,remaining_cost_basis=basis,booked_realized=booked,
+            cash_basis_conservation=True,
+            marks_complete=marks_complete,unrealized_at_recorded_marks=unrealized,
+            marked_position_value=basis+unrealized if marks_complete else None,
+            mark_times={p['id']:p.get('mark',{}).get('at') for p in open_rows},
+            accounting={p["id"]:self.accounting(p["id"]) for p in rows},
+            open_exposure=sum(
+                int(p["tokens"]) for p in rows if p["status"]!="settled"
+            ),
+        )
+
+    def _get(self,identity):
+        self.positions()  # A deleted/corrupted projection cannot create capital.
+        row=self.store.db.execute(
+            f"SELECT body FROM {TABLE} WHERE id=?",(identity,)
+        ).fetchone()
+        if not row:
+            raise BoundaryError("selective_paper_position_missing")
+        p=json.loads(row[0])
+        if p.get("experiment")!=self.experiment:
+            raise BoundaryError("selective_cross_experiment_authority")
+        return p
+
+    def accounting(self,identity):
+        """Exact event-time integral; units*nanos / 3_600_000_000_000 = unit-hours.
+
+        Open exposure is integrated only through the last durable event. This
+        is cost basis at risk, not an invented live mark or unrealized return.
+        """
+        from meme_machine.runtime.storage import pons_prefix
+        prefix=pons_prefix(self).get(identity)
+        previous=prefix['event'] if prefix else None
+        prior=prefix['accounting'] if prefix else {}
+        events=[e for e in self.events(identity) if previous is None or e['position']['version']>previous['position']['version']]
+        risk=prior.get('capital_at_risk_unit_nanoseconds',0);reserved=prior.get('held_reservation_unit_nanoseconds',0)
+        execution_cost=prior.get('native_execution_cost',0);complete=prior.get('replay_verified',True)
+        for index,e in enumerate(events):
+            complete=complete and "recorded_at_ns" in e and "quote" in e
+            if (index or previous) and complete:
+                prev=events[index-1] if index else previous;p=prev["position"]
+                dt=e["recorded_at_ns"]-prev["recorded_at_ns"]
+                if dt<0:raise BoundaryError("selective_accounting_clock_regression")
+                risk+=(p["reserved"] if p["status"]=="reserved" else p["remaining_cost"])*dt
+                reserved+=p["reserved"]*dt
+            if e.get("quote") and (e["action"] in ("entry","scale_add") or (e["action"]=="exit" and e["position"].get("reason") is None)):
+                execution_cost+=e["quote"]["gas_quote"]
+        last=events[-1] if events else previous
+        return dict(replay_verified=bool(last) and complete,
+            capital_at_risk_unit_nanoseconds=risk if complete else None,
+            held_reservation_unit_nanoseconds=reserved if complete else None,
+            native_execution_cost=execution_cost if complete else None,
+            through_recorded_at_ns=last.get("recorded_at_ns") if last else None,
+            integral_complete=bool(last) and complete and last["position"]["status"]=="settled")
+
+    def _save(self,p,action,now,quote=None):
+        # Controller and ledger share this transaction and immutable journal hash.
+        checkpoint=getattr(self,'controller_context',None)
+        if checkpoint is not None:p['controller_state']=checkpoint(self,p,action,now)
+        previous=self.store.get(JOURNAL_CATEGORY,f'{p["id"]}:{p["version"]-1}') if p["version"] else None
+        recorded_at_ns=int(self.clock_ns())
+        if previous and recorded_at_ns<previous.get("recorded_at_ns",0):
+            raise BoundaryError("selective_accounting_clock_regression")
+        event=dict(strategy_namespace=STRATEGY_NAMESPACE,action=action,at=int(now),position=p,
+            recorded_at_ns=recorded_at_ns,previous_hash=digest(previous) if previous else None,
+            quote=asdict(quote) if quote is not None else None)
+        if getattr(self,'portfolio',None):
+            self.portfolio.record(p['id'],action,p,previous['position'] if previous else None,
+                at=int(now),checksum=digest(event),quote=event['quote'])
+        self.store.put(JOURNAL_CATEGORY,f'{p["id"]}:{p["version"]}',event)
+        self.store.db.execute(
+            f"INSERT OR REPLACE INTO {TABLE} VALUES(?,?)",
+            (p["id"],canonical(p)),
+        )
+
+    def reserve(
+        self,identity,*,market,amount,gas_budget,now,features,kind="natural"
+    ):
+        if kind!="natural":
+            raise BoundaryError("selective_natural_only")
+        if (
+            features.get("authority")!="frozen_policy_paper"
+            or features.get("qualification")!="qualified"
+            or features.get("policy_hash")!=self.natural_policy_hash
+            or features.get("strategy_namespace")!=STRATEGY_NAMESPACE
+            or features.get("shared_allocator") is not False
+        ):
+            raise BoundaryError("selective_policy_authority_missing")
+        if (
+            features.get("asof")!=now
+            or features.get("market")!=market
+            or int(amount)<=0
+            or int(gas_budget)<0
+        ):
+            raise BoundaryError("invalid_selective_paper_decision")
+
+        self.store.db.execute("BEGIN IMMEDIATE")
+        try:
+            if self.store.db.execute(
+                f"SELECT 1 FROM {TABLE} WHERE id=?",(identity,)
+            ).fetchone():
+                raise BoundaryError("selective_duplicate_reservation")
+            if int(amount)+int(gas_budget)>self.reconcile()["available"]:
+                raise BoundaryError("selective_capital_exhausted")
+            if len(self.positions())>=100:
+                raise BoundaryError("selective_position_capacity")
+            p=dict(
+                id=identity,experiment=self.experiment,
+                strategy_namespace=STRATEGY_NAMESPACE,
+                market=market,kind=kind,status="reserved",
+                reserved=int(amount)+int(gas_budget),amount=int(amount),
+                due=int(now)+self.delay,tokens=0,entry_tokens=0,
+                cost=0,remaining_cost=0,realized_pnl=0,
+                realized_proceeds=0,pending_exit_tokens=None,
+                pnl=0,version=0,last_at=int(now),reason=None,
+            )
+            self.store.put(
+                DECISION_CATEGORY,identity,
+                dict(features,strategy_namespace=STRATEGY_NAMESPACE),
+            )
+            self._save(p,"reserve",now)
+            self.store.db.execute("COMMIT")
+        except Exception:
+            self.store.db.execute("ROLLBACK")
+            raise
+        if self.portfolio:self.portfolio.flush()
+        if self.on_commit:self.on_commit(self,p)
+        from meme_machine.runtime.storage import compact_pons
+        compact_pons(self)
+        return p
+
+    def resize_reservation(self,identity,amount,now):
+        """Lower the intended fill; retain the original capital hold until terminal."""
+        if type(amount) is not int or amount<=0:
+            raise BoundaryError('selective_resize_amount')
+        self.store.db.execute('BEGIN IMMEDIATE')
+        try:
+            p=self._get(identity)
+            if p['status']!='reserved' or amount>p['amount'] or now<p['last_at']:
+                raise BoundaryError('selective_resize_boundary')
+            if amount!=p['amount']:
+                p.update(amount=amount,version=p['version']+1,last_at=int(now))
+                self._save(p,'resize',now)
+            self.store.db.execute('COMMIT')
+        except BaseException:
+            self.store.db.execute('ROLLBACK');raise
+        if self.portfolio:self.portfolio.flush()
+        if self.on_commit:self.on_commit(self,p)
+        from meme_machine.runtime.storage import compact_pons
+        compact_pons(self)
+        return p
+
+    def advance(
+        self,identity,*,now,action,quote=None,transition=None,
+        finality_ledger=None,cancel_reason=None,exit_tokens=None,
+    ):
+        self.store.db.execute("BEGIN IMMEDIATE")
+        try:
+            p=self._get(identity)
+            now=int(now)
+            if now<int(p["last_at"]):
+                raise BoundaryError("selective_paper_time_regression")
+
+            if action=="entry":
+                if p["status"]!="reserved" or now<int(p["due"]):
+                    raise BoundaryError("selective_entry_not_due")
+                quote.check(
+                    now,p["market"],"buy",p["amount"],p["kind"],
+                    finality_ledger=finality_ledger,
+                )
+                if quote.stamp.observed_at<int(p["due"]):
+                    raise BoundaryError("selective_pre_delay_quote")
+                cost=int(p["amount"])+int(quote.gas_quote)
+                if cost>int(p["reserved"]):
+                    raise BoundaryError("selective_entry_exceeds_reservation")
+                p.update(
+                    tokens=int(quote.amount_out),entry_tokens=int(quote.amount_out),
+                    cost=cost,remaining_cost=cost,realized_pnl=0,
+                    original_basis=cost,original_quantity=int(quote.amount_out),
+                    realized_proceeds=0,pending_exit_tokens=None,status="open",
+                )
+
+            elif action=='scale_add':
+                request=cancel_reason
+                if p.get('scale_request')==request and request:
+                    if p['scale_quote']!=asdict(quote):raise BoundaryError('selective_scale_duplicate_conflict')
+                    self.store.db.execute('COMMIT');return p
+                if p['status']!='open' or p.get('scale_request') or not request:
+                    raise BoundaryError('selective_scale_state')
+                quote.check(now,p['market'],'buy',quote.amount_in,p['kind'],finality_ledger=finality_ledger)
+                cost=int(quote.amount_in)+int(quote.gas_quote)
+                if cost<=0 or quote.amount_out<=0:raise BoundaryError('selective_scale_quote')
+                p.update(cost=p['cost']+cost,remaining_cost=p['remaining_cost']+cost,
+                    tokens=p['tokens']+int(quote.amount_out),reserved=p['reserved']+cost,
+                    scale_request=request,scale_quote=asdict(quote))
+                p.pop('mark',None)
+
+            elif action=="exit_intent":
+                if p["status"]!="open":
+                    raise BoundaryError("selective_position_not_open")
+                requested=(
+                    int(p["tokens"]) if exit_tokens is None else int(exit_tokens)
+                )
+                if requested<=0 or requested>int(p["tokens"]):
+                    raise BoundaryError("invalid_selective_partial_exit_amount")
+                p.update(
+                    status="exit_pending",due=now+self.delay,
+                    pending_exit_tokens=requested,
+                )
+
+            elif action=="mark":
+                if p["status"] not in ("open","exit_pending"):
+                    raise BoundaryError("selective_position_not_open")
+                quote.check(now,p["market"],"sell",p["tokens"],p["kind"],finality_ledger=finality_ledger)
+                p["mark"]=dict(quote=asdict(quote),at=now,tokens=p["tokens"],
+                    executable_net=int(quote.amount_out)-int(quote.gas_quote),
+                    unrealized_pnl=int(quote.amount_out)-int(quote.gas_quote)-p["remaining_cost"])
+
+            elif action=="exit":
+                if p["status"]!="exit_pending" or now<int(p["due"]):
+                    raise BoundaryError("selective_exit_not_due")
+                amount=int(p.get("pending_exit_tokens") or 0)
+                if amount<=0 or amount>int(p["tokens"]):
+                    raise BoundaryError("invalid_selective_partial_exit_amount")
+                try:
+                    quote.check(
+                        now,p["market"],"sell",amount,p["kind"],
+                        finality_ledger=finality_ledger,
+                    )
+                    if quote.stamp.observed_at<int(p["due"]):
+                        raise BoundaryError("selective_pre_delay_quote")
+                except BoundaryError as exc:
+                    if p.get("reason")==str(exc):
+                        self.store.db.execute("COMMIT")
+                        return p
+                    p["reason"]=str(exc)
+                else:
+                    net=int(quote.amount_out)-int(quote.gas_quote)
+                    if net<0:
+                        raise BoundaryError("selective_exit_gas_exceeds_proceeds")
+                    tokens_before=int(p["tokens"])
+                    remaining_cost=int(p["remaining_cost"])
+                    sold_cost=(
+                        remaining_cost
+                        if amount==tokens_before
+                        else remaining_cost*amount//tokens_before
+                    )
+                    p["tokens"]=tokens_before-amount
+                    p["remaining_cost"]=remaining_cost-sold_cost
+                    p["realized_proceeds"]=int(p["realized_proceeds"])+net
+                    p["realized_pnl"]=int(p["realized_pnl"])+net-sold_cost
+                    p["pnl"]=p["realized_pnl"]
+                    p["reason"]=None
+                    p.pop("mark",None)
+                    p["pending_exit_tokens"]=None
+                    if p["tokens"]==0:
+                        p.update(
+                            status="settled",reserved=0,remaining_cost=0
+                        )
+                    else:
+                        p["status"]="open"
+
+            elif action=="cancel":
+                if p["status"]!="reserved" or not cancel_reason:
+                    raise BoundaryError("invalid_selective_reservation_cancel")
+                p.update(
+                    status="settled",reserved=0,reason=str(cancel_reason),tokens=0
+                )
+
+            elif action=="transition":
+                if (
+                    p["status"] not in ("open","exit_pending")
+                    or not transition
+                    or transition.get("previous_market")!=p["market"]
+                ):
+                    raise BoundaryError("invalid_selective_pool_transition")
+                proof=self.store.get("graduation",transition["proof_hash"])
+                if proof!=transition:
+                    raise BoundaryError("unproven_selective_pool_transition")
+                p["market"]=transition["market"]
+                p.pop("mark",None)
+
+            elif action=="liquidity_writeoff":
+                if (p["status"] not in ("open","exit_pending")
+                        or cancel_reason!="impossible_full_position_exit"):
+                    raise BoundaryError("invalid_selective_liquidity_writeoff")
+                remaining=int(p["remaining_cost"])
+                p["realized_pnl"]=int(p["realized_pnl"])-remaining
+                p["pnl"]=p["realized_pnl"]
+                p.update(
+                    tokens=0,remaining_cost=0,reserved=0,
+                    pending_exit_tokens=None,status="settled",
+                    reason="liquidity_writeoff:impossible_full_position_exit",
+                )
+                p.pop("mark",None)
+
+            else:
+                raise BoundaryError("unsupported_selective_paper_action")
+
+            p["version"]+=1
+            p["last_at"]=now
+            self._save(p,action,now,quote)
+            self.reconcile()
+            self.store.db.execute("COMMIT")
+        except Exception:
+            self.store.db.execute("ROLLBACK")
+            raise
+        if self.portfolio:self.portfolio.flush()
+        if self.on_commit:self.on_commit(self,p)
+        from meme_machine.runtime.storage import compact_pons
+        compact_pons(self)
+        return p

@@ -1,0 +1,19 @@
+{
+  "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "source_paths": [
+    "tests/test_run369_runtime.py",
+    "tests/evidence_stream_harness.py"
+  ],
+  "suite": "OPERATIONAL",
+  "change": "Regression bytes unchanged; neutral stream harness Pump protocol import relocated. Existing evidence_ipc_harness retained unchanged.",
+  "test_count": 12,
+  "result": "12PASS in2.520s",
+  "invariants": [
+    "Background SQL preemption rolls back mutation without poisoning owner",
+    "Pool pin/gap does not pin unrelated tail, archive commit rechecks pins",
+    "Full block scoped before census/storage",
+    "Fixed bounded IPC retry, accepted command receipts, disconnected consumer cannot undo accepted mutation",
+    "Recovery/finality authority remains fail closed"
+  ],
+  "economic_change": "NONE"
+}

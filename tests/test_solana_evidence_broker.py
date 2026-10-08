@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from meme_machine.solana_evidence_broker import EvidenceBroker
+from meme_machine.lanes.pump.solana_evidence_broker import EvidenceBroker
 
 
 class _Clock:
@@ -149,7 +149,7 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
         self.assertEqual(recovered["rate_streak"],0)
         self.assertGreaterEqual(recovered["batch_size"],5)
 
-    def test_missing_cache_entry_requeues_formerly_complete_job(self):
+    def test_evicted_hot_cache_reuses_immutable_body_without_duplicate_rpc(self):
         broker,clock=self.make_broker()
         rpc=_Rpc()
         first,meta=broker.hydrate_transactions(
@@ -163,7 +163,31 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
             rpc,["a"],kind="position_monitor",deadline=clock()+10,batch_size=1)
         self.assertEqual(meta2["pending"],0)
         self.assertIsNotNone(second["a"])
-        self.assertEqual(len(rpc.batches),2)
+        self.assertEqual(len(rpc.batches),1)
+        self.assertEqual(second['a'],first['a'])
+
+    def test_legacy_complete_job_with_no_retained_body_is_requeued(self):
+        import json
+        broker,clock=self.make_broker();rpc=_Rpc()
+        self.assertTrue(broker.queue_transaction('legacy',kind='pump_window',deadline=clock()+10))
+        legacy=dict(slot=100,blockTime=1000,meta={'err':None,'logMessages':[]},
+            transaction={'message':{'accountKeys':[]}})
+        with broker.lock,broker.db:
+            # Model a valid old-schema completion before cold archives existed.
+            broker.db.execute("UPDATE jobs SET status='complete',lease_until=NULL")
+            broker.db.execute("INSERT INTO tx_cache VALUES(?,?,?,?,?)",
+                ('legacy',100,1000,json.dumps(legacy),clock()))
+        self.assertEqual(broker.get_transaction('legacy'),legacy)
+        self.assertIsNone(broker.db.execute(
+            "SELECT 1 FROM immutable_transactions WHERE signature='legacy'").fetchone())
+        with broker.lock,broker.db:
+            broker.db.execute("DELETE FROM tx_cache WHERE signature='legacy'")
+        bodies,meta=broker.hydrate_transactions(rpc,['legacy'],kind='position_monitor',
+            deadline=clock()+10,batch_size=1)
+        self.assertEqual(meta['pending'],0)
+        self.assertEqual(bodies['legacy'],legacy)
+        self.assertEqual(len(rpc.batches),1)
+
 
     def test_stream_events_prune_only_expired_cache_rows(self):
         broker,clock=self.make_broker()
@@ -227,6 +251,48 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
         got=broker.signature_rows(
             "dlmm","pool",start_slot=102,end_slot=102)
         self.assertEqual([x["signature"] for x in got],["s2"])
+
+
+
+    def test_expired_pending_request_can_reenter_without_losing_a_refresh(self):
+        clock=_Clock();broker=EvidenceBroker(':memory:',clock=clock,sleeper=clock.sleep)
+        self.addCleanup(broker.close)
+        broker.queue_transaction('needed',kind='pump_window',deadline=clock()+1)
+        clock.value+=2
+        rpc=_Rpc();txs,meta=broker.hydrate_transactions(rpc,['needed'],kind='pump_window',deadline=clock()+4)
+        self.assertEqual(meta['pending'],0)
+        self.assertIsNotNone(txs['needed'])
+
+    def test_earlier_dlmm_deadline_is_not_starved_by_large_pump_batch(self):
+        clock=_Clock();broker=EvidenceBroker(':memory:',clock=clock,sleeper=clock.sleep)
+        self.addCleanup(broker.close)
+        for i in range(100):broker.queue_transaction('pump-'+str(i),kind='pump_window',deadline=clock()+20)
+        broker.queue_transaction('exit',kind='position_monitor',deadline=clock()+30)
+        rpc=_Rpc();original=rpc.call_many
+        def cost(*args,**kwargs):
+            clock.value+=1;return original(*args,**kwargs)
+        rpc.call_many=cost
+        txs,meta=broker.hydrate_transactions(rpc,['dlmm'],kind='dlmm_fresh',deadline=clock()+3,batch_size=1)
+        self.assertEqual(rpc.batches[0][1],['exit'])
+        self.assertEqual(meta['pending'],0)
+        self.assertIsNotNone(txs['dlmm'])
+
+    def test_expired_request_does_not_break_an_active_cross_process_lease(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            clock=_Clock();path=os.path.join(tmp,'broker.sqlite')
+            first=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+            second=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+            self.addCleanup(first.close);self.addCleanup(second.close)
+            first.queue_transaction('needed',kind='pump_window',deadline=clock()+1)
+            first._claim_jobs(1,clock(),lease_seconds=15)
+            clock.value+=2
+            second.queue_transaction('needed',kind='position_monitor',deadline=clock()+10)
+            self.assertEqual(second._claim_jobs(1,clock()),[])
+            self.assertEqual(first.telemetry()['inflight_jobs'],1)
+            first.put_transaction('needed',dict(slot=10,blockTime=1000))
+            first._complete_jobs(['tx:needed'])
+            rpc=_Rpc();values,meta=second.hydrate_transactions(rpc,['needed'],kind='position_monitor',deadline=clock()+2)
+            self.assertEqual(meta['pending'],0);self.assertEqual(rpc.batches,[])
 
 
 if __name__=="__main__":

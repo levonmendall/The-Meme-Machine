@@ -1,3 +1,0 @@
-Canonicalize Ramses overlay after aligning funding telemetry with first genuine qualifier genesis.
-No strategy threshold change.
-No cross-asset conversion or replenishment.

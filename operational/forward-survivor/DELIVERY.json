@@ -1,0 +1,92 @@
+{
+  "branch": "engineering/forward-survivor-20261008",
+  "branch_audit": "BRANCH_AUDIT.json",
+  "full_operational_suite_green": false,
+  "next_test_contract": "NEXT_PROOF.json",
+  "none_dispatched": [
+    "provider tests",
+    "historical scans",
+    "prospective seven-day enrollment",
+    "deployment",
+    "service restart",
+    "paid upgrade",
+    "LIVE trading"
+  ],
+  "owner_baseline": "b1f215edd3dc079b623401c7e09e9c91a380e6a0",
+  "preserved_source_and_state": "PRESERVATION.json",
+  "provider_model": "ECONOMICS.json",
+  "publication": "isolated engineering branch; subsequent receipt commit has identical implementation",
+  "regime_readiness": "READINESS.json",
+  "regression_matrix": "TEST_MATRIX.json",
+  "schema": "forward-survivor-delivery-v1",
+  "source_commits": [
+    "ca2c1fb3de998b4b46802baf01e4a7602b821953",
+    "d0c67bee09cb58f4b60627c6fdec1ecfee299caf"
+  ],
+  "source_files": [
+    {
+      "path": "engineering/solana_capacity/pump_pons_proof.py",
+      "sha256": "27c59f2b6c7e4b7953e8196dc2909ad9e10de88883f495443b5bf344e44e6643"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_historical.py",
+      "sha256": "9b700fd75ed9c64df10ae21a0c8315478bc83ac4ea806aeb9c52ba9d6b6b866f"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_history.py",
+      "sha256": "f6472d9adbffdfbfccc56e9f76c84736c8407c2c8083012af89198c50a095ee2"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+      "sha256": "3f20b3793e8e0eaa3f79313fb6f89410c5cac2b3fbf32500f8214d5ebb7c599a"
+    },
+    {
+      "path": "meme_machine/runtime/survivor_history.py",
+      "sha256": "7f4e89b8cae03995905eec0a0cfe826f62453c216e2a0130aa93a4cc4ff26348"
+    },
+    {
+      "path": "operational/tests.py",
+      "sha256": "42014023b11aa914749ba831fb89e219ef580497269b1c0d773355f7eee83c0f"
+    },
+    {
+      "path": "tests/lanes/pons/test_pons_finalization.py",
+      "sha256": "1c0df5567d1a481a2e52850dec5595c7e364706f36039f3a7ba5720ed1d2337f"
+    },
+    {
+      "path": "tests/lanes/pons/test_run377_survivor_provider.py",
+      "sha256": "e1e4ea609a63c107b4132b7819a550e2135beda0bf10781925157a8e5d2e01f5"
+    },
+    {
+      "path": "tests/lanes/pons/test_run379_survivor_graduation.py",
+      "sha256": "801954b96627ca611108446628c5208a074928674f80066f752611e33cc20402"
+    },
+    {
+      "path": "tests/test_forward_survivor.py",
+      "sha256": "d4c6e694b64e2ea5a2212e1ebb3dc9941b51cb6683efab48d6004c6542e39441"
+    },
+    {
+      "path": "tests/test_pons_historical.py",
+      "sha256": "8a2d094dca9799800dc24c0e2931c79d7287d81a15da71a033cb93f7a86b7e27"
+    },
+    {
+      "path": "tests/test_provider_efficiency.py",
+      "sha256": "cd7a9548f299274f6cce3a2f6a930fa8e1e451ea2b990b98ebedbbea2be1d216"
+    },
+    {
+      "path": "tests/test_robinhood_usd_valuation.py",
+      "sha256": "5519a3f26cb8129f2293fe38203b780793017cc443d24ec602ac8e8600c10a6b"
+    },
+    {
+      "path": "tests/test_run369_runtime.py",
+      "sha256": "84da24d65cfebef4d61aef660eaf9475f5e2d9a26988b95cd3370aae3279ce52"
+    }
+  ],
+  "test_environment": {
+    "fixtures": "Scratch; successful fixtures clean, failure evidence retained",
+    "network_guard": "operational.tests.network_guard",
+    "python": "CPython 3.12.14",
+    "requirements": "pinned requirements.txt"
+  },
+  "validated_source_commit": "d0c67bee09cb58f4b60627c6fdec1ecfee299caf",
+  "validation": "VALIDATION.json"
+}

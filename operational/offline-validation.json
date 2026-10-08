@@ -1,0 +1,47 @@
+{
+  "result": "OFFLINE_PASS",
+  "production_ready": false,
+  "python": "3.12.14",
+  "websockets": "17.1",
+  "sqlite_versions_tested": [
+    "3.45.1",
+    "3.53.1"
+  ],
+  "fast_tests": 252,
+  "operational_tests": 485,
+  "dashboard_frontend": "PASS: 10 routes, rounding, lifecycle details, read-only HTTP, CSP",
+  "systemd_unit": "syntax/dependency verification PASS against local Python path; prepared /opt deployment path intentionally absent",
+  "requirements": [
+    "websockets==17.1"
+  ],
+  "proofs": {
+    "pre_change_materialization": "561 source-equivalent files; 245 deterministic checks per arm plus 106 maintenance checks before approved strategy changes",
+    "nine_changes": "17 boundary tests plus 174 native policy/accounting regressions",
+    "no_unlisted_strategy_change": "frozen entry and Survivor policy AST comparisons; only approved deltas",
+    "ramses_economics": "44 modules compared after removing enumerated portfolio/retention/shutdown adapters",
+    "portfolio_reconciliation": "exact Decimal shared $500 inception in temporary OFFLINE fixtures; sleeve and conservation checks",
+    "deterministic_restart_replay": "native commit cuts, lost USD delivery acknowledgement, absent commit, post-checkpoint duplicate, retained cash flow replay",
+    "no_stage_e_owner_imports": "conservative static runtime/test import closure and clean-interpreter startup imports",
+    "no_runtime_worktrees": "ordinary committed lane namespaces; runtime source has no Git subprocess invocation",
+    "no_runtime_patches": "same committed source, no patch application",
+    "no_runtime_github": "one Python supervisor; GitHub CI only",
+    "no_crypto_owner_permission": "no owner-key, permit, signature or authorization configuration or startup gate",
+    "paper_only": "PAPER-only environment boundary and offline-provider guards",
+    "no_transaction_signing": "read-only provider method allowlists; no transaction signer/submission code or wallet key",
+    "four_offline_lane_processes": "all four real native ledger processes launched with synthetic offline evidence",
+    "clean_shutdown": "SIGTERM exit code 0 in all four lane processes; supervisor clean shutdown",
+    "process_failure_without_duplicates": "SIGKILL each lane, repeat restarts and same-epoch supervisor restart retain four economic lifecycles",
+    "bounded_storage": "5 storage tests preserve active controller/flow state, money, monotone cursors and required waiting evidence; bounded snapshots/log projections/cache retention"
+  },
+  "blockers": [
+    "Authoritative USDG/USD anchor missing; no invented USD parity"
+  ],
+  "market_provider_calls": 0,
+  "genuine_portfolio_epoch_initialized": false,
+  "deployment_performed": false,
+  "acceptance_run": false,
+  "cleanup": "1593 obsolete checkout files removed after import/resource analysis; historical refs preserved",
+  "post_cleanup_operational_tests": 485,
+  "post_cleanup_result": "PASS",
+  "post_cleanup_fast_tests": 252
+}

@@ -1,0 +1,266 @@
+{
+  "schema": "pons-history-offline-cost-v1",
+  "synthetic_inputs": true,
+  "actual_market_provider_calls": 0,
+  "production_economic_mutation": false,
+  "python": "3.12.14 (main, Aug 13 2026, 02:47:42) [GCC 13.3.0]",
+  "cpu_count": 2,
+  "results": [
+    {
+      "approach": "legacy10",
+      "blocks": 4096,
+      "initial_boundary": null,
+      "population_discovery": {
+        "logical_rpc_elements": 718,
+        "generated_transport_batches": 206,
+        "methods": {
+          "eth_getBlockByNumber": 308,
+          "eth_getLogs": 410
+        },
+        "errors": {},
+        "encoded_request_bytes": 134321,
+        "encoded_response_bytes": 95554,
+        "cache_hits": 0,
+        "estimated_cu": 71800,
+        "actual_billed_cu": null,
+        "cpu_seconds": 1.2898733930000001,
+        "wall_seconds": 2.0152396310004406,
+        "process_storage_write_bytes": 2535424,
+        "peak_process_rss_kib": 33616,
+        "retained_sqlite_bytes": 49152,
+        "retained_wal_bytes": 1713952
+      },
+      "warm_restore": null,
+      "candidate_count": 0,
+      "scope": "empty factory census; economic reconstruction excluded",
+      "cumulative_history_wal_write_bytes": 1800504,
+      "cumulative_history_main_write_bytes": 61440,
+      "final_checkpointed_history_bytes": 49152
+    },
+    {
+      "approach": "prepared10",
+      "blocks": 4096,
+      "initial_boundary": {
+        "logical_rpc_elements": 36,
+        "generated_transport_batches": 30,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 31,
+          "eth_getCode": 4
+        },
+        "errors": {},
+        "encoded_request_bytes": 3492,
+        "encoded_response_bytes": 176588,
+        "cache_hits": 0,
+        "estimated_cu": 3600,
+        "actual_billed_cu": null,
+        "cpu_seconds": 0.09199374700000007,
+        "wall_seconds": 0.27039683202747256,
+        "process_storage_write_bytes": 712704,
+        "peak_process_rss_kib": 36464,
+        "retained_sqlite_bytes": 49152,
+        "retained_wal_bytes": 568592
+      },
+      "population_discovery": {
+        "logical_rpc_elements": 616,
+        "generated_transport_batches": 103,
+        "methods": {
+          "eth_getBlockByNumber": 206,
+          "eth_getLogs": 410
+        },
+        "errors": {},
+        "encoded_request_bytes": 154460,
+        "encoded_response_bytes": 69748,
+        "cache_hits": 0,
+        "estimated_cu": 61600,
+        "actual_billed_cu": null,
+        "cpu_seconds": 0.44527928299999986,
+        "wall_seconds": 1.2483633540105075,
+        "process_storage_write_bytes": 9314304,
+        "peak_process_rss_kib": 36464,
+        "retained_sqlite_bytes": 258048,
+        "retained_wal_bytes": 4136512
+      },
+      "warm_restore": {
+        "logical_rpc_elements": 5,
+        "generated_transport_batches": 4,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 4
+        },
+        "errors": {},
+        "encoded_request_bytes": 442,
+        "encoded_response_bytes": 1057,
+        "cache_hits": 0,
+        "estimated_cu": 500,
+        "actual_billed_cu": null,
+        "cpu_seconds": 0.023534404999999925,
+        "wall_seconds": 0.03741680004168302,
+        "process_storage_write_bytes": 122880,
+        "peak_process_rss_kib": 36464,
+        "retained_sqlite_bytes": 258048,
+        "retained_wal_bytes": 4136512
+      },
+      "candidate_count": 0,
+      "scope": "empty factory census; economic reconstruction excluded",
+      "cumulative_history_wal_write_bytes": 8557368,
+      "cumulative_history_main_write_bytes": 372736,
+      "final_checkpointed_history_bytes": 262144
+    },
+    {
+      "approach": "prepared40_conditional",
+      "blocks": 4096,
+      "initial_boundary": {
+        "logical_rpc_elements": 36,
+        "generated_transport_batches": 30,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 31,
+          "eth_getCode": 4
+        },
+        "errors": {},
+        "encoded_request_bytes": 3492,
+        "encoded_response_bytes": 176588,
+        "cache_hits": 0,
+        "estimated_cu": 3600,
+        "actual_billed_cu": null,
+        "cpu_seconds": 0.08925105800000033,
+        "wall_seconds": 0.2693092519766651,
+        "process_storage_write_bytes": 712704,
+        "peak_process_rss_kib": 36464,
+        "retained_sqlite_bytes": 49152,
+        "retained_wal_bytes": 568592
+      },
+      "population_discovery": {
+        "logical_rpc_elements": 155,
+        "generated_transport_batches": 26,
+        "methods": {
+          "eth_getBlockByNumber": 52,
+          "eth_getLogs": 103
+        },
+        "errors": {},
+        "encoded_request_bytes": 38827,
+        "encoded_response_bytes": 17585,
+        "cache_hits": 0,
+        "estimated_cu": 15500,
+        "actual_billed_cu": null,
+        "cpu_seconds": 0.09997261700000015,
+        "wall_seconds": 0.34598403301788494,
+        "process_storage_write_bytes": 2289664,
+        "peak_process_rss_kib": 36464,
+        "retained_sqlite_bytes": 49152,
+        "retained_wal_bytes": 2537952
+      },
+      "warm_restore": {
+        "logical_rpc_elements": 5,
+        "generated_transport_batches": 4,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 4
+        },
+        "errors": {},
+        "encoded_request_bytes": 442,
+        "encoded_response_bytes": 1057,
+        "cache_hits": 0,
+        "estimated_cu": 500,
+        "actual_billed_cu": null,
+        "cpu_seconds": 0.008268730000000168,
+        "wall_seconds": 0.0212413240224123,
+        "process_storage_write_bytes": 122880,
+        "peak_process_rss_kib": 36464,
+        "retained_sqlite_bytes": 49152,
+        "retained_wal_bytes": 2661552
+      },
+      "candidate_count": 0,
+      "scope": "empty factory census; economic reconstruction excluded",
+      "cumulative_history_wal_write_bytes": 2748104,
+      "cumulative_history_main_write_bytes": 180224,
+      "final_checkpointed_history_bytes": 163840
+    },
+    {
+      "approach": "legacy_economic",
+      "blocks": 140,
+      "candidate_count": 2,
+      "mandatory_economic_acquisition": {
+        "logical_rpc_elements": 724,
+        "generated_transport_batches": 27,
+        "methods": {
+          "eth_getBlockByNumber": 9,
+          "eth_getCode": 3,
+          "eth_getLogs": 14,
+          "eth_getTransactionReceipt": 279,
+          "eth_getBlockByHash": 140,
+          "eth_getTransactionByHash": 279
+        },
+        "errors": {},
+        "encoded_request_bytes": 111764,
+        "encoded_response_bytes": 867054,
+        "cache_hits": 0,
+        "estimated_cu": 72400,
+        "actual_billed_cu": null,
+        "cpu_seconds": 2.436795022,
+        "wall_seconds": 2.578692769049667,
+        "process_storage_write_bytes": 1769472,
+        "peak_process_rss_kib": 38176,
+        "retained_sqlite_bytes": 49152,
+        "retained_wal_bytes": 2661552
+      },
+      "exact_native_history_equal": true,
+      "scope": "synthetic dense two-pool history",
+      "cumulative_history_wal_write_bytes": 2748104,
+      "cumulative_history_main_write_bytes": 290816,
+      "final_checkpointed_history_bytes": 237568
+    },
+    {
+      "approach": "prepared_group_economic",
+      "blocks": 140,
+      "candidate_count": 2,
+      "mandatory_economic_acquisition": {
+        "logical_rpc_elements": 728,
+        "generated_transport_batches": 26,
+        "methods": {
+          "eth_getBlockByNumber": 152,
+          "eth_getLogs": 14,
+          "eth_getTransactionReceipt": 281,
+          "eth_getTransactionByHash": 281
+        },
+        "errors": {},
+        "encoded_request_bytes": 107553,
+        "encoded_response_bytes": 745500,
+        "cache_hits": 0,
+        "estimated_cu": 72800,
+        "actual_billed_cu": null,
+        "cpu_seconds": 3.852680394,
+        "wall_seconds": 4.055146434984636,
+        "process_storage_write_bytes": 2605056,
+        "peak_process_rss_kib": 38176,
+        "retained_sqlite_bytes": 49152,
+        "retained_wal_bytes": 3353712
+      },
+      "exact_native_history_equal": true,
+      "scope": "synthetic dense two-pool history",
+      "cumulative_history_wal_write_bytes": 3440264,
+      "cumulative_history_main_write_bytes": 856064,
+      "final_checkpointed_history_bytes": 802816
+    }
+  ],
+  "limitations": [
+    "generated batches are not physical HTTP measurements",
+    "local CPU/RSS/write_bytes measured on this Droplet without provider waiting",
+    "empty census cannot predict actual graduation/activity density",
+    "forty-block result uses synthetic support, not account capability",
+    "encoded JSON bytes omit live transport headers and compression",
+    "100 CU per element is a diagnostic estimate, not billed CU"
+  ],
+  "measurement_conditions": "strace write/pwrite64 tracing on the existing two-vCPU Droplet; process CPU, not provider latency",
+  "trace_basis": "all history.sqlite/WAL lifecycle writes including initialization, acquisition, restore and final close",
+  "source_sha256": {
+    "meme_machine/lanes/pons/pons_historical.py": "d1f137e232e35ba5ece68bcc7deacdc6149127b7a01a9cb41f44eba4ffba4780",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "79bd20b74efec31c93bfdc489f09eccbd4b6b0fe39f388c56cb6130b0a232639",
+    "meme_machine/lanes/pons/provider.py": "b566afc667474e79189534536c9fb977c6a8d5d5772b43edc03e256ac3cc3738",
+    "engineering/pons_history/benchmark.py": "bb4f03e2b08cc33106467dc493c9d1eeb2df226a0866232d9e1358bf0faa66fe",
+    "engineering/pons_history/fixtures.py": "4579b084965ea3b9d2bcdee448dcfeea0100945fe0adc0deec56ecf50f3b1239",
+    "engineering/pons_history/capability.py": "6ac48ce696800039ae0d5296e52aa00a0f31403a53593932c4376b8d6c5b3b8d",
+    "tests/test_pons_historical.py": "20ca795c980c65e9cf5ad389052935e02435bc96f3315733339b310ba1897f07"
+  }
+}

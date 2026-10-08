@@ -1,0 +1,356 @@
+{
+  "schema": "robinhood-scout-validation-v1",
+  "status": "OFFLINE_VALIDATED_NOT_DEPLOYED",
+  "branch": "engineering/robinhood-scout-first-20261008",
+  "base_commit": "63ec2352078a13480a12e84b6185d399583d186f",
+  "economic_reference": "b1f215edd3dc079b623401c7e09e9c91a380e6a0",
+  "reconciled_published_forward_commits": [
+    "ca2c1fb3de998b4b46802baf01e4a7602b821953",
+    "d0c67bee09cb58f4b60627c6fdec1ecfee299caf"
+  ],
+  "inspected_later_evidence_commit": "481bd11e918cda9c5de624a619f44688dc97fefb",
+  "python": "3.12.14",
+  "pinned_dependencies": true,
+  "host": {
+    "cpus": 2,
+    "affinity_cpus": 2,
+    "mem_total_kib": 8132488,
+    "production_combined_capacity_certified": false
+  },
+  "operational_resources": {
+    "user_cpu_seconds": 682.23,
+    "system_cpu_seconds": 78.82,
+    "wall_seconds": 993.78,
+    "peak_rss_kib": 241908,
+    "swaps": 0,
+    "file_system_output_units": 20484312,
+    "storage_interpretation": "Raw GNU time output units, not a representative normal growth or monthly write projection"
+  },
+  "suites": [
+    {
+      "name": "FAST",
+      "status": "PASS",
+      "tests_run": 956,
+      "seconds": 573.903,
+      "skipped": 0,
+      "scope": "Full suite before the last published migration/test reconciliation and final scout scheduling delta.",
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/FAST-validated.log",
+        "bytes": 15001,
+        "sha256": "82c311a3489eb6ae9030d291a329ef6b9dd5b7aa8184cfef4a152e9f4d541720"
+      },
+      "resource_receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/FAST-validated-resources.txt",
+        "bytes": 784,
+        "sha256": "ab43cd5dbbbceb9b3dd74bb6d6563cb381dc4d20b1e6d7509cbb28483db81313"
+      }
+    },
+    {
+      "name": "OPERATIONAL",
+      "status": "PASS",
+      "tests_run": 2377,
+      "seconds": 992.276,
+      "skipped": 33,
+      "scope": "Full production/offline suite before the last five regression cases and two final scheduling repairs. Broad result plus final focused deltas validates this branch; this run is not relabeled as a full rerun of subsequent changes.",
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/OPERATIONAL-validated.log",
+        "bytes": 467686,
+        "sha256": "7ac0770fcab7e5e65ce41a66ed8497656b276f6f16cacb7fa2c23ea14d067fe1"
+      },
+      "resource_receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/OPERATIONAL-validated-resources.txt",
+        "bytes": 806,
+        "sha256": "40adbc54d9d74019aba6c8474e63151059b4b231596199a11f280f09510b1c17"
+      }
+    },
+    {
+      "name": "FINAL_SCOUT_ECONOMIC_DELTA",
+      "status": "PASS",
+      "tests_run": 70,
+      "seconds": 69.743,
+      "skipped": 0,
+      "scope": "Final source: all 17 scout cases, 18 published forward-operation cases, 35 valuation/economic-source pin cases.",
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/pool-scheduling-validated.log",
+        "bytes": 170,
+        "sha256": "d6ef57a1757080b84a8944b433343803514cc962c13969ae6085bdfcef2fe4a0"
+      }
+    },
+    {
+      "name": "FINAL_PRODUCTION_PATH_DELTA",
+      "status": "PASS",
+      "tests_run": 48,
+      "seconds": 11.258,
+      "skipped": 0,
+      "scope": "Final source: continuous campaign, native Current restart/recovery, shared Survivor worker, immutable cache, topology and adaptive public 429 handling.",
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/production-paths-validated.log",
+        "bytes": 148,
+        "sha256": "543169f236dfd84f8ada1eae1944353b6ecb0359de59c8e6d035aa09fd6b1100"
+      }
+    },
+    {
+      "name": "CAPABILITY_ACCOUNTING",
+      "status": "PASS",
+      "tests_run": 23,
+      "seconds": 45.716,
+      "skipped": 0,
+      "scope": "Existing finite capability executor and physical boundary; corrected request-byte wrapper remains offline.",
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/capability-pinned.log",
+        "bytes": 3915,
+        "sha256": "f338dfa4a9c7b016248a4fab64d9481ddac7b3eec01aa32723921f0e3d66f654"
+      }
+    }
+  ],
+  "failed_or_superseded_evidence": [
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/FAST-first.log",
+        "bytes": 158,
+        "sha256": "fe6aa0edb6a90697b3503a8107e307a38cc12073b03cf0ae3ed293287f749717"
+      },
+      "disposition": "SUPERSEDED: request-byte accounting wrapper needed its optional argument; mixed CPython executable/library also present.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-6i73xsia"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/FAST-second.log",
+        "bytes": 24169,
+        "sha256": "9b33f50de30b936ccf3e1e5f874e8f5513643f6b867f88c98efd56bd72387465"
+      },
+      "disposition": "SUPERSEDED: reproducible mixed CPython 3.12.14 executable / 3.12.3 shared-library asyncio crash; isolated venv repaired.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-cz7gofwt"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/FAST-pinned.log",
+        "bytes": 219936,
+        "sha256": "840ee94fe102df3fa16e23371dd5b1a242cae23cdbc6a83ec2e43a631ea31619"
+      },
+      "disposition": "SUPERSEDED: optional request-byte wrapper, provider_role keyword typo and obsolete broad infrastructure freeze repaired; economics still source-pinned.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-75472xux",
+        "/tmp/mm-engineering-75472xux/tmp0l2fytxn/mm-engineering-ib0043kq",
+        "/tmp/mm-engineering-75472xux/tmp1dq5g9h0/mm-engineering-gy6ixr2z",
+        "/tmp/mm-engineering-75472xux/tmp1e1mqico/mm-engineering-23sjewmo"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/OPERATIONAL-final.log",
+        "bytes": 75768,
+        "sha256": "836330297ddf167520677a68a97bbbb170af1022bd7c479aa93d178af1e276e2"
+      },
+      "disposition": "INTERRUPTED: known stale compiled source-pin run; preserved; replaced by successful full OPERATIONAL and final deltas.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-zx0ebj7t",
+        "/tmp/mm-engineering-zx0ebj7t/tmp6r4xn0c7/mm-engineering-fezl3_ht",
+        "/tmp/mm-engineering-zx0ebj7t/tmp8kqtz4uu/mm-engineering-s7ntn3pd",
+        "/tmp/mm-engineering-zx0ebj7t/tmpl16v15_1/mm-engineering-95ry9ztu"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/FAST-final.log",
+        "bytes": 96,
+        "sha256": "94b11ab44fad169a528833bfb2c014a0f6a5d069cd749b3cb65586aebd6c676a"
+      },
+      "disposition": "INTERRUPTED: known incorrect new fixture expectation; preserved; replaced by successful full FAST and focused deltas.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-81_hhgi1"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/scout-focused.log",
+        "bytes": 3400,
+        "sha256": "0e2affd3de6da0b709a2f3594783796a37c651528a288f721cf0f4289c16d818"
+      },
+      "disposition": "SUPERSEDED: offline tape scope/envelope fixtures repaired; no weakening of canonical verification.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-r2xqifap"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/scout-final-focused.log",
+        "bytes": 4075,
+        "sha256": "b7cdf6fa7738692fedfcfca3264aab1bd9e9af1326a96b874bc9acde8e59ffcb"
+      },
+      "disposition": "SUPERSEDED: keyword-only _batched scope call repaired; verified native hydration/restart path passed.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-iwca_hfp"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/final-paths.log",
+        "bytes": 857,
+        "sha256": "95fba70dc22fe70ba5e31c9da564c188e2ec8cdfd2a1b8e302c161b8fdda0860"
+      },
+      "disposition": "SUPERSEDED: saturation buyer fixture selected sells; corrected to genuine decoded buys, preserving exact economic decoder.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-u80s39xz"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/isolated-crash.log",
+        "bytes": 11134,
+        "sha256": "a15911f462b2be2983ad0683f722844cad1055d8bb2cbca4e52aecd7f1153748"
+      },
+      "disposition": "DIAGNOSTIC: genuine mixed-library runtime reproduction, preserved after isolated environment repair.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-6p3p_uak"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/python-environment-repair.log",
+        "bytes": 710,
+        "sha256": "cacddd0311e660f22c6253fa1b783fa5882cbaaa71ea403db0e1754970805a04"
+      },
+      "disposition": "ENVIRONMENT_REPAIR: isolated executable now resolves pinned 3.12.14 library; system and adjacent Python unchanged.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": []
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/decisions-v2.log",
+        "bytes": 6571,
+        "sha256": "4852ddb2a80b1c932dc4ad4dba4abb322f16fd3a797ac2b80b716b1f4a3bbb98"
+      },
+      "disposition": "SUPERSEDED: deterministic quote wall-clock fixture repaired; actual strategy gates and monotonic freshness retained.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-7wsbjsky"
+      ]
+    },
+    {
+      "receipt": {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/decisions-v3.log",
+        "bytes": 1062,
+        "sha256": "3640f3bb0fa56038f14451dc233d0fc578fae2f73df000d8dec322286a04d4af"
+      },
+      "disposition": "SUPERSEDED: deterministic position quote wall-clock fixture repaired; no network or real position accepted.",
+      "deleted": false,
+      "explicit_retained_scratch_locators": [
+        "/tmp/mm-engineering-ai6wgq_6"
+      ]
+    }
+  ],
+  "source_sha256": {
+    "engineering/pons_history/bounded.py": "d0479f95c5cbc84787c7f6c9a30ad105a4776697a1ad0880a95378803a388f74",
+    "engineering/robinhood_scout/__init__.py": "97584e25f00e84ad3853b0b9627a7c8c382f7d3fdb09e395529241c5b8dc34ca",
+    "engineering/robinhood_scout/decisions.py": "8b5873645a66ddfe4596d03a4ab0bcb26246e509527a346749de5bcdab1e31c8",
+    "engineering/robinhood_scout/projection.py": "5589d69a8181353f21032b9822ba968aa4a0a0d40dcf14595060cd8fcf29973e",
+    "engineering/robinhood_scout/replay.py": "e892321f2602501734db6d4493ecfe310456682ae4c5a322e803dc56075fdd94",
+    "engineering/solana_capacity/pump_pons_proof.py": "27c59f2b6c7e4b7953e8196dc2909ad9e10de88883f495443b5bf344e44e6643",
+    "meme_machine/lanes/pons/abi.py": "524efaee6de4664fa3905bbf06b20db398542e9a88b0e740b0ec0afbfbd71a9b",
+    "meme_machine/lanes/pons/pons_historical.py": "eb7db9d32dee0d0d0581cdf23d194ed0617660495811711f2ebab9486037bfcd",
+    "meme_machine/lanes/pons/pons_history.py": "599953c648afedf28270e50c5ec439ee0e7df14c51c64821a39985d218331091",
+    "meme_machine/lanes/pons/pons_natural_observation.py": "00a5e46d01b43a410495d82bb5fa7db2345b5a5b8368ab198f0e5a85ad9f26ca",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "40eb350eae8f25e032635d5e0561a35041f020b536a79d5ed46b57a177c6f4e1",
+    "meme_machine/lanes/pons/pons_selective_v4.py": "f0df2fdb2315e6bade8a609f3200b54a6a4a5ff91bd4488808e12af181dc5e29",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "9f9fa2d13b108802b86915b6cce49f4242db8fa3c5d5055108858ede4963b234",
+    "meme_machine/lanes/pons/provider.py": "a20b20ee24eced473f5f10f9465dd22ef5f1c50f38f7f8cd2921fb4bde2555cf",
+    "meme_machine/lanes/pons/provider_admission.py": "93de1cad2be459c4d259175d8612e0d8744fd7750e7178ba16219c4672c80645",
+    "meme_machine/lanes/pons/provider_topology.py": "909712aad3db326927bf3ea368d8bb362c66ef810fcf84b7cee9b947254b0c16",
+    "meme_machine/lanes/pons/sequencer_feed.py": "a8edb37f4cebd83ee5b321faf2eacf14935ce80ebeebfc366d52f0948914055a",
+    "meme_machine/runtime/robinhood/provider_usage.py": "0a7acfa8a86666bb14d7512350e92ca12f0fd435051db4d6d392d639280a384d",
+    "meme_machine/runtime/survivor_history.py": "7f4e89b8cae03995905eec0a0cfe826f62453c216e2a0130aa93a4cc4ff26348",
+    "operational/tests.py": "fa10030026808914db9fbcccf4aeb592dfb666067cbb1aad7b73be91fec40967",
+    "tests/lanes/pons/test_pons_finalization.py": "1c0df5567d1a481a2e52850dec5595c7e364706f36039f3a7ba5720ed1d2337f",
+    "tests/lanes/pons/test_run377_survivor_provider.py": "e1e4ea609a63c107b4132b7819a550e2135beda0bf10781925157a8e5d2e01f5",
+    "tests/lanes/pons/test_run379_survivor_graduation.py": "801954b96627ca611108446628c5208a074928674f80066f752611e33cc20402",
+    "tests/test_forward_survivor.py": "d4c6e694b64e2ea5a2212e1ebb3dc9941b51cb6683efab48d6004c6542e39441",
+    "tests/test_pons_historical.py": "8a2d094dca9799800dc24c0e2931c79d7287d81a15da71a033cb93f7a86b7e27",
+    "tests/test_provider_efficiency.py": "cd7a9548f299274f6cce3a2f6a930fa8e1e451ea2b990b98ebedbbea2be1d216",
+    "tests/test_robinhood_scout.py": "9325d054ba3d6e9310a807f6ba1e42211ea9d8d2cb72fc8eb5b53076cbe2b68b",
+    "tests/test_robinhood_usd_valuation.py": "ea3aca0eac520a5c19f880b6e426821b38a462650d0519372977d22ecab42ee8",
+    "tests/test_run369_runtime.py": "84da24d65cfebef4d61aef660eaf9475f5e2d9a26988b95cd3370aae3279ce52"
+  },
+  "artifact_sha256": {
+    "cost-projection.json": {
+      "bytes": 19030,
+      "sha256": "de2088a990974db51b475eb0b5b057265ff3276b292e07eccc31f19b7bc1110d"
+    },
+    "decisions.py": {
+      "bytes": 16465,
+      "sha256": "8b5873645a66ddfe4596d03a4ab0bcb26246e509527a346749de5bcdab1e31c8"
+    },
+    "decision-comparison.json": {
+      "bytes": 18969,
+      "sha256": "6023692c15c7551a98a11c8b0b404e77d74690af232b180f541397d9b73fd067"
+    },
+    "projection.py": {
+      "bytes": 12493,
+      "sha256": "5589d69a8181353f21032b9822ba968aa4a0a0d40dcf14595060cd8fcf29973e"
+    },
+    "NEXT_VALIDATION.json": {
+      "bytes": 3829,
+      "sha256": "89d7cbca347bcd1aa0246e37b3d7d1709348e686ab3d8d2bba83ff5b3e2b4e7b"
+    },
+    "billing-availability.json": {
+      "bytes": 1209,
+      "sha256": "658d98d05743faac47738de7834cf121e26a4cfe635292ec9373bfe4126b294b"
+    },
+    "replay.py": {
+      "bytes": 6789,
+      "sha256": "e892321f2602501734db6d4493ecfe310456682ae4c5a322e803dc56075fdd94"
+    },
+    "__init__.py": {
+      "bytes": 79,
+      "sha256": "97584e25f00e84ad3853b0b9627a7c8c382f7d3fdb09e395529241c5b8dc34ca"
+    },
+    "REPORT.md": {
+      "bytes": 25720,
+      "sha256": "ca3c446c8b2e0aa50a0ffb5b57c55d88122e8d919c208cf706466bae3207db9c"
+    },
+    "collector-comparison.json": {
+      "bytes": 9576,
+      "sha256": "5d380ec772d0c05989ba2d44b75c4f1c747059b107697479579fc9ae5e6eec08"
+    }
+  },
+  "deterministic_recall": 1.0,
+  "complete_eligible_decision_parity": true,
+  "initially_weak_execution_fields": "PENDING_EVIDENCE; differs explicitly from fully measured negative reference vectors; unchanged nonexecution gates and later complete eligible decisions match",
+  "actual_provider_network_latency": "UNMEASURED",
+  "actual_account_specific_billed_cu": null,
+  "existing_combined_latency_guard": "combined_position_and_candidate_provider_latency_not_certified",
+  "guard_removed": false,
+  "monthly_10m_is_acceptance_gate": false,
+  "provider_limits_changed": false,
+  "market_provider_rpc_attempts_this_task": 0,
+  "administrative_billing_queries_only": true,
+  "production_state_changed": false,
+  "production_service_restarted": false,
+  "capacity_purchased": false,
+  "paused_families": [
+    "meteora",
+    "ramses"
+  ],
+  "paused_families_operational_work_introduced": false,
+  "remaining_blockers": [
+    "Genuine public full prospective event coverage and sustained throttling/gap behavior",
+    "Genuine combined Current/Survivor/funded-position provider deadline and throughput measurements; dense tested collector already exceeds 2 physical RPS",
+    "Representative Current, activity, promotion, recovery, position occupancy and independent billed-usage rates for a complete monthly forecast",
+    "Reviewed bounded executor and separately authorized provider observation",
+    "Existing CAPACITY/RECOVERY/AUTONOMY operational acceptance and preserved-epoch integration/deployment"
+  ],
+  "preserved_failure_policy": "No real state or unresolved/unknown artifacts deleted; no claim that every scratch directory belongs to this task. Small logs/locators retained outside Git rather than copying old collections."
+}

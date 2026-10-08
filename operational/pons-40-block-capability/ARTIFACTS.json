@@ -1,0 +1,80 @@
+{
+  "disposable_directory": "/mnt/volume_nyc1_1790918115030/pons-40-block-evidence-20261008",
+  "local_files": [
+    {
+      "name": "evidence.sqlite",
+      "sha256": "4e5043847b36056ab1f9045675d56a6b9161311be41967f3f567a229c4b5ef7d",
+      "size": 65536
+    },
+    {
+      "name": "governor-session.json",
+      "sha256": "a79c075cb824c7f4e3eec400ffc986a9b3fb50ec26d878730f7a5d39dd7b1ad0",
+      "size": 4839
+    },
+    {
+      "name": "history.sqlite",
+      "sha256": "911bfe45c3f1c312ff30e5991cb8b12133bd465c07d25c6dc67289fe13f0ed45",
+      "size": 110592
+    },
+    {
+      "name": "preflight.json",
+      "sha256": "dc93d4d0153720bff8a9c71f1c1645699c902c3038fb82420a663fcf442f04f3",
+      "size": 540
+    },
+    {
+      "name": "response-01.json",
+      "sha256": "1fb0f19b45a4203bd13cb5be1e8ad3aa569f42905377cd4643fc8bc07ecd3aa3",
+      "size": 42
+    },
+    {
+      "name": "response-02.json",
+      "sha256": "ec152ea9dd5a40a54c62f14fa6bd3304b0740fe578950606b32bf5b7dda0158e",
+      "size": 49986
+    },
+    {
+      "name": "response-03.json",
+      "sha256": "fd4fe9e8e023e58d0b24ba2fc4b4ebccae38fc0e9907d404329902cdd00157d7",
+      "size": 7408
+    },
+    {
+      "name": "response-04.json",
+      "sha256": "a32b67af4b6955f95a356de7201eb5c25d0ae1092ca951a1f676ef4da2a830c8",
+      "size": 845
+    },
+    {
+      "name": "response-05.json",
+      "sha256": "d3239a6b6749fea25441957e485ea3d1f081b0264570b8d08df9f75de16d28aa",
+      "size": 2378
+    },
+    {
+      "name": "response-06.json",
+      "sha256": "9d6f7bc358860da25e1d3b909473c03c886ca9cdeb7fbe7a51a5c1a8c69fc3bd",
+      "size": 16603
+    },
+    {
+      "name": "response-07.json",
+      "sha256": "89ce56881648ee961dc6df44124d5797b95723d96c07b97331d919ff3103711e",
+      "size": 273
+    },
+    {
+      "name": "result.json",
+      "sha256": "5ff29b943ec008b06563bc09fb59493913a8baca70a291323920a069b2b5985f",
+      "size": 24918
+    },
+    {
+      "name": "usage.json",
+      "sha256": "b3f2d70d5d370bb31d0b2ec7df5f30d72c8d580647552048256cd4ec806a410e",
+      "size": 5666
+    },
+    {
+      "name": "worker-result.json",
+      "sha256": "86365d463f3c5bf672351a9b96abef956fad8d2bc0124ed22074a65b788f3422",
+      "size": 18840
+    }
+  ],
+  "observed_peak_test_bytes": 647813,
+  "preservation_manifest_path": "/mnt/volume_nyc1_1790918115030/pons-40-block-preservation-before.json",
+  "preservation_manifest_sha256": "64c89438522c73e4c5aca2113f8fc488dcc3514c84c882c842d8b6c62fd5b94a",
+  "sqlite_files_published": false,
+  "test_final_bytes": 303627
+}

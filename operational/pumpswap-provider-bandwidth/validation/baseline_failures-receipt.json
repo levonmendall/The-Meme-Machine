@@ -1,0 +1,14 @@
+{
+  "label": "baseline_failures",
+  "command": [
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-c",
+    "from operational.tests import network_guard;network_guard();import unittest;names=['tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival', 'tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once', 'tests.test_production_maintenance_arbiter.ProductionServeTests.test_generation_change_revokes_old_runtime', 'tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged'];r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names));raise SystemExit(not r.wasSuccessful())"
+  ],
+  "cwd": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+  "exit_code": 1,
+  "wall_seconds": 3.049816818907857,
+  "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+  "scratch_path": "/tmp/mm-engineering-1ziv74yz",
+  "scratch_retained": true
+}

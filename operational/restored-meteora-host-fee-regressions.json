@@ -1,0 +1,12 @@
+{
+  "historical_path": "tests/lanes/meteora/test_dlmm_host_fee.py",
+  "historical_commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+  "historical_sha256": "6a180989e14a4fd0b65ea8d65110bcb41d91ca7e415a2b9093e2ffc3fcb23568",
+  "current_path": "tests/test_meteora_host_fee.py",
+  "current_sha256": "f5c98aabb18eac7e7a4bde3d2bc65f9c9cb744ffe6edca881ff82c6cdce61cc8",
+  "adaptation": "Only two fixture import paths changed. All original14 tests and host fee synthetic transaction builder byte-unchanged.",
+  "suite": "OPERATIONAL",
+  "runtime_changes": false,
+  "state_changes": false,
+  "provider_calls": false
+}

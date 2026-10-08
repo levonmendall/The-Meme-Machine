@@ -1,0 +1,22 @@
+[Unit]
+Description=Meme Machine bounded application-consistent PAPER backup point
+After=meme-machine-paper.service
+RequiresMountsFor=/mnt/volume_nyc1_1790918115030
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/meme-machine
+EnvironmentFile=/etc/meme-machine/paper.env
+Environment=MM_BACKUP_SYSTEMD=1
+ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.backup prepare /mnt/volume_nyc1_1790918115030/meme-machine-backups/pending
+ExecStopPost=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.backup thaw
+TimeoutStartSec=75
+TimeoutStopSec=10
+UMask=0077
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=full
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal

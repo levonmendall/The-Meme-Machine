@@ -93,5 +93,13 @@ class PartialBatchRetryTests(unittest.TestCase):
         self.assertEqual(rpc.gettransaction_429_events,8)
         self.assertGreaterEqual(rpc.gettransaction_cooldown_seconds,2.0)
 
+
+# Run the same incident assertions against the operational Pump provider.
+class PumpPartialBatchRetryTests(PartialBatchRetryTests):
+    def setUp(self):
+        from unittest.mock import patch
+        from meme_machine.lanes.pump.provider import RPC as LaneRPC
+        change=patch(__name__+'.RPC',LaneRPC);change.start();self.addCleanup(change.stop)
+
 if __name__=="__main__":
     unittest.main()

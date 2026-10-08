@@ -1,0 +1,9 @@
+{
+  "root_cause": "Meteora run_live constructs shared RuntimeEvidence on main thread; install_meteora launches position continuation thread; _new_finalized_swaps/_capture_chunk reuse facade and its main-owned SQLite reader, raising ProgrammingError. Reproduced offline before repair.",
+  "repair": "Thread-local read-only reader handles in Root/Pump/Meteora RuntimeEvidence; explicit worker-owned close in Meteora lifecycle finally.",
+  "state_compatibility": "No schema migration or durable writes; same configured path and16existing query/control methods per namespace AST unchanged.",
+  "tests": "38focusedPASS in2.841s;4permanentownership tests include three namespaces, actualMeteora poll, unusedworkerclose and actualproduction continuation cleanup.",
+  "initial_reproduction": "2tests with4errors (three namespace ownership and actualMeteora poll), exact sqlite thread-ownership error.",
+  "economic_changes": "NONE",
+  "paper_state_touched": false
+}

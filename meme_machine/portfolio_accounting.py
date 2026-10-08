@@ -14,7 +14,8 @@ from __future__ import annotations
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
-from decimal import Decimal, localcontext
+from decimal import Decimal
+from .exact_money import money as _money, amount as _amount, arithmetic, exact, validate_decimals
 import fcntl
 import hashlib
 import json
@@ -34,8 +35,27 @@ MAX_POSITIONS = 5000
 MAX_HISTORY_POINTS = 2000
 _ID = re.compile(r"[A-Za-z0-9_.:-]{1,120}")
 _STRATEGY_ID = re.compile(r"[A-Za-z0-9_.:/-]{1,180}")
-_MONEY = re.compile(r"-?\d{1,40}(?:\.\d{1,24})?")
 _HASH = re.compile(r"[a-f0-9]{40}|[a-f0-9]{64}")
+
+
+def _encode_checkpoint(value):
+    if isinstance(value, Decimal):
+        return {"decimal": _amount(value)}
+    if isinstance(value, dict):
+        return {k: _encode_checkpoint(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_encode_checkpoint(v) for v in value]
+    return value
+
+
+def _decode_checkpoint(value):
+    if isinstance(value, dict):
+        if set(value) == {"decimal"}:
+            return _money(value["decimal"])
+        return {k: _decode_checkpoint(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_decode_checkpoint(v) for v in value]
+    return value
 
 
 class PortfolioIntegrityError(RuntimeError):
@@ -72,22 +92,6 @@ def _stamp(value):
     if parsed.utcoffset() is None or parsed.utcoffset().total_seconds() != 0:
         raise ValueError("utc_timestamp_required")
     return parsed.timestamp()
-
-
-def _money(value, *, nonnegative=False, positive=False):
-    if isinstance(value, bool) or not isinstance(value, (str, int, Decimal)):
-        raise ValueError("exact_decimal_required")
-    text = format(value, "f") if isinstance(value, Decimal) else str(value)
-    if len(text) > 70 or not _MONEY.fullmatch(text):
-        raise ValueError("invalid_decimal")
-    result = Decimal(text)
-    if nonnegative and result < 0 or positive and result <= 0:
-        raise ValueError("invalid_monetary_sign")
-    return result
-
-
-def _amount(value):
-    return format(value, "f") if isinstance(value, Decimal) else format(_money(value), "f")
 
 
 def inception_receipt(epoch_id, inception_at, canonical_event_id):
@@ -245,14 +249,14 @@ class PortfolioAccounting:
     separately authorized activation boundary and requires all real inception facts.
     """
 
-    def __init__(self, database, *, receipt_path=None, export_path=None):
+    def __init__(self, database, *, receipt_path=None, export_path=None, wait_for_writer=False):
         self.path = Path(database)
         self.receipt_path = Path(receipt_path) if receipt_path is not None else None
         self.export_path = Path(export_path) if export_path is not None else None
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock_file = open(str(self.path) + ".lock", "a")
         try:
-            fcntl.flock(self._lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(self._lock_file, fcntl.LOCK_EX if wait_for_writer else fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             self._lock_file.close()
             raise RuntimeError("portfolio_writer_already_running") from None
@@ -260,9 +264,15 @@ class PortfolioAccounting:
             self.db = sqlite3.connect(
                 self.path, isolation_level=None, timeout=30, check_same_thread=False
             )
+            if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='portfolio_funding_authority'").fetchone():
+                raise PortfolioIntegrityError('legacy_funding_authority_retired')
             self.db.execute("PRAGMA journal_mode=WAL")
             self.db.execute("PRAGMA synchronous=FULL")
             self.db.executescript("""
+                CREATE TABLE IF NOT EXISTS portfolio_sleeves(lane TEXT PRIMARY KEY,genesis TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS portfolio_checkpoint(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL,hash TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS portfolio_native_ids(id INTEGER PRIMARY KEY AUTOINCREMENT,lane TEXT NOT NULL,native TEXT NOT NULL,UNIQUE(lane,native));
+                CREATE TABLE IF NOT EXISTS portfolio_native_pending(lane TEXT NOT NULL,native TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(lane,native));
                 CREATE TABLE IF NOT EXISTS portfolio_inception(
                     id INTEGER PRIMARY KEY CHECK(id=1),
                     body TEXT NOT NULL,
@@ -304,7 +314,10 @@ class PortfolioAccounting:
 
     def close(self):
         self._replay()
-        self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        # FULL-synchronous commits are already durable. A read-only observer
+        # must not make closing the writer wait for its snapshot while holding
+        # the shared writer fence; PASSIVE checkpoints never wait for readers.
+        self.db.execute("PRAGMA wal_checkpoint(PASSIVE)")
         self.db.close()
         self._lock_file.close()
 
@@ -377,6 +390,9 @@ class PortfolioAccounting:
             (event_id,),
         ).fetchone()
         if row is None:
+            checkpoint=self.db.execute('SELECT body FROM portfolio_checkpoint WHERE id=1').fetchone()
+            if checkpoint:
+                return json.loads(checkpoint[0]).get('delivery_receipts',{}).get(event_id)
             return None
         try:
             body = json.loads(row[1], parse_float=Decimal)
@@ -463,7 +479,28 @@ class PortfolioAccounting:
             "last_publish": None,
             "sequence": 0,
             "journal_hash": ZERO_HASH,
+            "retired": {lane: {"realized_pnl": Decimal(0), "fees": Decimal(0), "count": 0} for lane in LANES},
+            "native_cursors": {},
+            "retired_native_through": {},
+            "delivery_receipts": {},
         }
+
+    def configure_family_sleeves(self):
+        """Persist the prepared four equal $125 family allocations once."""
+        with self.transaction():
+            for lane in LANES:
+                self.db.execute("INSERT OR IGNORE INTO portfolio_sleeves VALUES(?,?)", (lane, "125.00"))
+            if dict(self.db.execute("SELECT lane,genesis FROM portfolio_sleeves")) != {lane: "125.00" for lane in LANES}:
+                raise PortfolioIntegrityError("family_sleeve_genesis_mismatch")
+
+    def sleeve_equity(self, lane, state=None):
+        state = self._state if state is None else state
+        row = self.db.execute("SELECT genesis FROM portfolio_sleeves WHERE lane=?", (lane,)).fetchone()
+        if row is None:
+            return None
+        with arithmetic():
+            return Decimal(row[0]) + state["retired"][lane]["realized_pnl"] + sum(
+                (p["realized_pnl"] for p in state["positions"].values() if p["lane"] == lane), Decimal(0))
 
     def _replay(self):
         inception = self._inception()
@@ -473,7 +510,24 @@ class PortfolioAccounting:
                 raise PortfolioIntegrityError("events_without_inception")
             return None
         state = self._blank_state(*inception)
-        previous = ZERO_HASH
+        checkpoint = self.db.execute("SELECT body,hash FROM portfolio_checkpoint WHERE id=1").fetchone()
+        if checkpoint:
+            encoded = json.loads(checkpoint[0])
+            if digest(encoded) != checkpoint[1]:
+                raise PortfolioIntegrityError("portfolio_checkpoint_checksum")
+            state = _decode_checkpoint(encoded)
+            if state["receipt"] != inception[0] or state["identities"] != inception[2]:
+                raise PortfolioIntegrityError("portfolio_checkpoint_binding")
+            for position in state["positions"].values():
+                if position["state"] != "OPEN" or (position.get("mark") or {}).get("state") != "CURRENT":
+                    continue
+                ordered = [row["stage"] for row in position["lifecycle"]
+                           if row["stage"] in ("paper_entry", "monitoring", "partial_realization", "rebalance")]
+                if ordered and ordered[-1] in ("partial_realization", "rebalance"):
+                    position["mark"] = {"state": "UNAVAILABLE"}
+            self._reconcile(state)
+        previous = state["journal_hash"]
+        start_sequence = state["sequence"]
         for sequence, event_id, epoch_id, at, action, raw, parent, checksum in self.db.execute(
             "SELECT sequence,event_id,epoch_id,at,action,body,previous,hash "
             "FROM portfolio_events ORDER BY sequence"
@@ -496,17 +550,17 @@ class PortfolioAccounting:
             state["sequence"], state["journal_hash"] = sequence, checksum
             previous = checksum
             self._reconcile(state)
-        if state["sequence"] != count:
+        if state["sequence"] != count + start_sequence:
             raise PortfolioIntegrityError("portfolio_sequence_gap")
         return state
 
-    def _require_epoch(self, state, epoch_id, at):
+    def _require_epoch(self, state, epoch_id, at, *, native=False):
         if epoch_id != state["receipt"]["epoch_id"]:
             raise PortfolioIntegrityError("cross_epoch_fact")
         when = _stamp(at)
         if when < _stamp(state["receipt"]["inception_at"]):
             raise PortfolioIntegrityError("pre_inception_fact")
-        if when < _stamp(state["last_at"]):
+        if not native and when < _stamp(state["last_at"]):
             raise PortfolioIntegrityError("portfolio_time_regression")
 
     @staticmethod
@@ -521,9 +575,10 @@ class PortfolioAccounting:
                 raise PortfolioIntegrityError("canonical_source_or_config_mismatch")
         return checked
 
+    @exact
     def _apply(self, state, event):
         action, data = event["action"], event["data"]
-        self._require_epoch(state, event["epoch_id"], event["at"])
+        self._require_epoch(state, event["epoch_id"], event["at"],native=bool(data.get('provenance',{}).get('native_sequence')))
         if action not in ("inception", "publish"):
             # A prior file remains a valid historical snapshot, but it is no
             # longer the projection of the journal head.
@@ -543,6 +598,12 @@ class PortfolioAccounting:
             lane = data["lane"]
             if lane not in LANES:
                 raise ValueError("unknown_lane")
+            equity = self.sleeve_equity(lane, state)
+            if equity is not None:
+                used = sum((r["amount"] for r in state["reservations"].values() if r["lane"] == lane), Decimal(0))
+                used += sum((p["remaining_basis"] for p in state["positions"].values() if p["lane"] == lane and p["state"] == "OPEN"), Decimal(0))
+                if equity <= 0 or used + amount > equity:
+                    raise PortfolioIntegrityError("family_sleeve_capital_exhausted")
             self._event_provenance(state, data, event["at"], valued=False, lane=lane)
             state["available"] -= amount
             state["reservations"][reservation_id] = {
@@ -598,9 +659,8 @@ class PortfolioAccounting:
             existing = {(row["series"], row["at"]) for row in state["history"]}
             if any((row["series"], row["at"]) in existing for row in expected):
                 raise PortfolioIntegrityError("duplicate_history_sample")
-            if len(state["history"]) + len(expected) > MAX_HISTORY_POINTS:
-                raise PortfolioIntegrityError("history_capacity")
             state["history"].extend(expected)
+            state["history"] = state["history"][-MAX_HISTORY_POINTS:]
             if data.get("complete") is True:
                 if any(row["value"] is None for row in expected):
                     raise PortfolioIntegrityError("incomplete_history_declared_complete")
@@ -611,7 +671,23 @@ class PortfolioAccounting:
             state["last_publish"] = {"as_of": event["at"], "valid_until": data["valid_until"]}
         else:
             raise PortfolioIntegrityError("unknown_portfolio_action")
-        state["last_at"] = event["at"]
+        if data.get('included_fee') is not None:
+            # Native books already include these paid costs in basis or net
+            # proceeds. Attribute them without charging the cash movement twice.
+            cost=_money(data['included_fee'],nonnegative=True)
+            p=state['positions'][data['lifecycle_id']]
+            p['fees']+=cost
+            p['gross_result']+=cost
+        if _stamp(event["at"])>=_stamp(state["last_at"]):state["last_at"] = event["at"]
+        provenance = data.get("provenance") or {}
+        if provenance.get("native_sequence") is not None:
+            lane = data.get("lane") or str(data.get("lifecycle_id", "")).split(":")[0]
+            if lane not in LANES and action == "release_reservation":
+                lane = str(data["reservation_id"]).split(":")[1]
+            state["native_cursors"][lane + ":" + provenance["native_lifecycle_id"]] = provenance["native_sequence"]
+        for row in state["positions"].values():
+            row["provenance"] = row["provenance"][-32:]
+            row["lifecycle"] = row["lifecycle"][-64:]
 
     @staticmethod
     def _reservation(state, reservation_id):
@@ -635,6 +711,7 @@ class PortfolioAccounting:
             raise PortfolioIntegrityError("terminal_lifecycle_immutable")
         return position
 
+    @exact
     def _apply_enter(self, state, event):
         data = event["data"]
         lifecycle_id = _identity(data["lifecycle_id"])
@@ -693,6 +770,7 @@ class PortfolioAccounting:
             **_lane_state(lane, data.get("lane_state")),
         }
 
+    @exact
     def _apply_realization(self, state, event):
         data, action = event["data"], event["action"]
         position = self._open_position(state, data["lifecycle_id"])
@@ -717,6 +795,7 @@ class PortfolioAccounting:
         position["gross_result"] += gross_proceeds - released
         position["fees"] += fee
         position["realized_pnl"] += gross_proceeds - released - fee
+        position["mark"] = {"state": "UNAVAILABLE"}
         position["provenance"].append(provenance)
         position["lifecycle"].append({
             "stage": "partial_realization" if action in ("partial_realization", "harvest") else "exit",
@@ -737,6 +816,7 @@ class PortfolioAccounting:
                 position["runner_state"] = "SETTLED"
             position["lifecycle"].append({"stage": "settlement", "at": event["at"]})
 
+    @exact
     def _apply_rebalance(self, state, event):
         data = event["data"]
         position = self._open_position(state, data["lifecycle_id"])
@@ -768,6 +848,9 @@ class PortfolioAccounting:
         position["gross_result"] += gross_proceeds - released
         position["fees"] += fee
         position["realized_pnl"] += gross_proceeds - released - fee
+        # Any release/add changes exposure, including a mixed rebalance with
+        # unchanged net basis. A prior value describes the previous exposure.
+        position["mark"] = {"state": "UNAVAILABLE"}
         position["rebalance_count"] += 1
         position["rebalance_state"] = "MONITORING"
         position.update(_lane_state(position["lane"], data.get("lane_state")))
@@ -775,14 +858,19 @@ class PortfolioAccounting:
         position["lifecycle"].append({"stage": "rebalance", "at": event["at"]})
 
     def _reconcile(self, state):
-        with localcontext() as context:
-            context.prec = 80
+        # Check monetary components that mutations can change. Checkpoint
+        # decoding validates every Decimal once, and history/receipt facts are
+        # already validated at their boundaries; rescanning those immutable
+        # collections at every replayed event makes writer ownership quadratic.
+        validate_decimals({key: state[key] for key in
+                           ("available", "shared_costs", "positions", "reservations", "retired")})
+        with arithmetic():
             positions = list(state["positions"].values())
-            lane_realized = sum((row["realized_pnl"] for row in positions), Decimal(0))
+            lane_realized = sum((row["realized_pnl"] for row in positions), Decimal(0)) + sum((r["realized_pnl"] for r in state["retired"].values()), Decimal(0))
             realized = lane_realized - state["shared_costs"]
             reserved = sum((row["amount"] for row in state["reservations"].values()), Decimal(0))
             deployed = sum((row["remaining_basis"] for row in positions if row["state"] == "OPEN"), Decimal(0))
-            attributable_fees = sum((row["fees"] for row in positions), Decimal(0))
+            attributable_fees = sum((row["fees"] for row in positions), Decimal(0)) + sum((r["fees"] for r in state["retired"].values()), Decimal(0))
             if min(state["available"], reserved, deployed, attributable_fees, state["shared_costs"]) < 0:
                 raise PortfolioIntegrityError("negative_portfolio_component")
             checks = {
@@ -802,6 +890,8 @@ class PortfolioAccounting:
                     raise PortfolioIntegrityError("terminal_remaining_basis")
                 if row["state"] == "OPEN" and row["remaining_basis"] <= 0:
                     raise PortfolioIntegrityError("open_without_basis")
+            validate_decimals([lane_realized, realized, reserved, deployed, attributable_fees,
+                               attributable_fees + state["shared_costs"], STARTING_CAPITAL + realized])
             return {
                 "lane_realized": lane_realized,
                 "realized": realized,
@@ -819,6 +909,12 @@ class PortfolioAccounting:
             state = deepcopy(self._state)
             if state is None:
                 raise PortfolioIntegrityError("portfolio_not_initialized")
+            if action in ('reserve','enter','rebalance'):
+                from .runtime.operating_families import require_active,operational
+                lane=data.get('lane')
+                if lane is None:
+                    lane=state['positions'].get(data.get('lifecycle_id'),{}).get('lane','')
+                require_active(lane,production=operational() or epoch_id.startswith('paper-'))
             if self.db.execute("SELECT 1 FROM portfolio_events WHERE event_id=?", (event_id,)).fetchone():
                 raise PortfolioIntegrityError("duplicate_canonical_event")
             body = {"action": action, "event_id": event_id, "epoch_id": epoch_id, "at": at, "data": data}
@@ -852,7 +948,7 @@ class PortfolioAccounting:
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="release_reservation", data=data)
 
     def enter(self, *, epoch_id, event_id, reservation_id, lifecycle_id, lane, asset, basis,
-              fee, at, strategy_id, provenance, prior_stages=(), lane_state=None):
+              fee, at, strategy_id, provenance, prior_stages=(), lane_state=None,included_fee=None):
         if lane not in LANES:
             raise ValueError("unknown_lane")
         data = {
@@ -867,10 +963,11 @@ class PortfolioAccounting:
             "lane_state": _lane_state(lane, lane_state),
             "provenance": _provenance(provenance, at, valued=True),
         }
+        if included_fee is not None:data['included_fee']=_amount(_money(included_fee,nonnegative=True))
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="enter", data=data)
 
     def realize(self, *, epoch_id, event_id, lifecycle_id, basis_released, gross_proceeds,
-                fee, at, provenance, harvest=False):
+                fee, at, provenance, harvest=False,included_fee=None):
         action = "harvest" if harvest else "partial_realization"
         data = {
             "lifecycle_id": _identity(lifecycle_id),
@@ -879,10 +976,11 @@ class PortfolioAccounting:
             "fee": _amount(_money(fee, nonnegative=True)),
             "provenance": _provenance(provenance, at, valued=True),
         }
+        if included_fee is not None:data['included_fee']=_amount(_money(included_fee,nonnegative=True))
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action=action, data=data)
 
     def rebalance(self, *, epoch_id, event_id, lifecycle_id, reservation_id, basis_released,
-                  gross_proceeds, basis_added, fee, at, provenance, lane_state=None):
+                  gross_proceeds, basis_added, fee, at, provenance, lane_state=None,included_fee=None):
         current = deepcopy(self._state)
         if current is None:
             raise PortfolioIntegrityError("portfolio_not_initialized")
@@ -897,9 +995,10 @@ class PortfolioAccounting:
             "lane_state": _lane_state(lane, lane_state),
             "provenance": _provenance(provenance, at, valued=True),
         }
+        if included_fee is not None:data['included_fee']=_amount(_money(included_fee,nonnegative=True))
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="rebalance", data=data)
 
-    def settle(self, *, epoch_id, event_id, lifecycle_id, gross_proceeds, fee, exit_reason, at, provenance):
+    def settle(self, *, epoch_id, event_id, lifecycle_id, gross_proceeds, fee, exit_reason, at, provenance,included_fee=None):
         state = deepcopy(self._state)
         if state is None:
             raise PortfolioIntegrityError("portfolio_not_initialized")
@@ -912,6 +1011,7 @@ class PortfolioAccounting:
             "exit_reason": _identity(exit_reason),
             "provenance": _provenance(provenance, at, valued=True),
         }
+        if included_fee is not None:data['included_fee']=_amount(_money(included_fee,nonnegative=True))
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="settle", data=data)
 
     def mark(self, *, epoch_id, event_id, lifecycle_id, at, provenance, state,
@@ -952,10 +1052,11 @@ class PortfolioAccounting:
         }
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="shared_cost", data=data)
 
+    @exact
     def _values_at(self, state, at):
         reconciliation = self._reconcile(state)
         unrealized = Decimal(0)
-        lane_values = {lane: Decimal(0) for lane in LANES}
+        lane_values = {lane: state["retired"][lane]["realized_pnl"] for lane in LANES}
         available = True
         for row in state["positions"].values():
             lane_values[row["lane"]] += row["realized_pnl"]
@@ -1023,6 +1124,7 @@ class PortfolioAccounting:
         result["mark"] = deepcopy(mark)
         return result
 
+    @exact
     def _export(self, state):
         published = state["last_publish"]
         if published is None:
@@ -1074,9 +1176,61 @@ class PortfolioAccounting:
             "journal": {"sequence": state["sequence"], "hash": state["journal_hash"]},
             "lane_identities": deepcopy(state["identities"]["lanes"]),
             "external_adjustments": [],
+            "retired_lane_totals": {lane: {k: _amount(v) if isinstance(v, Decimal) else v for k,v in totals.items()} for lane,totals in state["retired"].items()},
             **portfolio_ids,
         }
         return result
+
+    @exact
+    def compact(self, *, keep_closed=256):
+        """Atomically replace a verified prefix with its exact durable state.
+
+        No RPC copies or external receipts are needed. Active exposure and native
+        cursors survive; old duplicate deliveries fail closed through their cursor.
+        """
+        with self.transaction():
+            state = self._replay()
+            if state is None:
+                return
+            closed = sorted((p for p in state["positions"].values() if p["state"] == "SETTLED"), key=lambda p: p["settled_at"])
+            for p in closed[:-keep_closed] if keep_closed else closed:
+                totals = state["retired"][p["lane"]]
+                totals["realized_pnl"] += p["realized_pnl"]
+                totals["fees"] += p["fees"]
+                totals["count"] += 1
+                del state["positions"][p["id"]]
+            self._reconcile(state)
+            # Keep a bounded duplicate-delivery suffix. A closed local identity
+            # older than it is fenced by its monotone native retirement index.
+            receipts=dict(state.get('delivery_receipts',{}))
+            for event_id,sequence,raw,checksum in self.db.execute('SELECT event_id,sequence,body,hash FROM portfolio_events ORDER BY sequence'):
+                receipts[event_id]=dict(sequence=sequence,body=json.loads(raw),hash=checksum)
+            state['delivery_receipts']=dict(sorted(receipts.items(),key=lambda item:item[1]['sequence'])[-512:])
+            from meme_machine.runtime.lifecycle_identity import parsed
+            protected=set(state['positions'])
+            for reservation in state['reservations'].values():
+                if reservation.get('lifecycle_id'):protected.add(reservation['lifecycle_id'])
+                native=reservation.get('provenance',{}).get('native_lifecycle_id')
+                if native:protected.add(reservation['lane']+':'+native)
+            for lane,body in self.db.execute('SELECT lane,body FROM portfolio_native_pending'):
+                protected.add(lane+':'+json.loads(body)['native_lifecycle_id'])
+            for alias,lane,native in self.db.execute('SELECT id,lane,native FROM portfolio_native_ids').fetchall():
+                key=lane+':n'+str(alias)
+                if key in protected:continue
+                issued=parsed(native)
+                if issued:
+                    floor=state['retired_native_through'].get(lane,0)
+                    state['retired_native_through'][lane]=max(floor,issued['index'])
+                self.db.execute('DELETE FROM portfolio_native_ids WHERE id=?',(alias,))
+                state['native_cursors'].pop(key,None)
+            encoded = _encode_checkpoint(state)
+            self.db.execute("INSERT OR REPLACE INTO portfolio_checkpoint VALUES(1,?,?)", (canonical(encoded), digest(encoded)))
+            self.db.execute("DROP TRIGGER portfolio_events_no_delete")
+            self.db.execute("DELETE FROM portfolio_events")
+            self.db.execute("CREATE TRIGGER portfolio_events_no_delete BEFORE DELETE ON portfolio_events BEGIN SELECT RAISE(ABORT,'append_only'); END")
+        self._state = self._replay()
+        self.db.execute("PRAGMA wal_checkpoint(PASSIVE)")
+        self.db.execute("VACUUM")
 
     def recover_projections(self):
         inception = self._inception()

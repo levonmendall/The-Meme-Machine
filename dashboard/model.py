@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
-from decimal import Decimal, localcontext
+from decimal import Decimal
+from meme_machine.exact_money import money, arithmetic, exact
 import hashlib
 import json
 from pathlib import Path
@@ -33,9 +34,7 @@ METRICS = MONEY_FIELDS + ('return_pct', 'contribution_pct', 'trades_taken',
 def decimal(value):
     if isinstance(value, bool) or not isinstance(value, (str, int)):
         raise ValueError('exact_decimal_required')
-    if len(str(value)) > 70 or not re.fullmatch(r'-?\d{1,40}(\.\d{1,24})?', str(value)):
-        raise ValueError('invalid_decimal')
-    return Decimal(value)
+    return money(value)
 
 
 def worse(left, right):
@@ -142,6 +141,7 @@ def native_accounting(row, lane):
     return out
 
 
+@exact
 def position(row, epoch, observed):
     """Only canonical lifecycle summaries, never individual fills, are accepted."""
     entered = stamp(row['entered_at'])
@@ -182,7 +182,7 @@ def position(row, epoch, observed):
             at, until = stamp(valuation['as_of']), stamp(valuation['valid_until'])
             if value < 0 or not entered <= at <= observed or until < at:
                 raise ValueError('mark_clock')
-            mark.update(value=str(value), as_of=valuation['as_of'], valid_until=valuation['valid_until'])
+            mark.update(value=format(value, 'f'), as_of=valuation['as_of'], valid_until=valuation['valid_until'])
     lifecycle = []
     allowed = ('qualification', 'authorization', 'paper_entry', 'monitoring',
                'partial_realization', 'rebalance', 'runner', 'exit', 'settlement')
@@ -205,14 +205,15 @@ def position(row, epoch, observed):
         optional['in_range'] = row['in_range']
     for key in ('remaining_runner_exposure',):
         if row.get(key) is not None:
-            optional[key] = str(decimal(row[key]))
+            optional[key] = format(decimal(row[key]), 'f')
     return dict(id=identity(row['id']), lane=row['lane'], asset=identity(row['asset']),
                 state=state, entered_at=row['entered_at'], settled_at=settled_at,
                 strategy_id=strategy_identity(row['strategy_id']) if row.get('strategy_id') else None,
                 identities=safe_identities(row), lifecycle=lifecycle, mark=mark,
-                **{k: str(v) if v is not None else None for k, v in money.items()}, **optional)
+                **{k: format(v, 'f') if v is not None else None for k, v in money.items()}, **optional)
 
 
+@exact
 def validate_export(raw, epoch, mode):
     if raw.get('schema') != 'meme-machine-portfolio-export-v1' or raw.get('mode') != mode:
         raise ValueError('export_mode_or_schema')
@@ -253,24 +254,43 @@ def validate_export(raw, epoch, mode):
         value = decimal(row['value']) if row.get('value') is not None else None
         if series == 'portfolio' and value is not None and value < 0:
             raise ValueError('negative_equity')
-        histories[series].append(dict(at=row['at'], value=str(value) if value is not None else None))
+        histories[series].append(dict(at=row['at'], value=format(value, 'f') if value is not None else None))
     for rows in histories.values():
         rows.sort(key=lambda x: stamp(x['at']))
         if len({r['at'] for r in rows}) != len(rows):
             raise ValueError('duplicate_history_sample')
+    retired=raw.get('retired_lane_totals',{})
+    for lane,totals in retired.items():
+        if lane not in LANES or type(totals['count']) is not int or totals['count']<0:raise ValueError('retired_lane_totals')
+        decimal(totals['realized_pnl'])
+        if decimal(totals['fees'])<0:raise ValueError('retired_lane_costs')
+    shared=raw.get('shared_capital')
+    if shared is not None:
+        if not isinstance(shared,dict) or shared.get('sizing_basis')!='effective_family_equivalence':
+            raise ValueError('shared_capital_sizing_contract')
+        amounts={k:decimal(shared[k]) for k in ('inception_equity','realized_equity','actual_cash','free_cash',
+            'deployed_basis','active_reservations','pending_authoritative_commitments','required_funding_obligations')}
+        if (amounts['inception_equity']!=CAPITAL or min(amounts.values())<0 or
+                amounts['actual_cash']+amounts['deployed_basis']!=amounts['realized_equity'] or
+                amounts['free_cash']+amounts['active_reservations']+amounts['pending_authoritative_commitments']+
+                amounts['required_funding_obligations']!=amounts['actual_cash']):
+            raise ValueError('shared_capital_conservation')
     return dict(epoch=epoch, as_of=raw['as_of'], valid_until=raw['valid_until'],
                 sequence=raw['sequence'], positions=positions, balances=balance,
                 history=histories, excluded_positions=len(raw['positions'])-len(positions),
-                identities=safe_identities(raw), history_complete=raw.get('history_complete') is True)
+                identities=safe_identities(raw), history_complete=raw.get('history_complete') is True,retired=retired,
+                shared_capital=deepcopy(shared))
 
 
-def performance(rows, now, state):
+def performance(rows, now, state, retired=None):
+    retired=retired or {};retired_count=retired.get('count',0)
     settled = [p for p in rows if p['state'] == 'SETTLED']
     opened = [p for p in rows if p['state'] == 'OPEN']
     outcomes_complete = all(p['realized_pnl'] is not None for p in settled)
     results = [decimal(p['realized_pnl']) for p in settled if p['realized_pnl'] is not None]
     wins, losses = [x for x in results if x > 0], [x for x in results if x < 0]
     realized = sum((decimal(p['realized_pnl']) for p in rows), Decimal(0)) if all(p['realized_pnl'] is not None for p in rows) else None
+    if realized is not None:realized+=decimal(retired.get('realized_pnl','0'))
     unrealized = Decimal(0)
     mark_state = state
     for p in opened:
@@ -289,15 +309,19 @@ def performance(rows, now, state):
     net = realized + unrealized if valid and realized is not None else None
     hold = [Decimal(str(stamp(p['settled_at']) - stamp(p['entered_at']))) for p in settled]
     fees = sum((decimal(p['fees']) for p in rows), Decimal(0)) if all(p['fees'] is not None for p in rows) else None
+    if fees is not None:fees+=decimal(retired.get('fees','0'))
     out = missing_metrics('UNAVAILABLE', 'not_provided_by_canonical_accounting')
     values = dict(realized_pnl=realized, fees=fees, deployed_capital=sum((decimal(p['remaining_basis']) for p in opened), Decimal(0)) if all(p['remaining_basis'] is not None for p in opened) else None,
-        trades_taken=len(rows), completed_trades=len(settled), open_positions=len(opened),
+        trades_taken=len(rows)+retired_count, completed_trades=len(settled)+retired_count, open_positions=len(opened),
         wins=len(wins) if outcomes_complete else None, losses=len(losses) if outcomes_complete else None, breakevens=sum(x == 0 for x in results) if outcomes_complete else None,
         win_rate=Decimal(len(wins))*100/len(wins+losses) if outcomes_complete and (wins or losses) else None,
         average_result=sum(results)/len(results) if outcomes_complete and results else None,
         largest_winner=max(wins) if outcomes_complete and wins else None, largest_loser=min(losses) if outcomes_complete and losses else None,
         average_holding_seconds=sum(hold)/len(hold) if hold else None)
     out.update({k: metric(v, state) for k, v in values.items()})
+    if retired_count:
+        for key in ('wins','losses','breakevens','win_rate','average_result','largest_winner','largest_loser','average_holding_seconds'):
+            out[key]=metric(None,'UNAVAILABLE','individual_closed_history_retired; cumulative_money_and_count_preserved')
     out['unrealized_pnl'] = metric(unrealized if valid else None, mark_state, 'canonical_net_liquidation_marks_required' if not valid else None)
     out['net_pnl'] = metric(net, mark_state)
     out['contribution_pct'] = metric(net * 100 / CAPITAL if net is not None else None, mark_state)
@@ -344,6 +368,9 @@ class Reader:
                 current = {p['id']: p for p in value['positions']}
                 for pid, before in self._lifecycles.items():
                     after = current.get(pid)
+                    if after is None and before['state']=='SETTLED':
+                        prior=(self._cache or {}).get('retired',{}).get(before['lane'],{}).get('count',0)
+                        if value['retired'].get(before['lane'],{}).get('count',0)>prior:continue
                     if after is None or any(before[k] != after[k] for k in ('lane', 'asset', 'entered_at')):
                         return None, 'FAIL_CLOSED'
                     terminal_facts = ('state', 'settled_at', 'capital', 'remaining_basis',
@@ -378,6 +405,7 @@ class Reader:
                 if not isinstance(result, dict) or not isinstance(result.get('lanes', {}), dict):
                     raise ValueError('telemetry_shape')
                 at = result.get('observed_at', result.get('ended_at'))
+                if at is None and isinstance(result.get('at'),str):at=Decimal(str(stamp(result['at'])))
                 fresh = isinstance(at, (int, Decimal)) and 0 <= Decimal(str(now))-at <= 120
                 out['telemetry'] = metric('persisted_supervisor', 'CURRENT' if fresh else 'STALE')
                 out['observed_at'] = datetime.fromtimestamp(float(at), timezone.utc).isoformat() if isinstance(at, (int, Decimal)) else None
@@ -389,10 +417,12 @@ class Reader:
             if not isinstance(row, dict):
                 row = {}
             health = row.get('health', 'unknown')
-            known = ('responsive', 'starting', 'responsive_but_strategy_stalled', 'progress_stalled', 'exited', 'terminated', 'unknown')
+            if 'phase' in row:
+                health='paused' if row.get('phase')=='PAUSED' and row.get('paused') is True and row.get('pid') is None else 'exited' if row.get('exit_code') is not None else 'responsive' if row.get('reconciled') is True else 'starting'
+            known = ('paused','responsive', 'starting', 'responsive_but_strategy_stalled', 'progress_stalled', 'exited', 'terminated', 'unknown')
             if health not in known:
                 health = 'unknown'
-            state = ('CURRENT' if health == 'responsive' else 'FAIL_CLOSED' if health in ('progress_stalled', 'responsive_but_strategy_stalled', 'terminated') or row.get('unexpected_exit') else 'UNKNOWN')
+            state = ('CURRENT' if health in ('responsive','paused') else 'FAIL_CLOSED' if health in ('progress_stalled', 'responsive_but_strategy_stalled', 'terminated') or row.get('unexpected_exit') else 'UNKNOWN')
             if state == 'CURRENT' and out['telemetry']['state'] != 'CURRENT':
                 state = out['telemetry']['state']
             # Runtime identities and configured source identities have different provenance.
@@ -402,7 +432,7 @@ class Reader:
             out['lanes'][lane] = dict(operational=metric(health, state),
                 accounting=metric(row.get('accounting_reconciled') if type(row.get('accounting_reconciled')) is bool else None,
                                   'FAIL_CLOSED' if row.get('accounting_reconciled') is False else out['telemetry']['state']),
-                evidence=metric(None, 'UNKNOWN', 'process_heartbeat_is_not_evidence_freshness'),
+                evidence=metric(None, 'CURRENT' if health=='paused' else 'UNKNOWN', 'PAUSED' if health=='paused' else 'process_heartbeat_is_not_evidence_freshness'),
                 runtime_identities=safe_identities(row), configured_identities=safe_identities(configured),
                 last_evidence_at=None, native_accounting=native_accounting(row, lane),
                 progress_age_seconds=metric(str(row['progress_age_seconds']) if isinstance(row.get('progress_age_seconds'), (int, Decimal)) else None, out['telemetry']['state']),
@@ -435,8 +465,7 @@ class Reader:
             return deepcopy(view)
 
     def _view(self):
-        with self._lock, localcontext() as context:
-            context.prec = 80
+        with self._lock, arithmetic(exact=False):
             data, state = self._load()
             now = self.clock()
             system = self.system()
@@ -457,9 +486,13 @@ class Reader:
                 history = data['history']
                 portfolio.update(epoch=data['epoch'], starting_capital=metric(CAPITAL), as_of=data['as_of'],
                                  excluded_historical_positions=data['excluded_positions'], identities=data['identities'])
+                if data.get('shared_capital') is not None:portfolio['shared_capital']=deepcopy(data['shared_capital'])
                 for lane in LANES:
-                    lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state), as_of=data['as_of'])
-                metrics = performance(positions, now, state)
+                    lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state,data['retired'].get(lane)), as_of=data['as_of'])
+                retired=dict(count=sum(r['count'] for r in data['retired'].values()),
+                    realized_pnl=format(sum((decimal(r['realized_pnl']) for r in data['retired'].values()),Decimal(0)), 'f'),
+                    fees=format(sum((decimal(r['fees']) for r in data['retired'].values()),Decimal(0)), 'f'))
+                metrics = performance(positions, now, state,retired)
                 balance = data['balances']
                 for key, value in balance.items():
                     metrics[key] = metric(value, state)
@@ -472,6 +505,7 @@ class Reader:
                     metrics['equity'] = metric(None, metrics['unrealized_pnl']['state'], 'current_valuation_unavailable')
                 checks = {}
                 realized = sum((decimal(p['realized_pnl']) for p in positions), Decimal(0)) if all(p['realized_pnl'] is not None for p in positions) else None
+                if realized is not None:realized+=decimal(retired['realized_pnl'])
                 if realized is not None and balance['realized_pnl'] is not None and balance['shared_costs'] is not None:
                     checks['lane_realized_less_shared_costs'] = realized-balance['shared_costs'] == balance['realized_pnl']
                 if balance['deployed_capital'] is not None and all(p['remaining_basis'] is not None for p in positions):
@@ -481,7 +515,7 @@ class Reader:
                 if net is not None and balance['equity'] is not None:
                     checks['equity_equals_inception_plus_net'] = balance['equity'] == CAPITAL+net
                 if balance['fees'] is not None and balance['shared_costs'] is not None and all(p['fees'] is not None for p in positions):
-                    checks['cost_attribution'] = sum((decimal(p['fees']) for p in positions), Decimal(0))+balance['shared_costs'] == balance['fees']
+                    checks['cost_attribution'] = sum((decimal(p['fees']) for p in positions), Decimal(0))+decimal(retired['fees'])+balance['shared_costs'] == balance['fees']
                 reconcile_state = 'FAIL_CLOSED' if False in checks.values() else state if len(checks) == 5 else 'UNAVAILABLE'
                 portfolio['reconciliation'] = metric(checks, reconcile_state)
                 portfolio['state'] = worse(state, metrics['unrealized_pnl']['state'])
@@ -527,6 +561,6 @@ class Reader:
                     elif d['completed_net_pnl'] is not None:
                         d['completed_net_pnl'] += decimal(p['realized_pnl'])
             daily = [dict(day=day, entries=row['entries'], settlements=row['settlements'],
-                          completed_net_pnl=str(row['completed_net_pnl']) if row['completed_net_pnl'] is not None else None) for day,row in sorted(daily.items())]
+                          completed_net_pnl=format(row['completed_net_pnl'], 'f') if row['completed_net_pnl'] is not None else None) for day,row in sorted(daily.items())]
             return dict(portfolio=portfolio, lanes=lanes, positions=positions, history=history, daily=daily,
                         system=system, mode=self.mode, state=portfolio['state'])

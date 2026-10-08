@@ -1,0 +1,681 @@
+{
+  "disposition": "BLOCKED_BY_SPECIFIC_EVIDENCE_OR_PROVIDER_CONSTRAINT",
+  "MODEL_B": "PROVISIONAL",
+  "legacy_startup": "ARCHIVED",
+  "source_commit": "476bad205014c8c3d586f45d87f84ec44306817a",
+  "source_tree": "e9158889bd78b42ffd93b9fe563d0a64b54b5928",
+  "source_sha256": {
+    "meme_machine/solana_prewarm_startup.py": "9291fac388444d0c3f4799cab81c9172aa8d8bf55f769dd616034b5d863b03c0",
+    "meme_machine/solana_rolling_history.py": "e2152b67379f5633a7bf280bdf5b6cb729d975cbca95cf29731881404888f47f",
+    "meme_machine/solana_selective_source.py": "8092a6be7a2a6686f9a9d76de38208831ce2c48dc8b7b18737b85f26b2b02b99",
+    "meme_machine/solana_selective_history.py": "135734ead43fbee4f03e37d20bdf21bac4408945dc083b733c64be883eeb45b6",
+    "meme_machine/solana_scoped_retirement.py": "5f9b3349a2964478213fd0f5d82feb12fa8797d1f6eb922ae2307de3eca2893b",
+    "meme_machine/solana_candidate_lifecycle.py": "e51c76b5cbb20d84a46e0687e23d2c39f0cdfc456f5d2edb9b2b455099925e67",
+    "meme_machine/solana_candidate_join.py": "d35773573b7bbf75e4f56090b78470bc924b8cb576aca231b39e6c98602ffaaf",
+    "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+    "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+    "meme_machine/runtime/solana_warming.py": "e129796e56ecd0b5f918e6ba080a7accfebb789f088d25ce5bb5d6d32b58f552",
+    "meme_machine/runtime/candidate_history.py": "611a33bcc50d18ca061496a61ad7b06cc31a2ade01419727c9d8c4260c017028",
+    "meme_machine/runtime/lifecycle_timing.py": "1ceeae9b384768afc2c6a7faf1ddbb7913b59dc371381adb5770d72280c48070",
+    "meme_machine/runtime/evidence_worker.py": "e5a88fdcf48ef2105d3271e975c6a96c3acde34fd73860d9743c49e07ed2ecdd",
+    "meme_machine/lanes/meteora/runner.py": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b",
+    "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+    "engineering/solana_capacity/certify.py": "f1af7bff3dd4b7a22c4e6df59e6ae1b92bdcf8cf39e866276f5ed75f08477a17",
+    "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+    "engineering/solana_capacity/transport_meter.py": "936977b097c8351b8a877a175cc9ea37a417743c3d69077556d213a1cd029b54",
+    "meme_machine/solana_evidence_service.py": "82d5eb7a89aa70d05144c8126796bfafde6435ebd28b9c49a82e8d52d21d0c50",
+    "meme_machine/solana_evidence_control.py": "914941124cc5c2174969c928281061d92b1c18e050bf692d1ffe978eeb31db44",
+    "meme_machine/solana_checkpoint.py": "63977d26d04bc2fd6f38e43e5fc7d6358ebe70d1bfe1c79a88036a87cc1d99e0",
+    "engineering/solana_capacity/final_mixed.py": "d1aa10dc78cbe7a304cdb6f1f5655291254e0cb03cbcef5fae4e83157d136c60",
+    "engineering/solana_capacity/live_probe.py": "8c643c938b06e00d859e16bd69c057ef403e914474886e001d81aac40d2d8588"
+  },
+  "PR": 121,
+  "workers": 2,
+  "actual_hybrid_governor_interval_seconds": 0.05,
+  "configuration_note": "Generic governor .5s in the historical phase0 is distinct from the existing hybrid Solana .05s ceiling. No governor limit was changed in this task.",
+  "startup": {
+    "feeds_seconds": 15.777919054031372,
+    "coverage_seconds": 17.554636240005493,
+    "consumer_release_seconds": 17.55904221534729,
+    "steady_seconds": 17.56140661239624,
+    "legacy_invocations": 0,
+    "cold_reconstruction_calls": 0,
+    "historical_gap_RPC": 0,
+    "transaction_bodies": 0,
+    "required_intervals": {
+      "pump": [
+        454322206,
+        454322206
+      ],
+      "pumpswap": [
+        454322206,
+        454322206
+      ]
+    },
+    "release_frontier": 454322263
+  },
+  "planned_arrival_seconds": 180,
+  "planned_normal_drain_seconds": 150,
+  "measured_post_release_seconds": 390.37199878692627,
+  "overrun_note": "Owner admission/service delayed the control loop and final census beyond the nominal 180+150 bound. This failed drainage result is not relabeled as an authorized extension or successful shutdown drain.",
+  "candidate_EDF": {
+    "requested": 17,
+    "completed": 8,
+    "pending": 0,
+    "expired": 9,
+    "complete_qualification_vectors": 0,
+    "vectors_by_lane": {}
+  },
+  "pump_observation_checks": 49,
+  "pump_checks_without_hydration": 49,
+  "promotion_categories": {
+    "denominator": 83,
+    "categories": {
+      "D_INCOMPLETE_OR_CENSORED": 78,
+      "C_GENUINE_LATE_DISCOVERY": 4,
+      "B_TARGETED_SMALL_GAP": 1
+    }
+  },
+  "candidate_deadline_feasibility": "UNPROVEN",
+  "position_evidence": {
+    "pump": {
+      "requested": 77,
+      "completed": 0,
+      "incomplete": 72,
+      "pending": [],
+      "failed": 5,
+      "bootstrap": 0,
+      "complete_evidence_latency": {
+        "N": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "mark_latency": {
+        "N": 72,
+        "p50": 2.676741361618042,
+        "p95": 3.0620131492614746,
+        "p99": 3.2719504833221436,
+        "max": 3.3061602115631104
+      }
+    },
+    "pumpswap": {
+      "requested": 77,
+      "completed": 0,
+      "incomplete": 76,
+      "pending": [
+        {
+          "id": "pumpswap:1791403245.8564782",
+          "requested": 1791403245.8564782,
+          "family": "pumpswap"
+        }
+      ],
+      "failed": 0,
+      "bootstrap": 0,
+      "complete_evidence_latency": {
+        "N": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "mark_latency": {
+        "N": 76,
+        "p50": 3.100674867630005,
+        "p95": 3.2677173614501953,
+        "p99": 3.479696273803711,
+        "max": 3.56744384765625
+      }
+    },
+    "meteora": {
+      "requested": 310,
+      "completed": 11,
+      "incomplete": 0,
+      "pending": [
+        {
+          "id": "meteora:1791403238.0286849",
+          "requested": 1791403238.0286849,
+          "family": "meteora"
+        }
+      ],
+      "failed": 297,
+      "bootstrap": 1,
+      "complete_evidence_latency": {
+        "N": 11,
+        "p50": 2.623218297958374,
+        "p95": 3.7017228603363037,
+        "p99": 3.7017228603363037,
+        "max": 4.383177280426025
+      },
+      "mark_latency": {
+        "N": 11,
+        "p50": 2.623218297958374,
+        "p95": 3.7017228603363037,
+        "p99": 3.7017228603363037,
+        "max": 4.383177280426025
+      }
+    }
+  },
+  "position_failure_causes": {
+    "solana_dlmm_entry_conversion_moves_active_bin": 254,
+    "insufficient real exit liquidity": 5,
+    "position_pregraduation_history_missing": 76,
+    "unresolved_evidence_gap": 21,
+    "candidate_history_continuity_missing": 51,
+    "completed": 11,
+    "evidence_heartbeat_stale": 43
+  },
+  "owner_queue": {
+    "sample_interval_seconds": 0.05,
+    "capacity": 64,
+    "N": 7887,
+    "peak": 60,
+    "depth": {
+      "N": 7502,
+      "p50": 56,
+      "p95": 59,
+      "p99": 60,
+      "max": 60
+    },
+    "oldest_wait_seconds": 11.13990717503475,
+    "normal_drain": {
+      "proven": false,
+      "peak_depth": 60,
+      "peak_at": 1791402916.90479,
+      "ordinary_baseline_depth": 20,
+      "peak_to_half_seconds": 9.505820274353027,
+      "peak_to_baseline_seconds": null,
+      "normal_tail_stable": false,
+      "normal_tail_seconds": 9.943483114242554,
+      "last_running_depth": 59
+    },
+    "time_at_75_percent_seconds": 337.1,
+    "time_at_90_percent_seconds": 114.0,
+    "shutdown_depths_reference": "captures/final-476bad20/result.json.gz"
+  },
+  "pending_acquisitions": [],
+  "all_unrepaired_gap_rows": 27067,
+  "active_candidate_gap_census": 0,
+  "census_warning": "Zero active-candidate gaps at close follows deadline expiry. Terminal/cheap-retained scopes and required position histories are not proven complete by this census.",
+  "publication_wait_statuses": {
+    "deadline_missed": 81
+  },
+  "native_origin": {
+    "first_RESOURCE_EXHAUSTED": {
+      "at": 1791402955.2647908,
+      "server_reason": "too many active connections",
+      "client_active_streams": 51,
+      "active_by_family": {
+        "shared": 1,
+        "candidate_live": 49,
+        "discovery": 1
+      },
+      "native_filter_count_distribution": {
+        "2": 1,
+        "26": 1,
+        "4": 3,
+        "50": 25,
+        "19": 2,
+        "20": 10,
+        "21": 2,
+        "3": 1,
+        "36": 1,
+        "37": 4,
+        "43": 1
+      },
+      "unique_addresses": 1649,
+      "address_families": {
+        "meteora": 1646,
+        "pump": 2,
+        "pumpswap": 1
+      },
+      "streams_that_already_delivered": 50
+    },
+    "native_error_reasons": [
+      {
+        "status": "INTERNAL",
+        "detail": "Stream removed (RST_STREAM (Received RST_STREAM with error code 2))",
+        "count": 43
+      },
+      {
+        "status": "RESOURCE_EXHAUSTED",
+        "detail": "too many active connections",
+        "count": 665
+      },
+      {
+        "status": "INTERNAL",
+        "detail": "Internal error from Core",
+        "count": 12
+      }
+    ],
+    "numeric_provider_connection_limit": "NOT_INDEPENDENTLY_ESTABLISHED",
+    "interpretation": "Provider concurrent-subscription rejection. Client-active count includes subscription attempts; 51 is not a certified account quota."
+  },
+  "native_status_counts": {
+    "INTERNAL": 55,
+    "RESOURCE_EXHAUSTED": 665
+  },
+  "peak_native_client_streams": 58,
+  "max_filters": 50,
+  "max_addresses": 47,
+  "control": {
+    "membership_requested": 202,
+    "membership_plan": 53,
+    "membership_install": 766,
+    "membership_suppressed": 148,
+    "owner_backpressure": 134,
+    "rolling_retry": 16
+  },
+  "HTTP_429s": 0,
+  "failed_physical_HTTP": [],
+  "RPC_errors": {
+    "RPC_-32600": 78
+  },
+  "logical_RPC_methods": {
+    "getGenesisHash": 157,
+    "getSlot": 1589,
+    "getProgramAccountsV2": 11,
+    "getTransactionsForAddress": 173,
+    "getMultipleAccounts": 903,
+    "getBlockTime": 554,
+    "getTokenLargestAccounts": 149,
+    "getProgramAccounts": 78,
+    "getTransaction": 17
+  },
+  "RPC_latency_seconds": {
+    "N": 3629,
+    "p50": 0.0390772819519043,
+    "p95": 0.08475351333618164,
+    "p99": 0.1397085189819336,
+    "max": 0.2965552806854248
+  },
+  "provider_grant_status": {
+    "providers": [
+      {
+        "provider": "solana",
+        "next_at": 485419.103043848,
+        "cooldown": 0.0,
+        "grants": 3624,
+        "rate_errors": 0
+      }
+    ],
+    "method_pressure": [
+      {
+        "provider": "solana",
+        "method": "getGenesisHash",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      },
+      {
+        "provider": "solana",
+        "method": "getSlot",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      },
+      {
+        "provider": "solana",
+        "method": "getProgramAccountsV2",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      },
+      {
+        "provider": "solana",
+        "method": "getTransactionsForAddress",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      },
+      {
+        "provider": "solana",
+        "method": "getMultipleAccounts",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      },
+      {
+        "provider": "solana",
+        "method": "getBlockTime",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      },
+      {
+        "provider": "solana",
+        "method": "getTokenLargestAccounts",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      },
+      {
+        "provider": "solana",
+        "method": "getProgramAccounts",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      },
+      {
+        "provider": "solana",
+        "method": "getTransaction",
+        "cooldown_remaining_seconds": 0,
+        "rate_errors": 0,
+        "rate_streak": 0,
+        "success_streak": 0
+      }
+    ],
+    "lane_grants": [
+      {
+        "lane": "evidence",
+        "requested": 1791,
+        "granted": 1790,
+        "deadline_misses": 1,
+        "queue_wait_seconds": 364.0479763834155,
+        "max_wait_seconds": 8.02306503901491
+      },
+      {
+        "lane": "solana",
+        "requested": 1834,
+        "granted": 1834,
+        "deadline_misses": 0,
+        "queue_wait_seconds": 57.51709614082938,
+        "max_wait_seconds": 0.6848381960298866
+      }
+    ],
+    "queues": [
+      {
+        "lane": "evidence",
+        "priority": 1,
+        "depth": 1
+      }
+    ]
+  },
+  "provider_delivery": [
+    {
+      "transport": "yellowstone",
+      "family": "discovery",
+      "bytes": 114979,
+      "messages": 475,
+      "duplicate_bytes": 0
+    },
+    {
+      "transport": "yellowstone",
+      "family": "shared",
+      "bytes": 381022,
+      "messages": 3190,
+      "duplicate_bytes": 131951
+    },
+    {
+      "transport": "websocket",
+      "family": "candidate_logs",
+      "bytes": 402117946,
+      "messages": 208141,
+      "duplicate_bytes": 0
+    },
+    {
+      "transport": "yellowstone",
+      "family": "candidate_live",
+      "bytes": 90705729,
+      "messages": 118045,
+      "duplicate_bytes": 2338578
+    }
+  ],
+  "phase_traffic": {
+    "startup": {
+      "physical_requests": 4,
+      "HTTP_bytes": 210,
+      "RPC_calls": 4,
+      "RPC_CU": 70,
+      "transaction_body_calls": 0,
+      "scoped_transaction_bodies": 0,
+      "blocks": 0,
+      "yellowstone_bytes": 1875787,
+      "delivery_messages": 48678,
+      "websocket_bytes": 59111496,
+      "duplicate_delivery_bytes": 8497,
+      "provider_payload_bytes": 60987493
+    },
+    "steady": {
+      "physical_requests": 3625,
+      "HTTP_bytes": 95057628,
+      "RPC_calls": 3625,
+      "RPC_CU": 85120,
+      "transaction_body_calls": 17,
+      "scoped_transaction_bodies": 9454,
+      "blocks": 0,
+      "history_RPC_calls": 190,
+      "repair_HTTP_bytes": 74227840,
+      "websocket_bytes": 343006450,
+      "delivery_messages": 281172,
+      "yellowstone_bytes": 89325845,
+      "duplicate_delivery_bytes": 2462032,
+      "provider_payload_bytes": 527389923
+    },
+    "shutdown": {
+      "physical_requests": 2,
+      "HTTP_bytes": 1739,
+      "RPC_calls": 2,
+      "RPC_CU": 40,
+      "transaction_body_calls": 0,
+      "scoped_transaction_bodies": 0,
+      "blocks": 0,
+      "yellowstone_bytes": 98,
+      "delivery_messages": 1,
+      "provider_payload_bytes": 1837
+    }
+  },
+  "physical_HTTP_requests": 3631,
+  "estimated_RPC_CU": 85230,
+  "estimated_WebSocket_CU": 80423.5892,
+  "HTTP_by_family": {
+    "shared": {
+      "calls": 3,
+      "CU": 130,
+      "HTTP_bytes": 7699,
+      "selective_bodies": 0,
+      "scoped_bodies": 1,
+      "getGenesisHash": 1,
+      "getSlot": 1,
+      "getTransactionsForAddress": 1
+    },
+    "shared_source": {
+      "calls": 812,
+      "CU": 16240,
+      "HTTP_bytes": 34916,
+      "selective_bodies": 0,
+      "scoped_bodies": 0,
+      "getSlot": 812
+    },
+    "replay_source": {
+      "calls": 820,
+      "CU": 19920,
+      "HTTP_bytes": 15502662,
+      "selective_bodies": 0,
+      "scoped_bodies": 1838,
+      "getSlot": 776,
+      "getTransactionsForAddress": 44
+    },
+    "meteora_scout_source": {
+      "calls": 11,
+      "CU": 220,
+      "HTTP_bytes": 4564301,
+      "selective_bodies": 0,
+      "scoped_bodies": 0,
+      "getProgramAccountsV2": 11
+    },
+    "pump_source": {
+      "calls": 124,
+      "CU": 12400,
+      "HTTP_bytes": 58538299,
+      "selective_bodies": 0,
+      "scoped_bodies": 7614,
+      "getTransactionsForAddress": 124
+    },
+    "meteora_position": {
+      "calls": 875,
+      "CU": 17500,
+      "HTTP_bytes": 13970849,
+      "selective_bodies": 0,
+      "scoped_bodies": 0,
+      "getMultipleAccounts": 565,
+      "getBlockTime": 310
+    },
+    "pump_position": {
+      "calls": 383,
+      "CU": 6870,
+      "HTTP_bytes": 750148,
+      "selective_bodies": 0,
+      "scoped_bodies": 0,
+      "getGenesisHash": 79,
+      "getMultipleAccounts": 77,
+      "getBlockTime": 77,
+      "getProgramAccounts": 78,
+      "getTokenLargestAccounts": 72
+    },
+    "pumpswap_position": {
+      "calls": 539,
+      "CU": 10010,
+      "HTTP_bytes": 906274,
+      "selective_bodies": 0,
+      "scoped_bodies": 0,
+      "getGenesisHash": 77,
+      "getMultipleAccounts": 231,
+      "getBlockTime": 154,
+      "getTokenLargestAccounts": 77
+    },
+    "meteora_hydration": {
+      "calls": 43,
+      "CU": 860,
+      "HTTP_bytes": 571757,
+      "selective_bodies": 0,
+      "scoped_bodies": 0,
+      "getMultipleAccounts": 30,
+      "getBlockTime": 13
+    },
+    "meteora_source": {
+      "calls": 3,
+      "CU": 300,
+      "HTTP_bytes": 7713,
+      "selective_bodies": 0,
+      "scoped_bodies": 1,
+      "getTransactionsForAddress": 3
+    },
+    "pumpswap_source": {
+      "calls": 1,
+      "CU": 100,
+      "HTTP_bytes": 69,
+      "selective_bodies": 0,
+      "scoped_bodies": 0,
+      "getTransactionsForAddress": 1
+    },
+    "rolling_recovery_missing_logs_source": {
+      "calls": 17,
+      "CU": 680,
+      "HTTP_bytes": 204890,
+      "selective_bodies": 17,
+      "scoped_bodies": 0,
+      "getTransaction": 17
+    }
+  },
+  "acquisitions": {
+    "count": 107,
+    "causes": {
+      "LATE_DISCOVERY": 64,
+      "POSITION_REQUIRED_GAP": 1,
+      "PROVIDER_GAP": 22,
+      "RECOVERY_GAP": 19,
+      "CHECKPOINT_GAP": 1
+    },
+    "statuses": {
+      "deadline_missed": 76,
+      "complete": 31
+    },
+    "exact_job_intervals": "captures/final-476bad20/audit.json.gz",
+    "exact_RPC_parameters": "captures/final-476bad20/http.ndjson.zlib",
+    "late_Pump_prefixes_from_zero": 64
+  },
+  "resources": {
+    "wall_seconds": 407.93104100227356,
+    "CPU_seconds": 433.6187736,
+    "peak_RSS_KiB": 373988,
+    "canonical_DB_bytes": 218370048,
+    "WAL_before_stop_bytes": 6241832,
+    "peak_WAL_bytes": 156745432,
+    "SQLite_changes": 465291,
+    "CPU_mean_percent_two_vCPU": 52.85060636692638,
+    "CPU_peak_one_second_percent_two_vCPU": 77.19108272805852,
+    "steady_last_RSS_KiB": 372624,
+    "steady_mean_RSS_KiB": 297951.8408488064,
+    "physical_process_write_bytes": 4503871488,
+    "IO_note": "Includes measurement archives and SQLite, not solely normalized history. External profiler CPU and child-process RSS excluded.",
+    "post_stop_WAL_bytes": 309032
+  },
+  "measurement_overhead": {
+    "frozen_old_census_seconds": 8.490371313004289,
+    "frozen_new_census_seconds": 0.004583578964229673,
+    "identical_gap_ids": [
+      13706
+    ],
+    "alias_regression_views": 3000,
+    "passive_profile_seconds": 20,
+    "owner_worker_samples": 147,
+    "gap_observer_samples": 0,
+    "state_observer_samples": 0,
+    "caveat": "Census uses a linear gap-table pass and indexed binding lookup; a purely indexed gap read is not claimed. Sampling and frame/RPC metering have overhead. No census stall appeared in the short passive profile."
+  },
+  "reconciliation": {
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "canonical_events": 5472,
+    "distinct_identities": 5472,
+    "canonical_max_slot": 454323494,
+    "startup_phase": "STEADY_STATE",
+    "consumer_released": true,
+    "checkpoint_not_regressed": true,
+    "canonical_not_lost": true,
+    "status": "PASS"
+  },
+  "protected_source_files": 231,
+  "protected_source_changes": [],
+  "protected_services": "ExecMainStartTimestampMonotonic=386699708087\nId=meme-machine-paper.service\nActiveState=inactive\nSubState=dead\n\nExecMainStartTimestampMonotonic=345369761157\nId=meme-machine-acceptance@CAPACITY.service\nActiveState=failed\nSubState=failed\n\nExecMainStartTimestampMonotonic=0\nId=meme-machine-acceptance@RECOVERY.service\nActiveState=inactive\nSubState=dead\n\nExecMainStartTimestampMonotonic=0\nId=meme-machine-acceptance@AUTONOMY.service\nActiveState=inactive\nSubState=dead\n",
+  "pricing": {
+    "verified_UTC": "2026-10-07T20:26:04.313279+00:00",
+    "sources": [
+      "https://www.alchemy.com/pricing",
+      "https://www.alchemy.com/solana-grpc",
+      "https://www.alchemy.com/docs/reference/compute-unit-costs"
+    ],
+    "yellowstone_USD_per_decimal_TB": 75,
+    "PAYG_USD_per_million_CU": 0.525,
+    "Solana_WebSocket_CU_per_delivered_byte": 0.0002,
+    "getSlot_CU": 20,
+    "getTransactionsForAddress_CU": 100,
+    "getTransaction_CU": 40,
+    "getBlock_CU": 40,
+    "getSignaturesForAddress_CU": 40,
+    "getMultipleAccounts_CU": 20,
+    "PAYG_included_CU_per_second": 10000,
+    "PAYG_included_RPS": 300,
+    "additional_5000_CU_per_second_block_monthly_USD": 160,
+    "free_plan_allowance_not_applied_as_PAYG_credit": true,
+    "HTTP_bytes_not_priced_as_Yellowstone": true,
+    "getAccountInfo_CU": 10
+  },
+  "diagnostic_payload_estimate_USD": 0.09380826408000001,
+  "monthly_cost_status": "NOT_CERTIFIED",
+  "host_reference_USD_per_month": 73,
+  "next_minimum_action": "Resolve native concurrent-subscription admission/consolidation without reducing coverage, then demonstrate the existing bounded normal-drain proof with authenticated position lineage. No worker/host/plan increase is justified by this capture."
+}

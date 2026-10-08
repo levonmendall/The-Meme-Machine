@@ -1,0 +1,183 @@
+{
+  "accepted_operational_base": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "verified_pre_edit_head": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "verified_pre_edit_run": 37619753006,
+  "accepted_identities": [
+    [
+      "ERROR",
+      "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+    ],
+    [
+      "ERROR",
+      "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+    ],
+    [
+      "FAIL",
+      "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+    ],
+    [
+      "FAIL",
+      "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+    ],
+    [
+      "FAIL",
+      "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+    ],
+    [
+      "FAIL",
+      "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+    ],
+    [
+      "FAIL",
+      "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+    ],
+    [
+      "FAIL",
+      "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+    ],
+    [
+      "FAIL",
+      "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+    ],
+    [
+      "FAIL",
+      "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+    ],
+    [
+      "FAIL",
+      "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+    ]
+  ],
+  "final_source_runs": [
+    {
+      "run_id": 37657838165,
+      "head_sha": "1c0055b87a14a7f005d59c1208e8d31de2bacaca",
+      "event": "push",
+      "tests": 659,
+      "FAIL": 9,
+      "ERROR": 2,
+      "new_identities": [],
+      "missing_or_changed_identities": [],
+      "identities": [
+        [
+          "ERROR",
+          "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+        ],
+        [
+          "ERROR",
+          "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+        ],
+        [
+          "FAIL",
+          "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+        ],
+        [
+          "FAIL",
+          "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+        ],
+        [
+          "FAIL",
+          "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+        ],
+        [
+          "FAIL",
+          "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+        ],
+        [
+          "FAIL",
+          "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+        ],
+        [
+          "FAIL",
+          "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+        ]
+      ],
+      "log": "engineering/solana_prewarm/validation/github-37657838165.log.gz",
+      "raw_log_sha256": "d39f851556b370f88c0813a66ac1960073d1741b08c9db1ba84ea7e866b9d79a",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37657838165"
+    },
+    {
+      "run_id": 37657849433,
+      "head_sha": "1c0055b87a14a7f005d59c1208e8d31de2bacaca",
+      "event": "pull_request",
+      "tests": 662,
+      "FAIL": 9,
+      "ERROR": 2,
+      "new_identities": [],
+      "missing_or_changed_identities": [],
+      "identities": [
+        [
+          "ERROR",
+          "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)"
+        ],
+        [
+          "ERROR",
+          "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+        ],
+        [
+          "FAIL",
+          "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)"
+        ],
+        [
+          "FAIL",
+          "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)"
+        ],
+        [
+          "FAIL",
+          "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)"
+        ],
+        [
+          "FAIL",
+          "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)"
+        ],
+        [
+          "FAIL",
+          "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)"
+        ],
+        [
+          "FAIL",
+          "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)"
+        ],
+        [
+          "FAIL",
+          "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+        ]
+      ],
+      "log": "engineering/solana_prewarm/validation/github-37657849433.log.gz",
+      "raw_log_sha256": "6ecc8be9de50e2b0867623763fb5e3802bcb9fb6704e9a9afbdab1c0b4b40cb4",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37657849433"
+    }
+  ],
+  "status": "PASS_EXACT_ACCEPTED_IDENTITY_PARITY",
+  "legacy_removed_test_failures_excluded_from_accepted_baseline": false,
+  "verified_UTC": "2026-10-07T17:23:54.258170+00:00",
+  "new_failure_identities": 0,
+  "missing_or_changed_baseline_identities": 0,
+  "implementation_tree": "6188421c78e38fa06b840d7d94c729e69e890d0f",
+  "PR_merge_preview": {
+    "commit": "92f6d8fd9e54b7b4da788d764b08377cc657c713",
+    "tree": "c152d0d0b851ff685cb55365d62d6430c87716ba",
+    "Solana_source_identical_to_implementation": true,
+    "existing_base_difference": "Five pre-existing base files add owner Ramses pause/operational tests; no closure changes to these files. Pull-request suite has three additional tests."
+  }
+}

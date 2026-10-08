@@ -1,0 +1,200 @@
+........................E........FFFF...F..........................................................................Executing <Task pending name='Task-8' coro=<StartupStorage.test_cold_cleanup_uses_the_same_conservative_clock_margin_as_completion() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:174> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.180 seconds
+.Executing <Task finished name='Task-13' coro=<StartupStorage.test_cold_housekeeping_is_not_stranded_by_urgent_scope_yields() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:67> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.197 seconds
+.Executing <Task pending name='Task-18' coro=<StartupStorage.test_cold_records_retire_under_continuously_queued_source_work() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:33> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.872 seconds
+.Executing <Task pending name='Task-23' coro=<StartupStorage.test_cold_return_discharges_expired_source_debt_without_renewing_deadline() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:56> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.470 seconds
+Executing <Task pending name='Task-23' coro=<StartupStorage.test_cold_return_discharges_expired_source_debt_without_renewing_deadline() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:56> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.111 seconds
+.Executing <Task pending name='Task-28' coro=<StartupStorage.test_committed_final_slice_yield_keeps_receipt_and_recovery_deadline() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:152> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.305 seconds
+..Executing <Task pending name='Task-38' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:118> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 2.223 seconds
+Executing <Task pending name='Task-38' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:118> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.116 seconds
+.Executing <Task finished name='Task-43' coro=<StartupStorage.test_existing_unserviced_debt_still_expires() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:290> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.212 seconds
+.Executing <Task finished name='Task-48' coro=<StartupStorage.test_fresh_store_skips_cleanup_entirely() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:367> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.210 seconds
+.Executing <Task pending name='Task-53' coro=<StartupStorage.test_late_cleanup_finishes_existing_archive_carrier_before_new_work() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:229> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.199 seconds
+.Executing <Task pending name='Task-58' coro=<StartupStorage.test_live_young_debt_can_remain_after_real_old_cleanup_without_extending_safety() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:204> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.194 seconds
+.Executing <Task pending name='Task-63' coro=<StartupStorage.test_newly_eligible_old_data_is_actually_cleaned_without_freshening_it() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:254> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.235 seconds
+.Executing <Task pending name='Task-68' coro=<StartupStorage.test_old_cold_debt_drains_without_resetting_pins_gaps_or_source_time() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:359> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.209 seconds
+.Executing <Task pending name='Task-73' coro=<StartupStorage.test_released_candidate_cleans_only_evidence_without_remaining_position_pin() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:283> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.216 seconds
+.Executing <Task finished name='Task-78' coro=<StartupStorage.test_sparse_address_pin_observation_fits_existing_vm_budget() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_startup_storage.py:304> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 4.754 seconds
+........................................................................................................................................................................................................................Executing <Task finished name='Task-158' coro=<SourceLifetimeTests.test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:251> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.627 seconds
+.Executing <Task pending name='Task-163' coro=<SourceLifetimeTests.test_rpc_retry_counts_failed_delivery_without_resetting_candidate_deadline() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:206> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.320 seconds
+..Executing <Task finished name='Task-173' coro=<SourceLifetimeTests.test_unsupported_archive_page_preserves_scope_gap_and_position_interest() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:215> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.459 seconds
+............................Executing <Task pending name='Task-221' coro=<StartupAsyncTests.test_cold_maintenance_cannot_compete_with_initial_publication() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_prewarm_startup.py:187> wait_for=<Future pending cb=[Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.314 seconds
+Executing <Task pending name='Task-221' coro=<StartupAsyncTests.test_cold_maintenance_cannot_compete_with_initial_publication() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_prewarm_startup.py:191> wait_for=<Task pending name='Task-222' coro=<SelectiveSource.cold_maintenance() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_selective_source.py:674> wait_for=<Future pending cb=[Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:420> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.118 seconds
+.Executing <Task pending name='Task-227' coro=<StartupAsyncTests.test_last_websocket_log_can_complete_native_join_and_release_startup() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_prewarm_startup.py:255> wait_for=<Future pending cb=[Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.351 seconds
+.Executing <Task pending name='Task-235' coro=<StartupAsyncTests.test_membership_plan_coalesces_unchanged_state_before_owner_admission() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_prewarm_startup.py:318> wait_for=<Future pending cb=[Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.423 seconds
+..Executing <Task pending name='Task-247' coro=<StartupAsyncTests.test_provider_subscription_pressure_retries_same_durable_interest() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_prewarm_startup.py:342> wait_for=<Future pending cb=[Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.445 seconds
+............................opportunity publication failed: IntegrityError
+.................................F................opportunity schema unavailable: RuntimeError
+opportunity schema unavailable: RuntimeError
+..opportunity publication failed: ValueError
+..................................................................................................................................................................................................................................................................................................................................................................................................s.........health publication failed: OSError
+health publication failed: OSError
+........................................................s..........................................................................................Executing <Task finished name='Task-682' coro=<ProductionServeTests.test_continuous_archive_pressure_low_retirement_debt() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_production_maintenance_arbiter.py:34> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.104 seconds
+........F.....s.......sssss.....sssss.......................................................................sss........sExecuting <Task finished name='Task-945' coro=<SyntheticClockTests.test_delayed_receive_cannot_refresh_event_or_block_clock() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run380_production_pressure.py:80> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.187 seconds
+.Executing <Task finished name='Task-950' coro=<SyntheticClockTests.test_rebase_preserves_all_nonclock_event_bytes() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run380_production_pressure.py:62> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.233 seconds
+.ssssss.......Executing <Task pending name='Task-1072' coro=<RetentionExecutionGuardTests.test_already_queued_retention_defers_after_receipt_readiness() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run381_archive_scheduling.py:240> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 1.654 seconds
+.......sssssss..........................................................................................................sss.................................................................EE..........................................................168-hour held-pin soak: records peak 2 hot bytes 2419616 2460576 unreferenced raw archives 0
+checkpoint-handoff-growth-proof {'baseline_wal_bytes': [341992, 659232, 992952, 1318432, 1656272, 1985872, 2327832, 2657432], 'repaired_wal_bytes': [0, 0, 0, 0, 0, 0, 0, 0], 'records': 272}
+...............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+======================================================================
+ERROR: test_pons_survivor_and_dashboard_distinguish_shared_cash_from_sizing (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_pons_survivor_and_dashboard_distinguish_shared_cash_from_sizing)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_pump_pons_capital_preparation.py", line 311, in test_pons_survivor_and_dashboard_distinguish_shared_cash_from_sizing
+    projection=export(a);validated=validate_export(projection,a.snapshot()['ledger']['inception'],'canonical')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/exact_money.py", line 87, in wrapped
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/dashboard/model.py", line 234, in validate_export
+    positions = [position(r, epoch, observed) for r in selected]
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/exact_money.py", line 87, in wrapped
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/dashboard/model.py", line 184, in position
+    raise ValueError('mark_clock')
+ValueError: mark_clock
+
+======================================================================
+ERROR: test_disconnected_client_commit_retry_and_service_survival (tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run369_runtime.py", line 281, in test_disconnected_client_commit_retry_and_service_survival
+    await asyncio.to_thread(disconnect);await asyncio.sleep(.2)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run369_runtime.py", line 280, in disconnect
+    stream.connect(str(path)+'.sock');stream.sendall((json.dumps(request)+'\n').encode())
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/evidence_ipc_harness.py", line 26, in connect
+    if 'callback' not in state:raise ConnectionRefusedError()
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run369_runtime.py", line 291, in test_disconnected_client_commit_retry_and_service_survival
+    finally:stop.set();await task;loop.set_exception_handler(previous)
+                       ^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_evidence_service.py", line 779, in serve
+    raise EvidenceUnavailable('legacy_startup_archived_model_b_driver_required')
+meme_machine.solana_evidence_plane.EvidenceUnavailable: legacy_startup_archived_model_b_driver_required
+
+======================================================================
+ERROR: test_response_after_old_250ms_limit_is_acknowledged_once (tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_run369_runtime.py", line 262, in test_response_after_old_250ms_limit_is_acknowledged_once
+    finally: stop.set(); await task
+                         ^^^^^^^^^^
+meme_machine.solana_evidence_plane.EvidenceUnavailable: legacy_startup_archived_model_b_driver_required
+
+======================================================================
+FAIL: test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting (tests.test_shared_capital.SharedCapitalTests.test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting) (regime='pump_current')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital.py", line 89, in test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting
+    self.assertEqual(decisions["decisions"][q.request_id]["basis"], "10")
+AssertionError: '0' != '10'
+- 0
++ 10
+? +
+
+
+======================================================================
+FAIL: test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting (tests.test_shared_capital.SharedCapitalTests.test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting) (regime='pump_survivor')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital.py", line 89, in test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting
+    self.assertEqual(decisions["decisions"][q.request_id]["basis"], "10")
+AssertionError: '0' != '10'
+- 0
++ 10
+? +
+
+
+======================================================================
+FAIL: test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting (tests.test_shared_capital.SharedCapitalTests.test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting) (regime='pons_current')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital.py", line 89, in test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting
+    self.assertEqual(decisions["decisions"][q.request_id]["basis"], "10")
+AssertionError: '0' != '10'
+- 0
++ 10
+? +
+
+
+======================================================================
+FAIL: test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting (tests.test_shared_capital.SharedCapitalTests.test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting) (regime='pons_survivor')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital.py", line 89, in test_capitalized_native_entry_fees_preserve_principal_and_existing_accounting
+    self.assertEqual(decisions["decisions"][q.request_id]["basis"], "10")
+AssertionError: '0' != '10'
+- 0
++ 10
+? +
+
+
+======================================================================
+FAIL: test_native_equivalence_preserves_integer_sizing_despite_currency_price_changes (tests.test_shared_capital.SharedCapitalTests.test_native_equivalence_preserves_integer_sizing_despite_currency_price_changes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_shared_capital.py", line 67, in test_native_equivalence_preserves_integer_sizing_despite_currency_price_changes
+    self.assertEqual(result["decisions"][requests[0].request_id]["status"], "RESERVED")
+AssertionError: 'QUALIFIED_BUT_CAPITAL_UNAVAILABLE' != 'RESERVED'
+- QUALIFIED_BUT_CAPITAL_UNAVAILABLE
++ RESERVED
+
+
+======================================================================
+FAIL: test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_robinhood_usd_valuation.py", line 424, in test_strategy_sources_and_nine_change_tests_byte_unchanged
+    if rel not in infrastructure:self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: b'"""[355 chars]sdict, replace\nimport time\nimport json\nimpo[62665 chars] )\n' != b'"""[355 chars]sdict\nimport time\nimport json\nimport os\nfr[53760 chars] )\n' : meme_machine/lanes/pons/pons_selective_acquisition.py
+
+======================================================================
+FAIL: test_scope_fairness_under_new_dense_meteora_arrivals (tests.test_production_maintenance_arbiter.ProductionServeTests.test_scope_fairness_under_new_dense_meteora_arrivals)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_production_maintenance_arbiter.py", line 114, in test_scope_fairness_under_new_dense_meteora_arrivals
+    self.healthy(box)
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_production_maintenance_arbiter.py", line 23, in healthy
+    self.assertFalse(box['errors'],[str(x) for x in box['errors']])
+AssertionError: [TimeoutError()] is not false : ['']
+
+----------------------------------------------------------------------
+Ran 2246 tests in 1121.049s
+
+FAILED (failures=7, errors=3, skipped=33)
+Survivor economic churn: 12 windows, 96 settlements; hot bytes [114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688]
+168-window Survivor prefix component: marks 33600 hot bytes 229376 229376 preserved snapshots 168
+168-hour sleeve component: observations 33600 hot bytes 225280 225280 preserved snapshots 168

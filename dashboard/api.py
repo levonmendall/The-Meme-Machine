@@ -1,9 +1,35 @@
 """Mountable stdlib HTTP surface. Local files only; all methods are read-only."""
 import json
+import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit, unquote
 
-from .model import LANES, Reader, stamp
+from .model import Reader, stamp
+
+# Presentation only: canonical accounting retains every historical strategy.
+VISIBLE_LANES = ('pump', 'pons')
+HIDDEN_NAMES = frozenset(('ramses', 'meteora'))
+
+
+def viewer_data(value):
+    """Redact inactive strategy names without modifying canonical portfolio state."""
+    if isinstance(value, dict):
+        visible = {}
+        for key, item in value.items():
+            if isinstance(key, str) and key.lower() in HIDDEN_NAMES:
+                continue
+            name = re.sub(r'(?<![A-Za-z0-9])(ramses|meteora)(?![A-Za-z0-9])', 'inactive_strategy', key,
+                          flags=re.IGNORECASE) if isinstance(key, str) else key
+            visible[name] = viewer_data(item)
+        return visible
+    if isinstance(value, list):
+        return [viewer_data(item) for item in value
+                if not (isinstance(item, dict) and item.get('lane') in HIDDEN_NAMES)]
+    if isinstance(value, str):
+        return re.sub(r'(?<![A-Za-z0-9])(ramses|meteora)(?![A-Za-z0-9])', 'inactive_strategy', value,
+                      flags=re.IGNORECASE)
+    return value
+
 
 STATIC = Path(__file__).with_name('static')
 PERIODS = {'1H': 3600, '6H': 21600, '24H': 86400, '7D': 604800, '30D': 2592000, 'ALL': None}
@@ -42,7 +68,7 @@ class Dashboard:
                        'equity': {'period', 'series', 'limit'},
                        'positions': {'lane', 'q', 'limit', 'offset'},
                        'trades': {'lane', 'q', 'outcome', 'strategy', 'from', 'to', 'limit', 'offset'}}
-            if route.startswith('lanes/') and route[6:] in LANES:
+            if route.startswith('lanes/') and route[6:] in VISIBLE_LANES:
                 allowed[route] = set()
             if route.startswith('positions/'):
                 allowed[route] = set()
@@ -59,18 +85,18 @@ class Dashboard:
                             coverage='recorded UTC entry/settlement days; zero-activity days are not inferred',
                             pnl_definition='net completed-lifecycle outcomes assigned to settlement day; excludes open partial realizations and shared costs; not daily equity change')
             elif route == 'lanes':
-                data['data'] = list(view['lanes'].values())
+                data['data'] = [view['lanes'][lane] for lane in VISIBLE_LANES]
             elif route.startswith('lanes/'):
                 data['data'] = view['lanes'][route[6:]]
             elif route.startswith('positions/'):
-                found = [p for p in view['positions'] if p['id'] == unquote(route[10:])]
+                found = [p for p in view['positions'] if p['lane'] in VISIBLE_LANES and p['id'] == unquote(route[10:])]
                 if not found:
                     status, data = 404, dict(error='not_found')
                 else:
                     data['data'] = found[0]
             elif route == 'equity':
                 series, period = query.get('series', 'portfolio'), query.get('period', 'ALL')
-                if series not in view['history'] or period not in PERIODS:
+                if series not in ('portfolio', *VISIBLE_LANES) or period not in PERIODS:
                     raise ValueError('chart_query')
                 limit = int(query.get('limit', '240'))
                 if not 2 <= limit <= 500:
@@ -87,7 +113,7 @@ class Dashboard:
                             periods=[p for p, duration in PERIODS.items() if duration is None or points and end-stamp(points[0]['at']) >= duration])
             else:
                 lane, outcome = query.get('lane'), query.get('outcome')
-                if lane and lane not in LANES or outcome and outcome not in ('winner', 'loser', 'breakeven'):
+                if lane and lane not in VISIBLE_LANES or outcome and outcome not in ('winner', 'loser', 'breakeven'):
                     raise ValueError('filter')
                 limit, offset = int(query.get('limit', '25')), int(query.get('offset', '0'))
                 if not 1 <= limit <= 100 or not 0 <= offset <= 5000:
@@ -96,7 +122,7 @@ class Dashboard:
                 before = stamp(query['to']) if query.get('to') else float('inf')
                 if after > before:
                     raise ValueError('date_range')
-                rows = [p for p in view['positions'] if p['state'] == ('OPEN' if route=='positions' else 'SETTLED')]
+                rows = [p for p in view['positions'] if p['lane'] in VISIBLE_LANES and p['state'] == ('OPEN' if route=='positions' else 'SETTLED')]
                 rows = [p for p in rows if (not lane or p['lane']==lane)
                         and (not outcome or p['outcome']==outcome)
                         and query.get('q', '').casefold() in (p['asset']+' '+p['id']).casefold()
@@ -110,7 +136,7 @@ class Dashboard:
             status, data = 400, dict(error='invalid_request_or_source', state='FAIL_CLOSED')
         except OSError:
             status, data = 503, dict(error='local_state_unavailable', state='UNAVAILABLE')
-        raw = json.dumps(data, separators=(',', ':'), allow_nan=False).encode()
+        raw = json.dumps(viewer_data(data), separators=(',', ':'), allow_nan=False).encode()
         return status, dict(headers, **{'Content-Type': 'application/json'}), raw
 
     def serve(self, handler):

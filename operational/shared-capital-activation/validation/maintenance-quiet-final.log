@@ -1,0 +1,7 @@
+test_scope_fairness_under_new_dense_meteora_arrivals (tests.test_production_maintenance_arbiter.ProductionServeTests.test_scope_fairness_under_new_dense_meteora_arrivals) ... Executing <Task pending name='Task-4' coro=<serve.<locals>.selected_source() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/meme_machine/solana_evidence_service.py:1052> wait_for=<Future pending cb=[shield.<locals>._outer_done_callback() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:922, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_wait.<locals>._on_completion() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:534] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:420> took 0.107 seconds
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 11.931s
+
+OK

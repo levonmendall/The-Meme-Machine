@@ -1,0 +1,398 @@
+{
+  "kind": "solana_dlmm_independent_v1",
+  "status": "frozen_pre_prospective",
+  "scope": "solana_meteora_dlmm_only",
+  "independence": {
+    "wallet_signals": false,
+    "profitable_wallet_labels": false,
+    "prior_dlmm_candidate_outputs": false,
+    "small_pool_study_outputs": false,
+    "capital_efficiency_v1_outputs": false,
+    "reusable_dependencies": "generic Meteora/Solana read-only mechanics, authenticated tape reconstruction, provider pacing only",
+    "robinhood_strategies": false,
+    "pons_strategies": false,
+    "ramses_strategies": false,
+    "robinhood_data": false,
+    "robinhood_provider_config": false,
+    "prohibited_inputs": [
+      "any Robinhood strategy signal, threshold, cohort, score or result",
+      "Pons continuation or launch-curve evidence",
+      "Ramses DLMM pool/LP evidence",
+      "MM_ROBINHOOD_READ_RPC_URL and all MM_ROBINHOOD_* configuration",
+      "Robinhood/Pons/Ramses backtests, paper outcomes or portfolio allocations"
+    ],
+    "allowed_strategy_inputs": [
+      "Solana mainnet Meteora DLMM market state",
+      "Solana mainnet authenticated DLMM swap/liquidity tape",
+      "Meteora Solana public pool metrics",
+      "frozen SOLANA_DLMM_INDEPENDENT_V1.json only"
+    ]
+  },
+  "authority": {
+    "research_only": true,
+    "allocation": false,
+    "signing": false,
+    "submission": false,
+    "live_money": false
+  },
+  "objective": "Maximize expected after-cost SOL return by supplying broad executable liquidity only when authenticated fee production relative to usable local range liquidity is high enough to justify multi-hour exposure.",
+  "discovery": {
+    "require_exactly_one_wsol_leg": true,
+    "require_nonblacklisted": true,
+    "minimum_pool_tvl_usd": null,
+    "minimum_absolute_volume_usd": null,
+    "union_sorts": [
+      "fee_tvl_ratio_5m:desc",
+      "volume_5m:desc",
+      "volume_30m:desc"
+    ],
+    "candidate_metrics": [
+      "volume_5m",
+      "volume_30m",
+      "fee_5m",
+      "fee_30m",
+      "fee_tvl_ratio_5m",
+      "dynamic_fee_pct",
+      "tvl"
+    ],
+    "volume_acceleration_definition": "volume_5m / max(volume_30m/6, epsilon)",
+    "fee_acceleration_definition": "fee_5m / max(fee_30m/6, epsilon)",
+    "acceleration_measurement_source": "Meteora /pools/{address}/volume/history with timeframe=5m; require six consecutive recent 5m buckets. volume_5m/fee_5m are the most recent bucket, volume_30m/fee_30m are the sum of those six buckets.",
+    "pool_snapshot_5m_fields_authoritative": false,
+    "history_enrichment": "Apply to every unique SOL-paired pool returned by the fixed discovery union before acceleration gating; missing/incomplete six-bucket history fails closed.",
+    "completed_bucket_rule": "A 5m history bucket is eligible only when timestamp + 300 <= observation_time. The current partial bucket is excluded.",
+    "execution_mode": "streaming_fee_density_ranked_immediate_handoff",
+    "execution_rule": "Use public API fee/volume fields only to order bounded discovery. They never authorize entry. On first sight of each unique SOL pool, preserve completed-bucket context and hand it to authenticated fresh-swap/on-chain evaluation before reading further history when provider capacity permits.",
+    "no_full_universe_wait_before_handoff": true,
+    "public_fee_density_role": "ranking_context_only_not_entry_authority"
+  },
+  "regime": {
+    "kind": "authenticated_local_fee_density_harvest",
+    "min_volume_acceleration": 0,
+    "min_fee_acceleration": 0,
+    "min_dynamic_fee_uplift_over_base": 1.25,
+    "require_verified_warmup_flow": true,
+    "require_two_way_flow": true,
+    "entry_clock": "five-minute acceleration is regime-only; a new finalized authenticated Meteora DLMM swap after compatibility screening starts the entry-observation clock",
+    "fresh_swap_trigger": {
+      "required": true,
+      "max_wait_seconds": 120,
+      "poll_seconds": 2,
+      "acceleration_refresh_seconds": 12,
+      "rule": "A completed public fee/volume bucket may keep a candidate in the bounded discovery queue, but entry authorization begins only after a new authenticated finalized DLMM swap. Capture fresh state and one exact 12-second warmup; public acceleration is telemetry only."
+    },
+    "dynamic_fee_uplift_role": "context_only_not_entry_veto",
+    "public_acceleration_role": "context_only_not_entry_veto"
+  },
+  "position": {
+    "capital_lamports": 100000000,
+    "construction": "two_sided_centered_spot",
+    "entry_inventory_conversion": "convert 50% of SOL capital to the non-SOL token on the authenticated virtual entry state, then place SOL below/above active as appropriate and token on the opposite side",
+    "sol_share_before_conversion": 0.5,
+    "distribution": "equal weight within each side of the range",
+    "active_bin_excluded": true,
+    "rebalance": "none_in_v1; withdraw instead when the thesis fails"
+  },
+  "range": {
+    "selection": "broad centered executable range sized to survive multi-hour exposure without unnecessary dilution",
+    "warmup_seconds": 12,
+    "intended_holding_seconds": 14400,
+    "max_holding_seconds": 86400,
+    "min_half_width_bins": 26,
+    "max_half_width_bins": 50,
+    "movement_model": "warmup active-bin excursion may widen the range within the frozen 26-50 half-width band; it may not narrow below the robust broad-range floor.",
+    "movement_safety_factor": 1.5,
+    "total_width_bound_bins": [
+      52,
+      100
+    ],
+    "warmup_alignment": {
+      "qualifying_window_seconds": 12,
+      "trigger": "first fresh authenticated finalized DLMM swap while frozen acceleration regime remains true",
+      "retries_after_trigger": 0,
+      "rule": "The qualifying warmup starts only after a fresh authenticated finalized swap and remains exactly 12 seconds. A zero-swap post-trigger warmup is a valid rejection."
+    },
+    "research_band_note": "The historical 51-100-bin band maps to 52-100 supplied bins here because the mechanically modeled centered range deliberately excludes the active bin to avoid unmodeled active-bin composition fees."
+  },
+  "qualification": {
+    "min_competing_range_liquidity_to_capital_multiple": 4,
+    "min_two_way_balance": 0.2,
+    "max_drift_ratio": 0.8,
+    "require_reversal": false,
+    "stress_inventory_fraction_of_capital": 0.5,
+    "max_stress_unwind_loss_bps": 200,
+    "projected_fee_horizon_seconds": 14400,
+    "min_expected_net_lamports": 1,
+    "expected_net_definition": "projected exact-range fee capture over the 4h minimum core hold - 400000 lamports modeled network cost - 50%-inventory stress unwind loss; must be strictly positive",
+    "primary_score": "authenticated_fee_density_24h_pct, then expected_after_cost_pnl_bps_per_capital_hour",
+    "ranking_metric": "authenticated fee production / executable local range liquidity, 24h-normalized",
+    "dynamic_fee_uplift_hard_gate": false,
+    "unchanged_hard_risk_gates": [
+      "min_competing_range_liquidity_to_capital_multiple = 4",
+      "max_drift_ratio = 0.80",
+      "max_stress_unwind_loss_bps = 200",
+      "position sizing from local executable depth",
+      "fresh authenticated finalized swap and exact 12-second warmup",
+      "fail-closed reconstruction and unwind"
+    ],
+    "min_authenticated_fee_density_24h_pct": 4,
+    "high_density_tier_24h_pct": 20
+  },
+  "fee_model": {
+    "require_dynamic_fee_uplift": false,
+    "current_fee_source": "authenticated LbPair state",
+    "base_fee_source": "authenticated static LbPair parameters",
+    "range_fee_capture": "authenticated warmup LP fees from swaps intersecting the proposed range, converted to SOL at authenticated bin prices",
+    "historical_apr_is_not_an_entry_signal": true,
+    "dynamic_fee_uplift_role": "recorded context and exit-state feature; not a hard entry gate",
+    "hard_entry_economic_test": "authenticated_fee_density_24h_pct >= 4.0 AND projected 4h exact-range fee capture - 400000 lamports network cost - stress unwind loss > 0",
+    "live_fee_density_metric": "authenticated_fee_density_24h_pct = 100 * range_fee_sol_lamports / range_liquidity_sol_lamports * 86400 / observed_seconds",
+    "live_fee_density_threshold_pct": 4,
+    "live_fee_density_high_tier_pct": 20,
+    "metric_boundary": "Uses only pre-entry authenticated finalized swap tape and executable local range liquidity. Public Meteora feePerTvl24h and current API fee/TVL fields are not entry evidence.",
+    "historical_mapping": "The frozen 4%/day threshold preserves the broad historical positive regime only after its unit is explicitly redefined in authenticated local-liquidity terms; it is not a direct trust of the retrospective API field."
+  },
+  "flow_model": {
+    "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
+    "min_two_way_balance": 0.2,
+    "adverse_selection_proxy": [
+      "near-range drift ratio",
+      "one-way flow",
+      "stress unwind loss"
+    ],
+    "two_way_role": "hard entry gate; event-driven exit if subsequent flow becomes persistently one-way with high drift"
+  },
+  "exit": {
+    "observation_segment_seconds": 300,
+    "conditions": [
+      "active price reaches within 2 bins of either range boundary (immediate hard-risk exit)",
+      "executable non-SOL inventory value exceeds 60% of initial capital (immediate hard-risk exit)",
+      "recent verified flow has >=2 swaps, two_way_balance <0.18 and drift_ratio >0.82 (immediate adverse-selection exit)",
+      "after the 4h core hold, recent fee density remains below 50% of entry authenticated fee density for at least 3 consecutive verified 300s segments",
+      "after the 4h core hold, recent volume rate remains below 50% of entry warmup volume rate for at least 3 consecutive verified 300s segments",
+      "stress-unwind or executable-mark evidence becomes unavailable",
+      "maximum holding time of 24h reached"
+    ],
+    "settlement": "withdraw all liquidity and liquidate residual non-SOL inventory to SOL on the authenticated virtual state",
+    "core_hold_seconds": 14400,
+    "economic_collapse_confirmation_segments": 3,
+    "pre_core_hard_risk_exit_reasons": [
+      "range_boundary",
+      "inventory_imbalance",
+      "one_way_flow"
+    ]
+  },
+  "costs": {
+    "entry_network_cost_lamports": 200000,
+    "exit_network_cost_lamports": 200000,
+    "round_trip_network_cost_lamports": 400000,
+    "entry_inventory_swap_fee_and_slippage": "modeled directly by the virtual DLMM swap",
+    "rebalance_cost_lamports": 0
+  },
+  "measurement": {
+    "primary": "after-cost PnL bps per capital-hour",
+    "secondary": [
+      "after-cost PnL lamports",
+      "fee capture",
+      "inventory conversion",
+      "realized hold seconds",
+      "range width",
+      "exit reason",
+      "qualification failure reasons"
+    ]
+  },
+  "prospective_test": {
+    "post_freeze_only": true,
+    "target_complete_lifecycles": 20,
+    "max_attempted_pools": 48,
+    "record_every_rejection": true,
+    "no_threshold_changes_after_start": true,
+    "no_retroactive_selection": true,
+    "minimum_distinct_pools": 5,
+    "minimum_profitable_rate": 0.55,
+    "minimum_median_after_cost_return_bps": 0,
+    "minimum_mean_after_cost_return_bps": 0,
+    "minimum_hold_seconds_for_nonrisk_exit": 14400
+  },
+  "deferred_modes": {
+    "fee_earning_directional_conversion": "separate future strategy; not mixed into this core market-making rule",
+    "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
+    "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
+  },
+  "revision": "2.2-moderate-admission-exit-hysteresis-v1",
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Explicitly prohibit all Robinhood/Pons/Ramses strategy, data, provider, cohort and outcome inputs before any prospective Solana DLMM outcome.",
+      "prospective_outcomes_observed_before_amendment": false,
+      "solana_strategy_thresholds_changed": false
+    },
+    {
+      "revision": "1.2",
+      "reason": "Repair measurement source before any on-chain prospective attempt: /pools TimeWindowData does not expose 5m values; compute the already-frozen 5m/30m acceleration ratios from six dedicated 5m history buckets.",
+      "prospective_onchain_attempts_before_amendment": 0,
+      "strategy_thresholds_changed": false,
+      "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.3",
+      "reason": "Exclude incomplete current 5-minute history bucket from acceleration measurement; prior run compared a partial bucket against completed history and made the discovery gate artificially strict.",
+      "prospective_onchain_attempts_before_amendment": 0,
+      "strategy_thresholds_changed": false,
+      "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.4",
+      "reason": "Improve warmup synchronization without changing strategy thresholds: retry a fresh 12-second warmup only after a verified zero-swap window, up to five windows, rechecking the same frozen acceleration gates before every retry.",
+      "strategy_thresholds_changed": false,
+      "qualifying_warmup_seconds_changed": false,
+      "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.5",
+      "reason": "Expand only mechanically equivalent pool/token support based on exact rejected-pool census: metadata-only Token-2022 plus optional ImmutableOwner vaults, and classic mint authority when freeze authority is absent. Behavioral Token-2022 extensions and OnlyY fee mode remain fail-closed.",
+      "rejected_pool_census_run_id": 35456987497,
+      "strategy_thresholds_changed": false,
+      "qualification_thresholds_changed": false,
+      "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.6",
+      "reason": "Remove stale-event latency by streaming each acceleration-qualified pool directly into fresh on-chain warmup, and repair missing-start-boundary evidence with bounded paginated signature census.",
+      "strategy_thresholds_changed": false,
+      "qualification_thresholds_changed": false,
+      "warmup_seconds_changed": false,
+      "support_policy_changed": false,
+      "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.7",
+      "reason": "Implement four prespecified refinements: completed-5m acceleration becomes regime-only; unsupported mechanics are screened before attempt budget; fresh authenticated finalized swap triggers the exact 12s warmup; dynamic-fee uplift becomes context-only while expected net after unwind and costs remains the hard fee/economic gate.",
+      "volume_acceleration_threshold_changed": false,
+      "fee_acceleration_threshold_changed": false,
+      "two_way_threshold_changed": false,
+      "reversal_requirement_changed": false,
+      "drift_threshold_changed": false,
+      "unwind_threshold_changed": false,
+      "expected_net_threshold_changed": false,
+      "capital_changed": false,
+      "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.8-execution-certification-v1",
+      "reason": "Execution-certification overlay widens regime and flow admission, removes mandatory reversal, and permits bounded modeled loss so natural paper lifecycle machinery can be exercised before profitability tightening.",
+      "strategy_thresholds_changed": true,
+      "freshness_changed": false,
+      "finality_changed": false,
+      "accounting_changed": false,
+      "live_money_authority_changed": false,
+      "profitability_authority": false
+    },
+    {
+      "revision": "1.9-machinery-proof-v2",
+      "reason": "Machinery-proof-only revision admits authenticated one-way warmups and bounded modeled losses observed in execution certification so a natural paper DLMM lifecycle can exercise reserve, entry, monitoring, unwind and settlement. Fresh-swap authentication, exact warmup, capacity, drift, stress-unwind, costs, position size, finality, accounting and paper-only authority remain unchanged.",
+      "min_two_way_balance_changed_from": 0.25,
+      "min_two_way_balance_changed_to": 0,
+      "min_expected_net_lamports_changed_from": -200000,
+      "min_expected_net_lamports_changed_to": -1000000,
+      "freshness_changed": false,
+      "finality_changed": false,
+      "capacity_changed": false,
+      "max_stress_unwind_loss_changed": false,
+      "capital_changed": false,
+      "live_money_authority_changed": false,
+      "profitability_authority": false
+    },
+    {
+      "revision": "2.0-profitability-fee-density-v1-core-hold-v2",
+      "reason": "Make the declared 4-hour minimum non-risk hold executable. Range-boundary, severe inventory-imbalance and severe one-way-drift exits remain immediate; fee-density and volume collapse become eligible only after the core hold and require two consecutive verified 300-second segments.",
+      "strategy_entry_thresholds_changed": false,
+      "freshness_finality_changed": false,
+      "max_holding_seconds_changed": false,
+      "position_size_changed": false,
+      "paper_only_unchanged": true
+    }
+  ],
+  "support_layer": {
+    "safe_token_programs": [
+      "classic SPL",
+      "Token-2022 only when mint extensions are MetadataPointer/TokenMetadata and vault extensions are absent or ImmutableOwner"
+    ],
+    "classic_mint_authority": "allowed mechanically only when freeze authority is absent; issuer mint authority is surfaced in every pre-entry record",
+    "freeze_authority": "fail_closed",
+    "token2022_behavioral_extensions": "fail_closed including TransferFeeConfig/Amount, TransferHook, Pausable, PermanentDelegate, NonTransferable, DefaultAccountState, ConfidentialTransfer and unknown extensions",
+    "collect_fee_mode_0_input_only": "supported",
+    "collect_fee_mode_1_only_y": "fail_closed until exact fee-growth/swap accounting is implemented",
+    "function_types": "unchanged; existing supported function-type set retained",
+    "strategy_thresholds_changed": false,
+    "compatibility_budget_rule": "Full structural/token/fee-mode compatibility validation occurs before a pool increments the prospective max_attempted_pools counter. Unsupported configurations are recorded separately and never consume the 48 economic-attempt budget."
+  },
+  "evidence_acquisition": {
+    "signature_census": "Paginate finalized getSignaturesForAddress up to 16 pages of 64 rows until a row at or before the authenticated start slot proves the lower boundary.",
+    "interval_transaction_bound": 16,
+    "replay_input": "All successful finalized transactions in (start_slot,end_slot] plus one finalized lower-bound witness; newer-than-end rows are scheduling noise.",
+    "strategy_thresholds_changed": false
+  },
+  "operational_repairs": {
+    "network_identity": {
+      "strategy_revision_changed": false,
+      "rule": "Prove Solana mainnet identity once per research run with up to 3 bounded session attempts; rotated sessions reuse that proof and do not independently call getGenesisHash."
+    },
+    "checkpointing": {
+      "strategy_revision_changed": false,
+      "rule": "Atomically checkpoint discovery classifications, compatibility rejections, candidate terminal states, qualification decisions, lifecycles, provider telemetry, and final state. Terminal process failures augment rather than replace the last checkpoint."
+    },
+    "prospective_runtime": {
+      "strategy_revision_changed": false,
+      "requested_window_seconds": 1200,
+      "rule": "Stop gracefully at the experiment deadline and preserve partial evidence; do not use a job cancellation as the experiment boundary."
+    },
+    "rpc_429_efficiency": {
+      "strategy_revision_changed": false,
+      "signature_polling": "One getSignaturesForAddress read per fresh-swap poll. The same response supplies both new-signature discovery and the finalized head cursor; the previous second head-only request is removed.",
+      "shared_backoff": "All bounded Alchemy RPC sessions share one adaptive 429 cooldown via the run-scoped pacer. Consecutive 429s increase cooldown up to 30 seconds; sustained successful transports decay the pressure level.",
+      "candidate_semantics": "HTTP 429 during signatures, transactions, fresh pool state, warmup reconstruction, or lifecycle evidence is transport pressure and is retried within bounded recovery/deadline rules. It is not an economic candidate rejection.",
+      "cursor_safety": "If transaction retrieval is rate-limited after signatures are discovered, the cursor is not advanced; those signatures are retried.",
+      "thresholds_changed": false
+    },
+    "rpc_429_recovery": {
+      "strategy_revision_changed": false,
+      "rule": "Fresh-swap polling uses one getSignaturesForAddress read per poll; the returned finalized head advances the non-swap cursor. A 429 during signature or transaction acquisition is transport pressure, not a candidate failure. All rotated Alchemy sessions share one adaptive cooldown state. A rate-limited getTransaction does not advance the cursor, so the exact signatures are retried.",
+      "shared_across_sessions": true,
+      "duplicate_signature_head_read_removed": true,
+      "candidate_failure_on_429": false,
+      "strategy_thresholds_changed": false
+    }
+  },
+  "execution_certification": {
+    "policy_hash": "ffdc8f510a4e099ea27d720ff1281c20e8e8562b24ae447078115635aa9a76f9",
+    "purpose": "prospective_natural_paper_profitability_validation_of_authenticated_local_fee_density_strategy",
+    "profitability_authority": true,
+    "paper_only": true,
+    "freshness_finality_unchanged": true,
+    "exact_warmup_seconds": 12,
+    "reference_profitability_policy_revision": "2.2-moderate-admission-exit-hysteresis-v1",
+    "machinery_proof_only": false,
+    "one_natural_settled_lifecycle_target": false,
+    "prior_execution_certification_revision": "1.9-machinery-proof-v2",
+    "authenticated_fee_density_threshold_pct": 4,
+    "core_hold_seconds": [
+      14400,
+      86400
+    ],
+    "default_supplied_width_bins": [
+      52,
+      100
+    ],
+    "strategy2_continuity_required": true,
+    "live_fee_density_metric": "authenticated_fee_density_24h_pct = 100 * range_fee_sol_lamports / range_liquidity_sol_lamports * 86400 / observed_seconds",
+    "policy_hash_definition": "sha256(canonical JSON of this artifact with execution_certification.policy_hash set to null)",
+    "core_hold_runtime_enforced": true,
+    "economic_collapse_confirmation_segments": 3,
+    "pre_core_hard_risk_exit_reasons": [
+      "range_boundary",
+      "inventory_imbalance",
+      "one_way_flow"
+    ]
+  }
+}

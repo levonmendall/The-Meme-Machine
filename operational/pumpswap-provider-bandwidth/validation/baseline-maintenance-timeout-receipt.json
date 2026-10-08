@@ -1,0 +1,14 @@
+{
+  "label": "baseline-maintenance-timeout",
+  "command": [
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-c",
+    "from operational.tests import network_guard;network_guard();import unittest;r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName('tests.test_production_maintenance_arbiter.ProductionServeTests.test_simultaneous_high_debt_and_three_scopes'));raise SystemExit(not r.wasSuccessful())"
+  ],
+  "cwd": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+  "exit_code": 0,
+  "wall_seconds": 6.44355381000787,
+  "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+  "scratch_path": "/tmp/mm-engineering-vt8pr0pf",
+  "scratch_retained": false
+}

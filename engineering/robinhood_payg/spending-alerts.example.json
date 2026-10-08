@@ -1,0 +1,32 @@
+{
+  "schema": "alchemy-observational-spending-alerts-v1",
+  "status": "OWNER_CONFIGURATION_TEMPLATE_NOT_INSTALLED",
+  "billing_settings_changed": false,
+  "notification_dispatch_enabled": false,
+  "apps": {"pons": "v5h0vqr0wpp9zscj", "pump": "9bin99s96t7ga5e9"},
+  "published_usd_per_million_cu": 0.525,
+  "exact_account_rate_requires_administrative_verification": true,
+  "owner_selectable_alerts": {
+    "actual_billed_cu_24h": null,
+    "actual_reported_usd_24h": null,
+    "projected_usd_30d": null,
+    "pons_subscription_delivered_bytes_per_hour": null,
+    "physical_http_attempts_per_hour": null,
+    "oldest_candidate_queue_wait_seconds": null,
+    "funded_position_maintenance_latency_seconds": null
+  },
+  "owner_selectable_provider_limits": {
+    "current_physical_rps": 2,
+    "reviewed_replacement_physical_rps": null,
+    "reviewed_method_weighted_throughput_cups": null,
+    "activation_requires_qualifying_combined_deadline_and_capacity_proof": true
+  },
+  "policy": {
+    "hard_spending_cutoff": null,
+    "ten_million_monthly_cu_is_acceptance_gate": false,
+    "funded_position_safety_can_be_interrupted_by_spending_alert": false,
+    "candidate_population_or_economic_evidence_can_be_reduced_by_alert": false,
+    "actual_billing_diagnostic_cu_and_bandwidth_estimates_are_separate": true
+  },
+  "integration": "Select thresholds after bounded workload measurement; wire local monitoring only in an authorized reconciled deployment. This template does not change Alchemy billing settings, dispatch messages or gate strategy work."
+}

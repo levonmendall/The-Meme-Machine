@@ -300,10 +300,33 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(self.get('positions/no-such-id')[0], 404)
 
     def test_encoded_canonical_position_identity(self):
-        self.accounting['positions'][-1]['id'] = 'epoch:pool:position'
-        self.accounting['positions'][-1]['strategy_id'] = 'profitability-v1/protection-v2'
+        self.accounting['positions'][-3]['id'] = 'epoch:pool:position'
+        self.accounting['positions'][-3]['strategy_id'] = 'profitability-v1/protection-v2'
         self.save()
         self.assertEqual(self.get('positions/epoch%3Apool%3Aposition')[0],200)
+
+    def test_dashboard_view_hides_inactive_lanes_but_preserves_ledger(self):
+        # Presentation does not change canonical portfolio or retired accounting.
+        original = self.reader.view()
+        self.assertEqual(set(original['lanes']), {'pump', 'pons', 'meteora', 'ramses'})
+        self.assertEqual(original['portfolio']['metrics']['equity']['value'], '512.34')
+        code, response = self.get('lanes')
+        self.assertEqual(code, 200)
+        self.assertEqual([lane['lane'] for lane in response['data']], ['pump', 'pons'])
+        self.assertEqual(self.get('lanes/meteora')[0], 404)
+        self.assertEqual(self.get('lanes/ramses')[0], 404)
+        self.assertEqual(self.get('equity?series=meteora')[0], 400)
+        self.assertEqual(self.get('trades?lane=ramses')[0], 400)
+        self.assertEqual(self.get('positions/fixture-open-meteora')[0], 404)
+        for route in ('portfolio', 'system', 'lanes', 'positions', 'trades', 'analytics'):
+            code, body = self.get(route)
+            self.assertEqual(code, 200)
+            self.assertNotIn('meteora', json.dumps(body).lower())
+            self.assertNotIn('ramses', json.dumps(body).lower())
+        for route in ('positions', 'trades'):
+            self.assertTrue(all(row['lane'] in ('pump', 'pons')
+                                for row in self.get(route)[1]['data']))
+        self.assertEqual(self.get('portfolio')[1]['data']['metrics']['equity']['value'], '512.34')
 
     def test_export_cannot_erase_previously_seen_settlement(self):
         self.view()

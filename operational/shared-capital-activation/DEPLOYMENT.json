@@ -1,0 +1,111 @@
+{
+  "deployed_commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "paper_service": "inactive",
+  "host": "ubuntu-gd-2vcpu-8gb-nyc1",
+  "vcpus": 2,
+  "memory_mib": 7941,
+  "volume": {
+    "mount_target": "/mnt/volume_nyc1_1790918115030",
+    "state_root": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1",
+    "filesystem_uuid": "0ce00d89-000b-4af1-960f-d5be400ff115",
+    "epoch_id": "paper-1791089005190643467",
+    "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+    "volume_device": "/dev/disk/by-id/scsi-0DO_Volume_volume-nyc1-1790918115030"
+  },
+  "configuration": {
+    "variable_names": [
+      "MM_MODE",
+      "MM_ROBINHOOD_READ_RPC_URL",
+      "MM_SOLANA_READ_RPC_URL",
+      "MM_STATE_ROOT"
+    ],
+    "provider_endpoints": {
+      "MM_SOLANA_READ_RPC_URL": {
+        "scheme": "https",
+        "hostname": "solana-mainnet.g.alchemy.com",
+        "port": null,
+        "identity_sha256": "19ed652fb76af7a4ffd17044ad021cc491bb73a323cfb6dda873c20088d65e53"
+      },
+      "MM_ROBINHOOD_READ_RPC_URL": {
+        "scheme": "https",
+        "hostname": "robinhood-mainnet.g.alchemy.com",
+        "port": null,
+        "identity_sha256": "c8fc1878917e36057802350b6bb1c9fcaa3cecadf23e4ea578ee96209173da0e"
+      }
+    },
+    "public_values": {
+      "MM_MODE": "PAPER",
+      "MM_STATE_ROOT": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1"
+    },
+    "file_metadata": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o600",
+      "mtime_ns": 1791088948352164138
+    }
+  },
+  "accounting": {
+    "epoch_id": "paper-1791089005190643467",
+    "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+    "sequence": 2036,
+    "journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
+    "reconciliation": "PASS",
+    "checks": {
+      "lane_realized_less_shared_costs": true,
+      "remaining_basis": true,
+      "cash_basis_conservation": true,
+      "cost_attribution": true
+    },
+    "replayed_sha256": "682cadd084dae4b288d1972e5e1d23c9e5b6026bd1d165442a239f6af9570563",
+    "pending_deliveries": [],
+    "native_ids": [],
+    "sleeves": [
+      [
+        "meteora",
+        "125.00"
+      ],
+      [
+        "pons",
+        "125.00"
+      ],
+      [
+        "pump",
+        "125.00"
+      ],
+      [
+        "ramses",
+        "125.00"
+      ]
+    ]
+  },
+  "backup": {
+    "epoch_id": "paper-1791089005190643467",
+    "files": 47,
+    "sqlite_databases": 17,
+    "directory": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/preserved-backup"
+  },
+  "verified_copy": {
+    "passed": true,
+    "epoch_id": "paper-1791089005190643467",
+    "files": 47,
+    "reconciliation": "PASS"
+  },
+  "replay": {
+    "passed": true,
+    "epoch_id": "paper-1791089005190643467",
+    "reconciliation": "PASS",
+    "replay_idempotent": true,
+    "single_writer_fencing": true
+  },
+  "off_host_independent_verification": "NOT_RUN",
+  "paused_native_obligation_proof": {
+    "ramses": {
+      "economic_obligations": 0,
+      "native_state_verified": true
+    },
+    "meteora": {
+      "economic_obligations": 0,
+      "native_state_verified": true
+    }
+  }
+}

@@ -1,0 +1,11 @@
+opportunity publication failed: IntegrityError
+opportunity schema unavailable: RuntimeError
+opportunity schema unavailable: RuntimeError
+opportunity publication failed: ValueError
+health publication failed: OSError
+health publication failed: OSError
+168-hour held-pin soak: records peak 2 hot bytes 2419616 2460576 unreferenced raw archives 0
+checkpoint-handoff-growth-proof {'baseline_wal_bytes': [341992, 659232, 992952, 1318432, 1656272, 1985872, 2327832, 2657432], 'repaired_wal_bytes': [0, 0, 0, 0, 0, 0, 0, 0], 'records': 272}
+Survivor economic churn: 12 windows, 96 settlements; hot bytes [114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688]
+168-window Survivor prefix component: marks 33600 hot bytes 229376 229376 preserved snapshots 168
+168-hour sleeve component: observations 33600 hot bytes 225280 225280 preserved snapshots 168

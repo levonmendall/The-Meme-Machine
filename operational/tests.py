@@ -1,0 +1,230 @@
+"""FAST / OPERATIONAL deterministic suites. No market providers or real epoch."""
+import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
+
+FAST=[
+ 'tests.test_final_acquisition',
+ 'tests.test_robinhood_payg',
+ 'tests.test_pump_pons_proof',
+ 'tests.test_robinhood_scout',
+ 'tests.test_forward_survivor',
+ 'tests.test_pons_capability_executor',
+ 'tests.test_pons_historical',
+ 'tests.test_provider_efficiency',
+ 'tests.test_pump_pons_consolidation','tests.test_pump_pons_capital_preparation',
+ 'tests.test_shared_capital', 'tests.test_shared_capital_concurrency',
+ 'tests.test_shared_capital_recovery', 'tests.test_shared_capital_migration',
+ 'tests.test_shared_capital_strategy', 'tests.test_shared_capital_performance',
+ 'tests.test_shared_capital_economics',
+ 'tests.test_canonical_money',
+ 'tests.test_learning_retention','tests.test_startup_storage','tests.test_native_genesis_wait','tests.test_operational_configuration','tests.test_storage_measurement',
+ 'tests.test_operational_uptime_health',
+ 'tests.test_engineering_artifact_storage',
+ 'tests.test_operational_ramses_pause',
+ 'tests.test_operational_backup','tests.test_operational_observation','tests.test_durable_acceptance','tests.test_operational_monitoring','tests.test_operational_acceptance','tests.test_operational_metrics',
+ 'tests.test_operational_storage_guard',
+ 'tests.test_operational_capacity_repairs','tests.test_runtime_evidence_thread_ownership','tests.test_candidate_history','tests.test_solana_reconstruction_gate','tests.test_solana_selective_evidence','tests.test_solana_source_intake.SourceIntakeTests',
+ 'tests.test_solana_closure','tests.test_solana_shared_capacity','tests.test_solana_rolling_prewarm','tests.test_solana_prewarm_startup',
+ 'tests.test_operational_nine','tests.test_operational_portfolio',
+ 'tests.test_robinhood_usd_valuation','tests.test_native_valuation_completion',
+ 'tests.test_opportunity_telemetry','tests.test_opportunity_retention','tests.test_pons_ongoing_scale','tests.test_strategic_reference','tests.test_strategy_observability_runtime','tests.test_current_survivor_independence',
+ 'tests.test_portfolio_accounting','tests.test_portfolio_lane_integration',
+ 'tests.test_provider_retry','tests.test_provider_usage_wal_race','tests.test_runtime_wal_races','tests.test_robinhood_archive_snapshot','tests.test_lifecycle_snapshot_connection','tests.test_pump_restart_connection','tests.test_pons_recovery_connection','tests.test_pons_capital_recovery_snapshot','tests.test_sleeve_reconciliation_snapshot','tests.test_pipeline_retention_boundary','tests.test_optional_capability_shapes','tests.test_prefetch_governor_readonly',
+ 'tests.lanes.pump.test_pump_acceleration_strategy','tests.lanes.pump.test_pump_acceleration_paper',
+ 'tests.lanes.pump.test_pumpswap_survivor','tests.lanes.pump.test_paper_accounting',
+ 'tests.lanes.meteora.test_solana_dlmm_independent_v1','tests.test_meteora_discovery_scheduler',
+ 'tests.lanes.pons.test_pons_selective_continuation','tests.lanes.pons.test_pons_partial_accounting',
+ 'tests.lanes.pons.test_pons_postgrad_survivor','tests.lanes.pons.test_pons_finalization',
+ 'tests.lanes.ramses.test_ramses_strategy','tests.lanes.ramses.test_ramses_capital_replay',
+]
+OPERATIONAL=FAST+[
+ 'tests.test_workload_efficiency',
+ 'tests.test_solana_source_intake.LiveIntakeBoundaryTests',
+ 'tests.test_operational_supervisor','tests.test_operational_storage',
+ 'tests.test_operational_dashboard','tests.test_portfolio_snapshot_transport',
+ 'tests.lanes.pons.test_pons_current_recovery','tests.lanes.pons.test_pons_position_provider_recovery',
+ 'tests.test_work_admission','tests.test_m1_maintenance_completion',
+ 'tests.test_housekeeping_integration','tests.test_production_maintenance_arbiter',
+ 'tests.test_maintenance_batch_fairness','tests.test_maintenance_integrity',
+ 'tests.test_maintenance_overlap',
+ 'tests.test_run376_dispatch_pressure', 'tests.test_run381_subscription_progress',
+ 'tests.test_meteora_host_fee','tests.test_meteora_discovery_scheduler','tests.test_meteora_safe_token2022','tests.test_meteora_missing_fee_context','tests.test_meteora_mint_supply','tests.test_meteora_evidence_recovery_isolated','tests.test_meteora_market_scope_efficiency',
+ 'tests.test_meteora_tape',
+ 'tests.test_meteora_bin_array_neutral','tests.test_meteora_pool_neutral',
+ 'tests.test_run377_persistence', 'tests.test_run380_atomic_frame', 'tests.test_run380_production_pressure',
+ 'tests.test_run379_transport_backpressure','tests.test_run381_archive_scheduling',
+ 'tests.test_dispatch_throughput','tests.test_run372_large_frame_runtime',
+ 'tests.test_source_address_batching','tests.test_retention_outcomes','tests.test_retention_progress',
+ 'tests.test_orphan_schema_compatibility','tests.test_survivor_bounded_drain','tests.test_ramses_census_connection',
+ 'tests.lanes.ramses.test_ramses_dynamic_event_capacity','tests.lanes.ramses.test_ramses_scan_capacity_recovery',
+ 'tests.test_solana_evidence_plane','tests.test_solana_evidence_broker',
+ 'tests.test_solana_read_rpc', 'tests.test_solana_retained_raw', 'tests.test_solana_retention_working_set', 'tests.test_run381_repair_pagination',
+ 'tests.test_archive_pipeline','tests.test_coordinated_database','tests.test_evidence_interest_checkpoint',
+ 'tests.test_solana_checkpoint_owner', 'tests.test_checkpoint_handoff', 'tests.test_run381_archive_canonical', 'tests.test_retention_access_path',
+ 'tests.test_solana_health_atomicity', 'tests.test_run379_control_pressure', 'tests.test_solana_evidence_transport', 'tests.test_solana_evidence_retention',
+ 'tests.test_solana_evidence_queries','tests.test_solana_evidence_fences','tests.test_run369_runtime',
+ 'tests.test_run370_storage','tests.test_provider_partial_batch_retry','tests.test_concentration_reader',
+ 'tests.test_runtime_resource_contract','tests.test_ramses_source_attribution',
+ 'tests.test_durable_publication','tests.test_report_publisher_isolation',
+ 'tests.lanes.pump.test_broker_startup_wal',
+ 'tests.lanes.pump.test_default_signature_admission',
+ 'tests.lanes.pump.test_local_admission_retry',
+ 'tests.lanes.pump.test_pump_finalized_log_authority',
+ 'tests.lanes.pump.test_solana_immutable_efficiency',
+ 'tests.lanes.pump.test_stream_negative_admission',
+ 'tests.lanes.pump.test_stream_payload_retention',
+ 'tests.lanes.pons.test_confirmed_finality','tests.lanes.pons.test_immutable_rpc',
+ 'tests.lanes.pons.test_provider','tests.lanes.pons.test_provider_admission',
+ 'tests.lanes.pons.test_public_log_429_adaptive',
+ 'tests.lanes.pons.test_rpc_log_timestamp_metadata',
+ 'tests.lanes.pons.test_sequencer_feed','tests.lanes.pons.test_shared_position_fairness',
+ 'tests.lanes.pons.test_view_batch','tests.lanes.pons.test_evidence_queue',
+ 'tests.lanes.meteora.test_dlmm_alchemy_provider',
+ 'tests.lanes.meteora.test_solana_immutable_efficiency',
+ 'tests.lanes.pump.test_pump_durable_strategy_recovery',
+ 'tests.lanes.pump.test_pump_acceleration_history',
+ 'tests.lanes.pump.test_pumpswap_survivor_evidence',
+ 'tests.lanes.pump.test_pump_evidence_classification',
+ 'tests.lanes.pump.test_pump_continuous_campaign',
+ 'tests.lanes.pump.test_pump_campaign_tail_drain',
+ 'tests.lanes.pump.test_pump_shared_survivor',
+ 'tests.lanes.pons.test_pons_entry_confirmation_ordering',
+ 'tests.lanes.pons.test_pons_evidence_reconstruction_semantics',
+ 'tests.lanes.pons.test_pons_execution_acquisition',
+ 'tests.lanes.pons.test_pons_factory_hint_reuse',
+ 'tests.lanes.pons.test_pons_market_scope_efficiency',
+ 'tests.lanes.pons.test_pons_capacity_persistence',
+ 'tests.lanes.pons.test_pons_selective_independence',
+ 'tests.lanes.pons.test_pons_shared_survivor',
+ 'tests.lanes.pons.test_run377_survivor_provider',
+ 'tests.lanes.pons.test_run379_survivor_graduation',
+ 'tests.lanes.pons.test_candidate_authentication_deadline',
+ 'tests.lanes.pons.test_coverage_acquisition',
+ 'tests.lanes.pons.test_discovery_capacity',
+ 'tests.lanes.pons.test_discovery_range_batching',
+ 'tests.lanes.pons.test_natural_paper_harness',
+ 'tests.lanes.pons.test_opportunity_coverage',
+ 'tests.lanes.pons.test_pons_cohort_capital',
+ 'tests.lanes.pons.test_pons_continuous_campaign',
+ 'tests.lanes.pons.test_pons_natural_observation',
+ 'tests.lanes.pons.test_pons_writeoff_proof',
+ 'tests.lanes.pons.test_position_sessions',
+ 'tests.lanes.pons.test_run369_accounting',
+ 'tests.lanes.pons.test_selective_block_cache',
+ 'tests.lanes.pons.test_strategy_prospect_admission',
+ 'tests.lanes.pons.test_native_pons',
+ 'tests.lanes.pons.test_captured_pons_lineage',
+ 'tests.lanes.pons.test_captured',
+ 'tests.lanes.pump.test_pump_acceleration_confirmations','tests.lanes.pump.test_pump_acceleration_evidence',
+ 'tests.lanes.pump.test_pump_supply_boundaries',
+ 'tests.lanes.pump.test_captured','tests.lanes.pump.test_postgrad_captured','tests.lanes.pump.test_pump_acceleration_stream_extensions',
+ 'tests.lanes.pump.test_postgrad',
+ 'tests.lanes.pump.test_directional_capacity',
+ 'tests.lanes.pump.test_evidence_attribution',
+ 'tests.lanes.pump.test_evidence_consumers',
+ 'tests.lanes.pump.test_evidence_plane_publication',
+ 'tests.lanes.pump.test_evidence_runtime_cutover',
+ 'tests.lanes.pump.test_market_scope_efficiency',
+ 'tests.lanes.pump.test_opportunity_coverage',
+ 'tests.lanes.pump.test_pump_acceleration_natural_harness',
+ 'tests.lanes.pump.test_run369_liveness',
+ 'tests.lanes.pump.test_run370_pump_progression',
+ 'tests.lanes.pump.test_strategy_prospect_admission',
+ 'tests.lanes.pump.test_solana_evidence_broker',
+ 'tests.lanes.pump.test_solana_read_rpc',
+ 'tests.test_directional_accounting',
+ 'tests.test_directional_execution_capacity',
+ 'tests.test_governor_method_pressure',
+ 'tests.test_reserved_evidence_priority',
+ 'tests.test_robinhood_plane',
+ 'tests.test_survivor_archive_bounds',
+ 'tests.test_survivor_commit',
+ 'tests.test_survivor_history',
+ 'tests.test_survivor_risk_boundaries',
+ 'tests.test_pons_native_retirement',
+ 'tests.test_survivor_terminal_retirement','tests.test_survivor_prefix_recovery',
+ 'tests.test_sleeve_prefix_recovery','tests.lanes.pump.test_pump_smoke_tail',
+ 'tests.test_native_continuity','tests.test_native_ramses_recovery',
+ 'tests.test_native_pump_continuation','tests.test_native_ramses_long_horizon',
+ 'tests.test_native_terminal_prefix',
+ 'tests.test_native_crash_recovery','tests.lanes.pons.test_protocol_foundation',
+ 'tests.lanes.pons.test_protocol_identity',
+ 'tests.lanes.ramses.test_native_ramses','tests.lanes.ramses.test_pons_natural_observation',
+ 'tests.lanes.ramses.test_provider_topology','tests.lanes.ramses.test_ramses_active_wide_maker',
+ 'tests.lanes.ramses.test_ramses_candidate_plane','tests.lanes.ramses.test_ramses_census_budget_regression',
+ 'tests.lanes.ramses.test_ramses_census_provider_defer','tests.lanes.ramses.test_ramses_connected_lifecycle',
+ 'tests.lanes.ramses.test_ramses_continuous_campaign','tests.lanes.ramses.test_ramses_costs',
+ 'tests.lanes.ramses.test_ramses_evidence_coverage','tests.lanes.ramses.test_ramses_extended_market',
+ 'tests.lanes.ramses.test_ramses_finalized_frontier_monotonicity','tests.lanes.ramses.test_ramses_lifecycle_log_census',
+ 'tests.lanes.ramses.test_ramses_market_scope_efficiency','tests.lanes.ramses.test_ramses_preentry_metadata',
+ 'tests.lanes.ramses.test_ramses_rate_limit','tests.lanes.ramses.test_ramses_state_budget',
+ 'tests.lanes.ramses.test_ramses_strategy_isolation','tests.lanes.ramses.test_ramses_universe',
+ 'tests.lanes.ramses.test_ramses_viability_v4_replay','tests.lanes.ramses.test_run377_rpc_state',
+ 'tests.lanes.ramses.test_sequencer_feed','tests.lanes.ramses.test_shared_position_fairness',
+ 'tests.lanes.pons.test_provider_topology','tests.lanes.pons.test_pons_candidate_plane',
+ 'dashboard.tests.test_dashboard','dashboard.tests.test_server_security',
+]
+
+def network_guard():
+    original=socket.socket.connect
+    def connect(sock,address):
+        if sock.family==socket.AF_UNIX:return original(sock,address)
+        try:local=ipaddress.ip_address(address[0]).is_loopback
+        except (ValueError,TypeError):local=False
+        if not local:raise RuntimeError('market I/O forbidden in repository tests')
+        return original(sock,address)
+    socket.socket.connect=connect
+    socket.socket.connect_ex=lambda sock,address:(connect(sock,address) or 0)
+    original_urlopen=urllib.request.urlopen
+    def urlopen(request,*args,**kwargs):
+        from urllib.parse import urlsplit
+        url=request.full_url if hasattr(request,'full_url') else request
+        if urlsplit(url).hostname not in ('127.0.0.1','::1','localhost'):raise RuntimeError('market HTTP forbidden in repository tests')
+        return original_urlopen(request,*args,**kwargs)
+    urllib.request.urlopen=urlopen
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('level',choices=('FAST','OPERATIONAL'))
+    parser.add_argument('--modules',nargs='+',help='Run selected modules from the chosen offline suite')
+    parser.add_argument('--cases',nargs='+',help='Run exact cases within modules of the chosen offline suite')
+    parser.add_argument('--verbose',action='store_true',help='Print test names, including the last test before a worker interruption')
+    parser.add_argument('--worker',action='store_true',help=argparse.SUPPRESS)
+    args=parser.parse_args();network_guard()
+    modules=FAST if args.level=='FAST' else OPERATIONAL
+    if args.modules:
+        if any(name not in modules for name in args.modules):parser.error('module is outside the selected offline suite')
+        modules=args.modules
+    if args.cases:
+        if any(not any(name.startswith(module+'.') for module in modules) for name in args.cases):
+            parser.error('case is outside the selected offline suite')
+        modules=args.cases
+    if args.worker:
+        suite=unittest.defaultTestLoader.loadTestsFromNames(modules)
+        result=unittest.TextTestRunner(verbosity=2 if args.verbose else 1).run(suite)
+        return 0 if result.wasSuccessful() else 1
+    from meme_machine.operational.artifact_storage import Scratch,ArtifactStorageFull
+    try:
+        with Scratch() as scratch:
+            # Supervise just this offline process group; native PAPER services
+            # and other engineering jobs are outside it. Check during a single
+            # long test too, rather than allowing it to fill disk until return.
+            command=[sys.executable,'-m','operational.tests',args.level,'--worker']
+            if args.modules:command+=['--modules',*args.modules]
+            if args.cases:command+=['--cases',*args.cases]
+            if args.verbose:command+=['--verbose']
+            child=subprocess.Popen(command,start_new_session=True)
+            try:
+                while child.poll() is None:
+                    scratch.check();time.sleep(.25)
+                scratch.check();scratch.success=child.returncode==0
+                return child.returncode
+            finally:
+                if child.poll() is None:
+                    os.killpg(child.pid,signal.SIGTERM)
+                    try:child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid,signal.SIGKILL);child.wait(timeout=5)
+    except ArtifactStorageFull as error:
+        print('Offline suite stopped: '+str(error),file=sys.stderr)
+        return 1
+if __name__=='__main__':raise SystemExit(main())

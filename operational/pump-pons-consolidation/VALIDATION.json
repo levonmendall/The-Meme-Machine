@@ -1,0 +1,151 @@
+{
+  "baseline_commit": "9f08f0db68fd3161c84bb955800db9a200a70f77",
+  "frozen_files_sha256": {
+    "meme_machine/lanes/meteora/SOLANA_DLMM_INDEPENDENT_V1.json": "ff46c453c3557bf3d45cf833bf4177a2a4c53e4e6e8289de188b5382babec9e9",
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
+    "meme_machine/lanes/pons/pons_selective_continuation.py": "aec2863ebb5b89c0bfeb923ddffbb68e6bc992d2c477205b6df482c4459bb183",
+    "meme_machine/lanes/pump/pump_acceleration_strategy.py": "647445ade5a79acbccc7ec56d47d322abc3c0f8622ff8a40b8af4f291cee33d5",
+    "meme_machine/lanes/pump/pumpswap_survivor.py": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad",
+    "tests/test_operational_nine.py": "efb40e9557d138624d67a24aecd1c21e58b6728f1c670a2981d04cf153728c09"
+  },
+  "market_provider_runs": 0,
+  "missing_fast_failure_identities": [],
+  "new_fast_failure_identities": [],
+  "paper_only": true,
+  "phase_executed": {
+    "AUTONOMY": false,
+    "CAPACITY": false,
+    "RECOVERY": false
+  },
+  "phase_status": {
+    "AUTONOMY": "BLOCKED",
+    "CAPACITY": "BLOCKED",
+    "RECOVERY": "BLOCKED"
+  },
+  "policy_hashes": {
+    "pons_current": "888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f",
+    "pons_survivor": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f"
+  },
+  "pons_validated_commit": "f6f21a3d10e1e3460122ffb8db016e929ffa5b44",
+  "python": "3.12.14",
+  "sqlite": "3.53.1",
+  "suites": {
+    "baseline-FAST": {
+      "errors": [
+        "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)",
+        "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+      ],
+      "failures": [
+        "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)",
+        "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)",
+        "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)",
+        "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)",
+        "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)",
+        "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)",
+        "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)",
+        "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)",
+        "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)",
+        "test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged)"
+      ],
+      "log_sha256": "28b7d5d041d7f7e6be53e50ba962e76c599ba281a21ef6e1b6f51e5c96e608b5",
+      "seconds": 11.625,
+      "skipped": 0,
+      "tests": 499
+    },
+    "final-affected-operational": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "1fa5d1055fa7b361150689c093a5c908938122dcfb58007f025fb8c041f88fe5",
+      "seconds": 55.912,
+      "skipped": 6,
+      "tests": 197
+    },
+    "final-observation-boundary": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "2796f212decc6850b0b150f3e306f766794c0aab60ddbb907a65af065c79f83c",
+      "seconds": 11.026,
+      "skipped": 0,
+      "tests": 84
+    },
+    "final-pause-cases": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "a4645f1ba702e239abd535fd8963268b8adefef8718babb492bfd76e84d5e77e",
+      "seconds": 0.979,
+      "skipped": 0,
+      "tests": 39
+    },
+    "isolation-integrity": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "11ea888d7dfa770eec5545a7d369db41ff9ecdcf1c2821c817acaf5caab17d74",
+      "seconds": 14.358,
+      "skipped": 0,
+      "tests": 125
+    },
+    "pons-targeted": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "9608e60337dffaf277378bd7681cde799805b585d6b70e0cc5aa6bd6e78a07d7",
+      "seconds": 45.611,
+      "skipped": 0,
+      "tests": 111
+    },
+    "provider-admission": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "068a20b539776a8de48502c064782277437446e2650eecea7eaee1b32c8394bd",
+      "seconds": 0.117,
+      "skipped": 0,
+      "tests": 36
+    },
+    "verified-FAST": {
+      "errors": [
+        "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)",
+        "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)"
+      ],
+      "failures": [
+        "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)",
+        "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)",
+        "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)",
+        "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)",
+        "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)",
+        "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)",
+        "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)",
+        "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)",
+        "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)",
+        "test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged)"
+      ],
+      "log_sha256": "6bdd2fab4470cbc828190edfc15476cea0aebea3981b1fda0cb2475fbde8c372",
+      "seconds": 99.697,
+      "skipped": 0,
+      "tests": 813
+    },
+    "verified-candidate-boundary": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "8ad19da1526826579bbb6a2624deb0911de533198ae736d0ce6c21bb5dbc538e",
+      "seconds": 2.946,
+      "skipped": 0,
+      "tests": 101
+    },
+    "verified-health-boundary": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "fa814af12dcc4adb43defe993b053bf1c9cab058e1c3551c9e04bd82a8debc2b",
+      "seconds": 9.694,
+      "skipped": 0,
+      "tests": 67
+    },
+    "verified-maintenance": {
+      "errors": [],
+      "failures": [],
+      "log_sha256": "b5d2a0c9b706df29ce2ddd3cb15e77c7259caeeadaa4e96846eb0938e12c0d97",
+      "seconds": 49.414,
+      "skipped": 1,
+      "tests": 163
+    }
+  },
+  "validation_order_note": "Final 813-test FAST was followed by 67 health-boundary tests and 101 candidate-boundary tests for the last shared-process and live queue telemetry changes; no additional full FAST repetition."
+}

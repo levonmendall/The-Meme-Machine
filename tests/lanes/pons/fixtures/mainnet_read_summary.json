@@ -1,0 +1,78 @@
+{
+  "chain_id": 4663,
+  "code_presence": {
+    "pons_v1_active_factory": {
+      "address": "0xa5aab3f0c6eeadf30ef1d3eb997108e976351feb",
+      "bytecode_sha256": "834a3a3f3c5a7ca4db3be3ca96f34c99cab44e01822aef04ea9d7104a2159507",
+      "present": true
+    },
+    "pons_v1_legacy_factory": {
+      "address": "0x0c37a24f5d23a486fa692d1500881d698b1f77a4",
+      "bytecode_sha256": "14b71e90f60199f312e6a794b6d0533c7f6a5340be212d2a1014db8ead694522",
+      "present": true
+    },
+    "pons_v2_factory": {
+      "address": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+      "bytecode_sha256": "226a042e6d68a69a6038d4fda211925b03eb5299399434b87a7877f79f6e3848",
+      "present": true
+    },
+    "pons_v2_hook": {
+      "address": "0xe5e702641ea86f4ae6cc3cdaed2b886f976be044",
+      "bytecode_sha256": "dc18643fcd12fa11efe76c23b212f54417779d65b4351fdb354e56a744a3a1b6",
+      "present": true
+    },
+    "uniswap_v3_factory": {
+      "address": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+      "bytecode_sha256": "6c41051606215dd79309b298d5395b8e4e4acb155516920b52051c230ee125cf",
+      "present": true
+    },
+    "uniswap_v4_pool_manager": {
+      "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+      "bytecode_sha256": "6eb21c69298b064e37fcf8089a941ae096fe08c0f179b2d399567aef1b10585b",
+      "present": true
+    }
+  },
+  "dlmm_observations": 0,
+  "ended_at": 1789747093,
+  "finalized": {
+    "hash": "0x5ba483d7fd06f1f3780fe717f239171814904cd46d9732ea8460553087dc1107",
+    "number": "0x3f44a85",
+    "timestamp": "0x6aad5c3b"
+  },
+  "historical_code_available": true,
+  "historical_eth_call": true,
+  "kind": "natural_mainnet_read_probe",
+  "latest": {
+    "hash": "0xca63ae997e1a923ffe49c9c406f2c26bc500947f5dd273e0f9770c8659dcd3db",
+    "number": "0x3f46bac",
+    "timestamp": "0x6aad5f8d"
+  },
+  "log_window": {
+    "count": 39,
+    "end": 66341509,
+    "start": 66341500
+  },
+  "natural_candidates": 0,
+  "next_boundary": "verify_protocol_ABIs_and_decode_natural_launch_lineage",
+  "paper_lifecycles": 0,
+  "protocol_identity_verified": false,
+  "provider": {
+    "failures": {},
+    "requests": 15,
+    "scopes": {
+      "connectivity": 3,
+      "discovery": 10,
+      "history": 2
+    }
+  },
+  "receipts_verified": 3,
+  "started_at": 1789747085,
+  "status": "read_capabilities_observed",
+  "capture_provenance": {
+    "run_id": 35365593031,
+    "sha": "80d1c00e9dbd34c9b159fd0e72b90f90de40ef8f",
+    "job_id": 105667197735,
+    "artifact_id": 10556455600,
+    "note": "Summary recovered from GitHub job log. Full raw logs remain in Actions artifact; not included here."
+  }
+}

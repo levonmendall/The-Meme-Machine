@@ -1,2 +1,0 @@
-No-behavior-change trigger for the repaired PR #11 market-native active paper lifecycle proof.
-Frozen continuation-v1; paper-only; no merge or deployment authorized.

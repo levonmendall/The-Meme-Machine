@@ -1,0 +1,38 @@
+{
+  "historical_source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "suite": "OPERATIONAL",
+  "validation": {
+    "tests": 17,
+    "result": "PASS",
+    "seconds": 5.957
+  },
+  "adaptation": "Only import tests.test_run381_retention_progress renamed to retained tests.test_retention_progress; test_stagee21_retention_access_path.py renamed test_retention_access_path.py. Assertions unchanged; no certification harness restored.",
+  "files": [
+    {
+      "historical_path": "tests/test_solana_checkpoint_owner.py",
+      "current_path": "tests/test_solana_checkpoint_owner.py",
+      "historical_sha256": "c52fd5d5e5c02e2c6bd9bc443de115abd0899771f6866523f6db4a981d62e5fa",
+      "current_sha256": "96406b34119b3775569cf883239440969478d09592bdfe8c9f5b5480f61b629e"
+    },
+    {
+      "historical_path": "tests/test_checkpoint_handoff.py",
+      "current_path": "tests/test_checkpoint_handoff.py",
+      "historical_sha256": "f9e1c06ed23da96b2fa6a4f485ebf73759048b5b08cacd70e825a4bab07dd655",
+      "current_sha256": "731d9965790775af62437e65cda83d518da6f3116eccca22704ba6e7c72946d9"
+    },
+    {
+      "historical_path": "tests/test_run381_archive_canonical.py",
+      "current_path": "tests/test_run381_archive_canonical.py",
+      "historical_sha256": "afc81b3de2ef596e2b6c625202158b455b650b3e2745b973d0e60de666d29d9d",
+      "current_sha256": "b220b141d50976824bf97aa4f6c93c370d840788607f9cb8affe4bdc5840f03e"
+    },
+    {
+      "historical_path": "tests/test_stagee21_retention_access_path.py",
+      "current_path": "tests/test_retention_access_path.py",
+      "historical_sha256": "88a002e59c733bec315372d19d4d0047f3dfe789a03388726294757ea52ab208",
+      "current_sha256": "0d0959d297fe596ad95f6cfdeba42d5714d98fa5380755fca93087494df8dc43"
+    }
+  ],
+  "state_compatibility": "Disposable SQLite tests only. No runtime/schema/epoch/journal changes.",
+  "obligations": "Durable source WAL without redundant owner checkpoints; cancellation safely joins checkpoint handoff; exact canonical archive bytes and chunk lookalikes; bounded indexed retention and interruption rollback."
+}

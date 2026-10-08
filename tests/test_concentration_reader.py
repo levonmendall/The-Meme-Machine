@@ -137,5 +137,22 @@ class ConcentrationReaderTests(unittest.TestCase):
             reader.read(snap['mint'],snap)
 
 
+
+class PumpConcentrationReaderTests(ConcentrationReaderTests):
+    def setUp(self):
+        from unittest.mock import patch
+        from meme_machine.lanes.pump import concentration,provider
+        for name,value in [('ConcentrationReader',concentration.ConcentrationReader),
+                           ('ProgramScanRPC',concentration.ProgramScanRPC),('RPC',provider.RPC)]:
+            change=patch(__name__+'.'+name,value);change.start();self.addCleanup(change.stop)
+
+class MeteoraConcentrationReaderTests(ConcentrationReaderTests):
+    def setUp(self):
+        from unittest.mock import patch
+        from meme_machine.lanes.meteora import concentration,provider
+        for name,value in [('ConcentrationReader',concentration.ConcentrationReader),
+                           ('ProgramScanRPC',concentration.ProgramScanRPC),('RPC',provider.RPC)]:
+            change=patch(__name__+'.'+name,value);change.start();self.addCleanup(change.stop)
+
 if __name__=='__main__':
     unittest.main()

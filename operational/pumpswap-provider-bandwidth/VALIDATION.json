@@ -1,0 +1,506 @@
+{
+  "concurrently_published_maintenance": {
+    "commit": "481bd11e918cda9c5de624a619f44688dc97fefb",
+    "path": "operational/forward-survivor/VALIDATION.json",
+    "source_hashes_match": {
+      "meme_machine/solana_evidence_control.py": true,
+      "meme_machine/solana_evidence_plane.py": true,
+      "meme_machine/solana_evidence_service.py": true,
+      "meme_machine/solana_maintenance_arbiter.py": true,
+      "meme_machine/solana_maintenance_runtime.py": true,
+      "meme_machine/solana_owner_admission.py": true,
+      "meme_machine/solana_selective_history.py": true,
+      "meme_machine/solana_selective_source.py": true,
+      "tests/evidence_ipc_harness.py": true,
+      "tests/maintenance_production_harness.py": true,
+      "tests/test_production_maintenance_arbiter.py": true,
+      "tests/test_run381_archive_scheduling.py": true
+    }
+  },
+  "failure_disposition": {
+    "archived_model_a_ipc": "BOTH_ERRORS_REPRODUCED_ON_UNTOUCHED_REFERENCE",
+    "generation": "SUITE_ONLY_UNRESOLVED; isolated and full-module comparisons plus 20 diagnostic repetitions per branch pass",
+    "maintenance_timeout": "12s harness wait; isolated both pass; same unchanged-source timeout independently published on Pons branch; cause not certified",
+    "source_freeze": "REPRODUCED_ON_UNTOUCHED_REFERENCE"
+  },
+  "final_engineering_tests_green": true,
+  "full_suites_green": false,
+  "market_provider_calls": 0,
+  "nonlocal_network_guard": true,
+  "production_files_changed": 0,
+  "production_state_opened_for_write": false,
+  "python": "CPython 3.12.14",
+  "resource_limitations": [
+    "time -v RSS is largest process, not peak process-group RSS.",
+    "Filesystem outputs are cumulative 512-byte units, not permanent durable growth.",
+    "Serial profiling does not reproduce provider scheduling or certify original live deadlines.",
+    "Native connection pressure and actual invoice are not measured by OS socket counters."
+  ],
+  "runs": {
+    "FAST": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-m",
+        "operational.tests",
+        "FAST"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "errors": 0,
+      "exit_code": 1,
+      "failures": 1,
+      "label": "FAST",
+      "log": "validation/FAST.log",
+      "log_sha256": "28cbde9e8097f8eda28a9aa3151267f96aa07162c9cac7e95db438e69dcc7a2a",
+      "resource_receipt": "validation/FAST-resources.txt",
+      "resource_sha256": "71fcff355b5b8cad59116c024a5af09be37042b86af7e9203a11e01def7b2621",
+      "resources": {
+        "filesystem_output_512_byte_units": 7094488.0,
+        "maximum_process_rss_kib": 228756.0,
+        "system_cpu_seconds": 33.3,
+        "user_cpu_seconds": 209.35
+      },
+      "scratch_path": "/tmp/mm-engineering-pa81c1hk",
+      "scratch_retained": true,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/FAST-receipt.json",
+      "supervisor_receipt_sha256": "01ae316dc2973d4279198188bcbb1e8908199627e014e6578a3cb2c2f383f390",
+      "test_seconds": 284.729,
+      "tests": 856,
+      "wall_seconds": 286.68152282200754
+    },
+    "OPERATIONAL": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-m",
+        "operational.tests",
+        "OPERATIONAL"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "errors": 2,
+      "exit_code": 1,
+      "failures": 2,
+      "label": "OPERATIONAL",
+      "log": "validation/OPERATIONAL.log",
+      "log_sha256": "30c273d6a083dd009a0dbc65c123c1e1f577670103a41c945ff5d5caf94c67c9",
+      "resource_receipt": "validation/OPERATIONAL-resources.txt",
+      "resource_sha256": "20d9a70da9036f3c1f39bf6d17a3b2918374d400b7a271957d0493976058ce0e",
+      "resources": {
+        "filesystem_output_512_byte_units": 19898232.0,
+        "maximum_process_rss_kib": 235928.0,
+        "system_cpu_seconds": 61.35,
+        "user_cpu_seconds": 485.63
+      },
+      "scratch_path": "/tmp/mm-engineering-en7azs1t",
+      "scratch_retained": true,
+      "skipped": 33,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/OPERATIONAL-receipt.json",
+      "supervisor_receipt_sha256": "764e534196cc2f54185c900f8d2ece434ac9f41ac6bb3f1ae2ba91af187ef9cf",
+      "test_seconds": 702.899,
+      "tests": 2276,
+      "wall_seconds": 705.0678928360576
+    },
+    "affected": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;names=['tests.test_provider_efficiency', 'tests.test_solana_selective_evidence', 'tests.test_solana_rolling_prewarm', 'tests.test_solana_prewarm_startup', 'tests.test_candidate_history', 'tests.test_current_survivor_independence', 'tests.lanes.pump.test_pumpswap_survivor_evidence', 'tests.lanes.pump.test_pump_acceleration_history', 'tests.test_shared_capital_economics', 'tests.test_shared_capital_recovery'];r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "label": "affected",
+      "log": "validation/affected.log",
+      "log_sha256": "136cdd9021f3dd72b69f5df6fd6669f85ab8902218ed842dfd90ec5fdfdaba1a",
+      "resource_receipt": "validation/affected-resources.txt",
+      "resource_sha256": "a40ee66f21cddf0bc1602e91a455e23b17e989d2f5547d767a78e6efac80a8cb",
+      "resources": {
+        "filesystem_output_512_byte_units": 980616.0,
+        "maximum_process_rss_kib": 71348.0,
+        "system_cpu_seconds": 2.07,
+        "user_cpu_seconds": 10.24
+      },
+      "scratch_path": "/tmp/mm-engineering-5errqsc2",
+      "scratch_retained": false,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/affected-receipt.json",
+      "supervisor_receipt_sha256": "1a783b498f0ab0a4ae16e51918394d3857de75e15f834d398e43a8e15d29e925",
+      "test_seconds": 32.394,
+      "tests": 136,
+      "wall_seconds": 32.96955370798241
+    },
+    "baseline-generation": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard\nnetwork_guard()\nimport asyncio,json\nfrom tests.maintenance_production_harness import run_case,seed_book\nasync def main():\n    failures=0\n    for i in range(20):\n        def before(r,f,b):r.state.fence.session='superseding-generation'\n        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=1)\n        passed=any('generation_changed' in str(e) for e in box['errors'])\n        failures+=not passed\n        print(json.dumps(dict(iteration=i,passed=passed,turns=box['turns'],errors=[str(e) for e in box['errors']],runtime_failure=str(box['runtime'].failure),archived_records=box['counters'].get('archived_records',0))),flush=True)\n    print(json.dumps(dict(iterations=20,fixture_failures=failures)),flush=True)\nasyncio.run(main())\n"
+      ],
+      "cwd": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+      "diagnostic_cases": 20,
+      "diagnostic_failures": 0,
+      "exit_code": 0,
+      "label": "baseline-generation",
+      "log": "validation/baseline-generation.log",
+      "log_sha256": "14c9c132d2b6d13837892973d3d6d391d82b246cdfc1123367e0ed456c687118",
+      "resource_receipt": "validation/baseline-generation-resources.txt",
+      "resource_sha256": "f47060cd47935fd84bff91f3501c69c76219491e9755f4566af66dfcf44b24ed",
+      "resources": {
+        "filesystem_output_512_byte_units": 201688.0,
+        "maximum_process_rss_kib": 53404.0,
+        "system_cpu_seconds": 0.44,
+        "user_cpu_seconds": 1.35
+      },
+      "scratch_path": "/tmp/mm-engineering-ve7jl9c8",
+      "scratch_retained": false,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/baseline-generation-receipt.json",
+      "supervisor_receipt_sha256": "2fea23aa5147a055ebbaa6019c693092ac015793a21adf39971eee90e43b0ef6",
+      "wall_seconds": 3.3119923039339483
+    },
+    "baseline-maintenance-module": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName('tests.test_production_maintenance_arbiter'));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "label": "baseline-maintenance-module",
+      "log": "validation/baseline-maintenance-module.log",
+      "log_sha256": "9be1ec6fe6d3515f5e3a13bc5c6f2305fab9787cd4746d2158164bd0ebf6f4ff",
+      "resource_receipt": "validation/baseline-maintenance-module-resources.txt",
+      "resource_sha256": "e1b197472e543f1dc49d2753e7b43bb00f1eda9c72d1107092037262d0f79ae3",
+      "resources": {
+        "filesystem_output_512_byte_units": 2535640.0,
+        "maximum_process_rss_kib": 118060.0,
+        "system_cpu_seconds": 5.12,
+        "user_cpu_seconds": 38.21
+      },
+      "scratch_path": "/tmp/mm-engineering-1xutky64",
+      "scratch_retained": false,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/baseline-maintenance-module-receipt.json",
+      "supervisor_receipt_sha256": "8ae2cd78808583e758dd85a0d15bcc64b63f465d66120938360b1d8ba9d00698",
+      "test_seconds": 57.867,
+      "tests": 33,
+      "wall_seconds": 58.315177564974874
+    },
+    "baseline-maintenance-timeout": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName('tests.test_production_maintenance_arbiter.ProductionServeTests.test_simultaneous_high_debt_and_three_scopes'));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "label": "baseline-maintenance-timeout",
+      "log": "validation/baseline-maintenance-timeout.log",
+      "log_sha256": "a4f2e0c580d07e4d30316bccc6ce8bd6382082046ffa4e8b811fb425de187fe5",
+      "resource_receipt": "validation/baseline-maintenance-timeout-resources.txt",
+      "resource_sha256": "930d9cc974bd3d751c1bb0a3e5fd68830c12f674d7df5d33e0c6649837239cc4",
+      "resources": {
+        "filesystem_output_512_byte_units": 250456.0,
+        "maximum_process_rss_kib": 83424.0,
+        "system_cpu_seconds": 0.42,
+        "user_cpu_seconds": 5.44
+      },
+      "scratch_path": "/tmp/mm-engineering-vt8pr0pf",
+      "scratch_retained": false,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/baseline-maintenance-timeout-receipt.json",
+      "supervisor_receipt_sha256": "66b46b3e46249f5a3051ffb59cb98c6c0023b57919ca47c2641376325ca97e51",
+      "test_seconds": 6.049,
+      "tests": 1,
+      "wall_seconds": 6.44355381000787
+    },
+    "baseline-source-freeze": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName('tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged'));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+      "errors": 0,
+      "exit_code": 1,
+      "failures": 1,
+      "label": "baseline-source-freeze",
+      "log": "validation/baseline-source-freeze.log",
+      "log_sha256": "688217c7e640009ce343c349961bcfac6df6db6414777dcfc0249e3ba350b095",
+      "resource_receipt": "validation/baseline-source-freeze-resources.txt",
+      "resource_sha256": "a3612a3c7fdf2682a882b3663beeb45103ab1ff3cd441e792b47748da2ae646f",
+      "resources": {
+        "filesystem_output_512_byte_units": 8.0,
+        "maximum_process_rss_kib": 27904.0,
+        "system_cpu_seconds": 0.21,
+        "user_cpu_seconds": 0.26
+      },
+      "scratch_path": "/tmp/mm-engineering-bjyms_w8",
+      "scratch_retained": true,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/baseline-source-freeze-receipt.json",
+      "supervisor_receipt_sha256": "5944d688b53f63236198a6e2833817942dea4773c8177dac84d295a53fc188b9",
+      "test_seconds": 0.491,
+      "tests": 1,
+      "wall_seconds": 1.069036551984027
+    },
+    "baseline_failures": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;names=['tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival', 'tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once', 'tests.test_production_maintenance_arbiter.ProductionServeTests.test_generation_change_revokes_old_runtime', 'tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged'];r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+      "errors": 2,
+      "exit_code": 1,
+      "failures": 1,
+      "label": "baseline_failures",
+      "log": "validation/baseline_failures.log",
+      "log_sha256": "cd60dec51f6bf19d9e92dc382d20cb4daa4519b02acb9f55f1dc1b21a463ecc9",
+      "resource_receipt": "validation/baseline_failures-resources.txt",
+      "resource_sha256": "200173169f181a3b619d4dc05f984a582f1cc10064904f1775c0a7013782bd05",
+      "resources": {
+        "filesystem_output_512_byte_units": 9976.0,
+        "maximum_process_rss_kib": 51864.0,
+        "system_cpu_seconds": 0.18,
+        "user_cpu_seconds": 0.53
+      },
+      "scratch_path": "/tmp/mm-engineering-1ziv74yz",
+      "scratch_retained": true,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/baseline_failures-receipt.json",
+      "supervisor_receipt_sha256": "5458cad86aa4278ded1a662e24f03e6dcf753ac10b789621d41650e2cdfec670",
+      "test_seconds": 2.544,
+      "tests": 4,
+      "wall_seconds": 3.049816818907857
+    },
+    "current-generation": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard\nnetwork_guard()\nimport asyncio,json\nfrom tests.maintenance_production_harness import run_case,seed_book\nasync def main():\n    failures=0\n    for i in range(20):\n        def before(r,f,b):r.state.fence.session='superseding-generation'\n        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=1)\n        passed=any('generation_changed' in str(e) for e in box['errors'])\n        failures+=not passed\n        print(json.dumps(dict(iteration=i,passed=passed,turns=box['turns'],errors=[str(e) for e in box['errors']],runtime_failure=str(box['runtime'].failure),archived_records=box['counters'].get('archived_records',0))),flush=True)\n    print(json.dumps(dict(iterations=20,fixture_failures=failures)),flush=True)\nasyncio.run(main())\n"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "diagnostic_cases": 20,
+      "diagnostic_failures": 0,
+      "exit_code": 0,
+      "label": "current-generation",
+      "log": "validation/current-generation.log",
+      "log_sha256": "14c9c132d2b6d13837892973d3d6d391d82b246cdfc1123367e0ed456c687118",
+      "resource_receipt": "validation/current-generation-resources.txt",
+      "resource_sha256": "dcd45d3a6c15002145ed738a5a6377fd42e5e092b2fa6d3a6cf6a39086420c3c",
+      "resources": {
+        "filesystem_output_512_byte_units": 197712.0,
+        "maximum_process_rss_kib": 52692.0,
+        "system_cpu_seconds": 0.41,
+        "user_cpu_seconds": 1.37
+      },
+      "scratch_path": "/tmp/mm-engineering-mdzglsbj",
+      "scratch_retained": false,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/current-generation-receipt.json",
+      "supervisor_receipt_sha256": "8bd74108b24f3f8beadaa434bfc1ba6809ed20360cdab6a46c1d866e0c3a6115",
+      "wall_seconds": 3.3124254550784826
+    },
+    "current-maintenance-module": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName('tests.test_production_maintenance_arbiter'));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "errors": 0,
+      "exit_code": 1,
+      "failures": 1,
+      "label": "current-maintenance-module",
+      "log": "validation/current-maintenance-module.log",
+      "log_sha256": "2cc90ccc8b7f62a95fdd1d91fbd1b0040582c94134dedf1d0217dcabb470de69",
+      "resource_receipt": "validation/current-maintenance-module-resources.txt",
+      "resource_sha256": "81561c4133045434bf76d5bfdecd41fda0c40c5d18aae1435f275f52b3940c85",
+      "resources": {
+        "filesystem_output_512_byte_units": 2137952.0,
+        "maximum_process_rss_kib": 119812.0,
+        "system_cpu_seconds": 4.31,
+        "user_cpu_seconds": 36.84
+      },
+      "scratch_path": "/tmp/mm-engineering-ddq_brga",
+      "scratch_retained": true,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/current-maintenance-module-receipt.json",
+      "supervisor_receipt_sha256": "523d0fe20c8ebb2cd5c9a70cca43cd546f1622e81a17cbc983ad7796e09b6aa6",
+      "test_seconds": 72.634,
+      "tests": 33,
+      "wall_seconds": 73.18002450303175
+    },
+    "current-maintenance-timeout": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName('tests.test_production_maintenance_arbiter.ProductionServeTests.test_simultaneous_high_debt_and_three_scopes'));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "label": "current-maintenance-timeout",
+      "log": "validation/current-maintenance-timeout.log",
+      "log_sha256": "6b5bdd35dbf7022e9fa8477eeeb5a7a790042844b37de027c4b3ef32ca6e89a7",
+      "resource_receipt": "validation/current-maintenance-timeout-resources.txt",
+      "resource_sha256": "c9f82559acdcdf89555d1eaa7e02a58de1988f8d44b807310cbf55b968d09cae",
+      "resources": {
+        "filesystem_output_512_byte_units": 255280.0,
+        "maximum_process_rss_kib": 83880.0,
+        "system_cpu_seconds": 0.56,
+        "user_cpu_seconds": 8.35
+      },
+      "scratch_path": "/tmp/mm-engineering-zo398072",
+      "scratch_retained": false,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/current-maintenance-timeout-receipt.json",
+      "supervisor_receipt_sha256": "cac2d9e38e55306da9f90295642858da10163ae85ce18dfd91e06d3c1800c72f",
+      "test_seconds": 9.604,
+      "tests": 1,
+      "wall_seconds": 10.272509400034323
+    },
+    "current_failures": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;names=['tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival', 'tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once', 'tests.test_production_maintenance_arbiter.ProductionServeTests.test_generation_change_revokes_old_runtime', 'tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged'];r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "errors": 2,
+      "exit_code": 1,
+      "failures": 1,
+      "label": "current_failures",
+      "log": "validation/current_failures.log",
+      "log_sha256": "45aa6a0d9147d05e4e5aff8f2ea1d6d902c1f78832fda3d592da09e4a30ac597",
+      "resource_receipt": "validation/current_failures-resources.txt",
+      "resource_sha256": "2eaf895703e96ee861a642d9c142e01f3c8bf6896ce4be2a35c0d3379700addc",
+      "resources": {
+        "filesystem_output_512_byte_units": 9976.0,
+        "maximum_process_rss_kib": 52896.0,
+        "system_cpu_seconds": 0.22,
+        "user_cpu_seconds": 0.64
+      },
+      "scratch_path": "/tmp/mm-engineering-kpkw2uiu",
+      "scratch_retained": true,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/current_failures-receipt.json",
+      "supervisor_receipt_sha256": "f80cf3a25b8707da3968dd2c74227ac4cb6e835107be6b03588844ded5f52324",
+      "test_seconds": 2.61,
+      "tests": 4,
+      "wall_seconds": 3.0701154470443726
+    },
+    "final_new": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-c",
+        "from operational.tests import network_guard;network_guard();import unittest;names=['tests.test_provider_efficiency.ProviderBandwidthAuditTests'];r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names));raise SystemExit(not r.wasSuccessful())"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "label": "final_new",
+      "log": "validation/final_new.log",
+      "log_sha256": "74e1eb476e5c84739bb43c0f055358f237430e8e71d842c052a12b3b3040fe3c",
+      "resource_receipt": "validation/final_new-resources.txt",
+      "resource_sha256": "600c43e01b6a028086c9cf2870a8fbef997e9043284a5c0671b066998f5fec28",
+      "resources": {
+        "filesystem_output_512_byte_units": 8.0,
+        "maximum_process_rss_kib": 49724.0,
+        "system_cpu_seconds": 0.03,
+        "user_cpu_seconds": 0.34
+      },
+      "scratch_path": "/tmp/mm-engineering-m7pqjr2m",
+      "scratch_retained": false,
+      "skipped": 0,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/final_new-receipt.json",
+      "supervisor_receipt_sha256": "85e3fe161aff1509915c02a52c900fe76b3fe47602cb76c8a56de1a0b6eaeb42",
+      "test_seconds": 0.073,
+      "tests": 9,
+      "wall_seconds": 0.5246692220680416
+    },
+    "full-reference": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-m",
+        "engineering.solana_capacity.offline_replay",
+        "--source",
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+        "--capture",
+        "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+        "--output",
+        "/tmp/mm-engineering-3vpf97o7/replay"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "exit_code": 0,
+      "label": "full-reference",
+      "log": "validation/full-reference.log",
+      "log_sha256": "8572111b91a27a41ff6348b3043209b69c4bcdc51ca530c262a4b8f9d59d8fb8",
+      "resource_receipt": "validation/full-reference-resources.txt",
+      "resource_sha256": "d5d9e86ac6369c437ccca43e01ad69fe6896b7c09eb88d2233cc7e1250bfbd43",
+      "resources": {
+        "filesystem_output_512_byte_units": 180800.0,
+        "maximum_process_rss_kib": 110196.0,
+        "system_cpu_seconds": 0.52,
+        "user_cpu_seconds": 8.09
+      },
+      "scratch_path": "/tmp/mm-engineering-3vpf97o7/mm-engineering-aqj8uhn6",
+      "scratch_retained": false,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/full-reference-receipt.json",
+      "supervisor_receipt_sha256": "d21c7b6126c2648667fc29b291eb02e723aa93863af73533a05bb84a0349e9f3",
+      "wall_seconds": 11.069058755994774
+    },
+    "hypothetical-failed-omission": {
+      "command": [
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+        "-m",
+        "engineering.solana_capacity.offline_replay",
+        "--source",
+        "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+        "--capture",
+        "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+        "--output",
+        "/tmp/mm-engineering-wbi6oqj_/replay",
+        "--hypothetically-omit-failed-ws"
+      ],
+      "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "exit_code": 0,
+      "label": "hypothetical-failed-omission",
+      "log": "validation/hypothetical-failed-omission.log",
+      "log_sha256": "e50cd5143300c69fc05d84676adebc74e14ce5c3feb6f9f6a3e10a4cffe9f137",
+      "resource_receipt": "validation/hypothetical-failed-omission-resources.txt",
+      "resource_sha256": "5c0cce9303e9d262da5750695f1a8d4f9461cbabfdd46364ea6a669aaad7112f",
+      "resources": {
+        "filesystem_output_512_byte_units": 180800.0,
+        "maximum_process_rss_kib": 110196.0,
+        "system_cpu_seconds": 0.55,
+        "user_cpu_seconds": 8.28
+      },
+      "scratch_path": "/tmp/mm-engineering-wbi6oqj_/mm-engineering-ejkiogy6",
+      "scratch_retained": false,
+      "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+      "supervisor_receipt": "validation/hypothetical-failed-omission-receipt.json",
+      "supervisor_receipt_sha256": "e424a8da7117089c053412545b41a16790df67acf0a45799428c4f9ea728ed04",
+      "wall_seconds": 11.060482718981802
+    }
+  },
+  "schema": "pump-bandwidth-validation-v1"
+}

@@ -16,6 +16,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal
+from .exact_money import amount as _money
 import json
 import os
 from pathlib import Path
@@ -39,7 +40,6 @@ KINDS = {
 _ID = re.compile(r"[A-Za-z0-9_.:-]{1,120}")
 _STRATEGY_ID = re.compile(r"[A-Za-z0-9_.:/-]{1,180}")
 _HASH = re.compile(r"[a-f0-9]{40}|[a-f0-9]{64}")
-_MONEY = re.compile(r"-?\d{1,40}(?:\.\d{1,24})?")
 
 
 def _id(value, name="identity"):
@@ -58,18 +58,6 @@ def _strategy_id(value):
     if not isinstance(value, str) or "://" in value or not _STRATEGY_ID.fullmatch(value):
         raise ValueError("invalid_strategy_id")
     return value
-
-
-def _money(value, *, positive=False, nonnegative=False):
-    if isinstance(value, bool) or not isinstance(value, (str, int, Decimal)):
-        raise ValueError("exact_decimal_required")
-    text = format(value, "f") if isinstance(value, Decimal) else str(value)
-    if not _MONEY.fullmatch(text):
-        raise ValueError("invalid_decimal")
-    amount = Decimal(text)
-    if positive and amount <= 0 or nonnegative and amount < 0:
-        raise ValueError("invalid_monetary_sign")
-    return format(amount, "f")
 
 
 def _no_float(value):
@@ -244,6 +232,11 @@ class PortfolioLaneProducer:
 
     def _recover_native_cursors(self):
         cursors = {}
+        checkpoint = self.account.db.execute("SELECT body FROM portfolio_checkpoint WHERE id=1").fetchone()
+        if checkpoint:
+            for key, sequence in json.loads(checkpoint[0]).get("native_cursors", {}).items():
+                lane, native = key.split(":", 1)
+                cursors[lane, native] = sequence
         for row in self.account.canonical_events():
             body = row["body"]
             provenance = body.get("data", {}).get("provenance") or {}
@@ -396,6 +389,7 @@ class PortfolioLaneProducer:
                 provenance=provenance,
                 prior_stages=tuple(data.get("prior_stages") or ()),
                 lane_state=deepcopy(data.get("lane_state")),
+                included_fee=data.get('included_fee'),
             )
         if event.kind in ("realize", "harvest"):
             self._require_value_evidence(event)
@@ -405,6 +399,7 @@ class PortfolioLaneProducer:
                 gross_proceeds=_money(data.get("gross_proceeds"), nonnegative=True),
                 fee=_money(data.get("fee", "0"), nonnegative=True),
                 provenance=provenance, harvest=event.kind == "harvest",
+                included_fee=data.get('included_fee'),
             )
         if event.kind == "rebalance":
             self._require_value_evidence(event)
@@ -415,6 +410,7 @@ class PortfolioLaneProducer:
                 basis_added=_money(data.get("basis_added", "0"), nonnegative=True),
                 fee=_money(data.get("fee", "0"), nonnegative=True),
                 provenance=provenance, lane_state=deepcopy(data.get("lane_state")),
+                included_fee=data.get('included_fee'),
             )
         if event.kind == "mark":
             mark_state = data.get("state")
@@ -447,6 +443,7 @@ class PortfolioLaneProducer:
                 fee=_money(data.get("fee", "0"), nonnegative=True),
                 exit_reason=_id(data.get("exit_reason"), "exit_reason"),
                 provenance=provenance,
+                included_fee=data.get('included_fee'),
             )
         raise ValueError("unsupported_lane_event")
 

@@ -1,0 +1,29 @@
+{
+  "records": [
+    {
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "tests/test_solana_evidence_plane.py",
+      "source_sha256": "bfb6db26b30af57918999783c1775c91f5401e0e24e7012dfd5647035637e889",
+      "current_path": "tests/test_solana_evidence_plane.py",
+      "change": "byte-identical 21 integrity/crash/concurrency cases"
+    },
+    {
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "tests/test_solana_evidence_broker.py",
+      "source_sha256": "d4ce97b3100dc7063015640dcc68e315d8e70c29a19dd374007a616e0fe86176",
+      "current_path": "tests/test_solana_evidence_broker.py",
+      "change": "retained current Pump broker namespace; original cache-miss knowledge covered by explicit old-schema missing-body recovery, plus current immutable-body reuse without duplicate provider work"
+    }
+  ],
+  "operational_authority": false,
+  "broker_fairness_restoration": {
+    "path": "tests/lanes/pump/test_solana_evidence_broker.py",
+    "commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+    "sha256": "658cfb30145cef508d4bc659bd90bc80e4f032db87bfa198c53df59801e9017a",
+    "restored_methods": [
+      "test_earlier_dlmm_deadline_is_not_starved_by_large_pump_batch",
+      "test_expired_pending_request_can_reenter_without_losing_a_refresh",
+      "test_expired_request_does_not_break_an_active_cross_process_lease"
+    ]
+  }
+}
