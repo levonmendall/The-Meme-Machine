@@ -227,6 +227,8 @@ class HistoricalTests(unittest.TestCase):
 
     def test_bounded_capability_comparison(self):
         from engineering.pons_history.capability import compare
+        from meme_machine.lanes.pons.pons_historical import order
+        self.tape.logs.sort(key=order)
         receipt=compare(self.history,self.tape.provider,self.tape.first)
         self.assertTrue(receipt['equal']);self.assertGreater(receipt['event_count'],0)
         self.assertLessEqual(receipt['logical_rpc_elements'],64)
@@ -236,6 +238,8 @@ class HistoricalTests(unittest.TestCase):
 
     def test_capability_detects_silent_large_range_truncation(self):
         from engineering.pons_history.capability import compare
+        from meme_machine.lanes.pons.pons_historical import order
+        self.tape.logs.sort(key=order)
         self.tape.silent_truncation=True
         with self.assertRaisesRegex(BoundaryError,'population_disagreement'):
             compare(self.history,self.tape.provider,self.tape.first)
