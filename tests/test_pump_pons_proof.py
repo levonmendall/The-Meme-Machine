@@ -349,6 +349,43 @@ class NativeTransportTests(unittest.TestCase):
             self.assertIsNone(_NETWORK.get())
         asyncio.run(run());self.assertEqual(self.t.ws_opening,0)
         self.assertEqual(self.b.native_inflight,0)
+    def test_actual_model_b_streaming_endpoint_is_admitted_only_through_fake_connector(self):
+        code="""import socket,asyncio,json
+from unittest.mock import patch
+from engineering.solana_capacity.proof_limits import Budget,QueueEvidence,load_contract,CeilingReached
+from engineering.solana_capacity.proof_transport import Transports
+from meme_machine.solana_provider_config import AlchemyEndpoint
+from meme_machine import solana_selective_source as source
+opened=[]
+class Fake:
+ async def __aenter__(self):return self
+ async def __aexit__(self,*a):pass
+ async def send(self,raw):assert json.loads(raw)['method']=='logsSubscribe'
+def connector(url,**kw):
+ opened.append(url);assert kw['max_queue']==2 and kw['max_size']==16777216
+ return Fake()
+def forbidden(*a,**kw):raise AssertionError('real network attempted')
+endpoint=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test')
+with patch.object(source,'connect',connector),patch.object(socket.socket,'connect',forbidden),patch.object(socket,'getaddrinfo',forbidden):
+ b=Budget(load_contract());t=Transports(b,QueueEvidence(b),offline=False);t.install()
+ async def run():
+  async with source.connect(endpoint.stream_url) as ws:await ws.send(json.dumps({'method':'logsSubscribe'}))
+ asyncio.run(run());assert opened==[endpoint.stream_url]
+ assert b.counts['physical_http_attempts']==1 and b.counts['native_stream_bytes']==48*1024*1024
+ t.close()
+ for url in ('wss://solana-mainnet.g.alchemy.com/v2/offline-test',
+             'wss://solana-mainnet.streaming.alchemy.com:444/v2/offline-test',
+             'wss://solana-mainnet.streaming.alchemy.com/v2/offline-test?unapproved=1',
+             'wss://secret@solana-mainnet.streaming.alchemy.com/v2/offline-test',
+             'wss://robinhood-mainnet.g.alchemy.com/v2/offline-test'):
+  b=Budget(load_contract());t=Transports(b,QueueEvidence(b),offline=False);t.install()
+  try:
+   try:source.connect(url);raise AssertionError('unsupported endpoint admitted')
+   except CeilingReached:pass
+   assert len(opened)==1 and not b.counts
+  finally:t.close()
+"""
+        result=DispatchAndShutdownTests().command(code);self.assertEqual(result.returncode,0,result.stderr)
 
 
 class ResourceTests(unittest.TestCase):

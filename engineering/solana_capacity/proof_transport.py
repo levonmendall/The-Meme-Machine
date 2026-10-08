@@ -112,7 +112,7 @@ class Transports:
             # asyncio performs WS DNS in an executor without ContextVar
             # propagation. Its sole approved hostname may resolve only while
             # a metered handshake is actually being established.
-            ws_dns=event=='socket.getaddrinfo' and args[0]=='solana-mainnet.g.alchemy.com' and self.ws_opening>0
+            ws_dns=event=='socket.getaddrinfo' and args[0]==STREAM_HOST.split(':')[0] and self.ws_opening>0
             if event=='socket.getaddrinfo' and (self.offline or _NETWORK.get() is None and not ws_dns):
                 self.budget.fail('unmetered_dns_dispatch')
             if event in ('socket.connect','socket.sendto'):
@@ -273,7 +273,14 @@ class Transports:
         def connect(url,*a,**kw):
             p=urlsplit(url)
             try:
-                if p.scheme!='wss' or endpoint_family('https'+url[3:])!='solana':raise ValueError()
+                # Model B's native WS hostname is distinct from its HTTP RPC
+                # hostname. Validate the actual configured streaming endpoint,
+                # keeping the RPC path/credential/port restrictions intact.
+                if p.scheme!='wss' or p.hostname!=STREAM_HOST.split(':')[0]:raise ValueError()
+                endpoint_family('https://solana-mainnet.g.alchemy.com'+
+                    (':'+str(p.port) if p.port is not None else '')+p.path+
+                    ('?'+p.query if p.query else '')+('#'+p.fragment if p.fragment else ''))
+                if p.username is not None or p.password is not None:raise ValueError()
             except ValueError:self.budget.fail('unapproved_websocket_endpoint')
             if self.offline:self.budget.fail('offline_native_transport_required')
             kw.update(max_size=MAX_FRAME,max_queue=2,compression=None,open_timeout=8,close_timeout=1)
@@ -346,7 +353,7 @@ class Stream:
 class WebSocketContext:
     def __init__(self,raw,transports):self.raw=raw;self.t=transports;self.reserve=0;self.token=None
     async def __aenter__(self):
-        self.reserve=self.t.budget.stream_open('solana_websocket');self.token=_NETWORK.set(('websocket','solana-mainnet.g.alchemy.com'))
+        self.reserve=self.t.budget.stream_open('solana_websocket');self.token=_NETWORK.set(('websocket',STREAM_HOST.split(':')[0]))
         self.t.ws_opening+=1
         try:self.ws=await self.raw.__aenter__();return self
         except BaseException:
