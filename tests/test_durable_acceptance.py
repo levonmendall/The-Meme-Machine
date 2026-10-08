@@ -10,6 +10,26 @@ from meme_machine.operational import durable_acceptance as durable
 
 
 class DurableAcceptance(unittest.TestCase):
+    def test_failed_and_unknown_acceptance_evidence_is_not_pruned_with_passes(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            for n in range(5):
+                p=root/str(n);p.mkdir();(p/'status.json').write_text(json.dumps(dict(status='PASS')))
+            failed=root/'failure';failed.mkdir();(failed/'status.json').write_text(json.dumps(dict(status='FAIL')))
+            unknown=root/'unknown';unknown.mkdir();(unknown/'unique').write_text('evidence')
+            durable.retain_completed(root,keep=2)
+            self.assertTrue(failed.is_dir());self.assertTrue((unknown/'unique').exists())
+            self.assertEqual(len([p for p in root.iterdir() if p.is_dir()]),4)
+
+    def test_storage_pressure_stops_engineering_child_and_retains_failure_record(self):
+        from meme_machine.operational.artifact_storage import ArtifactStorageFull
+        with tempfile.TemporaryDirectory() as td:
+            with patch('meme_machine.operational.artifact_storage.headroom',side_effect=ArtifactStorageFull('root_headroom')):
+                row=durable.run_child([sys.executable,'-c','import time;time.sleep(30)'],td,{'phase':'MECHANISM_PROBE'})
+            self.assertEqual(row['status'],'FAIL');self.assertIsNotNone(row['exit_code'])
+            self.assertIn('engineering_storage_headroom',row['observation_errors'])
+            self.assertTrue((Path(td)/'status.json').exists())
+
     def test_real_child_exit_stdout_stderr_and_timestamps_persist(self):
         with tempfile.TemporaryDirectory() as td:
             folder=Path(td)
