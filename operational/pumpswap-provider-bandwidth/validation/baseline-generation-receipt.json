@@ -1,0 +1,14 @@
+{
+  "label": "baseline-generation",
+  "command": [
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-c",
+    "from operational.tests import network_guard\nnetwork_guard()\nimport asyncio,json\nfrom tests.maintenance_production_harness import run_case,seed_book\nasync def main():\n    failures=0\n    for i in range(20):\n        def before(r,f,b):r.state.fence.session='superseding-generation'\n        box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=1)\n        passed=any('generation_changed' in str(e) for e in box['errors'])\n        failures+=not passed\n        print(json.dumps(dict(iteration=i,passed=passed,turns=box['turns'],errors=[str(e) for e in box['errors']],runtime_failure=str(box['runtime'].failure),archived_records=box['counters'].get('archived_records',0))),flush=True)\n    print(json.dumps(dict(iterations=20,fixture_failures=failures)),flush=True)\nasyncio.run(main())\n"
+  ],
+  "cwd": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008",
+  "exit_code": 0,
+  "wall_seconds": 3.3119923039339483,
+  "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+  "scratch_path": "/tmp/mm-engineering-ve7jl9c8",
+  "scratch_retained": false
+}

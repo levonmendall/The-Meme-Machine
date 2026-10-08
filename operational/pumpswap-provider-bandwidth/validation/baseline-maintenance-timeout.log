@@ -1,0 +1,6 @@
+test_simultaneous_high_debt_and_three_scopes (tests.test_production_maintenance_arbiter.ProductionServeTests.test_simultaneous_high_debt_and_three_scopes) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 6.049s
+
+OK

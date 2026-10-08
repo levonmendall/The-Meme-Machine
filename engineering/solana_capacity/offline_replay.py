@@ -46,7 +46,7 @@ def digest_rows(rows):
     return hashlib.sha256(json.dumps(rows,sort_keys=True,separators=(',',':')).encode()).hexdigest()
 
 
-def replay(source,capture,out):
+def replay(source,capture,out,*,omit_failed_ws=False):
     sys.path.insert(0,str(source)); os.environ['MM_OPERATIONAL_PHASE']='BOUNDED_PROVIDER_PROOF'
     out.mkdir(parents=True,exist_ok=False); path=out/'canonical.sqlite'
     os.environ.update(TMPDIR=str(out),SQLITE_TMPDIR=str(out))
@@ -65,7 +65,7 @@ def replay(source,capture,out):
     writer=EvidenceWriter(path,clock=lambda:wall[0]); state=SimpleNamespace(writer=writer,fence=FinalizedFence(writer,endpoint_identity=result['endpoint_identity']))
     h=install(state); h.clock=lambda:wall[0]; h.lifecycle.clock=h.clock
     profiles=cProfile.Profile(); subscriptions={}; joins={}; ws_open={}; ws_ids={}; early_logs=[]
-    counters=Counter(); commits=[]; durations=[]; source_files={}
+    counters=Counter(); commits=[]; durations=[]; source_files={}; native_witnesses=[]
     for file in result['source_sha256']:
         p=source/file
         if p.exists():source_files[file]=hashlib.sha256(p.read_bytes()).hexdigest()
@@ -75,6 +75,7 @@ def replay(source,capture,out):
         sub=subscriptions[sid]; before=time.monotonic()
         if sub['addresses']:commit_candidates(state,frame,sub['addresses'],sid,publish=False)
         else:commit_control(state,frame)
+        native_witnesses.extend([frame.update.block.slot,*row] for row in frame.candidate_statuses)
         duration=time.monotonic()-before; durations.append(duration)
         commits.append(dict(slot=frame.update.block.slot,session=sid,seen=frame.seen,seconds=duration,events=len(frame.log_transactions),statuses=len(frame.candidate_statuses)))
         h.lifecycle.publish()
@@ -101,6 +102,15 @@ def replay(source,capture,out):
                 if subscriptions[meta['id']]['scout']:commit_scout(state,update,wall[0])
                 else:commit(joins[meta['id']].feed(update,len(raw),wall[0]),meta['id'])
             else:
+                # A hypothetical acquisition-boundary omission, NOT a supported
+                # logsSubscribe filter or a measurement of saved provider bytes.
+                # Original delivered bytes above always count the whole tape.
+                if omit_failed_ws:
+                    hypothetical=json.loads(raw)
+                    if 'id' not in hypothetical and hypothetical['params']['result']['value']['err'] is not None:
+                        counters['hypothetically_omitted_failed_ws_bytes']+=len(raw)
+                        counters['hypothetically_omitted_failed_ws_messages']+=1
+                        continue
                 # These are the exact old/new source intake operations.
                 if candidate_log_message is None:
                     json.loads(raw); value=json.loads(raw)
@@ -119,6 +129,7 @@ def replay(source,capture,out):
         canonical=[list(r) for r in writer.db.execute('SELECT identity,scope,slot,signature,transaction_index,event_index,hash,first_seen,body FROM canonical_evidence ORDER BY scope,slot,transaction_index,event_index,identity')]
         outputs={name:[list(r) for r in writer.db.execute('SELECT * FROM '+name+' ORDER BY 1,2')] for name in
                  ('market_observations','candidate_lifecycle','evidence_bindings','rolling_origins','candidate_checkpoints','candidate_coverage','candidate_gaps','candidate_pending_proofs')}
+        outputs['committed_native_witnesses']=native_witnesses
         # Compression bytes in coverage rows are deterministic but not JSON values.
         outputs={k:[[x.hex() if isinstance(x,bytes) else x for x in row] for row in rows] for k,rows in outputs.items()}
         h.lifecycle.publish()
@@ -141,19 +152,23 @@ def replay(source,capture,out):
         projection=dict(canonical=canonical,outputs=outputs)
         (out/'parity.json').write_text(json.dumps(projection,sort_keys=True,indent=2)+'\n')
         measured=dict(schema='pump-provider-identical-tape-v1',source=str(source),capture=str(capture),source_files=source_files,provider_calls=0,
+            hypothesis='FAILED_WS_OMISSION_NOT_SUPPORTED_BY_LOGSSUBSCRIBE' if omit_failed_ws else None,
+            provider_bandwidth_savings_verified_bytes=0,
             canonical_identities=[r[0] for r in canonical],canonical_count=len(canonical),canonical_digest=digest_rows(canonical),
             output_digests={k:digest_rows(v) for k,v in outputs.items()},pending=pending,counters=dict(counters),commits=commits,
             wall_seconds=elapsed,cpu_seconds=process_cpu,rss_peak_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
             process_io_delta={k:final[k]-initial[k] for k in initial},sqlite_changes=writer.db.total_changes,
-            limitations=['Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.', 'Profiler overhead is included equally in comparisons.', 'Missing tape tail remains pending and confers no completeness.', 'Consumer qualification and position economics require additional unchanged fixture tests.'])
+            limitations=['Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.', 'Profiler overhead and hypothetical omission inspection are included; CPU is not a provider saving.', 'Missing tape tail remains pending and confers no completeness.', 'Consumer qualification and position economics require additional unchanged fixture tests.', 'Omitting failed WS packets offline does not model the full successful Yellowstone transaction payload.'])
         (out/'result.json').write_text(json.dumps(measured,sort_keys=True,indent=2)+'\n')
         print(json.dumps({k:v for k,v in measured.items() if k in ('canonical_count','canonical_digest','pending','wall_seconds','cpu_seconds','sqlite_changes','process_io_delta')},indent=2))
+        return measured
     finally:writer.close()
 
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--capture',required=True);p.add_argument('--output',required=True)
-    a=p.parse_args();replay(Path(a.source).resolve(),Path(a.capture).resolve(),Path(a.output).resolve())
+    p.add_argument('--hypothetically-omit-failed-ws',action='store_true',help='Offline equivalence hypothesis only; no provider filter or verified savings')
+    a=p.parse_args();replay(Path(a.source).resolve(),Path(a.capture).resolve(),Path(a.output).resolve(),omit_failed_ws=a.hypothetically_omit_failed_ws)
 
 
 if __name__=='__main__':main()

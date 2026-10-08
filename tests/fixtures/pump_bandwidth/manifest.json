@@ -1,0 +1,94 @@
+{
+  "complete_intervals": false,
+  "records": [
+    {
+      "kind": "subscribe",
+      "raw_bytes": 78,
+      "raw_sha256": "7348c1806efb8b81a5cd7fdbb662b126bb6d0ddb500a9646dfb031f01427d2be",
+      "source_record_ordinal": 1
+    },
+    {
+      "kind": "subscribe",
+      "raw_bytes": 24,
+      "raw_sha256": "d55742b9e175c6ff5072668cd0de4548567142009fcf0db26b245a8216cf87fc",
+      "source_record_ordinal": 2
+    },
+    {
+      "kind": "websocket_open",
+      "raw_bytes": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_record_ordinal": 139
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 40,
+      "raw_sha256": "809143d76dc72b874479fe7b232858f92c2b562cf318e3f5e3ee42254da2c42d",
+      "source_record_ordinal": 145
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 40,
+      "raw_sha256": "e6b9563af83ea8bd68c5d59a3dea4f7b8114e81e92290375b9d8b13e77495af3",
+      "source_record_ordinal": 211
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 4256,
+      "raw_sha256": "59f59cafea81d93d44380324ad7bcd9225961c2e07b358cf2c3b48adb637d015",
+      "source_record_ordinal": 261
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 2341,
+      "raw_sha256": "545f59af349c792cbe123ad063de8a0932cd49d5096bd48e29ea8df560831f62",
+      "source_record_ordinal": 262
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 637,
+      "raw_sha256": "95eac49ae1e2d3247c2463fda2e9c12fceaab4fd0988915ec8b7d854f1bccec1",
+      "source_record_ordinal": 269
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 2563,
+      "raw_sha256": "1ac530a394cadb1647da11d972203cc4dea8d5768bc9b3a0db81a8a089246bc4",
+      "source_record_ordinal": 276
+    },
+    {
+      "kind": "subscribe",
+      "raw_bytes": 132,
+      "raw_sha256": "4abaab191d2ff4ecdbb42d3f1b8c8fe68aa8fe9376a6368a01cd3f3f35f3fbcf",
+      "source_record_ordinal": 882
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 93,
+      "raw_sha256": "1388b40af3202bb1fa9995907202ae0dc2a8a951acced8edb49f26f049e8da66",
+      "source_record_ordinal": 32044
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 93,
+      "raw_sha256": "345eab6367483b4a4af114c084cba27cb0748083f0d1b17f0a2897b36ddafccb",
+      "source_record_ordinal": 32045
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 111,
+      "raw_sha256": "de4e3912b0c6f048ec9fea815ca790c4d39d8eae4ba3d532f0c5c0ac308ae29a",
+      "source_record_ordinal": 32052
+    },
+    {
+      "kind": "delivery",
+      "raw_bytes": 111,
+      "raw_sha256": "208a547bd087689aadfb1593b55913217e45d555c806eefc59d3d122f5f38ddb",
+      "source_record_ordinal": 32059
+    }
+  ],
+  "schema": "authentic-pump-bandwidth-envelope-subset-v1",
+  "selection": "One successful and one failed WS log per program, each with its original independent native status; all original subscribe/open/ACK records. No synthetic identities or indices.",
+  "source_tape": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008/provider.frames.zlib",
+  "source_tape_sha256": "edc1ab35e5f2fc6bc4e9bfc35b4c9edd1cbe2103e2a67a57a40c9e4b29aed90c",
+  "subset_tape_sha256": "322193561e6862aad137732c640b15886f932c99fc8043815b8f6c38cb8f235f"
+}

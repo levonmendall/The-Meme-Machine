@@ -1,0 +1,109 @@
+.............................................................................................................................................Executing <Task pending name='Task-18' coro=<StartupStorage.test_cold_records_retire_under_continuously_queued_source_work() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:33> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.703 seconds
+.Executing <Task pending name='Task-23' coro=<StartupStorage.test_cold_return_discharges_expired_source_debt_without_renewing_deadline() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:56> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.340 seconds
+.Executing <Task pending name='Task-28' coro=<StartupStorage.test_committed_final_slice_yield_keeps_receipt_and_recovery_deadline() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:152> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.159 seconds
+..Executing <Task pending name='Task-38' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:118> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 1.968 seconds
+Executing <Task pending name='Task-38' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:118> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.273 seconds
+Executing <Task finished name='Task-38' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:100> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.110 seconds
+.Executing <Task finished name='Task-43' coro=<StartupStorage.test_existing_unserviced_debt_still_expires() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:290> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.147 seconds
+.Executing <Task finished name='Task-48' coro=<StartupStorage.test_fresh_store_skips_cleanup_entirely() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:367> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.110 seconds
+.Executing <Task pending name='Task-53' coro=<StartupStorage.test_late_cleanup_finishes_existing_archive_carrier_before_new_work() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:229> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.196 seconds
+.....Executing <Task finished name='Task-78' coro=<StartupStorage.test_sparse_address_pin_observation_fits_existing_vm_budget() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_startup_storage.py:304> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 4.057 seconds
+...........................................................................................................................................................................................................................Executing <Task finished name='Task-158' coro=<SourceLifetimeTests.test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_solana_shared_capacity.py:291> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.257 seconds
+...Executing <Task finished name='Task-173' coro=<SourceLifetimeTests.test_unsupported_archive_page_preserves_scope_gap_and_position_interest() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_solana_shared_capacity.py:255> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.129 seconds
+................................Executing <Task pending name='Task-247' coro=<StartupAsyncTests.test_provider_subscription_pressure_retries_same_durable_interest() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_solana_prewarm_startup.py:342> wait_for=<Future pending cb=[Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.152 seconds
+............................opportunity publication failed: IntegrityError
+.................................F................opportunity schema unavailable: RuntimeError
+opportunity schema unavailable: RuntimeError
+..opportunity publication failed: ValueError
+..................................................................................................................................................................................................................................................................................................................................................................................................s.........health publication failed: OSError
+health publication failed: OSError
+........................................................s..........................................................................................Executing <Task finished name='Task-682' coro=<ProductionServeTests.test_continuous_archive_pressure_low_retirement_debt() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_production_maintenance_arbiter.py:34> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.112 seconds
+..F...........s.......sssss.....sssss.......................................................................sss........sExecuting <Task finished name='Task-927' coro=<SyntheticClockTests.test_delayed_receive_cannot_refresh_event_or_block_clock() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_run380_production_pressure.py:80> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.182 seconds
+.Executing <Task finished name='Task-932' coro=<SyntheticClockTests.test_rebase_preserves_all_nonclock_event_bytes() done, defined at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_run380_production_pressure.py:62> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.226 seconds
+.ssssss......Executing <Task pending name='Task-1030' coro=<serve.<locals>.maintenance() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/meme_machine/solana_evidence_service.py:968> cb=[_wait.<locals>._on_completion() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:534] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/tasks.py:420> took 0.115 seconds
+.Executing <Task pending name='Task-1050' coro=<RetentionExecutionGuardTests.test_already_queued_retention_defers_after_receipt_readiness() running at /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_run381_archive_scheduling.py:240> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 1.621 seconds
+.......sssssss..........................................................................................................sss.................................................................EE..........................................................168-hour held-pin soak: records peak 2 hot bytes 2419616 2460576 unreferenced raw archives 0
+checkpoint-handoff-growth-proof {'baseline_wal_bytes': [341992, 659232, 992952, 1318432, 1656272, 1985872, 2327832, 2657432], 'repaired_wal_bytes': [0, 0, 0, 0, 0, 0, 0, 0], 'records': 272}
+...............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+======================================================================
+ERROR: test_disconnected_client_commit_retry_and_service_survival (tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_run369_runtime.py", line 281, in test_disconnected_client_commit_retry_and_service_survival
+    await asyncio.to_thread(disconnect);await asyncio.sleep(.2)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_run369_runtime.py", line 280, in disconnect
+    stream.connect(str(path)+'.sock');stream.sendall((json.dumps(request)+'\n').encode())
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/evidence_ipc_harness.py", line 26, in connect
+    if 'callback' not in state:raise ConnectionRefusedError()
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_run369_runtime.py", line 291, in test_disconnected_client_commit_retry_and_service_survival
+    finally:stop.set();await task;loop.set_exception_handler(previous)
+                       ^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/meme_machine/solana_evidence_service.py", line 779, in serve
+    raise EvidenceUnavailable('legacy_startup_archived_model_b_driver_required')
+meme_machine.solana_evidence_plane.EvidenceUnavailable: legacy_startup_archived_model_b_driver_required
+
+======================================================================
+ERROR: test_response_after_old_250ms_limit_is_acknowledged_once (tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_run369_runtime.py", line 262, in test_response_after_old_250ms_limit_is_acknowledged_once
+    finally: stop.set(); await task
+                         ^^^^^^^^^^
+meme_machine.solana_evidence_plane.EvidenceUnavailable: legacy_startup_archived_model_b_driver_required
+
+======================================================================
+FAIL: test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_robinhood_usd_valuation.py", line 424, in test_strategy_sources_and_nine_change_tests_byte_unchanged
+    if rel not in infrastructure:self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: b'"""[355 chars]sdict, replace\nimport time\nimport json\nimpo[62665 chars] )\n' != b'"""[355 chars]sdict\nimport time\nimport json\nimport os\nfr[53760 chars] )\n' : meme_machine/lanes/pons/pons_selective_acquisition.py
+
+======================================================================
+FAIL: test_generation_change_revokes_old_runtime (tests.test_production_maintenance_arbiter.ProductionServeTests.test_generation_change_revokes_old_runtime)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo/tests/test_production_maintenance_arbiter.py", line 153, in test_generation_change_revokes_old_runtime
+    self.assertTrue(any('generation_changed' in str(e) for e in box['errors']))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 2276 tests in 702.899s
+
+FAILED (failures=2, errors=2, skipped=33)
+Survivor economic churn: 12 windows, 96 settlements; hot bytes [114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688, 114688]
+168-window Survivor prefix component: marks 33600 hot bytes 229376 229376 preserved snapshots 168
+168-hour sleeve component: observations 33600 hot bytes 225280 225280 preserved snapshots 168
