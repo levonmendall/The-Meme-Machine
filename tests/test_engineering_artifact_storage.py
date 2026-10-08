@@ -108,5 +108,16 @@ class OfflineScratch(unittest.TestCase):
                 with self.assertRaises(storage.ArtifactStorageFull):scope.check()
             self.assertTrue((scope.path/'one').exists())
 
+    def test_parallel_scope_growth_cannot_bypass_retained_parent_budget(self):
+        with tempfile.TemporaryDirectory() as parent:
+            other=Path(parent)/'mm-engineering-other-job';other.mkdir()
+            with storage.Scratch(parent,policy=self.policy()) as scope:
+                (other/'concurrent-fixture').write_bytes(b'y'*1600000)
+                (scope.path/'own-fixture').write_bytes(b'x'*600000)
+                with self.assertRaisesRegex(storage.ArtifactStorageFull,'retained_quota'):
+                    scope.check()
+            self.assertTrue((other/'concurrent-fixture').exists())
+            self.assertTrue((scope.path/'own-fixture').exists())
+
 
 if __name__=='__main__':unittest.main()
