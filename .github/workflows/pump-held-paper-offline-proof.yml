@@ -1,0 +1,43 @@
+name: Pump held PAPER offline proof
+on:
+  push:
+    paths:
+      - 'meme_machine/lanes/pump/postgrad.py'
+      - 'meme_machine/lanes/pump/provider.py'
+      - 'meme_machine/lanes/pump/pumpswap_survivor_runtime.py'
+      - 'meme_machine/lanes/pump/runner.py'
+      - 'meme_machine/operational/supervisor.py'
+      - 'tests/lanes/pump/test_postgrad_read_efficiency.py'
+      - 'operational/tests.py'
+      - '.github/workflows/pump-held-paper-offline-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pump-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency:
+      group: pump-held-proof-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.14'
+      - name: Install pinned runtime dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Verify syntax and run focused PAPER-only parity tests
+        env:
+          MM_MODE: PAPER
+          MM_PUMP_HELD_RPC_MODE: baseline
+        run: |
+          python -m compileall -q meme_machine/lanes/pump meme_machine/operational/supervisor.py tests/lanes/pump/test_postgrad_read_efficiency.py
+          python -m operational.tests OPERATIONAL --modules \
+            tests.lanes.pump.test_postgrad_read_efficiency \
+            tests.lanes.pump.test_postgrad \
+            tests.lanes.pump.test_pumpswap_survivor \
+            tests.test_position_continuation \
+            tests.test_final_acquisition
