@@ -14,6 +14,7 @@ from meme_machine.lanes.pump.postgrad import (
     sell_quote,
 )
 from meme_machine.lanes.pump.store import Store
+from meme_machine.lanes.pump.provider import Unavailable
 
 
 MINT = pump.b58(bytes([71])*32)
@@ -257,6 +258,67 @@ class PostGraduation(unittest.TestCase):
         self.assertEqual(snap['state']['quote_vault'], quote_vault)
         self.assertEqual(snap['state']['quote_reserve'], 50_000_000_000)
         self.assertEqual(snap['source']['account_slot'], 1001)
+
+    def test_held_pumpswap_snapshot_skips_probe_but_revalidates_economic_accounts(self):
+        handoff = GraduationHandoff(MINT, CREATOR, 'source', 900, 90, False)
+        pool_key, pool_acc, base_vault, quote_vault = pumpswap_pool_account()
+        rpc = FakeRPC(pool_key, pool_acc, mint_account(),
+                      token_account(MINT, pool_key, 500_000_000_000_000),
+                      token_account(WSOL, pool_key, 50_000_000_000), fee_config())
+        adapter = PostGraduationAdapter(rpc, scan_rpc=object())
+        initial = adapter.pumpswap_snapshot(handoff, 101, reuse_verified_pool=True)
+        self.assertEqual(rpc.calls, 4)  # genesis, pool probe, fresh group, time
+        self.assertEqual(initial['state']['base_vault'], base_vault)
+        self.assertEqual(initial['state']['quote_vault'], quote_vault)
+        # A new canonical reserve AND fee config must be observed on the next
+        # maintenance quote; only immutable vault *addresses* are reused.
+        rpc.accounts[3] = token_account(WSOL, pool_key, 75_000_000_000)
+        rpc.accounts[4] = fee_config(lp=30, protocol=10, creator=20)
+        before = rpc.calls
+        current = adapter.pumpswap_snapshot(handoff, 102, reuse_verified_pool=True)
+        self.assertEqual(rpc.calls-before, 2)  # fresh group + block-time
+        self.assertEqual(adapter.held_pumpswap_probe_reuses, 1)
+        self.assertEqual(current['state']['quote_reserve'], 75_000_000_000)
+        self.assertEqual(current['state']['fee_parts_bps'], [30, 10, 20])
+        self.assertEqual(current['source']['pool_probe_slot'], current['slot'])
+        self.assertNotEqual(sell_quote(initial, 1_000_000_000).output_amount,
+                            sell_quote(current, 1_000_000_000).output_amount)
+        # Candidate/entry path is unchanged even after a held hint exists.
+        before = rpc.calls
+        original = adapter.pumpswap_snapshot(handoff, 103)
+        self.assertEqual(rpc.calls-before, 3)
+        self.assertEqual(original['state'], current['state'])
+
+    def test_held_vault_drift_fails_closed_and_next_turn_probes(self):
+        handoff = GraduationHandoff(MINT, CREATOR, 'source', 900, 90, False)
+        pool_key, pool_acc, _, _ = pumpswap_pool_account()
+        rpc = FakeRPC(pool_key, pool_acc, mint_account(),
+                      token_account(MINT, pool_key, 500_000_000_000_000),
+                      token_account(WSOL, pool_key, 50_000_000_000), fee_config())
+        adapter = PostGraduationAdapter(rpc, scan_rpc=object())
+        adapter.pumpswap_snapshot(handoff, 101, reuse_verified_pool=True)
+        raw = bytearray(base64.b64decode(rpc.accounts[0]['data'][0]))
+        raw[139:171] = bytes([79]) * 32  # pool's authenticated base-vault key
+        rpc.accounts[0] = account(bytes(raw), PUMPSWAP_PROGRAM)
+        before = rpc.calls
+        with self.assertRaisesRegex(ValueError, 'pumpswap_verified_vault_drift'):
+            adapter.pumpswap_snapshot(handoff, 102, reuse_verified_pool=True)
+        self.assertEqual(rpc.calls-before, 1)  # never fetched another price
+        self.assertNotIn(MINT, adapter._held_pumpswap_vaults)
+        # A transient unavailable canonical account never uses a prior mark.
+        rpc.accounts[0] = pool_acc
+        rpc.accounts[4] = None
+        with self.assertRaisesRegex(Unavailable, 'pumpswap_accounts_missing'):
+            adapter.pumpswap_snapshot(handoff, 103, reuse_verified_pool=True)
+        rpc.accounts[4] = fee_config()
+        before = rpc.calls
+        adapter.pumpswap_snapshot(handoff, 104, reuse_verified_pool=True)
+        self.assertEqual(rpc.calls-before, 3)  # reverified cold path
+        new_rpc = FakeRPC(pool_key, pool_acc, mint_account(),
+                          rpc.accounts[2], rpc.accounts[3], rpc.accounts[4])
+        new_adapter = PostGraduationAdapter(new_rpc, scan_rpc=object())
+        new_adapter.pumpswap_snapshot(handoff, 105, reuse_verified_pool=True)
+        self.assertEqual(new_rpc.calls, 4)  # restart never inherits vault hints
 
     def test_raydium_v4_layout_open_orders_and_state_fee_quote(self):
         raw, keys = raydium_pool_raw()
