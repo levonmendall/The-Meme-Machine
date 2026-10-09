@@ -339,15 +339,32 @@ class Broker:
     def close(self):self.plane.close()
 
 
+def shared_evidence_domain(endpoint):
+    """Provider and interpretation generation; independent of strategy cursors."""
+    from meme_machine.lanes.pons.provider_admission import fingerprint
+    return 'pons:shared:'+fingerprint(endpoint)+':'+digest(interpretation(None))
+
+
 def durable_cache(plane,domain):
     from meme_machine.lanes.pons.pons_selective_acquisition import ImmutableEvidenceCache
     class Cache(ImmutableEvidenceCache):
-        def __init__(self):super().__init__();self.plane=plane;self.domain=domain
+        def __init__(self):super().__init__();self.plane=plane;self.domain=domain;self.receipt_scope=None
         def _load(self,kind,key):
             row=plane.evidence(domain+':'+kind,canonical(key))
             return row[0] if row else None
         def _save(self,kind,key,value):
-            plane.put(domain+':'+kind,canonical(key),value,dict(authority='authenticated_alchemy',schema=1,finality='confirmed'))
+            proof=dict(authority='authenticated_alchemy',schema=1,finality='confirmed')
+            if kind=='receipt' and domain.startswith('pons:shared:'):
+                retained=plane.put_receipt(domain+':receipt',canonical(key),value,proof,self.receipt_scope)
+                self.counts['durable_receipt_retained' if retained else 'durable_receipt_admission_fallback']+=1
+            else:plane.put(domain+':'+kind,canonical(key),value,proof)
+        def begin_receipts(self,consumer,owner,generation):
+            plane.receipt_scope(domain+':receipt',consumer,owner,generation)
+            self.receipt_scope=(consumer,owner,generation)
+        def acknowledge_receipts(self):
+            if self.receipt_scope:
+                plane.receipt_scope(domain+':receipt',*self.receipt_scope,acknowledge=True)
+                self.receipt_scope=None
         def immutable_curve(self,curve,block):
             row=self._load('compiled_create2_curve',curve.lower())
             return row if row and int(block)>=row['origin_block'] else None
@@ -363,6 +380,7 @@ def durable_cache(plane,domain):
             with plane.transaction():
                 kinds=('header_number','launch','real_quote','compiled_create2_curve')
                 plane.db.executemany('DELETE FROM evidence WHERE namespace=?',((domain+':'+kind,) for kind in kinds))
+                plane.db.execute('DELETE FROM receipt_obligations WHERE namespace=?',(domain+':receipt',))
                 plane._immutable.clear();plane._immutable_bytes=0
         def remember_compiled(self,curve,token,code,block,header,auth):
             # Verified CREATE2 deployer + exact non-proxy runtime; token() is
@@ -388,7 +406,13 @@ def durable_cache(plane,domain):
             self._save('header_hash',value['hash'],value)
             self._save('header_number',int(value['number'],16),value)
             return value
-        def receipt(self,tx,bh):return super().receipt(tx,bh) or self._load('receipt',[tx,bh])
+        def receipt(self,tx,bh):
+            memory=super().receipt(tx,bh)
+            value=memory or self._load('receipt',[tx,bh])
+            if value is not None:
+                self.counts['durable_receipt_hit' if memory is None else 'memory_receipt_hit']+=1
+                if self.receipt_scope:self._save('receipt',[tx,bh],value)
+            return value
         def remember_receipt(self,tx,bh,value):
             super().remember_receipt(tx,bh,value);self._save('receipt',[tx,bh],value);return value
         def launch(self,curve):

@@ -51,6 +51,12 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
     # credential/filter comparison; unverified endpoints retain ten blocks.
     raw=[];sessions=[]
     context=evidence_context() if callable(evidence_context) else evidence_context
+    if context is None:
+        from .pons_current_history import active_history
+        history=active_history()
+        if history is not None:
+            from meme_machine.runtime.robinhood.pons import durable_cache,shared_evidence_domain
+            context=SelectiveEvidenceContext(endpoint,cache=durable_cache(history.plane,shared_evidence_domain(endpoint)))
     context=context or SelectiveEvidenceContext(endpoint)
     from meme_machine.runtime.robinhood.provider_authority import reference
     if context.endpoint!=reference(endpoint):raise BoundaryError('selective_v4_provider_context_disagreement')
@@ -260,7 +266,12 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
     complete=old is not None and old['from_time']<=cutoff<=old['through']
     context=getattr(history,'v4_evidence_context',None)
     if context is None:
-        context=SelectiveEvidenceContext(endpoint);history.v4_evidence_context=context
+        from meme_machine.runtime.robinhood.pons import durable_cache,shared_evidence_domain
+        context=SelectiveEvidenceContext(endpoint,cache=durable_cache(history.plane,shared_evidence_domain(endpoint)))
+        history.v4_evidence_context=context
+    from meme_machine.runtime.journal import digest
+    if hasattr(context.cache,'begin_receipts'):
+        context.cache.begin_receipts('current',pool_id.lower(),digest(old))
     if complete:
         first=old['block']+1;lower=old['from_time']
         retained=history.v4_window_candidates(pool_id,cutoff)
@@ -320,6 +331,7 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
     retain_ids=tuple(e['identity'] for e in candidates if e['event_at']<at-900)
     history.remember(pool_id,header,events,from_time=lower,delta_from=old['block'] if complete else None,
         coverage=coverage,retain_ids=retain_ids)
+    if hasattr(context.cache,'acknowledge_receipts'):context.cache.acknowledge_receipts()
     # canonical_order is the durable history's sorting metadata; consumers see
     # exactly the original authenticated trade shape and economic inputs.
     rows=[{k:v for k,v in e.items() if k!='canonical_order'} for e in
@@ -328,7 +340,7 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
         provider_sessions=tape['provider_sessions'])
 
 
-def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=256,acquisition_state=None):
+def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=256,acquisition_state=None,evidence_context=None):
     """One authenticated bounded range for at most 64 independent markets.
 
     Shared transport does not share candidate populations: each result traverses
@@ -342,6 +354,6 @@ def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=25
     if not 0<=end_block-start_block<min(160,4*windows.ceiling):
         raise BoundaryError('survivor_shared_range_bound')
     shared=_transport(endpoint,pool_ids=ids,start_block=start_block,end_block=end_block,
-        max_events=max_events*len(markets),acquisition_state=acquisition_state)
+        max_events=max_events*len(markets),acquisition_state=acquisition_state,evidence_context=evidence_context)
     return {m['token']:collect_v4_activity(endpoint,**m,start_block=start_block,
         end_block=end_block,max_events=max_events,_shared=shared) for m in markets}

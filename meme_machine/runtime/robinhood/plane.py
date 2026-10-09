@@ -91,6 +91,20 @@ class Plane:
         CREATE TABLE IF NOT EXISTS evidence(
           namespace TEXT,key TEXT,body TEXT,provenance TEXT,created REAL,
           PRIMARY KEY(namespace,key));
+        CREATE TABLE IF NOT EXISTS receipt_obligations(
+          namespace TEXT,key TEXT,consumer TEXT,owner TEXT,generation TEXT,
+          PRIMARY KEY(namespace,key,consumer,owner,generation),
+          FOREIGN KEY(namespace,key) REFERENCES evidence(namespace,key) ON DELETE CASCADE);
+        CREATE TABLE IF NOT EXISTS receipt_cache_usage(namespace TEXT PRIMARY KEY,bytes INTEGER,records INTEGER);
+        CREATE TRIGGER IF NOT EXISTS receipt_cache_insert AFTER INSERT ON evidence
+          WHEN NEW.namespace LIKE 'pons:shared:%:receipt' BEGIN
+          INSERT INTO receipt_cache_usage VALUES(NEW.namespace,
+            length(CAST(NEW.key||NEW.body||NEW.provenance AS BLOB)),1)
+          ON CONFLICT(namespace) DO UPDATE SET bytes=bytes+excluded.bytes,records=records+1; END;
+        CREATE TRIGGER IF NOT EXISTS receipt_cache_delete AFTER DELETE ON evidence
+          WHEN OLD.namespace LIKE 'pons:shared:%:receipt' BEGIN
+          UPDATE receipt_cache_usage SET bytes=bytes-length(CAST(OLD.key||OLD.body||OLD.provenance AS BLOB)),
+            records=records-1 WHERE namespace=OLD.namespace; END;
         CREATE TABLE IF NOT EXISTS rolling(
           candidate TEXT,identity TEXT,at INTEGER,block INTEGER,body TEXT,provenance TEXT,
           PRIMARY KEY(candidate,identity));
@@ -160,7 +174,7 @@ class Plane:
             self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
             for namespace, in self.db.execute('SELECT DISTINCT namespace FROM evidence WHERE '+active_scope_sql('namespace')).fetchall():
                 limit=8192 if namespace.endswith(':receipt') else 4096
-                evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?)',(namespace,namespace,limit)).rowcount > 0
+                evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?) AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=evidence.namespace AND o.key=evidence.key)',(namespace,namespace,limit)).rowcount > 0
             protected=set()
             for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND (key LIKE 'native_position:%' OR key='pons_cohort')"):
                 value=json.loads(raw)
@@ -378,6 +392,52 @@ class Plane:
                 if old and tuple(old)!=(body,proof):raise ValueError('canonical_evidence_conflict')
                 if old is None:self.db.execute('INSERT INTO evidence VALUES(?,?,?,?,?)',(namespace,key,body,proof,self.clock()))
             self._remember_immutable((namespace,key),(body,proof))
+
+    def receipt_scope(self,namespace,consumer,owner,generation,*,acknowledge=False):
+        """Derived retention only; native history remains the consumer's cursor.
+
+        A resumed verified native cursor supersedes its old acquisition. A crash
+        before its native commit leaves the old receipt obligations outstanding.
+        """
+        if not namespace.startswith('pons:shared:') or consumer not in ('current','survivor'):
+            raise ValueError('receipt_obligation_scope')
+        if not isinstance(owner,str) or not 0<len(owner)<=128 or len(generation)!=64:
+            raise ValueError('receipt_obligation_identity')
+        with self.transaction():
+            self.db.execute('DELETE FROM receipt_obligations WHERE namespace=? AND consumer=? AND owner=? '+
+                ('AND generation=?' if acknowledge else 'AND generation<>?'),(namespace,consumer,owner,generation))
+
+    def put_receipt(self,namespace,key,value,provenance,scope=None):
+        """Optional shared cache, bounded to 8,192 facts/namespace and 64 MiB.
+
+        Outstanding facts cannot be evicted to admit new optional cache entries.
+        Admission failure changes retention only; the caller still authenticates
+        its acquired receipt and commits its complete native economic history.
+        """
+        if not namespace.startswith('pons:shared:') or not namespace.endswith(':receipt'):
+            raise ValueError('receipt_cache_namespace')
+        body,proof=canonical(value),canonical(provenance)
+        size=len((key+body+proof).encode())
+        with self.transaction():
+            old=self.db.execute('SELECT body,provenance FROM evidence WHERE namespace=? AND key=?',(namespace,key)).fetchone()
+            if old and tuple(old)!=(body,proof):raise ValueError('canonical_evidence_conflict')
+            if old is None:
+                usage=self.db.execute('SELECT bytes,records FROM receipt_cache_usage WHERE namespace=?',(namespace,)).fetchone()
+                if usage and usage[1]>=8192:
+                    self.db.execute('DELETE FROM evidence WHERE namespace=? AND key=(SELECT e.key FROM evidence e WHERE e.namespace=? AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=e.namespace AND o.key=e.key) ORDER BY created,key LIMIT 1)',(namespace,namespace))
+                    self._immutable.clear();self._immutable_bytes=0
+                    usage=self.db.execute('SELECT bytes,records FROM receipt_cache_usage WHERE namespace=?',(namespace,)).fetchone()
+                total=self.db.execute('SELECT COALESCE(SUM(bytes),0) FROM receipt_cache_usage').fetchone()[0]
+                if size>64*1024*1024 or total+size>64*1024*1024 or usage and usage[1]>=8192:return False
+                self.db.execute('INSERT INTO evidence VALUES(?,?,?,?,?)',(namespace,key,body,proof,self.clock()))
+            if scope is not None:
+                consumer,owner,generation=scope
+                if self.db.execute('SELECT COUNT(*) FROM receipt_obligations').fetchone()[0]>=32768:
+                    return False
+                self.db.execute('INSERT OR IGNORE INTO receipt_obligations VALUES(?,?,?,?,?)',(namespace,key,consumer,owner,generation))
+        # A replacement can invalidate the warm view even within one connection.
+        self._immutable.clear();self._immutable_bytes=0
+        return True
 
     def _remember_immutable(self,key,row):
         size=sum(len(x.encode()) for x in row)+sum(len(x.encode()) for x in key)

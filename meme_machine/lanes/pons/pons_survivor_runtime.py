@@ -354,8 +354,12 @@ class Runtime:
         if end<start:return
         if end-start>=40:raise BoundaryError('survivor_incremental_slice_required')
         key=PoolKey(**row['graduation']['key']);pool=row['graduation']['transition']['market']
+        context=self._position_context()
+        if hasattr(context.cache,'begin_receipts'):
+            from meme_machine.runtime.journal import digest
+            context.cache.begin_receipts('survivor',row['id'].lower(),digest([row['block'],row.get('block_hash')]))
         tape=collect_v4_activity(self.endpoint,pool_id=pool,key=key,token=row['id'],
-            start_block=start,end_block=end,max_events=256,acquisition_state=self.history,evidence_context=self._position_context)
+            start_block=start,end_block=end,max_events=256,acquisition_state=self.history,evidence_context=context)
         # The preceding boundary must still have the authenticated hash recorded
         # at the last watermark. A fork never becomes clean historical evidence.
         h,previous=self.rpc.batch([('eth_getBlockByNumber',[hex(b),False])
@@ -367,12 +371,16 @@ class Runtime:
             self._recover_reorg(row)
             raise BoundaryError('survivor_history_reorg')
         self._append_tape(row,end,h,tape)
+        if hasattr(context.cache,'acknowledge_receipts'):context.cache.acknowledge_receipts()
 
     def _position_context(self):
         context=getattr(self,'position_evidence_context',None)
         if context is None:
             from .pons_selective_acquisition import SelectiveEvidenceContext
-            context=SelectiveEvidenceContext(self.endpoint);self.position_evidence_context=context
+            from meme_machine.runtime.robinhood.pons import durable_cache,shared_evidence_domain
+            cache=durable_cache(self.plane,shared_evidence_domain(self.endpoint)) if getattr(self,'plane',None) else None
+            context=SelectiveEvidenceContext(self.endpoint,cache=cache)
+            self.position_evidence_context=context
         return context
 
     def _recover_reorg(self,row):
@@ -414,8 +422,10 @@ class Runtime:
         active=[row for row in rows if row['block']<end]
         markets=[dict(pool_id=r['graduation']['transition']['market'],
             key=PoolKey(**r['graduation']['key']),token=r['id']) for r in active]
+        context=self._position_context()
+        if hasattr(context.cache,'receipt_scope'):context.cache.receipt_scope=None
         tapes=collect_v4_activities(self.endpoint,markets=markets,start_block=start,end_block=end,
-            acquisition_state=self.history)
+            acquisition_state=self.history,evidence_context=context)
         blocks=sorted({end}|{r['block'] for r in active})
         values=[]
         for offset in range(0,len(blocks),50):
