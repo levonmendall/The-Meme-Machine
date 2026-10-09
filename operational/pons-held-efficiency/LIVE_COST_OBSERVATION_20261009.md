@@ -44,6 +44,18 @@ A separate contiguous **160-block** numeric interval `0x4ff8103` through `0x4ff8
 
 The four quote samples show up to 3 of 4 simulations *could* have been omitted **in hindsight** without changing those particular returned values. This is not proof that a scheduler would have known safely in advance, nor a 75% all-in cost saving: certified event coverage and canonical headers themselves cost provider CU and physical attempts.
 
+
+## D. Additional live recent-active Pons pool
+
+A second pool was selected from an actually delivered Pons HookFeeCollected event in a recent 40-block window:
+
+- Pool ID: `0xb2e6b3a4d45fdbfa27f8cecec97ecb38b03fec2f1be83f1c223f05e4ca3b30ba`.
+- Frozen 160-block window `0x4ff8d17` through `0x4ff8db6`.
+- V4 Swap exact pool filter: **1 event via one 160-block element**, **1 identical event via four disjoint 40-block elements**; canonical block hash/transaction hash/log index/raw data parity PASS. Single request ~628 ms; four sequential ~1640 ms.
+- HookFeeCollected exact pool filter: **1 event via one 160-block element**, **1 identical event via four disjoint 40-block elements**; same identity/payload parity PASS. Single request ~607 ms; four sequential ~1729 ms.
+- Thus a 160-block filtered call **was actually accepted with a nonempty trading event** on the Robinhood PAYG app; 1 vs 4 elements is another **75% reduction of these specific filtered log elements**.
+- This activity density was only one swap/fee event over 160 blocks. It does not prove a safe 160-block response for high-density bursts, and it does not establish a safe 72-hour held-position stream or full event semantics. All remaining restrictions above apply.
+
 ## C. Account usage cross-check
 
 Alchemy Robinhood-app hourly method usage was consulted. A partial snapshot with data through `2026-10-09T03:53:00Z` reported `eth_getLogs: 1200 CU`, `eth_call: 52 CU`, `eth_getTransactionReceipt: 20 CU`, `eth_blockNumber: 30 CU`. This supports the method-cost order of magnitude, but the partial app/hour bucket includes unknown unrelated requests and reporting lag. **It is not an exclusive invoice delta for this experiment.** Separate WebSocket delivered-byte billing was not measured.
