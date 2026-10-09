@@ -36,6 +36,8 @@ def _size(value):
     total=sys.getsizeof(value)
     if isinstance(value,dict):total+=sum(_size(k)+_size(v) for k,v in value.items())
     elif isinstance(value,(list,tuple)):total+=sum(_size(v) for v in value)
+    if hasattr(value,'dispatch'):
+        total+=sys.getsizeof(value.dispatch)+sum(_size(k)+_size(v) for k,v in value.dispatch.items())
     return total
 
 
@@ -46,6 +48,7 @@ def fingerprint(path):
 
 class ArtifactRegistry:
     def __init__(self,*,max_entries=16,max_bytes=16*1024*1024,max_artifact_bytes=4_000_000):
+        if min(max_entries,max_bytes,max_artifact_bytes)<1:raise ValueError('source_artifact_registry_bound')
         self.max_entries=max_entries;self.max_bytes=max_bytes;self.max_artifact_bytes=max_artifact_bytes
         self.entries=OrderedDict();self.bytes=0;self.lock=threading.RLock()
         self.generation=0;self.counters=Counter()
@@ -62,6 +65,9 @@ class ArtifactRegistry:
 
     def _watch(self,path):
         if self.watch_fd<0 or path in self.watches.values():return
+        while len(self.watches)>=self.max_entries:
+            self._discard(next(iter(self.watches.values())))
+            self.counters['watch_evictions']+=1
         wd=self.libc.inotify_add_watch(self.watch_fd,os.fsencode(path),0x2|0x4|0x8|0x400|0x800)
         if wd>=0:self.watches[wd]=path
 
@@ -98,18 +104,20 @@ class ArtifactRegistry:
             try:
                 self._changes();self._watch(path)
                 stamp=fingerprint(path)
+                if stamp[2]>self.max_artifact_bytes:raise ValueError('source_artifact_size_bound')
                 watched=path in self.watches.values()
                 # Portable/refused-watch fallback verifies content, retaining
                 # parsing reuse without assuming timestamp precision.
-                raw=None if watched else path.read_bytes()
+                def bounded_read():
+                    with path.open('rb') as stream:return stream.read(self.max_artifact_bytes+1)
+                raw=None if watched else bounded_read()
                 content=None if raw is None else hashlib.sha256(raw).digest()
                 key=(stamp,content,generation,self.generation,validate,prepare)
                 old=self.entries.get(path)
                 if old and old[0]==key:
                     self.counters['hits']+=1;self.entries.move_to_end(path);return old[1]
                 self._discard(path,unwatch=False);self.counters['misses']+=1
-                if stamp[2]>self.max_artifact_bytes:raise ValueError('source_artifact_size_bound')
-                if raw is None:raw=path.read_bytes()
+                if raw is None:raw=bounded_read()
                 if len(raw)>self.max_artifact_bytes:raise ValueError('source_artifact_size_bound')
                 def invalid_constant(value):raise ValueError('source_artifact_nonfinite')
                 parsed=json.loads(raw,parse_constant=invalid_constant);self.counters['parses']+=1

@@ -185,15 +185,15 @@ class Runtime:
 
     def necessary_scale_return(self,state,position,risk):
         """Exact native sell arithmetic; no extra acquisition or retained quote."""
-        if not (0<=self.now()-state['available_time']<=5
-                and 0<=self.now()-state['market_time']<=10):return None
         try:
+            if not (0<=self.now()-state['available_time']<=5
+                    and 0<=self.now()-state['market_time']<=10):return None
             self.plane.require_usable(SWAP_SCOPE)
             q=sell_quote(state,position['tokens'])
             from meme_machine.runtime.directional_continuation import reference_return
             return reference_return(max(0,q.output_amount-GAS),position['tokens'],
                 risk['original_basis'],risk['original_quantity'])
-        except (ValueError,Unavailable):return None
+        except (ValueError,Unavailable,KeyError,TypeError,ZeroDivisionError):return None
 
     def reconstruct(self,state,quote_context,*,maintenance=False):
         row=self.current;at=state['market_time'];self._increment(row,at,state['slot'])

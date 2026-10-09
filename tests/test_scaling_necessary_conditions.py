@@ -165,3 +165,29 @@ class ScalingNecessaryTests(unittest.TestCase):
             self.assertEqual(scale_budget(state,facts,now=now,sleeve=sleeve,execution_allowance=sizing['target']),expected)
             self.assertEqual(scale_necessary_budget(state,now=now,sizing=sizing,after_cost_return_bps=current),expected)
             self.assertGreaterEqual(scale_necessary_budget(state,now=now,sizing=sizing),expected)
+
+    def test_actual_pump_local_precheck_matches_native_quotes_on_changing_dependencies(self):
+        from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime,GAS
+        from meme_machine.lanes.pump.postgrad import PostGraduationAdapter
+        from tests.lanes.pump.test_postgrad_read_efficiency import MeteredRPC,MINT
+        from tests.lanes.pump.test_postgrad import fee_config,token_account,WSOL
+        rpc=MeteredRPC();native=PostGraduationAdapter(rpc,scan_rpc=object())
+        runtime=SimpleNamespace(now=lambda:101,plane=SimpleNamespace(require_usable=lambda scope:None),
+            _provider=lambda *args:None,current=dict(id=MINT))
+        for quantity,fee,gas,reserve in ((10**9,5,GAS,50_000_000_000),
+                (2*10**9,60,GAS+10,80_000_000_000)):
+            rpc.fee_acc=fee_config(lp=fee,protocol=0,creator=0)
+            rpc.quote_acc=token_account(WSOL,rpc.pool,reserve)
+            state=native.pumpswap_snapshot(MINT,101,reuse_verified_pool=True,held_curve_inline=True)
+            p=dict(tokens=quantity);risk=dict(original_basis=1000,original_quantity=quantity)
+            before=len(rpc.requests)
+            with patch('meme_machine.lanes.pump.pumpswap_survivor_runtime.GAS',gas):
+                original_quote=Runtime.exit_quote(runtime,quantity,state=state)
+                result=Runtime.necessary_scale_return(runtime,state,p,risk)
+            self.assertEqual(result,reference_return(original_quote['net_proceeds'],quantity,
+                risk['original_basis'],risk['original_quantity']))
+            self.assertEqual(len(rpc.requests),before)
+            for unavailable in (dict(state,available_time=95),dict(state,market_time=90),{}):
+                self.assertIsNone(Runtime.necessary_scale_return(runtime,unavailable,p,risk))
+        runtime.plane.require_usable=lambda scope:(_ for _ in ()).throw(ValueError('unusable'))
+        self.assertIsNone(Runtime.necessary_scale_return(runtime,state,p,risk))

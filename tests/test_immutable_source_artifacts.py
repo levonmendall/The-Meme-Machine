@@ -56,11 +56,29 @@ class ArtifactTests(unittest.TestCase):
             root=Path(td);registry=ArtifactRegistry(max_entries=2,max_bytes=10000,max_artifact_bytes=200)
             for i in range(5):
                 p=root/str(i);p.write_text(json.dumps(dict(value=i)));registry.get(p)
-            self.assertEqual(registry.stats()['entries'],2);self.assertEqual(registry.stats()['evictions'],3)
+            self.assertEqual(registry.stats()['entries'],2)
+            self.assertLessEqual(len(registry.watches),2)
+            self.assertEqual(registry.stats().get('evictions',0)+registry.stats().get('watch_evictions',0),3)
             p=root/'bad';p.write_text('"'+'x'*200+'"')
             with self.assertRaisesRegex(ValueError,'size_bound'):registry.get(p)
             p.write_text('{}')
             with self.assertRaises(ValueError):registry.get(p,validate=lambda v:(_ for _ in ()).throw(ValueError()))
+
+    def test_changed_evicted_artifact_watches_remain_bounded_and_fallback_reloads(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);registry=ArtifactRegistry(max_entries=2,max_bytes=10000)
+            for i in range(12):
+                p=root/str(i);p.write_text('{"v":1}');registry.get(p)
+                p.write_text('{"v":2}')
+            self.assertLessEqual(len(registry.watches),2)
+            self.assertEqual(registry.get(root/'0')['v'],2)
+            portable=ArtifactRegistry(max_entries=2,max_bytes=10000)
+            portable_fd=portable.watch_fd;portable.watch_fd=-1
+            if portable_fd>=0:
+                import os
+                os.close(portable_fd)
+            p=root/'0';self.assertEqual(portable.get(p)['v'],2)
+            p.write_text('{"v":3}');self.assertEqual(portable.get(p)['v'],3)
 
     def test_duplicate_anonymous_dynamic_and_malformed_topics_keep_strict_refusal(self):
         abi=load('pons_v2_factory')['abi'];compiled=CompiledABI(freeze(abi))
