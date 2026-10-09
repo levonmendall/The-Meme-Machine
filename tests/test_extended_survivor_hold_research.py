@@ -33,7 +33,12 @@ def observation(at, gain, **kw):
 class ResearchModelTests(unittest.TestCase):
     def test_no_production_policy_service_or_allowance_changes(self):
         for relative in POLICY_PATHS:
-            original = subprocess.check_output(['git', 'show', PRIMARY_COMMIT+':'+relative], cwd=ROOT)
+            # The owner subsequently removed only Survivor's admission count
+            # veto. Keep full-byte checks against that exact reviewed delta;
+            # test_pons_owner_admission separately proves unchanged economics.
+            expected_commit=('aa9fdcee' if relative=='meme_machine/lanes/pons/pons_postgrad_survivor.py'
+                else PRIMARY_COMMIT)
+            original = subprocess.check_output(['git', 'show', expected_commit+':'+relative], cwd=ROOT)
             self.assertEqual((ROOT/relative).read_bytes(), original, relative)
         model = build()
         self.assertEqual(model['baseline']['current_bridge_seconds'], 129600)

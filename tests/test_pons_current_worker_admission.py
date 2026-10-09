@@ -8,6 +8,11 @@ from tests.lanes.pons.test_pons_candidate_plane import event
 
 
 class CurrentWorkerAdmissionTests(unittest.TestCase):
+    def test_actual_cohort_worker_pressure_keeps_independent_qualification_and_native_watch(self):
+        from tests.lanes.pons import test_pons_continuous_campaign as native
+        fixture=native.ContinuousCampaignTests()
+        fixture._campaign_probe(worker_pressure=True)
+
     def broker(self):
         tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup)
         self.now=100.;path=Path(tmp.name)/'plane'

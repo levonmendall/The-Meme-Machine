@@ -20,6 +20,7 @@ OUTCOMES = {
     'freshness_deadline_censored': ('terminal', 'consumer_deadline'),
     'authoritative_evidence_failure': ('terminal', 'provider_failed'),
     'transient_defer': ('candidate_deferred', 'unresolved_transient'),
+    'worker_deferred': ('candidate_deferred', 'unresolved_transient'),
     'superseded': ('candidate_superseded', 'superseded_generation'),
     'strategy_rejected': ('rejected', 'strategy_rejection'),
     'structural_excluded': ('rejected', 'structural_ineligible'),

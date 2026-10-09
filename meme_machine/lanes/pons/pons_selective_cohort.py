@@ -760,6 +760,8 @@ def run(endpoint,*,campaign=False):
         cohort_accounting=initial_accounting,
         operational_configuration=dict(campaign=campaign,discovery_seconds=DISCOVERY_SECONDS,
             max_concurrent_lifecycles=MAX_CONCURRENT_LIFECYCLES,
+            physical_lifecycle_workers=MAX_CONCURRENT_LIFECYCLES,permanent_position_count_veto=None,
+            worker_pressure_disposition='durable_watch_requires_fresh_canonical_requalification',
             observation_capacity=None if campaign else MAX_ENROLLED,exhausted_capacity='bounded_evaluation_non_lossy_retention'),
         market_observation_scope="all authenticated Pons V2 buy/sell logs for observability",
         selection_rule=(
