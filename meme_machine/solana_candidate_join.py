@@ -286,3 +286,59 @@ class CandidateTransactionJoin:
         for slot in sorted(self.pending):
             if slot>through:break
             for sig in sorted(self.pending[slot]['missing_logs']):yield slot,sig
+
+    def block_repair_groups(self,keys,profile,now):
+        """Known successful native identities only; never interval coverage.
+
+        Unknown endpoint capability, size or worst-case fallback slack retains
+        individual repair. The original maximum eight missing fields is intact.
+        """
+        if not isinstance(profile,dict) or profile.get('validated') is not True:return []
+        try:
+            maximum=int(profile['max_response_bytes']);transactions=int(profile['max_transactions'])
+            latency=float(profile['max_latency_seconds'])
+            if not (0<maximum<=16*1024*1024 and 0<latency<=8 and transactions>0
+                    and profile['billed_cu']==40 and profile['throughput_cu']==40):return []
+        except (KeyError,TypeError,ValueError,OverflowError):return []
+        groups={}
+        for slot,sig in list(keys)[:8]:groups.setdefault(slot,[]).append((slot,sig))
+        chosen=[]
+        for slot,required in groups.items():
+            state=self.pending.get(slot);meta=state.get('meta') if state else None
+            if (len(required)<2 or meta is None or state['finality']!=meta.parent_slot
+                    or not meta.HasField('block_time') or not meta.blockhash
+                    or not meta.parent_blockhash or meta.executed_transaction_count>transactions):continue
+            # Three governed dense attempts + original concurrent repair fallback
+            # retain the native join's original expiry, including retry delays.
+            remaining=self.max_join_seconds-(now-state['started'])
+            if remaining<3*(8+latency)+.6+32+.5*len(required):continue
+            chosen.append((required,dict(slot=slot,hash=meta.blockhash,parent_hash=meta.parent_blockhash,
+                parent=meta.parent_slot,at=meta.block_time.timestamp,count=meta.executed_transaction_count,
+                indices={sig:index for index,sig in state['signature_text'].items()})))
+        return chosen
+
+
+def authenticated_block_logs(block,witness,keys,maximum_bytes):
+    """Partition a complete finalized block into exact native missing fields."""
+    import json
+    if (not isinstance(block,dict) or block.get('blockhash')!=witness['hash']
+            or block.get('previousBlockhash')!=witness['parent_hash'] or block.get('parentSlot')!=witness['parent']
+            or block.get('blockTime')!=witness['at'] or not isinstance(block.get('transactions'),list)
+            or len(block['transactions'])!=witness['count']
+            or len(json.dumps(block).encode())>maximum_bytes):
+        raise EvidenceUnavailable('candidate_block_repair_identity_or_completeness')
+    bodies={}
+    for index,tx in enumerate(block['transactions']):
+        sigs=(tx.get('transaction') or {}).get('signatures') if isinstance(tx,dict) else None
+        if not isinstance(sigs,list) or not sigs or not isinstance(sigs[0],str) or sigs[0] in bodies:
+            raise EvidenceUnavailable('candidate_block_repair_transaction_identity')
+        bodies[sigs[0]]=(index,tx)
+    result={}
+    for slot,sig in keys:
+        if slot!=witness['slot'] or sig not in bodies:raise EvidenceUnavailable('candidate_required_content_missing')
+        index,tx=bodies[sig];meta=tx.get('meta')
+        if (index!=witness['indices'].get(sig) or not isinstance(meta,dict) or 'err' not in meta or meta['err'] is not None
+                or not isinstance(meta.get('logMessages'),list) or not all(isinstance(x,str) for x in meta['logMessages'])):
+            raise EvidenceUnavailable('candidate_block_repair_economic_identity')
+        result[(slot,sig)]=meta['logMessages']
+    return result

@@ -326,6 +326,7 @@ class SelectiveSource:
         if self.observer is not None:self.observer(kind,values)
 
     def stream_telemetry(self):
+        from .runtime.provider_purchases import ledger
         # A client-open stream is not independently certified provider admission.
         # First physical delivery is distinguished from subscription attempts.
         families=set(self.native_attempts)|{r['consumer'] for r in self.native_streams.values()}
@@ -335,9 +336,16 @@ class SelectiveSource:
                 client_open=sum(r['consumer']==f for r in self.native_streams.values()),
                 delivering=sum(r['consumer']==f and r['delivering'] for r in self.native_streams.values()))
                 for f in sorted(families)},errors=dict(self.native_errors),
-            provider_quota_verified=False)
+            provider_quota_verified=False,provider_purchases=ledger(self).snapshot())
 
     async def delivered(self,family,transport,size,seen,priority=2):
+        from .runtime.provider_purchases import ledger,provider_work
+        # Program feeds are shared by independent strategies. Do not assign
+        # their purchase twice or infer an unseen redelivery from byte totals.
+        kind='solana_websocket' if transport=='websocket' else 'solana_grpc'
+        with provider_work('pump_discovery' if family=='discovery' else 'history_receipt',
+                family='pump' if family in ('pump','pumpswap','discovery','replay') else 'shared',consumer='shared'):
+            ledger(self).stream(kind,size,family='shared')
         if not self.batched:
             await self.work(lambda s:install(s).delivery(family,transport,raw_bytes=size,seen=seen),priority)
             return
@@ -427,7 +435,12 @@ class SelectiveSource:
         for attempt in range(3):
             from .operational.position_continuation import position_only
             if priority>2 and position_only():raise EvidenceUnavailable('bootstrap_optional_work_closed')
-            try:result,receipt=await asyncio.to_thread(self.rpc.call_delivered,method,params,priority)
+            from .runtime.provider_purchases import provider_work
+            operation='recovery_restart' if family in ('replay','rolling_recovery_missing_logs') else 'history_receipt'
+            try:
+                with provider_work(operation,family='pump' if family in ('pump','pumpswap','replay','rolling_recovery_missing_logs') else 'shared',
+                        consumer='recovery' if operation=='recovery_restart' else 'history',retry_attempt=attempt):
+                    result,receipt=await asyncio.to_thread(self.rpc.call_delivered,method,params,priority)
             except ValueError as exc:
                 receipt=getattr(exc,'receipt',None)
                 if receipt is not None:
@@ -1073,26 +1086,52 @@ class SelectiveSource:
                     # field. This exception fetches bodies only for the recovery
                     # prefix unavailable from a new WS, never every promotion.
                     inflight=set()
+                    async def publish_log(slot,sig,logs):
+                        await self.work(lambda s:install(s)._observation(None,'selective_missing_field',dict(signature=sig,slot=slot,field='logMessages',reason='RECOVERY_GAP')),2)
+                        await commit(join.feed_log(slot,sig,logs,None,time.time()))
+                        while True:
+                            frame=join.drain()
+                            if frame is None:break
+                            await commit(frame)
                     async def one(slot,sig):
                         try:
                             tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
                             if not tx or tx['slot']!=slot or tx['meta']['err'] is not None:
                                 raise EvidenceUnavailable('candidate_required_content_missing')
-                            await self.work(lambda s:install(s)._observation(None,'selective_missing_field',dict(signature=sig,slot=slot,field='logMessages',reason='RECOVERY_GAP')),2)
-                            await commit(join.feed_log(slot,sig,tx['meta']['logMessages'],None,time.time()))
-                            while True:
-                                frame=join.drain()
-                                if frame is None:break
-                                await commit(frame)
+                            await publish_log(slot,sig,tx['meta']['logMessages'])
                         finally:inflight.discard((slot,sig))
+                    async def block_group(keys,witness,profile):
+                        from .solana_candidate_join import authenticated_block_logs
+                        try:
+                            try:
+                                block=await self.measured_rpc('getBlock',[witness['slot'],dict(commitment='finalized',
+                                    encoding='json',transactionDetails='full',rewards=False,maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
+                                logs=authenticated_block_logs(block,witness,keys,profile['max_response_bytes'])
+                            except (ValueError,KeyError,TypeError,EvidenceUnavailable):
+                                # Same original keys, native join expiry and governor.
+                                # A failed dense attempt supplies no partial authority.
+                                fallback=[asyncio.create_task(one(*key)) for key in keys]
+                                try:await asyncio.gather(*fallback)
+                                finally:
+                                    for task in fallback:
+                                        if not task.done():task.cancel()
+                                    await asyncio.gather(*fallback,return_exceptions=True)
+                                return
+                            for slot,sig in keys:await publish_log(slot,sig,logs[(slot,sig)])
+                        finally:inflight.difference_update(keys)
                     pending=set()
                     try:
                         while not self.stop.is_set() and not local_stop.is_set():
                             for task in list(pending):
                                 if task.done():task.result();pending.remove(task)
-                            for key in join.missing_log_keys(tip):
-                                if len(pending)>=8:break
-                                if key not in inflight:
+                            keys=[key for key in join.missing_log_keys(tip) if key not in inflight][:max(0,8-len(inflight))]
+                            profile=getattr(self.rpc,'block_repair_profile',None)
+                            grouped=set()
+                            for group,witness in join.block_repair_groups(keys,profile,join.clock()):
+                                inflight.update(group);grouped.update(group)
+                                pending.add(asyncio.create_task(block_group(group,witness,profile)))
+                            for key in keys:
+                                if key not in grouped:
                                     inflight.add(key);pending.add(asyncio.create_task(one(*key)))
                             await asyncio.sleep(.01)
                     finally:
