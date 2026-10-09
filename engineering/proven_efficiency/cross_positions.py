@@ -51,60 +51,33 @@ def native_quote(rpc,request,*,head=None):
         q,meta,ledger=v4_quote(rpc,request['key'],request['pool_id'],request['amount'],200000,
             store,'offline-position-protection',side=request['side'],local_freshness=True,fresh_head=head)
         q.check(int(time.time()),q.market,request['side'],request['amount'],q.stamp.kind,finality_ledger=ledger)
-        basis=request['amount']//100
-        rbps=(q.amount_out-q.gas_quote-basis)*10000//basis
-        action=exit_action(after_cost_return_bps=rbps,high_water_return_bps=5000,
-            hold_seconds=100,seconds_since_high=0,buy_quote_30m=300,sell_quote_30m=100,new_buyers_30m=4)
-        if request.get('consumer')=='current':
-            action=runner_action(tokens=request['amount'],partial_taken=True,after_cost_return_bps=rbps,
-                high_water_return_bps=5000,seconds_since_high=0,new_buyer_growth=4,buy_quote=300,sell_quote=100)
-        return dict(native_economic=dict(side=q.side,quantity=q.amount_in,amount_out=q.amount_out,
-            gas_quote=q.gas_quote,market=q.market,block=meta['block'],block_hash=meta['block_hash']),
-            native_exit_decision=action,stamp=asdict(q.stamp))
+        return quote_decision(q,meta,request)
     finally:store.close()
 
 
-class PreparedReads:
-    def __init__(self,rpc,head,values):
-        self.provider_fingerprint=rpc.provider_fingerprint;self.chain_verified=rpc.chain_verified
-        self.hash_state_supported=rpc.hash_state_supported;self.max_response=rpc.max_response
-        self.head=head;self.values=values
-    def call(self,method,params,*,scope):
-        if method=='eth_getBlockByNumber' and params==['latest',False]:return self.head
-        raise BoundaryError('offline_union_unprepared_call')
-    def batch(self,calls,*,scope):
-        try:return [self.values[canonical([m,p])] for m,p in calls]
-        except KeyError:raise BoundaryError('offline_union_unprepared_batch') from None
+def quote_decision(q,meta,request):
+    basis=request['amount']//100
+    rbps=(q.amount_out-q.gas_quote-basis)*10000//basis
+    action=exit_action(after_cost_return_bps=rbps,high_water_return_bps=5000,
+        hold_seconds=100,seconds_since_high=0,buy_quote_30m=300,sell_quote_30m=100,new_buyers_30m=4)
+    if request.get('consumer')=='current':
+        action=runner_action(tokens=request['amount'],partial_taken=True,after_cost_return_bps=rbps,
+            high_water_return_bps=5000,seconds_since_high=0,new_buyer_growth=4,buy_quote=300,sell_quote=100)
+    return dict(native_economic=dict(side=q.side,quantity=q.amount_in,amount_out=q.amount_out,
+        gas_quote=q.gas_quote,market=q.market,block=meta['block'],block_hash=meta['block_hash']),
+        native_exit_decision=action,stamp=asdict(q.stamp))
 
 
 def ready_quote_union(rpc,requests,*,now=time.monotonic):
-    if not 1<=len(requests)<=20 or not {'eth_call','eth_getCode'}<=rpc.hash_state_supported:
-        raise BoundaryError('offline_union_capability_or_payload_unproved')
+    from meme_machine.lanes.pons.pons_quotes import shared_v4_quotes
     if len(requests)==1:return [native_quote(rpc,requests[0])]
-    started=now();rpc.verify_chain()
-    header=rpc.call('eth_getBlockByNumber',['latest',False],scope='paper_exit')
-    if any(r.get('block_hash') not in (None,header['hash']) for r in requests):
-        raise BoundaryError('offline_union_different_canonical_states')
-    block=dict(blockHash=header['hash'],requireCanonical=True)
-    calls=[('eth_getCode',[V4_QUOTER,block]),
-        ('eth_call',[dict(to=V4_QUOTER,data=calldata('poolManager()')),block]),('eth_gasPrice',[])]
-    for r in requests:
-        zero_for_one=r['key'].currency0!=ZERO if r['side']=='sell' else r['key'].currency0==ZERO
-        calls.append(('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(r['key'],zero_for_one,r['amount'])),block]))
-    # Exact identical simulations may share acquisition; distinct quantities never
-    # share outputs. Each native consumer still reconstructs and checks its quote.
-    unique=list({canonical([m,p]):(m,p) for m,p in calls}.values())
-    values=rpc.batch(unique,scope='paper_exit')
-    fence=rpc.call('eth_getBlockByNumber',[header['number'],False],scope='paper_exit')
-    if fence['number']!=header['number'] or fence['hash']!=header['hash']:
-        raise BoundaryError('pons_quote_canonical_membership_disagreement')
-    if now()-started>3:raise BoundaryError('offline_union_original_protection_deadline')
-    prepared={canonical([m,p]):v for (m,p),v in zip(unique,values)}
-    prepared[canonical(['eth_getBlockByNumber',[header['number'],False]])]=fence
-    result=[]
-    for r in requests:
-        result.append(native_quote(PreparedReads(rpc,header,prepared),r,head=(header,started)))
-    return result
+    # The deterministic fixture proves these bounds only for injected HTTP.
+    # The operational endpoint has no such proof and remains disabled.
+    rpc.shared_quote_resources=dict(validated=True,provider_fingerprint=rpc.provider_fingerprint,
+        max_response_bytes=rpc.max_response,max_latency_seconds=.001,
+        max_logical_elements=50,max_throughput_cu=2000)
+    values=shared_v4_quotes(rpc,[dict(r,gas_units=200000) for r in requests])
+    return [quote_decision(v['quote'],v['meta'],r) for r,v in zip(requests,values)]
 
 
 def scenario(root,count,*,timing='coincident',mode='native',cadence=3,latency=.001):

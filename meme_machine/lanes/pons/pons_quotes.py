@@ -134,3 +134,76 @@ def v4_quote(rpc,key,pool_id,amount,gas_units,store,label,*,side='sell',
     except BoundaryError:
         rpc.v4_identity_snapshot=None
         raise
+
+
+class _SharedV4Reads:
+    """One already-authenticated acquisition, consumed by native quote parsing."""
+    def __init__(self,header,values,*,started,wall,observed):
+        self.header=header;self.values=values
+        self.original_acquisition_monotonic=started
+        self.original_acquisition_wall=wall;self.original_observed_at=observed
+    def call(self,method,params,*,scope):
+        if method=='eth_getBlockByNumber' and params==['latest',False]:return self.header
+        try:return self.values[canonical([method,params])]
+        except KeyError:raise BoundaryError('pons_shared_quote_evidence_missing') from None
+
+
+def shared_v4_quotes(rpc,requests,*,deadline_seconds=3):
+    """Acquire already-due exact simulations once, with the original deadlines.
+
+    Unknown endpoint resources keep this path inactive before any purchase.
+    Every caller still runs the native adapter and its own quantity/finality
+    checks. This does not wait for another position or retain market state.
+    """
+    resources=getattr(rpc,'shared_quote_resources',None)
+    if (not isinstance(resources,dict) or resources.get('validated') is not True
+            or resources.get('provider_fingerprint')!=getattr(rpc,'provider_fingerprint',None)
+            or getattr(rpc,'chain_verified',False) is not True
+            or not {'eth_call','eth_getCode'}<=set(getattr(rpc,'hash_state_supported',()))):
+        raise BoundaryError('pons_shared_quote_resources_unproved')
+    max_bytes=resources.get('max_response_bytes');max_latency=resources.get('max_latency_seconds')
+    elements=len(requests)+3
+    if (not 2<=len(requests)<=47 or deadline_seconds not in (3,5)
+            or not isinstance(max_bytes,int) or not 0<max_bytes<=rpc.max_response
+            or not isinstance(max_latency,(int,float)) or not 0<=max_latency<=1
+            or elements>resources.get('max_logical_elements',0)
+            or 1+3*max_latency>=deadline_seconds
+            or 80+26*(len(requests)+1)>resources.get('max_throughput_cu',0)):
+        raise BoundaryError('pons_shared_quote_resource_or_deadline_bound')
+    started=time.monotonic();wall=time.time()
+    with quote_deadline(rpc,started-5+deadline_seconds):
+        header=rpc.call('eth_getBlockByNumber',['latest',False],scope='pons_survivor')
+        if any(r.get('block_hash') not in (None,header['hash']) for r in requests):
+            raise BoundaryError('pons_shared_quote_canonical_targets_differ')
+        block=dict(blockHash=header['hash'],requireCanonical=True)
+        logical=[('eth_getCode',[V4_QUOTER,header['number']]),
+            ('eth_call',[dict(to=V4_QUOTER,data=calldata('poolManager()')),header['number']]),
+            ('eth_gasPrice',[])]
+        for r in requests:
+            side=r.get('side','sell');amount=r['amount'];key=r['key']
+            if side not in ('buy','sell') or not isinstance(amount,int) or amount<=0:
+                raise BoundaryError('pons_shared_quote_request_identity')
+            direction=key.currency0!=ZERO if side=='sell' else key.currency0==ZERO
+            logical.append(('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(key,direction,amount)),header['number']]))
+        unique=list({canonical([m,p]):(m,p) for m,p in logical}.values())
+        wire=[(m,[*p[:-1],block] if m in ('eth_call','eth_getCode') else p) for m,p in unique]
+        values=rpc.batch(wire,scope='pons_survivor')
+        if not isinstance(values,list) or len(values)!=len(wire):raise BoundaryError('pons_shared_quote_incomplete')
+        if len(canonical(values).encode())>max_bytes:raise BoundaryError('pons_shared_quote_payload_bound')
+        canonical_boundary(rpc,header,'pons_survivor')
+    observed=time.time()
+    prepared=_SharedV4Reads(header,{canonical([m,p]):v for (m,p),v in zip(unique,values)},
+        started=started,wall=wall,observed=observed)
+    from .evidence import Store
+    result=[]
+    for r in requests:
+        store=Store(':memory:')
+        try:
+            q,meta,ledger=native_v4_quote(prepared,r['key'],r['pool_id'],r['amount'],r['gas_units'],store,
+                'shared-held-exact',side=r.get('side','sell'),local_freshness=True)
+            q.check(int(time.time()),r['pool_id'],r.get('side','sell'),r['amount'],q.stamp.kind,finality_ledger=ledger)
+            result.append(dict(quote=q,meta=meta,acquired=started,header=header))
+        finally:store.close()
+    if not 0<=time.monotonic()-started<=deadline_seconds:
+        raise BoundaryError('pons_shared_quote_original_deadline')
+    return result

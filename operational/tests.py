@@ -2,6 +2,9 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_pons_shared_native_acquisition',
+ 'tests.test_pons_current_worker_ownership',
+ 'tests.test_pons_current_scaling_history',
  'tests.test_provider_package_sensitivities',
  'tests.test_pons_rpc_equivalence_preparation',
  'tests.test_pons_current_worker_admission',

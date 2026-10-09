@@ -407,7 +407,7 @@ class Runtime:
         self.history.append_block(row['id'],block=end,header=h,events=events,points=sorted(points.items()))
 
     @evidence_work('deep_watch')
-    def _increment_candidates(self,rows,top):
+    def _increment_candidates(self,rows,top,*,held=False):
         if not rows:return
         population=len(rows)
         pending=[r for r in rows if r.get('block') is not None and r['block']<top]
@@ -427,7 +427,10 @@ class Runtime:
         markets=[dict(pool_id=r['graduation']['transition']['market'],
             key=PoolKey(**r['graduation']['key']),token=r['id']) for r in active]
         context=self._position_context()
-        if hasattr(context.cache,'receipt_scope'):context.cache.receipt_scope=None
+        if held and hasattr(context.cache,'begin_receipts'):
+            context.cache.begin_receipts('survivor',digest(sorted(r['id'] for r in active)),
+                digest([(r['id'],r['block'],r.get('block_hash')) for r in active]))
+        elif hasattr(context.cache,'receipt_scope'):context.cache.receipt_scope=None
         tapes=collect_v4_activities(self.endpoint,markets=markets,start_block=start,end_block=end,
             acquisition_state=self.history,evidence_context=context)
         blocks=sorted({end}|{r['block'] for r in active})
@@ -445,6 +448,8 @@ class Runtime:
         for row in valid:
             tape=dict(tapes[row['id']]);tape['swaps']=[e for e in tape['swaps'] if e['block']>row['block']]
             self._append_tape(row,end,headers[end],tape)
+        if held and not reorgs and hasattr(context.cache,'acknowledge_receipts'):
+            context.cache.acknowledge_receipts()
         self.acquisition=dict(observed_at=self.now(),head_block=top,through_block=end,
             retained_candidates=population,scheduled_candidates=len(rows),advanced_candidates=len(valid),
             reorg_recoveries=reorgs,
@@ -550,6 +555,16 @@ class Runtime:
         from .evidence import Store
         grad=self.current['graduation'];key=PoolKey(**grad['key'])
         cache=getattr(self,'position_exit_quotes',None)
+        prepared=getattr(self,'shared_held_quotes',{}).pop(self.current['id'],None)
+        if prepared is not None:
+            p=self.book._load(self.current['position']);q=prepared['quote'];meta=prepared['meta']
+            if (digest(p)==prepared['position_hash'] and p['tokens']==qty and q.amount_in==qty
+                    and q.market==grad['transition']['market'] and
+                    0<=time.monotonic()-prepared['acquired']<=self.observation_interval_seconds):
+                result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
+                    acquired=prepared['acquired'],block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
+                if cache is not None:cache[qty]=dict(result,amount_out=q.amount_out,gas_units=meta['gas_units_proxy'])
+                return result
         cached=cache.get(qty) if cache is not None else None
         if cached and 0<=time.monotonic()-cached['acquired']<=5:
             # Reuse only within this one evaluation at an unchanged current
@@ -755,17 +770,25 @@ class Runtime:
             compact_survivor(self,'pons')
             self._provider()
             def position_priority(row):
-                if not row.get('position'):return 2
+                if not row.get('position'):return 3
                 try:position=self.book._load(row['position'])
-                except ValueError:return 1
-                return 0 if position['status']=='open' and position['tokens']>0 else 1
-            for row in sorted(self.history.rows(),key=position_priority):
+                except ValueError:return 2
+                return 0 if (position['status']=='exit_pending' or row.get('position_safety',{}).get('pending_exit')) else (1 if position['status']=='open' and position['tokens']>0 else 2)
+            ordered=sorted(self.history.rows(),key=position_priority)
+            self.shared_held_quotes={}
+            if not any(position_priority(r)==0 for r in ordered):
+                try:self._prepare_held_acquisition([r for r in ordered if position_priority(r)==1])
+                except (ValueError,BoundaryError) as exc:
+                    self.shared_held_quotes={};self.shared_held_boundary=str(exc)
+            for original in ordered:
+                row=self.history.get(original['id']) or original
                 if row.get('position'):
                     try:self._position(row,admit=admit)
                     except (ValueError,BoundaryError) as exc:
                         errors.append(str(exc));self._failure(row,str(exc),phase='position')
                         from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
                         exceptional_evidence_failure(self,family='pons_survivor',blocker=str(exc),rows=[row])
+            self.shared_held_quotes={}
             if admit:
                 # Discovery never depends on population or allocatable capital.
                 try:self.discover()
@@ -858,6 +881,24 @@ class Runtime:
                     held_paper_shadow=(getattr(self,'held_paper_shadow',None).status()
                         if getattr(self,'held_paper_shadow',None) is not None else
                         dict(enabled=False,mode='PAPER_SHADOW_ONLY')))
+
+    @position_work
+    @attributed_work('pons_held_protection',consumer='survivor')
+    def _prepare_held_acquisition(self,rows):
+        """Only already-due compatible owners; no batching wait or changed clock."""
+        if len(rows)<2 or getattr(self.rpc,'shared_quote_resources',None) is None:return
+        from .pons_quotes import shared_v4_quotes
+        requests=[];positions=[]
+        for row in rows:
+            p=self.book._load(row['position']);grad=row['graduation']
+            positions.append(p)
+            requests.append(dict(key=PoolKey(**grad['key']),pool_id=grad['transition']['market'],
+                amount=p['tokens'],gas_units=grad['transition']['graduation_gas_used'],side='sell'))
+        quotes=shared_v4_quotes(self.rpc,requests,deadline_seconds=self.observation_interval_seconds)
+        self.shared_held_quotes={row['id']:dict(q,position_hash=digest(p)) for row,p,q in zip(rows,positions,quotes)}
+        top=int(quotes[0]['header']['number'],16)
+        if all(0<=top-r['block']<=40 for r in rows):
+            self._increment_candidates(rows,top,held=True)
 
     def close(self):
         shadow=getattr(self,'held_paper_shadow',None)

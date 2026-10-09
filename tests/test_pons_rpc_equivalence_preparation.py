@@ -78,8 +78,8 @@ class ProviderEquivalencePreparationTests(unittest.TestCase):
                     self.assertEqual([d['native_economic'] for d in before['decisions']],
                         [d['native_economic'] for d in union['decisions']])
                     self.assertEqual(before['simulations'],n);self.assertEqual(union['simulations'],n)
-                    self.assertEqual(before['physical_requests'],1+2*n)
-                    self.assertEqual(union['physical_requests'],3 if n==1 else 4)
+                    self.assertEqual(before['physical_requests'],1+3*n)
+                    self.assertEqual(union['physical_requests'],4)
                     self.assertEqual(union['original_deadline_misses'],0)
                     if n==20:self.assertGreater(before['original_deadline_misses'],0)
 
