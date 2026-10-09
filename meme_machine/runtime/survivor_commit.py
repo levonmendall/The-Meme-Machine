@@ -125,7 +125,7 @@ def risk_record(state,row):
     return state
 
 
-def monitor(*,book,sleeve,identity,observation,policy,adapter):
+def monitor(*,book,sleeve,identity,observation,policy,adapter,exceptional_context=None):
     from .directional_continuation import native_sync,reference_return
     native_sync(book,sleeve,identity)
     state=restore_risk(book,identity)
@@ -134,7 +134,14 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter):
     if state.get('scale_committed') and observation.get('after_cost_return_bps') is not None:
         observation=dict(observation,after_cost_return_bps=reference_return(
             observation['net_exit_proceeds'],position['tokens'],state['original_basis'],state['original_quantity']))
-    next_state,action=mark(state,observation,policy)
+    if exceptional_context is not None or state.get('exceptional'):
+        from .exceptional_winner import survivor_mark
+        lane=book.identity['lane']
+        family={'pumpswap-survivor-momentum-v1':'pump_survivor',
+                'pons-postgrad-survivor-momentum-v1':'pons_survivor'}[lane]
+        state=dict(state,realized_profit=position['realized'])
+        next_state,action=survivor_mark(state,observation,policy,family=family,context=exceptional_context)
+    else:next_state,action=mark(state,observation,policy)
     if next_state!=state:
         # Return uses the remaining cost basis and full executable remaining exit.
         book.transition(identity,'mark',observation['at'],
@@ -158,6 +165,42 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter):
         final=book._load(identity)
         sleeve.release(identity,pnl=final['realized'],at=now,terminal_hash=digest(final),native_verified=True)
     return action
+
+
+def exceptional_evidence_failure(runtime,*,family,blocker,rows=None):
+    """Provider failure before monitoring: durable intent, zero acquisition.
+
+    Use the same Book/risk journal and existing worker. A prior quote remains
+    explicitly unavailable; no execution or successful settlement is inferred.
+    Normal policies have no exceptional state and this is a no-op for them.
+    """
+    from .exceptional_winner import CHECKPOINTS,VERSION
+    enabled=getattr(runtime,'exceptional_context',None) is not None
+    now=runtime.now()
+    for row in runtime.history.rows() if rows is None else rows:
+        identity=row.get('position')
+        if not identity:continue
+        try:position=runtime.book._load(identity)
+        except ValueError:
+            if not enabled:continue
+            raise
+        if position['status']!='open':continue
+        state=restore_risk(runtime.book,identity);previous=state.get('exceptional')
+        if not enabled and not previous:continue
+        if now-state['opened_at']<CHECKPOINTS[family]:continue
+        action=state.get('last_action',{})
+        if action.get('action')!='full_exit':
+            action=dict(action='full_exit',reason='exceptional_authenticated_evidence_unavailable')
+        if not previous or previous.get('status')!='EXIT_REQUIRED':
+            state=dict(state,last_action=action,last_at=now,last_observation='unavailable:'+str(now),
+                exceptional=dict(previous or {},version=VERSION,family=family,opened_at=state['opened_at'],
+                    until=(previous or {}).get('until',state['opened_at']+CHECKPOINTS[family]),
+                    status='EXIT_REQUIRED',reason=action['reason'],protected=False,exit_required_at=now,blocker=blocker))
+            runtime.book.transition(identity,'mark',now,amount=position['mark'],
+                evidence=dict(risk_state=state,observation=dict(at=now,after_cost_return_bps=None,blocker=blocker)))
+        row['position_safety']=dict(at=now,evidence_current=False,exit_quote_available=False,
+            pending_exit=True,protected=False,blocker=blocker)
+        runtime.history.save(row)
 
 
 def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_limit,stress_limit,minimum):

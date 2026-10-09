@@ -162,7 +162,7 @@ def recovery_evaluation(base,db_path):
 
 
 @exclusive_lifecycle
-def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None):
+def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None,exceptional_context=None):
     """Reconcile and manage one existing native lifecycle; never reserve or enter."""
     from .pons_selective_paper import _run_lifecycle,STRATEGY_NAMESPACE,STRATEGY_CAPITAL_QUOTE,_cancel_proven_unfilled
     if slice_seconds is not None and not 1<=slice_seconds<=3300:
@@ -224,7 +224,7 @@ def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None):
             return result
     finally:store.close()
     return _run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path,
-        _recovery=base,slice_seconds=slice_seconds)
+        _recovery=base,slice_seconds=slice_seconds,exceptional_context=exceptional_context)
 
 
 def _pending_recoveries(root,qualifiers,lifecycles):

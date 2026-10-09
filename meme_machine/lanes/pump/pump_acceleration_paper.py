@@ -40,6 +40,7 @@ class PaperPosition:
     bridged: bool = False
     bridged_at: int | None = None
     bridge_deadline: int | None = None
+    exceptional: dict | None = None
     scale_committed: bool = False
     scale_request: str | None = None
     scale_cost: int = 0
@@ -237,9 +238,17 @@ class PumpAccelerationPaperLifecycle:
                 high_water_bps=self.position.peak_return_bps,
                 bridged=self.position.bridged,bridged_at=self.position.bridged_at,
                 bridge_deadline=self.position.bridge_deadline)
-            updated,expired=bridge_state(state,(evidence or {}).get('continuation',{}),
-                now=int(now),ordinary_expired=True)
-            for field in ('bridged','bridged_at','bridge_deadline'):
+            state.update(exceptional=self.position.exceptional,realized_profit=self.position.realized_quote_units,
+                remaining_quantity=self.position.tokens)
+            facts=dict((evidence or {}).get('continuation',{}),after_cost_return_bps=int(ret))
+            context=(evidence or {}).get('exceptional_candidate')
+            if context is not None or self.position.exceptional:
+                from meme_machine.runtime.exceptional_winner import current_bridge
+                updated,expired,extension_reason=current_bridge(state,facts,now=int(now),
+                    ordinary_expired=True,context=context)
+                if expired and extension_reason:reason=extension_reason
+            else:updated,expired=bridge_state(state,facts,now=int(now),ordinary_expired=True)
+            for field in ('bridged','bridged_at','bridge_deadline','exceptional'):
                 if field in updated:setattr(self.position,field,updated[field])
             if not expired:reason=None
         if reason is not None and self.position.exit_reason is None:
@@ -327,6 +336,14 @@ class PumpAccelerationPaperLifecycle:
         self.position.scale_cost=int(cost);self.position.scale_quantity=int(tokens)
         return asdict(self.position)
 
+    def exceptional_exit_intent(self,reason,now):
+        """Unavailable evidence persists intent without a fabricated mark/fill."""
+        if self.position is None or self.position.exit_reason:return
+        detail=dict(reason=reason,at=int(now),opened_at=self.position.opened_at,protected=False)
+        if self.book is not None:
+            self.book.checkpoint_runtime(self.lifecycle_id,'exceptional-exit-intent',detail,claim=True)
+        self.position.exit_reason=reason;self.position.exit_intended_at=int(now)
+
     def settle(self, executable_proceeds_quote_units: int, now: int, *, evidence=None):
         if self.position is None:
             raise ValueError("no_open_position")
@@ -381,8 +398,12 @@ class PumpAccelerationPaperLifecycle:
             first=records[0]['evidence']
             life=cls(lifecycle_id=lifecycle_id,entry_evidence=first.get('snapshot') or {})
             prior=None
+        pending=book.runtime_state(lifecycle_id,'exceptional-exit-intent')
         for row in records:
             action=row['action'];at=row['at'];position=row['position'];evidence=row['evidence']
+            if pending and life.position is not None and at>=pending['at'] and life.position.exit_reason is None:
+                if pending['opened_at']!=life.position.opened_at:raise ValueError('exceptional_exit_original_entry_disagreement')
+                life.position.exit_reason=pending['reason'];life.position.exit_intended_at=pending['at']
             if action=='reserved':
                 q=dict(evidence['qualification'])
                 q['reasons']=tuple(q['reasons']);q['confirmations']=tuple(q['confirmations'])
@@ -423,6 +444,9 @@ class PumpAccelerationPaperLifecycle:
                 raise ValueError('pump_recovery_inventory_disagreement')
         elif life.position is not None or life.reservation is not None:
             raise ValueError('pump_recovery_terminal_disagreement')
+        if pending and life.position is not None and life.position.exit_reason is None:
+            if pending['opened_at']!=life.position.opened_at:raise ValueError('exceptional_exit_original_entry_disagreement')
+            life.position.exit_reason=pending['reason'];life.position.exit_intended_at=pending['at']
         life.book=book
         return life
 

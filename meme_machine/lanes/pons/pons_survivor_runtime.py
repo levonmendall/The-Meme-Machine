@@ -641,8 +641,12 @@ class Runtime:
             net_exit_proceeds=p['mark'] if net is None else net,exit_liquidity_valid=True if q is not None else None,
             creator_distribution=any(not e['buy'] and e['group'] in creators for e in events),
             soft_deterioration=None if flow is None else flow['buy_flow']*10000<flow['sell_flow']*8000 and flow['new_buyers']==0)
+        extension=None;factory=getattr(self,'exceptional_context',None)
+        if factory is not None:
+            try:extension=factory(self,p,row,q,flow,observation)
+            except (ValueError,TypeError,KeyError,BoundaryError):extension={}
         action=monitor(book=self.book,sleeve=self.sleeve,identity=row['position'],observation=observation,
-                       policy=risk_policy(),adapter=self)
+                       policy=risk_policy(),adapter=self,exceptional_context=extension)
         row['position_safety']=dict(at=self.now(),evidence_current=header is not None and flow is not None and q is not None,
             exit_quote_available=q is not None,pending_exit=action['action']=='exit_pending',
             blocker='pons_survivor_authenticated_flow_or_exit_quote_unavailable')
@@ -671,6 +675,8 @@ class Runtime:
                     try:self._position(row,admit=admit)
                     except (ValueError,BoundaryError) as exc:
                         errors.append(str(exc));self._failure(row,str(exc),phase='position')
+                        from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
+                        exceptional_evidence_failure(self,family='pons_survivor',blocker=str(exc),rows=[row])
             if admit:
                 # Discovery never depends on population or allocatable capital.
                 try:self.discover()
@@ -740,6 +746,8 @@ class Runtime:
             self.last_error=errors[0] if errors else None
         except (ValueError,BoundaryError) as exc:
             self.last_error=str(exc)
+            from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
+            exceptional_evidence_failure(self,family='pons_survivor',blocker=str(exc))
             if 'row' in locals() and row and row.get('id'):
                 self._failure(row,str(exc))
         from meme_machine.runtime.directional_accounting import execution_cost

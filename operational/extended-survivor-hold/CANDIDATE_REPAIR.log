@@ -1,0 +1,46 @@
+STORAGE WARNING: root 75.3% used; 11.72 GiB available; nonessential bulk operations block at 85.0%.
+test_pons_native_current_controller_partial_renewal_restart_and_pending_exit (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pons_native_current_controller_partial_renewal_restart_and_pending_exit) ... ok
+test_pump_default_candidate_absence_still_exits_at_original_36_hours (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_default_candidate_absence_still_exits_at_original_36_hours) ... ok
+test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit) ... ERROR
+test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill) ... ERROR
+test_missing_exit_evidence_preserves_native_intent_across_restart (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_missing_exit_evidence_preserves_native_intent_across_restart) ... ok
+test_native_books_keep_original_owner_partial_state_and_accounting_through_14_days (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_native_books_keep_original_owner_partial_state_and_accounting_through_14_days) ... ok
+test_native_flat_reconciliation_cleans_up_extended_work_automatically (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_native_flat_reconciliation_cleans_up_extended_work_automatically) ... ok
+test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset) ... ok
+test_accelerated_original_cadences_through_extended_current_and_survivor_windows (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_accelerated_original_cadences_through_extended_current_and_survivor_windows) ... EXCEPTIONAL_CADENCE {"pump_current": 25921, "pons_current": 25921, "pump_survivor": 17281, "pons_survivor": 28801}
+ok
+test_current_appreciation_strata_qualify_without_lookahead_or_peak_only_qualification (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_current_appreciation_strata_qualify_without_lookahead_or_peak_only_qualification) ... ok
+test_current_requires_preexisting_bridge_and_prior_positive_realization (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_current_requires_preexisting_bridge_and_prior_positive_realization) ... ok
+test_default_native_policy_and_initial_current_bridge_remain_identical (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_default_native_policy_and_initial_current_bridge_remain_identical) ... ok
+test_each_finite_resource_counter_and_spend_fail_before_budget_overrun (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_each_finite_resource_counter_and_spend_fail_before_budget_overrun) ... ok
+test_entry_bound_automatic_renewals_through_14_days_for_all_four_families (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_entry_bound_automatic_renewals_through_14_days_for_all_four_families) ... ok
+test_failed_requalification_stays_pending_after_restart_and_rebound (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_failed_requalification_stays_pending_after_restart_and_rebound) ... ok
+test_finite_operating_window_cannot_grant_speculative_recovery_hold (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_finite_operating_window_cannot_grant_speculative_recovery_hold) ... ok
+test_missing_boundary_cannot_be_retroactively_renewed (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_missing_boundary_cannot_be_retroactively_renewed) ... ok
+test_missing_stale_incomplete_or_unauthenticated_evidence_never_renews (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_missing_stale_incomplete_or_unauthenticated_evidence_never_renews) ... ok
+test_readiness_owner_latency_and_budget_regressions_are_actionable (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_readiness_owner_latency_and_budget_regressions_are_actionable) ... ok
+test_stops_trails_structure_and_irreversible_exits_precede_renewal (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_stops_trails_structure_and_irreversible_exits_precede_renewal) ... ok
+
+======================================================================
+ERROR: test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 284, in test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit
+    if hour in (36,72,96,168,335):life=PumpAccelerationPaperLifecycle.recover(book,'run:x')
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: type object 'PumpAccelerationPaperLifecycle' has no attribute 'recover'
+
+======================================================================
+ERROR: test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 297, in test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill
+    life=PumpAccelerationPaperLifecycle.recover(book,'run:x');self.assertEqual(life.position.exit_intended_at,129707)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: type object 'PumpAccelerationPaperLifecycle' has no attribute 'recover'
+
+----------------------------------------------------------------------
+Ran 20 tests in 52.958s
+
+FAILED (errors=2)
+Offline failure evidence retained at /tmp/mm-engineering-63vurfxh

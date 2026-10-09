@@ -942,6 +942,10 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
             facts=_pump_continuation_facts(life,current,cq,snapshot,proceeds,now)
             mark_evidence=dict(snapshot=snapshot,net_proceeds=proceeds,
                                network_cost=GAS,continuation=facts)
+            extension_factory=getattr(sessions,'exceptional_context',None)
+            if extension_factory is not None:
+                try:mark_evidence['exceptional_candidate']=extension_factory(life,current,cq,snapshot,facts,now)
+                except (ValueError,TypeError,KeyError,Unavailable):mark_evidence['exceptional_candidate']={}
             mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
             if mark.get("partial_harvest_bps"):
                 tokens_before=int(life.position.tokens)
@@ -991,6 +995,9 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 active.pop(key,None)
             row['position_safety']=dict(at=now,evidence_current=True,exit_quote_available=True,blocker=None)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
+            if (life.position is not None and now-life.position.opened_at>=129600
+                    and (life.position.exceptional or getattr(sessions,'exceptional_context',None) is not None)):
+                life.exceptional_exit_intent('exceptional_authenticated_evidence_unavailable',now)
             row['position_safety']=dict(at=now,evidence_current=False,
                 blocker='pump_current_native_monitor_failed:'+type(exc).__name__)
             row.setdefault("monitor_failures",[]).append(dict(

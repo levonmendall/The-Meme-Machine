@@ -1,0 +1,119 @@
+STORAGE WARNING: root 75.3% used; 11.72 GiB available; nonessential bulk operations block at 85.0%.
+test_default_native_policy_and_initial_current_bridge_remain_identical (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_default_native_policy_and_initial_current_bridge_remain_identical) ... ok
+test_entry_bound_automatic_renewals_through_14_days_for_all_four_families (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_entry_bound_automatic_renewals_through_14_days_for_all_four_families) ... FAIL
+test_pons_native_current_controller_partial_renewal_restart_and_pending_exit (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pons_native_current_controller_partial_renewal_restart_and_pending_exit) ... FAIL
+test_pump_default_candidate_absence_still_exits_at_original_36_hours (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_default_candidate_absence_still_exits_at_original_36_hours) ... ERROR
+test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit) ... ERROR
+test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill) ... ERROR
+test_missing_exit_evidence_preserves_native_intent_across_restart (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_missing_exit_evidence_preserves_native_intent_across_restart) ... ok
+test_native_books_keep_original_owner_partial_state_and_accounting_through_14_days (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_native_books_keep_original_owner_partial_state_and_accounting_through_14_days) ... FAIL
+test_native_flat_reconciliation_cleans_up_extended_work_automatically (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_native_flat_reconciliation_cleans_up_extended_work_automatically) ... ERROR
+test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset) ... ERROR
+
+======================================================================
+ERROR: test_pump_default_candidate_absence_still_exits_at_original_36_hours (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_default_candidate_absence_still_exits_at_original_36_hours)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 302, in test_pump_default_candidate_absence_still_exits_at_original_36_hours
+    life,_=self.pump();self.pump_mark(life,3702,candidate_enabled=False)
+           ^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 268, in pump
+    life.reserve(replace(qualification(),mode=MODE_POSTGRAD),1000,100)
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/lanes/pump/pump_acceleration_paper.py", line 84, in reserve
+    self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/runtime/survivor_paper_book.py", line 116, in reserve
+    raise ValueError('paper_lifecycle_identity_or_amount')
+ValueError: paper_lifecycle_identity_or_amount
+
+======================================================================
+ERROR: test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 281, in test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit
+    life,book=self.pump();self.pump_mark(life,3702);self.assertTrue(life.position.bridged)
+              ^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 268, in pump
+    life.reserve(replace(qualification(),mode=MODE_POSTGRAD),1000,100)
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/lanes/pump/pump_acceleration_paper.py", line 84, in reserve
+    self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/runtime/survivor_paper_book.py", line 116, in reserve
+    raise ValueError('paper_lifecycle_identity_or_amount')
+ValueError: paper_lifecycle_identity_or_amount
+
+======================================================================
+ERROR: test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 294, in test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill
+    life,book=self.pump();self.pump_mark(life,3702);self.pump_mark(life,129702)
+              ^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 268, in pump
+    life.reserve(replace(qualification(),mode=MODE_POSTGRAD),1000,100)
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/lanes/pump/pump_acceleration_paper.py", line 84, in reserve
+    self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/runtime/survivor_paper_book.py", line 116, in reserve
+    raise ValueError('paper_lifecycle_identity_or_amount')
+ValueError: paper_lifecycle_identity_or_amount
+
+======================================================================
+ERROR: test_native_flat_reconciliation_cleans_up_extended_work_automatically (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_native_flat_reconciliation_cleans_up_extended_work_automatically)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 390, in test_native_flat_reconciliation_cleans_up_extended_work_automatically
+    prepare(s.provider_budget,maintenance_until=now+336*3600)
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/operational/exceptional_window.py", line 49, in prepare
+    phase_start=int(float(root[phase+'.started_wall']))
+                          ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'continuation.started_wall'
+
+======================================================================
+ERROR: test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 363, in test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset
+    window=prepare(s.provider_budget,maintenance_until=now+336*3600)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/operational/exceptional_window.py", line 49, in prepare
+    phase_start=int(float(root[phase+'.started_wall']))
+                          ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'continuation.started_wall'
+
+======================================================================
+FAIL: test_entry_bound_automatic_renewals_through_14_days_for_all_four_families (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_entry_bound_automatic_renewals_through_14_days_for_all_four_families)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 87, in test_entry_bound_automatic_renewals_through_14_days_for_all_four_families
+    self.assertEqual(action['action'],'hold',(family,hour,action))
+AssertionError: 'full_exit' != 'hold'
+- full_exit
++ hold
+ : ('pump_current', 36, {'action': 'full_exit', 'reason': 'exceptional_finite_resources_incomplete'})
+
+======================================================================
+FAIL: test_pons_native_current_controller_partial_renewal_restart_and_pending_exit (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pons_native_current_controller_partial_renewal_restart_and_pending_exit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 327, in test_pons_native_current_controller_partial_renewal_restart_and_pending_exit
+    action=_bridge_action(state,facts,native,p,now=at);self.assertEqual(action['action'],'hold')
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'full_exit' != 'hold'
+- full_exit
++ hold
+
+
+======================================================================
+FAIL: test_native_books_keep_original_owner_partial_state_and_accounting_through_14_days (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_native_books_keep_original_owner_partial_state_and_accounting_through_14_days)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 226, in test_native_books_keep_original_owner_partial_state_and_accounting_through_14_days
+    self.assertEqual(action['action'],'hold',(family,hour))
+AssertionError: 'full_exit' != 'hold'
+- full_exit
++ hold
+ : ('pump_survivor', 72)
+
+----------------------------------------------------------------------
+Ran 10 tests in 1.712s
+
+FAILED (failures=3, errors=5)
+Offline failure evidence retained at /tmp/mm-engineering-7i2e8ehs

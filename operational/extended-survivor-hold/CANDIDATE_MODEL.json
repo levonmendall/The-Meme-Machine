@@ -1,0 +1,3854 @@
+{
+  "activation": false,
+  "baseline_optimization_commit": "97186a4e33ea6963d82dc1d08fa998d1a6a229eb",
+  "classification": "INACTIVE_CANDIDATE_WITH_INSUFFICIENT_ECONOMIC_AND_RESOURCE_EVIDENCE",
+  "economic_comparison": [
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 36,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_current",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 72,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 96,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 120,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 168,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 240,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 2,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 5,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 10,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 25,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "after_checkpoint_drawdown": null,
+      "capital_recycling_opportunity_cost": null,
+      "checkpoint_multiple": 50,
+      "complete_authenticated_market_lifecycles": 0,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons_survivor",
+      "hours": 336,
+      "liquidity_deterioration": null,
+      "realized_net_portfolio_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    }
+  ],
+  "evidence": {
+    "accepted_economic_lifecycles": {
+      "pons": 0,
+      "pump": 0
+    },
+    "conclusion": "INSUFFICIENT_EVIDENCE",
+    "isolated_headers_do_not_prove_intervening_history": true,
+    "missing": [
+      "continuous token-specific economic coverage through 72h and proposed horizon",
+      "authenticated remaining-quantity executable exits, liquidity, gas, spread and slippage at boundaries",
+      "entry/partial-realization accounting and concurrent portfolio opportunity set",
+      "an ex ante population including reversals, failures and delistings; duplicate backups are not samples"
+    ],
+    "new_database_copies": 0,
+    "new_market_provider_calls": 0,
+    "prior_audit": {
+      "audited_sources": 33,
+      "distinct_verified_copies": 19,
+      "path": "operational/pons-historical-bootstrap/SOURCES.json",
+      "screened_databases": 503,
+      "sha256": "a28106401e0a121aa531d0c4aecc450e5e4bddf9829ef8f880e231ae5c963fe1",
+      "sources_with_reusable_complete_ranges": 0
+    },
+    "pump_capture": {
+      "active_delivery_seconds": 13.764220476150513,
+      "path": "operational/pump-provider-finalization/BYTE_LATENCY.json",
+      "post_release_delivery_seconds": 2.3786072731018066,
+      "sha256": "0ea03cbdf0bfb38371db57ade786abb26d750272620fb867571353799c93e79e"
+    },
+    "selected_existing_sources": [
+      {
+        "bytes": 49152,
+        "counts": {
+          "candidates": 0,
+          "events": 0,
+          "points": 0,
+          "pons_graduation_intake": 0
+        },
+        "header_bounds": null,
+        "header_count": null,
+        "path": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008/pons/history.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "7e3b7433d0cc1c0f2e9888db9d794e18c4f6798a6b3daf1fde0887a32243bb38",
+          "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wal_bytes": 0
+      },
+      {
+        "bytes": 2400256,
+        "counts": null,
+        "header_bounds": {
+          "earliest": 1791092124,
+          "first": 79692264,
+          "last": 81782454,
+          "latest": 1791305215
+        },
+        "header_count": 520,
+        "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1/shared/robinhood-evidence.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "59c74ef5f64aa30e655399b99b4ed90e7e0b06e81e7e248277858c58ae51c130",
+          "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wal_bytes": 0
+      },
+      {
+        "bytes": 811008,
+        "counts": {
+          "candidates": 7,
+          "evidence": 97,
+          "observations": 92,
+          "rolling": 0
+        },
+        "header_bounds": null,
+        "header_count": null,
+        "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1/shared/robinhood-evidence.candidates.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "55c148044b921b8901fd91bb6906d7f5d614b2a2ec3032d15a6b096a65ba615e",
+          "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wal_bytes": 0
+      },
+      {
+        "bytes": 49152,
+        "counts": {
+          "candidates": 0,
+          "events": 0,
+          "points": 0,
+          "pons_graduation_intake": 0
+        },
+        "header_bounds": null,
+        "header_count": null,
+        "path": "/mnt/volume_nyc1_1790918115030/sc-proof-20261007/pons/history.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "ec7100e166cb6ce6d80931bee62b0d04cb34c84126e36580990096ad7b6553f9",
+          "wal": null
+        },
+        "wal_bytes": 0
+      },
+      {
+        "bytes": 49152,
+        "counts": {
+          "candidates": 0,
+          "events": 0,
+          "points": 0,
+          "pons_graduation_intake": 0
+        },
+        "header_bounds": null,
+        "header_count": null,
+        "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/pump-pons-provider-proof/pons/history.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "f2d162dde10b8b84f012db03ee5913e3646f87b4f4a4b8344896eaf7c0d65e90",
+          "wal": null
+        },
+        "wal_bytes": 0
+      }
+    ],
+    "seven_day_startup_census_required": false
+  },
+  "incremental_additional_day": {
+    "pons_current": {
+      "high_activity": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "actual native payload sizes, HTTP tails and account tariff"
+        ],
+        "physical_attempts_without_failures": 184896,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 35112960,
+        "rpc_elements": 1584576,
+        "rpc_only_modeled_usd": "18.434304000",
+        "turns": 17280
+      },
+      "ordinary_reference": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "actual native payload sizes, HTTP tails and account tariff"
+        ],
+        "physical_attempts_without_failures": 126570,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 9262080,
+        "rpc_elements": 282090,
+        "rpc_only_modeled_usd": "4.862592000",
+        "turns": 17280
+      },
+      "quiet_reference": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "actual native payload sizes, HTTP tails and account tariff"
+        ],
+        "physical_attempts_without_failures": 123086,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 9192960,
+        "rpc_elements": 278606,
+        "rpc_only_modeled_usd": "4.826304000",
+        "turns": 17280
+      }
+    },
+    "pons_survivor": {
+      "high_activity": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "actual native payload sizes, HTTP tails and account tariff"
+        ],
+        "physical_attempts_without_failures": 242983,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 38361600,
+        "rpc_elements": 1682983,
+        "rpc_only_modeled_usd": "20.139840000",
+        "turns": 28800
+      },
+      "high_volatility": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "actual native payload sizes, HTTP tails and account tariff"
+        ],
+        "physical_attempts_without_failures": 205322,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 14169600,
+        "rpc_elements": 522122,
+        "rpc_only_modeled_usd": "7.439040000",
+        "turns": 28800
+      },
+      "ordinary_reference": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "actual native payload sizes, HTTP tails and account tariff"
+        ],
+        "physical_attempts_without_failures": 152197,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 10828800,
+        "rpc_elements": 353797,
+        "rpc_only_modeled_usd": "5.685120000",
+        "turns": 28800
+      },
+      "quiet": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "actual native payload sizes, HTTP tails and account tariff"
+        ],
+        "physical_attempts_without_failures": 146393,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 10713600,
+        "rpc_elements": 347993,
+        "rpc_only_modeled_usd": "5.624640000",
+        "turns": 28800
+      }
+    },
+    "pump_current": {
+      "quiet_reference": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "Pump delivered native bytes and selective gap hydration"
+        ],
+        "physical_attempts_without_failures": 104477,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 2081570,
+        "rpc_elements": 104477,
+        "rpc_only_modeled_usd": "1.092824250",
+        "turns": 17280
+      }
+    },
+    "pump_survivor": {
+      "quiet_reference": {
+        "classification": "synthetic scenario arithmetic from optimized native paths; not invoice or full capacity",
+        "complete_additional_day_cost_usd": null,
+        "missing_costs": [
+          "additional eligibility evidence not already fresh and authenticated",
+          "actual provider failures and recovery",
+          "Pump delivered native bytes and selective gap hydration"
+        ],
+        "physical_attempts_without_failures": 87065,
+        "renewal_gate_provider_calls": 0,
+        "rpc_cu": 1734650,
+        "rpc_elements": 87065,
+        "rpc_only_modeled_usd": "0.910691250",
+        "turns": 17280
+      }
+    }
+  },
+  "market_provider_calls": 0,
+  "maximum_safely_demonstrated_operating_seconds": null,
+  "measured_gate_provider_calls": 0,
+  "ordinary_current_seconds": {
+    "pons_pregraduation_thesis": 180,
+    "pons_total": 900,
+    "pump": {
+      "late_curve_acceleration": 900,
+      "post_graduation_momentum": 300,
+      "pumpswap_second_leg": 600
+    }
+  },
+  "original_entry_bound_checkpoints": {
+    "pons_current": 129600,
+    "pons_survivor": 259200,
+    "pump_current": 129600,
+    "pump_survivor": 259200
+  },
+  "production_source_sha256": {
+    "deployment/meme-machine-paper.service": "216c76c1d40dc08fd1120270d5bf2d7eca6e98c15d1862b961606002cb285a6b",
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
+    "meme_machine/lanes/pump/pumpswap_survivor.py": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad",
+    "meme_machine/operational/position_continuation.py": "2493cc176aa66355cfa367d6d675afc7d7051822603c99eb3db42f57c261c721",
+    "meme_machine/runtime/directional_continuation.py": "42a67c4a5438c5824f81b9612ef992bae4700b311e0009fc08a61c0fcdd98ca9",
+    "meme_machine/runtime/survivor_risk.py": "81a5b35f03cb7a53a2233c2ffa79dd866fdd41d02ad976ece9c6402136512226",
+    "operational/position-continuation/RESOURCE_ENVELOPE.example.json": "cb1f0da81c0a4d8bf920033777aaa65b6da62ffeb480c5b5a9c5e1d6673719fe"
+  },
+  "provider_limits_changed": false,
+  "provisional_renewal_seconds": 3600,
+  "renewal_acquires_history": false,
+  "renewal_recreates_rpc": false,
+  "renewal_replenishes_usage": false,
+  "renewal_restarts_monitoring": false,
+  "resource_horizons": {
+    "pons_current": [
+      {
+        "fits_rpc_counters": true,
+        "hours": 36,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 0
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 51840,
+            "eth_chainId": 3194,
+            "eth_gasPrice": 25920,
+            "eth_getBlockByNumber": 181464,
+            "eth_getCode": 25920,
+            "eth_getLogs": 129611
+          },
+          "minimum_physical_rps_under_scenario": 1.4248533950617284,
+          "physical_attempts_without_failures": 184661,
+          "rpc_cu": 13790580,
+          "rpc_elements": 417949,
+          "rpc_only_modeled_usd": "7.240054500",
+          "turns": 25920
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 0
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 103680,
+            "eth_chainId": 6383,
+            "eth_gasPrice": 51840,
+            "eth_getBlockByNumber": 362904,
+            "eth_getCode": 51840,
+            "eth_getLogs": 259211
+          },
+          "minimum_physical_rps_under_scenario": 1.424729938271605,
+          "physical_attempts_without_failures": 369290,
+          "rpc_cu": 27580020,
+          "rpc_elements": 835858,
+          "rpc_only_modeled_usd": "14.479510500",
+          "turns": 51840
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 0
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 138240,
+            "eth_chainId": 8510,
+            "eth_gasPrice": 69120,
+            "eth_getBlockByNumber": 483864,
+            "eth_getCode": 69120,
+            "eth_getLogs": 345611
+          },
+          "minimum_physical_rps_under_scenario": 1.4247019675925925,
+          "physical_attempts_without_failures": 492377,
+          "rpc_cu": 36772980,
+          "rpc_elements": 1114465,
+          "rpc_only_modeled_usd": "19.305814500",
+          "turns": 69120
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 0
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 10637,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 604824,
+            "eth_getCode": 86400,
+            "eth_getLogs": 432011
+          },
+          "minimum_physical_rps_under_scenario": 1.4246851851851852,
+          "physical_attempts_without_failures": 615464,
+          "rpc_cu": 45965940,
+          "rpc_elements": 1393072,
+          "rpc_only_modeled_usd": "24.132118500",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 0
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 241920,
+            "eth_chainId": 14891,
+            "eth_gasPrice": 120960,
+            "eth_getBlockByNumber": 846744,
+            "eth_getCode": 120960,
+            "eth_getLogs": 604811
+          },
+          "minimum_physical_rps_under_scenario": 1.4246660052910054,
+          "physical_attempts_without_failures": 861638,
+          "rpc_cu": 64351860,
+          "rpc_elements": 1950286,
+          "rpc_only_modeled_usd": "33.784726500",
+          "turns": 120960
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 0
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 345600,
+            "eth_chainId": 21271,
+            "eth_gasPrice": 172800,
+            "eth_getBlockByNumber": 1209624,
+            "eth_getCode": 172800,
+            "eth_getLogs": 864011
+          },
+          "minimum_physical_rps_under_scenario": 1.424650462962963,
+          "physical_attempts_without_failures": 1230898,
+          "rpc_cu": 91930740,
+          "rpc_elements": 2786106,
+          "rpc_only_modeled_usd": "48.263638500",
+          "turns": 172800
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 0
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 483840,
+            "eth_chainId": 29778,
+            "eth_gasPrice": 241920,
+            "eth_getBlockByNumber": 1693464,
+            "eth_getCode": 241920,
+            "eth_getLogs": 1209611
+          },
+          "minimum_physical_rps_under_scenario": 1.424640376984127,
+          "physical_attempts_without_failures": 1723245,
+          "rpc_cu": 128702580,
+          "rpc_elements": 3900533,
+          "rpc_only_modeled_usd": "67.568854500",
+          "turns": 241920
+        }
+      },
+      {
+        "fits_rpc_counters": true,
+        "hours": 36,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 1
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 51840,
+            "eth_chainId": 3233,
+            "eth_gasPrice": 25920,
+            "eth_getBlockByNumber": 184056,
+            "eth_getCode": 25920,
+            "eth_getLogs": 129611,
+            "eth_getTransactionReceipt": 2592
+          },
+          "minimum_physical_rps_under_scenario": 1.4651543209876543,
+          "physical_attempts_without_failures": 189884,
+          "rpc_cu": 13894260,
+          "rpc_elements": 423172,
+          "rpc_only_modeled_usd": "7.294486500",
+          "turns": 25920
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 1
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 103680,
+            "eth_chainId": 6463,
+            "eth_gasPrice": 51840,
+            "eth_getBlockByNumber": 368088,
+            "eth_getCode": 51840,
+            "eth_getLogs": 259211,
+            "eth_getTransactionReceipt": 5184
+          },
+          "minimum_physical_rps_under_scenario": 1.4650385802469137,
+          "physical_attempts_without_failures": 379738,
+          "rpc_cu": 27787380,
+          "rpc_elements": 846306,
+          "rpc_only_modeled_usd": "14.588374500",
+          "turns": 51840
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 1
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 138240,
+            "eth_chainId": 8616,
+            "eth_gasPrice": 69120,
+            "eth_getBlockByNumber": 490776,
+            "eth_getCode": 69120,
+            "eth_getLogs": 345611,
+            "eth_getTransactionReceipt": 6912
+          },
+          "minimum_physical_rps_under_scenario": 1.4650086805555556,
+          "physical_attempts_without_failures": 506307,
+          "rpc_cu": 37049460,
+          "rpc_elements": 1128395,
+          "rpc_only_modeled_usd": "19.450966500",
+          "turns": 69120
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 1
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 10770,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 613464,
+            "eth_getCode": 86400,
+            "eth_getLogs": 432011,
+            "eth_getTransactionReceipt": 8640
+          },
+          "minimum_physical_rps_under_scenario": 1.4649930555555555,
+          "physical_attempts_without_failures": 632877,
+          "rpc_cu": 46311540,
+          "rpc_elements": 1410485,
+          "rpc_only_modeled_usd": "24.313558500",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 1
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 241920,
+            "eth_chainId": 15077,
+            "eth_gasPrice": 120960,
+            "eth_getBlockByNumber": 858840,
+            "eth_getCode": 120960,
+            "eth_getLogs": 604811,
+            "eth_getTransactionReceipt": 12096
+          },
+          "minimum_physical_rps_under_scenario": 1.464973544973545,
+          "physical_attempts_without_failures": 886016,
+          "rpc_cu": 64835700,
+          "rpc_elements": 1974664,
+          "rpc_only_modeled_usd": "34.038742500",
+          "turns": 120960
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 1
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 345600,
+            "eth_chainId": 21537,
+            "eth_gasPrice": 172800,
+            "eth_getBlockByNumber": 1226904,
+            "eth_getCode": 172800,
+            "eth_getLogs": 864011,
+            "eth_getTransactionReceipt": 17280
+          },
+          "minimum_physical_rps_under_scenario": 1.4649583333333334,
+          "physical_attempts_without_failures": 1265724,
+          "rpc_cu": 92621940,
+          "rpc_elements": 2820932,
+          "rpc_only_modeled_usd": "48.626518500",
+          "turns": 172800
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "cold_turns": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_five_seconds": 1
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 483840,
+            "eth_chainId": 30150,
+            "eth_gasPrice": 241920,
+            "eth_getBlockByNumber": 1717656,
+            "eth_getCode": 241920,
+            "eth_getLogs": 1209611,
+            "eth_getTransactionReceipt": 24192
+          },
+          "minimum_physical_rps_under_scenario": 1.4649479166666666,
+          "physical_attempts_without_failures": 1772001,
+          "rpc_cu": 129670260,
+          "rpc_elements": 3949289,
+          "rpc_only_modeled_usd": "68.076886500",
+          "turns": 241920
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 36,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_five_seconds": 25
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 51840,
+            "eth_chainId": 18147,
+            "eth_gasPrice": 25920,
+            "eth_getBlockByNumber": 829464,
+            "eth_getCode": 25920,
+            "eth_getLogs": 129611,
+            "eth_getTransactionByHash": 648000,
+            "eth_getTransactionReceipt": 648000
+          },
+          "minimum_physical_rps_under_scenario": 2.1402314814814813,
+          "physical_attempts_without_failures": 277374,
+          "rpc_cu": 52670580,
+          "rpc_elements": 2376902,
+          "rpc_only_modeled_usd": "27.652054500",
+          "turns": 25920
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_five_seconds": 25
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 103680,
+            "eth_chainId": 36291,
+            "eth_gasPrice": 51840,
+            "eth_getBlockByNumber": 1658904,
+            "eth_getCode": 51840,
+            "eth_getLogs": 259211,
+            "eth_getTransactionByHash": 1296000,
+            "eth_getTransactionReceipt": 1296000
+          },
+          "minimum_physical_rps_under_scenario": 2.140115740740741,
+          "physical_attempts_without_failures": 554718,
+          "rpc_cu": 105340020,
+          "rpc_elements": 4753766,
+          "rpc_only_modeled_usd": "55.303510500",
+          "turns": 51840
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_five_seconds": 25
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 138240,
+            "eth_chainId": 48387,
+            "eth_gasPrice": 69120,
+            "eth_getBlockByNumber": 2211864,
+            "eth_getCode": 69120,
+            "eth_getLogs": 345611,
+            "eth_getTransactionByHash": 1728000,
+            "eth_getTransactionReceipt": 1728000
+          },
+          "minimum_physical_rps_under_scenario": 2.1400868055555557,
+          "physical_attempts_without_failures": 739614,
+          "rpc_cu": 140452980,
+          "rpc_elements": 6338342,
+          "rpc_only_modeled_usd": "73.737814500",
+          "turns": 69120
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_five_seconds": 25
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 60483,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 2764824,
+            "eth_getCode": 86400,
+            "eth_getLogs": 432011,
+            "eth_getTransactionByHash": 2160000,
+            "eth_getTransactionReceipt": 2160000
+          },
+          "minimum_physical_rps_under_scenario": 2.1400694444444444,
+          "physical_attempts_without_failures": 924510,
+          "rpc_cu": 175565940,
+          "rpc_elements": 7922918,
+          "rpc_only_modeled_usd": "92.172118500",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_five_seconds": 25
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 241920,
+            "eth_chainId": 84676,
+            "eth_gasPrice": 120960,
+            "eth_getBlockByNumber": 3870744,
+            "eth_getCode": 120960,
+            "eth_getLogs": 604811,
+            "eth_getTransactionByHash": 3024000,
+            "eth_getTransactionReceipt": 3024000
+          },
+          "minimum_physical_rps_under_scenario": 2.1400512566137566,
+          "physical_attempts_without_failures": 1294303,
+          "rpc_cu": 245791860,
+          "rpc_elements": 11092071,
+          "rpc_only_modeled_usd": "129.040726500",
+          "turns": 120960
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_five_seconds": 25
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 345600,
+            "eth_chainId": 120963,
+            "eth_gasPrice": 172800,
+            "eth_getBlockByNumber": 5529624,
+            "eth_getCode": 172800,
+            "eth_getLogs": 864011,
+            "eth_getTransactionByHash": 4320000,
+            "eth_getTransactionReceipt": 4320000
+          },
+          "minimum_physical_rps_under_scenario": 2.140034722222222,
+          "physical_attempts_without_failures": 1848990,
+          "rpc_cu": 351130740,
+          "rpc_elements": 15845798,
+          "rpc_only_modeled_usd": "184.343638500",
+          "turns": 172800
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "cold_turns": 1,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_five_seconds": 25
+          },
+          "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+          "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+          "methods": {
+            "eth_call": 483840,
+            "eth_chainId": 169347,
+            "eth_gasPrice": 241920,
+            "eth_getBlockByNumber": 7741464,
+            "eth_getCode": 241920,
+            "eth_getLogs": 1209611,
+            "eth_getTransactionByHash": 6048000,
+            "eth_getTransactionReceipt": 6048000
+          },
+          "minimum_physical_rps_under_scenario": 2.140024801587302,
+          "physical_attempts_without_failures": 2588574,
+          "rpc_cu": 491582580,
+          "rpc_elements": 22184102,
+          "rpc_only_modeled_usd": "258.080854500",
+          "turns": 241920
+        }
+      }
+    ],
+    "pons_survivor": [
+      {
+        "fits_rpc_counters": false,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 7180,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 432000,
+            "eth_getCode": 86400,
+            "eth_getLogs": 259200
+          },
+          "minimum_physical_rps_under_scenario": 1.6943672839506172,
+          "physical_attempts_without_failures": 439180,
+          "rpc_cu": 32140800,
+          "rpc_elements": 1043980,
+          "rpc_only_modeled_usd": "16.873920000",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 9573,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 576000,
+            "eth_getCode": 115200,
+            "eth_getLogs": 345600
+          },
+          "minimum_physical_rps_under_scenario": 1.6943663194444445,
+          "physical_attempts_without_failures": 585573,
+          "rpc_cu": 42854400,
+          "rpc_elements": 1391973,
+          "rpc_only_modeled_usd": "22.498560000",
+          "turns": 115200
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 11966,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 720000,
+            "eth_getCode": 144000,
+            "eth_getLogs": 432000
+          },
+          "minimum_physical_rps_under_scenario": 1.6943657407407406,
+          "physical_attempts_without_failures": 731966,
+          "rpc_cu": 53568000,
+          "rpc_elements": 1739966,
+          "rpc_only_modeled_usd": "28.123200000",
+          "turns": 144000
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 16751,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 1008000,
+            "eth_getCode": 201600,
+            "eth_getLogs": 604800
+          },
+          "minimum_physical_rps_under_scenario": 1.694363425925926,
+          "physical_attempts_without_failures": 1024751,
+          "rpc_cu": 74995200,
+          "rpc_elements": 2435951,
+          "rpc_only_modeled_usd": "39.372480000",
+          "turns": 201600
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 23929,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 1440000,
+            "eth_getCode": 288000,
+            "eth_getLogs": 864000
+          },
+          "minimum_physical_rps_under_scenario": 1.6943622685185185,
+          "physical_attempts_without_failures": 1463929,
+          "rpc_cu": 107136000,
+          "rpc_elements": 3479929,
+          "rpc_only_modeled_usd": "56.246400000",
+          "turns": 288000
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 33499,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 2016000,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1209600
+          },
+          "minimum_physical_rps_under_scenario": 1.6943609457671958,
+          "physical_attempts_without_failures": 2049499,
+          "rpc_cu": 149990400,
+          "rpc_elements": 4871899,
+          "rpc_only_modeled_usd": "78.744960000",
+          "turns": 403200
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 7313,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 440640,
+            "eth_getCode": 86400,
+            "eth_getLogs": 259200,
+            "eth_getTransactionReceipt": 8640
+          },
+          "minimum_physical_rps_under_scenario": 1.7615470679012346,
+          "physical_attempts_without_failures": 456593,
+          "rpc_cu": 32486400,
+          "rpc_elements": 1061393,
+          "rpc_only_modeled_usd": "17.055360000",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 9750,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 587520,
+            "eth_getCode": 115200,
+            "eth_getLogs": 345600,
+            "eth_getTransactionReceipt": 11520
+          },
+          "minimum_physical_rps_under_scenario": 1.761545138888889,
+          "physical_attempts_without_failures": 608790,
+          "rpc_cu": 43315200,
+          "rpc_elements": 1415190,
+          "rpc_only_modeled_usd": "22.740480000",
+          "turns": 115200
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 12187,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 734400,
+            "eth_getCode": 144000,
+            "eth_getLogs": 432000,
+            "eth_getTransactionReceipt": 14400
+          },
+          "minimum_physical_rps_under_scenario": 1.7615439814814815,
+          "physical_attempts_without_failures": 760987,
+          "rpc_cu": 54144000,
+          "rpc_elements": 1768987,
+          "rpc_only_modeled_usd": "28.425600000",
+          "turns": 144000
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 17061,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 1028160,
+            "eth_getCode": 201600,
+            "eth_getLogs": 604800,
+            "eth_getTransactionReceipt": 20160
+          },
+          "minimum_physical_rps_under_scenario": 1.7615426587301588,
+          "physical_attempts_without_failures": 1065381,
+          "rpc_cu": 75801600,
+          "rpc_elements": 2476581,
+          "rpc_only_modeled_usd": "39.795840000",
+          "turns": 201600
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 24372,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 1468800,
+            "eth_getCode": 288000,
+            "eth_getLogs": 864000,
+            "eth_getTransactionReceipt": 28800
+          },
+          "minimum_physical_rps_under_scenario": 1.7615416666666666,
+          "physical_attempts_without_failures": 1521972,
+          "rpc_cu": 108288000,
+          "rpc_elements": 3537972,
+          "rpc_only_modeled_usd": "56.851200000",
+          "turns": 288000
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "ordinary_reference",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 34119,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 2056320,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1209600,
+            "eth_getTransactionReceipt": 40320
+          },
+          "minimum_physical_rps_under_scenario": 1.7615401785714286,
+          "physical_attempts_without_failures": 2130759,
+          "rpc_cu": 151603200,
+          "rpc_elements": 4953159,
+          "rpc_only_modeled_usd": "79.591680000",
+          "turns": 403200
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_volatility",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 11168,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 691200,
+            "eth_getCode": 86400,
+            "eth_getLogs": 259200,
+            "eth_getTransactionReceipt": 259200
+          },
+          "minimum_physical_rps_under_scenario": 2.3764197530864197,
+          "physical_attempts_without_failures": 615968,
+          "rpc_cu": 42508800,
+          "rpc_elements": 1566368,
+          "rpc_only_modeled_usd": "22.317120000",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_volatility",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 14890,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 921600,
+            "eth_getCode": 115200,
+            "eth_getLogs": 345600,
+            "eth_getTransactionReceipt": 345600
+          },
+          "minimum_physical_rps_under_scenario": 2.376417824074074,
+          "physical_attempts_without_failures": 821290,
+          "rpc_cu": 56678400,
+          "rpc_elements": 2088490,
+          "rpc_only_modeled_usd": "29.756160000",
+          "turns": 115200
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_volatility",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 18612,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 1152000,
+            "eth_getCode": 144000,
+            "eth_getLogs": 432000,
+            "eth_getTransactionReceipt": 432000
+          },
+          "minimum_physical_rps_under_scenario": 2.3764166666666666,
+          "physical_attempts_without_failures": 1026612,
+          "rpc_cu": 70848000,
+          "rpc_elements": 2610612,
+          "rpc_only_modeled_usd": "37.195200000",
+          "turns": 144000
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_volatility",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 26055,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 1612800,
+            "eth_getCode": 201600,
+            "eth_getLogs": 604800,
+            "eth_getTransactionReceipt": 604800
+          },
+          "minimum_physical_rps_under_scenario": 2.3764136904761903,
+          "physical_attempts_without_failures": 1437255,
+          "rpc_cu": 99187200,
+          "rpc_elements": 3654855,
+          "rpc_only_modeled_usd": "52.073280000",
+          "turns": 201600
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_volatility",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 37221,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 2304000,
+            "eth_getCode": 288000,
+            "eth_getLogs": 864000,
+            "eth_getTransactionReceipt": 864000
+          },
+          "minimum_physical_rps_under_scenario": 2.3764131944444444,
+          "physical_attempts_without_failures": 2053221,
+          "rpc_cu": 141696000,
+          "rpc_elements": 5221221,
+          "rpc_only_modeled_usd": "74.390400000",
+          "turns": 288000
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_volatility",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 52108,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 3225600,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1209600,
+            "eth_getTransactionReceipt": 1209600
+          },
+          "minimum_physical_rps_under_scenario": 2.376412037037037,
+          "physical_attempts_without_failures": 2874508,
+          "rpc_cu": 198374400,
+          "rpc_elements": 7309708,
+          "rpc_only_modeled_usd": "104.146560000",
+          "turns": 403200
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 37753,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 1728000,
+            "eth_getCode": 86400,
+            "eth_getLogs": 345600,
+            "eth_getTransactionByHash": 1296000,
+            "eth_getTransactionReceipt": 1296000
+          },
+          "minimum_physical_rps_under_scenario": 2.812318672839506,
+          "physical_attempts_without_failures": 728953,
+          "rpc_cu": 115084800,
+          "rpc_elements": 5048953,
+          "rpc_only_modeled_usd": "60.419520000",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 50336,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 2304000,
+            "eth_getCode": 115200,
+            "eth_getLogs": 460800,
+            "eth_getTransactionByHash": 1728000,
+            "eth_getTransactionReceipt": 1728000
+          },
+          "minimum_physical_rps_under_scenario": 2.812314814814815,
+          "physical_attempts_without_failures": 971936,
+          "rpc_cu": 153446400,
+          "rpc_elements": 6731936,
+          "rpc_only_modeled_usd": "80.559360000",
+          "turns": 115200
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 62919,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 2880000,
+            "eth_getCode": 144000,
+            "eth_getLogs": 576000,
+            "eth_getTransactionByHash": 2160000,
+            "eth_getTransactionReceipt": 2160000
+          },
+          "minimum_physical_rps_under_scenario": 2.8123125,
+          "physical_attempts_without_failures": 1214919,
+          "rpc_cu": 191808000,
+          "rpc_elements": 8414919,
+          "rpc_only_modeled_usd": "100.699200000",
+          "turns": 144000
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 88086,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 4032000,
+            "eth_getCode": 201600,
+            "eth_getLogs": 806400,
+            "eth_getTransactionByHash": 3024000,
+            "eth_getTransactionReceipt": 3024000
+          },
+          "minimum_physical_rps_under_scenario": 2.8123115079365077,
+          "physical_attempts_without_failures": 1700886,
+          "rpc_cu": 268531200,
+          "rpc_elements": 11780886,
+          "rpc_only_modeled_usd": "140.978880000",
+          "turns": 201600
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 125836,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 5760000,
+            "eth_getCode": 288000,
+            "eth_getLogs": 1152000,
+            "eth_getTransactionByHash": 4320000,
+            "eth_getTransactionReceipt": 4320000
+          },
+          "minimum_physical_rps_under_scenario": 2.812310185185185,
+          "physical_attempts_without_failures": 2429836,
+          "rpc_cu": 383616000,
+          "rpc_elements": 16829836,
+          "rpc_only_modeled_usd": "201.398400000",
+          "turns": 288000
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "high_activity",
+        "usage": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 176170,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 8064000,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1612800,
+            "eth_getTransactionByHash": 6048000,
+            "eth_getTransactionReceipt": 6048000
+          },
+          "minimum_physical_rps_under_scenario": 2.8123098544973546,
+          "physical_attempts_without_failures": 3401770,
+          "rpc_cu": 537062400,
+          "rpc_elements": 23561770,
+          "rpc_only_modeled_usd": "281.957760000",
+          "turns": 403200
+        }
+      }
+    ],
+    "pump_current": [
+      {
+        "fits_rpc_counters": true,
+        "hours": 36,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 51840,
+            "getGenesisHash": 1198,
+            "getMultipleAccounts": 77760,
+            "getProgramAccounts": 25920
+          },
+          "physical_attempts_without_failures": 156718,
+          "rpc_cu": 3122380,
+          "rpc_elements": 156718,
+          "rpc_only_modeled_usd": "1.639249500",
+          "turns": 25920
+        }
+      },
+      {
+        "fits_rpc_counters": true,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 103680,
+            "getGenesisHash": 2394,
+            "getMultipleAccounts": 155520,
+            "getProgramAccounts": 51840
+          },
+          "physical_attempts_without_failures": 313434,
+          "rpc_cu": 6244740,
+          "rpc_elements": 313434,
+          "rpc_only_modeled_usd": "3.278488500",
+          "turns": 51840
+        }
+      },
+      {
+        "fits_rpc_counters": true,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 138240,
+            "getGenesisHash": 3192,
+            "getMultipleAccounts": 207360,
+            "getProgramAccounts": 69120
+          },
+          "physical_attempts_without_failures": 417912,
+          "rpc_cu": 8326320,
+          "rpc_elements": 417912,
+          "rpc_only_modeled_usd": "4.371318000",
+          "turns": 69120
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 172800,
+            "getGenesisHash": 3989,
+            "getMultipleAccounts": 259200,
+            "getProgramAccounts": 86400
+          },
+          "physical_attempts_without_failures": 522389,
+          "rpc_cu": 10407890,
+          "rpc_elements": 522389,
+          "rpc_only_modeled_usd": "5.464142250",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 241920,
+            "getGenesisHash": 5584,
+            "getMultipleAccounts": 362880,
+            "getProgramAccounts": 120960
+          },
+          "physical_attempts_without_failures": 731344,
+          "rpc_cu": 14571040,
+          "rpc_elements": 731344,
+          "rpc_only_modeled_usd": "7.649796000",
+          "turns": 120960
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 345600,
+            "getGenesisHash": 7977,
+            "getMultipleAccounts": 518400,
+            "getProgramAccounts": 172800
+          },
+          "physical_attempts_without_failures": 1044777,
+          "rpc_cu": 20815770,
+          "rpc_elements": 1044777,
+          "rpc_only_modeled_usd": "10.928279250",
+          "turns": 172800
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 483840,
+            "getGenesisHash": 11167,
+            "getMultipleAccounts": 725760,
+            "getProgramAccounts": 241920
+          },
+          "physical_attempts_without_failures": 1462687,
+          "rpc_cu": 29142070,
+          "rpc_elements": 1462687,
+          "rpc_only_modeled_usd": "15.299586750",
+          "turns": 241920
+        }
+      }
+    ],
+    "pump_survivor": [
+      {
+        "fits_rpc_counters": true,
+        "hours": 72,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 103680,
+            "getGenesisHash": 1995,
+            "getMultipleAccounts": 155520
+          },
+          "physical_attempts_without_failures": 261195,
+          "rpc_cu": 5203950,
+          "rpc_elements": 261195,
+          "rpc_only_modeled_usd": "2.732073750",
+          "turns": 51840
+        }
+      },
+      {
+        "fits_rpc_counters": true,
+        "hours": 96,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 138240,
+            "getGenesisHash": 2660,
+            "getMultipleAccounts": 207360
+          },
+          "physical_attempts_without_failures": 348260,
+          "rpc_cu": 6938600,
+          "rpc_elements": 348260,
+          "rpc_only_modeled_usd": "3.642765000",
+          "turns": 69120
+        }
+      },
+      {
+        "fits_rpc_counters": true,
+        "hours": 120,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 172800,
+            "getGenesisHash": 3325,
+            "getMultipleAccounts": 259200
+          },
+          "physical_attempts_without_failures": 435325,
+          "rpc_cu": 8673250,
+          "rpc_elements": 435325,
+          "rpc_only_modeled_usd": "4.553456250",
+          "turns": 86400
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 168,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 241920,
+            "getGenesisHash": 4654,
+            "getMultipleAccounts": 362880
+          },
+          "physical_attempts_without_failures": 609454,
+          "rpc_cu": 12142540,
+          "rpc_elements": 609454,
+          "rpc_only_modeled_usd": "6.374833500",
+          "turns": 120960
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 240,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 345600,
+            "getGenesisHash": 6648,
+            "getMultipleAccounts": 518400
+          },
+          "physical_attempts_without_failures": 870648,
+          "rpc_cu": 17346480,
+          "rpc_elements": 870648,
+          "rpc_only_modeled_usd": "9.106902000",
+          "turns": 172800
+        }
+      },
+      {
+        "fits_rpc_counters": false,
+        "hours": 336,
+        "rpc_counter_limits_unchanged": {
+          "http_attempts": 500000,
+          "rpc_cu": 24000000,
+          "rpc_elements": 500000
+        },
+        "safe_capacity_demonstrated": false,
+        "scenario": "quiet_reference",
+        "usage": {
+          "methods": {
+            "getBlockTime": 483840,
+            "getGenesisHash": 9306,
+            "getMultipleAccounts": 725760
+          },
+          "physical_attempts_without_failures": 1218906,
+          "rpc_cu": 24285060,
+          "rpc_elements": 1218906,
+          "rpc_only_modeled_usd": "12.749656500",
+          "turns": 241920
+        }
+      }
+    ]
+  },
+  "schema": "exceptional-winner-candidate-v1",
+  "selected_strategy_absolute_maximum": null
+}

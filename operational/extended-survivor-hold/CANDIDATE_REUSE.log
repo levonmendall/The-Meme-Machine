@@ -1,0 +1,8 @@
+STORAGE WARNING: root 75.3% used; 11.71 GiB available; nonessential bulk operations block at 85.0%.
+test_current_renewal_reuses_same_incremental_history_and_rpc_session_without_acquisition (tests.test_exceptional_winner_candidate.EvidenceReuseAndOwnershipTests.test_current_renewal_reuses_same_incremental_history_and_rpc_session_without_acquisition) ... ok
+test_extended_current_preserves_independent_survivor_eligibility_and_same_asset_owner_fence (tests.test_exceptional_winner_candidate.EvidenceReuseAndOwnershipTests.test_extended_current_preserves_independent_survivor_eligibility_and_same_asset_owner_fence) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.154s
+
+OK

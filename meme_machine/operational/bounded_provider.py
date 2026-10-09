@@ -220,6 +220,8 @@ class PhaseBudget:
         self.started=self.bootstrap.started;self.clock=time.monotonic;self.ready_at=None
         self.time=dict(total_wall_seconds=self.envelope['maximum_seconds'])
         self.limits=self.envelope['continuation']
+        from .exceptional_window import adopt
+        adopt(self)
 
     def phase(self):return self.bootstrap.snapshot()['phase']
     def fault(self):return json.loads(self.bootstrap.snapshot().get('fault','{}'))

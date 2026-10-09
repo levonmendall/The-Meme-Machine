@@ -502,7 +502,7 @@ class Supervisor:
                     self.publish()
                     if self.admission=='BOOTSTRAP' and not self.offline:self.bootstrap_tick()
                     if self.admission in ('BOOTSTRAP','CONTINUATION') and not self.offline:
-                        from .position_continuation import tick
+                        from .exceptional_window import tick
                         tick(self)
                 time.sleep(.05)
         finally:

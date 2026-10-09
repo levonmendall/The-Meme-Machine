@@ -1,0 +1,56 @@
+STORAGE WARNING: root 75.3% used; 11.71 GiB available; nonessential bulk operations block at 85.0%.
+test_failure_before_provider_monitoring_persists_exit_once_without_provider_work (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_failure_before_provider_monitoring_persists_exit_once_without_provider_work) ... FAIL
+test_pump_extension_gain_comes_from_native_quote_not_exaggerated_context (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_extension_gain_comes_from_native_quote_not_exaggerated_context) ... ok
+test_missing_stale_incomplete_or_unauthenticated_evidence_never_renews (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_missing_stale_incomplete_or_unauthenticated_evidence_never_renews) ... ok
+test_readiness_owner_latency_and_budget_regressions_are_actionable (tests.test_exceptional_winner_candidate.RenewalRulesTests.test_readiness_owner_latency_and_budget_regressions_are_actionable) ... ok
+test_native_flat_reconciliation_cleans_up_extended_work_automatically (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_native_flat_reconciliation_cleans_up_extended_work_automatically) ... ok
+test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset) ... FAIL
+
+======================================================================
+FAIL: test_failure_before_provider_monitoring_persists_exit_once_without_provider_work (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_failure_before_provider_monitoring_persists_exit_once_without_provider_work)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 275, in test_failure_before_provider_monitoring_persists_exit_once_without_provider_work
+    self.assertEqual(f.book.reconcile(),before);self.assertFalse(saved[-1]['position_safety']['protected'])
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'run[207 chars]ds': 25920000, 'capital_hour_denominator': 360[66 chars]True} != {'run[207 chars]ds': 0, 'capital_hour_denominator': 3600, 'ope[59 chars]True}
+  {'basis': 100,
+   'capital_hour_denominator': 3600,
+-  'capital_unit_seconds': 25920000,
+?                          -------
+
++  'capital_unit_seconds': 0,
+   'cash': 900,
+   'initial': 1000,
+   'lane': 'pumpswap-survivor-momentum-v1',
+   'marked_equity': 1000,
+   'open_positions': 1,
+   'pending': 0,
+   'policy_hash': 'b',
+   'realized': 0,
+   'reconciled': True,
+   'reserved': 0,
+   'run_id': 'run',
+   'settled': 0,
+   'unrealized': 0}
+
+======================================================================
+FAIL: test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset (tests.test_exceptional_winner_candidate.OperationalWindowTests.test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 403, in test_same_supervisor_persists_finite_window_without_refunding_or_allowance_reset
+    self.assertEqual(systemd_dropin(window),'[Service]\nRuntimeMaxSec=1213200\nTimeoutStopSec=65\n')
+AssertionError: '[Service]\nRuntimeMaxSec=1213199\nTimeoutStopSec=65\n' != '[Service]\nRuntimeMaxSec=1213200\nTimeoutStopSec=65\n'
+  [Service]
+- RuntimeMaxSec=1213199
+?                   ^^^
++ RuntimeMaxSec=1213200
+?                   ^^^
+  TimeoutStopSec=65
+
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.702s
+
+FAILED (failures=2)
+Offline failure evidence retained at /tmp/mm-engineering-wirpcqlb

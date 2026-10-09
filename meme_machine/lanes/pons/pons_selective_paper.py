@@ -524,7 +524,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
 
 @position_work
 @with_history
-def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None):
+def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None,exceptional_context=None):
     deadline=time.monotonic()+slice_seconds if slice_seconds is not None else None
     vector=evaluation["vector"]
     if not vector.get("current_threshold_pass"):
@@ -825,7 +825,10 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 position=paper._get(identity)
                 elapsed=int(time.time())-state.opened_at
 
+                exceptional_checkpoint=(elapsed>=129600 and getattr(state,'bridged',False)
+                    and exceptional_context is not None and position['status']=='open' and state.pending_action is None)
                 if (elapsed>=(129600 if getattr(state,'bridged',False) else EXIT_POLICY["max_total_hold_seconds"]) and
+                        not exceptional_checkpoint and
                         not (not getattr(state,'bridge_probe_failed',False) and elapsed<129600
                             and state.partial_taken and state.high_water>=5000
                             and position['status']=='open' and state.pending_action is None) and
@@ -968,6 +971,9 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     )
                     facts=_continuation_facts(position,mark,meta,candidate,rbps,
                         demand=demand,soft_streak=state.pregrad_soft_deterioration_streak,action=action)
+                    if exceptional_context is not None:
+                        try:facts['exceptional_candidate']=exceptional_context(state,position,mark,meta,facts,demand)
+                        except (ValueError,TypeError,KeyError,BoundaryError):facts['exceptional_candidate']={}
                     action=_bridge_action(state,facts,action,position,now=int(time.time()))
                     state.remember_action(action,position)
                     paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,
@@ -1121,6 +1127,9 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 )
                 facts=_continuation_facts(position,mark,meta,candidate,rbps,
                     demand=activity,soft_streak=state.runner_soft_deterioration_streak,action=action)
+                if exceptional_context is not None:
+                    try:facts['exceptional_candidate']=exceptional_context(state,position,mark,meta,facts,activity)
+                    except (ValueError,TypeError,KeyError,BoundaryError):facts['exceptional_candidate']={}
                 action=_bridge_action(state,facts,action,position,now=int(time.time()))
                 state.remember_action(action,position)
                 paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
@@ -1154,6 +1163,11 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 # Retry a fresh observation on the SAME ledger and original hold
                 # clock. Any pending exit keeps its original intent/amount/due.
                 position=paper._get(identity)
+                if (int(time.time())-state.opened_at>=129600 and position['status']=='open'
+                        and (exceptional_context is not None or getattr(state,'exceptional',None))):
+                    state.remember_action(dict(action='full_exit',reason='exceptional_authenticated_evidence_unavailable',
+                        exit_tokens=position['tokens']),position)
+                    position=paper.advance(identity,now=int(time.time()),action='exit_intent',exit_tokens=position['tokens'])
                 if (str(exc)=="impossible_full_position_exit" and state.transition is None
                         and position["status"] in ("open","exit_pending")):
                     # Keep the original exit intent/clock while waiting for the
@@ -1277,13 +1291,21 @@ def _bridge_action(state,facts,action,position,*,now):
     from meme_machine.runtime.directional_continuation import bridge_state
     if action['action']!='hold':return action
     view=dict(opened_at=state.opened_at,realization_taken=state.partial_taken,
-        high_water_bps=state.high_water,bridged=getattr(state,'bridged',False))
-    updated,expired=bridge_state(view,facts,now=now,
-        ordinary_expired=now-state.opened_at>=EXIT_POLICY['max_total_hold_seconds'])
-    for name in ('bridged','bridged_at','bridge_deadline'):
+        high_water_bps=state.high_water,bridged=getattr(state,'bridged',False),
+        exceptional=getattr(state,'exceptional',None),realized_profit=position.get('realized_pnl',0),
+        remaining_quantity=position['tokens'])
+    context=facts.get('exceptional_candidate');extension_reason=None
+    if context is not None or view['exceptional']:
+        from meme_machine.runtime.exceptional_winner import current_bridge
+        updated,expired,extension_reason=current_bridge(view,facts,now=now,
+            ordinary_expired=now-state.opened_at>=EXIT_POLICY['max_total_hold_seconds'],context=context)
+    else:
+        updated,expired=bridge_state(view,facts,now=now,
+            ordinary_expired=now-state.opened_at>=EXIT_POLICY['max_total_hold_seconds'])
+    for name in ('bridged','bridged_at','bridge_deadline','exceptional'):
         if name in updated:setattr(state,name,updated[name])
     state.bridge_probe_failed=False
-    if expired:return dict(action='full_exit',reason='max_total_hold',exit_tokens=position['tokens'])
+    if expired:return dict(action='full_exit',reason=extension_reason or 'max_total_hold',exit_tokens=position['tokens'])
     return action
 
 
@@ -1493,8 +1515,8 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
 from .pons_selective_recovery import resume_lifecycle,exclusive_lifecycle
 
 @exclusive_lifecycle
-def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
-    result=_run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path)
+def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,exceptional_context=None):
+    result=_run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path,exceptional_context=exceptional_context)
     if evaluation.get('candidate_plane_path') and evaluation.get('candidate_broker_identity'):
         from meme_machine.runtime.robinhood.plane import Plane
         from .pons_attempts import Attempts,failure_category

@@ -260,8 +260,12 @@ class Runtime:
             net_exit_proceeds=position['mark'] if net is None else net,
             exit_liquidity_valid=True if q is not None else None,creator_distribution=facts is not None and not facts['creator_distribution_safe'],
             soft_deterioration=None if not flow else flow['buy_flow']<=flow['sell_flow'] and flow['new_buyers']==0)
+        extension=None;factory=getattr(self,'exceptional_context',None)
+        if factory is not None:
+            try:extension=factory(self,position,row,state,facts,observation)
+            except (ValueError,TypeError,KeyError,Unavailable):extension={}
         action=monitor(book=self.book,sleeve=self.sleeve,identity=row['position'],observation=observation,
-                       policy=POLICY['exits'],adapter=self)
+                       policy=POLICY['exits'],adapter=self,exceptional_context=extension)
         row['position_safety']=dict(at=self.now(),evidence_current=state is not None and facts is not None and q is not None,
             exit_quote_available=q is not None,pending_exit=action['action']=='exit_pending',
             blocker='pump_survivor_authenticated_state_flow_or_exit_quote_unavailable')
@@ -391,6 +395,8 @@ class Runtime:
             self.last_error=None
         except (ValueError,Unavailable) as exc:
             self.last_error=str(exc)
+            from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
+            exceptional_evidence_failure(self,family='pump_survivor',blocker=str(exc))
         return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
                     position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,
                         blocker='pump_survivor_position_not_observed')) for r in self.history.rows() if r.get('position')],
