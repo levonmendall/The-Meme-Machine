@@ -112,6 +112,10 @@ def _save(report):
 class Sessions:
     def __init__(self):
         self.pacer=None;self.history=[];self.plane=None
+        # Diagnostics, not proof that unchanged concentration may be skipped.
+        self.holder_probe_audit=dict(monitor_samples=0,unchanged=0,changed=0,
+                                     first_samples=0)
+        self._last_holder_observations={}
         self.rotate("initial")
 
     def rotate(self,reason):
@@ -122,6 +126,7 @@ class Sessions:
                 retries=self.rpc.retries,
                 provider=self.rpc.provider_telemetry(),
                 concentration=self.reader.status(),
+                holder_scan_shadow=self.holder_probe_status(),
                 held_rpc_counters=dict(
                     mode=held_rpc_mode(),
                     pool_probe_reuses=getattr(self.postgrad,
@@ -154,6 +159,31 @@ class Sessions:
         if self.plane.frontier(SWAP_SCOPE)<slot:return None
         return self.plane.block_time(slot)
 
+    def record_holder_probe(self,mint,snapshot,value):
+        """Passive Current scan stability metrics: never skip an RPC or mark."""
+        prior=self._last_holder_observations.get(mint)
+        audit=self.holder_probe_audit
+        audit['monitor_samples']+=1
+        if prior is None:
+            audit['first_samples']+=1
+        elif int(value)==prior['concentration_bps']:
+            audit['unchanged']+=1
+        else:
+            audit['changed']+=1
+        if mint not in self._last_holder_observations and len(self._last_holder_observations)>=64:
+            self._last_holder_observations.pop(next(iter(self._last_holder_observations)))
+        self._last_holder_observations[mint]=dict(
+            concentration_bps=int(value),slot=int(snapshot['slot']))
+
+    def holder_probe_status(self):
+        result=dict(self.holder_probe_audit)
+        result['candidate_skips_authorized']=0
+        result['provider_reads_eliminated_by_stability_audit']=0
+        reader=getattr(getattr(self,'rpc',None),'postgrad_concentration_reader',None)
+        result['postgrad_provider_reader']=(dict(initialized=False)
+            if reader is None else reader.status())
+        return result
+
     def prepare_reserved(self,row):
         from meme_machine.lanes.pump.pump_evidence_execution import prepare_reserved
         return prepare_reserved(self,row,new_rpc=new_rpc)
@@ -182,6 +212,7 @@ class Sessions:
             retries=self.rpc.retries,
             provider=self.rpc.provider_telemetry(),
             concentration=self.reader.status(),
+            holder_scan_shadow=self.holder_probe_status(),
             held_rpc_counters=dict(
                 mode=held_rpc_mode(),
                 pool_probe_reuses=getattr(self.postgrad,
@@ -977,6 +1008,7 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 quote=sell_quote(snapshot,life.position.tokens)
                 proceeds=max(0,quote.output_amount-GAS)
                 concentration=_postgrad_concentration(sessions.rpc,snapshot)
+                sessions.record_holder_probe(mint,snapshot,concentration)
                 current,_confirmation=_volume_price_signal(
                     state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
                 cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
