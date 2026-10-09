@@ -23,6 +23,7 @@ COUNTERS=('rpc_cu','rpc_elements','http_attempts','http_bytes','native_bytes')
 def _resources(resources,previous,*,now,next_boundary):
     if not isinstance(resources,dict):return 'finite_resources_missing',None
     try:
+        if resources['phase']!='CONTINUATION':return 'normal_maintenance_phase_required',None
         numbers=('observed_at','queue_depth','queue_wait_seconds','rss_bytes','cpu_cores',
                  'safety_latency_seconds','cadence_seconds','maintenance_until','recovery_until','service_until')
         if any(not Decimal(str(resources[k])).is_finite() or Decimal(str(resources[k]))<0 for k in numbers):

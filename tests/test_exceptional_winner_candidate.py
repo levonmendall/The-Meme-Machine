@@ -30,7 +30,7 @@ def context(family,at,quantity=300,*,spent=0):
     evidence={key:True for key in candidate.SAFETY}
     evidence.update(observed_at=at,quantity=quantity,native_net_profit_usd='100',entry_buyers=20,minimum_buyers=4,
         independent_buyers=20,buy_flow=300,sell_flow=100,new_buyers=2)
-    resources=dict(family=family,observed_at=at,capacity_verified=True,
+    resources=dict(family=family,phase='CONTINUATION',observed_at=at,capacity_verified=True,
         readiness={key:True for key in candidate.HEALTH},position_owner_count=1,
         queue_depth=0,queue_wait_seconds=0,rss_bytes=1024,cpu_cores='1',
         safety_latency_seconds=1,cadence_seconds=3 if family=='pons_survivor' else 5,
@@ -183,7 +183,8 @@ class RenewalRulesTests(unittest.TestCase):
         at=259210;family='pons_survivor'
         mutations=({'capacity_verified':False},{'position_owner_count':2},{'cadence_seconds':5},
             {'queue_depth':65},{'safety_latency_seconds':4},{'cpu_cores':'NaN'},
-            {'next_window_demand_verified':False},{'recovery_available':False},{'readiness':None})
+            {'next_window_demand_verified':False},{'recovery_available':False},{'readiness':None},
+            {'phase':'RECOVERY'},{'phase':'FAULT'},{'phase':'BOOTSTRAP'})
         for changes in mutations:
             ctx=context(family,at);ctx['resources'].update(changes)
             s,action=apply(risk_state(),family,at,ctx)

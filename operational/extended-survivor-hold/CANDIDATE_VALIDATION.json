@@ -2,15 +2,15 @@
   "activated": false,
   "all_candidate_final_run": {
     "failed": 0,
-    "log": "operational/extended-survivor-hold/CANDIDATE_ALL_FINAL.log",
+    "log": "operational/extended-survivor-hold/CANDIDATE_SEALED_FINAL.log",
     "passed": 27,
-    "seconds": 54.055,
+    "seconds": 53.286,
     "skipped": 0
   },
   "base_commit": "97186a4e33ea6963d82dc1d08fa998d1a6a229eb",
   "broad_suite": false,
   "candidate_new_tests": 27,
-  "checked_at": "2026-10-09T02:19:55.631661+00:00",
+  "checked_at": "2026-10-09T02:35:45.932474+00:00",
   "code_sha256": {
     "engineering/extended_survivor_hold/candidate.py": "9d09af6ac9b5ad2501cf214d69e894fea5fb95d04868dcfffad6beb94518efa2",
     "meme_machine/lanes/pons/pons_selective_paper.py": "1749364d64a8aa4d19e28f7748b9b8688d514f112fd7badc971ca729a255cdea",
@@ -22,10 +22,10 @@
     "meme_machine/operational/bounded_provider.py": "28e5a8fdd321cda272a225149cdeed42e79564d57479b19f52bfa718487b1353",
     "meme_machine/operational/exceptional_window.py": "dc6778e2980bafa51e79b75facb2219be780450784e5a3d81e3d38ce193b1972",
     "meme_machine/operational/supervisor.py": "f91ac56b8fc82c45bc968ba9c0692e0aeac55d3935f4176f6b2b3c329ebae7a0",
-    "meme_machine/runtime/exceptional_winner.py": "db00a11483850714b0c1dcc7bafe891d8a23a378839ab0fce7ffee45f3f6b98a",
+    "meme_machine/runtime/exceptional_winner.py": "72270d2bd469629b0ec762a74b9fd0c32a2cf6a6f7553f84bd636e1b73d902df",
     "meme_machine/runtime/survivor_commit.py": "ecbc79d0f5d61dcba40db9644488b0d3d99bb6ff1e79fe69d5ffa79adec3b9da",
     "operational/tests.py": "9d06af063c8f2fae90eac9dbab98a55e5e186919fe40e2b1f613b71c7b27f093",
-    "tests/test_exceptional_winner_candidate.py": "ee6334f753352c6fe1e023d4e58d07fc2f8c98596640b0af8044abef2892e320"
+    "tests/test_exceptional_winner_candidate.py": "c5e9c6aec22d7d5bb9318b3ba823242bb627333784fe97b450947d7ae8f7375b"
   },
   "combined_unique_with_primary": null,
   "counting": "Latest outcome per distinct method; successful unchanged regressions within repaired development runs are retained explicitly. All 27 candidate methods passed together in the final run.",
@@ -204,8 +204,10 @@
   ],
   "market_provider_calls": 0,
   "no_existing_assertions_relaxed": true,
+  "normal_continuation_only": true,
   "primary_previous_passed": 484,
   "python": "3.12.14 (main, Aug 13 2026, 02:47:42) [GCC 13.3.0]",
+  "recovery_or_fault_never_grants_speculative_extension": true,
   "retained_failure_logs": [
     {
       "log": "operational/extended-survivor-hold/CANDIDATE_DRIVER_ARGUMENT.log",
@@ -289,6 +291,15 @@
       "passed": 27,
       "run_seconds": 54.055,
       "sha256": "952a1655aa4d32f7b58c86ecaf9551dbb35bc6b26eaca377c19ae9b4ea1e48e0",
+      "skipped": 0
+    },
+    {
+      "exit_result": "PASS",
+      "failed": 0,
+      "log": "operational/extended-survivor-hold/CANDIDATE_SEALED_FINAL.log",
+      "passed": 27,
+      "run_seconds": 53.286,
+      "sha256": "9a5837ffa6f0851ffec31e70106cfc8aa1fd01a1c5b669ffe8dd685e0157b2c9",
       "skipped": 0
     }
   ],
