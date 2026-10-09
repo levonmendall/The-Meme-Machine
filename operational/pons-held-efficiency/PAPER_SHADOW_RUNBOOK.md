@@ -53,6 +53,11 @@ on restart; original finite provider budget must always remain authoritative.
 Only existing funded PAPER positions are observed. They are never reopened or
 resized by the shadow. The first PAPER lifecycle still has its existing
 allocation, phase and time limits; those must not be enlarged to fit a study.
+The observer deliberately sheds the native position owner priority and uses
+optional admission priority 30. It is REFUSED by the existing
+POSITION_ONLY / post-bootstrap funding-closed work fence; therefore a
+continuation-phase study requires a separately authorized observation window.
+This shadow is not permitted to borrow the protective exit/recovery reserve.
 
 Each sample covers at most forty block heights between *two consecutive native
 quotes*, and the existing log-window reader splits into supported ten-block
@@ -76,6 +81,13 @@ is observed. Original exit readiness takes priority at every turn.
   bytes, governor pacing, queue latency, failed and repaired work.
 - Shared overall CPU/RSS/storage, Pons Current and Survivor concurrency,
   protected owner clock and restored pending exits.
+
+A native quote's gross simulated sale output and mutable gas cost are
+compared separately. A gas-only net-value drift does not prove an unobserved
+swap, but it also cannot authorize reuse of an old net executable quote.
+Live telemetry distinguishes speculative simulation omissions from
+speculative full-quote omissions. Shadow probes are automatically disabled
+near original protective thresholds or after persistent deterioration.
 
 ## Mandatory stop/go rules
 
