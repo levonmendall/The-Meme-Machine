@@ -58,6 +58,7 @@ class StorageStartup(unittest.TestCase):
     def assert_startup_rejected(self, row, reason):
         before = self.hashes()
         with self.run_mount(row), patch('meme_machine.operational.supervisor.validate_environment'), \
+                patch('meme_machine.operational.admission.require_normal'), \
                 patch.object(Supervisor, 'account', side_effect=AssertionError('writer reached')):
             with self.assertRaisesRegex(StorageGuardError, reason):
                 Supervisor(self.root).initialize()

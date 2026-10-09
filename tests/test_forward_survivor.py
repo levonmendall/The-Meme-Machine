@@ -25,7 +25,7 @@ class ForwardSurvivorTests(unittest.TestCase):
             MM_DIRECTIONAL_COHORT_ID='forward-offline'),clear=True)
         self.env.start();self.addCleanup(self.env.stop)
         self.tape=Tape();self.tape.top=self.tape.grad-12
-        self.runtime=Runtime(Path(self.temp.name)/'pons',10**18,'forward','https://offline.invalid')
+        self.runtime=Runtime(Path(self.temp.name)/'pons',10**18,'forward','https://robinhood-mainnet.g.alchemy.com/v2/offline-fixture')
         self.runtime.rpc=self.tape;self.runtime.deployments_verified=True
         self.runtime.now=lambda:int(self.tape.header(self.tape.top)['timestamp'],16)
         self.addCleanup(lambda:self.runtime.close())
@@ -161,7 +161,7 @@ class ForwardSurvivorTests(unittest.TestCase):
         row=h.get(token);row.update(original_deadline=123,generation=7);h.save(row)
         before=deepcopy(h.get(token));plan=deepcopy(h.get_meta(FORWARD_PLAN))
         self.runtime.close()
-        self.runtime=Runtime(Path(self.temp.name)/'pons',10**18,'forward','https://offline.invalid')
+        self.runtime=Runtime(Path(self.temp.name)/'pons',10**18,'forward','https://robinhood-mainnet.g.alchemy.com/v2/offline-fixture')
         self.runtime.rpc=self.tape;self.runtime.deployments_verified=True
         self.runtime.now=lambda:state['at'];self.tape.request_log=[]
         self.runtime.discover()
@@ -300,7 +300,12 @@ class ForwardSurvivorTests(unittest.TestCase):
             self.assertEqual(not {'too_early','too_old'} & set(out['all_rejections']),valid)
         for path in ('meme_machine/lanes/pons/pons_postgrad_survivor.py',
                      'meme_machine/lanes/pump/pumpswap_survivor.py','operational/nine-change-implementation.json'):
-            original=subprocess.check_output(['git','show','b1f215ed:'+path])
+            # The sole owner-approved economic source edit removes the Pons
+            # count veto. Pin its exact reviewed source; every other file stays
+            # frozen. OwnerAdmissionTests separately compare all policy/exit AST.
+            revision=('aa9fdcee23604ddacb740b454ca18c4909ca61d2'
+                      if path.endswith('pons_postgrad_survivor.py') else 'b1f215ed')
+            original=subprocess.check_output(['git','show',revision+':'+path])
             self.assertEqual(Path(path).read_bytes(),original)
 
     def test_pump_uses_its_own_four_hour_age_and_six_hour_price_requirement(self):

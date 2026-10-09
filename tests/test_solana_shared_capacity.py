@@ -290,7 +290,10 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
             state,h=state_at(Path(d)/'c.sqlite',lambda:NOW)
             try:
                 h.observe('pump',mint,slot=tx['slot'],signature='',fields={},seen=NOW);h.bind('pump',mint)
-                identity=h.request('pump',mint,0,tx['slot'],priority=4,deadline=NOW+150)
+                # Exercise one genuinely missing interval. Crossing the warm
+                # published slot creates independent repair jobs and leaves the
+                # parent pending, so waiting for the parent to fail hangs.
+                identity=h.request('pump',mint,tx['slot'],tx['slot'],priority=4,deadline=NOW+150)
                 state.writer.interest('position','program:meteora',lower_slot=tx['slot'],priority=0,lifecycle='open')
                 source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
                 async def work(fn,*args,**kwargs):
@@ -301,7 +304,7 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                 source.work=work;source.measured_rpc=rpc
                 from tests.test_solana_prewarm_startup import quiet_model_b
                 boot_done=asyncio.Event();boot_done.set();await quiet_model_b(work,boot_done)
-                await source.acquire()
+                await asyncio.wait_for(source.acquire(),5)
                 self.assertEqual(h.db.execute('SELECT status,deadline,error FROM acquisition_jobs WHERE id=?',(identity,)).fetchone(),('failed',NOW+150,'candidate_archive_decoder_unavailable'))
                 self.assertEqual(h.db.execute('SELECT state FROM candidate_lifecycle WHERE address=?',(mint,)).fetchone(),('cheap_retained',))
                 self.assertEqual(h.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE repaired IS NULL').fetchone()[0],1)

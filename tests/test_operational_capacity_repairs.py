@@ -25,14 +25,17 @@ class CapacityRepairs(unittest.TestCase):
         self.assertEqual(result['estimated_cu'],sum(spec['methods'][m]*n for m,n in methods.items()))
         self.assertIsNone(estimate({'unknown_method':1})['estimated_cu'])
         self.assertEqual(hashlib.sha256(DEFAULT.read_bytes()).hexdigest(),
-            '0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9')
+            '961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1')
+        self.assertEqual(spec['method_additions_verified_at'],'2026-10-09')
+        self.assertEqual(spec['methods']['getTransactionsForAddress'],100)
         from meme_machine.runtime.evidence_worker import RepairRPC
         rpc=RepairRPC('https://solana-mainnet.g.alchemy.com/v2/offline-fixture',None)
         rpc._count('method:getGenesisHash')
         rpc._count('method:getTransactionsForAddress')
+        rpc._count('method:unknown_method')
         telemetry=rpc.telemetry()['estimated_alchemy']
-        self.assertEqual(telemetry['known_estimated_cu'],10)
-        self.assertEqual(telemetry['unpriced_methods'],{'getTransactionsForAddress':1})
+        self.assertEqual(telemetry['known_estimated_cu'],110)
+        self.assertEqual(telemetry['unpriced_methods'],{'unknown_method':1})
         self.assertIsNone(telemetry['estimated_cu'])
 
     def test_lane_environments_inspect_names_only(self):

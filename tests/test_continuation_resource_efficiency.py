@@ -526,7 +526,14 @@ class WholeSystemCostTests(unittest.TestCase):
         b,a=self.metrics(before),self.metrics(after)
         self.assertEqual((b['elements'],a['elements']),(12,10))
         self.assertEqual((b['rpc_cu'],a['rpc_cu']),(264,218))
-        self.assertEqual((b['physical'],a['physical']),(4,4))
+        self.assertEqual((b['physical'],a['physical']),(4,6))
+        # Numeric membership must follow state acquisition in a separate
+        # transport. JSON-RPC batch ordering cannot prove canonical publication.
+        for kind,transport in after.transports:
+            if any(method=='eth_getBlockByNumber' and params[0]!='latest'
+                   for method,params in transport):
+                self.assertEqual(len(transport),1)
+                self.assertEqual(kind,'call')
         self.assertEqual(a['methods']['eth_gasPrice'],2)
         self.assertEqual(a['methods']['eth_getBlockByNumber'],4)
         self.assertEqual(a['methods']['eth_call'],3) # manager once; both executable quantities fresh
@@ -558,7 +565,9 @@ class WholeSystemCostTests(unittest.TestCase):
         for turn in range(40):
             self.clock[0]=100+turn*3;self.head=100+turn*30;self.gas=1+turn%3
             self.assertEqual(self.quote(self.baseline,before,10**18),self.quote(self.optimized,after,10**18))
-        self.assertEqual(self.metrics(before),self.metrics(after))
+        b,a=self.metrics(before),self.metrics(after)
+        self.assertEqual((b.pop('physical'),a.pop('physical')),(80,120))
+        self.assertEqual(b,a)
         self.assertEqual(self.metrics(after)['methods']['eth_getCode'],40)
 
     def test_reorg_provider_identity_restart_or_failure_never_borrow_old_facts(self):
