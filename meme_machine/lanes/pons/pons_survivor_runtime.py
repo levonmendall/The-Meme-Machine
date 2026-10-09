@@ -715,6 +715,8 @@ class Runtime:
                         rpc=self.rpc,pool_id=row['graduation']['transition']['market'],
                         quantity=p['tokens'],quote_block=q['block'],
                         quote_hash=q['block_hash'],net_proceeds=q['net_proceeds'],
+                        gross_amount_out=q['net_proceeds']+q['gas'],
+                        gas_quote=q['gas'],
                         position_open=True,no_pending_exit=True,
                         no_pending_partial=True,owner_protected=True,
                         risk_distance_bps=margin)
