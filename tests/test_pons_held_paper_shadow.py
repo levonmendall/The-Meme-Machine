@@ -168,11 +168,13 @@ class NativeEventCoverageTests(TestCase):
                 current_head=dict(number=hex(200),hash=END_HASH))
 
 
-def quote_turn(trial,*,rpc,block,net=QUOTE,quantity=100,hold=True):
+def quote_turn(trial,*,rpc,block,net=QUOTE,quantity=100,hold=True,
+               gross=None,gas=None):
     return trial.observe_after_hold(rpc=rpc,pool_id=POOL,
         quantity=quantity,quote_block=block,
         quote_hash=(START_HASH if block==100 else END_HASH),
-        net_proceeds=net,position_open=hold,
+        net_proceeds=net,gross_amount_out=gross,gas_quote=gas,
+        position_open=hold,
         no_pending_exit=hold,no_pending_partial=hold,owner_protected=hold,
         risk_distance_bps=2500)
 
@@ -213,6 +215,22 @@ class ShadowIntegrationTests(TestCase):
         self.assertTrue(shadow.unsafe)
         self.assertEqual(shadow.counts['silent_net_quote_differences'],1)
         self.assertFalse(shadow.status()['quote_suppression_enabled'])
+
+    def test_gas_only_net_drift_requires_fresh_gas_but_not_new_simulation(self):
+        shadow=PaperHeldShadow(URL,environ={
+            'MM_PONS_HELD_PAPER_SHADOW':'1',
+            'MM_PONS_HELD_SHADOW_EVERY_TICKS':'2'})
+        rpc=FakeCanonicalRpc()
+        quote_turn(shadow,rpc=rpc,block=100,net=980,gross=1000,gas=20)
+        result=quote_turn(shadow,rpc=rpc,block=101,net=970,gross=1000,gas=30)
+        self.assertFalse(shadow.unsafe)
+        self.assertEqual(shadow.counts['gas_only_net_quote_differences'],1)
+        self.assertEqual(shadow.counts['silent_native_simulation_output_differences'],0)
+        self.assertTrue(result['unchanged_native_output'])
+        self.assertTrue(result['gas_price_change_observed'])
+        self.assertFalse(result['unchanged_net_quote'])
+        self.assertEqual(shadow.counts['hypothetical_quote_omissions'],0)
+        self.assertEqual(shadow.counts['hypothetical_native_simulation_omissions'],1)
 
     def test_pending_or_partial_exit_never_dispatches_probe(self):
         shadow=PaperHeldShadow(URL,environ={
