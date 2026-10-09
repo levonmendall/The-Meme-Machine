@@ -939,9 +939,11 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 state=postgrad.get(mint)
                 if state is None:
                     raise Unavailable("missing_postgrad_state")
-                handoff=sessions.postgrad.held_graduation_handoff(mint,now,priority=True)
+                # The current curve, holder mint, PumpSwap pool/vaults and
+                # fee state share one finalized account-context slot.
                 snapshot=sessions.postgrad.pumpswap_snapshot(
-                    handoff,now,priority=True,reuse_verified_pool=True)
+                    mint,now,priority=True,
+                    reuse_verified_pool=True,held_curve_inline=True)
                 state["history"].bind_snapshot(snapshot)
                 events=_refresh_pool_events(
                     state,sessions,now,research=False,
