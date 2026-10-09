@@ -1,6 +1,33 @@
 # Pump / Alchemy: request-level operating-cost optimization
 
 **Disposition: ISOLATED CODE CANDIDATE — NOT DEPLOYED OR BILLING-VERIFIED.**
+
+## PAPER testability (now implemented, default OFF)
+
+The existing PAPER supervisor now explicitly forwards
+`MM_PUMP_HELD_RPC_MODE` **only to Pump**. Accepted values:
+`baseline` (default original logical request path) and
+`optimized` (co-slot held quote read). Unknown values and any
+non-PAPER optimized mode fail closed. The setting belongs in the
+existing protected `/etc/meme-machine/paper.env`; it is read at
+process start and is not a live-position restart instruction.
+Pons gets no change of acquisition mode.
+
+Pump Current publishes `pump_held_rpc` and `holder_scan_shadow` to
+its ordinary report approximately every 15 seconds; Pump Survivor
+reports `pump_held_rpc` in each worker status. The latter includes
+physical HTTP attempts for its RPC session. The Current shadow
+records full holder scans and the actual separate concentration
+provider-reader counters; it does not skip a single safety request.
+These counters alone are not invoice proof.
+
+A targeted GitHub Actions workflow runs **offline only**:
+`.github/workflows/pump-held-paper-offline-proof.yml`.
+Existing broad FAST/OPERATIONAL gates remain mandatory; neither
+queued nor running is passing. The finite safe host procedure is
+[`PAPER_LIVE_TEST.md`](PAPER_LIVE_TEST.md).
+No on-host execution has occurred.
+
 Source base: `engineering/pons-held-efficiency-20261009` at
 `6c534b06797cc0b299d59da28be50b15bcd38665`.
 No market orders, funded PAPER positions, Alchemy traffic experiment,
