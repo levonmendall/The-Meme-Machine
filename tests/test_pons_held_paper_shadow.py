@@ -15,6 +15,7 @@ from meme_machine.lanes.pons.held_event_coverage import (
     NativeHeldCoverage, native_coverage_filters)
 from meme_machine.lanes.pons.held_paper_shadow import PaperHeldShadow
 from meme_machine.lanes.pons import pons_survivor_runtime,pons_selective_paper
+from meme_machine.runtime.robinhood.provider_authority import fingerprint
 
 URL='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_PONS_HELD'
 POOL='0x'+'1'*64
@@ -35,7 +36,7 @@ def ev(role,name):
 class FakeCanonicalRpc:
     canonical_authority=True
     chain_verified=True
-    provider_fingerprint='alchemypaper-offline'
+    provider_fingerprint=fingerprint(URL)
     def __init__(self,events=(),*,fork=False,fail=False):
         self.events=tuple(events)
         self.fork=fork;self.fail=fail;self.calls=[]
@@ -155,6 +156,11 @@ class NativeEventCoverageTests(TestCase):
         with self.assertRaisesRegex(BoundaryError,'chain_unverified'):
             observe(rpc)
         self.assertEqual(rpc.calls,[])
+        mismatch=FakeCanonicalRpc()
+        mismatch.provider_fingerprint='different_authentication'
+        with self.assertRaisesRegex(BoundaryError,'endpoint_fingerprint_disagreement'):
+            observe(mismatch)
+        self.assertEqual(mismatch.calls,[])
 
     def test_unbounded_gap_never_buys_missing_interval(self):
         with self.assertRaisesRegex(BoundaryError,'gap_exceeds_finite_window'):
