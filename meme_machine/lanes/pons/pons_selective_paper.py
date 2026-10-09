@@ -821,6 +821,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 rpc.rotate_if_needed()
                 _stop_sleep(EXIT_POLICY["monitor_seconds"])
                 header=_latest_header(rpc)
+                quote_head_at=time.monotonic()
                 block=int(header["number"],16)
                 position=paper._get(identity)
                 elapsed=int(time.time())-state.opened_at
@@ -1020,11 +1021,13 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                         0,(state.graduation_at+POST_GRAD_OBSERVE_SECONDS)-int(time.time())
                     )
                     _stop_sleep(wait)
-                    header=_latest_header(rpc);block=int(header["number"],16)
+                    header=_latest_header(rpc);quote_head_at=time.monotonic()
+                    block=int(header["number"],16)
                     position=paper._get(identity)
                     mark,meta,ledger=_v4_quote(
                         rpc,state.v4_key,position["market"],position["tokens"],gas_units,store,
                         "selective-postgrad-mark",local_freshness=True,
+                        fresh_head=(header,quote_head_at),
                     )
                     activity=collect_v4_activity(
                         endpoint,pool_id=position["market"],key=state.v4_key,
@@ -1079,7 +1082,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 mark,meta,ledger=_v4_quote(
                     rpc,state.v4_key,position["market"],position["tokens"],gas_units,store,
                     "selective-v4-mark-"+str(position['version']),
-                    local_freshness=True,
+                    local_freshness=True,fresh_head=(header,quote_head_at),
                 )
                 rbps=_position_return_bps(position,mark)
                 current_header=dict(
