@@ -149,6 +149,10 @@ class Runtime:
             self.scout=MarketScout(self.plane)
         self.attempts=Attempts(self.plane)
         self.rpc=None;self.current=None;self.last_error=None
+        # Experimental PAPER shadow only; the native monitor always decides
+        # exits using its original fresh quote before this optional observer.
+        from .held_paper_shadow import PaperHeldShadow
+        self.held_paper_shadow=PaperHeldShadow(endpoint)
 
     def now(self):return int(time.time())
 
@@ -684,6 +688,24 @@ class Runtime:
                 stress_limit=650,minimum=self.sleeve.sizing_basis(500,minimum_bps=5)["minimum"])
         if action['action']=='partial_exit':
             row=self.history.get(row['id']);row['state']='runner';self.history.save(row)
+        # No optional provider work occurs until original native risk, exit,
+        # accounting and potential scale work have already completed.
+        shadow=getattr(self,'held_paper_shadow',None)
+        if shadow is not None and shadow.enabled:
+            try:
+                if action['action']=='hold' and q is not None and p['status']=='open':
+                    shadow.observe_after_hold(
+                        rpc=self.rpc,pool_id=row['graduation']['transition']['market'],
+                        quantity=p['tokens'],quote_block=q['block'],
+                        quote_hash=q['block_hash'],net_proceeds=q['net_proceeds'],
+                        position_open=True,no_pending_exit=True,
+                        no_pending_partial=True,owner_protected=True)
+                else:
+                    shadow.last.pop(row['graduation']['transition']['market'].lower(),None)
+            except Exception:
+                # A shadow measurement can never block, authorize or delay
+                # settlement. The original position decision is already final.
+                shadow.counts['isolated_unexpected_probe_error']+=1
 
     @decision_work(4)
     def step(self,*,admit):
@@ -792,7 +814,10 @@ class Runtime:
                     qualification_authority='candidate_specific_authenticated_evidence',
                     accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
                     policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
-                    durable_handoff=handoff_ready(self.book,self.history.rows()))
+                    durable_handoff=handoff_ready(self.book,self.history.rows()),
+                    held_paper_shadow=(getattr(self,'held_paper_shadow',None).status()
+                        if getattr(self,'held_paper_shadow',None) is not None else
+                        dict(enabled=False,mode='PAPER_SHADOW_ONLY')))
 
     def close(self):
         self.book.close();self.history.close();self.sleeve.close();self.plane.close()
