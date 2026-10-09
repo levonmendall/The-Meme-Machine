@@ -9,7 +9,7 @@ from unittest.mock import patch
 from meme_machine.lanes.pump import pump
 from meme_machine.lanes.pump.postgrad import (
     GraduationHandoff, PostGraduationAdapter, PUMPSWAP_PROGRAM,
-    buy_quote, sell_quote,
+    buy_quote, sell_quote, graduation_handoff, held_rpc_mode,
 )
 from meme_machine.lanes.pump.provider import PumpAdapter, Unavailable
 from tests.lanes.pump.test_postgrad import (
@@ -63,6 +63,41 @@ class PumpRequestParity(unittest.TestCase):
     def setUp(self):
         self.rpc=MeteredRPC()
         self.adapter=PostGraduationAdapter(self.rpc,scan_rpc=object())
+
+    def test_original_full_provider_path_and_optimized_same_economics(self):
+        # The PAPER toggle must have a meaningful physical-RPC baseline.
+        before_multi=self.rpc.count('getMultipleAccounts')
+        before_time=self.rpc.count('getBlockTime')
+        raw=self.adapter.graduation_snapshot(MINT,101)
+        old=self.adapter.pumpswap_snapshot(graduation_handoff(raw,101),101)
+        self.assertEqual(self.rpc.count('getMultipleAccounts')-before_multi,3)
+        self.assertEqual(self.rpc.count('getBlockTime')-before_time,2)
+        before_multi=self.rpc.count('getMultipleAccounts')
+        before_time=self.rpc.count('getBlockTime')
+        opt=self.adapter.pumpswap_snapshot(
+            MINT,101,reuse_verified_pool=True,held_curve_inline=True)
+        self.assertEqual(self.rpc.count('getMultipleAccounts')-before_multi,2)
+        self.assertEqual(self.rpc.count('getBlockTime')-before_time,1)
+        self.assertEqual(old['state'],opt['state'])
+        self.assertEqual(old['creator'],opt['creator'])
+        self.assertEqual(sell_quote(old,10**9),sell_quote(opt,10**9))
+        before_multi=self.rpc.count('getMultipleAccounts')
+        opt2=self.adapter.pumpswap_snapshot(
+            MINT,101,reuse_verified_pool=True,held_curve_inline=True)
+        self.assertEqual(self.rpc.count('getMultipleAccounts')-before_multi,1)
+        self.assertEqual(opt['state'],opt2['state'])
+
+    def test_mode_selection_is_paper_only_and_rejects_unknown_values(self):
+        self.assertEqual(held_rpc_mode({}),'baseline')
+        self.assertEqual(held_rpc_mode({'MM_PUMP_HELD_RPC_MODE':'baseline',
+                                        'MM_MODE':'PAPER'}),'baseline')
+        self.assertEqual(held_rpc_mode({'MM_PUMP_HELD_RPC_MODE':'optimized',
+                                        'MM_MODE':'PAPER'}),'optimized')
+        with self.assertRaisesRegex(ValueError,'invalid_pump_held_rpc_mode'):
+            held_rpc_mode({'MM_PUMP_HELD_RPC_MODE':'maybe'})
+        with self.assertRaisesRegex(ValueError,'pump_held_rpc_paper_only'):
+            held_rpc_mode({'MM_PUMP_HELD_RPC_MODE':'optimized',
+                           'MM_MODE':'LIVE'})
 
     def test_first_held_quote_removes_separate_graduation_read(self):
         before=self.rpc.count('getMultipleAccounts')
@@ -212,6 +247,26 @@ class PumpRequestParity(unittest.TestCase):
             b=adapter.snapshot(MINT,101,priority=True)
             self.assertEqual(rpc.count('getBlockTime'),before+1)
             self.assertEqual(a['market_time'],b['market_time'])
+
+    def test_supervisor_paper_mode_reaches_pump_only(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from meme_machine.operational.supervisor import Supervisor
+        with tempfile.TemporaryDirectory() as folder:
+            sup=object.__new__(Supervisor)
+            sup.root=Path(folder)
+            sup.epoch='offline-fixture-switch'
+            sup.offline=True
+            with patch.dict(os.environ,{'MM_PUMP_HELD_RPC_MODE':'optimized'}):
+                pump_env=sup.environment('pump')
+                self.assertEqual(pump_env['MM_PUMP_HELD_RPC_MODE'],'optimized')
+                pons_env=sup.environment('pons')
+                self.assertNotIn('MM_PUMP_HELD_RPC_MODE',pons_env)
+            with patch.dict(os.environ,{'MM_PUMP_HELD_RPC_MODE':'invalid'}):
+                with self.assertRaisesRegex(ValueError,'invalid_pump_held_rpc_mode'):
+                    sup.environment('pump')
 
 
 if __name__=='__main__':
