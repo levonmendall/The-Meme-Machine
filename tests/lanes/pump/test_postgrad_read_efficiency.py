@@ -176,5 +176,52 @@ class PumpHeldReadEfficiency(unittest.TestCase):
                          buy_quote(cached_snapshot, 100_000_000))
 
 
+    def test_cold_probe_and_second_batch_must_agree_on_vault_addresses(self):
+        handoff = self.adapter.held_graduation_handoff(MINT, 101)
+        old_call = self.rpc.call
+        old = self.rpc.pool_acc
+        raw = bytearray(base64.b64decode(old['data'][0]))
+        raw[139:171] = bytes([79]) * 32
+        replacement = account(bytes(raw), PUMPSWAP_PROGRAM)
+
+        def updated_between_batches(method, params=None, priority=False):
+            if (method == 'getMultipleAccounts'
+                    and params[0] == [self.rpc.pool, MINT, self.rpc.base_key,
+                                     self.rpc.quote_key, self.adapter.fee_address]):
+                self.rpc.pool_acc = replacement
+            return old_call(method, params, priority)
+        self.rpc.call = updated_between_batches
+        with self.assertRaisesRegex(ValueError, 'pumpswap_verified_vault_drift'):
+            self.adapter.pumpswap_snapshot(handoff, 101, reuse_verified_pool=True)
+        self.assertNotIn(MINT, self.adapter._held_pumpswap_vaults)
+        self.assertNotIn(MINT, self.adapter._held_graduation)
+
+    def test_pump_current_curve_timestamp_uses_exact_slot_or_original_rpc(self):
+        rpc = MeteredRPC()
+        adapter = PumpAdapter(rpc)
+        original_call = rpc.call
+
+        def active_curve_call(method, params=None, priority=False):
+            if method == 'getMultipleAccounts' and len(params[0]) == 3:
+                rpc.requests.append((method, params))
+                return dict(context=dict(slot=1001), value=[object(), object(), object()])
+            return original_call(method, params, priority)
+        rpc.call = active_curve_call
+        with patch.object(pump, 'curve', return_value=object()), \\
+             patch.object(pump, 'mint_info', return_value=(10**12, 6)), \\
+             patch.object(pump, 'validate_mint_supply', return_value={'mayhem': False}), \\
+             patch.object(pump, 'fees', return_value=[20, 5, 50]):
+            adapter.finalized_market_time = lambda slot: 100 if slot == 1001 else None
+            before = rpc.counts('getBlockTime')
+            snap = adapter.snapshot(MINT, 101, priority=True)
+            self.assertEqual(rpc.counts('getBlockTime'), before)
+            self.assertEqual(snap['market_time'], 100)
+            self.assertEqual(adapter.local_finalized_time_reuses, 1)
+            adapter.finalized_market_time = lambda slot: None
+            snap = adapter.snapshot(MINT, 101, priority=True)
+            self.assertEqual(rpc.counts('getBlockTime'), before + 1)
+            self.assertEqual(snap['market_time'], 100)
+
+
 if __name__ == '__main__':
     unittest.main()
