@@ -2,6 +2,8 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_provider_package_sensitivities',
+ 'tests.test_pons_rpc_equivalence_preparation',
  'tests.test_pons_current_worker_admission',
  'tests.test_pons_owner_admission',
  'tests.test_pump_known_slot_block_repair',
