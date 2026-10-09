@@ -269,5 +269,43 @@ class PumpRequestParity(unittest.TestCase):
                     sup.environment('pump')
 
 
+    def test_survivor_controller_switch_routes_held_only_not_entry(self):
+        import os
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from meme_machine.lanes.pump import pumpswap_survivor_runtime as survivor
+
+        runtime=object.__new__(survivor.Runtime)
+        runtime.current=None
+        runtime.history=SimpleNamespace(get=lambda mint:dict(
+            id=mint,graduation=dict(pool=self.rpc.pool)))
+        runtime.now=lambda:101
+        adapter=Mock()
+        raw=complete_pump_snapshot()
+        adapter.graduation_snapshot.return_value=raw
+        adapter.pumpswap_snapshot.return_value=dict(pool=self.rpc.pool)
+        runtime.adapter=adapter
+        runtime._provider=lambda priority:None
+
+        with patch.dict(os.environ,{'MM_MODE':'PAPER','MM_PUMP_HELD_RPC_MODE':'baseline'}):
+            runtime.fresh_state(MINT,priority=0,maintenance=True)
+            self.assertEqual(adapter.graduation_snapshot.call_count,1)
+            self.assertEqual(adapter.pumpswap_snapshot.call_count,1)
+            adapter.reset_mock()
+        with patch.dict(os.environ,{'MM_MODE':'PAPER','MM_PUMP_HELD_RPC_MODE':'optimized'}):
+            runtime.fresh_state(MINT,priority=0,maintenance=True)
+            adapter.graduation_snapshot.assert_not_called()
+            self.assertEqual(adapter.pumpswap_snapshot.call_args.kwargs.get(
+                'held_curve_inline'),True)
+            self.assertEqual(adapter.pumpswap_snapshot.call_args.kwargs.get(
+                'reuse_verified_pool'),True)
+            adapter.reset_mock()
+            runtime.fresh_state(MINT,priority=30,maintenance=False)
+            # No change to Survivor entry/requalification or scaling proof.
+            adapter.graduation_snapshot.assert_called_once()
+            self.assertEqual(adapter.pumpswap_snapshot.call_args.kwargs.get(
+                'additional_accounts'),(survivor.SOL_USD_ACCOUNT,))
+
+
 if __name__=='__main__':
     unittest.main()
