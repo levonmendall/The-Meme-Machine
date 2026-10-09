@@ -1,0 +1,97 @@
+{
+  "droplet_id": 605465049,
+  "limits": {
+    "artifact_bytes": 134217728,
+    "cpu_cores": "1.8",
+    "delivered_http_bytes": 67108864,
+    "modeled_spend_usd": "0.50",
+    "native_exposure_bytes_including_uncertain_buffers": 1073741824,
+    "native_inflight_reserve_bytes": 268435456,
+    "native_opens_including_one_clean_reconnect": 4,
+    "native_stop_bytes": 788529152,
+    "physical_attempts": 2000,
+    "queue_depth": 64,
+    "queue_wait_seconds": 5,
+    "rpc_cu": 500000,
+    "rpc_elements": 8000,
+    "rpc_retries": 0,
+    "rss_bytes": 6442450944
+  },
+  "market_selection": "existing local scout/native history only; one authenticated market per family; missing/stale selection is INCONCLUSIVE, no market-wide replacement search",
+  "maximum_startup_seconds": 60,
+  "mode": "READ_ONLY_ISOLATED_NO_POSITION",
+  "name": "CONTINUATION_RESOURCE_OBSERVATION",
+  "no_entitlement_or_quiet_empty_comparison": "INCONCLUSIVE; do not enable wider logs or open funding",
+  "profiles": [
+    {
+      "markets": "one authenticated Pons V2 graduated V4 pool; hypothetical fixed quantity, no position or economic events",
+      "maximum_seconds": 240,
+      "name": "pons",
+      "native_exit_quote_interval_seconds": 3,
+      "quote_freshness_seconds": 5,
+      "serial_subprofiles": [
+        {
+          "maximum_seconds": 120,
+          "name": "survivor",
+          "safety_evaluation_seconds": 3
+        },
+        {
+          "maximum_seconds": 120,
+          "name": "current_v4",
+          "safety_evaluation_seconds": 5
+        }
+      ],
+      "work": [
+        "serial native Survivor quote/held-flow and Current rolling-window acquisition; never two independent position owners",
+        "one exact 40-block vs four ten-block Swap log comparison at the same canonical boundary",
+        "Current rolling-window reads for the same pool",
+        "explicit receipt sender completeness and gas/header changes"
+      ]
+    },
+    {
+      "markets": "one authenticated SOL PumpSwap pool; no position or economic events",
+      "maximum_seconds": 240,
+      "name": "pump",
+      "native_snapshot_interval_seconds": 5,
+      "work": [
+        "native finalized snapshot and concentration reads",
+        "existing exact pool WS logs and filtered native status/control subscription",
+        "complete native join/publication with original timestamps",
+        "one clean native reconnect preserving isolated watermark"
+      ]
+    }
+  ],
+  "prohibited": [
+    "deployment",
+    "PAPER funding or trading",
+    "CAPACITY acceptance",
+    "RECOVERY acceptance",
+    "AUTONOMY acceptance",
+    "real money",
+    "Ramses",
+    "Meteora",
+    "historical backfill",
+    "new infrastructure"
+  ],
+  "required_results": [
+    "exact physical attempts and logical elements by method",
+    "method-weighted CU and delivered HTTP/native bytes before dedup",
+    "quote age and safety evaluation spacing p50/p95/p99/max including local pacing",
+    "canonical boundary and complete authenticated event equality",
+    "queue, CPU, RSS, SDK uncertainty and reconnect tail",
+    "verified actual app entitlement for the proposed wider range",
+    "recalculate conditional 72-hour ordinary and stress bounds; never infer arbitrary-outage safety",
+    "observed relevant activity sufficient to test the stated scenario; a quiet sample cannot establish busy-market adequacy"
+  ],
+  "shutdown_reserve_seconds": 30,
+  "state": "fresh admitted temporary state only; no production epoch, native journal, service, funding authority or capability file writes",
+  "status": "PREPARED_NOT_AUTHORIZED_NOT_EXECUTED",
+  "stop_on": [
+    "any spending/resource/wall ceiling",
+    "stale quote or missed safety cadence",
+    "noncanonical or incomplete evidence",
+    "provider rejection or rate limit; save blocker, no retry storm"
+  ],
+  "total_seconds_including_startup_shutdown": 600,
+  "uncertainty": "A ten-minute sample cannot guarantee arbitrary outages or all market activity. Existing local two-RPS governor is retained; any scenario exceeding it remains blocked."
+}

@@ -14,6 +14,16 @@ class PositionSessions:
     def __getattr__(self,name):
         return getattr(self._current,name)
 
+    @property
+    def evidence_deadline(self):return getattr(self._current,'evidence_deadline',None)
+    @evidence_deadline.setter
+    def evidence_deadline(self,value):self._current.evidence_deadline=value
+
+    @property
+    def evidence_pins(self):return getattr(self._current,'evidence_pins',{})
+    @evidence_pins.setter
+    def evidence_pins(self,value):self._current.evidence_pins=value
+
     def _ensure_authenticated(self):
         if self._authenticated:return
         self._authentication_attempt+=1
@@ -50,6 +60,8 @@ class PositionSessions:
             self._current=new
             self._authenticated=False
             self._authentication_attempt=1
+            for name in ('evidence_deadline','evidence_pins'):
+                if hasattr(old,name):setattr(new,name,getattr(old,name))
             new.verify_chain()
             self._authenticated=True
             row['authenticated']=True

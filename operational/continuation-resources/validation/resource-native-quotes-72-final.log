@@ -1,0 +1,13 @@
+test_full_72_hours_native_quotes_keep_freshness_cadence_and_bounded_evidence (tests.test_continuation_resource_efficiency.PonsQuoteTests.test_full_72_hours_native_quotes_keep_freshness_cadence_and_bounded_evidence) ... ok
+test_immediate_full_exit_reuses_exact_state_and_reacquires_mutable_gas (tests.test_continuation_resource_efficiency.PonsQuoteTests.test_immediate_full_exit_reuses_exact_state_and_reacquires_mutable_gas) ... ok
+test_material_state_or_canonical_head_change_requires_full_reconstruction (tests.test_continuation_resource_efficiency.PonsQuoteTests.test_material_state_or_canonical_head_change_requires_full_reconstruction) ... ok
+test_original_single_stream_quote_scope_rejects_normal_block_gaps (tests.test_continuation_resource_efficiency.PonsQuoteTests.test_original_single_stream_quote_scope_rejects_normal_block_gaps) ... ok
+test_partial_quantity_and_expired_evidence_never_use_full_quote (tests.test_continuation_resource_efficiency.PonsQuoteTests.test_partial_quantity_and_expired_evidence_never_use_full_quote) ... ok
+test_provider_failure_during_reuse_cannot_return_old_execution (tests.test_continuation_resource_efficiency.PonsQuoteTests.test_provider_failure_during_reuse_cannot_return_old_execution) ... ok
+test_quote_cache_has_no_next_turn_or_restart_authority (tests.test_continuation_resource_efficiency.PonsQuoteTests.test_quote_cache_has_no_next_turn_or_restart_authority) ... ok
+test_session_rotation_preserves_original_freshness_and_membership_fence (tests.test_continuation_resource_efficiency.PonsQuoteTests.test_session_rotation_preserves_original_freshness_and_membership_fence) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 430.379s
+
+OK

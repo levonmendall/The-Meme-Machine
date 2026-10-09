@@ -14,6 +14,8 @@ from . import BoundaryError
 
 _active=ContextVar('pons_current_history',default=None)
 
+def active_history():return _active.get()
+
 
 class CurrentHistory:
     def __init__(self,plane,endpoint):
@@ -58,7 +60,7 @@ class CurrentHistory:
             self.plane.db.execute('DELETE FROM pons_current_events WHERE domain=? AND curve=?',(self.domain,curve))
             self.plane.db.execute('DELETE FROM pons_current_history WHERE domain=? AND curve=?',(self.domain,curve))
 
-    def remember(self,curve,header,events,*,from_time,delta_from=None):
+    def remember(self,curve,header,events,*,from_time,delta_from=None,coverage=None,retain_ids=()):
         curve=curve.lower();block=int(header['number'],16);at=int(header['timestamp'],16)
         with self.plane.transaction():
             old=self.get(curve)
@@ -72,6 +74,13 @@ class CurrentHistory:
                 raise BoundaryError('pons_current_history_reorg')
             if delta_from is not None and (old is None or delta_from!=old['block']):
                 raise BoundaryError('pons_current_history_delta_identity')
+            if coverage is not None:
+                first=coverage['first_block']
+                if (coverage['last_block']!=block or coverage['end_hash']!=header['hash']
+                        or first>block+1 or first<0
+                        or (delta_from is not None and first!=delta_from+1)
+                        or coverage['events_sha256']!=digest(events)):
+                    raise BoundaryError('pons_current_history_coverage_identity')
             lower=min(from_time,old['from_time']) if old and from_time<=old['through'] else from_time
             for event in events:
                 if not from_time<=event['event_at']<=at:raise BoundaryError('pons_current_history_future_event')
@@ -84,11 +93,35 @@ class CurrentHistory:
             lower=max(lower,at-900)
             row=dict(from_time=lower,through=at,block=block,block_hash=header['hash'],
                 observed_at=time.time(),authority='canonical_receipt_authenticated_complete_log_ranges')
+            if coverage is not None:row['last_interval']=coverage
             self.plane.db.execute('INSERT OR REPLACE INTO pons_current_history VALUES(?,?,?,?)',
                 (self.domain,curve,canonical(row),digest(row)))
-            self.plane.db.execute('DELETE FROM pons_current_events WHERE domain=? AND curve=? AND at<?',
-                (self.domain,curve,lower))
+            sql='DELETE FROM pons_current_events WHERE domain=? AND curve=? AND at<?'
+            args=[self.domain,curve,lower]
+            if retain_ids:
+                sql+=' AND id NOT IN ('+','.join('?' for _ in retain_ids)+')';args.extend(retain_ids)
+            self.plane.db.execute(sql,args)
         return row
+
+    def v4_window_candidates(self,curve,cutoff):
+        """Hot events and the last economic block at/before the original cutoff.
+
+        The caller must authenticate the durable frontier and complete interval.
+        One successor header then determines the exact original block boundary,
+        including several blocks per second and long empty timestamp gaps.
+        """
+        with self.plane.lock:
+            args=(self.domain,curve.lower(),cutoff)
+            older=self.plane.db.execute('''SELECT body,hash FROM pons_current_events
+                WHERE domain=? AND curve=? AND at<=?
+                ORDER BY at DESC,CAST(json_extract(body,'$.block') AS INTEGER) DESC LIMIT 1''',args).fetchone()
+            boundary=self.verified(older)
+            sql='SELECT body,hash FROM pons_current_events WHERE domain=? AND curve=? AND (at>?'
+            values=list(args)
+            if boundary is not None:
+                sql+=" OR CAST(json_extract(body,'$.block') AS INTEGER)=?";values.append(boundary['block'])
+            rows=[self.verified(r) for r in self.plane.db.execute(sql+')',values)]
+        return rows
 
     def facts(self,curve,header,seconds):
         row=self.get(curve);at=int(header['timestamp'],16);block=int(header['number'],16)

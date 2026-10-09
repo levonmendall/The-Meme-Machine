@@ -58,6 +58,13 @@ class ConcentrationReader:
 
     @staticmethod
     def _snapshot_context(mint, snapshot):
+        if snapshot.get('surface')=='pumpswap':
+            # PostGraduationAdapter already authenticates the complete pool,
+            # mint and custody snapshot. Preserve its exact top-five exclusion.
+            supply,_=pump.mint_info(snapshot['accounts']['mint'])
+            if snapshot.get('mint')!=mint or supply!=snapshot['state']['mint_supply'] or supply<=0:
+                raise Unavailable('invalid_postgrad_concentration_supply')
+            return supply,snapshot['state']['base_vault']
         c = pump.curve(snapshot['accounts'][0])
         supply, decimals = pump.mint_info(snapshot['accounts'][1])
         pump.validate_mint_supply(snapshot['accounts'][0], c, supply, decimals)
@@ -137,7 +144,8 @@ class ConcentrationReader:
     def _program_scan(self, mint, snapshot, priority):
         if not self._verify_program():
             raise Unavailable('program_scan_unavailable')
-        token_program=snapshot['accounts'][1]['owner']
+        token_program=(snapshot['accounts']['mint'] if snapshot.get('surface')=='pumpswap'
+            else snapshot['accounts'][1])['owner']
         min_slot=max(0,int(snapshot['slot'])-32)
         params=[token_program, {
             'commitment':'finalized',

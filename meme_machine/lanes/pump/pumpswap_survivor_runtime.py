@@ -154,17 +154,18 @@ class Runtime:
         self.plane.advance_interest(SWAP_SCOPE,lower_slot=checkpoint['lower_slot'],consumed_slot=checkpoint['consumed_slot'],
             checkpoint_hash=digest(checkpoint),owner=owner)
 
-    def fresh_state(self,candidate,priority=1):
+    def fresh_state(self,candidate,priority=1,*,maintenance=False):
         self._provider(priority);self.current=self.history.get(candidate)
         raw=self.adapter.graduation_snapshot(candidate,self.now(),priority=True)
         handoff=graduation_handoff(raw,self.now())
-        state=self.adapter.pumpswap_snapshot(handoff,self.now(),priority=True,additional_accounts=(SOL_USD_ACCOUNT,))
+        state=self.adapter.pumpswap_snapshot(handoff,self.now(),priority=True,
+            additional_accounts=() if maintenance else (SOL_USD_ACCOUNT,))
         if state['pool']!=self.current['graduation']['pool']:raise ValueError('survivor_pool_drift')
         return state
 
     def fresh_quotes(self,state,budget):return Quotes(state,self.now())
 
-    def reconstruct(self,state,quote_context):
+    def reconstruct(self,state,quote_context,*,maintenance=False):
         row=self.current;at=state['market_time'];self._increment(row,at,state['slot'])
         price=Fraction(state['state']['quote_reserve'],state['state']['base_reserve'])
         self.history.append(row['id'],through=at,events=[],points=[(at,str(price))],complete=True)
@@ -177,24 +178,28 @@ class Runtime:
         tokens=sum(e['tokens'] for e in recent)
         vwap=None if tokens<=0 else str(Fraction(sum(e['quote'] for e in recent),tokens))
         from meme_machine.lanes.pump.runner import _postgrad_concentration
-        concentration=_postgrad_concentration(self.rpc,state)
-        usd=sol_usd_lower_micros(state['additional_accounts'][SOL_USD_ACCOUNT],now=self.now(),slot=state['slot'])
+        # Held-position risk uses authenticated demand/creator flow and the full
+        # executable exit. Holder/USD gates belong to entry and fresh additions;
+        # scale() reacquires them independently before any added exposure.
+        concentration=None if maintenance else _postgrad_concentration(self.rpc,state)
+        usd=None if maintenance else sol_usd_lower_micros(
+            state['additional_accounts'][SOL_USD_ACCOUNT],now=self.now(),slot=state['slot'])
         base_end=max((p['at'] for p in points if p['at']<=at-60),default=None)
         facts=dict(now=at,graduation_at=grad['at'],lineage_proven=True,origin='pump.fun',venue='pumpswap',
             canonical_migration_pool=True,quote_asset='SOL',authoritative=True,
             continuity_complete=self.history.get(row['id'])['complete'],demand_complete=True,
             creator_distribution_safe=not any(not e['buy'] and e['group']==creator for e in events),
-            hard_concentration_pass=concentration<=POLICY['maximum_holder_concentration_bps'],
+            hard_concentration_pass=None if maintenance else concentration<=POLICY['maximum_holder_concentration_bps'],
             exit_liquidity_available=state['state']['raw_quote_reserve']>0,
             migration_price=str(Fraction(grad['quote_amount'],grad['mint_amount'])),
-            liquidity_usd_micros=2*state['state']['raw_quote_reserve']*usd//10**9,
+            liquidity_usd_micros=None if maintenance else 2*state['state']['raw_quote_reserve']*usd//10**9,
             # The immutable coin flag proves whether it is a Mayhem coin. It
             # does not prove the agent's completion time. Never infer completion
             # from absent trades or elapsed age; without that evidence entry is
             # blocked, even though the disclosed agent flow can be excluded.
             mayhem=dict(status='unknown' if mayhem else 'never',agent_identity_proven=mayhem,
                         agent_groups=sorted(agents)),price_points=points,base_end=base_end,
-            reset_history_prefix=self.history.prefix(row['id']),
+            reset_history_prefix=self.history.prefix(row['id']),qualification_evidence_complete=not maintenance,
             recovery_vwap=vwap,demand_events=organic,holder_concentration_bps=concentration)
         self.facts=facts;return facts
 
@@ -206,13 +211,19 @@ class Runtime:
             raise ValueError('survivor_stale_commit')
         if execution['slot']!=state['slot']:raise ValueError('survivor_quote_state')
 
-    def exit_quote(self,qty):
+    def exit_quote(self,qty,*,state=None):
         try:
             self._provider(0)
-            state=self.fresh_state(self.current['id'],priority=0)
+            # A caller may share the just-authenticated snapshot within this
+            # evaluation, never a cached quote from a preceding turn or restart.
+            # Settlement still calls exit_quote() without state and reacquires.
+            if state is None or not (0<=self.now()-state['available_time']<=5
+                    and 0<=self.now()-state['market_time']<=10):
+                state=self.fresh_state(self.current['id'],priority=0,maintenance=True)
+            self.plane.require_usable(SWAP_SCOPE)
             q=sell_quote(state,qty)
             return dict(net_proceeds=max(0,q.output_amount-GAS),quantity=qty,
-                acquired=self.now(),market_time=state['market_time'],slot=state['slot'])
+                acquired=state['available_time'],market_time=state['market_time'],slot=state['slot'])
         except (ValueError,Unavailable):return None
 
     def validate_exit(self,quote,qty,now):
@@ -238,10 +249,10 @@ class Runtime:
             return self._enter(row,row['decision'],row['generation'],row['regime'],row['position'])
         state=None;facts=None
         try:
-            state=self.fresh_state(row['id'],priority=0)
-            facts=self.reconstruct(state,Quotes(state,self.now()))
+            state=self.fresh_state(row['id'],priority=0,maintenance=True)
+            facts=self.reconstruct(state,Quotes(state,self.now()),maintenance=True)
         except (ValueError,Unavailable):pass
-        q=self.exit_quote(position['tokens'])
+        q=self.exit_quote(position['tokens'],state=state)
         net=None if q is None else q['net_proceeds']
         flow={} if facts is None else buyer_persistence(facts['demand_events'],now=facts['now'],window_seconds=1800)
         observation=dict(id=str(state['slot']) if state else 'unavailable:'+str(self.now()),at=self.now(),

@@ -1,0 +1,302 @@
+{
+  "live_provider_calls": 0,
+  "traces": [
+    {
+      "source": "operational/continuation-resources/validation/resource-efficiency-final-short.log",
+      "value": {
+        "after": {
+          "eth_call": 24,
+          "eth_chainId": 5,
+          "eth_getBlockByNumber": 830,
+          "transports": 90
+        },
+        "before": {
+          "eth_call": 63,
+          "eth_chainId": 21,
+          "eth_getBlockByNumber": 3129,
+          "transports": 105
+        },
+        "case": "curve_trajectory_21_turns_10_blocks_per_second"
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-storage-final.log",
+      "value": {
+        "page_pressure_records": 2012,
+        "page_size": 4096,
+        "pending_exit_preserved": true,
+        "sqlite_pages": 16379
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-storage-final.log",
+      "value": {
+        "cpu_seconds": 607.08673236,
+        "current_monitor_turns": 25920,
+        "final_booked_realized": 314,
+        "final_records": 12,
+        "high_water": 37920,
+        "journal_rows": 6,
+        "maximum_records": 101,
+        "maximum_sqlite_bytes": 360448,
+        "original_opened_at": 102,
+        "partial_quantity": 750,
+        "restarts": 4
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-storage-final.log",
+      "value": {
+        "body_bytes": 1327762,
+        "original_current_stop_turn": 8191,
+        "sqlite_bytes": 3821568,
+        "stop_hours": 11.376388888888888
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-survivor-history-final.log",
+      "value": {
+        "automatic_terminal_history_cleanup": true,
+        "cpu_seconds": 426.839887376,
+        "maximum_retained_events": 2402,
+        "maximum_retained_points": 28803,
+        "original_opened_at": 100,
+        "risk_high_water": 98400,
+        "sqlite_bytes": 9293824,
+        "survivor_monitor_turns": 86401,
+        "wal_bytes": 9405992
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-current-history-36-repaired.log",
+      "value": {
+        "cpu_seconds": 62.288830501,
+        "current_v4_monitor_turns": 25920,
+        "maximum_retained_events": 721,
+        "original_boundary_parity_every_turn": true,
+        "restarts": 3,
+        "sqlite_bytes": 774144,
+        "wal_bytes": 4152
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-v4-authentication-final.log",
+      "value": {
+        "after": {
+          "elements": 10,
+          "methods": {
+            "eth_getBlockByNumber": 9,
+            "eth_getLogs": 1
+          },
+          "physical": 2,
+          "response_bytes": 10805
+        },
+        "before": {
+          "elements": 28,
+          "methods": {
+            "eth_getBlockByNumber": 9,
+            "eth_getLogs": 1,
+            "eth_getTransactionByHash": 9,
+            "eth_getTransactionReceipt": 9
+          },
+          "physical": 4,
+          "response_bytes": 24944
+        },
+        "cache": {
+          "accounted_cache_bytes": 16389,
+          "header_hashes": 9,
+          "header_number_miss": 18,
+          "header_numbers": 0,
+          "header_store": 18,
+          "launches": 0,
+          "real_quotes": 0,
+          "receipt_hit": 9,
+          "receipt_miss": 9,
+          "receipt_store": 18,
+          "receipts": 9
+        },
+        "case": "equivalent_v4_readers",
+        "cross_block_quote_reuse": false
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-v4-authentication-final.log",
+      "value": {
+        "after": {
+          "methods": {
+            "eth_getBlockByNumber": 9,
+            "eth_getLogs": 1,
+            "eth_getTransactionByHash": 9,
+            "eth_getTransactionReceipt": 9
+          },
+          "transports": 4
+        },
+        "before": {
+          "methods": {
+            "eth_getBlockByNumber": 9,
+            "eth_getLogs": 1,
+            "eth_getTransactionByHash": 9,
+            "eth_getTransactionReceipt": 9
+          },
+          "transports": 4
+        },
+        "case": "canonical_before_receipts_unchanged_cold_demand"
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-v4-authentication-final.log",
+      "value": {
+        "after": {
+          "elements": 389,
+          "methods": {
+            "eth_getBlockByNumber": 189,
+            "eth_getLogs": 60,
+            "eth_getTransactionReceipt": 140
+          },
+          "physical": 60,
+          "request_bytes": 58903,
+          "response_bytes": 365610,
+          "rpc_cu": 10180
+        },
+        "before": {
+          "elements": 1082,
+          "methods": {
+            "eth_getBlockByNumber": 536,
+            "eth_getLogs": 150,
+            "eth_getTransactionReceipt": 396
+          },
+          "physical": 204,
+          "request_bytes": 160246,
+          "response_bytes": 1033636,
+          "rpc_cu": 27640
+        },
+        "cache": {
+          "accounted_cache_bytes": 0,
+          "header_hashes": 0,
+          "header_numbers": 0,
+          "launches": 0,
+          "real_quotes": 0,
+          "receipts": 0
+        },
+        "case": "native_current_v4_overlap_with_restart",
+        "extra_same_head_physical": 3,
+        "fixture": "captured lineage with synthetic headers/receipts/swaps",
+        "turns": 10
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-v4-scope-final.log",
+      "value": {
+        "after": {
+          "methods": {
+            "eth_getBlockByNumber": 9,
+            "eth_getLogs": 1,
+            "eth_getTransactionByHash": 9,
+            "eth_getTransactionReceipt": 9
+          },
+          "transports": 3
+        },
+        "before": {
+          "methods": {
+            "eth_getBlockByNumber": 9,
+            "eth_getLogs": 1,
+            "eth_getTransactionByHash": 9,
+            "eth_getTransactionReceipt": 9
+          },
+          "transports": 4
+        },
+        "case": "authenticated_v4_witness_batch"
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-v4-scope-final.log",
+      "value": {
+        "after": {
+          "elements": 10,
+          "methods": {
+            "eth_getBlockByNumber": 9,
+            "eth_getLogs": 1
+          },
+          "physical": 2,
+          "response_bytes": 10805
+        },
+        "before": {
+          "elements": 28,
+          "methods": {
+            "eth_getBlockByNumber": 9,
+            "eth_getLogs": 1,
+            "eth_getTransactionByHash": 9,
+            "eth_getTransactionReceipt": 9
+          },
+          "physical": 3,
+          "response_bytes": 24953
+        },
+        "cache": {
+          "accounted_cache_bytes": 16389,
+          "header_hashes": 9,
+          "header_number_miss": 18,
+          "header_numbers": 0,
+          "header_store": 18,
+          "launches": 0,
+          "real_quotes": 0,
+          "receipt_hit": 18,
+          "receipt_miss": 9,
+          "receipt_store": 18,
+          "receipts": 9
+        },
+        "case": "equivalent_v4_readers",
+        "cross_block_quote_reuse": false
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-v4-scope-final.log",
+      "value": {
+        "after": {
+          "elements": 389,
+          "methods": {
+            "eth_getBlockByNumber": 189,
+            "eth_getLogs": 60,
+            "eth_getTransactionReceipt": 140
+          },
+          "physical": 59,
+          "request_bytes": 58912,
+          "response_bytes": 365619,
+          "rpc_cu": 10180
+        },
+        "before": {
+          "elements": 1082,
+          "methods": {
+            "eth_getBlockByNumber": 536,
+            "eth_getLogs": 150,
+            "eth_getTransactionReceipt": 396
+          },
+          "physical": 204,
+          "request_bytes": 160246,
+          "response_bytes": 1033636,
+          "rpc_cu": 27640
+        },
+        "cache": {
+          "accounted_cache_bytes": 0,
+          "header_hashes": 0,
+          "header_numbers": 0,
+          "launches": 0,
+          "real_quotes": 0,
+          "receipts": 0
+        },
+        "case": "native_current_v4_overlap_with_restart",
+        "extra_same_head_physical": 3,
+        "fixture": "captured lineage with synthetic headers/receipts/swaps",
+        "turns": 10
+      }
+    },
+    {
+      "source": "operational/continuation-resources/validation/resource-v4-scope-final.log",
+      "value": {
+        "classification": "actual original four-block Finality scope fails before record limit; fast-chain gaps fail earlier",
+        "original_survivor_quote_scope_stop_turn": 4,
+        "sqlite_bytes": 28672,
+        "sqlite_record_capacity": 10000
+      }
+    }
+  ]
+}

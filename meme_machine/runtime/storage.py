@@ -118,21 +118,79 @@ def compact_pump(book):
     finally:book._maintenance_running=False
 
 
-def pons_prefix(paper):
+def _pons_checkpoint(paper):
     from meme_machine.lanes.pons.evidence import canonical,digest
     row=paper.store.db.execute("SELECT body,hash FROM pons_journal_checkpoint WHERE id=1").fetchone()
     if row is None:return {}
     value=json.loads(row[0])
     if digest(value)!=row[1] or value['experiment']!=paper.experiment:raise ValueError('pons_checkpoint_integrity')
-    return value['positions']
+    return value
 
 
-def compact_pons(paper,*,limit=512):
+def pons_prefix(paper):
+    return _pons_checkpoint(paper).get('positions',{})
+
+
+def compact_pons_observations(paper,now):
+    """Expire Current quote snapshots, never economic or history authority.
+
+    Executable quotes expire after five seconds. Keep 120 seconds, the native
+    Stamp default, before folding their observation-only scopes. The durable
+    economic journal/checkpoint already contains exact booked quotes and complete
+    controller state. Contiguous history, graduation and writeoff proofs are not
+    eligible. The existing checkpoint retains counts and a checksum chain.
+    """
+    from meme_machine.lanes.pons.evidence import canonical,digest
+    db=paper.store.db
+    if db.in_transaction:raise ValueError('pons_retention_inside_native_transaction')
+    if now<getattr(paper,'_observation_maintenance_due',float('-inf')):return
+    db.execute('BEGIN IMMEDIATE')
+    try:
+        expired=db.execute("""SELECT id FROM records WHERE category='confirmed_block'
+            AND id GLOB 'paper-selective-*' AND id NOT GLOB 'paper-selective-writeoff-*'
+            AND CAST(json_extract(body,'$.stamp.observed_at') AS INTEGER)<?""",(now-120,)).fetchall()
+        retiring=[]
+        for identity, in expired:
+            scope=identity.rsplit(':',1)[0]
+            block=paper.store.get('confirmed_block',identity)
+            # Only the new exact snapshot scopes are disposable. Legacy stream
+            # scopes and graduation/history authority retain their old rules.
+            if scope.rsplit(':',1)[-1]!=digest(block['stamp']):continue
+            # A dependency would need its own explicit history retention proof.
+            if db.execute("SELECT 1 FROM records WHERE category='confirmed_dependency' AND id LIKE ?",(scope+':%',)).fetchone():continue
+            for category,key in db.execute('SELECT category,id FROM records WHERE id=? AND category IN (\'confirmed_block\',\'displaced_block\',\'finalized_block\')',(identity,)):
+                retiring.append((category,key,paper.store.get(category,key)))
+        # These rows are diagnostics. Native recovery streak, pending intent and
+        # original clock are in the atomic controller, not the diagnostic ring.
+        for category in ('selective_provider_session_rotation','selective_provider_recovery'):
+            for key, in db.execute('SELECT id FROM records WHERE category=? ORDER BY rowid DESC LIMIT -1 OFFSET 512',(category,)):
+                retiring.append((category,key,paper.store.get(category,key)))
+        if retiring:
+            value=_pons_checkpoint(paper) or dict(experiment=paper.experiment,positions={})
+            previous=value.get('observation_retention',dict(counts={},hash=None))
+            counts=dict(previous['counts'])
+            for category,key,body in retiring:counts[category]=counts.get(category,0)+1
+            value['observation_retention']=dict(counts=counts,
+                hash=digest([previous['hash'],retiring]),through=now,
+                authority='expired_quote_snapshots_and_bounded_diagnostics_only')
+            for category,key,body in retiring:
+                db.execute('DELETE FROM records WHERE category=? AND id=?',(category,key))
+                if category=='confirmed_block':db.execute('DELETE FROM cursors WHERE scope=?',('finality:'+key.rsplit(':',1)[0],))
+            db.execute('INSERT OR REPLACE INTO pons_journal_checkpoint VALUES(1,?,?)',(canonical(value),digest(value)))
+        db.commit()
+    except BaseException:
+        db.rollback();raise
+    paper._observation_maintenance_due=now+60
+
+
+def compact_pons(paper,*,limit=64):
     """Preserve native flow replay, controller state and event-time integrals."""
     from meme_machine.lanes.pons.pons_selective_ledger import JOURNAL_CATEGORY
     from meme_machine.lanes.pons.evidence import canonical,digest
     db=paper.store.db
     if db.in_transaction:raise ValueError('pons_compaction_inside_native_transaction')
+    latest=db.execute("SELECT MAX(CAST(json_extract(body,'$.last_at') AS INTEGER)) FROM pons_selective_paper").fetchone()[0]
+    if latest is not None:compact_pons_observations(paper,latest)
     if db.execute('SELECT COUNT(*) FROM records WHERE category=?',(JOURNAL_CATEGORY,)).fetchone()[0]<=limit:return False
     if getattr(paper,'portfolio',None):paper.portfolio.recover()
     db.execute('BEGIN IMMEDIATE')
@@ -143,7 +201,8 @@ def compact_pons(paper,*,limit=512):
             accounting=paper.accounting(position['id'])
             entry=next((e for e in events if e['action']=='entry'),prefix.get(position['id'],{}).get('entry'))
             prefix[position['id']]=dict(event=last,accounting=accounting,entry=entry)
-        value=dict(experiment=paper.experiment,positions=prefix)
+        value=_pons_checkpoint(paper) or dict(experiment=paper.experiment)
+        value['positions']=prefix
         db.execute('INSERT OR REPLACE INTO pons_journal_checkpoint VALUES(1,?,?)',(canonical(value),digest(value)))
         guard=db.execute("SELECT sql FROM sqlite_master WHERE name='pons_selective_records_no_delete'").fetchone()[0]
         db.execute('DROP TRIGGER pons_selective_records_no_delete')

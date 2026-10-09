@@ -34,7 +34,7 @@ from .pons_natural_observation import _latest_header, _curve_state
 from .pons_natural_paper import (
     _curve_quote as _native_curve_quote, _gas_quote, _gas_units, _graduation_transition,
     _rpc as paper_rpc, _wait_curve_quote as _native_wait_curve_quote,
-    RESEARCH_RECIPIENT, _fresh_stamp, _ledger_for_quote,
+    RESEARCH_RECIPIENT, _fresh_stamp, _ledger_for_quote, _quote_scope,
 )
 from .pons_quotes import v4_quote as _v4_quote
 from .pons_selective_acquisition import (
@@ -166,7 +166,7 @@ def _prove_impossible_full_exit(rpc,candidate,position,store):
     proof=dict(position_id=position['id'],position_version=position['version'],
                tokens=int(position['tokens']),state=asdict(state),stamp=asdict(stamp),
                acquisition_seconds=age,reason='impossible_full_position_exit',
-               sale_proceeds=0,finality_scope='paper-'+label)
+               sale_proceeds=0,finality_scope=_quote_scope(label,stamp))
     store.put('selective_writeoff_proof',digest(proof),proof)
     return proof
 
@@ -195,7 +195,7 @@ def _curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None):
         if seconds>60:raise BoundaryError('pons_current_history_not_caught_up')
         events,sessions=_read_curve_logs(endpoint,curve,current_header,seconds)
         history.remember(curve,current_header,events,from_time=max(0,at-seconds))
-    elif block-old['block']>40 or at-old['through']>60:
+    elif block-old['block']>256 or at-old['through']>60:
         # A restart/provider gap never triggers a large urgent reconstruction.
         # Resume current safety flow immediately; the add's 900-second window
         # must accumulate again before it can grant scaling authority.
@@ -311,6 +311,28 @@ def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None
     return out,[locator_telemetry]+sessions
 
 
+def _position_trajectory(endpoint,candidate):
+    from .pons_current_history import active_history
+    from .pons_quotes import canonical_boundary
+    history=active_history()
+    if history is None:return _trajectory(endpoint,candidate)
+    context=getattr(history,'curve_evidence_context',None)
+    if context is None:
+        context=SelectiveEvidenceContext(endpoint);history.curve_evidence_context=context
+    tip=context.cache.numeric_tip()
+    try:
+        # An old hash body is immutable; its numeric alias is usable only while
+        # that frontier is freshly proved canonical. No changing reserve, gas
+        # or current quote is reused across a different canonical block.
+        if tip:canonical_boundary(context.acquire(),tip,'pons_selective_trajectory')
+        result=_trajectory(endpoint,candidate,evidence_context=context)
+        canonical_boundary(context.acquire(),candidate['header'],'pons_selective_trajectory')
+        return result
+    except BoundaryError:
+        context.cache.invalidate_canonical_aliases();context.block_reads.clear()
+        raise
+
+
 def _refresh_curve_signal(endpoint,candidate,mark_meta,*,entry_evidence=None):
     current_state=CurveState(**mark_meta["state"])
     current_header=dict(
@@ -322,7 +344,7 @@ def _refresh_curve_signal(endpoint,candidate,mark_meta,*,entry_evidence=None):
     now_candidate.update(
         block=int(mark_meta["block"]),header=current_header,state=current_state
     )
-    snapshots,_,trajectory_session=_trajectory(endpoint,now_candidate)
+    snapshots,_,trajectory_session=_position_trajectory(endpoint,now_candidate)
     trajectory=trajectory_metrics(snapshots,int(mark_meta["event_at"]))
     events,sessions=_curve_logs(
         endpoint,candidate["curve"],current_header,seconds=60
@@ -778,6 +800,20 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
         rpc=PositionSessions(rpc,lambda:paper_rpc(endpoint),record_session_rotation)
 
         while paper._get(identity)['status']!='settled':
+            from meme_machine.runtime.storage import compact_pons_observations
+            # Recovery can acquire exit quotes without committing a new mark.
+            # Retention must also run on that existing position-only path.
+            compact_pons_observations(paper,int(time.time()))
+            # Debug projections are not recovery state or economic authority.
+            # Native journals/checkpoints and provider accounting remain durable.
+            # Bounding these lists also avoids retaining the same 32 completed
+            # evidence sessions again on every long-hold observation.
+            for name in ('monitor','provider_sessions','provider_session_rotations','provider_recoveries'):
+                rows=result.get(name,[])
+                if len(rows)>256:
+                    counts=result.setdefault('folded_debug_rows',{})
+                    counts[name]=counts.get(name,0)+len(rows)-256
+                    del rows[:-256]
             if deadline is not None and time.monotonic()>=deadline:
                 result.update(status='handoff_required',entry_authority=False)
                 break
@@ -894,7 +930,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     try:
                         mark,meta=_curve_quote(
                             rpc,candidate,"sell",position["tokens"],gas_units,store,
-                            "selective-curve-mark-"+str(len(result["monitor"])),
+                            "selective-curve-mark-"+str(position['version']),
                             local_freshness=True,
                         )
                     except BoundaryError as exc:
@@ -935,7 +971,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     action=_bridge_action(state,facts,action,position,now=int(time.time()))
                     state.remember_action(action,position)
                     paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,
-                        finality_ledger=Finality(store,scope="paper-selective-curve-mark-"+str(len(result["monitor"])),max_blocks=4))
+                        finality_ledger=Finality(store,scope=_quote_scope("selective-curve-mark-"+str(position['version']),mark.stamp),max_blocks=4))
                     result["monitor"].append(dict(
                         at=mark.stamp.observed_at,market="curve",available=True,
                         return_bps=rbps,trajectory=trajectory,demand=demand,
@@ -1036,7 +1072,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 position=paper._get(identity)
                 mark,meta,ledger=_v4_quote(
                     rpc,state.v4_key,position["market"],position["tokens"],gas_units,store,
-                    "selective-v4-mark-"+str(len(result["monitor"])),
+                    "selective-v4-mark-"+str(position['version']),
                     local_freshness=True,
                 )
                 rbps=_position_return_bps(position,mark)
@@ -1044,18 +1080,21 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     number=hex(int(meta["block"])),hash=meta["block_hash"],
                     timestamp=hex(int(mark.stamp.event_at)),
                 )
-                locator=evidence_rpc(endpoint);cache={int(meta["block"]):current_header}
-                start_header=_header_search(
-                    locator,int(meta["block"]),mark.stamp.event_at,
-                    max(state.graduation_at,mark.stamp.event_at-15),cache,
-                )
-                result["provider_sessions"].append(locator.telemetry())
-                activity=collect_v4_activity(
-                    endpoint,pool_id=position["market"],key=state.v4_key,
-                    token=evaluation["token"],
-                    start_block=int(start_header["number"],16),end_block=int(meta["block"]),
-                    preholder_groups=state.preholders,
-                )
+                from .pons_current_history import active_history
+                history=active_history()
+                if history is None:
+                    locator=evidence_rpc(endpoint);cache={int(meta["block"]):current_header}
+                    start_header=_header_search(locator,int(meta["block"]),mark.stamp.event_at,
+                        max(state.graduation_at,mark.stamp.event_at-15),cache)
+                    result["provider_sessions"].append(locator.telemetry())
+                    activity=collect_v4_activity(endpoint,pool_id=position["market"],key=state.v4_key,
+                        token=evaluation["token"],start_block=int(start_header["number"],16),
+                        end_block=int(meta["block"]),preholder_groups=state.preholders)
+                else:
+                    from .pons_selective_v4 import rolling_position_activity
+                    activity=rolling_position_activity(endpoint,rpc=rpc,history=history,pool_id=position['market'],
+                        key=state.v4_key,token=evaluation['token'],header=current_header,
+                        seconds=min(15,max(0,mark.stamp.event_at-state.graduation_at)),preholder_groups=state.preholders)
                 result["provider_sessions"].extend(activity.pop("provider_sessions"))
                 buyers=set(activity["buyer_groups"])
                 growth=len(buyers-state.seen_v4_buyers)
@@ -1255,8 +1294,8 @@ def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_unit
     from .pons_selective_continuation import curve_progress_bps
     started=time.time();position=paper._get(identity)
     if state.transition is None:
-        mark,meta,_=_curve_quote(rpc,candidate,'sell',position['tokens'],gas_units,store,
-            'selective-scale-current-exit',local_freshness=True)
+        mark,meta=_curve_quote(rpc,candidate,'sell',position['tokens'],gas_units,store,
+            'selective-scale-current-exit',local_freshness=True)[:2]
     else:
         mark,meta,_=_v4_quote(rpc,state.v4_key,position['market'],position['tokens'],gas_units,store,
             'selective-scale-current-exit',local_freshness=True)

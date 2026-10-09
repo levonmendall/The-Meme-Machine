@@ -82,7 +82,12 @@ class Store:
             return False
         if self.db.execute('SELECT count(*) FROM records').fetchone()[0] >= self.max_records:
             raise BoundaryError('storage_capacity_stop_admission')
-        self.db.execute('INSERT INTO records VALUES(?,?,?,?)', (category, identity, encoded, checksum))
+        try:
+            self.db.execute('INSERT INTO records VALUES(?,?,?,?)', (category, identity, encoded, checksum))
+        except sqlite3.OperationalError as error:
+            if getattr(error,'sqlite_errorcode',None)==sqlite3.SQLITE_FULL:
+                raise BoundaryError('evidence_store_page_capacity') from error
+            raise
         return True
 
     def get(self, category, identity):

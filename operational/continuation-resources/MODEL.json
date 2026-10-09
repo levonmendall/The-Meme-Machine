@@ -1,0 +1,806 @@
+{
+  "arithmetic_not_authorization": true,
+  "base_commit": "20f8398abb738c85160aa36c9a8c36c1feedb287",
+  "bootstrap": {
+    "funding_seconds": 1200,
+    "lifecycle_count": 1,
+    "maximum_gross_usd": "25",
+    "modeled_spend_usd": "3",
+    "native_bytes": 4294967296,
+    "physical_attempts": 10000,
+    "rpc_cu": 720000,
+    "rpc_elements": 10000,
+    "seconds": 1800
+  },
+  "conditional_wider_logs": {
+    "before_activation_requires": "existing exact-filter nonempty canonical comparison AND account entitlement verification",
+    "one_event_per_turn": {
+      "assumptions": {
+        "active_every_n_turns": 1,
+        "blocks_per_three_seconds": 30,
+        "cross_turn_quote_hits": 0,
+        "distinct_event_blocks": 1,
+        "receipt_sender_missing": false,
+        "relevant_transactions_per_three_seconds": 1,
+        "retries": 0,
+        "verified_log_width": 40
+      },
+      "methods": {
+        "eth_call": 172800,
+        "eth_chainId": 7180,
+        "eth_gasPrice": 86400,
+        "eth_getBlockByNumber": 518400,
+        "eth_getCode": 86400,
+        "eth_getLogs": 86400,
+        "eth_getTransactionReceipt": 86400
+      },
+      "minimum_physical_rps_under_scenario": 2.361033950617284,
+      "physical_attempts_without_failures": 611980,
+      "rpc_cu": 25228800,
+      "rpc_elements": 1043980,
+      "rpc_only_modeled_usd": "13.245120000",
+      "turns": 86400
+    },
+    "quiet_40_block_ranges": {
+      "assumptions": {
+        "active_every_n_turns": 1,
+        "blocks_per_three_seconds": 30,
+        "cross_turn_quote_hits": 0,
+        "distinct_event_blocks": 0,
+        "receipt_sender_missing": false,
+        "relevant_transactions_per_three_seconds": 0,
+        "retries": 0,
+        "verified_log_width": 40
+      },
+      "methods": {
+        "eth_call": 172800,
+        "eth_chainId": 5851,
+        "eth_gasPrice": 86400,
+        "eth_getBlockByNumber": 432000,
+        "eth_getCode": 86400,
+        "eth_getLogs": 86400
+      },
+      "minimum_physical_rps_under_scenario": 1.6892399691358024,
+      "physical_attempts_without_failures": 437851,
+      "rpc_cu": 21772800,
+      "rpc_elements": 869851,
+      "rpc_only_modeled_usd": "11.430720000",
+      "turns": 86400
+    }
+  },
+  "costs_rpc_only": [
+    {
+      "hours": 0.25,
+      "pons_current_curve_reference_rpc_usd": "0.1251360000000000000000000000",
+      "pons_current_v4_quiet_upper_rpc_usd": "0.050872500",
+      "pons_survivor_quiet_rpc_usd": "0.058590000",
+      "pump_current_curve_snapshot_rpc_usd": "0.003801000",
+      "pump_current_postgrad_compact_rpc_usd": "0.011392500",
+      "pump_survivor_rpc_usd": "0.009492000"
+    },
+    {
+      "hours": 1,
+      "pons_current_curve_reference_rpc_usd": "0.5005439999999999999999999999",
+      "pons_current_v4_quiet_upper_rpc_usd": "0.201694500",
+      "pons_survivor_quiet_rpc_usd": "0.234360000",
+      "pump_current_curve_snapshot_rpc_usd": "0.015188250",
+      "pump_current_postgrad_compact_rpc_usd": "0.045543750",
+      "pump_survivor_rpc_usd": "0.037952250"
+    },
+    {
+      "hours": 6,
+      "pons_current_curve_reference_rpc_usd": "3.003263999999999999999999999",
+      "pons_current_v4_quiet_upper_rpc_usd": "1.207174500",
+      "pons_survivor_quiet_rpc_usd": "1.406160000",
+      "pump_current_curve_snapshot_rpc_usd": "0.091077000",
+      "pump_current_postgrad_compact_rpc_usd": "0.273215250",
+      "pump_survivor_rpc_usd": "0.227682000"
+    },
+    {
+      "hours": 24,
+      "pons_current_curve_reference_rpc_usd": "12.01305600000000000000000000",
+      "pons_current_v4_quiet_upper_rpc_usd": "4.826902500",
+      "pons_survivor_quiet_rpc_usd": "5.624640000",
+      "pump_current_curve_snapshot_rpc_usd": "0.364281750",
+      "pump_current_postgrad_compact_rpc_usd": "1.092834750",
+      "pump_survivor_rpc_usd": "0.910696500"
+    },
+    {
+      "hours": 72,
+      "pons_current_curve_reference_rpc_usd": "36.03916800000000000000000000",
+      "pons_current_v4_quiet_upper_rpc_usd": "14.479510500",
+      "pons_survivor_quiet_rpc_usd": "16.873920000",
+      "pump_current_curve_snapshot_rpc_usd": "1.092834750",
+      "pump_current_postgrad_compact_rpc_usd": "3.278488500",
+      "pump_survivor_rpc_usd": "2.732073750"
+    }
+  ],
+  "current_curve_reference_36_hours": {
+    "classification": "measured 21-turn trajectory extrapolation plus exact quiet quote/flow; cache behavior unverified outside fixture",
+    "deterministic_trajectory_search_guard_blocks": 8192,
+    "legitimate_holding_authority": "original Current policy including eligible 36-hour bridge; 72h is arithmetic only",
+    "pons_curve_quote_methods": {
+      "eth_call": 4,
+      "eth_gasPrice": 1,
+      "eth_getBlockByNumber": 2
+    },
+    "rpc_cu_scenario": "34323017.14285714285714285714",
+    "rpc_only_modeled_usd": "18.01958400000000000000000000",
+    "turns": 25920
+  },
+  "limitation": "No offline fixture proves provider tail latency, account entitlement, delivered stream volume or arbitrary outage safety. Funding remains closed.",
+  "live_provider_calls": 0,
+  "method_reference": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+  "method_weights": {
+    "robinhood": {
+      "eth_blockNumber": 10,
+      "eth_call": 26,
+      "eth_callMany": 20,
+      "eth_chainId": 0,
+      "eth_gasPrice": 20,
+      "eth_getBalance": 20,
+      "eth_getBlockByHash": 20,
+      "eth_getBlockByNumber": 20,
+      "eth_getBlockReceipts": 20,
+      "eth_getCode": 20,
+      "eth_getLogs": 60,
+      "eth_getStorageAt": 20,
+      "eth_getTransactionByHash": 20,
+      "eth_getTransactionReceipt": 20
+    },
+    "solana": {
+      "getAccountInfo": 10,
+      "getBlock": 40,
+      "getBlockTime": 20,
+      "getGenesisHash": 10,
+      "getMultipleAccounts": 20,
+      "getProgramAccounts": 20,
+      "getProgramAccountsV2": 20,
+      "getSignatureStatuses": 20,
+      "getSignaturesForAddress": 40,
+      "getSlot": 20,
+      "getTokenLargestAccounts": 3000,
+      "getTransaction": 40,
+      "getTransactionsForAddress": 100
+    }
+  },
+  "pons_current_v4": {
+    "counterfactual_72_hour_quiet": {
+      "after": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "cold_turns": 1,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_five_seconds": 0
+        },
+        "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+        "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+        "methods": {
+          "eth_call": 103680,
+          "eth_chainId": 6383,
+          "eth_gasPrice": 51840,
+          "eth_getBlockByNumber": 362904,
+          "eth_getCode": 51840,
+          "eth_getLogs": 259211
+        },
+        "minimum_physical_rps_under_scenario": 1.424729938271605,
+        "physical_attempts_without_failures": 369290,
+        "rpc_cu": 27580020,
+        "rpc_elements": 835858,
+        "rpc_only_modeled_usd": "14.479510500",
+        "turns": 51840
+      },
+      "before": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "cold_turns": 1,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_five_seconds": 0
+        },
+        "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+        "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+        "methods": {
+          "eth_call": 103680,
+          "eth_chainId": 54634,
+          "eth_gasPrice": 51840,
+          "eth_getBlockByNumber": 1451520,
+          "eth_getCode": 51840,
+          "eth_getLogs": 829440
+        },
+        "minimum_physical_rps_under_scenario": 6.610779320987654,
+        "physical_attempts_without_failures": 1713514,
+        "rpc_cu": 83566080,
+        "rpc_elements": 2542954,
+        "rpc_only_modeled_usd": "43.872192000",
+        "turns": 51840
+      }
+    },
+    "high_activity_36_hours": {
+      "assumptions": {
+        "active_every_n_turns": 1,
+        "cold_turns": 1,
+        "receipt_sender_missing": true,
+        "relevant_transactions_per_five_seconds": 25
+      },
+      "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+      "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+      "methods": {
+        "eth_call": 51840,
+        "eth_chainId": 18147,
+        "eth_gasPrice": 25920,
+        "eth_getBlockByNumber": 829464,
+        "eth_getCode": 25920,
+        "eth_getLogs": 129611,
+        "eth_getTransactionByHash": 648000,
+        "eth_getTransactionReceipt": 648000
+      },
+      "minimum_physical_rps_under_scenario": 2.1402314814814813,
+      "physical_attempts_without_failures": 277374,
+      "rpc_cu": 52670580,
+      "rpc_elements": 2376902,
+      "rpc_only_modeled_usd": "27.652054500",
+      "turns": 25920
+    },
+    "high_volatility_36_hours": {
+      "assumptions": {
+        "active_every_n_turns": 1,
+        "cold_turns": 1,
+        "receipt_sender_missing": false,
+        "relevant_transactions_per_five_seconds": 5
+      },
+      "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+      "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+      "methods": {
+        "eth_call": 51840,
+        "eth_chainId": 5187,
+        "eth_gasPrice": 25920,
+        "eth_getBlockByNumber": 311064,
+        "eth_getCode": 25920,
+        "eth_getLogs": 129611,
+        "eth_getTransactionReceipt": 129600
+      },
+      "minimum_physical_rps_under_scenario": 1.8402314814814815,
+      "physical_attempts_without_failures": 238494,
+      "rpc_cu": 18974580,
+      "rpc_elements": 679142,
+      "rpc_only_modeled_usd": "9.961654500",
+      "turns": 25920
+    },
+    "legitimate_36_hour_quiet": {
+      "after": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "cold_turns": 1,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_five_seconds": 0
+        },
+        "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+        "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+        "methods": {
+          "eth_call": 51840,
+          "eth_chainId": 3194,
+          "eth_gasPrice": 25920,
+          "eth_getBlockByNumber": 181464,
+          "eth_getCode": 25920,
+          "eth_getLogs": 129611
+        },
+        "minimum_physical_rps_under_scenario": 1.4248533950617284,
+        "physical_attempts_without_failures": 184661,
+        "rpc_cu": 13790580,
+        "rpc_elements": 417949,
+        "rpc_only_modeled_usd": "7.240054500",
+        "turns": 25920
+      },
+      "before": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "cold_turns": 1,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_five_seconds": 0
+        },
+        "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+        "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+        "methods": {
+          "eth_call": 51840,
+          "eth_chainId": 27318,
+          "eth_gasPrice": 25920,
+          "eth_getBlockByNumber": 725760,
+          "eth_getCode": 25920,
+          "eth_getLogs": 414720
+        },
+        "minimum_physical_rps_under_scenario": 6.610787037037037,
+        "physical_attempts_without_failures": 856758,
+        "rpc_cu": 41783040,
+        "rpc_elements": 1271478,
+        "rpc_only_modeled_usd": "21.936096000",
+        "turns": 25920
+      }
+    },
+    "repeated_restart_36_hours": {
+      "assumptions": {
+        "active_every_n_turns": 1,
+        "cold_turns": 32,
+        "receipt_sender_missing": false,
+        "relevant_transactions_per_five_seconds": 0
+      },
+      "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+      "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+      "methods": {
+        "eth_call": 51840,
+        "eth_chainId": 3202,
+        "eth_gasPrice": 25920,
+        "eth_getBlockByNumber": 182208,
+        "eth_getCode": 25920,
+        "eth_getLogs": 129952
+      },
+      "minimum_physical_rps_under_scenario": 1.4313734567901235,
+      "physical_attempts_without_failures": 185506,
+      "rpc_cu": 13825920,
+      "rpc_elements": 419042,
+      "rpc_only_modeled_usd": "7.258608000",
+      "turns": 25920
+    }
+  },
+  "price_reference": "https://www.alchemy.com/pricing",
+  "price_usd_per_million_rpc_cu": "0.525",
+  "proposal_verification": {
+    "http_bytes": {
+      "adequacy": "UNVERIFIED; no complete held-path traffic capture",
+      "average_delivered_bytes_per_second": 4142.522469135803,
+      "bytes_per_pons_quiet_turn": 12427.567407407407,
+      "proposed": 1073741824
+    },
+    "modeled_spend_usd": {
+      "adequacy": "quiet simultaneous ceiling exceeds $20; actual first lifecycle has one family",
+      "charged_native_ceiling_usd": "3.6077725286400",
+      "combined": "20.4816925286400",
+      "proposed": "20",
+      "rpc_quiet_minimum": "16.873920000"
+    },
+    "native_bytes": {
+      "adequacy": "UNVERIFIED for one held Pump filter; zero Pons native stream after scout stops",
+      "average_bytes_per_second": 132560.71901234568,
+      "proposed": 34359738368,
+      "stopping_bytes_per_second": 124210.94716049383
+    },
+    "physical_attempts": {
+      "adequate": "quiet only; stress exceeds",
+      "high_activity_model": 728953,
+      "proposed": 500000,
+      "quiet_model": 439180
+    },
+    "recovery": {
+      "adequacy": "finite resource accounting proven, sustained protective throughput unverified",
+      "limits": {
+        "http_attempts": 50000,
+        "http_bytes": 134217728,
+        "native_bytes": 1073741824,
+        "native_inflight_bytes": 536870912,
+        "native_stop_bytes": 520093696,
+        "rpc_cu": 2400000,
+        "rpc_elements": 50000
+      },
+      "maximum_seconds": 3600,
+      "pons_quote_and_quiet_flow": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 0,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 0,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 2400,
+          "eth_chainId": 102,
+          "eth_gasPrice": 1200,
+          "eth_getBlockByNumber": 6000,
+          "eth_getCode": 1200,
+          "eth_getLogs": 3600
+        },
+        "minimum_physical_rps_under_scenario": 1.695,
+        "physical_attempts_without_failures": 6102,
+        "rpc_cu": 446400,
+        "rpc_elements": 14502,
+        "rpc_only_modeled_usd": "0.234360000",
+        "turns": 1200
+      },
+      "reconnects": 32
+    },
+    "rpc_cu": {
+      "adequate": false,
+      "proposed": 24000000,
+      "quiet_minimum": 32140800
+    },
+    "rpc_elements": {
+      "adequate": false,
+      "proposed": 500000,
+      "quiet_model": 1043980,
+      "quote_only": 518400
+    }
+  },
+  "pump_72_hours": {
+    "after": {
+      "methods": {
+        "getBlockTime": 103680,
+        "getGenesisHash": 1995,
+        "getMultipleAccounts": 155520
+      },
+      "physical_attempts_without_failures": 261195,
+      "rpc_cu": 5203950,
+      "rpc_elements": 261195,
+      "rpc_only_modeled_usd": "2.732073750",
+      "turns": 51840
+    },
+    "before": {
+      "methods": {
+        "getBlockTime": 207360,
+        "getGenesisHash": 4388,
+        "getMultipleAccounts": 311040,
+        "getTokenLargestAccounts": 51840
+      },
+      "physical_attempts_without_failures": 574628,
+      "rpc_cu": 165931880,
+      "rpc_elements": 574628,
+      "rpc_only_modeled_usd": "87.114237000",
+      "turns": 51840
+    },
+    "compact_failure_every_turn": {
+      "methods": {
+        "getBlockTime": 103680,
+        "getGenesisHash": 2793,
+        "getMultipleAccounts": 155520,
+        "getProgramAccounts": 51840,
+        "getTokenLargestAccounts": 51840
+      },
+      "physical_attempts_without_failures": 365673,
+      "rpc_cu": 161768730,
+      "rpc_elements": 365673,
+      "rpc_only_modeled_usd": "84.928583250",
+      "turns": 51840
+    },
+    "current_after": {
+      "methods": {
+        "getBlockTime": 103680,
+        "getGenesisHash": 2394,
+        "getMultipleAccounts": 155520,
+        "getProgramAccounts": 51840
+      },
+      "physical_attempts_without_failures": 313434,
+      "rpc_cu": 6244740,
+      "rpc_elements": 313434,
+      "rpc_only_modeled_usd": "3.278488500",
+      "turns": 51840
+    },
+    "current_before": {
+      "methods": {
+        "getBlockTime": 103680,
+        "getGenesisHash": 2394,
+        "getMultipleAccounts": 155520,
+        "getTokenLargestAccounts": 51840
+      },
+      "physical_attempts_without_failures": 313434,
+      "rpc_cu": 160727940,
+      "rpc_elements": 313434,
+      "rpc_only_modeled_usd": "84.382168500",
+      "turns": 51840
+    }
+  },
+  "recommended_funded_envelope": null,
+  "scenarios": {
+    "degraded_provider": {
+      "additional_cu_upper": 184791000,
+      "assumptions": {
+        "active_every_n_turns": 1,
+        "blocks_per_three_seconds": 30,
+        "cross_turn_quote_hits": 0,
+        "distinct_event_blocks": 3,
+        "receipt_sender_missing": false,
+        "relevant_transactions_per_three_seconds": 3,
+        "retries": 0,
+        "verified_log_width": 10
+      },
+      "bounded_fault_assumption": "10% failed physical attempts before successful fresh acquisition; zero internal retries; faults must fit original recovery deadlines",
+      "extra_failed_attempts": 61597,
+      "methods": {
+        "eth_call": 172800,
+        "eth_chainId": 11168,
+        "eth_gasPrice": 86400,
+        "eth_getBlockByNumber": 691200,
+        "eth_getCode": 86400,
+        "eth_getLogs": 259200,
+        "eth_getTransactionReceipt": 259200
+      },
+      "minimum_physical_rps_under_scenario": 2.3764197530864197,
+      "physical_attempts_without_failures": 615968,
+      "protection_guaranteed": false,
+      "rpc_cu": 42508800,
+      "rpc_elements": 1566368,
+      "rpc_only_modeled_usd": "22.317120000",
+      "turns": 86400
+    },
+    "high_activity": {
+      "after": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 40,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 15,
+          "receipt_sender_missing": true,
+          "relevant_transactions_per_three_seconds": 15,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 172800,
+          "eth_chainId": 37753,
+          "eth_gasPrice": 86400,
+          "eth_getBlockByNumber": 1728000,
+          "eth_getCode": 86400,
+          "eth_getLogs": 345600,
+          "eth_getTransactionByHash": 1296000,
+          "eth_getTransactionReceipt": 1296000
+        },
+        "minimum_physical_rps_under_scenario": 2.812318672839506,
+        "physical_attempts_without_failures": 728953,
+        "rpc_cu": 115084800,
+        "rpc_elements": 5048953,
+        "rpc_only_modeled_usd": "60.419520000",
+        "turns": 86400
+      },
+      "before": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 40,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 15,
+          "receipt_sender_missing": true,
+          "relevant_transactions_per_three_seconds": 15,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 172800,
+          "eth_chainId": 91586,
+          "eth_gasPrice": 86400,
+          "eth_getBlockByNumber": 1728000,
+          "eth_getCode": 86400,
+          "eth_getLogs": 345600,
+          "eth_getTransactionByHash": 1296000,
+          "eth_getTransactionReceipt": 1296000
+        },
+        "minimum_physical_rps_under_scenario": 3.353341049382716,
+        "physical_attempts_without_failures": 869186,
+        "rpc_cu": 115084800,
+        "rpc_elements": 5102786,
+        "rpc_only_modeled_usd": "60.419520000",
+        "turns": 86400
+      }
+    },
+    "high_volatility": {
+      "after": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 3,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 3,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 172800,
+          "eth_chainId": 11168,
+          "eth_gasPrice": 86400,
+          "eth_getBlockByNumber": 691200,
+          "eth_getCode": 86400,
+          "eth_getLogs": 259200,
+          "eth_getTransactionReceipt": 259200
+        },
+        "minimum_physical_rps_under_scenario": 2.3764197530864197,
+        "physical_attempts_without_failures": 615968,
+        "rpc_cu": 42508800,
+        "rpc_elements": 1566368,
+        "rpc_only_modeled_usd": "22.317120000",
+        "turns": 86400
+      },
+      "before": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 3,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 3,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 172800,
+          "eth_chainId": 91586,
+          "eth_gasPrice": 86400,
+          "eth_getBlockByNumber": 691200,
+          "eth_getCode": 86400,
+          "eth_getLogs": 259200,
+          "eth_getTransactionReceipt": 259200
+        },
+        "minimum_physical_rps_under_scenario": 3.0200077160493826,
+        "physical_attempts_without_failures": 782786,
+        "rpc_cu": 42508800,
+        "rpc_elements": 1646786,
+        "rpc_only_modeled_usd": "22.317120000",
+        "turns": 86400
+      }
+    },
+    "long_quiet": {
+      "after": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 0,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 0,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 172800,
+          "eth_chainId": 7180,
+          "eth_gasPrice": 86400,
+          "eth_getBlockByNumber": 432000,
+          "eth_getCode": 86400,
+          "eth_getLogs": 259200
+        },
+        "minimum_physical_rps_under_scenario": 1.6943672839506172,
+        "physical_attempts_without_failures": 439180,
+        "rpc_cu": 32140800,
+        "rpc_elements": 1043980,
+        "rpc_only_modeled_usd": "16.873920000",
+        "turns": 86400
+      },
+      "before": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 0,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 0,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 172800,
+          "eth_chainId": 91586,
+          "eth_gasPrice": 86400,
+          "eth_getBlockByNumber": 432000,
+          "eth_getCode": 86400,
+          "eth_getLogs": 259200
+        },
+        "minimum_physical_rps_under_scenario": 2.353341049382716,
+        "physical_attempts_without_failures": 609986,
+        "rpc_cu": 32140800,
+        "rpc_elements": 1128386,
+        "rpc_only_modeled_usd": "16.873920000",
+        "turns": 86400
+      }
+    },
+    "ordinary_reference": {
+      "after": {
+        "assumptions": {
+          "active_every_n_turns": 10,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 1,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 1,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 172800,
+          "eth_chainId": 7313,
+          "eth_gasPrice": 86400,
+          "eth_getBlockByNumber": 440640,
+          "eth_getCode": 86400,
+          "eth_getLogs": 259200,
+          "eth_getTransactionReceipt": 8640
+        },
+        "minimum_physical_rps_under_scenario": 1.7615470679012346,
+        "physical_attempts_without_failures": 456593,
+        "rpc_cu": 32486400,
+        "rpc_elements": 1061393,
+        "rpc_only_modeled_usd": "17.055360000",
+        "turns": 86400
+      },
+      "before": {
+        "assumptions": {
+          "active_every_n_turns": 10,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 1,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 1,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 172800,
+          "eth_chainId": 91586,
+          "eth_gasPrice": 86400,
+          "eth_getBlockByNumber": 440640,
+          "eth_getCode": 86400,
+          "eth_getLogs": 259200,
+          "eth_getTransactionReceipt": 8640
+        },
+        "minimum_physical_rps_under_scenario": 2.420007716049383,
+        "physical_attempts_without_failures": 627266,
+        "rpc_cu": 32486400,
+        "rpc_elements": 1145666,
+        "rpc_only_modeled_usd": "17.055360000",
+        "turns": 86400
+      }
+    }
+  },
+  "schema": "continuation-resource-demand-v2",
+  "service_envelope": {
+    "cpu_cores": "1.8",
+    "cpu_memory_latency_adequacy": "offline CPU measurements only; native transport and provider tails unverified",
+    "pons_local_rps": 2,
+    "pons_survivor_scheduling_seconds": 3,
+    "pump_and_current_scheduling_seconds": 5,
+    "queue_depth": 64,
+    "queue_wait_seconds": 5,
+    "quote_freshness_seconds": 5,
+    "rss_readiness_bytes": 6442450944,
+    "systemd_memory_max_bytes": 7516192768
+  },
+  "storage": {
+    "current": {
+      "baseline_exhausted_turn": 8191,
+      "baseline_sqlite_bytes": 3821568,
+      "classification": "actual native journal/quote/restart fixture; variable controller bodies still obey 32768-byte record and 64-MiB page caps",
+      "diagnostic_records_per_category": 512,
+      "expired_snapshot_dependencies_retained": true,
+      "maintenance_seconds": 60,
+      "measured_36_hour_turns": 25920,
+      "measured_maximum_records": 101,
+      "measured_sqlite_bytes": 360448,
+      "native_journal_segment_records": 64,
+      "quote_retention_seconds": 120,
+      "record_limit": 8192,
+      "sqlite_page_bytes": 4096,
+      "sqlite_page_limit": 16384
+    },
+    "survivor": {
+      "classification": "actual two-events-per-turn native history fixture; busy event bytes and shared plane footprints remain scenario dependent",
+      "event_hot_seconds": 3600,
+      "measured_72_hour_turns": 86401,
+      "measured_retained_events": 2402,
+      "measured_retained_points": 28803,
+      "measured_sqlite_bytes": 9293824,
+      "measured_wal_bytes": 9405992,
+      "new_persistent_quote_records_per_turn": 0,
+      "old_quote_limit": 10000,
+      "point_hot_seconds": 86400,
+      "point_limit": 100000,
+      "snapshot_ledger": "one bounded native in-memory Store per quote; economic book and authenticated history remain durable"
+    },
+    "v4_history": {
+      "cache_bytes_per_map": 16777216,
+      "cache_map_count": 5,
+      "current_hot_seconds": 900,
+      "memory_classification": "80-MiB serialized cache ceiling plus Python/index overhead; whole process bound enforced separately",
+      "page_pressure_exhausted_records": 2012,
+      "page_pressure_pending_exit_preserved": true,
+      "range_event_limit": 16384,
+      "range_physical_attempt_limit": 64,
+      "required_original_boundary_events_retained": true
+    }
+  },
+  "weights_classification": "existing conservative application contract; not verified account billing; no free tier or bulk discounts assumed"
+}

@@ -33,6 +33,7 @@ CACHE_HEADERS=4096
 INDEX_NEIGHBORHOOD=32
 CACHE_RECEIPTS=8192
 CACHE_LAUNCHES=4096
+CACHE_MAP_BYTES=16*1024*1024
 EVIDENCE_SESSION_ROTATE_AT=180
 
 
@@ -46,18 +47,28 @@ class ImmutableEvidenceCache:
         self.launch_at=OrderedDict()
         self.real_quote=OrderedDict()
         self.counts=Counter()
+        self._sizes={};self._bytes={}
 
-    @staticmethod
-    def _remember(store,key,value,limit,conflict):
+    def _remember(self,store,key,value,limit,conflict):
         old=store.get(key)
         if old is not None:
             if old!=value:
                 raise BoundaryError(conflict)
             store.move_to_end(key)
             return False
-        store[key]=value
-        while len(store)>int(limit):
-            store.popitem(last=False)
+        identity=id(store);sizes=self._sizes.setdefault(identity,{})
+        # Numeric alias invalidation can clear a map between acquisitions.
+        if len(sizes)>len(store):
+            for previous in list(sizes):
+                if previous not in store:sizes.pop(previous)
+            self._bytes[identity]=sum(sizes.values())
+        size=len(json.dumps([key,value],sort_keys=True,separators=(',',':'),allow_nan=False).encode())
+        if size>CACHE_MAP_BYTES:return False  # optional cache, never evidence loss
+        store[key]=value;sizes[key]=size
+        self._bytes[identity]=self._bytes.get(identity,0)+size
+        while len(store)>int(limit) or self._bytes[identity]>CACHE_MAP_BYTES:
+            expired,_=store.popitem(last=False)
+            self._bytes[identity]-=sizes.pop(expired,0)
         return True
 
     def header_by_hash(self,block_hash):
@@ -149,6 +160,7 @@ class ImmutableEvidenceCache:
             receipts=len(self.receipts),
             launches=len(self.launch_at),
             real_quotes=len(self.real_quote),
+            accounted_cache_bytes=sum(self._bytes.values()),
             **dict(self.counts),
         )
 
@@ -183,6 +195,7 @@ class SelectiveEvidenceContext:
         self.block_receipts_supported=False
         self.view_batch_state={"supported":False}
         self.live_membership=False;self.membership_verified=False
+        self.canonical_numbers=False
         cap=os.environ.get('MM_RPC_CAPABILITIES')
         if cap:
             from . import CHAIN_ID
@@ -227,6 +240,9 @@ class SelectiveEvidenceContext:
         calls=list(calls);requested=len(calls)
         membership=self.live_membership and not self.membership_verified and scope=='pons_natural'
         forced=set();witnesses={}
+        if self.canonical_numbers:
+            forced.update(i for i,(m,p) in enumerate(calls)
+                if m=='eth_getBlockByNumber' and p and str(p[0]).startswith('0x'))
         if membership:
             for index,(method,params) in enumerate(calls):
                 if method=='eth_getBlockByNumber' and params[0]==hex(self.pin[0]):forced.add(index)

@@ -347,16 +347,25 @@ class Runtime:
         if end-start>=40:raise BoundaryError('survivor_incremental_slice_required')
         key=PoolKey(**row['graduation']['key']);pool=row['graduation']['transition']['market']
         tape=collect_v4_activity(self.endpoint,pool_id=pool,key=key,token=row['id'],
-            start_block=start,end_block=end,max_events=256)
-        h=self.rpc.call('eth_getBlockByNumber',[hex(end),False],scope='pons_survivor')
+            start_block=start,end_block=end,max_events=256,acquisition_state=self.history,evidence_context=self._position_context)
         # The preceding boundary must still have the authenticated hash recorded
         # at the last watermark. A fork never becomes clean historical evidence.
-        previous=self.rpc.call('eth_getBlockByNumber',[hex(row['block']),False],scope='pons_survivor')
+        h,previous=self.rpc.batch([('eth_getBlockByNumber',[hex(b),False])
+            for b in (end,row['block'])],scope='pons_survivor')
+        if int(h['number'],16)!=end or int(previous['number'],16)!=row['block']:
+            raise BoundaryError('survivor_header_number')
         expected=row.get('block_hash',row['graduation']['block_hash'])
         if previous['hash']!=expected:
             self._recover_reorg(row)
             raise BoundaryError('survivor_history_reorg')
         self._append_tape(row,end,h,tape)
+
+    def _position_context(self):
+        context=getattr(self,'position_evidence_context',None)
+        if context is None:
+            from .pons_selective_acquisition import SelectiveEvidenceContext
+            context=SelectiveEvidenceContext(self.endpoint);self.position_evidence_context=context
+        return context
 
     def _recover_reorg(self,row):
         graduation=row['graduation'];block=graduation['block']
@@ -515,17 +524,44 @@ class Runtime:
 
     @position_work
     def exit_quote(self,qty):
-        from .pons_quotes import v4_quote as _v4_quote
+        from .pons_quotes import v4_quote as _v4_quote,quote_deadline
         from .evidence import Store
         grad=self.current['graduation'];key=PoolKey(**grad['key'])
-        store=Store(str(self.root/'quote-evidence.sqlite'))
+        cache=getattr(self,'position_exit_quotes',None)
+        cached=cache.get(qty) if cache is not None else None
+        if cached and 0<=time.monotonic()-cached['acquired']<=5:
+            # Reuse only within this one evaluation at an unchanged current
+            # canonical head. Gas is mutable even then and is reacquired. No
+            # observed/acquisition clock is renewed, and no full-size quote is
+            # substituted for a partial exit. validate_exit() still fences fill.
+            try:
+                with quote_deadline(self.rpc,cached['acquired']):
+                    header,gas=self.rpc.batch([('eth_getBlockByNumber',['latest',False]),
+                        ('eth_gasPrice',[])],scope='pons_survivor')
+                if (header['hash']==cached['block_hash'] and int(header['number'],16)==cached['block']
+                        and 0<=time.monotonic()-cached['acquired']<=5):
+                    gas=cached['gas_units']*int(gas,16)
+                    return dict(net_proceeds=max(0,cached['amount_out']-gas),quantity=qty,
+                        acquired=cached['acquired'],block=cached['block'],block_hash=cached['block_hash'],gas=gas)
+            except BoundaryError:
+                cache.clear();return None
+        if cache is not None:cache.pop(qty,None)
+        # A quote is a single fresh, canonical snapshot, not a consecutive
+        # block stream. Reusing one Finality scope across three-second turns
+        # rejects normal skipped blocks and eventually fills its evidence store.
+        # Validate with the existing native snapshot ledger; the economic book
+        # durably records the execution, and validate_exit reacquires membership.
+        # The old quote-evidence file is retained, with no journal deletion.
+        store=Store(':memory:')
         acquired=time.monotonic()
         try:
             q,meta,ledger=_v4_quote(self.rpc,key,grad['transition']['market'],qty,
                 grad['transition']['graduation_gas_used'],store,'survivor_exit',local_freshness=True)
             q.check(self.now(),q.market,'sell',qty,q.stamp.kind,finality_ledger=ledger)
-            return dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
+            result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
                 acquired=acquired,block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
+            if cache is not None:cache[qty]=dict(result,amount_out=q.amount_out,gas_units=meta['gas_units_proxy'])
+            return result
         except BoundaryError:return None
         finally:store.close()
 
@@ -561,6 +597,13 @@ class Runtime:
 
     @position_work
     def _position(self,row,*,admit=True):
+        # Transient exact-quantity quote reuse has no restart or next-turn
+        # authority. The existing native monitor remains the sole exit owner.
+        self.position_exit_quotes={}
+        try:return self._manage_position(row,admit=admit)
+        finally:self.position_exit_quotes=None
+
+    def _manage_position(self,row,*,admit=True):
         from meme_machine.operational.position_continuation import cancel_unfilled
         if cancel_unfilled(self.book,self.sleeve,self.history,row,self.now()):return
         self.current=row

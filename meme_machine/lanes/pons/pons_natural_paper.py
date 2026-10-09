@@ -69,8 +69,11 @@ class LocalFreshQuote(Quote):
             raise BoundaryError("invalid_quote")
         if self.stamp.observed_at>int(now):
             raise BoundaryError("future_evidence")
-        age=float(self.acquisition_latency_seconds)
-        if age<0 or age>5:
+        # Acquisition is not a perpetual freshness permit. A quote held while
+        # economic history is collected still expires on its original clock.
+        acquisition=float(self.acquisition_latency_seconds)
+        age=acquisition+int(now)-self.stamp.observed_at
+        if acquisition<0 or age>5:
             raise BoundaryError("stale_state")
         if finality_ledger is None:
             raise BoundaryError("local_fresh_quote_requires_finality")
@@ -116,10 +119,17 @@ def _fresh_stamp(header, *, local_freshness_seconds=None, observed_at=None):
     )
 
 
+def _quote_scope(label,stamp):
+    # Executable snapshots authenticate one exact observation, not continuous
+    # economic history. Polling may skip heights and may reobserve the same head
+    # after freshly reading state. Neither implies coverage of intervening logs.
+    return 'paper-'+label+':'+digest(asdict(stamp))
+
+
 def _ledger_for_quote(
     store,stamp,parent_hash,label,*,local_freshness_seconds=None
 ):
-    ledger=Finality(store,scope="paper-"+label,max_blocks=4)
+    ledger=Finality(store,scope=_quote_scope(label,stamp),max_blocks=4)
     ledger.observe(
         stamp,parent_hash,
         local_freshness_seconds=local_freshness_seconds,
@@ -208,7 +218,7 @@ def _wait_curve_quote(
                 else quote.stamp.event_at
             )
             if freshness_at>=min_event_at:
-                return quote,meta,Finality(store,scope="paper-"+scoped_label,max_blocks=4)
+                return quote,meta,Finality(store,scope=_quote_scope(scoped_label,quote.stamp),max_blocks=4)
             last="pre_delay_quote"
         except BoundaryError as exc:
             last=str(exc)

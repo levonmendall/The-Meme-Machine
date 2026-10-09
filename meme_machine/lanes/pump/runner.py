@@ -325,6 +325,12 @@ def _postgrad_concentration_required(*decisions):
 
 
 def _postgrad_concentration(rpc,snapshot):
+    if snapshot.get('surface')=='pumpswap' and isinstance(snapshot.get('accounts'),dict):
+        from .concentration import ConcentrationReader
+        reader=getattr(rpc,'postgrad_concentration_reader',None)
+        if reader is None:
+            reader=ConcentrationReader(rpc);rpc.postgrad_concentration_reader=reader
+        return reader.read(snapshot['mint'],snapshot,priority=True)[0]
     result=rpc.call("getTokenLargestAccounts",
                     [snapshot["mint"],{"commitment":"finalized"}],True)
     if not isinstance(result,dict) or "context" not in result or "value" not in result:
