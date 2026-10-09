@@ -159,7 +159,8 @@ class Runtime:
         raw=self.adapter.graduation_snapshot(candidate,self.now(),priority=True)
         handoff=graduation_handoff(raw,self.now())
         state=self.adapter.pumpswap_snapshot(handoff,self.now(),priority=True,
-            additional_accounts=() if maintenance else (SOL_USD_ACCOUNT,))
+            additional_accounts=() if maintenance else (SOL_USD_ACCOUNT,),
+            reuse_verified_pool=maintenance)
         if state['pool']!=self.current['graduation']['pool']:raise ValueError('survivor_pool_drift')
         return state
 
