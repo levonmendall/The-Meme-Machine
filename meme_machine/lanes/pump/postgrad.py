@@ -527,8 +527,8 @@ class PostGraduationAdapter:
             raise Unavailable('pumpswap_accounts_missing')
         pool_account, mint_account, base_vault, quote_vault, fee_account = result['value'][:5]
         metadata = _decode_pumpswap_pool(pool_key, pool_account, handoff.mint)
-        if known is not None and (
-                metadata['base_vault'], metadata['quote_vault']) != known:
+        if (metadata['base_vault'], metadata['quote_vault']) != vaults:
+            # Check both a warm hint and a cold probe-vs-fresh pool change.
             self._held_pumpswap_vaults.pop(handoff.mint, None)
             self._held_graduation.pop(handoff.mint, None)
             raise ValueError('pumpswap_verified_vault_drift')
