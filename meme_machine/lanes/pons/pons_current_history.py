@@ -111,7 +111,9 @@ def _prepare_scale_prefix(plane_path,endpoint,market,candidate,key,native_path,i
 
 class CurrentHistory:
     def __init__(self,plane,endpoint):
+        from meme_machine.runtime.robinhood.pons import shared_evidence_domain
         self.plane=plane;self.domain=digest(endpoint)
+        self.endpoint=endpoint;self.source_generation=shared_evidence_domain(endpoint)
         with plane.lock:
             plane.db.executescript('''
                 CREATE TABLE IF NOT EXISTS pons_current_history(
@@ -130,9 +132,20 @@ class CurrentHistory:
         return value
 
     def get(self,curve):
+        from meme_machine.runtime.robinhood.pons import shared_evidence_domain
         with self.plane.lock:
-            return self.verified(self.plane.db.execute('SELECT body,hash FROM pons_current_history WHERE domain=? AND curve=?',
+            row=self.verified(self.plane.db.execute('SELECT body,hash FROM pons_current_history WHERE domain=? AND curve=?',
                 (self.domain,curve.lower())).fetchone())
+            generation=shared_evidence_domain(self.endpoint)
+            if generation!=self.source_generation:
+                if not self.plane.db.in_transaction:self.invalidate(curve,'source_generation_changed')
+                raise BoundaryError('pons_current_history_source_generation_changed')
+            if row is not None and row.get('source_generation')!=generation:
+                if self.plane.db.in_transaction:
+                    raise BoundaryError('pons_current_history_source_generation_unverified')
+                self.invalidate(curve,'source_generation_unverified')
+                return None
+            return row
 
     def invalidate(self,curve,reason):
         """A fork removes observation authority, never native position state."""
@@ -141,7 +154,8 @@ class CurrentHistory:
         if context is not None:
             context.cache.invalidate_canonical_aliases();context.block_reads.clear()
         with self.plane.transaction():
-            old=self.get(curve)
+            old=self.verified(self.plane.db.execute('SELECT body,hash FROM pons_current_history WHERE domain=? AND curve=?',
+                (self.domain,curve)).fetchone())
             if old is None:return
             key='pons_current_history_invalidated:'+self.domain+':'+curve
             previous=self.plane.checkpoint_read(key) or dict(count=0,hash=None)
@@ -157,8 +171,11 @@ class CurrentHistory:
 
     def remember(self,curve,header,events,*,from_time,delta_from=None,coverage=None,retain_ids=(),
                  expected_frontier=None,publication_guard=None):
+        from meme_machine.runtime.robinhood.pons import shared_evidence_domain
         curve=curve.lower();block=int(header['number'],16);at=int(header['timestamp'],16)
         with self.plane.transaction():
+            if shared_evidence_domain(self.endpoint)!=self.source_generation:
+                raise BoundaryError('pons_current_history_source_generation_changed')
             old=self.get(curve)
             if ((expected_frontier is not None and old!=expected_frontier)
                     or (publication_guard is not None and not publication_guard())):
@@ -191,7 +208,8 @@ class CurrentHistory:
                     (self.domain,curve,identity,event['event_at'],canonical(event),digest(event)))
             lower=max(lower,at-900)
             row=dict(from_time=lower,through=at,block=block,block_hash=header['hash'],
-                observed_at=time.time(),authority='canonical_receipt_authenticated_complete_log_ranges')
+                observed_at=time.time(),authority='canonical_receipt_authenticated_complete_log_ranges',
+                source_generation=self.source_generation)
             if coverage is not None:row['last_interval']=coverage
             elif old and block==old['block'] and 'last_interval' in old:row['last_interval']=old['last_interval']
             self.plane.db.execute('INSERT OR REPLACE INTO pons_current_history VALUES(?,?,?,?)',

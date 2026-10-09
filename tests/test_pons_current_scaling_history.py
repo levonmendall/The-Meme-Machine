@@ -179,3 +179,30 @@ class CurrentScalingHistoryTests(unittest.TestCase):
             Path(self.native.temp.name)/'native.sqlite',self.native.identity))
         self.assertEqual(Counter(self.tape.methods),before)
         self.assertEqual(self.native.paper._get(self.native.identity),pending)
+
+    def test_source_generation_change_invalidates_retained_authority_before_reuse(self):
+        self.prepare();before=Counter(self.tape.methods)
+        generation=self.history.source_generation
+        with patch('meme_machine.runtime.robinhood.pons.shared_evidence_domain',return_value=generation+':new'):
+            with self.assertRaisesRegex(BoundaryError,'source_generation_changed'):self.history.get(self.pool)
+            replacement=CurrentHistory(self.plane,ENDPOINT)
+            self.assertIsNone(replacement.get(self.pool))
+            # A source generation change never renews an old interval or its
+            # timestamps. A replacement must acquire a new complete interval.
+            self.assertEqual(self.plane.db.execute('SELECT COUNT(*) FROM pons_current_events').fetchone()[0],0)
+        self.assertEqual(Counter(self.tape.methods),before)
+        self.assertEqual(self.native.paper._get(self.native.identity),self.native.before)
+
+    def test_legacy_interval_without_source_generation_is_not_promoted_to_current_authority(self):
+        from meme_machine.lanes.pons.evidence import canonical,digest
+        self.prepare();row=self.history.get(self.pool);row.pop('source_generation')
+        with self.plane.transaction():
+            self.plane.db.execute('UPDATE pons_current_history SET body=?,hash=? WHERE domain=? AND curve=?',
+                (canonical(row),digest(row),self.history.domain,self.pool))
+        # Refuse within a caller's atomic transaction without nesting another
+        # BEGIN or modifying that transaction. The next independent read
+        # retires the unverified history, leaving the native position intact.
+        with self.assertRaisesRegex(BoundaryError,'source_generation_unverified'):
+            with self.plane.transaction():self.history.get(self.pool)
+        self.assertIsNone(self.history.get(self.pool))
+        self.assertEqual(self.native.paper._get(self.native.identity),self.native.before)
