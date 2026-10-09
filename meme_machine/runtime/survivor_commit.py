@@ -96,8 +96,38 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
 
 
 def restore_risk(book,identity):
-    """Rebuild runner state from the same immutable economic journal as fills."""
-    book.replay()
+    """Reuse only the risk fold of an unchanged, freshly verified native journal.
+
+    Monetary replay is deliberately retained: shared grant/recovery dependencies
+    can change outside this connection. This cache never supplies that proof.
+    A read transaction makes verification and the risk view one SQLite snapshot.
+    """
+    from copy import deepcopy
+    from meme_machine.runtime.source_artifacts import REGISTRY
+    with book.lock:
+        own_snapshot=not book.db.in_transaction
+        if own_snapshot:book.db.execute('BEGIN')
+        try:
+            proof=book.replay()
+            marker=(tuple(sorted(book.identity.items())),id(book.db),book.db.total_changes,
+                book.db.execute('PRAGMA data_version').fetchone()[0],
+                book.db.execute('PRAGMA schema_version').fetchone()[0],
+                book.db.execute('SELECT hash FROM journal_archive WHERE id=1').fetchone(),
+                proof['events'],proof['final_hash'],proof['cash'],REGISTRY.generation,
+                risk_record,getattr(book,'recovery_generation',None),id(getattr(book,'portfolio',None)))
+            cached=getattr(book,'_risk_replay_cache',None)
+            if cached and cached[:2]==(marker,identity):return deepcopy(cached[2])
+            state=_fold_risk(book,identity)
+            book._risk_replay_cache=(marker,identity,deepcopy(state))
+            return state
+        except BaseException:
+            book._risk_replay_cache=None
+            raise
+        finally:
+            if own_snapshot:book.db.execute('ROLLBACK')
+
+
+def _fold_risk(book,identity):
     prefix=book._archive()
     state=prefix['risk_states'].get(identity) if prefix else None
     import json
