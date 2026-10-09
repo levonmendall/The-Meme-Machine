@@ -819,17 +819,15 @@ class Runtime:
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
                             generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
                         if getattr(self,'scout',None) is not None:self._schedule_watch(row,state['at'],signal)
-                        # Qualification is durable before any funding attempt,
-                        # including before the position-limit execution block.
+                        # Qualification is durable before native funding. The
+                        # owner removed the two-position admission veto; capital,
+                        # full execution requalification and risk still govern.
                         self.history.save(row)
-                        if decision['candidate'] and sum(bool(r.get('position')) for r in self.history.rows())<POLICY['execution']['max_open_positions']:
+                        if decision['candidate']:
                             from meme_machine.runtime.lifecycle_identity import issue
                             row['position']=issue(self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime]))
                             row['state']='reserved';self.history.save(row);self._enter(row)
                             row=self.history.get(row['id']);row['state']='filled'
-                        elif decision['candidate']:
-                            self.attempts.record(row['id'],row['generation'],'funding','OTHER_EXPLICIT_REASON',
-                                at=state['at'],reason='survivor_open_position_limit')
                         self.history.save(row)
             self.last_error=errors[0] if errors else None
         except (ValueError,BoundaryError) as exc:
@@ -841,6 +839,8 @@ class Runtime:
         from meme_machine.runtime.directional_accounting import execution_cost
         self.attempts.maintain(self.now(),protected=(r['id'] for r in self.history.rows()))
         return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    admission=dict(position_count_limit=None,capital_authority='native_shared_sleeve',
+                        legacy_policy_count_is_not_enforced=True,owner_change='2026-10-09'),
                     position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,
                         blocker='pons_survivor_position_not_observed')) for r in self.history.rows() if r.get('position')],
                     native_execution_cost=execution_cost(self.book),
