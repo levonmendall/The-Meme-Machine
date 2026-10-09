@@ -37,33 +37,44 @@ history. This change deliberately does **not** duplicate those fixes.
 
 ## What this branch changes
 
-### Held Current and Survivor: immutable lineage versus fresh economics
+### Held Current and Survivor: one coherent fresh economic batch
 
-`PostGraduationAdapter.held_graduation_handoff` caches only successful
-immutable *completed-curve* identity (mint, creator, source pool and Mayhem flag)
-for 60 seconds within the current RPC adapter. On first observation,
-expiration, clock rollback or restart, it re-fetches and validates the
-actual completed curve and mint. Immutable field disagreement invalidates
-the cache and fails closed. Entry/qualification/scaling use the original
-full authentication path and are never allowed to treat a held hint as
-qualification evidence.
+After inspecting the authentic Pump program IDL, the old 60-second
+completed-curve creator cache was **rejected and removed**. Pump's admin CTO
+may legitimately change the creator post-graduation; preserving the old
+fresh checks requires observing a current creator every review.
 
-`pumpswap_snapshot(..., reuse_verified_pool=True)` reuses only previously
-verified base/quote vault *addresses*. It still re-fetches the finalized
-current PumpSwap pool, token mint, both vault account bodies and fee
-configuration **every protective tick**. It verifies current pool identity,
-fresh vault addresses, reserves, token owner/supply, Mayhem mode, virtual
-reserves and fee schedule. A cold probe that changes before its second
-fresh batch, or a warm hint that no longer matches, fails closed.
-No quote/price, liquidity, holder concentration or mutable fee is cached.
+The optimized `pumpswap_snapshot(mint, ..., held_curve_inline=True)`
+includes the **current completed bonding curve account** inside the SAME
+finalized `getMultipleAccounts` request as the PumpSwap pool, mint,
+base-vault balance, quote-vault balance and fee configuration. It reruns
+`graduation_handoff` for that exact slot on every held review. Source
+creator, completion status, source pool, mint, Mayhem mode, reserves,
+token authority and current fees remain fresh and coherent. A change to
+creator is observed immediately; incomplete graduation or a mismatching
+pool fails closed without a price/mark/exit.
 
-Both paths have bounded 64-key caches local to the current adapter. No
-database migration, new signing/authorization, subscription, worker, or
-second economic owner was added. Current and Survivor retain existing
-five-second monitoring, mark/high-water, partial and final exit, risk,
-flow, deadline, and pending-exit behavior. Survivor's ordinary entry/scale
-path remains independent; Current's continuation requalification and
-concentration probes are not weakened.
+Only the two previously verified vault **addresses** are retained in a
+bounded 64-key in-memory hint cache; all account *contents* are always
+read fresh. On the first read, an extra pool-address probe discovers the
+two vault addresses. A pool change between cold probe and batch, or a
+warm vault-hint mismatch, invalidates the hint and fails closed. A
+restart or adapter rotation starts with the original cold probe.
+
+Current and Survivor held positions use the single-slot batch.
+Entry, candidate qualification, independent Survivor graduation/scaling
+and unheld economic observations retain the old full proof path.
+All existing five-second protective checks, native accounting,
+high-water/partial exits, demand and concentration checks, worker
+priority and owner/deadline semantics remain unchanged.
+
+No new signing, API permissions, queue, subscription, service, database
+or provider endpoint were introduced.
+
+Pump official IDL and docs confirming mutable creator via authorized
+instructions:
+https://github.com/pump-fun/pump-public-docs/blob/main/idl/pump.ts
+https://pump.fun/docs/bonding-curve
 
 ### Exact finalized block-time reuse
 
@@ -83,41 +94,43 @@ Alchemy Solana method prices checked in the published CU schedule:
 `getMultipleAccounts=20 CU`, `getBlockTime=20 CU`.
 Listed PAYG conversion: **$0.525 / million CU**.
 
-For ONE funded PumpSwap position, one full old held review logically
-consumes 3 `getMultipleAccounts` and 2 `getBlockTime` = **100 CU**,
-ignoring identical-cache hits. Under the new path, after the cold
-baseline: 1 fresh multiaccount group per review (20 CU), one identity
-revalidation group each 60s (20 CU), plus up to one clock read per
-review and revalidation if the exact-slot finalized plane has not
-caught up (20 CU each). **No** price or protective update is skipped.
+For ONE funded PumpSwap position, the old full review logically
+purchased three `getMultipleAccounts` (60 CU) and two `getBlockTime`
+(40 CU), total **100 CU**, before existing cache hits.
+Under this branch the warm held quote buys ONE fresh six-address
+`getMultipleAccounts` (20 CU); zero or one exact-slot `getBlockTime`
+(0–20 CU), depending on authenticated shared finalized coverage.
+The source completed-curve creator and token identity are included
+in that live batch; there is **no 60-second static creator cache**.
+The first quote after restart/rotation still buys one 20-CU pool probe.
 
-| Scenario: 5-second cadence over 72 hours, 51,840 turns | Held-quote CU | Modeled USD |
+| Scenario: continuous 5-second reviews over 72h (51,840 turns) | Held-quote CU | USD at published rate |
 |---|---:|---:|
-| Before, every logical method physically billed | 5,184,000 | $2.72160 |
-| After, no exact-slot local timestamps ever available | 2,246,400 | $1.17936 |
-| After, exact-slot local timestamps always available | 1,123,200 | $0.58968 |
-| **Potential reduction** | **2,937,600 to 4,060,800 CU** | **$1.54224 to $2.13192** |
+| Old logical method cost, before cache hits | 5,184,000 | $2.72160 |
+| Warm optimized, exact-slot time unavailable | 2,073,600 | $1.08864 |
+| Warm optimized, exact-slot time always available | 1,036,800 | $0.54432 |
+| **Potential reduction** | **3,110,400–4,147,200 CU** | **$1.63296–$2.17728** |
 
-The 4,320 identity revalidations at 60-second intervals are included.
-Extra cold probes after adapter rotation, service restarts, failed reads,
-cache hits already supplied by the pre-existing immutable layer,
-different active-position counts and varying activity reduce realized
-savings. Concentration/flow, candidate discovery, historical acquisition,
-provider-delivered streaming bytes, quote-response payloads and latency
-are **not** included in this narrow model, so these dollars are NOT
-an all-in 72-hour provider cost or verified invoice saving.
-The source may run longer than 72h where explicitly allowed by existing
-policy; this patch creates no forced-exit timer or position expiration.
+These are **source-level physical-method sensitivity estimates**, not
+actual measured CU or billing reductions. Extra cold probes after
+process/session rotation and restart, retries and coverage loss can
+reduce savings. If the pre-existing immutable cache already served a
+method without a billed provider request, this patch cannot save that
+charge again. The model excludes concentration/flow reads, candidate
+history, the original WebSocket economics feed, transaction-history
+repair, response bytes, connection charges and latency. No price,
+high-water update, continuation requirement or exit is skipped. This
+patch adds no new holding maximum or forced sale, but does not override
+any original position deadline or inactive exceptional-winner policy.
 
-A self-contained offline regression module
-`tests.lanes.pump.test_postgrad_read_efficiency` is registered in the
-FAST/OPERATIONAL test registry. It checks method counts, unchanged
-`buy_quote` and `sell_quote` math with fresh state, changed reserves and
-fees, cold/warm vault drift, missing/invalid account input, a changed
-graduation creator, 60-second revalidation, restart reset and exact-slot
-clock fallback. GitHub CI is the only available full source test executor
-in this session; absence of a completed passing CI receipt means **NOT
-VALIDATED**. No test claimed pass until the runner actually completes.
+The new module `tests.lanes.pump.test_postgrad_read_efficiency`
+covers cold/warm request counts; same-slot current curve creator and
+completion-state changes; changed vault reserves and fee tiers; live
+vault drift (including between the probe and batch); missing accounts;
+restart re-probing; exact-slot timestamp fallback; and exact local
+`buy_quote`/`sell_quote` parity. It is registered in FAST and
+OPERATIONAL. **It is not certified passing until the CI result is
+reported for the exact final source SHA.**
 
 ## Bigger costs and why they are not suppressed indiscriminately
 
