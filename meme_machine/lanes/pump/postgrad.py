@@ -13,6 +13,7 @@ Layout provenance:
 """
 import base64
 import hashlib
+import os
 import struct
 from dataclasses import dataclass
 
@@ -31,6 +32,21 @@ RAYDIUM_MODEL = 'raydium-v4-sol-cp-v1'
 POSTGRAD_ALLOCATION_DISABLED = 'post_graduation_allocation_disabled'
 RAYDIUM_LAYOUT_SIZE = 752
 OPEN_ORDERS_SIZE = 3228
+
+def held_rpc_mode(environ=None):
+    """Opt-in PAPER-only held reads; no live env change within one process.
+
+    Baseline is the original request path. Unknown values fail closed instead
+    of silently enabling or disabling protection. This is an engineering
+    comparison switch, not an additional funding/authorization mechanism.
+    """
+    env = os.environ if environ is None else environ
+    mode = env.get('MM_PUMP_HELD_RPC_MODE', 'baseline')
+    if mode not in ('baseline', 'optimized'):
+        raise ValueError('invalid_pump_held_rpc_mode')
+    if mode == 'optimized' and env.get('MM_MODE', 'PAPER') != 'PAPER':
+        raise ValueError('pump_held_rpc_paper_only')
+    return mode
 
 
 class PoolScanRPC(RPC):
