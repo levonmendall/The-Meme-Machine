@@ -14,6 +14,21 @@ from meme_machine.lanes.pons.provider import Rpc
 
 
 class PurchaseAttributionTests(unittest.TestCase):
+    def test_billed_weights_throughput_and_stream_redelivery_are_distinct(self):
+        purchases=ProviderPurchases()
+        with provider_work('history_receipt',family='pons',consumer='shared'):
+            from meme_machine.runtime.provider_purchases import work_label
+            label=work_label();purchases.started(label,['eth_getBlockReceipts'],100)
+            purchases.completed(label,1000)
+        report=purchases.snapshot()['totals']
+        self.assertEqual(report['estimated_cu'],20);self.assertEqual(report['estimated_throughput_cu'],500)
+        with provider_work('pump_discovery'):
+            purchases.stream('solana_grpc',100,family='pump',redelivery=False)
+            purchases.stream('solana_grpc',100,family='pump',redelivery=True)
+        report=purchases.snapshot()['totals']
+        self.assertIsNone(report['estimated_cu']);self.assertEqual(report['stream_redeliveries'],1)
+        self.assertEqual(report['physical_requests'],1);self.assertEqual(report['delivered_payload_bytes'],1200)
+
     def pump(self,pacer=None):
         rpc=ReadOnlyFailoverRPC('https://solana-mainnet.g.alchemy.com/v2/offline-purchase-secret',pacer=pacer)
         rpc._pace=lambda *args,**kwargs:None;rpc.sleep=lambda *args:None

@@ -31,7 +31,7 @@ def work_label(*,family='unknown',consumer='unknown'):
 
 
 @contextmanager
-def provider_work(operation,*,family=None,consumer=None,purpose=None):
+def provider_work(operation,*,family=None,consumer=None,purpose=None,retry_attempt=0):
     if operation not in OPERATIONS:raise ValueError('provider_purchase_operation')
     parent=work_label()
     if operation.startswith(('pump_','pons_')):
@@ -45,6 +45,8 @@ def provider_work(operation,*,family=None,consumer=None,purpose=None):
         purpose=purpose or (operation if operation in PURPOSES else parent['purpose']))
     if label['family'] not in FAMILIES or label['consumer'] not in CONSUMERS or label['purpose'] not in PURPOSES:
         raise ValueError('provider_purchase_label')
+    if not isinstance(retry_attempt,int) or retry_attempt<0:raise ValueError('provider_purchase_retry')
+    label['retry_attempt']=retry_attempt
     token=_work.set(label)
     try:yield
     finally:_work.reset(token)
@@ -69,11 +71,11 @@ class ProviderPurchases:
         import hashlib
         try:
             schedule=REGISTRY.get(DEFAULT)
-            self.prices=dict(schedule['methods']);self.schedule_source=schedule['source']
+            self.prices=dict(schedule['methods']);self.throughput=dict(self.prices,**schedule.get('throughput_overrides',{}));self.schedule_source=schedule['source']
             self.schedule_sha256=hashlib.sha256(DEFAULT.read_bytes()).hexdigest()
         except (OSError,ValueError,KeyError,TypeError):
             # Missing prices disable estimates, never a native provider read.
-            self.prices={};self.schedule_source=None;self.schedule_sha256=None
+            self.prices={};self.throughput={};self.schedule_source=None;self.schedule_sha256=None
         self.methods=frozenset(self.prices)|frozenset(
             ('getSlot','getBlock','getBlocks','getTransactionsForAddress','solana_websocket','solana_grpc','evm_websocket','unknown',
              'getMultipleAccounts','getProgramAccounts','getGenesisHash','getBlockTime','getTokenLargestAccounts','getSignaturesForAddress','getTransaction',
@@ -110,11 +112,12 @@ class ProviderPurchases:
             row=self._row(label);row['completed_requests']+=1;row['delivered_payload_bytes']+=response_bytes
             row['failed_requests']+=int(failed)
 
-    def stream(self,kind,delivered_bytes,*,family,consumer='shared'):
+    def stream(self,kind,delivered_bytes,*,family,consumer='shared',redelivery=None):
         label=work_label(family=family,consumer=consumer)
         with self.lock:
             row=self._row(label);row['delivered_payload_bytes']+=delivered_bytes
             row['stream_messages']+=1;row['stream_type:'+self._method(kind)]+=1
+            if redelivery is not None:row['stream_redeliveries' if redelivery else 'stream_first_deliveries']+=1
 
     def snapshot(self):
         with self.lock:
@@ -122,17 +125,22 @@ class ProviderPurchases:
             for key,counts in sorted(self.rows.items()):
                 methods={k.split(':',1)[1]:v for k,v in counts.items() if k.startswith('purchased_method:')}
                 priced={m:n*self.prices[m] for m,n in methods.items() if m in self.prices}
+                throughput={m:n*self.throughput[m] for m,n in methods.items() if m in self.throughput}
                 unknown={m:n for m,n in methods.items() if m not in self.prices}
                 unpriced_stream=counts.get('stream_messages',0)>0
                 totals.update({k:v for k,v in counts.items() if ':' not in k})
                 totals['known_estimated_cu']+=sum(priced.values())
+                totals['known_estimated_throughput_cu']+=sum(throughput.values())
                 rows.append(dict(zip(('operation','family','consumer','purpose','origin_operation'),key),**dict(counts),
                     estimated_cu=None if unknown or unpriced_stream else sum(priced.values()),
                     known_estimated_cu=sum(priced.values()),unpriced_methods=unknown,
+                    estimated_throughput_cu=None if unknown or unpriced_stream else sum(throughput.values()),
+                    known_estimated_throughput_cu=sum(throughput.values()),
                     verified_billed_cu=None))
             complete=all(row['estimated_cu'] is not None for row in rows)
             return dict(schema_version=1,basis='process-lifetime initiated HTTP attempts; streams are delivered messages',
-                operations=rows,totals=dict(totals,estimated_cu=totals['known_estimated_cu'] if complete else None),
+                operations=rows,totals=dict(totals,estimated_cu=totals['known_estimated_cu'] if complete else None,
+                    estimated_throughput_cu=totals['known_estimated_throughput_cu'] if complete else None),
                 schedule_source=self.schedule_source,schedule_sha256=self.schedule_sha256,
                 label_row_capacity=self.max_rows,
                 verified_billed_cu=None,billing_status='UNMEASURED',

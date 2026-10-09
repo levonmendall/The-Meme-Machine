@@ -28,7 +28,7 @@ def attribute(records,*,max_purchases=4096,max_records=50000):
                 accounting.consumer(methods,cache_hit=record.get('cache_hit'))
                 continue
             if kind=='stream':
-                accounting.stream(record['stream_type'],int(record['delivered_payload_bytes']),family=family,consumer=consumer)
+                accounting.stream(record['stream_type'],int(record['delivered_payload_bytes']),family=family,consumer=consumer,redelivery=record.get('redelivery'))
                 if record.get('billed_cu') is None:unbilled+=1
                 else:known_billed+=Decimal(str(record['billed_cu']))
                 continue
