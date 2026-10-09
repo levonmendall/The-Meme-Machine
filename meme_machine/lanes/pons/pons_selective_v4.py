@@ -85,7 +85,12 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
         raise BoundaryError('selective_v4_canonical_header_membership')
     hashes=[h for _,h in blocks]
     headers=dict(zip(hashes,headers_v))
-    receipts_v=acquire([("eth_getTransactionReceipt",[tx]) for tx,_ in tx_rows])
+    # The existing dense selector must see fresh authenticated canonical headers.
+    # Unknown capability/resource limits retain the original individual graph.
+    dense=context.acquire_dense_receipts(tx_rows,headers=headers,scope='pons_selective_v4')
+    individual=[pair for pair in tx_rows if pair not in dense]
+    fetched=dict(zip(individual,acquire([("eth_getTransactionReceipt",[tx]) for tx,_ in individual])))
+    receipts_v=[dense[pair] if pair in dense else fetched[pair] for pair in tx_rows]
     # Authenticated standard receipts carry the transaction sender. Keep the
     # original transaction-body path for providers/captures missing that field.
     senders={k:context.block_reads.get(('authenticated_v4_sender',*k)) for k in tx_rows}

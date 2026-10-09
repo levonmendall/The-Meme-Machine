@@ -194,6 +194,8 @@ class SelectiveEvidenceContext:
         self.generation_guard=None
         self.receipt_pins={}
         self.block_receipts_supported=False
+        self.block_receipts_resources=None
+        self.receipt_acquisition_counts=Counter()
         self.view_batch_state={"supported":False}
         self.live_membership=False;self.membership_verified=False
         self.canonical_numbers=False
@@ -202,6 +204,12 @@ class SelectiveEvidenceContext:
             from . import CHAIN_ID
             domain=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()
             try:self.block_receipts_supported=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_getBlockReceipts']['supported'] is True
+            except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
+            try:
+                row=json.loads(Path(cap).read_text())['endpoints'][domain]
+                resources=row['methods']['eth_getBlockReceipts']['observed_limits']
+                if row.get('chain_id')==CHAIN_ID and row.get('provider_domain')==domain:
+                    self.block_receipts_resources=resources
             except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
             try:self.view_batch_state['supported']=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_callMany']['supported'] is True
             except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
@@ -348,30 +356,84 @@ class SelectiveEvidenceContext:
             if len(extras)>=max(0,50-len(calls)):break
         return extras if len(calls)<50 else []
 
-    def acquire_dense_receipts(self,tx_rows):
+    def acquire_dense_receipts(self,tx_rows,*,headers=None,scope='pons_selective_window'):
+        """Existing density selector, gated by previously measured resource bounds.
+
+        Caller-supplied headers have fresh canonical membership. Capability and
+        resource discovery never occur here. Failure buys no partial authority;
+        the original individual path keeps its original deadline and governor.
+        """
         from .immutable_rpc import choose_block_receipts
         groups={}
         for tx,bh in tx_rows:
             if self.cache.receipt(tx,bh) is None:groups.setdefault(bh,set()).add(tx)
+        self.receipt_acquisition_counts['required_missing_receipts']+=sum(map(len,groups.values()))
+        self.receipt_acquisition_counts['occupied_missing_blocks']+=len(groups)
+        resources=self.block_receipts_resources
+        selected={}
+        if not isinstance(resources,dict) or resources.get('validated') is not True:return selected
         for bh,required in groups.items():
-            header=self.cache.header_by_hash(bh)
+            # Cached hashes alone do not prove present canonical membership.
+            header=(headers or {}).get(bh)
             transactions=header.get('transactions') if header else None
             total=len(transactions) if isinstance(transactions,list) else None
             remaining=0 if self.deadline is None else self.deadline-time.monotonic()
             if not choose_block_receipts(len(required),total,supported=self.block_receipts_supported,remaining_seconds=remaining):continue
-            try:rows=self.call('eth_getBlockReceipts',[bh],'pons_selective_window')
+            rpc=self.acquire(1,scope)
+            try:
+                maximum=int(resources['max_response_bytes']);latency=float(resources['max_latency_seconds'])
+                throughput=int(resources['max_throughput_cu']);maximum_transactions=int(resources['max_transactions'])
+            except (KeyError,TypeError,ValueError,OverflowError):continue
+            # Leave enough original slack for the dense attempt and a complete
+            # individual fallback, including the unchanged half-second governor.
+            if not (0<maximum<=rpc.max_response and 0<latency<=rpc.timeout
+                    and throughput>=500 and total<=maximum_transactions<=128
+                    and remaining>=latency+.5*(1+(len(required)+49)//50)):
+                self.receipt_acquisition_counts['resource_fallbacks']+=1;continue
+            if (not all(isinstance(tx,str) for tx in transactions) or len(set(transactions))!=total
+                    or not required<=set(transactions)):
+                self.receipt_acquisition_counts['identity_fallbacks']+=1;continue
+            old_timeout,old_response=rpc.timeout,rpc.max_response
+            rpc.timeout=latency;rpc.max_response=maximum
+            try:
+                self.receipt_acquisition_counts['block_receipt_attempts']+=1
+                rows=self.call('eth_getBlockReceipts',[bh],scope)
             except BoundaryError as exc:
-                if str(exc) not in ('provider_rpc_-32601','provider_rpc_-32602'):raise
-                self.block_receipts_supported=False
-                continue  # standard receipt acquisition retains the same deadline
-            if not isinstance(rows,list) or len(rows)!=total:raise BoundaryError('block_receipt_census_disagreement')
-            expected=set(transactions)
-            if len(expected)!=total or {r.get('transactionHash') for r in rows}!=expected:
-                raise BoundaryError('block_receipt_census_disagreement')
-            for r in rows:
-                if r.get('blockHash')!=bh or r.get('blockNumber')!=header['number']:
-                    raise BoundaryError('block_receipt_identity_disagreement')
-            for r in rows:self.cache.remember_receipt(r['transactionHash'],bh,r)
+                if str(exc) in ('provider_rpc_-32601','provider_rpc_-32602'):
+                    self.block_receipts_supported=False
+                elif str(exc) in ('candidate_generation_superseded','evidence_deadline_before_transport','evidence_deadline_during_transport'):
+                    raise
+                self.receipt_acquisition_counts['failure_fallbacks']+=1
+                continue
+            finally:rpc.timeout=old_timeout;rpc.max_response=old_response
+            valid=isinstance(rows,list) and len(rows)==total
+            by_tx={}
+            if valid:
+                try:
+                    for r in rows:
+                        tx=r['transactionHash'];index=int(r['transactionIndex'],16)
+                        if (tx in by_tx or not 0<=index<total or transactions[index]!=tx
+                                or r['blockHash']!=bh or r['blockNumber']!=header['number']
+                                or int(r['status'],16) not in (0,1) or not isinstance(r['logs'],list)):
+                            valid=False;break
+                        sender=r.get('from')
+                        if sender is not None and (not isinstance(sender,str) or len(sender)!=42 or
+                                not sender.startswith('0x') or any(c not in '0123456789abcdef' for c in sender[2:].lower())):
+                            valid=False;break
+                        if any(log.get('removed') or log.get('transactionHash')!=tx or log.get('blockHash')!=bh
+                                or log.get('transactionIndex')!=r['transactionIndex'] or log.get('blockNumber')!=r['blockNumber']
+                                for log in r['logs']):valid=False;break
+                        by_tx[tx]=r
+                    valid=valid and set(by_tx)==set(transactions) and len(json.dumps(rows).encode())<=maximum
+                except (KeyError,ValueError,TypeError,AttributeError):valid=False
+            if not valid:
+                self.receipt_acquisition_counts['completeness_fallbacks']+=1;continue
+            # Return provisional required bodies. Publication into the existing
+            # immutable store follows the consumer's full native ABI checks.
+            for tx in required:selected[(tx,bh)]=by_tx[tx]
+            self.receipt_acquisition_counts['selected_block_receipts']+=1
+            self.receipt_acquisition_counts['individual_receipt_elements_avoided']+=len(required)
+        return selected
 
     def factory_token_hint(self,curve):
         # Only a request-shaping hint. Current token(), current factory record,
@@ -408,6 +470,7 @@ class SelectiveEvidenceContext:
             completed_sessions=list(self.completed_sessions),
             current_session=current,
             cache=self.cache.telemetry(),view_batch=dict(self.view_batch_state),
+            receipt_acquisition=dict(self.receipt_acquisition_counts),
         )
 
 

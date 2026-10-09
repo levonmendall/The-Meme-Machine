@@ -1,0 +1,58 @@
+{
+  "branch": "engineering/proven-efficiency-phase1-20261009",
+  "head": "50732ef1c8ae0b8ea1de63d3e337872a1ff00000",
+  "parent_preserved": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+  "priority_update": "Pons dense receipt integration then durable reuse and Pump known-slot repair; no provider/infrastructure/service changes",
+  "pro_artifacts_status": "not located in accessible local files at priority update; location requested; not inspected",
+  "prs": [
+    {
+      "base": "743dcd9df2902941d3f3d6e4204d15f7469bba79",
+      "draft": true,
+      "head": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "merged": false,
+      "number": 124,
+      "state": "open"
+    },
+    {
+      "base": "cc5f45a0e04a86198a424681e2fbe125d29c2fef",
+      "draft": true,
+      "head": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "merged": false,
+      "number": 125,
+      "state": "closed"
+    },
+    {
+      "base": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "draft": true,
+      "head": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "merged": false,
+      "number": 126,
+      "state": "open"
+    },
+    {
+      "base": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "draft": true,
+      "head": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "merged": false,
+      "number": 127,
+      "state": "open"
+    },
+    {
+      "base": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "draft": false,
+      "head": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "merged": false,
+      "number": 128,
+      "state": "open"
+    }
+  ],
+  "recorded_at": "2026-10-09T18:23:46.243932+00:00",
+  "unpublished_files": [
+    "?? engineering/proven_efficiency/",
+    "?? operational/proven-efficiency-phase1/BENCHMARK.json",
+    "?? operational/proven-efficiency-phase1/COST_ATTRIBUTION.json",
+    "?? operational/proven-efficiency-phase1/COST_INPUT.json",
+    "?? operational/proven-efficiency-phase1/COST_MODEL.json",
+    "?? operational/proven-efficiency-phase1/SAFETY.json"
+  ]
+}
