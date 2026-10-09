@@ -694,12 +694,30 @@ class Runtime:
         if shadow is not None and shadow.enabled:
             try:
                 if action['action']=='hold' and q is not None and p['status']=='open':
+                    from .held_paper_shadow import protective_margin_bps
+                    from meme_machine.runtime.survivor_commit import restore_risk
+                    risk=restore_risk(self.book,row['position'])
+                    policy=risk_policy()
+                    margin=protective_margin_bps(
+                        current=observation['after_cost_return_bps'],
+                        high=risk.get('high_water_bps'),
+                        stop=policy['hard_stop_bps'],
+                        first_profit=policy['first_profit_bps'],
+                        trail_bps=policy['trail_bps'],
+                        tight_arm=policy['tight_arm_bps'],
+                        tight_trail_bps=policy['tight_trail_bps'],
+                        partial_taken=risk.get('realization_taken',False))
+                    if (risk.get('deterioration_streak',0)>0 or
+                            risk.get('last_action',{}).get('action')!='hold' or
+                            not row.get('position_safety',{}).get('evidence_current')):
+                        margin=0
                     shadow.observe_after_hold(
                         rpc=self.rpc,pool_id=row['graduation']['transition']['market'],
                         quantity=p['tokens'],quote_block=q['block'],
                         quote_hash=q['block_hash'],net_proceeds=q['net_proceeds'],
                         position_open=True,no_pending_exit=True,
-                        no_pending_partial=True,owner_protected=True)
+                        no_pending_partial=True,owner_protected=True,
+                        risk_distance_bps=margin)
                 else:
                     shadow.last.pop(row['graduation']['transition']['market'].lower(),None)
             except Exception:
