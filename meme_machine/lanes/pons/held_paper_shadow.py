@@ -64,6 +64,8 @@ class QuoteSnapshot:
     block: int
     block_hash: str
     net_proceeds: int
+    gross_amount_out: int
+    gas_quote: int
     observed_monotonic: float
 
 
@@ -98,7 +100,8 @@ class PaperHeldShadow:
     def observe_after_hold(self,*,rpc,pool_id,quantity,quote_block,quote_hash,
                            net_proceeds,position_open=True,no_pending_exit=True,
                            no_pending_partial=True,owner_protected=True,
-                           risk_distance_bps=0):
+                           risk_distance_bps=0,gross_amount_out=None,
+                           gas_quote=None):
         """Observe AFTER baseline quote, native risk decision and hold mark.
 
         Never call this method before an original safety decision or while an
@@ -117,8 +120,15 @@ class PaperHeldShadow:
             self.counts['unusable_native_quote_no_work']+=1
             self.last.pop(pool_id,None)
             return None
+        gross=(net_proceeds if gross_amount_out is None else gross_amount_out)
+        gas=(0 if gas_quote is None else gas_quote)
+        if (type(gross) is not int or type(gas) is not int or
+                gross<net_proceeds or gas<0):
+            self.counts['invalid_native_quote_shape_no_work']+=1
+            self.last.pop(pool_id,None)
+            return None
         snapshot=QuoteSnapshot(str(pool_id).lower(),quantity,quote_block,
-                               quote_hash.lower(),net_proceeds,self.clock())
+                               quote_hash.lower(),net_proceeds,gross,gas,self.clock())
         prior=self.last.get(snapshot.pool_id)
         self.last[snapshot.pool_id]=snapshot
         self.counts['baseline_native_hold_turns']+=1
@@ -169,11 +179,18 @@ class PaperHeldShadow:
                 self.counts['observed_price_or_fee_mutations']+=1
             elif proof.window is not None:
                 self.counts['complete_empty_event_intervals']+=1
-                if prior.net_proceeds!=snapshot.net_proceeds:
+                if prior.gross_amount_out!=snapshot.gross_amount_out:
+                    self.counts['silent_native_simulation_output_differences']+=1
                     self.counts['silent_net_quote_differences']+=1
                     self.unsafe=True
                 else:
-                    self.counts['counterfactual_unchanged_net_quote']+=1
+                    self.counts['counterfactual_unchanged_native_output']+=1
+                    if prior.net_proceeds!=snapshot.net_proceeds:
+                        # Gas pricing can move without a Swap. An optimized
+                        # quote scheduler would still need a fresh gas check.
+                        self.counts['gas_only_net_quote_differences']+=1
+                    else:
+                        self.counts['counterfactual_unchanged_net_quote']+=1
                     # The following assumes independent semantic certification
                     # for a future candidate; the runtime has none today.
                     from dataclasses import replace
@@ -193,7 +210,9 @@ class PaperHeldShadow:
                         now_monotonic=self.clock(),
                         risk_distance_bps=risk_distance_bps)
                     if planned.decision=='QUIET_HOLD_ONLY':
-                        self.counts['hypothetical_quote_omissions']+=1
+                        self.counts['hypothetical_native_simulation_omissions']+=1
+                        if prior.net_proceeds==snapshot.net_proceeds:
+                            self.counts['hypothetical_quote_omissions']+=1
             else:
                 self.counts['incomplete_proof']+=1
             # The native proof deliberately refuses executable quote skipping
@@ -202,7 +221,9 @@ class PaperHeldShadow:
                 pool_id=snapshot.pool_id,
                 from_block=prior.block,to_block=snapshot.block,
                 manager_hook_events=len(proof.events),
+                unchanged_native_output=prior.gross_amount_out==snapshot.gross_amount_out,
                 unchanged_net_quote=prior.net_proceeds==snapshot.net_proceeds,
+                gas_price_change_observed=prior.gas_quote!=snapshot.gas_quote,
                 logged_scope_elements=proof.scoped_elements+proof.global_elements,
                 original_exit_completed_before_shadow=True,
                 quote_skipped=False,
