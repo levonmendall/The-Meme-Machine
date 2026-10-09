@@ -161,19 +161,25 @@ class Sessions:
 
     def record_holder_probe(self,mint,snapshot,value):
         """Passive Current scan stability metrics: never skip an RPC or mark."""
+        try:
+            slot=int(snapshot['slot'])
+            concentration=int(value)
+        except (KeyError,TypeError,ValueError,OverflowError):
+            # Diagnostics have no authority to block existing protective work.
+            return
         prior=self._last_holder_observations.get(mint)
         audit=self.holder_probe_audit
         audit['monitor_samples']+=1
         if prior is None:
             audit['first_samples']+=1
-        elif int(value)==prior['concentration_bps']:
+        elif concentration==prior['concentration_bps']:
             audit['unchanged']+=1
         else:
             audit['changed']+=1
         if mint not in self._last_holder_observations and len(self._last_holder_observations)>=64:
             self._last_holder_observations.pop(next(iter(self._last_holder_observations)))
         self._last_holder_observations[mint]=dict(
-            concentration_bps=int(value),slot=int(snapshot['slot']))
+            concentration_bps=concentration,slot=slot)
 
     def holder_probe_status(self):
         result=dict(self.holder_probe_audit)
