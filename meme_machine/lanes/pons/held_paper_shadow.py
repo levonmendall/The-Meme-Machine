@@ -160,15 +160,17 @@ class PaperHeldShadow:
             if prior_deadline is not None:
                 deadline=min(deadline,float(prior_deadline))
             rpc.evidence_deadline=deadline
-            proof=NativeHeldCoverage(
-                rpc,self.endpoint,clock=self.clock,maximum_blocks=MAX_BLOCK_GAP
-            ).observe(
-                pool_id=snapshot.pool_id,
-                quote_head=dict(number=hex(prior.block),hash=prior.block_hash),
-                current_head=dict(number=hex(snapshot.block),hash=snapshot.block_hash),
-                token_behavior_proven=False,
-                hook_time_invariant_proven=False,
-                gas_and_fee_bound_valid=False)
+            from .provider_admission import optional_paper_shadow_work
+            with optional_paper_shadow_work():
+                proof=NativeHeldCoverage(
+                    rpc,self.endpoint,clock=self.clock,maximum_blocks=MAX_BLOCK_GAP
+                ).observe(
+                    pool_id=snapshot.pool_id,
+                    quote_head=dict(number=hex(prior.block),hash=prior.block_hash),
+                    current_head=dict(number=hex(snapshot.block),hash=snapshot.block_hash),
+                    token_behavior_proven=False,
+                    hook_time_invariant_proven=False,
+                    gas_and_fee_bound_valid=False)
             self.counts['diagnostic_log_elements']+=(
                 proof.scoped_elements+proof.global_elements)
             # Two numeric canonical boundaries, before and after acquisition;
