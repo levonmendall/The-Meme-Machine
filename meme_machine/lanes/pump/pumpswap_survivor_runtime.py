@@ -165,13 +165,17 @@ class Runtime:
     def fresh_state(self,candidate,priority=1,*,maintenance=False):
         self._provider(priority);self.current=self.history.get(candidate)
         if maintenance:
-            handoff=self.adapter.held_graduation_handoff(candidate,self.now(),priority=True)
+            # Fully fresh curve AND economic quote from one coherent batch.
+            # Creator/Mayhem/fee identity is never reused from another tick.
+            state=self.adapter.pumpswap_snapshot(
+                candidate,self.now(),priority=True,
+                reuse_verified_pool=True,held_curve_inline=True)
         else:
             raw=self.adapter.graduation_snapshot(candidate,self.now(),priority=True)
             handoff=graduation_handoff(raw,self.now())
-        state=self.adapter.pumpswap_snapshot(handoff,self.now(),priority=True,
-            additional_accounts=() if maintenance else (SOL_USD_ACCOUNT,),
-            reuse_verified_pool=maintenance)
+            state=self.adapter.pumpswap_snapshot(
+                handoff,self.now(),priority=True,
+                additional_accounts=(SOL_USD_ACCOUNT,))
         if state['pool']!=self.current['graduation']['pool']:raise ValueError('survivor_pool_drift')
         return state
 
