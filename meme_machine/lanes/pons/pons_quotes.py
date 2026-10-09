@@ -36,9 +36,12 @@ def canonical_boundary(rpc,header,scope):
 
 class PinnedV4Reads:
     """One current header and one bounded state/cost/membership batch."""
-    def __init__(self,rpc,key,side,amount):
+    def __init__(self,rpc,key,side,amount,*,fresh_head=None):
         self.rpc=rpc;self.key=key;self.side=side;self.amount=amount;self.header=None;self.cache=None
         self.identity_snapshot=None
+        self.fresh_head=fresh_head
+        self.used_shared_head=False
+        self.shared_head_at=None
 
     def _identity_key(self):
         # Identical state at ONE authenticated canonical block is immutable.
@@ -51,7 +54,27 @@ class PinnedV4Reads:
 
     def call(self,method,params,*,scope):
         if method=='eth_getBlockByNumber' and params[0]=='latest':
-            self.header=self.rpc.call(method,params,scope=scope)
+            # A Current monitoring turn already purchased this authoritative
+            # head. Reuse only within the original five-second quote window;
+            # canonical numeric membership is still checked after the quote.
+            candidate=self.fresh_head
+            valid=False
+            if (isinstance(candidate,tuple) and len(candidate)==2
+                    and isinstance(candidate[0],dict)):
+                head,at=candidate
+                try:
+                    age=time.monotonic()-float(at)
+                    valid=(0<=age<=3 and isinstance(head.get('number'),str)
+                        and isinstance(head.get('hash'),str)
+                        and isinstance(head.get('timestamp'),str)
+                        and isinstance(head.get('parentHash'),str))
+                except (TypeError,ValueError,OverflowError):valid=False
+            if valid:
+                self.header=dict(candidate[0])
+                self.used_shared_head=True
+                self.shared_head_at=float(candidate[1])
+            else:
+                self.header=self.rpc.call(method,params,scope=scope)
             return self.header
         if self.header is None:raise BoundaryError('pons_v4_quote_header_missing')
         if self.cache is None:
@@ -84,13 +107,25 @@ class PinnedV4Reads:
         return self.cache.pop(identity)
 
 
-def v4_quote(rpc,key,pool_id,amount,gas_units,store,label,*,side='sell',local_freshness=False):
+def v4_quote(rpc,key,pool_id,amount,gas_units,store,label,*,side='sell',
+             local_freshness=False,fresh_head=None):
     started=time.monotonic()
-    reads=PinnedV4Reads(rpc,key,side,amount)
+    reads=PinnedV4Reads(rpc,key,side,amount,fresh_head=fresh_head)
     try:
-        with quote_deadline(rpc,started):
+        # If a previous authenticated head is selected, it does NOT gain
+        # another five seconds of freshness just because the quote began now.
+        effective=started
+        if (isinstance(fresh_head,tuple) and len(fresh_head)==2
+                and isinstance(fresh_head[1],(int,float))
+                and 0<=started-fresh_head[1]<=3):
+            effective=min(started,float(fresh_head[1]))
+        with quote_deadline(rpc,effective):
             result=native_v4_quote(reads,key,pool_id,amount,gas_units,store,label,
                 side=side,local_freshness=local_freshness)
+        if (reads.used_shared_head and
+                (reads.shared_head_at is None or
+                 not 0<=time.monotonic()-reads.shared_head_at<=5)):
+            raise BoundaryError('pons_v4_shared_head_quote_stale')
         # Publish only after native code, manager, output and freshness checks.
         # One bounded pair on the existing RPC owner; no quote, gas, economic
         # state, new database or cross-block identity is retained here.
