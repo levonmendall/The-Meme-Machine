@@ -11,6 +11,7 @@ import sqlite3
 import time
 import uuid
 from contextvars import ContextVar
+from contextlib import contextmanager
 from functools import wraps
 from . import BoundaryError
 
@@ -53,6 +54,26 @@ def decision_work(priority_class):
             finally:_decision_priority.reset(token)
         return wrapped
     return decorate
+
+
+@contextmanager
+def optional_paper_shadow_work():
+    """Observe held pools only with spare non-position provider priority.
+
+    Never inherit the native position controller's priority zero. Funding-
+    closed / POSITION_ONLY protection refuses all optional shadow requests.
+    Errors and exhaustion are diagnostics, never reasons to delay native exits.
+    """
+    from meme_machine.operational.position_continuation import position_only
+    if position_only():
+        raise BoundaryError('bootstrap_optional_work_closed')
+    position_token=_position_work.set(False)
+    decision_token=_decision_priority.set(30)
+    try:
+        yield
+    finally:
+        _decision_priority.reset(decision_token)
+        _position_work.reset(position_token)
 
 
 def next_ticket(db,endpoint,now,interval):

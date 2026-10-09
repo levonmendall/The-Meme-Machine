@@ -32,11 +32,35 @@ def identities():
     return {lane:dict(source_sha=sources[lane],policy_hash=policies[lane],config_hash=config) for lane in LANES}
 
 
+def pons_held_shadow_settings(environ):
+    """Nonsecret optional PAPER diagnostic flags; never quote-skip authority."""
+    enabled=environ.get('MM_PONS_HELD_PAPER_SHADOW','0')
+    if enabled not in ('0','1'):
+        raise ValueError('invalid_pons_held_paper_shadow')
+    values={'MM_PONS_HELD_PAPER_SHADOW':enabled}
+    if enabled=='1':
+        for name,default,minimum,maximum in (
+            ('MM_PONS_HELD_SHADOW_MAX_SAMPLES',8,1,32),
+            ('MM_PONS_HELD_SHADOW_EVERY_TICKS',10,1,300),
+        ):
+            raw=environ.get(name,str(default))
+            try: number=int(raw)
+            except (ValueError,TypeError):
+                raise ValueError('invalid_'+name.lower()) from None
+            if not minimum<=number<=maximum:
+                raise ValueError('invalid_'+name.lower())
+            values[name]=str(number)
+    return values
+
+
 def validate_environment(*,offline=False,environ=None):
     env=os.environ if environ is None else environ
     if env.get('MM_MODE','PAPER')!='PAPER':raise ValueError('PAPER_only_service')
     if any(env.get(key) for key in ('WALLET_PRIVATE_KEY','SOLANA_PRIVATE_KEY','ETH_PRIVATE_KEY','MM_LIVE_TRADING')):
         raise ValueError('PAPER_service_rejects_wallet_or_live_configuration')
+    if env.get('MM_PUMP_HELD_RPC_MODE','baseline') not in ('baseline','optimized'):
+        raise ValueError('invalid_pump_held_rpc_mode')
+    pons_held_shadow_settings(env)
     if sys.version_info[:3]!=(3,12,14):raise RuntimeError('CPython_3.12.14_required')
     if sqlite3.sqlite_version_info<(3,45,1):raise RuntimeError('SQLite_3.45.1_or_tested_successor_required')
     if not offline:
@@ -167,6 +191,22 @@ class Supervisor:
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
+        if lane=='pump':
+            # Explicit opt-in to a reversible PAPER test; other strategy workers
+            # cannot inherit Pump's held-quote optimization switch.
+            held_mode=os.environ.get('MM_PUMP_HELD_RPC_MODE','baseline')
+            if held_mode not in ('baseline','optimized'):
+                raise ValueError('invalid_pump_held_rpc_mode')
+            env['MM_PUMP_HELD_RPC_MODE']=held_mode
+        if lane=='pons':
+            # The supervisor drops unallowlisted parent variables. Explicitly
+            # forward ONLY capped PAPER diagnostic settings to Pons workers.
+            shadow=pons_held_shadow_settings(os.environ)
+            if (shadow['MM_PONS_HELD_PAPER_SHADOW']=='1'
+                    and not self.offline and
+                    getattr(self,'provider_budget',None) is None):
+                raise ValueError('pons_shadow_requires_existing_finite_provider_budget')
+            env.update(shadow)
         if getattr(self,'provider_budget',None):env['MM_BOUNDED_PROVIDER_DB']=str(self.provider_budget.path)
         if solana:
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
