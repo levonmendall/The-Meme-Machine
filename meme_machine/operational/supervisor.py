@@ -167,6 +167,13 @@ class Supervisor:
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
+        if lane=='pump':
+            # Explicit opt-in to a reversible PAPER test; other strategy workers
+            # cannot inherit Pump's held-quote optimization switch.
+            held_mode=os.environ.get('MM_PUMP_HELD_RPC_MODE','baseline')
+            if held_mode not in ('baseline','optimized'):
+                raise ValueError('invalid_pump_held_rpc_mode')
+            env['MM_PUMP_HELD_RPC_MODE']=held_mode
         if getattr(self,'provider_budget',None):env['MM_BOUNDED_PROVIDER_DB']=str(self.provider_budget.path)
         if solana:
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
