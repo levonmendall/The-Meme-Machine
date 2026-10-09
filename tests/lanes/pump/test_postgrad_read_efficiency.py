@@ -207,10 +207,12 @@ class PumpHeldReadEfficiency(unittest.TestCase):
                 return dict(context=dict(slot=1001), value=[object(), object(), object()])
             return original_call(method, params, priority)
         rpc.call = active_curve_call
-        with patch.object(pump, 'curve', return_value=object()), \\
-             patch.object(pump, 'mint_info', return_value=(10**12, 6)), \\
-             patch.object(pump, 'validate_mint_supply', return_value={'mayhem': False}), \\
-             patch.object(pump, 'fees', return_value=[20, 5, 50]):
+        with (
+            patch.object(pump, 'curve', return_value=object()),
+            patch.object(pump, 'mint_info', return_value=(10**12, 6)),
+            patch.object(pump, 'validate_mint_supply', return_value={'mayhem': False}),
+            patch.object(pump, 'fees', return_value=[20, 5, 50]),
+        ):
             adapter.finalized_market_time = lambda slot: 100 if slot == 1001 else None
             before = rpc.counts('getBlockTime')
             snap = adapter.snapshot(MINT, 101, priority=True)
