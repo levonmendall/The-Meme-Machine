@@ -74,6 +74,7 @@ def build():
             classification='previous deterministic native captured-lineage fixture; not measured provider invoice or worst case')
     return dict(schema='whole-system-alchemy-cost-v1',market_provider_calls=0,
         baseline_pons_72h=quiet,pons_72h_breakdown=breakdown,
+        concurrent_pump_provider_evidence=json.loads((ROOT/'operational/continuation-resources/CONCURRENT_PROVIDER_EVIDENCE.json').read_text()),
         deployed_additional_savings_usd='0',
         newly_implemented=dict(exact_block_identity_pair=dict(
             reads='quoter code and poolManager() only, keyed by authenticated credential fingerprint, exact block number/hash and quoter',

@@ -68,6 +68,69 @@
     "rpc_only_modeled_usd": "16.873920000",
     "turns": 86400
   },
+  "concurrent_pump_provider_evidence": {
+    "authenticated_app_window_reported_usage": {
+      "exclusive_experiment_attribution": false,
+      "final_data_through": "2026-10-08 19:12 UTC",
+      "http_cu": 50,
+      "invoice_delta_established": false,
+      "websocket_cu": "6901.7638",
+      "yellowstone_decimal_tb": "0.0000353903"
+    },
+    "baseline_classification": "Prior assumed marketwide WS rates with scouts/control/account RPC; not held-position baseline or production bill. Do not add overlapping HTTP twice.",
+    "earlier_blocked_report_commit": "49b84c16616233e893bcf4162c0dd9c0610be48b",
+    "executor_commit": "91ad8b608da357049c8c02e783fc41904634a535",
+    "inherited_marketwide_pump_ws_scenario_usd_30d": {
+      "busy": "200.82",
+      "normal": "29.24",
+      "quiet": "2.86",
+      "stress": "1360.23"
+    },
+    "integrated_executor": false,
+    "native_billing_unit": "Yellowstone TB is separate from CU; application governor remains its existing conservative byte contract",
+    "native_transaction_payloads": {
+      "N": 4,
+      "all_below_requested_floor": true,
+      "bytes": [
+        6688,
+        6688,
+        9717,
+        14898
+      ],
+      "mean_bytes": 9497.75,
+      "steady_held_forecast_supported": false
+    },
+    "new_provider_calls": 0,
+    "production_sources_unchanged": true,
+    "read_only_git_evidence": true,
+    "recommendation": "Retain existing WS; no economic/completeness advantage demonstrated. Prior run authorization consumed.",
+    "result": {
+      "bounded_shutdown_seconds": 0.2784531650831923,
+      "candidate_state_and_deadline_parity": "NOT_ESTABLISHED",
+      "complete_common_intervals": 0,
+      "peak_rss_bytes": 89300992,
+      "position_safety": "UNSAMPLED_NO_POSITION_WORK",
+      "received_application_bytes": {
+        "cancellation": 8090482,
+        "http": 167,
+        "streaming": 28815919,
+        "total_application": 28816086,
+        "websocket": 28742236,
+        "yellowstone": 73683
+      },
+      "replacement_path_activated": false,
+      "status": "INCONCLUSIVE",
+      "verified_provider_savings_bytes": null,
+      "verified_savings_credited_bytes": 0,
+      "wall_seconds": 46.37405045994092
+    },
+    "schema": "concurrent-provider-evidence-reference-v1",
+    "source_commit": "3a212e09a8e5005d2f372969565fe57b77a61d81",
+    "source_paths_sha256": {
+      "operational/pump-alchemy-admission-first-validation/REPORT.md": "d0055ff74a3dc6427bcbef5c9c4093c74efd08430c168374b279a182f38f18bb",
+      "operational/pump-alchemy-admission-first-validation/RESULT.json": "8962fda7a0d0080f62126448a398b7e764f11f7eb9b6517142611f1cbd234f99"
+    }
+  },
   "cost_interpretation": {
     "arbitrary_cost_targets_are_acceptance_gates": false,
     "classification": "method-specific floors within unchanged acquisition contract, not universal theoretical minima",

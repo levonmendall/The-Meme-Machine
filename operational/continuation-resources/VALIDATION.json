@@ -1,18 +1,19 @@
 {
   "base_commit": "20f8398abb738c85160aa36c9a8c36c1feedb287",
-  "checked_at": "2026-10-09T01:19:40.051101+00:00",
+  "checked_at": "2026-10-09T01:23:04.290448+00:00",
+  "concurrent_provider_calls_executed_by_this_task": 0,
   "excluded_superseded_green_development_logs": [
     "operational/continuation-resources/validation/whole-system-cost-pre-priority.log",
     "operational/continuation-resources/validation/whole-system-before-terminal-model.log"
   ],
-  "executed_passed_in_selected_green_runs": 553,
+  "executed_passed_in_selected_green_runs": 578,
   "failed": 0,
   "limitations": [
     "Accelerated native components, not an actual funded production lifecycle or billed provider proof.",
     "Repeated and renamed development tests are excluded from the unique final count."
   ],
   "market_provider_calls": 0,
-  "new_focused_tests": 47,
+  "new_focused_tests": 59,
   "no_broad_suite": true,
   "phase_one_published_commit": "5370a633101620ab87c302546a87212334c400ec",
   "phase_one_source_sha256": {
@@ -58,6 +59,8 @@
       "scratch": "/tmp/mm-engineering-c8oq7c2v"
     }
   ],
+  "research_integration": "8d0450be",
+  "research_publication": "789f512ec3cd7c53772a2e6a1bb633dd06ffedab",
   "retained_interrupted_proof": {
     "log": "../resource-storage-proof.log",
     "preserved": true,
@@ -706,13 +709,88 @@
         "tests.lanes.pons.test_pons_execution_acquisition.ExecutionAcquisitionTests.test_stale_entry_cancels_native_reservation_and_releases_cohort_once",
         "tests.lanes.pons.test_pons_execution_acquisition.MonitorReceiptReuseRegression.test_overlapping_monitor_windows_share_only_hash_bound_receipts"
       ]
+    },
+    {
+      "additional_current_test_ids": [
+        "tests.test_extended_survivor_hold_research.NativeRestartTests.test_shared_native_book_partial_restart_pending_exit_and_reconciliation_all_horizons",
+        "tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_resource_usage_restart_does_not_reset_or_expand_for_a_research_horizon",
+        "tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_unchanged_supervisor_deadline_faults_instead_of_granting_14_day_speculation",
+        "tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary",
+        "tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_partial_exit_quantity_and_pending_fault_never_use_an_old_full_size_quote",
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_all_horizons_and_winner_strata_report_missing_outcomes_not_zero_returns",
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_no_production_policy_service_or_allowance_changes",
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_resource_projection_no_cache_discount_or_enlarged_authority",
+        "tests.test_extended_survivor_hold_research.RetentionTests.test_actual_sqlite_dense_hot_window_boundaries_through_14_days_keep_gaps_incomplete",
+        "tests.test_extended_survivor_hold_research.RiskHorizonTests.test_accelerated_native_risk_cadence_through_each_hypothetical_horizon",
+        "tests.test_extended_survivor_hold_research.RiskHorizonTests.test_original_right_tail_hard_and_structural_exits_preempt_hypothetical_extension",
+        "tests.test_extended_survivor_hold_research.RiskHorizonTests.test_unchanged_72_hour_exit_wins_for_every_horizon_and_appreciation_stratum"
+      ],
+      "executed_passed": 12,
+      "failed": 0,
+      "log": "operational/extended-survivor-hold/validation/offline-research-final.log",
+      "reproduce_command": "python -m operational.tests FAST --cases tests.test_extended_survivor_hold_research.NativeRestartTests.test_shared_native_book_partial_restart_pending_exit_and_reconciliation_all_horizons tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_resource_usage_restart_does_not_reset_or_expand_for_a_research_horizon tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_unchanged_supervisor_deadline_faults_instead_of_granting_14_day_speculation tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_partial_exit_quantity_and_pending_fault_never_use_an_old_full_size_quote tests.test_extended_survivor_hold_research.ResearchModelTests.test_all_horizons_and_winner_strata_report_missing_outcomes_not_zero_returns tests.test_extended_survivor_hold_research.ResearchModelTests.test_no_production_policy_service_or_allowance_changes tests.test_extended_survivor_hold_research.ResearchModelTests.test_resource_projection_no_cache_discount_or_enlarged_authority tests.test_extended_survivor_hold_research.RetentionTests.test_actual_sqlite_dense_hot_window_boundaries_through_14_days_keep_gaps_incomplete tests.test_extended_survivor_hold_research.RiskHorizonTests.test_accelerated_native_risk_cadence_through_each_hypothetical_horizon tests.test_extended_survivor_hold_research.RiskHorizonTests.test_original_right_tail_hard_and_structural_exits_preempt_hypothetical_extension tests.test_extended_survivor_hold_research.RiskHorizonTests.test_unchanged_72_hour_exit_wins_for_every_horizon_and_appreciation_stratum --verbose",
+      "seconds": 62.583,
+      "sha256": "777d520336d495fb8b36745fdbdd9cefd610546eb8d9a42bbd0cde946b022474",
+      "skipped": 0,
+      "test_ids": [
+        "tests.test_extended_survivor_hold_research.NativeRestartTests.test_shared_native_book_partial_restart_pending_exit_and_reconciliation_all_horizons",
+        "tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_resource_usage_restart_does_not_reset_or_expand_for_a_research_horizon",
+        "tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_unchanged_supervisor_deadline_faults_instead_of_granting_14_day_speculation",
+        "tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary",
+        "tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_partial_exit_quantity_and_pending_fault_never_use_an_old_full_size_quote",
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_all_horizons_and_winner_strata_report_missing_outcomes_not_zero_returns",
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_no_production_policy_service_or_allowance_changes",
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_resource_projection_no_cache_discount_or_enlarged_authority",
+        "tests.test_extended_survivor_hold_research.RetentionTests.test_actual_sqlite_dense_hot_window_boundaries_through_14_days_keep_gaps_incomplete",
+        "tests.test_extended_survivor_hold_research.RiskHorizonTests.test_accelerated_native_risk_cadence_through_each_hypothetical_horizon",
+        "tests.test_extended_survivor_hold_research.RiskHorizonTests.test_original_right_tail_hard_and_structural_exits_preempt_hypothetical_extension",
+        "tests.test_extended_survivor_hold_research.RiskHorizonTests.test_unchanged_72_hour_exit_wins_for_every_horizon_and_appreciation_stratum"
+      ]
+    },
+    {
+      "additional_current_test_ids": [],
+      "executed_passed": 7,
+      "failed": 0,
+      "log": "operational/continuation-resources/validation/research-integrated-boundaries.log",
+      "reproduce_command": "python -m operational.tests FAST --cases tests.test_extended_survivor_hold_research.ResearchModelTests.test_all_horizons_and_winner_strata_report_missing_outcomes_not_zero_returns tests.test_extended_survivor_hold_research.ResearchModelTests.test_no_production_policy_service_or_allowance_changes tests.test_extended_survivor_hold_research.ResearchModelTests.test_resource_projection_no_cache_discount_or_enlarged_authority tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_resource_usage_restart_does_not_reset_or_expand_for_a_research_horizon tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_unchanged_supervisor_deadline_faults_instead_of_granting_14_day_speculation tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_partial_exit_quantity_and_pending_fault_never_use_an_old_full_size_quote --verbose",
+      "seconds": 0.358,
+      "sha256": "6e8debdea386c1fc656d5c44669fec2096dc9f5dc838674f59e08daba2888634",
+      "skipped": 0,
+      "test_ids": [
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_all_horizons_and_winner_strata_report_missing_outcomes_not_zero_returns",
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_no_production_policy_service_or_allowance_changes",
+        "tests.test_extended_survivor_hold_research.ResearchModelTests.test_resource_projection_no_cache_discount_or_enlarged_authority",
+        "tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_resource_usage_restart_does_not_reset_or_expand_for_a_research_horizon",
+        "tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_unchanged_supervisor_deadline_faults_instead_of_granting_14_day_speculation",
+        "tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary",
+        "tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_partial_exit_quantity_and_pending_fault_never_use_an_old_full_size_quote"
+      ]
+    },
+    {
+      "additional_current_test_ids": [],
+      "executed_passed": 6,
+      "failed": 0,
+      "log": "operational/continuation-resources/validation/concurrent-evidence-model.log",
+      "reproduce_command": "python -m operational.tests FAST --cases tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_advancing_head_high_volatility_receives_no_identity_discount tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_current_survivor_partial_quotes_share_only_exact_block_identity tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_eip1898_existing_reuse_is_not_counted_as_new_savings tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_reorg_provider_identity_restart_or_failure_never_borrow_old_facts tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_total_costs_and_capacity_constraints_remain_explicit_without_arbitrary_targets tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_unknown_chain_or_provider_identity_and_memory_cap_keep_original_reads --verbose",
+      "seconds": 0.602,
+      "sha256": "7098b021ea823f8a11f760ba542a26ffb82f44c9c916d8ff592a7eceda944dfd",
+      "skipped": 0,
+      "test_ids": [
+        "tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_advancing_head_high_volatility_receives_no_identity_discount",
+        "tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_current_survivor_partial_quotes_share_only_exact_block_identity",
+        "tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_eip1898_existing_reuse_is_not_counted_as_new_savings",
+        "tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_reorg_provider_identity_restart_or_failure_never_borrow_old_facts",
+        "tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_total_costs_and_capacity_constraints_remain_explicit_without_arbitrary_targets",
+        "tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_unknown_chain_or_provider_identity_and_memory_cap_keep_original_reads"
+      ]
     }
   ],
   "schema": "continuation-resource-offline-validation-v3",
   "skipped": 0,
   "source_sha256": {
     "engineering/continuation_resources/model.py": "9147cdc1ab97a0ccce8492cb5d41a2ae3ad22972d0298bb064fefc699d3061b0",
-    "engineering/continuation_resources/whole_system.py": "0dd75ac7d12cdc70bdd3f91d0f2eab16676de64e1eadaf24b1288e2871b7d370",
+    "engineering/continuation_resources/whole_system.py": "50828d44e4aa9f41aad9315452ce2602ecb2649445dc99db6d1add08dba80720",
+    "engineering/extended_survivor_hold/research.py": "5a69e13c9876515b8310ebce6b49752ca6a5d5e1b017f6fc1664db362b1ff0fc",
     "meme_machine/lanes/pons/evidence.py": "841db7b20c4e563527f30fb8090dabe20ee906c12aa2d6699e3346206e89680e",
     "meme_machine/lanes/pons/pons_current_history.py": "8308809518e5f98ca7a635b3dd61e82b7c6fdf3f96a730aacdb3105a3b49f331",
     "meme_machine/lanes/pons/pons_natural_paper.py": "ec5b217c2fdf8a51937de138dc567f69c5bfc93f14ab1d933162923ac9abae41",
@@ -726,8 +804,9 @@
     "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": "dada292f7d246dd74636dc5e161dfed6420a4c75758ae99f527bfca22b24fbe1",
     "meme_machine/lanes/pump/runner.py": "78fb3e5cf7b6d8f99a4867b7dd0018a02d14d62b39db95bb96fa40b8ab881b6f",
     "meme_machine/runtime/storage.py": "ce2b1d38b8470b908d8f24550aca8c5cad9b3c6b06870a7c97629c4b1b333d02",
-    "operational/tests.py": "d670014eb94ec96ac7a444878d808824a10c9fb3d7dd1866957a550960e4fdd3",
-    "tests/test_continuation_resource_efficiency.py": "f589db451a624a7eaa27609ed2962b5fec8c4254cce018f468230fafd18e6184"
+    "operational/tests.py": "cbc23bf22ca323f4ba99a8d666c2016e6acb82391b0964bda1eda3538d63234c",
+    "tests/test_continuation_resource_efficiency.py": "f589db451a624a7eaa27609ed2962b5fec8c4254cce018f468230fafd18e6184",
+    "tests/test_extended_survivor_hold_research.py": "c77da3abe3561151d01b93d9ba5e2464e1a31220cd8ffcccdd60605073ce7ea9"
   },
-  "unique_passed": 472
+  "unique_passed": 484
 }

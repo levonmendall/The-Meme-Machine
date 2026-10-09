@@ -1,0 +1,13 @@
+STORAGE WARNING: root 75.3% used; 11.72 GiB available; nonessential bulk operations block at 85.0%.
+test_advancing_head_high_volatility_receives_no_identity_discount (tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_advancing_head_high_volatility_receives_no_identity_discount) ... ok
+test_current_survivor_partial_quotes_share_only_exact_block_identity (tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_current_survivor_partial_quotes_share_only_exact_block_identity) ... WHOLE_COST_TRACE {"case": "new_numeric_exact_block_identity_pair", "before": {"elements": 12, "physical": 4, "methods": {"eth_getBlockByNumber": 4, "eth_getCode": 2, "eth_call": 4, "eth_gasPrice": 2}, "rpc_cu": 264, "response_json_value_bytes": 97194}, "after": {"elements": 10, "physical": 4, "methods": {"eth_getBlockByNumber": 4, "eth_getCode": 1, "eth_call": 3, "eth_gasPrice": 2}, "rpc_cu": 218, "response_json_value_bytes": 49122}, "identical_quotes_and_mutable_gas": true, "synthetic_code_payload_bytes": 48002, "added_services": 0, "provider_calls": 0}
+ok
+test_eip1898_existing_reuse_is_not_counted_as_new_savings (tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_eip1898_existing_reuse_is_not_counted_as_new_savings) ... ok
+test_reorg_provider_identity_restart_or_failure_never_borrow_old_facts (tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_reorg_provider_identity_restart_or_failure_never_borrow_old_facts) ... ok
+test_total_costs_and_capacity_constraints_remain_explicit_without_arbitrary_targets (tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_total_costs_and_capacity_constraints_remain_explicit_without_arbitrary_targets) ... ok
+test_unknown_chain_or_provider_identity_and_memory_cap_keep_original_reads (tests.test_continuation_resource_efficiency.WholeSystemCostTests.test_unknown_chain_or_provider_identity_and_memory_cap_keep_original_reads) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.602s
+
+OK
