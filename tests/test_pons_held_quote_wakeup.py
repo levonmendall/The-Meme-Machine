@@ -170,5 +170,56 @@ class SurvivorQuoteHeadReuseTests(unittest.TestCase):
             self.assertEqual(self.runtime._position_head(self.row,q)['hash'],HASH)
 
 
+class CurrentV4HeadReuseTests(unittest.TestCase):
+    def setUp(self):
+        from meme_machine.lanes.pons import pons_quotes
+        self.mod=pons_quotes
+        self.header=dict(number=hex(10),hash=HASH,parentHash=HEAD_HASH,
+                         timestamp=hex(123))
+        class RPC:
+            def __init__(self,head):
+                self.head=head
+                self.calls=[]
+                self.evidence_deadline=None
+                self.v4_identity_snapshot=None
+            def call(self,method,params,*,scope):
+                self.calls.append((method,params,scope))
+                return dict(self.head)
+        self.rpc=RPC(self.header)
+
+    def test_same_turn_current_head_avoids_repeated_latest(self):
+        at=time.monotonic()-1
+        reads=self.mod.PinnedV4Reads(self.rpc,None,'sell',100,
+                                     fresh_head=(self.header,at))
+        self.assertEqual(reads.call('eth_getBlockByNumber',
+                                   ['latest',False],scope='offline'),self.header)
+        self.assertEqual(self.rpc.calls,[])
+        self.assertTrue(reads.used_shared_head)
+
+    def test_stale_or_bad_shared_head_falls_back_to_authoritative_read(self):
+        for candidate in ((self.header,time.monotonic()-10),
+                          (dict(number=hex(10),hash=HASH),time.monotonic())):
+            with self.subTest(candidate=candidate):
+                reads=self.mod.PinnedV4Reads(self.rpc,None,'sell',100,
+                                             fresh_head=candidate)
+                self.assertEqual(reads.call('eth_getBlockByNumber',
+                                            ['latest',False],scope='offline'),self.header)
+                self.assertFalse(reads.used_shared_head)
+        self.assertEqual(len(self.rpc.calls),2)
+
+    def test_quote_transport_rejects_shared_head_if_full_work_overruns_age(self):
+        def native(reads,*args,**kwargs):
+            reads.call('eth_getBlockByNumber',['latest',False],scope='offline')
+            # Simulates slow code/simulation/gas access after reuse.
+            reads.shared_head_at=time.monotonic()-6
+            return dict(placeholder=True)
+        with patch.object(self.mod,'native_v4_quote',side_effect=native):
+            with self.assertRaisesRegex(Exception,'pons_v4_shared_head_quote_stale'):
+                self.mod.v4_quote(self.rpc,None,'0xmarket',100,100,None,
+                                  'test',local_freshness=True,
+                                  fresh_head=(self.header,time.monotonic()-1))
+        self.assertEqual(self.rpc.calls,[])
+
+
 if __name__ == '__main__':
     unittest.main()
