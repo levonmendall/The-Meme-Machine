@@ -9,7 +9,8 @@ import unittest
 from unittest.mock import patch
 
 from meme_machine.runtime.directional_continuation import (
-    BRIDGE_GATES,reference_return,scale_budget,scale_necessary_budget)
+    BRIDGE_GATES,reference_return,scale_budget)
+from meme_machine.runtime.scaling_necessary_conditions import scale_necessary_budget
 from meme_machine.runtime.sleeve_reservations import SleeveReservations
 from meme_machine.runtime.survivor_paper_book import PaperBook
 from meme_machine.runtime.survivor_commit import scale,restore_risk

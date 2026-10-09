@@ -237,7 +237,8 @@ def exceptional_evidence_failure(runtime,*,family,blocker,rows=None):
 @attributed_work('scaling_requalification')
 def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_limit,stress_limit,minimum):
     """Fresh native requalification and one incremental economic event."""
-    from .directional_continuation import scale_budget,scale_necessary_budget,native_sync,BRIDGE_GATES
+    from .directional_continuation import scale_budget,native_sync,BRIDGE_GATES
+    from .scaling_necessary_conditions import scale_necessary_budget
     native_sync(book,sleeve,identity)
     from meme_machine.operational.position_continuation import position_only,addition_rejection
     if position_only():
