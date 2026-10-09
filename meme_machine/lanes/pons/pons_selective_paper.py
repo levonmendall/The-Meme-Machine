@@ -1182,6 +1182,8 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                                 quantity=position['tokens'],quote_block=int(meta['block']),
                                 quote_hash=meta['block_hash'],
                                 net_proceeds=max(0,mark.amount_out-mark.gas_quote),
+                                gross_amount_out=mark.amount_out,
+                                gas_quote=mark.gas_quote,
                                 position_open=True,
                                 no_pending_exit=state.pending_action is None,
                                 no_pending_partial=True,owner_protected=True,
