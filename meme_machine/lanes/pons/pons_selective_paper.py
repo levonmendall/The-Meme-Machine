@@ -542,6 +542,8 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
         source_transaction=evaluation["source_transaction"],
         provider_sessions=[],monitor=[],started_at=time.time(),
     )
+    from .held_paper_shadow import PaperHeldShadow
+    held_shadow=PaperHeldShadow(endpoint)
     store=None;rpc=None;capital_guard=None;identity=None
     def observe_commit(paper,position):
         if state is not None:state.acknowledge(position)
@@ -1159,6 +1161,23 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 if action['action']=='hold':
                     _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units,store,
                         facts,position,demand=activity)
+                # Optional read-only PAPER trial AFTER authoritative risk,
+                # native mark, all exit intents, and existing scale admission.
+                if held_shadow.enabled:
+                    try:
+                        if action['action']=='hold' and position['status']=='open':
+                            held_shadow.observe_after_hold(
+                                rpc=rpc,pool_id=position['market'],
+                                quantity=position['tokens'],quote_block=int(meta['block']),
+                                quote_hash=meta['block_hash'],
+                                net_proceeds=max(0,mark.amount_out-mark.gas_quote),
+                                position_open=True,
+                                no_pending_exit=state.pending_action is None,
+                                no_pending_partial=True,owner_protected=True)
+                        else:
+                            held_shadow.last.pop(position['market'].lower(),None)
+                    except Exception:
+                        held_shadow.counts['isolated_unexpected_probe_error']+=1
                 state.recovery_streak=0
             except BoundaryError as exc:
                 state.bridge_probe_failed=True
@@ -1268,6 +1287,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 try:store.close()
                 except Exception:pass
             result["ended_at"]=time.time()
+            result["held_paper_shadow"]=held_shadow.status()
 
 
 def _continuation_facts(position,mark,meta,candidate,rbps,*,demand,soft_streak,action):
