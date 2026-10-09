@@ -16,6 +16,27 @@ from tests.test_pons_dense_v4_receipts import fixture,ENDPOINT
 
 
 class DurableReceiptTests(unittest.TestCase):
+    def test_source_generation_rebinds_long_lived_native_context_and_missing_artifact_refuses(self):
+        from meme_machine.lanes.pons import pons
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        with tempfile.TemporaryDirectory() as td:
+            template=Path(td)/'template.json';template.write_bytes(pons.TEMPLATE.read_bytes())
+            plane=Plane(Path(td)/'plane.sqlite')
+            runtime=Runtime.__new__(Runtime);runtime.plane=plane;runtime.endpoint=ENDPOINT
+            try:
+                with patch.object(pons,'TEMPLATE',template):
+                    first=runtime._position_context()
+                    first.cache.remember_receipt('tx','bh',dict(transactionHash='tx',blockHash='bh',logs=[]))
+                    self.assertIs(runtime._position_context(),first)
+                    template.write_text(template.read_text()+' ')
+                    second=runtime._position_context()
+                    self.assertIsNot(first,second)
+                    self.assertNotEqual(first.cache.domain,second.cache.domain)
+                    self.assertIsNone(second.cache.receipt('tx','bh'))
+                    template.unlink()
+                    with self.assertRaises((OSError,ValueError)):runtime._position_context()
+            finally:plane.close()
+
     def test_optional_retention_does_not_wait_on_a_busy_writer_or_change_native_timeout(self):
         with tempfile.TemporaryDirectory() as td:
             plane=Plane(Path(td)/'plane.sqlite');other=sqlite3.connect(plane.path,isolation_level=None)

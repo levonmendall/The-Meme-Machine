@@ -49,10 +49,10 @@ class ScoutCase(unittest.TestCase):
             MM_DIRECTIONAL_COHORT_ID='scout-offline'),clear=True))
         self.tape=ObservationTape();self.tape.top=self.tape.grad
         self.clock=lambda:int(self.tape.header(self.tape.top)['timestamp'],16)
-        self.broker=Broker(self.root/'plane.sqlite',CURRENT_HASH,clock=self.clock,source='https://offline.invalid')
+        self.broker=Broker(self.root/'plane.sqlite',CURRENT_HASH,clock=self.clock,source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_SCOUT')
         self.addCleanup(self.broker.close)
         self.scout=MarketScout(self.broker.plane)
-        self.runtime=Runtime(self.root/'survivor',10**18,'scout-offline','https://offline.invalid',
+        self.runtime=Runtime(self.root/'survivor',10**18,'scout-offline','https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_SCOUT',
             scout_path=self.broker.plane.path)
         self.runtime.rpc=self.tape;self.runtime.deployments_verified=True;self.runtime.now=self.clock
         self.addCleanup(lambda:self.runtime.close())
@@ -150,7 +150,7 @@ class ScoutCase(unittest.TestCase):
         self.assertEqual(self.runtime.history.get(token)['block'],before['block'])
         self.assertFalse(self.runtime.candidate_readiness(token,through_block=self.tape.top)['ready'])
         self.runtime.close()
-        self.runtime=Runtime(self.root/'survivor',10**18,'scout-offline','https://offline.invalid',
+        self.runtime=Runtime(self.root/'survivor',10**18,'scout-offline','https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_SCOUT',
             scout_path=self.broker.plane.path)
         self.runtime.rpc=self.tape;self.runtime.deployments_verified=True;self.runtime.now=self.clock
         def collect(endpoint,*,markets,start_block,end_block,**kwargs):

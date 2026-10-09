@@ -374,11 +374,13 @@ class Runtime:
         if hasattr(context.cache,'acknowledge_receipts'):context.cache.acknowledge_receipts()
 
     def _position_context(self):
+        from meme_machine.runtime.robinhood.pons import durable_cache,shared_evidence_domain
+        domain=shared_evidence_domain(self.endpoint) if getattr(self,'plane',None) else None
         context=getattr(self,'position_evidence_context',None)
-        if context is None:
+        if context is None or domain is not None and getattr(context.cache,'domain',None)!=domain:
+            if context is not None:context.cache.invalidate_canonical_aliases()
             from .pons_selective_acquisition import SelectiveEvidenceContext
-            from meme_machine.runtime.robinhood.pons import durable_cache,shared_evidence_domain
-            cache=durable_cache(self.plane,shared_evidence_domain(self.endpoint)) if getattr(self,'plane',None) else None
+            cache=durable_cache(self.plane,domain) if domain is not None else None
             context=SelectiveEvidenceContext(self.endpoint,cache=cache)
             self.position_evidence_context=context
         return context

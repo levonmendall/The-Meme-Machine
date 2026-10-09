@@ -264,10 +264,12 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
         if block<old['block']:raise BoundaryError('pons_current_history_frontier_regression')
     cutoff=max(0,at-seconds)
     complete=old is not None and old['from_time']<=cutoff<=old['through']
+    from meme_machine.runtime.robinhood.pons import durable_cache,shared_evidence_domain
+    domain=shared_evidence_domain(endpoint)
     context=getattr(history,'v4_evidence_context',None)
-    if context is None:
-        from meme_machine.runtime.robinhood.pons import durable_cache,shared_evidence_domain
-        context=SelectiveEvidenceContext(endpoint,cache=durable_cache(history.plane,shared_evidence_domain(endpoint)))
+    if context is None or getattr(context.cache,'domain',None)!=domain:
+        if context is not None:context.cache.invalidate_canonical_aliases()
+        context=SelectiveEvidenceContext(endpoint,cache=durable_cache(history.plane,domain))
         history.v4_evidence_context=context
     from meme_machine.runtime.journal import digest
     if hasattr(context.cache,'begin_receipts'):

@@ -9,12 +9,13 @@ import os
 import sqlite3
 from pathlib import Path
 import time
+from functools import lru_cache
 from .plane import Plane, canonical, digest, plane_path
 
 
 def interpretation(policy):
     from meme_machine.lanes.pons import CHAIN_ID
-    from meme_machine.lanes.pons.identity import load
+    from meme_machine.lanes.pons.identity import metadata as load
     from meme_machine.lanes.pons.pons import TEMPLATE
     return dict(schema=1,chain=CHAIN_ID,policy=policy,
         factory=load('pons_v2_factory')['address'].lower(),
@@ -360,10 +361,29 @@ class Broker:
     def close(self):self.plane.close()
 
 
+@lru_cache(maxsize=16)
+def _shared_source_digest(signatures):
+    from meme_machine.runtime.source_artifacts import fingerprint
+    hashes=[]
+    for path,stamp in signatures:
+        body=Path(path).read_bytes()
+        if fingerprint(Path(path))!=stamp:raise ValueError('shared_source_generation_changed_during_read')
+        hashes.append(hashlib.sha256(body).hexdigest())
+    return digest(hashes)
+
+
 def shared_evidence_domain(endpoint):
     """Provider and interpretation generation; independent of strategy cursors."""
     from meme_machine.lanes.pons.provider_admission import fingerprint
-    return 'pons:shared:'+fingerprint(endpoint)+':'+digest(interpretation(None))
+    from meme_machine.runtime.source_artifacts import fingerprint as file_identity
+    from meme_machine.lanes.pons.identity import ROOT,metadata
+    from meme_machine.lanes.pons.pons import TEMPLATE,curve_abi
+    roles=('pons_v2_factory','pons_deployer','pons_v2_hook','uniswap_v4_manager')
+    for role in roles:metadata(role)
+    curve_abi() # Validate and process source-watch invalidations before cache use.
+    paths=[Path(__file__),TEMPLATE]+[ROOT/(r+'.json') for r in roles]
+    signatures=tuple((str(p),file_identity(p)) for p in paths)
+    return 'pons:shared:'+fingerprint(endpoint)+':'+_shared_source_digest(signatures)
 
 
 def durable_cache(plane,domain):
