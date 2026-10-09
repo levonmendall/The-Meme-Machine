@@ -555,7 +555,7 @@ class Runtime:
         from .evidence import Store
         grad=self.current['graduation'];key=PoolKey(**grad['key'])
         cache=getattr(self,'position_exit_quotes',None)
-        prepared=getattr(self,'shared_held_quotes',{}).pop(self.current['id'],None)
+        prepared=getattr(self,'shared_held_quotes',{}).pop(self.current.get('id'),None)
         if prepared is not None:
             p=self.book._load(self.current['position']);q=prepared['quote'];meta=prepared['meta']
             if (digest(p)==prepared['position_hash'] and p['tokens']==qty and q.amount_in==qty

@@ -143,7 +143,11 @@ class PonsQuoteTests(unittest.TestCase):
         old=[before.exit_quote(qty),before.exit_quote(qty)];count=self.counts()
         self.rpc.transports=[];after=self.runtime();new=[after.exit_quote(qty),after.exit_quote(qty)]
         self.assertEqual(new,old);self.assertEqual(count['elements'],12)
-        self.assertEqual(self.counts()['elements'],8);self.assertEqual(self.counts()['transports'],3)
+        self.assertEqual(self.counts()['elements'],8);self.assertEqual(self.counts()['transports'],4)
+        # The numeric canonical read must follow the completed state batch.
+        # Its separate transport is required even when an immediate repeat
+        # reuses the same exact-quantity simulation.
+        self.assertEqual(self.rpc.transports[2][1],[('eth_getBlockByNumber',['0x64',False])])
         self.gas=2;self.clock[0]+=1
         updated=after.exit_quote(qty);self.assertEqual(updated['acquired'],100)
         self.assertEqual(updated['gas'],2*new[0]['gas'])
