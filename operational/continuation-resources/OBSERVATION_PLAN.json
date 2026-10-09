@@ -45,7 +45,8 @@
         "serial native Survivor quote/held-flow and Current rolling-window acquisition; never two independent position owners",
         "one exact 40-block vs four ten-block Swap log comparison at the same canonical boundary",
         "Current rolling-window reads for the same pool",
-        "explicit receipt sender completeness and gas/header changes"
+        "explicit receipt sender completeness and gas/header changes",
+        "opportunistic exact-block code/manager reuse and payload sizes; fresh full/partial quantity quotes, gas and canonical fences; no cross-block identity assumption or new provider entitlement"
       ]
     },
     {
@@ -81,7 +82,8 @@
     "queue, CPU, RSS, SDK uncertainty and reconnect tail",
     "verified actual app entitlement for the proposed wider range",
     "recalculate conditional 72-hour ordinary and stress bounds; never infer arbitrary-outage safety",
-    "observed relevant activity sufficient to test the stated scenario; a quiet sample cannot establish busy-market adequacy"
+    "observed relevant activity sufficient to test the stated scenario; a quiet sample cannot establish busy-market adequacy",
+    "separate already-published savings from new exact-block identity hits; report zero discount on advancing heads and no double-counting of verified EIP-1898 reuse"
   ],
   "shutdown_reserve_seconds": 30,
   "state": "fresh admitted temporary state only; no production epoch, native journal, service, funding authority or capability file writes",

@@ -465,6 +465,161 @@ class V4WitnessTests(unittest.TestCase):
         self.assertIsNone(cache.receipt('0x'+f'{0:064x}','block'))
 
 
+class WholeSystemCostTests(unittest.TestCase):
+    """Incremental checks against published 5370a633; not prior savings again."""
+    def setUp(self):
+        from meme_machine.lanes.pons import pons_quotes
+        self.optimized=pons_quotes
+        source=subprocess.check_output(['git','show','5370a633101620ab87c302546a87212334c400ec:meme_machine/lanes/pons/pons_quotes.py'],cwd=ROOT,text=True)
+        self.baseline=ModuleType('published_pons_quotes');self.baseline.__package__='meme_machine.lanes.pons'
+        exec(compile(source,'published_pons_quotes','exec'),self.baseline.__dict__)
+        self.clock=[100.];self.head=100;self.gas=1
+        self.enterContext(patch('time.time',side_effect=lambda:self.clock[0]))
+        self.enterContext(patch('time.monotonic',side_effect=lambda:self.clock[0]))
+
+    def rpc(self):
+        rpc=ExactQuoteRPC();original_value=rpc.value
+        rpc.provider_fingerprint='offline-authenticated-provider';rpc.hash_state_supported=set()
+        rpc.max_response=2_000_000;rpc.recorded=[]
+        def value(method,params):
+            if method=='eth_getBlockByNumber':
+                n=self.head if params[0]=='latest' else int(params[0],16)
+                result=dict(number=hex(n),hash='0x'+f'{n:064x}',parentHash='0x'+f'{n-1:064x}',timestamp=hex(int(self.clock[0])))
+                if rpc.fork and params[0]!='latest':result['hash']='fork'
+            elif method=='eth_gasPrice':result=hex(self.gas)
+            elif method=='eth_getCode':result='0x'+'6000'*12000
+            else:result=original_value(method,params)
+            rpc.recorded.append((method,params,result));return result
+        rpc.value=value
+        return rpc
+
+    def quote(self,module,rpc,quantity):
+        from meme_machine.lanes.pons.evidence import Store
+        from meme_machine.lanes.pons.protocols import PoolKey
+        key=PoolKey(**graduation(1)['key'])
+        store=Store(':memory:')
+        try:
+            q,meta,ledger=module.v4_quote(rpc,key,graduation(1)['transition']['market'],quantity,
+                200000,store,'offline-same-block-identity',local_freshness=True)
+            q.check(int(self.clock[0]),q.market,'sell',quantity,q.stamp.kind,finality_ledger=ledger)
+            from dataclasses import asdict
+            return asdict(q),meta
+        finally:store.close()
+
+    def metrics(self,rpc):
+        from engineering.solana_capacity.proof_limits import PUBLISHED
+        methods=Counter(m for m,_,_ in rpc.recorded)
+        return dict(elements=sum(methods.values()),physical=len(rpc.transports),methods=dict(methods),
+            rpc_cu=sum(PUBLISHED['robinhood'][m]*n for m,n in methods.items()),
+            response_json_value_bytes=sum(len(json.dumps(v,separators=(',',':')).encode()) for _,_,v in rpc.recorded))
+
+    def test_current_survivor_partial_quotes_share_only_exact_block_identity(self):
+        before=self.rpc();after=self.rpc();old=[];new=[]
+        for i,qty in enumerate((10**18,10**18//4)):
+            self.gas=i+1
+            old.append(self.quote(self.baseline,before,qty));new.append(self.quote(self.optimized,after,qty))
+        self.assertEqual(old,new)
+        b,a=self.metrics(before),self.metrics(after)
+        self.assertEqual((b['elements'],a['elements']),(12,10))
+        self.assertEqual((b['rpc_cu'],a['rpc_cu']),(264,218))
+        self.assertEqual((b['physical'],a['physical']),(4,4))
+        self.assertEqual(a['methods']['eth_gasPrice'],2)
+        self.assertEqual(a['methods']['eth_getBlockByNumber'],4)
+        self.assertEqual(a['methods']['eth_call'],3) # manager once; both executable quantities fresh
+        self.assertGreater(b['response_json_value_bytes']-a['response_json_value_bytes'],48000)
+        from meme_machine.lanes.pump.pumpswap_survivor import POLICY as pump_policy
+        from meme_machine.lanes.pons.pons_postgrad_survivor import risk_policy
+        old_risk=original('meme_machine/runtime/survivor_risk.py')
+        for policy in (pump_policy['exits'],risk_policy()):
+            from meme_machine.runtime.survivor_risk import mark
+            old_state=dict(opened_at=0,original_quantity=400,remaining_quantity=400,realization_taken=False,high_water_bps=0)
+            new_state=deepcopy(old_state)
+            for i,(oldquote,newquote) in enumerate(zip(old,new)):
+                def observation(quote):
+                    q=quote[0];net=q['amount_out']-q['gas_quote'];basis=q['amount_in']//200
+                    return dict(id=str(i),at=100+i,after_cost_return_bps=(net-basis)*10000//basis,
+                        net_exit_proceeds=net,exit_liquidity_valid=True)
+                old_state,old_action=old_risk.mark(old_state,observation(oldquote),policy)
+                new_state,new_action=mark(new_state,observation(newquote),policy)
+                self.assertEqual((old_state,old_action),(new_state,new_action))
+                self.assertEqual(old_action['action'],'partial_exit' if i==0 else 'hold')
+                if old_action['action']=='partial_exit':
+                    for risk in (old_state,new_state):risk.update(realization_taken=True,remaining_quantity=300)
+        print('WHOLE_COST_TRACE',json.dumps(dict(case='new_numeric_exact_block_identity_pair',before=b,after=a,
+            identical_quotes_and_mutable_gas=True,synthetic_code_payload_bytes=48002,
+            added_services=0,provider_calls=0)),flush=True)
+
+    def test_advancing_head_high_volatility_receives_no_identity_discount(self):
+        before=self.rpc();after=self.rpc()
+        for turn in range(40):
+            self.clock[0]=100+turn*3;self.head=100+turn*30;self.gas=1+turn%3
+            self.assertEqual(self.quote(self.baseline,before,10**18),self.quote(self.optimized,after,10**18))
+        self.assertEqual(self.metrics(before),self.metrics(after))
+        self.assertEqual(self.metrics(after)['methods']['eth_getCode'],40)
+
+    def test_reorg_provider_identity_restart_or_failure_never_borrow_old_facts(self):
+        rpc=self.rpc();self.quote(self.optimized,rpc,10**18)
+        rpc.fork=True
+        with self.assertRaisesRegex(BoundaryError,'canonical_membership_disagreement'):
+            self.quote(self.optimized,rpc,10**18//4)
+        self.assertIsNone(rpc.v4_identity_snapshot)
+        rpc.fork=False;self.quote(self.optimized,rpc,10**18)
+        count=self.metrics(rpc)['methods']['eth_getCode']
+        rpc.provider_fingerprint='different-offline-provider'
+        self.quote(self.optimized,rpc,10**18)
+        self.assertEqual(self.metrics(rpc)['methods']['eth_getCode'],count+1)
+        reopened=self.rpc();self.quote(self.optimized,reopened,10**18)
+        self.assertEqual(self.metrics(reopened)['methods']['eth_getCode'],1)
+        rpc.value=lambda *a:(_ for _ in ()).throw(BoundaryError('provider_transport_failure'))
+        with self.assertRaises(BoundaryError):self.quote(self.optimized,rpc,10**18)
+        self.assertIsNone(rpc.v4_identity_snapshot)
+
+    def test_unknown_chain_or_provider_identity_and_memory_cap_keep_original_reads(self):
+        for change in (dict(chain_verified=False),dict(provider_fingerprint=None),dict(max_response=64)):
+            rpc=self.rpc()
+            for key,value in change.items():setattr(rpc,key,value)
+            self.quote(self.optimized,rpc,10**18);self.quote(self.optimized,rpc,10**18//4)
+            self.assertEqual(self.metrics(rpc)['methods']['eth_getCode'],2)
+            self.assertIsNone(getattr(rpc,'v4_identity_snapshot',None))
+
+    def test_eip1898_existing_reuse_is_not_counted_as_new_savings(self):
+        from meme_machine.lanes.pons.provider_topology import PacedRpc
+        from meme_machine.lanes.pons.immutable_rpc import EvidenceStore,Reuse
+        results=[]
+        for module in (self.baseline,self.optimized):
+            fixture=self.rpc();seen=[];store=EvidenceStore()
+            rpc=PacedRpc('https://unit.invalid',role='test',requests_per_second=2,
+                transport=lambda m,p:(seen.append(m) or fixture.value(m,p)))
+            rpc.provider_fingerprint='offline-authenticated-provider';rpc.chain_verified=True
+            rpc.hash_state_supported={'eth_getCode','eth_call'}
+            rpc.evidence_reuse=Reuse('https://unit.invalid',store,'pons')
+            try:
+                first=self.quote(module,rpc,10**18);second=self.quote(module,rpc,10**18)
+                results.append((first,second,Counter(seen)))
+            finally:store.db.close()
+        self.assertEqual(results[0],results[1])
+        self.assertEqual(results[0][-1]['eth_getCode'],1)
+        self.assertEqual(sum(results[0][-1].values()),9) # six cold + fresh head/gas/membership
+
+    def test_total_costs_and_capacity_constraints_remain_explicit_without_arbitrary_targets(self):
+        from engineering.continuation_resources.whole_system import build
+        model=build();parts=model['pons_72h_breakdown']
+        from decimal import Decimal
+        self.assertEqual(sum(Decimal(v['rpc_only_usd_72h']) for v in parts.values()),Decimal('16.87392'))
+        costs=model['cost_interpretation']
+        self.assertFalse(costs['arbitrary_cost_targets_are_acceptance_gates'])
+        self.assertEqual(Decimal(costs['single_fresh_simulation_alone_usd_72h']),Decimal('1.17936'))
+        self.assertEqual(Decimal(costs['full_current_quiet_rpc_usd_72h']),Decimal('16.87392'))
+        self.assertTrue(costs['simulation_component_is_not_total_cost'])
+        self.assertNotIn('ambitious_targets',model)
+        self.assertFalse(model['actual_bill_reduction_proven'])
+        self.assertTrue(model['existing_conditional_wider_logs']['logical_element_limit_still_exceeded'])
+        self.assertEqual(model['newly_implemented']['exact_block_identity_pair']['all_86400_heads_advancing_incremental_savings_cu'],0)
+        for row in model['whole_machine_occupancy_scenarios']:
+            self.assertIsNone(row['complete_total_usd_24h']);self.assertIsNone(row['complete_total_usd_30d'])
+            self.assertFalse(row['fits_local_two_rps'])
+
+
 class EnvelopeModelTests(unittest.TestCase):
     def test_quote_only_demand_cannot_fit_old_element_envelope_and_never_enlarges_it(self):
         from engineering.continuation_resources.model import build

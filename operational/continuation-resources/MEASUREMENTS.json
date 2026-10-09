@@ -297,6 +297,41 @@
         "sqlite_bytes": 28672,
         "sqlite_record_capacity": 10000
       }
+    },
+    {
+      "log": "operational/continuation-resources/validation/whole-system-final.log",
+      "marker": "WHOLE_COST_TRACE",
+      "value": {
+        "added_services": 0,
+        "after": {
+          "elements": 10,
+          "methods": {
+            "eth_call": 3,
+            "eth_gasPrice": 2,
+            "eth_getBlockByNumber": 4,
+            "eth_getCode": 1
+          },
+          "physical": 4,
+          "response_json_value_bytes": 49122,
+          "rpc_cu": 218
+        },
+        "before": {
+          "elements": 12,
+          "methods": {
+            "eth_call": 4,
+            "eth_gasPrice": 2,
+            "eth_getBlockByNumber": 4,
+            "eth_getCode": 2
+          },
+          "physical": 4,
+          "response_json_value_bytes": 97194,
+          "rpc_cu": 264
+        },
+        "case": "new_numeric_exact_block_identity_pair",
+        "identical_quotes_and_mutable_gas": true,
+        "provider_calls": 0,
+        "synthetic_code_payload_bytes": 48002
+      }
     }
   ]
 }
