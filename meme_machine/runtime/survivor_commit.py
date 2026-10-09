@@ -205,7 +205,7 @@ def exceptional_evidence_failure(runtime,*,family,blocker,rows=None):
 
 def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_limit,stress_limit,minimum):
     """Fresh native requalification and one incremental economic event."""
-    from .directional_continuation import scale_budget,native_sync,BRIDGE_GATES
+    from .directional_continuation import scale_budget,scale_necessary_budget,native_sync,BRIDGE_GATES
     native_sync(book,sleeve,identity)
     from meme_machine.operational.position_continuation import position_only,addition_rejection
     if position_only():
@@ -214,9 +214,17 @@ def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_l
     if (p['status']!='open' or risk.get('scale_committed') or not risk.get('realization_taken')
             or risk.get('first_tail_crossed_at') is None or now-risk['first_tail_crossed_at']<900
             or risk.get('last_action',{}).get('action')!='hold'):return None
-    target=min(sleeve.sizing_basis(250)['allocatable_target'],risk['original_basis']//2)
+    sizing=sleeve.sizing_basis(250)
+    target=min(sizing['allocatable_target'],risk['original_basis']//2)
     if target<minimum:return None
-    state=adapter.fresh_state(candidate);quotes=adapter.fresh_quotes(state,target)
+    if scale_necessary_budget(risk,now=now,sizing=sizing)<minimum:return None
+    state=adapter.fresh_state(candidate)
+    # Only an adapter's exact local calculation on this fresh native snapshot
+    # may reject on price. No old mark, quote, fee or observation is consulted.
+    local_return=getattr(adapter,'necessary_scale_return',lambda *args:None)(state,p,risk)
+    if local_return is not None and scale_necessary_budget(risk,now=adapter.now(),
+            sizing=sleeve.sizing_basis(250),after_cost_return_bps=local_return)<minimum:return None
+    quotes=adapter.fresh_quotes(state,target)
     facts=adapter.reconstruct(state,quotes);decision=qualify(facts)
     if decision.get('candidate') is not True:return None
     if not breadth_retained(adapter.current['decision']['features']['independent_buyers'],
