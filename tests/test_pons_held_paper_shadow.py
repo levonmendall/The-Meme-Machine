@@ -252,6 +252,26 @@ class ShadowIntegrationTests(TestCase):
         self.assertEqual(shadow.counts['coverage_failures'],1)
         self.assertFalse(shadow.status()['exit_authority'])
 
+    def test_optional_shadow_uses_lower_priority_and_respects_position_only(self):
+        from meme_machine.lanes.pons.provider_admission import (
+            position_work,priority,optional_paper_shadow_work)
+        @position_work
+        def check():
+            self.assertEqual(priority('pons_held_event_coverage'),0)
+            with patch('meme_machine.operational.position_continuation.position_only',
+                       return_value=False):
+                with optional_paper_shadow_work():
+                    self.assertEqual(priority('pons_held_event_coverage'),30)
+            self.assertEqual(priority('pons_held_event_coverage'),0)
+            with patch('meme_machine.operational.position_continuation.position_only',
+                       return_value=True):
+                with self.assertRaisesRegex(BoundaryError,
+                                            'bootstrap_optional_work_closed'):
+                    with optional_paper_shadow_work():
+                        raise AssertionError('unreachable')
+            self.assertEqual(priority('pons_held_event_coverage'),0)
+        check()
+
     def test_protective_margin_gates_optional_provider_work(self):
         from meme_machine.lanes.pons.held_paper_shadow import protective_margin_bps
         self.assertEqual(protective_margin_bps(
