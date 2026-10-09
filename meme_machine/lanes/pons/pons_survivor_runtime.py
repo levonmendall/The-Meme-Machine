@@ -390,6 +390,9 @@ class Runtime:
         key=PoolKey(**graduation['key'])
         price=price_index(graduation['transition']['initialization_sqrt_price_x96'],row['id'],key)
         self.history.reset_after_reorg(row['id'],canonical_graduation_hash=header['hash'],anchor_price=price)
+        context=getattr(self,'position_evidence_context',None)
+        if context is not None:
+            context.cache.invalidate_canonical_aliases();context.block_reads.clear()
 
     def _append_tape(self,row,end,h,tape):
         at=int(h['timestamp'],16);events=[];points={}

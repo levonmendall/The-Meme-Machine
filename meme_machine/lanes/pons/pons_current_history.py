@@ -45,6 +45,9 @@ class CurrentHistory:
     def invalidate(self,curve,reason):
         """A fork removes observation authority, never native position state."""
         curve=curve.lower()
+        context=getattr(self,'v4_evidence_context',None)
+        if context is not None:
+            context.cache.invalidate_canonical_aliases();context.block_reads.clear()
         with self.plane.transaction():
             old=self.get(curve)
             if old is None:return

@@ -377,6 +377,7 @@ def durable_cache(plane,domain):
             return max((h for h in (memory,durable) if h),key=lambda h:int(h['number'],16),default=None)
         def invalidate_canonical_aliases(self):
             super().invalidate_canonical_aliases()
+            self.receipt_scope=None
             with plane.transaction():
                 kinds=('header_number','launch','real_quote','compiled_create2_curve')
                 plane.db.executemany('DELETE FROM evidence WHERE namespace=?',((domain+':'+kind,) for kind in kinds))
