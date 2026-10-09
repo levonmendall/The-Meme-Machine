@@ -13,6 +13,7 @@ Layout provenance:
 """
 import base64
 import hashlib
+import os
 import struct
 from dataclasses import dataclass
 
@@ -31,6 +32,21 @@ RAYDIUM_MODEL = 'raydium-v4-sol-cp-v1'
 POSTGRAD_ALLOCATION_DISABLED = 'post_graduation_allocation_disabled'
 RAYDIUM_LAYOUT_SIZE = 752
 OPEN_ORDERS_SIZE = 3228
+
+def held_rpc_mode(environ=None):
+    """Opt-in PAPER-only held reads; no live env change within one process.
+
+    Baseline is the original request path. Unknown values fail closed instead
+    of silently enabling or disabling protection. This is an engineering
+    comparison switch, not an additional funding/authorization mechanism.
+    """
+    env = os.environ if environ is None else environ
+    mode = env.get('MM_PUMP_HELD_RPC_MODE', 'baseline')
+    if mode not in ('baseline', 'optimized'):
+        raise ValueError('invalid_pump_held_rpc_mode')
+    if mode == 'optimized' and env.get('MM_MODE', 'PAPER') != 'PAPER':
+        raise ValueError('pump_held_rpc_paper_only')
+    return mode
 
 
 class PoolScanRPC(RPC):
@@ -422,8 +438,26 @@ class PostGraduationAdapter:
             else:
                 self.scan_rpc = PoolScanRPC(rpc.url, limit=scan_limit)
         self.scan_verified = False
+        # Only bounded verified vault *addresses* are cached; graduation
+        # creator, live balances and fee semantics are never cached.
+        self._held_pumpswap_vaults = {}
+        self.held_pumpswap_probe_reuses = 0
+        self.held_finalized_time_reuses = 0
+        self.finalized_market_time = None
 
     def _market_time(self, slot, priority):
+        # Existing authenticated finalized slot receipts can replace RPC for
+        # this exact slot; a missing or invalid local proof uses the original RPC.
+        resolver = self.finalized_market_time
+        if resolver is not None:
+            try:
+                value = resolver(slot)
+                if type(value) is int and 0 < value <= self.rpc.clock():
+                    self.held_finalized_time_reuses += 1
+                    return value
+            except Exception:
+                # A local lookup is an optimization, not exit-price authority.
+                pass
         value = self.rpc.call('getBlockTime', [slot], priority)
         if value is None:
             raise Unavailable('missing_block_time')
@@ -449,21 +483,42 @@ class PostGraduationAdapter:
         graduation_handoff(snapshot, max(now, snapshot['available_time']))
         return snapshot
 
-    def pumpswap_snapshot(self, handoff, now, priority=True, *, additional_accounts=()):
-        pool_key = pumpswap_pool(handoff.mint)
-        probe = self.rpc.call(
-            'getMultipleAccounts',
-            [[pool_key], {'encoding':'base64', 'commitment':'finalized'}],
-            priority,
-        )
-        pool_account = probe['value'][0]
-        if pool_account is None:
-            raise Unavailable('pumpswap_pool_missing')
-        metadata = _decode_pumpswap_pool(pool_key, pool_account, handoff.mint)
+    def pumpswap_snapshot(self, handoff, now, priority=True, *, additional_accounts=(),
+                          reuse_verified_pool=False, held_curve_inline=False):
+        """One coherent finalized curve, vault, pool and fee quote when held.
+
+        A held position supplies the mint, NOT a stale creator handoff. Entry
+        and scale continue to require their original independent handoff.
+        """
+        if held_curve_inline:
+            if type(handoff) is not str or not handoff:
+                raise ValueError('held_pumpswap_mint_required')
+            mint = handoff
+        else:
+            mint = handoff.mint
+        pool_key = pumpswap_pool(mint)
+        known = (self._held_pumpswap_vaults.get(mint)
+                 if reuse_verified_pool else None)
+        probe = None
+        if known is None:
+            probe = self.rpc.call(
+                'getMultipleAccounts',
+                [[pool_key], {'encoding':'base64', 'commitment':'finalized'}],
+                priority,
+            )
+            if len(probe.get('value') or ()) != 1 or probe['value'][0] is None:
+                raise Unavailable('pumpswap_pool_missing')
+            metadata = _decode_pumpswap_pool(pool_key, probe['value'][0], mint)
+            vaults = metadata['base_vault'], metadata['quote_vault']
+        else:
+            vaults = known
         addresses = [
-            pool_key, handoff.mint, metadata['base_vault'], metadata['quote_vault'],
+            pool_key, mint, vaults[0], vaults[1],
             self.fee_address,
         ]
+        if held_curve_inline:
+            curve_key = pump.pda([b'bonding-curve', pump.un58(mint)])
+            addresses.append(curve_key)
         addresses.extend(additional_accounts)
         result = self.rpc.call(
             'getMultipleAccounts',
@@ -473,14 +528,31 @@ class PostGraduationAdapter:
         if len(result.get('value') or []) != len(addresses) or any(x is None for x in result['value']):
             raise Unavailable('pumpswap_accounts_missing')
         pool_account, mint_account, base_vault, quote_vault, fee_account = result['value'][:5]
-        metadata = _decode_pumpswap_pool(pool_key, pool_account, handoff.mint)
+        metadata = _decode_pumpswap_pool(pool_key, pool_account, mint)
+        if (metadata['base_vault'], metadata['quote_vault']) != vaults:
+            # Check both a warm hint and a cold probe-vs-fresh pool change.
+            self._held_pumpswap_vaults.pop(mint, None)
+            raise ValueError('pumpswap_verified_vault_drift')
+        # Re-authenticate the current completed curve/creator at the SAME
+        # finalized slot. Pump's admin CTO may legitimately change creator.
+        slot = int(result['context']['slot'])
+        market_time = self._market_time(slot, priority)
+        if held_curve_inline:
+            curve_snapshot = dict(
+                mint=mint, pool=curve_key, slot=slot,
+                market_time=market_time, available_time=int(self.rpc.clock()),
+                accounts=[result['value'][5], mint_account],
+                protocol='pump.fun', network='solana-mainnet', kind='real',
+            )
+            handoff = graduation_handoff(
+                curve_snapshot, max(now, curve_snapshot['available_time']))
         supply, decimals = pump.mint_info(mint_account)
         if decimals <= 0 or supply <= 0:
             raise ValueError('invalid_postgrad_mint')
         if metadata['mayhem_mode'] != handoff.mayhem_mode:
             raise ValueError('graduation_mode_mismatch')
         base_reserve = _token_account(
-            base_vault, handoff.mint, authority=pool_key, token_program=mint_account['owner'])
+            base_vault, mint, authority=pool_key, token_program=mint_account['owner'])
         raw_quote = _token_account(
             quote_vault, WSOL, authority=pool_key, token_program=pump.TOKEN_PROGRAM)
         effective_quote = raw_quote + int(metadata['virtual_quote_reserves'])
@@ -488,10 +560,17 @@ class PostGraduationAdapter:
             raise ValueError('invalid_pumpswap_reserves')
         market_cap = effective_quote*supply//base_reserve
         rates = _pumpswap_fee_rates(fee_account, market_cap, metadata['coin_creator'])
-        slot = int(result['context']['slot'])
-        market_time = self._market_time(slot, priority)
+        # Successful fresh economic validation is the only admission point.
+        if reuse_verified_pool:
+            if (mint not in self._held_pumpswap_vaults and
+                    len(self._held_pumpswap_vaults) >= 64):
+                self._held_pumpswap_vaults.pop(next(iter(self._held_pumpswap_vaults)))
+            self._held_pumpswap_vaults[mint] = (
+                metadata['base_vault'], metadata['quote_vault'])
+            if known is not None:
+                self.held_pumpswap_probe_reuses += 1
         return dict(
-            mint=handoff.mint, pool=pool_key, creator=handoff.creator,
+            mint=mint, pool=pool_key, creator=handoff.creator,
             surface='pumpswap', protocol='pump.swap', network='solana-mainnet',
             model=PUMPSWAP_MODEL, kind='real', slot=slot, market_time=market_time,
             available_time=int(self.rpc.clock()),
@@ -506,11 +585,12 @@ class PostGraduationAdapter:
             ),
             source=dict(
                 graduation_slot=handoff.source_slot,
-                pool_probe_slot=int(probe['context']['slot']),
+                pool_probe_slot=slot if known is not None else int(probe['context']['slot']),
                 account_slot=slot,
                 fee_address=self.fee_address,
             ),
-            additional_accounts=dict(zip(additional_accounts,result['value'][5:])),
+            additional_accounts=dict(zip(additional_accounts,
+                result['value'][6:] if held_curve_inline else result['value'][5:])),
             accounts=dict(
                 pool=pool_account, mint=mint_account, base_vault=base_vault,
                 quote_vault=quote_vault, fee_config=fee_account,

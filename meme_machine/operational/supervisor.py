@@ -37,6 +37,8 @@ def validate_environment(*,offline=False,environ=None):
     if env.get('MM_MODE','PAPER')!='PAPER':raise ValueError('PAPER_only_service')
     if any(env.get(key) for key in ('WALLET_PRIVATE_KEY','SOLANA_PRIVATE_KEY','ETH_PRIVATE_KEY','MM_LIVE_TRADING')):
         raise ValueError('PAPER_service_rejects_wallet_or_live_configuration')
+    if env.get('MM_PUMP_HELD_RPC_MODE','baseline') not in ('baseline','optimized'):
+        raise ValueError('invalid_pump_held_rpc_mode')
     if sys.version_info[:3]!=(3,12,14):raise RuntimeError('CPython_3.12.14_required')
     if sqlite3.sqlite_version_info<(3,45,1):raise RuntimeError('SQLite_3.45.1_or_tested_successor_required')
     if not offline:
@@ -167,6 +169,13 @@ class Supervisor:
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
+        if lane=='pump':
+            # Explicit opt-in to a reversible PAPER test; other strategy workers
+            # cannot inherit Pump's held-quote optimization switch.
+            held_mode=os.environ.get('MM_PUMP_HELD_RPC_MODE','baseline')
+            if held_mode not in ('baseline','optimized'):
+                raise ValueError('invalid_pump_held_rpc_mode')
+            env['MM_PUMP_HELD_RPC_MODE']=held_mode
         if getattr(self,'provider_budget',None):env['MM_BOUNDED_PROVIDER_DB']=str(self.provider_budget.path)
         if solana:
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),

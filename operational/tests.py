@@ -4,6 +4,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 FAST=[
  'tests.test_exceptional_winner_candidate',
  'tests.test_pons_held_quote_wakeup',
+ 'tests.lanes.pump.test_postgrad_read_efficiency',
  'tests.test_extended_survivor_hold_research',
  'tests.test_continuation_resource_efficiency',
  'tests.test_position_continuation',

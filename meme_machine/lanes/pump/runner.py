@@ -22,6 +22,7 @@ from meme_machine.lanes.pump.concentration import ConcentrationReader
 from meme_machine.lanes.pump.engine import GAS
 from meme_machine.lanes.pump.postgrad import (
     PostGraduationAdapter,buy_quote,graduation_handoff,pumpswap_pool,sell_quote,
+    held_rpc_mode,
 )
 from meme_machine.lanes.pump.provider import PumpAdapter,Unavailable
 from meme_machine.lanes.pump.pump_acceleration_confirmations import ConfirmationBook
@@ -111,6 +112,10 @@ def _save(report):
 class Sessions:
     def __init__(self):
         self.pacer=None;self.history=[];self.plane=None
+        # Diagnostics, not proof that unchanged concentration may be skipped.
+        self.holder_probe_audit=dict(monitor_samples=0,unchanged=0,changed=0,
+                                     first_samples=0)
+        self._last_holder_observations={}
         self.rotate("initial")
 
     def rotate(self,reason):
@@ -121,13 +126,69 @@ class Sessions:
                 retries=self.rpc.retries,
                 provider=self.rpc.provider_telemetry(),
                 concentration=self.reader.status(),
+                holder_scan_shadow=self.holder_probe_status(),
+                held_rpc_counters=dict(
+                    mode=held_rpc_mode(),
+                    pool_probe_reuses=getattr(self.postgrad,
+                        'held_pumpswap_probe_reuses',0),
+                    finalized_time_reuses=getattr(self.postgrad,
+                        'held_finalized_time_reuses',0),
+                    pump_finalized_time_reuses=getattr(self.pump,
+                        'local_finalized_time_reuses',0)),
             )
             self.pacer=self.rpc.read_pacer
         self.rpc=new_rpc(limit=240,pacer=self.pacer)
         self.pump=PumpAdapter(self.rpc)
         self.reader=ConcentrationReader(self.rpc)
         self.postgrad=PostGraduationAdapter(self.rpc,scan_rpc=None)
-        self.history.append(dict(started=int(time.time()),reason=reason))
+        if held_rpc_mode()=='optimized':
+            self.pump.finalized_market_time=self._local_pump_time
+            self.postgrad.finalized_market_time=self._local_pumpswap_time
+        self.history.append(dict(started=int(time.time()),reason=reason,
+                                 held_rpc_mode=held_rpc_mode()))
+
+    def _local_pump_time(self,slot):
+        if self.plane is None:return None
+        self.plane.require_usable(PUMP_SCOPE)
+        if self.plane.frontier(PUMP_SCOPE)<slot:return None
+        return self.plane.block_time(slot)
+
+    def _local_pumpswap_time(self,slot):
+        if self.plane is None:return None
+        self.plane.require_usable(SWAP_SCOPE)
+        if self.plane.frontier(SWAP_SCOPE)<slot:return None
+        return self.plane.block_time(slot)
+
+    def record_holder_probe(self,mint,snapshot,value):
+        """Passive Current scan stability metrics: never skip an RPC or mark."""
+        try:
+            slot=int(snapshot['slot'])
+            concentration=int(value)
+        except (KeyError,TypeError,ValueError,OverflowError):
+            # Diagnostics have no authority to block existing protective work.
+            return
+        prior=self._last_holder_observations.get(mint)
+        audit=self.holder_probe_audit
+        audit['monitor_samples']+=1
+        if prior is None:
+            audit['first_samples']+=1
+        elif concentration==prior['concentration_bps']:
+            audit['unchanged']+=1
+        else:
+            audit['changed']+=1
+        if mint not in self._last_holder_observations and len(self._last_holder_observations)>=64:
+            self._last_holder_observations.pop(next(iter(self._last_holder_observations)))
+        self._last_holder_observations[mint]=dict(
+            concentration_bps=concentration,slot=slot)
+
+    def holder_probe_status(self):
+        result=dict(self.holder_probe_audit)
+        result['candidate_skips_authorized']=0
+        result['provider_reads_eliminated_by_stability_audit']=0
+        reader=getattr(getattr(self,'rpc',None),'postgrad_concentration_reader',None)
+        result['postgrad_provider_reader']=(dict(initialized=False)
+            if reader is None else reader.status())
+        return result
 
     def prepare_reserved(self,row):
         from meme_machine.lanes.pump.pump_evidence_execution import prepare_reserved
@@ -157,6 +218,15 @@ class Sessions:
             retries=self.rpc.retries,
             provider=self.rpc.provider_telemetry(),
             concentration=self.reader.status(),
+            holder_scan_shadow=self.holder_probe_status(),
+            held_rpc_counters=dict(
+                mode=held_rpc_mode(),
+                pool_probe_reuses=getattr(self.postgrad,
+                    'held_pumpswap_probe_reuses',0),
+                finalized_time_reuses=getattr(self.postgrad,
+                    'held_finalized_time_reuses',0),
+                pump_finalized_time_reuses=getattr(self.pump,
+                    'local_finalized_time_reuses',0)),
         )
 
 
@@ -925,9 +995,18 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 state=postgrad.get(mint)
                 if state is None:
                     raise Unavailable("missing_postgrad_state")
-                graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
-                handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
-                snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
+                if held_rpc_mode()=='optimized':
+                    # One fresh same-slot curve and economic quote batch.
+                    snapshot=sessions.postgrad.pumpswap_snapshot(
+                        mint,now,priority=True,
+                        reuse_verified_pool=True,held_curve_inline=True)
+                else:
+                    graduation=sessions.postgrad.graduation_snapshot(
+                        mint,now,priority=True)
+                    handoff=graduation_handoff(
+                        graduation,max(now,int(graduation["available_time"])))
+                    snapshot=sessions.postgrad.pumpswap_snapshot(
+                        handoff,now,priority=True)
                 state["history"].bind_snapshot(snapshot)
                 events=_refresh_pool_events(
                     state,sessions,now,research=False,
@@ -935,6 +1014,7 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 quote=sell_quote(snapshot,life.position.tokens)
                 proceeds=max(0,quote.output_amount-GAS)
                 concentration=_postgrad_concentration(sessions.rpc,snapshot)
+                sessions.record_holder_probe(mint,snapshot,concentration)
                 current,_confirmation=_volume_price_signal(
                     state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
                 cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
@@ -1656,6 +1736,13 @@ def main(*,campaign=False,discovery_seconds=None):
                 report["created_mints_observed"]=len(created)
                 report["full_evidence_attempts"]=full_attempts
                 report["active_provider"]=sessions.rpc.provider_telemetry()
+                report["pump_held_rpc"]=dict(
+                    mode=held_rpc_mode(),
+                    verified_pool_probe_reuses=sessions.postgrad.held_pumpswap_probe_reuses,
+                    finalized_slot_time_reuses=sessions.postgrad.held_finalized_time_reuses,
+                    pump_finalized_time_reuses=sessions.pump.local_finalized_time_reuses,
+                    physical_http_requests=sessions.rpc.http_requests)
+                report["holder_scan_shadow"]=sessions.holder_probe_status()
                 report["evidence_broker"]=broker.telemetry()
                 if CANDIDATE_HISTORY is not None:
                     report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
@@ -1682,6 +1769,13 @@ def main(*,campaign=False,discovery_seconds=None):
         if thread.ident is not None:thread.join(timeout=5)
         sessions.finish()
         report["sessions"]=sessions.history
+        report["pump_held_rpc"]=dict(
+            mode=held_rpc_mode(),
+            verified_pool_probe_reuses=sessions.postgrad.held_pumpswap_probe_reuses,
+            finalized_slot_time_reuses=sessions.postgrad.held_finalized_time_reuses,
+            pump_finalized_time_reuses=sessions.pump.local_finalized_time_reuses,
+            physical_http_requests=sessions.rpc.http_requests)
+        report["holder_scan_shadow"]=sessions.holder_probe_status()
         report["stream"]=tape.status(int(time.time()))
         report["pumpswap_stream"]=pumpswap_stream.status()
         report["evidence_broker"]=broker.telemetry()
