@@ -603,6 +603,33 @@ class Runtime:
         try:return self._manage_position(row,admit=admit)
         finally:self.position_exit_quotes=None
 
+    def _position_head(self, row, quote):
+        """Reuse the fresh authenticated quote head for this history turn.
+
+        The native sell quote has already purchased a numeric canonical
+        membership fence. An immediately repeated `latest` read costs another
+        provider element, can move the history past the price snapshot, and
+        is unnecessary when the quote is still fresh and ahead of the durable
+        history watermark. Invalid/missing/stale quotes keep the original read.
+        This is a history target, NEVER a cross-turn or settlement quote reuse.
+        """
+        if isinstance(quote, dict):
+            number=quote.get('block')
+            block_hash=quote.get('block_hash')
+            acquired=quote.get('acquired')
+            prior=row.get('block')
+            try:
+                age=time.monotonic()-acquired
+                fresh=(isinstance(number,int) and type(number) is int
+                    and isinstance(block_hash,str) and block_hash.startswith('0x')
+                    and isinstance(prior,int) and number>=prior
+                    and 0<=age<=5)
+            except (TypeError,ValueError):fresh=False
+            if fresh and (number!=prior or block_hash==row.get('block_hash',
+                    row.get('graduation',{}).get('block_hash'))):
+                return dict(number=hex(number),hash=block_hash)
+        return _latest_header(self.rpc)
+
     def _manage_position(self,row,*,admit=True):
         from meme_machine.operational.position_continuation import cancel_unfilled
         if cancel_unfilled(self.book,self.sleeve,self.history,row,self.now()):return
@@ -629,7 +656,7 @@ class Runtime:
         q=self.exit_quote(p['tokens']);net=None if q is None else q['net_proceeds']
         events=[];flow=None;header=None
         try:
-            header=_latest_header(self.rpc);end=int(header['number'],16)
+            header=self._position_head(row,q);end=int(header['number'],16)
             self._increment(row,min(end,row['block']+40))
             if end-self.history.get(row['id'])['block']<=1:
                 _,events=self.history.facts(row['id'],self.now())
