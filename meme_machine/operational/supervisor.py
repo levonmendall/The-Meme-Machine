@@ -37,6 +37,8 @@ def validate_environment(*,offline=False,environ=None):
     if env.get('MM_MODE','PAPER')!='PAPER':raise ValueError('PAPER_only_service')
     if any(env.get(key) for key in ('WALLET_PRIVATE_KEY','SOLANA_PRIVATE_KEY','ETH_PRIVATE_KEY','MM_LIVE_TRADING')):
         raise ValueError('PAPER_service_rejects_wallet_or_live_configuration')
+    if env.get('MM_PUMP_HELD_RPC_MODE','baseline') not in ('baseline','optimized'):
+        raise ValueError('invalid_pump_held_rpc_mode')
     if sys.version_info[:3]!=(3,12,14):raise RuntimeError('CPython_3.12.14_required')
     if sqlite3.sqlite_version_info<(3,45,1):raise RuntimeError('SQLite_3.45.1_or_tested_successor_required')
     if not offline:
