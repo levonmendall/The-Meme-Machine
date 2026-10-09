@@ -125,9 +125,23 @@ class Sessions:
             self.pacer=self.rpc.read_pacer
         self.rpc=new_rpc(limit=240,pacer=self.pacer)
         self.pump=PumpAdapter(self.rpc)
+        self.pump.finalized_market_time=self._local_pump_time
         self.reader=ConcentrationReader(self.rpc)
         self.postgrad=PostGraduationAdapter(self.rpc,scan_rpc=None)
+        self.postgrad.finalized_market_time=self._local_pumpswap_time
         self.history.append(dict(started=int(time.time()),reason=reason))
+
+    def _local_pump_time(self,slot):
+        if self.plane is None:return None
+        self.plane.require_usable(PUMP_SCOPE)
+        if self.plane.frontier(PUMP_SCOPE)<slot:return None
+        return self.plane.block_time(slot)
+
+    def _local_pumpswap_time(self,slot):
+        if self.plane is None:return None
+        self.plane.require_usable(SWAP_SCOPE)
+        if self.plane.frontier(SWAP_SCOPE)<slot:return None
+        return self.plane.block_time(slot)
 
     def prepare_reserved(self,row):
         from meme_machine.lanes.pump.pump_evidence_execution import prepare_reserved
@@ -925,9 +939,9 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 state=postgrad.get(mint)
                 if state is None:
                     raise Unavailable("missing_postgrad_state")
-                graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
-                handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
-                snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
+                handoff=sessions.postgrad.held_graduation_handoff(mint,now,priority=True)
+                snapshot=sessions.postgrad.pumpswap_snapshot(
+                    handoff,now,priority=True,reuse_verified_pool=True)
                 state["history"].bind_snapshot(snapshot)
                 events=_refresh_pool_events(
                     state,sessions,now,research=False,
