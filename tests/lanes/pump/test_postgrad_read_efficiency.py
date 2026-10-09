@@ -306,6 +306,27 @@ class PumpRequestParity(unittest.TestCase):
             self.assertEqual(adapter.pumpswap_snapshot.call_args.kwargs.get(
                 'additional_accounts'),(survivor.SOL_USD_ACCOUNT,))
 
+    def test_holder_scan_shadows_cost_but_never_replaces_risk_evidence(self):
+        from types import SimpleNamespace
+        from meme_machine.lanes.pump.runner import Sessions
+        session=object.__new__(Sessions)
+        session.holder_probe_audit=dict(
+            monitor_samples=0,unchanged=0,changed=0,first_samples=0)
+        session._last_holder_observations={}
+        session.rpc=SimpleNamespace()
+        for concentration in (1400,1400,1500):
+            session.record_holder_probe(MINT,{'slot':1001},concentration)
+        # Malformed diagnostics cannot obstruct native price/risk decisions.
+        session.record_holder_probe(MINT,{},None)
+        sample=session.holder_probe_status()
+        self.assertEqual(sample['monitor_samples'],3)
+        self.assertEqual(sample['unchanged'],1)
+        self.assertEqual(sample['changed'],1)
+        self.assertEqual(sample['first_samples'],1)
+        self.assertEqual(sample['candidate_skips_authorized'],0)
+        self.assertEqual(sample['provider_reads_eliminated_by_stability_audit'],0)
+        self.assertFalse(sample['postgrad_provider_reader']['initialized'])
+
 
 if __name__=='__main__':
     unittest.main()
