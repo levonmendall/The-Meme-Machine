@@ -3,6 +3,8 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import tempfile
+import sqlite3
+import time
 import unittest
 from unittest.mock import patch
 
@@ -14,6 +16,24 @@ from tests.test_pons_dense_v4_receipts import fixture,ENDPOINT
 
 
 class DurableReceiptTests(unittest.TestCase):
+    def test_optional_retention_does_not_wait_on_a_busy_writer_or_change_native_timeout(self):
+        with tempfile.TemporaryDirectory() as td:
+            plane=Plane(Path(td)/'plane.sqlite');other=sqlite3.connect(plane.path,isolation_level=None)
+            cache=durable_cache(plane,shared_evidence_domain(ENDPOINT))
+            try:
+                before=plane.db.execute('PRAGMA busy_timeout').fetchone()[0]
+                other.execute('BEGIN IMMEDIATE');started=time.monotonic()
+                cache.begin_receipts('current','pool',digest('cursor'))
+                receipt=dict(transactionHash='tx',blockHash='bh',logs=[])
+                cache.remember_receipt('tx','bh',receipt)
+                self.assertLess(time.monotonic()-started,.1)
+                self.assertEqual(cache.receipt('tx','bh'),receipt)
+                self.assertEqual(plane.db.execute('PRAGMA busy_timeout').fetchone()[0],before)
+                self.assertGreater(cache.counts['durable_busy_fallback'],0)
+                other.execute('ROLLBACK')
+                cache.remember_receipt('tx','bh',receipt);cache.acknowledge_receipts()
+            finally:other.close();plane.close()
+
     def replay(self,plane,domain):
         tape,ctx,options=fixture(dense=False)
         ctx.cache=durable_cache(plane,domain)

@@ -59,6 +59,7 @@ class KnownSlotTests(unittest.TestCase):
         join,keys,_=fixture(count=1);self.assertEqual(join.block_repair_groups(keys,PROFILE,NOW),[])
         join,keys,_=fixture(join_seconds=10);self.assertEqual(join.block_repair_groups(keys,PROFILE,NOW),[])
         join,keys,_=fixture()
+        self.assertEqual(join.block_repair_groups(keys[:2],PROFILE,NOW),[])
         for profile in (None,{},dict(PROFILE,validated=False),dict(PROFILE,throughput_cu=500),
                         dict(PROFILE,max_transactions=7),dict(PROFILE,max_response_bytes=16*1024*1024+1)):
             self.assertEqual(join.block_repair_groups(keys,profile,NOW),[])

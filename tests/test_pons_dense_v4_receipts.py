@@ -27,12 +27,12 @@ def original_v4():
     exec(compile(source,path,'exec'),module.__dict__);return module
 
 
-def fixture(relevant=100,total=100,*,dense=True,failure=None,receipt_sender=True,missing=False,fork=False):
+def fixture(relevant=100,total=100,*,dense=True,failure=None,receipt_sender=True,missing=False,fork=False,seed=0):
     tape=Tape(candidates=1);tape.counts=Counter();tape.per_scope=190
     tape.max_response=2_000_000;tape.timeout=10
     token=tape.tokens[0];record=tape.records[token]
     key=PoolKey('0x'+'00'*20,token,record['poolFee'],record['tickSpacing'],load('pons_v2_hook')['address'].lower())
-    block=tape.grad+1;header=tape.header(block);txs=[checksum(('dense',i)) for i in range(total)]
+    block=tape.grad+1+seed;header=tape.header(block);txs=[checksum(('dense',seed,i)) for i in range(total)]
     tape.logs=[];receipts={}
     for i,tx in enumerate(txs):
         sender=f'0x{i+1:040x}';tape.senders[tx]=sender

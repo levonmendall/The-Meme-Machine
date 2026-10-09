@@ -6,6 +6,7 @@ alone populate rolling strategy inputs. No public value supplies a canonical fie
 import hashlib
 import json
 import os
+import sqlite3
 from pathlib import Path
 import time
 from .plane import Plane, canonical, digest, plane_path
@@ -349,21 +350,41 @@ def durable_cache(plane,domain):
     from meme_machine.lanes.pons.pons_selective_acquisition import ImmutableEvidenceCache
     class Cache(ImmutableEvidenceCache):
         def __init__(self):super().__init__();self.plane=plane;self.domain=domain;self.receipt_scope=None
+        def _optional(self,function,*args):
+            if not domain.startswith('pons:shared:'):return function(*args)
+            # Optional retention never waits behind another consumer or writer.
+            # Native history/position commits retain their original durability.
+            if not plane.lock.acquire(blocking=False):
+                self.counts['durable_busy_fallback']+=1;return None
+            previous=None
+            try:
+                if plane.db.in_transaction:
+                    self.counts['durable_busy_fallback']+=1;return None
+                previous=plane.db.execute('PRAGMA busy_timeout').fetchone()[0]
+                plane.db.execute('PRAGMA busy_timeout=0')
+                return function(*args)
+            except sqlite3.OperationalError as exc:
+                code=getattr(exc,'sqlite_errorcode',0)&255
+                if code not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+                self.counts['durable_busy_fallback']+=1;return None
+            finally:
+                if previous is not None:plane.db.execute('PRAGMA busy_timeout='+str(previous))
+                plane.lock.release()
         def _load(self,kind,key):
-            row=plane.evidence(domain+':'+kind,canonical(key))
+            row=self._optional(plane.evidence,domain+':'+kind,canonical(key))
             return row[0] if row else None
         def _save(self,kind,key,value):
             proof=dict(authority='authenticated_alchemy',schema=1,finality='confirmed')
             if kind=='receipt' and domain.startswith('pons:shared:'):
-                retained=plane.put_receipt(domain+':receipt',canonical(key),value,proof,self.receipt_scope)
+                retained=self._optional(plane.put_receipt,domain+':receipt',canonical(key),value,proof,self.receipt_scope)
                 self.counts['durable_receipt_retained' if retained else 'durable_receipt_admission_fallback']+=1
-            else:plane.put(domain+':'+kind,canonical(key),value,proof)
+            else:self._optional(plane.put,domain+':'+kind,canonical(key),value,proof)
         def begin_receipts(self,consumer,owner,generation):
-            plane.receipt_scope(domain+':receipt',consumer,owner,generation)
+            self._optional(plane.receipt_scope,domain+':receipt',consumer,owner,generation)
             self.receipt_scope=(consumer,owner,generation)
         def acknowledge_receipts(self):
             if self.receipt_scope:
-                plane.receipt_scope(domain+':receipt',*self.receipt_scope,acknowledge=True)
+                self._optional(lambda:plane.receipt_scope(domain+':receipt',*self.receipt_scope,acknowledge=True))
                 self.receipt_scope=None
         def immutable_curve(self,curve,block):
             row=self._load('compiled_create2_curve',curve.lower())

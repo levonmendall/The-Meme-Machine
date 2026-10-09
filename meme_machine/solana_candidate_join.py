@@ -307,7 +307,8 @@ class CandidateTransactionJoin:
             state=self.pending.get(slot);meta=state.get('meta') if state else None
             if (len(required)<2 or meta is None or state['finality']!=meta.parent_slot
                     or not meta.HasField('block_time') or not meta.blockhash
-                    or not meta.parent_blockhash or meta.executed_transaction_count>transactions):continue
+                    or not meta.parent_blockhash or meta.executed_transaction_count>transactions
+                    or len(required)*2<meta.executed_transaction_count):continue
             # Three governed dense attempts + original concurrent repair fallback
             # retain the native join's original expiry, including retry delays.
             remaining=self.max_join_seconds-(now-state['started'])
