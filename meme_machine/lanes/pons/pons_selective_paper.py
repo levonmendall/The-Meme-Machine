@@ -1166,6 +1166,17 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 if held_shadow.enabled:
                     try:
                         if action['action']=='hold' and position['status']=='open':
+                            from .held_paper_shadow import protective_margin_bps
+                            margin=protective_margin_bps(
+                                current=rbps,high=state.high_water,
+                                stop=EXIT_POLICY['risk_bps'],
+                                first_profit=EXIT_POLICY['first_profit_bps'],
+                                trail_bps=EXIT_POLICY['runner_trailing_drawdown_bps'],
+                                partial_taken=state.partial_taken)
+                            if (state.runner_soft_deterioration_streak>0 or
+                                    seconds_since_high>=
+                                    EXIT_POLICY['no_new_high_seconds']-15):
+                                margin=0
                             held_shadow.observe_after_hold(
                                 rpc=rpc,pool_id=position['market'],
                                 quantity=position['tokens'],quote_block=int(meta['block']),
@@ -1173,7 +1184,8 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                                 net_proceeds=max(0,mark.amount_out-mark.gas_quote),
                                 position_open=True,
                                 no_pending_exit=state.pending_action is None,
-                                no_pending_partial=True,owner_protected=True)
+                                no_pending_partial=True,owner_protected=True,
+                                risk_distance_bps=margin)
                         else:
                             held_shadow.last.pop(position['market'].lower(),None)
                     except Exception:
