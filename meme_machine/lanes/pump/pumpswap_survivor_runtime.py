@@ -67,6 +67,7 @@ class Runtime:
             self.rpc=new_rpc(limit=240,pacer=pacer)
             self.rpc.evidence_priority=priority
             self.adapter=PostGraduationAdapter(self.rpc)
+            self.adapter.finalized_market_time=self._local_finalized_time
         self.rpc.evidence_priority=priority
         self.rpc.evidence_kind='survivor_monitor' if priority==30 else 'survivor_commit_or_exit'
 
@@ -154,12 +155,23 @@ class Runtime:
         self.plane.advance_interest(SWAP_SCOPE,lower_slot=checkpoint['lower_slot'],consumed_slot=checkpoint['consumed_slot'],
             checkpoint_hash=digest(checkpoint),owner=owner)
 
+    def _local_finalized_time(self, slot):
+        # A stream receipt must belong to this *exact* finalized account slot.
+        # If coverage is behind, the postgrad adapter uses the original RPC.
+        self.plane.require_usable(SWAP_SCOPE)
+        if self.plane.frontier(SWAP_SCOPE)<slot:return None
+        return self.plane.block_time(slot)
+
     def fresh_state(self,candidate,priority=1,*,maintenance=False):
         self._provider(priority);self.current=self.history.get(candidate)
-        raw=self.adapter.graduation_snapshot(candidate,self.now(),priority=True)
-        handoff=graduation_handoff(raw,self.now())
+        if maintenance:
+            handoff=self.adapter.held_graduation_handoff(candidate,self.now(),priority=True)
+        else:
+            raw=self.adapter.graduation_snapshot(candidate,self.now(),priority=True)
+            handoff=graduation_handoff(raw,self.now())
         state=self.adapter.pumpswap_snapshot(handoff,self.now(),priority=True,
-            additional_accounts=() if maintenance else (SOL_USD_ACCOUNT,))
+            additional_accounts=() if maintenance else (SOL_USD_ACCOUNT,),
+            reuse_verified_pool=maintenance)
         if state['pool']!=self.current['graduation']['pool']:raise ValueError('survivor_pool_drift')
         return state
 
