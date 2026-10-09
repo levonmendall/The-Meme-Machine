@@ -5,6 +5,7 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
 hash, qualification rows and lifecycle outcomes.
 """
 from concurrent.futures import ThreadPoolExecutor, Future
+from .pons_current_workers import LifecyclePool
 import gzip
 import hashlib
 import json
@@ -871,7 +872,7 @@ def run(endpoint,*,campaign=False):
 
     pool=None;futures=[]
     try:
-        pool=ThreadPoolExecutor(max_workers=MAX_CONCURRENT_LIFECYCLES)
+        pool=LifecyclePool(max_workers=MAX_CONCURRENT_LIFECYCLES)
         futures=[]
         active_curve_futures={}
         last_authorized_vector={r['curve']:r['vector'] for r in result['qualifiers']}
@@ -1204,7 +1205,8 @@ def run(endpoint,*,campaign=False):
                     public["live_authorization"]="rejected"
                     public["authorization_rejection"]=authorization_rejection
                 elif evaluation["vector"].get("current_threshold_pass"):
-                    if sum(not future.done() for _,future in futures)>=MAX_CONCURRENT_LIFECYCLES:
+                    if (not pool.entry_capacity_available() if hasattr(pool,'entry_capacity_available') else
+                            sum(not future.done() for _,future in futures)>=MAX_CONCURRENT_LIFECYCLES):
                         generation=scheduled['work']['generation']
                         if not queue.defer_execution_worker(identity,generation,worker_limit=MAX_CONCURRENT_LIFECYCLES):
                             continue
@@ -1293,6 +1295,8 @@ def run(endpoint,*,campaign=False):
         # transport exceeds the deadline, leave connections on their owner and
         # let process termination/replay complete recovery; never race close().
         from concurrent.futures import wait,TimeoutError as FutureTimeout
+        if pool is not None and hasattr(pool,'request_handoff'):pool.request_handoff()
+        if pool is not None and hasattr(pool,'telemetry'):result['current_workers']=pool.telemetry()
         drain_deadline=time.monotonic()+5
         outstanding=[f for f in (discovery_future,hydration,priming_future) if f is not None]
         outstanding.extend(f for _,f in futures)

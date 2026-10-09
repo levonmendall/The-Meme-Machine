@@ -24,6 +24,14 @@ _foreground_work = ContextVar('provider_foreground_work',default=False)
 
 
 def position_work(function):
+    from inspect import isgeneratorfunction
+    if isgeneratorfunction(function):
+        @wraps(function)
+        def steps(*args,**kwargs):
+            token=_position_work.set(True)
+            try:return (yield from function(*args,**kwargs))
+            finally:_position_work.reset(token)
+        return steps
     @wraps(function)
     def wrapped(*args,**kwargs):
         token=_position_work.set(True)

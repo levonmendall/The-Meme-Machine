@@ -127,7 +127,8 @@ class ContinuousCampaignTests(unittest.TestCase):
             for name,value in dict(TAPE_WARM_SECONDS=0,SequencerBlockClock=lambda:feed,_discovery=lambda endpoint:rpc,
                 WalletSkillBook=lambda path:SimpleNamespace(close=lambda:None),
                 SelectiveEvidenceContext=evidence,
-                ThreadPoolExecutor=lambda **kw:pool,_poll=poll,evaluate_candidate=lambda *a,**kw:evaluation,
+                ThreadPoolExecutor=lambda **kw:pool,LifecyclePool=lambda **kw:pool,
+                _poll=poll,evaluate_candidate=lambda *a,**kw:evaluation,
                 MAX_CONCURRENT_LIFECYCLES=1 if worker_pressure else cohort.MAX_CONCURRENT_LIFECYCLES,
                 public_evaluation=lambda value:dict(value),_attach_wallet_overlay=lambda *a:{'converged':False}).items():
                 stack.enter_context(patch.object(cohort,name,value))

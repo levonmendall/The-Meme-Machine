@@ -85,6 +85,9 @@ class CurrentRecoveryTests(unittest.TestCase):
                 raise ProcessCut()
             return p
         with ExitStack() as stack:
+            from meme_machine.lanes.pons.pons_current_workers import LifecyclePool
+            stack.enter_context(patch('meme_machine.lanes.pons.pons_current_workers.LifecyclePool',
+                side_effect=lambda **kw:LifecyclePool(**kw,clock=lambda:clock[0],wait_for_due=sleep)))
             if cut=='before_reserve':stack.enter_context(patch.object(SelectivePaper,'reserve',side_effect=ProcessCut()))
             for name,value in patches.items():stack.enter_context(patch('meme_machine.lanes.pons.pons_selective_paper.'+name,side_effect=value))
             with patch.object(SelectivePaper,'advance',advance):

@@ -557,6 +557,23 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
 @position_work
 @with_history
 def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None,exceptional_context=None):
+    steps=_lifecycle_steps(endpoint,evaluation,db_path=db_path,capital_path=capital_path,
+        _recovery=_recovery,slice_seconds=slice_seconds,exceptional_context=exceptional_context)
+    try:
+        while True:
+            wait=next(steps)
+            _stop_sleep(wait['seconds'])
+    except StopIteration as done:return done.value
+    finally:steps.close()
+
+
+@position_work
+@with_history
+def _run_lifecycle_steps(endpoint,evaluation,**kwargs):
+    return (yield from _lifecycle_steps(endpoint,evaluation,**kwargs))
+
+
+def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None,exceptional_context=None):
     deadline=time.monotonic()+slice_seconds if slice_seconds is not None else None
     vector=evaluation["vector"]
     if not vector.get("current_threshold_pass"):
@@ -853,7 +870,11 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 break
             try:
                 rpc.rotate_if_needed()
-                _stop_sleep(EXIT_POLICY["monitor_seconds"])
+                wait=dict(kind='monitor_wait',seconds=EXIT_POLICY['monitor_seconds'],
+                    position=identity,pending_exit=paper._get(identity)['status']=='exit_pending')
+                if (yield wait)=='handoff':
+                    result.update(status='handoff_required',entry_authority=False)
+                    break
                 header=_latest_header(rpc)
                 quote_head_at=time.monotonic()
                 block=int(header["number"],16)
@@ -1643,6 +1664,19 @@ from .pons_selective_recovery import resume_lifecycle,exclusive_lifecycle
 @exclusive_lifecycle
 def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,exceptional_context=None):
     result=_run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path,exceptional_context=exceptional_context)
+    _record_funding_result(evaluation,result)
+    return result
+
+
+@exclusive_lifecycle
+def run_lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,exceptional_context=None):
+    result=yield from _run_lifecycle_steps(endpoint,evaluation,db_path=db_path,
+        capital_path=capital_path,exceptional_context=exceptional_context)
+    _record_funding_result(evaluation,result)
+    return result
+
+
+def _record_funding_result(evaluation,result):
     if evaluation.get('candidate_plane_path') and evaluation.get('candidate_broker_identity'):
         from meme_machine.runtime.robinhood.plane import Plane
         from .pons_attempts import Attempts,failure_category
