@@ -99,6 +99,55 @@ def positions():
     finally:f.doCleanups()
 
 
+def active_positions(count):
+    from unittest.mock import patch
+    from engineering.pons_history.fixtures import encoded_event,checksum
+    from tests import test_pons_shared_native_acquisition as fixture
+    from tests.lanes.pons import test_pons_finalization as native
+    class Active(fixture.TraceRPC):
+        def __init__(self,**kwargs):
+            super().__init__(**kwargs);self.transaction=checksum(('active-union',count))
+            self.events=[encoded_event('uniswap_v4_manager','Swap',dict(
+                id=native.graduation(i)['transition']['market'],sender=native.address(990),
+                amount0=10000,amount1=-10000,sqrtPriceX96=1<<96,liquidity=1000000,tick=0,fee=0),
+                block=101,block_hash=native.block_header(101)['hash'],tx=self.transaction,
+                tx_index=0,index=i-1) for i in range(1,count+1)]
+        def value(self,method,params):
+            if method=='eth_getLogs':
+                query=params[0];topics=query['topics'][1]
+                if isinstance(topics,str):topics=[topics]
+                return deepcopy([e for e in self.events if e['topics'][1] in topics
+                    and int(query['fromBlock'],16)<=101<=int(query['toBlock'],16)])
+            if method=='eth_getTransactionReceipt':
+                return dict(transactionHash=self.transaction,blockHash=native.block_header(101)['hash'],
+                    blockNumber='0x65',transactionIndex='0x0',status='0x1',logs=deepcopy(self.events),
+                    **{'from':native.address(990)})
+            return super().value(method,params)
+    test=SharedNativeAcquisitionTests()
+    try:
+        with patch.object(fixture,'TraceRPC',Active):
+            a,risk_a,old,_=test.run_positions(count,proved=False)
+            b,risk_b,new,_=test.run_positions(count,proved=True)
+        assert a==b and risk_a==risk_b
+        assert new.methods['eth_getTransactionReceipt']==1
+        def counts(rpc):
+            spec=json.loads(Path('meme_machine/runtime/alchemy-cu-schedule.json').read_text())
+            weights=dict(spec['methods'],**spec['throughput_overrides'])
+            physical=len(rpc.transports)
+            return dict(physical_mock_transports=physical,methods=dict(rpc.methods),
+                logical_rpc_elements=sum(rpc.methods.values()),estimated_billed_cu=estimate(rpc.methods)['estimated_cu'],
+                estimated_throughput_cu=sum(weights[m]*n for m,n in rpc.methods.items()),
+                minimum_physical_start_span_at_two_rps=(physical-1)*.5,
+                delivered_bytes=None,request_bytes=None,traces=deepcopy(rpc.transports))
+        return dict(classification='OFFLINE_NATIVE_SURVIVOR_ACTIVE_STEP; synthetic shared transaction in one canonical block',
+            held_positions=count,original=counts(old),shared=counts(new),
+            identical_native_positions_and_risk=True,unique_required_receipts=1,occupied_blocks=1,
+            native_event_count=count,actual_provider_requests=0,
+            caveat='Transport latency is injected, whole-loop pacing is not certified, and bytes were not measured. '
+                'These events prove parity and sharing, not deployment/source capability or market frequency.')
+    finally:test.doCleanups()
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path,required=True)
     args=p.parse_args();network_guard()
@@ -106,7 +155,7 @@ def main():
         report=dict(schema='system-wide-native-measurements-v1',
             source_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
             actual_provider_requests=0,actual_provider_bill_savings=None,
-            scaling=scaling(),held_positions=positions())
+            scaling=scaling(),held_positions=positions(),active_held_positions=[active_positions(2),active_positions(20)])
         args.output.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n');scratch.success=True
 
 

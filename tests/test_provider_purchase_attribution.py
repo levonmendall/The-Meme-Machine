@@ -13,6 +13,45 @@ from meme_machine.lanes.pump.solana_read_rpc import ReadOnlyFailoverRPC,SolanaRe
 from meme_machine.lanes.pons.provider import Rpc
 
 
+class OfflineSnapshotTests(unittest.TestCase):
+    def test_cumulative_and_ring_counts_are_not_added_or_secret_identified(self):
+        import hashlib,sqlite3
+        from engineering.proven_efficiency.provider_snapshot import read_report
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'offline.sqlite'
+            with sqlite3.connect(path) as db:
+                db.execute('CREATE TABLE limits(endpoint,interval)')
+                db.execute("INSERT INTO limits VALUES('secret-provider-endpoint',0.5)")
+                db.execute('CREATE TABLE provider_usage(endpoint,lane,metric,value)')
+                for metric,value in dict(physical_http_requests=3,completed_transport_attempts=2,
+                        logical_rpc_calls=3,**{'method:eth_call':2,'method:eth_getBlockReceipts':1}).items():
+                    db.execute('INSERT INTO provider_usage VALUES(?,?,?,?)',('secret-provider-endpoint','pons',metric,value))
+                db.execute('CREATE TABLE transport_starts(seq INTEGER PRIMARY KEY,body)')
+                db.execute('INSERT INTO transport_starts(body) VALUES(?)',(json.dumps(dict(
+                    lane='pons',scope='position_monitor',endpoint_fingerprint='secret-provider-endpoint',
+                    methods=['eth_call'],physical_requests=1)),))
+            before=hashlib.sha256(path.read_bytes()).hexdigest();report=read_report(path)
+            self.assertEqual(report['total_observed_physical_starts'],3)
+            self.assertEqual(report['audit_rings']['transport_starts']['pons_held_protection']['records'],1)
+            self.assertEqual(report['lanes']['pons']['unresolved_counter_difference'],1)
+            self.assertEqual(report['total_known_estimated_billed_cu'],72)
+            self.assertEqual(report['lanes']['pons']['estimated_throughput_cu'],552)
+            self.assertIsNone(report['lanes']['pons']['delivered_bytes'])
+            self.assertIsNone(report['verified_billed_cu']);self.assertIsNone(report['charged_failures'])
+            self.assertNotIn('secret-provider-endpoint',json.dumps(report))
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),before)
+
+    def test_other_database_schema_is_refused_without_mutation(self):
+        import sqlite3
+        from engineering.proven_efficiency.provider_snapshot import read_report
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'wrong.sqlite'
+            with sqlite3.connect(path) as db:db.execute('CREATE TABLE unrelated(value)')
+            before=path.read_bytes()
+            with self.assertRaisesRegex(ValueError,'offline_snapshot_schema'):read_report(path)
+            self.assertEqual(path.read_bytes(),before)
+
+
 class PurchaseAttributionTests(unittest.TestCase):
     def test_unknown_payload_and_request_sizes_remain_unmeasured(self):
         report=attribute([dict(purchase_id='unknown-bytes',methods=['eth_call'],
