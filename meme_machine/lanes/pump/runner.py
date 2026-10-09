@@ -1736,6 +1736,13 @@ def main(*,campaign=False,discovery_seconds=None):
                 report["created_mints_observed"]=len(created)
                 report["full_evidence_attempts"]=full_attempts
                 report["active_provider"]=sessions.rpc.provider_telemetry()
+                report["pump_held_rpc"]=dict(
+                    mode=held_rpc_mode(),
+                    verified_pool_probe_reuses=sessions.postgrad.held_pumpswap_probe_reuses,
+                    finalized_slot_time_reuses=sessions.postgrad.held_finalized_time_reuses,
+                    pump_finalized_time_reuses=sessions.pump.local_finalized_time_reuses,
+                    physical_http_requests=sessions.rpc.http_requests)
+                report["holder_scan_shadow"]=sessions.holder_probe_status()
                 report["evidence_broker"]=broker.telemetry()
                 if CANDIDATE_HISTORY is not None:
                     report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
@@ -1762,6 +1769,13 @@ def main(*,campaign=False,discovery_seconds=None):
         if thread.ident is not None:thread.join(timeout=5)
         sessions.finish()
         report["sessions"]=sessions.history
+        report["pump_held_rpc"]=dict(
+            mode=held_rpc_mode(),
+            verified_pool_probe_reuses=sessions.postgrad.held_pumpswap_probe_reuses,
+            finalized_slot_time_reuses=sessions.postgrad.held_finalized_time_reuses,
+            pump_finalized_time_reuses=sessions.pump.local_finalized_time_reuses,
+            physical_http_requests=sessions.rpc.http_requests)
+        report["holder_scan_shadow"]=sessions.holder_probe_status()
         report["stream"]=tape.status(int(time.time()))
         report["pumpswap_stream"]=pumpswap_stream.status()
         report["evidence_broker"]=broker.telemetry()
