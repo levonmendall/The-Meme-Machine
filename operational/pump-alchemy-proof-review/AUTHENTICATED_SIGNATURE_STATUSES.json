@@ -1,0 +1,49 @@
+{
+  "schema": "pump-alchemy-independent-rpc-status-check-v1",
+  "checked_date_pacific": "2026-10-08",
+  "provider": "Alchemy authenticated Solana RPC via connected app",
+  "app_id": "9bin99s96t7ga5e9",
+  "network": "solana-mainnet",
+  "request_method": "getSignatureStatuses",
+  "searchTransactionHistory": true,
+  "provider_context": {
+    "apiVersion": "4.3.0",
+    "slot": 454749187
+  },
+  "result": [
+    {
+      "signature": "fk77FRvatvkwaeGJATf2DGLHUmV1BHFUvyfoEu7MJcx1ZHPWbbB4HpdoP6SYUtP3n2txye6PGGKAHQhGxsEQ6ig",
+      "slot": 454632166,
+      "status": "finalized",
+      "err": null,
+      "source_native_payload_bytes": 6688
+    },
+    {
+      "signature": "5U1UXM8dZVQBB6Ys6LDpvGM4jsUYpKLByCZDN7Fo4mx1tb7CdXgjtoE8Zj62t9ZwVx1XUGtE9X4Q12bz76rHDKtx",
+      "slot": 454632166,
+      "status": "finalized",
+      "err": null,
+      "source_native_payload_bytes": 6688
+    },
+    {
+      "signature": "3Vos3ywDUx5TArhWw9T2GoMEykRXcpGNuooCfa5FCrzt6hfPei2x8DHd6eBNBW6PjxjvKBwELQT8Qg6yVNuQvfF6",
+      "slot": 454632166,
+      "status": "finalized",
+      "err": null,
+      "source_native_payload_bytes": 9717
+    },
+    {
+      "signature": "2vPg9XkPSWtBQjN8oStQMfykAqmypHk437TgTzceDdtFr6LmVQsgbuGNEFcRTHzQj9jom6hEvbezzxCGRmtNLcJQ",
+      "slot": 454632166,
+      "status": "finalized",
+      "err": null,
+      "source_native_payload_bytes": 14898
+    }
+  ],
+  "limitations": [
+    "Independent provider response confirms signature slot, finality, and success only.",
+    "Native byte sizes are copied from previously captured receiver protobuf receipts, not remeasured by this RPC query.",
+    "Does not establish matched WebSocket log parity, complete intervals, provider headroom, billed delta, or latency.",
+    "One historical RPC payload was returned truncated by the connector; no decoded transaction-economics inference is made."
+  ]
+}
