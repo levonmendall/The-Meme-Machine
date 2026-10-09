@@ -173,7 +173,8 @@ def quote_turn(trial,*,rpc,block,net=QUOTE,quantity=100,hold=True):
         quantity=quantity,quote_block=block,
         quote_hash=(START_HASH if block==100 else END_HASH),
         net_proceeds=net,position_open=hold,
-        no_pending_exit=hold,no_pending_partial=hold,owner_protected=hold)
+        no_pending_exit=hold,no_pending_partial=hold,owner_protected=hold,
+        risk_distance_bps=2500)
 
 
 class ShadowIntegrationTests(TestCase):
@@ -232,6 +233,30 @@ class ShadowIntegrationTests(TestCase):
         self.assertEqual(result['status'],'INCONCLUSIVE')
         self.assertEqual(shadow.counts['coverage_failures'],1)
         self.assertFalse(shadow.status()['exit_authority'])
+
+    def test_protective_margin_gates_optional_provider_work(self):
+        from meme_machine.lanes.pons.held_paper_shadow import protective_margin_bps
+        self.assertEqual(protective_margin_bps(
+            current=-800,high=0,stop=-800,first_profit=1800,
+            trail_bps=1200),0)
+        self.assertGreater(protective_margin_bps(
+            current=10000,high=10000,stop=-800,first_profit=1800,
+            trail_bps=1200),1000)
+        self.assertEqual(protective_margin_bps(
+            current=6000,high=10000,stop=-800,first_profit=1800,
+            trail_bps=1200),0)
+        shadow=PaperHeldShadow(URL,environ={
+            'MM_PONS_HELD_PAPER_SHADOW':'1',
+            'MM_PONS_HELD_SHADOW_EVERY_TICKS':'1'})
+        rpc=FakeCanonicalRpc()
+        shadow.observe_after_hold(rpc=rpc,pool_id=POOL,quantity=100,
+            quote_block=100,quote_hash=START_HASH,net_proceeds=QUOTE,
+            risk_distance_bps=0)
+        shadow.observe_after_hold(rpc=rpc,pool_id=POOL,quantity=100,
+            quote_block=101,quote_hash=END_HASH,net_proceeds=QUOTE,
+            risk_distance_bps=300)
+        self.assertEqual(rpc.calls,[])
+        self.assertGreater(shadow.counts['near_original_protective_exit_no_work'],0)
 
     def test_native_monitors_call_shadow_only_after_original_exit_logic(self):
         from inspect import getsource
