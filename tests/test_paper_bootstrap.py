@@ -24,7 +24,10 @@ class AdmissionTests(unittest.TestCase):
     def scope(self,a,now,root,*,arm=True):
         from tests.test_position_continuation import envelope,proof
         from meme_machine.operational.bounded_provider import PhaseBudget
-        budget=Budget.create(root/'bootstrap-test.sqlite',continuation=envelope())
+        # The provider and accounting scopes share the same original start.
+        # Fixture setup can cross a wall-clock second under a full suite.
+        with patch('time.time',return_value=now):
+            budget=Budget.create(root/'bootstrap-test.sqlite',continuation=envelope())
         data=dict(mode='OBSERVATION',run_id='offline-test',pid=os.getpid(),
             process_start=process_identity(os.getpid()),provider_db=str(budget.path),continuation_envelope=envelope())
         a.command('observe','runtime_admission',data,now)

@@ -152,7 +152,7 @@ class Runtime:
         # Experimental PAPER shadow only; the native monitor always decides
         # exits using its original fresh quote before this optional observer.
         from .held_paper_shadow import PaperHeldShadow
-        self.held_paper_shadow=PaperHeldShadow(endpoint)
+        self.held_paper_shadow=PaperHeldShadow(endpoint,asynchronous=True)
 
     def now(self):return int(time.time())
 
@@ -840,4 +840,6 @@ class Runtime:
                         dict(enabled=False,mode='PAPER_SHADOW_ONLY')))
 
     def close(self):
+        shadow=getattr(self,'held_paper_shadow',None)
+        if shadow is not None:shadow.close()
         self.book.close();self.history.close();self.sleeve.close();self.plane.close()

@@ -7,6 +7,7 @@ from unittest import TestCase
 from unittest.mock import patch
 import os
 import time
+import threading
 
 from meme_machine.lanes.pons import BoundaryError
 from meme_machine.lanes.pons.abi import signature,topic
@@ -118,6 +119,75 @@ class NativeEventCoverageTests(TestCase):
         self.assertEqual(proof.scoped_elements,1)
         self.assertEqual(proof.global_elements,1)
         self.assertEqual(rpc.header_reads,4)
+
+    def test_slow_live_shadow_never_waits_or_changes_the_native_rpc(self):
+        from meme_machine.lanes.pons.provider_admission import priority,position_work
+        entered=threading.Event();release=threading.Event();completed=threading.Event()
+        priorities=[]
+        class SlowRpc(FakeCanonicalRpc):
+            def batch(self,calls,*,scope):
+                priorities.append(priority(scope))
+                entered.set()
+                if not release.wait(2):raise BoundaryError('offline_probe_unreleased')
+                return super().batch(calls,scope=scope)
+        optional=SlowRpc();native=FakeCanonicalRpc()
+        native.evidence_deadline=12345
+        shadow=PaperHeldShadow(URL,environ={
+            'MM_PONS_HELD_PAPER_SHADOW':'1',
+            'MM_PONS_HELD_SHADOW_EVERY_TICKS':'1'},
+            asynchronous=True,rpc_factory=lambda:optional)
+        probe=shadow._probe
+        def tracked(*args):
+            try:return probe(*args)
+            finally:completed.set()
+        shadow._probe=tracked
+        def turn(block,hash_):
+            return shadow.observe_after_hold(rpc=native,pool_id=POOL,quantity=100,
+                quote_block=block,quote_hash=hash_,net_proceeds=QUOTE,
+                risk_distance_bps=5000)
+        with patch('meme_machine.operational.position_continuation.position_only',return_value=False):
+            try:
+                turn(100,START_HASH)
+                @position_work
+                def native_hold():turn(101,END_HASH)
+                native_hold()
+                self.assertTrue(entered.wait(1))
+                # This next native turn and shutdown finish while provider
+                # acquisition remains deliberately blocked in the observer.
+                turn(101,END_HASH)
+                shadow.close()
+                self.assertFalse(completed.is_set())
+                self.assertTrue(shadow.status()['probe_inflight'])
+                self.assertEqual(shadow.counts['coverage_samples'],1)
+                self.assertEqual(native.calls,[])
+                self.assertEqual(native.evidence_deadline,12345)
+            finally:
+                release.set()
+                self.assertTrue(completed.wait(1))
+        self.assertTrue(priorities)
+        self.assertTrue(all(p==30 for p in priorities))
+        self.assertFalse(shadow.status()['quote_suppression_enabled'])
+
+    def test_closed_optional_scope_refuses_async_rpc_creation(self):
+        factory=[]
+        shadow=PaperHeldShadow(URL,environ={
+            'MM_PONS_HELD_PAPER_SHADOW':'1',
+            'MM_PONS_HELD_SHADOW_EVERY_TICKS':'1'},
+            asynchronous=True,rpc_factory=lambda:factory.append(True))
+        completed=threading.Event();probe=shadow._probe
+        def tracked(*args):
+            try:return probe(*args)
+            finally:completed.set()
+        shadow._probe=tracked
+        with patch('meme_machine.operational.position_continuation.position_only',return_value=True):
+            for block,hash_ in ((100,START_HASH),(101,END_HASH)):
+                shadow.observe_after_hold(rpc=FakeCanonicalRpc(),pool_id=POOL,
+                    quantity=100,quote_block=block,quote_hash=hash_,
+                    net_proceeds=QUOTE,risk_distance_bps=5000)
+            self.assertTrue(completed.wait(1))
+        self.assertEqual(factory,[])
+        self.assertEqual(shadow.last_result['status'],'INCONCLUSIVE')
+        self.assertIn('bootstrap_optional_work_closed',shadow.last_result['reason'])
 
     def test_complete_semantic_fixture_can_consider_quiet_but_does_not_mark(self):
         result=observe(FakeCanonicalRpc(),

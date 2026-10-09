@@ -543,7 +543,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
         provider_sessions=[],monitor=[],started_at=time.time(),
     )
     from .held_paper_shadow import PaperHeldShadow
-    held_shadow=PaperHeldShadow(endpoint)
+    held_shadow=PaperHeldShadow(endpoint,asynchronous=True)
     store=None;rpc=None;capital_guard=None;identity=None
     def observe_commit(paper,position):
         if state is not None:state.acknowledge(position)
@@ -1301,6 +1301,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 try:store.close()
                 except Exception:pass
             result["ended_at"]=time.time()
+            held_shadow.close()
             result["held_paper_shadow"]=held_shadow.status()
 
 
