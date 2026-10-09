@@ -22,6 +22,7 @@ from meme_machine.lanes.pump.concentration import ConcentrationReader
 from meme_machine.lanes.pump.engine import GAS
 from meme_machine.lanes.pump.postgrad import (
     PostGraduationAdapter,buy_quote,graduation_handoff,pumpswap_pool,sell_quote,
+    held_rpc_mode,
 )
 from meme_machine.lanes.pump.provider import PumpAdapter,Unavailable
 from meme_machine.lanes.pump.pump_acceleration_confirmations import ConfirmationBook
@@ -121,15 +122,25 @@ class Sessions:
                 retries=self.rpc.retries,
                 provider=self.rpc.provider_telemetry(),
                 concentration=self.reader.status(),
+                held_rpc_counters=dict(
+                    mode=held_rpc_mode(),
+                    pool_probe_reuses=getattr(self.postgrad,
+                        'held_pumpswap_probe_reuses',0),
+                    finalized_time_reuses=getattr(self.postgrad,
+                        'held_finalized_time_reuses',0),
+                    pump_finalized_time_reuses=getattr(self.pump,
+                        'local_finalized_time_reuses',0)),
             )
             self.pacer=self.rpc.read_pacer
         self.rpc=new_rpc(limit=240,pacer=self.pacer)
         self.pump=PumpAdapter(self.rpc)
-        self.pump.finalized_market_time=self._local_pump_time
         self.reader=ConcentrationReader(self.rpc)
         self.postgrad=PostGraduationAdapter(self.rpc,scan_rpc=None)
-        self.postgrad.finalized_market_time=self._local_pumpswap_time
-        self.history.append(dict(started=int(time.time()),reason=reason))
+        if held_rpc_mode()=='optimized':
+            self.pump.finalized_market_time=self._local_pump_time
+            self.postgrad.finalized_market_time=self._local_pumpswap_time
+        self.history.append(dict(started=int(time.time()),reason=reason,
+                                 held_rpc_mode=held_rpc_mode()))
 
     def _local_pump_time(self,slot):
         if self.plane is None:return None
@@ -171,6 +182,14 @@ class Sessions:
             retries=self.rpc.retries,
             provider=self.rpc.provider_telemetry(),
             concentration=self.reader.status(),
+            held_rpc_counters=dict(
+                mode=held_rpc_mode(),
+                pool_probe_reuses=getattr(self.postgrad,
+                    'held_pumpswap_probe_reuses',0),
+                finalized_time_reuses=getattr(self.postgrad,
+                    'held_finalized_time_reuses',0),
+                pump_finalized_time_reuses=getattr(self.pump,
+                    'local_finalized_time_reuses',0)),
         )
 
 
@@ -939,11 +958,18 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 state=postgrad.get(mint)
                 if state is None:
                     raise Unavailable("missing_postgrad_state")
-                # The current curve, holder mint, PumpSwap pool/vaults and
-                # fee state share one finalized account-context slot.
-                snapshot=sessions.postgrad.pumpswap_snapshot(
-                    mint,now,priority=True,
-                    reuse_verified_pool=True,held_curve_inline=True)
+                if held_rpc_mode()=='optimized':
+                    # One fresh same-slot curve and economic quote batch.
+                    snapshot=sessions.postgrad.pumpswap_snapshot(
+                        mint,now,priority=True,
+                        reuse_verified_pool=True,held_curve_inline=True)
+                else:
+                    graduation=sessions.postgrad.graduation_snapshot(
+                        mint,now,priority=True)
+                    handoff=graduation_handoff(
+                        graduation,max(now,int(graduation["available_time"])))
+                    snapshot=sessions.postgrad.pumpswap_snapshot(
+                        handoff,now,priority=True)
                 state["history"].bind_snapshot(snapshot)
                 events=_refresh_pool_events(
                     state,sessions,now,research=False,
