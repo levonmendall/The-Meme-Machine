@@ -422,10 +422,9 @@ class PostGraduationAdapter:
             else:
                 self.scan_rpc = PoolScanRPC(rpc.url, limit=scan_limit)
         self.scan_verified = False
-        # In-memory immutable identities only; never cache reserves or fees.
-        self._held_graduation = {}
+        # Only bounded verified vault *addresses* are cached; graduation
+        # creator, live balances and fee semantics are never cached.
         self._held_pumpswap_vaults = {}
-        self.held_handoff_reuses = 0
         self.held_pumpswap_probe_reuses = 0
         self.held_finalized_time_reuses = 0
         self.finalized_market_time = None
@@ -468,37 +467,21 @@ class PostGraduationAdapter:
         graduation_handoff(snapshot, max(now, snapshot['available_time']))
         return snapshot
 
-    def held_graduation_handoff(self, mint, now, priority=True):
-        """Revalidate static completed-curve lineage every 60 seconds.
-
-        Only funded maintenance may use this transient hint. Entry and scaling
-        still fetch fresh authentication. No mutable price/supply/fees are
-        carried between turns; failed revalidation blocks rather than using a
-        stale graduation identity.
-        """
-        prior = self._held_graduation.get(mint)
-        if prior is not None and 0 <= now - prior[0] < 60:
-            self.held_handoff_reuses += 1
-            return prior[1]
-        raw = self.graduation_snapshot(mint, now, priority=priority)
-        fresh = graduation_handoff(raw, max(now, raw['available_time']))
-        if prior is not None:
-            old = prior[1]
-            if (old.mint, old.creator, old.source_pool, old.mayhem_mode) != (
-                    fresh.mint, fresh.creator, fresh.source_pool, fresh.mayhem_mode):
-                self._held_graduation.pop(mint, None)
-                self._held_pumpswap_vaults.pop(mint, None)
-                raise ValueError('held_graduation_identity_changed')
-        if mint not in self._held_graduation and len(self._held_graduation) >= 64:
-            self._held_graduation.pop(next(iter(self._held_graduation)))
-        self._held_graduation[mint] = (now, fresh)
-        return fresh
-
     def pumpswap_snapshot(self, handoff, now, priority=True, *, additional_accounts=(),
-                          reuse_verified_pool=False):
-        """Held-only verified vault addresses, never cached price/fee accounts."""
-        pool_key = pumpswap_pool(handoff.mint)
-        known = (self._held_pumpswap_vaults.get(handoff.mint)
+                          reuse_verified_pool=False, held_curve_inline=False):
+        """One coherent finalized curve, vault, pool and fee quote when held.
+
+        A held position supplies the mint, NOT a stale creator handoff. Entry
+        and scale continue to require their original independent handoff.
+        """
+        if held_curve_inline:
+            if type(handoff) is not str or not handoff:
+                raise ValueError('held_pumpswap_mint_required')
+            mint = handoff
+        else:
+            mint = handoff.mint
+        pool_key = pumpswap_pool(mint)
+        known = (self._held_pumpswap_vaults.get(mint)
                  if reuse_verified_pool else None)
         probe = None
         if known is None:
@@ -509,14 +492,17 @@ class PostGraduationAdapter:
             )
             if len(probe.get('value') or ()) != 1 or probe['value'][0] is None:
                 raise Unavailable('pumpswap_pool_missing')
-            metadata = _decode_pumpswap_pool(pool_key, probe['value'][0], handoff.mint)
+            metadata = _decode_pumpswap_pool(pool_key, probe['value'][0], mint)
             vaults = metadata['base_vault'], metadata['quote_vault']
         else:
             vaults = known
         addresses = [
-            pool_key, handoff.mint, vaults[0], vaults[1],
+            pool_key, mint, vaults[0], vaults[1],
             self.fee_address,
         ]
+        if held_curve_inline:
+            curve_key = pump.pda([b'bonding-curve', pump.un58(mint)])
+            addresses.append(curve_key)
         addresses.extend(additional_accounts)
         result = self.rpc.call(
             'getMultipleAccounts',
@@ -526,19 +512,31 @@ class PostGraduationAdapter:
         if len(result.get('value') or []) != len(addresses) or any(x is None for x in result['value']):
             raise Unavailable('pumpswap_accounts_missing')
         pool_account, mint_account, base_vault, quote_vault, fee_account = result['value'][:5]
-        metadata = _decode_pumpswap_pool(pool_key, pool_account, handoff.mint)
+        metadata = _decode_pumpswap_pool(pool_key, pool_account, mint)
         if (metadata['base_vault'], metadata['quote_vault']) != vaults:
             # Check both a warm hint and a cold probe-vs-fresh pool change.
-            self._held_pumpswap_vaults.pop(handoff.mint, None)
-            self._held_graduation.pop(handoff.mint, None)
+            self._held_pumpswap_vaults.pop(mint, None)
             raise ValueError('pumpswap_verified_vault_drift')
+        # Re-authenticate the current completed curve/creator at the SAME
+        # finalized slot. Pump's admin CTO may legitimately change creator.
+        slot = int(result['context']['slot'])
+        market_time = self._market_time(slot, priority)
+        if held_curve_inline:
+            curve_snapshot = dict(
+                mint=mint, pool=curve_key, slot=slot,
+                market_time=market_time, available_time=int(self.rpc.clock()),
+                accounts=[result['value'][5], mint_account],
+                protocol='pump.fun', network='solana-mainnet', kind='real',
+            )
+            handoff = graduation_handoff(
+                curve_snapshot, max(now, curve_snapshot['available_time']))
         supply, decimals = pump.mint_info(mint_account)
         if decimals <= 0 or supply <= 0:
             raise ValueError('invalid_postgrad_mint')
         if metadata['mayhem_mode'] != handoff.mayhem_mode:
             raise ValueError('graduation_mode_mismatch')
         base_reserve = _token_account(
-            base_vault, handoff.mint, authority=pool_key, token_program=mint_account['owner'])
+            base_vault, mint, authority=pool_key, token_program=mint_account['owner'])
         raw_quote = _token_account(
             quote_vault, WSOL, authority=pool_key, token_program=pump.TOKEN_PROGRAM)
         effective_quote = raw_quote + int(metadata['virtual_quote_reserves'])
@@ -546,19 +544,17 @@ class PostGraduationAdapter:
             raise ValueError('invalid_pumpswap_reserves')
         market_cap = effective_quote*supply//base_reserve
         rates = _pumpswap_fee_rates(fee_account, market_cap, metadata['coin_creator'])
-        slot = int(result['context']['slot'])
-        market_time = self._market_time(slot, priority)
         # Successful fresh economic validation is the only admission point.
         if reuse_verified_pool:
-            if (handoff.mint not in self._held_pumpswap_vaults and
+            if (mint not in self._held_pumpswap_vaults and
                     len(self._held_pumpswap_vaults) >= 64):
                 self._held_pumpswap_vaults.pop(next(iter(self._held_pumpswap_vaults)))
-            self._held_pumpswap_vaults[handoff.mint] = (
+            self._held_pumpswap_vaults[mint] = (
                 metadata['base_vault'], metadata['quote_vault'])
             if known is not None:
                 self.held_pumpswap_probe_reuses += 1
         return dict(
-            mint=handoff.mint, pool=pool_key, creator=handoff.creator,
+            mint=mint, pool=pool_key, creator=handoff.creator,
             surface='pumpswap', protocol='pump.swap', network='solana-mainnet',
             model=PUMPSWAP_MODEL, kind='real', slot=slot, market_time=market_time,
             available_time=int(self.rpc.clock()),
@@ -577,7 +573,8 @@ class PostGraduationAdapter:
                 account_slot=slot,
                 fee_address=self.fee_address,
             ),
-            additional_accounts=dict(zip(additional_accounts,result['value'][5:])),
+            additional_accounts=dict(zip(additional_accounts,
+                result['value'][6:] if held_curve_inline else result['value'][5:])),
             accounts=dict(
                 pool=pool_account, mint=mint_account, base_vault=base_vault,
                 quote_vault=quote_vault, fee_config=fee_account,
