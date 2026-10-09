@@ -67,7 +67,7 @@ def native_coverage_filters():
     return tuple(sorted(set(addresses))),tuple(sorted(scoped)),tuple(sorted(global_topics))
 
 
-def _fingerprint_rpc(rpc):
+def _fingerprint_rpc(rpc, endpoint):
     """Never treat a public or unverified RPC as canonical proof authority."""
     if getattr(rpc,'canonical_authority',False) is not True:
         raise BoundaryError('held_coverage_canonical_authority_missing')
@@ -76,6 +76,13 @@ def _fingerprint_rpc(rpc):
     fp=getattr(rpc,'provider_fingerprint',None)
     if not isinstance(fp,str) or not fp:
         raise BoundaryError('held_coverage_provider_identity_missing')
+    from meme_machine.runtime.robinhood.provider_authority import fingerprint
+    try:
+        expected=fingerprint(endpoint)
+    except (ValueError,TypeError):
+        raise BoundaryError('held_coverage_endpoint_identity_invalid') from None
+    if expected!=fp:
+        raise BoundaryError('held_coverage_endpoint_fingerprint_disagreement')
     return fp
 
 
@@ -124,7 +131,7 @@ class NativeHeldCoverage:
 
     def observe(self,*,pool_id,quote_head,current_head,token_behavior_proven=False,
                 hook_time_invariant_proven=False,gas_and_fee_bound_valid=False):
-        _fingerprint_rpc(self.rpc)
+        _fingerprint_rpc(self.rpc,self.endpoint)
         pool_id=str(pool_id).lower()
         if not (pool_id.startswith('0x') and len(pool_id)==66):
             raise BoundaryError('held_coverage_pool_id_invalid')
