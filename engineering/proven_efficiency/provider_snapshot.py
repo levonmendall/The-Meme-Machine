@@ -15,7 +15,9 @@ from meme_machine.runtime.cu import DEFAULT,estimate
 
 def category(lane,scope):
     if lane!='pons':return 'historical_inactive_family' if lane in ('ramses','meteora') else 'unattributed'
-    if scope=='position_monitor':return 'pons_held_protection'
+    # usd_valuation uses this scope even when no position exists. Legacy
+    # transport priority/scope cannot establish its logical trading consumer.
+    if scope=='position_monitor':return 'unattributed'
     if scope=='pons_historical_preparation':return 'history_receipt'
     return 'unattributed'
 
@@ -65,11 +67,12 @@ def read_report(path):
         for table in ('transport_starts','transports'):
             if table not in tables:continue
             if db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]>4096:raise ValueError('offline_audit_ring_bound')
-            groups=defaultdict(lambda:dict(records=0,methods=Counter(),failures=0,retries=0,wait=[],latency=[]))
+            groups=defaultdict(lambda:dict(records=0,methods=Counter(),failures=0,retries=0,wait=[],latency=[],valuation_scope=0))
             for body, in db.execute('SELECT body FROM '+table+' ORDER BY seq'):
                 row=json.loads(body);label=category(row.get('lane'),row.get('scope'))
                 group=groups[label];group['records']+=1
                 group['methods'].update(safe_methods(Counter(row.get('methods',[])).items()))
+                group['valuation_scope']+=int(row.get('lane')=='pons' and row.get('scope')=='position_monitor')
                 group['failures']+=int(bool(row.get('boundary') or row.get('rpc_error_code')
                     or row.get('http_status') not in (None,200)))
                 group['retries']+=int(row.get('retry_attempt',0)>0)
@@ -77,6 +80,7 @@ def read_report(path):
                     if field in row:group[key].append(row[field])
             rings[table]={label:dict(records=g['records'],methods=dict(g['methods']),
                 estimated_billed_cu=estimate(g['methods']),failure_records=g['failures'],
+                legacy_pons_position_monitor_scope_records=g['valuation_scope'],
                 retry_records=g['retries'],queue_wait_seconds=quantiles(g['wait']),
                 transport_seconds=quantiles(g['latency'])) for label,g in sorted(groups.items())}
         intervals=[r[0] for r in db.execute('SELECT DISTINCT interval FROM limits ORDER BY interval')]
