@@ -198,6 +198,26 @@ class Broker:
                 self.plane.db.execute("UPDATE candidates SET state='watching' WHERE id=?",(key,))
                 self.plane._audit(self.plane._row(key),'watching','pons_native_attempt_complete_recheck_preserved')
 
+    def defer_execution_worker(self,key,generation,*,worker_limit):
+        """Retain the native watch when physical lifecycle workers are busy.
+
+        This disposition grants no entry, resets no clock and creates no terminal
+        lifecycle. The existing timer/new-event path must reacquire canonical
+        qualification before a later worker can execute it.
+        """
+        with self.plane.transaction():
+            row=self.plane._row(key)
+            watch=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+            if not row or row['generation']!=generation or row['completed']!=row['desired']:
+                return False
+            if not watch or digest(json.loads(watch[0]))!=watch[1]:
+                raise ValueError('pons_current_watch_corruption')
+            self.plane.db.execute("UPDATE candidates SET state='worker_deferred',reason='physical_lifecycle_workers_busy' WHERE id=?",(key,))
+            self.plane._audit(row,'worker_deferred','physical_lifecycle_workers_busy',
+                worker_limit=worker_limit,original_observed_at=row['observed'],
+                original_deadline=row['deadline'],requires_fresh_canonical_qualification=True)
+            return True
+
     def release_orphan_entry_guards(self,active_curves):
         """After native restart reconciliation, a pre-submit crash owns no entry.
 

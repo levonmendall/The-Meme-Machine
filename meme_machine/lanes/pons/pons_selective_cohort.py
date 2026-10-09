@@ -1202,7 +1202,16 @@ def run(endpoint,*,campaign=False):
                     public["live_authorization"]="rejected"
                     public["authorization_rejection"]=authorization_rejection
                 elif evaluation["vector"].get("current_threshold_pass"):
-                    public["live_authorization"]="authorized"
+                    if sum(not future.done() for _,future in futures)>=MAX_CONCURRENT_LIFECYCLES:
+                        generation=scheduled['work']['generation']
+                        if not queue.defer_execution_worker(identity,generation,worker_limit=MAX_CONCURRENT_LIFECYCLES):
+                            continue
+                        attempts.record(identity,generation,'funding','OTHER_EXPLICIT_REASON',
+                            at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),
+                            reason='physical_lifecycle_workers_busy',execution=dict(temporary=True,
+                                entry_authorized=False,requires_fresh_canonical_qualification=True))
+                        public['live_authorization']='worker_deferred'
+                    else:public["live_authorization"]="authorized"
 
                 result["rows"].append(public)
                 result["evidence_acquisition"]=evidence_context.telemetry()
@@ -1211,6 +1220,7 @@ def run(endpoint,*,campaign=False):
                     evaluation["vector"].get("current_threshold_pass")
                     and authorization_rejection is None
                 ):
+                    if public.get('live_authorization')=='worker_deferred':continue
                     qindex=_next_trial_index(result)
                     qualifier=dict(
                         index=qindex,sequence=sequence,token=evaluation["token"],
@@ -1227,14 +1237,6 @@ def run(endpoint,*,campaign=False):
                         phase="qualifier_persisted",
                     )
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
-                    if len(futures)>=MAX_CONCURRENT_LIFECYCLES:
-                        attempts.record(identity,scheduled['work']['generation'],'funding','OTHER_EXPLICIT_REASON',
-                            at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),reason='selective_concurrent_position_capacity')
-                        life=dict(index=qindex,status='capacity_censored',
-                            boundary='selective_concurrent_position_capacity',economic_rejection=False)
-                        result['lifecycles'].append(life)
-                        _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
-                        continue
                     if not queue.plane.decision(identity,scheduled['work']['generation'],'entry_confirmation'):
                         continue
                     evaluation["candidate_plane_path"]=result["candidate_plane_path"]
