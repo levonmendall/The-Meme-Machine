@@ -1,0 +1,20 @@
+name: Pons held focused offline validation
+on:
+  push:
+    branches: [testing/pons-held-focused-20261009]
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install -r requirements.txt
+      - name: New quote wake and head reuse tests
+        run: python -m unittest -v tests.test_pons_held_quote_wakeup
+      - name: Affected Pons policy and native quote regressions
+        run: python -m unittest -v tests.lanes.pons.test_pons_selective_continuation tests.lanes.pons.test_pons_postgrad_survivor tests.lanes.pons.test_pons_finalization
