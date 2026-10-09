@@ -333,6 +333,10 @@ class RPC:
 class PumpAdapter:
     def __init__(self, rpc):
         self.rpc = rpc
+        # An exact finalized slot timestamp can be supplied by the existing
+        # authenticated Solana evidence plane; no market-time extrapolation.
+        self.finalized_market_time = None
+        self.local_finalized_time_reuses = 0
         if rpc.call('getGenesisHash', priority=True) != pump.MAINNET:
             raise Unavailable('unsupported_network')
         self.fee_address = pump.pda([b'fee_config',pump.un58(pump.PROGRAM)], pump.FEE_PROGRAM)
@@ -389,7 +393,18 @@ class PumpAdapter:
         # Validate the current fee schedule using actual mint supply. Mayhem mints
         # have additional circulating/agent inventory beyond token_total_supply.
         pump.fees(result['value'][2], c, supply)
-        market_time = self.rpc.call('getBlockTime', [result['context']['slot']], priority)
+        slot = int(result['context']['slot'])
+        market_time = None
+        if self.finalized_market_time is not None:
+            try:
+                local = self.finalized_market_time(slot)
+                if type(local) is int and 0 < local <= self.rpc.clock():
+                    market_time = local
+                    self.local_finalized_time_reuses += 1
+            except Exception:
+                pass  # missing local evidence falls back to authenticated RPC
+        if market_time is None:
+            market_time = self.rpc.call('getBlockTime', [slot], priority)
         if market_time is None:
             raise Unavailable('missing_block_time')
         # Exact source bytes retained with orders, not every poll.
