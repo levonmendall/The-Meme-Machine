@@ -36,7 +36,8 @@ class CurrentScalingHistoryTests(unittest.TestCase):
         self.tape,self.context,opts=fixture(relevant=25,total=40)
         self.key=opts['key'];self.pool=opts['pool_id'];self.token=opts['token']
         self.top=opts['end_block'];old=self.tape.header
-        self.tape.header=lambda n:dict(old(n),timestamp=hex(max(0,2000+n-self.top)))
+        origin=self.top
+        self.tape.header=lambda n:dict(old(n),timestamp=hex(max(0,2000+n-origin)))
         from meme_machine.lanes.pons.pons_selective_recovery import LifecycleState
         create=LifecycleState.create
         def authentic_create(store,identity,evaluation,*args,**kwargs):
@@ -71,9 +72,9 @@ class CurrentScalingHistoryTests(unittest.TestCase):
         real_get=self.history.get
         self.history.get=lambda k:real_get(self.pool if k==self.market else k)
 
-    def reads(self,function=paper._ongoing_scale_evidence,*,history=True):
-        mark=self.native.native_quote(2000,'sell',self.native.before['tokens'],self.native.before['remaining_cost']*2)
-        meta=dict(block=self.top,block_hash=self.tape.header(self.top)['hash'],event_at=2000)
+    def reads(self,function=paper._ongoing_scale_evidence,*,history=True,at=2000):
+        mark=self.native.native_quote(at,'sell',self.native.before['tokens'],self.native.before['remaining_cost']*2)
+        meta=dict(block=self.top,block_hash=self.tape.header(self.top)['hash'],event_at=at)
         # Pool locator is independent from the native book's fixture market.
         real_roll=v4.rolling_position_activity
         def roll(endpoint,**kw):
@@ -82,7 +83,7 @@ class CurrentScalingHistoryTests(unittest.TestCase):
             return result
         token=_active.set(self.history if history else None)
         try:
-            with patch.object(paper.time,'time',return_value=2000),patch('time.monotonic',return_value=100),\
+            with patch.object(paper.time,'time',return_value=at),patch('time.monotonic',return_value=100),\
                     patch.object(paper,'_v4_quote',return_value=(mark,meta,None)),\
                     patch.object(paper,'_latest_header',side_effect=lambda rpc:self.tape.call('eth_getBlockByNumber',[hex(self.top),False],scope='pons_scale')),\
                     patch.object(paper,'evidence_rpc',return_value=self.tape),\
@@ -134,16 +135,75 @@ class CurrentScalingHistoryTests(unittest.TestCase):
         self.assertEqual(delta['eth_getLogs'],0);self.assertEqual(delta['eth_getTransactionReceipt'],0)
         self.assertEqual(self.history.get(self.pool)['last_interval']['kind'],'already_complete_no_delta')
 
+    def test_advancing_final_requalification_acquires_only_each_new_block_delta(self):
+        self.prepare()
+        for at in (2001,2002):
+            self.top+=1;self.tape.request_log=[];before=Counter(self.tape.methods)
+            result=self.reads(at=at)
+            queries=[params[0] for method,params in self.tape.request_log if method=='eth_getLogs']
+            self.assertEqual(len(queries),1)
+            self.assertEqual((int(queries[0]['fromBlock'],16),int(queries[0]['toBlock'],16)),(self.top,self.top))
+            methods=Counter(self.tape.methods)-before
+            self.assertEqual(methods['eth_getTransactionReceipt'],0);self.assertEqual(methods['eth_getBlockReceipts'],0)
+            self.assertEqual(self.history.get(self.pool)['block'],self.top)
+            self.assertEqual(result[0]['acquisition_started_at'],at)
+            self.assertTrue(ongoing_scale_requalification(position=result[1],controller=vars(self.native.state),
+                evidence=result[0],now=at)['scale_qualified'])
+        original=self.reads(original_reader(),history=False,at=2002)
+        self.assertEqual(original[0],result[0])
+        self.assertEqual(self.native.paper._get(self.native.identity),self.native.before)
+
     def test_missing_preparation_refuses_before_new_executable_quote_or_capital(self):
+        from meme_machine.runtime.sleeve_reservations import SleeveReservations
         token=_active.set(self.history)
         try:
-            with patch.object(paper,'_v4_quote') as quote,patch.object(paper.time,'time',return_value=2000):
+            with patch.object(paper,'_v4_quote') as quote,patch.object(paper.time,'time',return_value=2000),\
+                    patch('meme_machine.runtime.directional_sleeve.open_sleeve',
+                        side_effect=lambda *a:SleeveReservations(self.native.sleeve_path,**self.native.sleeve_args)),\
+                    patch('meme_machine.lanes.pons.pons_current_history.prepare_scale_history') as prepare:
                 self.assertIsNone(paper._attempt_current_scale(ENDPOINT,self.tape,self.native.paper,
                     self.native.identity,self.native.state,self.candidate,1,self.native.store,{},self.native.before,demand={}))
+            prepare.assert_called_once()
             quote.assert_not_called()
         finally:_active.reset(token)
         self.assertEqual(self.native.paper._get(self.native.identity),self.native.before)
         self.assertIsNone(self.native.sleeve.get(self.native.identity).get('scale_reservation'))
+
+    def test_native_protection_advances_while_missing_history_preparation_is_waiting(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from meme_machine.lanes.pons import pons_current_history as module
+        from meme_machine.runtime.sleeve_reservations import SleeveReservations
+        entered=threading.Event();release=threading.Event()
+        def waiting(*args):
+            entered.set()
+            if not release.wait(5):raise AssertionError('history fixture was not released')
+            return False
+        token=_active.set(self.history)
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor,\
+                    patch.object(module,'_preparation_executor',executor),\
+                    patch.object(module,'_preparation_future',None),\
+                    patch.object(module,'_prepare_scale_prefix',side_effect=waiting),\
+                    patch.object(paper.time,'time',return_value=2000),\
+                    patch('meme_machine.runtime.directional_sleeve.open_sleeve',
+                        side_effect=lambda *a:SleeveReservations(self.native.sleeve_path,**self.native.sleeve_args)):
+                try:
+                    self.assertIsNone(paper._attempt_current_scale(ENDPOINT,self.tape,self.native.paper,
+                        self.native.identity,self.native.state,self.candidate,1,self.native.store,{},self.native.before,demand={}))
+                    self.assertTrue(entered.wait(2));self.assertFalse(module._preparation_future.done())
+                    # The actual native mark and pending protective exit can
+                    # commit while historical preparation remains outstanding.
+                    quote=self.native.native_quote(2000,'sell',self.native.before['tokens'],self.native.before['remaining_cost']*2)
+                    self.native.paper.advance(self.native.identity,now=2000,action='mark',quote=quote)
+                    p=self.native.paper.advance(self.native.identity,now=2000,action='exit_intent',exit_tokens=self.native.before['tokens'])
+                    self.assertEqual(p['status'],'exit_pending')
+                    self.assertEqual(p['remaining_cost'],self.native.before['remaining_cost'])
+                    self.assertIsNone(self.native.sleeve.get(self.native.identity).get('scale_reservation'))
+                    self.assertFalse(module._preparation_future.done())
+                finally:release.set()
+                self.assertFalse(module._preparation_future.result(timeout=2))
+        finally:_active.reset(token)
 
     def test_reorganization_invalidates_history_without_mutating_the_native_position(self):
         self.prepare();self.tape.forks[self.top]=1

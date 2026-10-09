@@ -364,13 +364,14 @@ class SelectiveEvidenceContext:
         the original individual path keeps its original deadline and governor.
         """
         from .immutable_rpc import choose_block_receipts
-        groups={}
+        groups={};selected={}
         for tx,bh in tx_rows:
-            if self.cache.receipt(tx,bh) is None:groups.setdefault(bh,set()).add(tx)
+            retained=self.cache.receipt(tx,bh)
+            if retained is None:groups.setdefault(bh,set()).add(tx)
+            else:selected[(tx,bh)]=retained
         self.receipt_acquisition_counts['required_missing_receipts']+=sum(map(len,groups.values()))
         self.receipt_acquisition_counts['occupied_missing_blocks']+=len(groups)
         resources=self.block_receipts_resources
-        selected={}
         if not isinstance(resources,dict) or resources.get('validated') is not True:return selected
         for bh,required in groups.items():
             # Cached hashes alone do not prove present canonical membership.

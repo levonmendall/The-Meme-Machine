@@ -50,12 +50,22 @@ def scaling():
         decisions=[ongoing_scale_requalification(position=r[1],controller=vars(f.native.state),
             evidence=r[0],now=2000) for r in (old,repeated,new,final)]
         assert all(q==decisions[0] and q['scale_qualified'] for q in decisions)
+        deltas=[]
+        for at in (2001,2002):
+            f.top+=1;f.tape.request_log=[]
+            result,counts=measured(f.tape,lambda:f.reads(at=at))
+            ranges=[params[0] for method,params in f.tape.request_log if method=='eth_getLogs']
+            assert len(ranges)==1 and int(ranges[0]['fromBlock'],16)==int(ranges[0]['toBlock'],16)==f.top
+            assert not counts['methods'].get('eth_getTransactionReceipt')
+            assert ongoing_scale_requalification(position=result[1],controller=vars(f.native.state),evidence=result[0],now=at)['scale_qualified']
+            deltas.append(dict(execution_sensitive_started_at=at,canonical_block=f.top,log_ranges=ranges,counts=counts))
         assert f.native.paper._get(f.native.identity)==f.native.before
         return dict(classification='OFFLINE_NATIVE_HISTORY_REPLAY; executable exit quote mocked identically',
             original_reader_commit='cd1c16c4e867b8121e6ff8a8b02b6759ca46bef2',
             window_seconds=900,canonical_event_count=25,occupied_event_blocks=1,
             original_first_pass=a,original_second_pass=b,historical_preparation=preparation,
             retained_first_pass=c,retained_final_pass=d,qualification=decisions[0],
+            fresh_block_delta_passes=deltas,
             unchanged_native_qualification=True,unchanged_native_position=True,
             native_accounting_verified=f.native.paper.accounting(f.native.identity)['replay_verified'],
             caveat='Preparation is required once and is not free. Quote RPCs, sizing and final fill fences are excluded. '
