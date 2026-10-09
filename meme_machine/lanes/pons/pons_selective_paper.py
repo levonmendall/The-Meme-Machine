@@ -1385,18 +1385,40 @@ def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_unit
     """Authenticate a rolling horizon and a current executable exit independently."""
     from collections import defaultdict
     from .pons_selective_continuation import curve_progress_bps
-    started=time.time();position=paper._get(identity)
+    position=paper._get(identity)
+    from .pons_current_history import active_history
+    history=active_history();prepared=None;fresh_head=None
+    if history is not None:
+        market=candidate['curve'] if state.transition is None else position['market']
+        checkpoint=history.get(market)
+        if checkpoint is None:raise BoundaryError('pons_current_scale_history_not_prepared')
+        head_at=time.monotonic();target=_latest_header(rpc)
+        target_at=int(target['timestamp'],16);target_block=int(target['number'],16)
+        if (checkpoint['from_time']>max(0,target_at-900)
+                or target_block-checkpoint['block']>256 or target_at-checkpoint['through']>60):
+            raise BoundaryError('pons_current_scale_history_not_prepared')
+        if state.transition is None:
+            prepared=_curve_logs(endpoint,candidate['curve'],target,seconds=900)[0]
+        else:
+            from .pons_selective_v4 import rolling_position_activity
+            prepared=rolling_position_activity(endpoint,rpc=rpc,history=history,
+                pool_id=market,key=state.v4_key,token=candidate['token'],header=target,
+                seconds=900,preholder_groups=state.preholders)
+        fresh_head=(target,head_at)
+    # This clock covers the genuinely fresh execution-sensitive phase. The
+    # retained historical interval keeps its real acquisition/checkpoint times.
+    started=time.time()
     if state.transition is None:
         mark,meta=_curve_quote(rpc,candidate,'sell',position['tokens'],gas_units,store,
-            'selective-scale-current-exit',local_freshness=True)[:2]
+            'selective-scale-current-exit',local_freshness=True,fresh_head=fresh_head)[:2]
     else:
         mark,meta,_=_v4_quote(rpc,state.v4_key,position['market'],position['tokens'],gas_units,store,
-            'selective-scale-current-exit',local_freshness=True)
+            'selective-scale-current-exit',local_freshness=True,fresh_head=fresh_head)
     head=dict(number=hex(int(meta['block'])),hash=meta['block_hash'],timestamp=hex(int(meta['event_at'])))
     asof=int(meta['event_at']);creators={str(candidate['record'].get(k,'')).lower()
         for k in ('deployer','creatorFeeRecipient')}
     if state.transition is None:
-        events,_=_curve_logs(endpoint,candidate['curve'],head,seconds=900)
+        events=prepared if fresh_head and head['hash']==fresh_head[0]['hash'] else _curve_logs(endpoint,candidate['curve'],head,seconds=900)[0]
         trajectory,demand,_=_refresh_curve_signal(endpoint,candidate,meta)
         curve=CurveState(**meta['state'])
         progress=curve_progress_bps(curve.real_quote,candidate['record']['graduationThreshold'])
@@ -1413,11 +1435,23 @@ def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_unit
             soft_deterioration_streak=state.pregrad_soft_deterioration_streak)
         phase='pregraduation'
     else:
-        locator=evidence_rpc(endpoint)
-        start=_header_search(locator,int(meta['block']),asof,max(0,asof-900),{int(meta['block']):head})
-        activity=collect_v4_activity(endpoint,pool_id=position['market'],key=state.v4_key,
-            token=candidate['token'],start_block=int(start['number'],16),end_block=int(meta['block']),
-            preholder_groups=state.preholders,max_events=ENTRY_THRESHOLDS['max_market_events'])
+        if history is None:
+            # Legacy callers without the existing durable plane keep their
+            # original authority; a cache cannot invent a complete interval.
+            locator=evidence_rpc(endpoint)
+            start=_header_search(locator,int(meta['block']),asof,max(0,asof-900),{int(meta['block']):head})
+            activity=collect_v4_activity(endpoint,pool_id=position['market'],key=state.v4_key,
+                token=candidate['token'],start_block=int(start['number'],16),end_block=int(meta['block']),
+                preholder_groups=state.preholders,max_events=ENTRY_THRESHOLDS['max_market_events'])
+        else:
+            from .pons_selective_v4 import rolling_position_activity
+            checkpoint=history.get(position['market'])
+            if checkpoint is None or checkpoint['from_time']>max(0,asof-900):
+                raise BoundaryError('pons_current_scale_history_not_prepared')
+            activity=(prepared if fresh_head and head['hash']==fresh_head[0]['hash'] else
+                rolling_position_activity(endpoint,rpc=rpc,history=history,
+                    pool_id=position['market'],key=state.v4_key,token=candidate['token'],
+                    header=head,seconds=900,preholder_groups=state.preholders))
         events=[r for r in activity['swaps'] if asof-900<=int(r['event_at'])<=asof]
         recent=[r for r in events if int(r['event_at'])>=asof-15
             and str(r['group']).lower() not in creators
@@ -1492,9 +1526,29 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
     if (getattr(state,'scale_committed',False) or position.get('scale_request') or not state.partial_taken
             or getattr(state,'first_tail_crossed_at',None) is None
             or now-state.first_tail_crossed_at<900 or state.pending_action is not None):return None
+    # Native monitoring prepares this authenticated horizon incrementally,
+    # independently of the add's fresh quote clock. Missing/reorganized history
+    # refuses only this add; protection and normal ingestion keep running.
+    from .pons_current_history import active_history
+    history=active_history()
     sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
     if sleeve is None:return None
     with closing(sleeve):
+        if (state.high_water<10000 or position['status']!='open'
+                or (sleeve.get(identity) or {}).get('scale_reservation',{}).get('status')=='reserved'):
+            return None
+        sizing=sleeve.sizing_basis(250)
+        if min(sizing['allocatable_target'],position['original_basis']//2,
+               max(0,sizing['realized_equity'])*750//10000-position['original_basis'])<=0:
+            return None
+        if history is not None:
+            market=candidate['curve'] if state.transition is None else position['market']
+            checkpoint=history.get(market)
+            if checkpoint is None or checkpoint['from_time']>max(0,checkpoint['through']-900):
+                from .pons_current_history import prepare_scale_history
+                prepare_scale_history(history,endpoint,market,candidate,key=state.v4_key if state.transition else None,
+                    native_store=store,identity=identity)
+                return None
         try:
             current,position,mark,mark_meta=_ongoing_scale_evidence(
                 endpoint,rpc,paper,identity,state,candidate,gas_units,store,sleeve)
