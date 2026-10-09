@@ -170,13 +170,17 @@ class NativeEventCoverageTests(TestCase):
 
 def quote_turn(trial,*,rpc,block,net=QUOTE,quantity=100,hold=True,
                gross=None,gas=None):
-    return trial.observe_after_hold(rpc=rpc,pool_id=POOL,
-        quantity=quantity,quote_block=block,
-        quote_hash=(START_HASH if block==100 else END_HASH),
-        net_proceeds=net,gross_amount_out=gross,gas_quote=gas,
-        position_open=hold,
-        no_pending_exit=hold,no_pending_partial=hold,owner_protected=hold,
-        risk_distance_bps=2500)
+    # Offline captured transports are never allowed to consult unrelated
+    # persistent acceptance ledgers from other test cases.
+    with patch('meme_machine.operational.position_continuation.position_only',
+               return_value=False):
+        return trial.observe_after_hold(rpc=rpc,pool_id=POOL,
+            quantity=quantity,quote_block=block,
+            quote_hash=(START_HASH if block==100 else END_HASH),
+            net_proceeds=net,gross_amount_out=gross,gas_quote=gas,
+            position_open=hold,
+            no_pending_exit=hold,no_pending_partial=hold,
+            owner_protected=hold,risk_distance_bps=2500)
 
 
 class ShadowIntegrationTests(TestCase):
@@ -204,6 +208,21 @@ class ShadowIntegrationTests(TestCase):
         # Same observed quantity, new quote: no further provider work after cap.
         quote_turn(shadow,rpc=rpc,block=101)
         self.assertEqual(len(rpc.calls),4)
+
+    def test_position_only_rejects_optional_shadow_without_market_calls(self):
+        shadow=PaperHeldShadow(URL,environ={
+            'MM_PONS_HELD_PAPER_SHADOW':'1',
+            'MM_PONS_HELD_SHADOW_EVERY_TICKS':'2'})
+        rpc=FakeCanonicalRpc()
+        quote_turn(shadow,rpc=rpc,block=100)
+        with patch('meme_machine.operational.position_continuation.position_only',
+                   return_value=True):
+            outcome=shadow.observe_after_hold(rpc=rpc,pool_id=POOL,
+                quantity=100,quote_block=101,quote_hash=END_HASH,
+                net_proceeds=QUOTE,risk_distance_bps=2500)
+        self.assertEqual(outcome['status'],'INCONCLUSIVE')
+        self.assertEqual(rpc.calls,[])
+        self.assertIn('bootstrap_optional_work_closed',outcome['reason'])
 
     def test_quote_changed_without_events_suspends_shadow(self):
         shadow=PaperHeldShadow(URL,environ={
