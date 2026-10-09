@@ -18,7 +18,7 @@ from meme_machine.runtime.survivor_history import History
 from meme_machine.runtime.survivor_paper_book import PaperBook
 from meme_machine.solana_evidence_plane import decode_body
 from .engine import GAS,MAYHEM_AGENT_WALLET
-from .postgrad import PostGraduationAdapter,graduation_handoff,buy_quote,sell_quote
+from .postgrad import PostGraduationAdapter,graduation_handoff,buy_quote,sell_quote,held_rpc_mode
 from .provider import Unavailable
 from .solana_read_rpc import new_rpc
 from .solana_evidence_runtime import RuntimeEvidence,PUMP_SCOPE,SWAP_SCOPE
@@ -67,7 +67,8 @@ class Runtime:
             self.rpc=new_rpc(limit=240,pacer=pacer)
             self.rpc.evidence_priority=priority
             self.adapter=PostGraduationAdapter(self.rpc)
-            self.adapter.finalized_market_time=self._local_finalized_time
+            if held_rpc_mode()=='optimized':
+                self.adapter.finalized_market_time=self._local_finalized_time
         self.rpc.evidence_priority=priority
         self.rpc.evidence_kind='survivor_monitor' if priority==30 else 'survivor_commit_or_exit'
 
@@ -164,18 +165,19 @@ class Runtime:
 
     def fresh_state(self,candidate,priority=1,*,maintenance=False):
         self._provider(priority);self.current=self.history.get(candidate)
-        if maintenance:
-            # Fully fresh curve AND economic quote from one coherent batch.
-            # Creator/Mayhem/fee identity is never reused from another tick.
+        if maintenance and held_rpc_mode()=='optimized':
+            # A co-slot fresh curve AND quote; no creator or price reuse.
             state=self.adapter.pumpswap_snapshot(
                 candidate,self.now(),priority=True,
                 reuse_verified_pool=True,held_curve_inline=True)
         else:
+            # Original provider path remains available for a controlled
+            # same-source live PAPER baseline. Qualification is never altered.
             raw=self.adapter.graduation_snapshot(candidate,self.now(),priority=True)
             handoff=graduation_handoff(raw,self.now())
             state=self.adapter.pumpswap_snapshot(
                 handoff,self.now(),priority=True,
-                additional_accounts=(SOL_USD_ACCOUNT,))
+                additional_accounts=() if maintenance else (SOL_USD_ACCOUNT,))
         if state['pool']!=self.current['graduation']['pool']:raise ValueError('survivor_pool_drift')
         return state
 
@@ -414,6 +416,14 @@ class Runtime:
             from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
             exceptional_evidence_failure(self,family='pump_survivor',blocker=str(exc))
         return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    pump_held_rpc=dict(
+                        mode=held_rpc_mode(),
+                        verified_pool_probe_reuses=getattr(getattr(self,'adapter',None),
+                            'held_pumpswap_probe_reuses',0),
+                        finalized_slot_time_reuses=getattr(getattr(self,'adapter',None),
+                            'held_finalized_time_reuses',0),
+                        physical_http_requests=getattr(getattr(self,'rpc',None),
+                            'http_requests',0)),
                     position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,
                         blocker='pump_survivor_position_not_observed')) for r in self.history.rows() if r.get('position')],
                     candidate_count=len(self.history.rows()),last_boundary=self.last_error,
