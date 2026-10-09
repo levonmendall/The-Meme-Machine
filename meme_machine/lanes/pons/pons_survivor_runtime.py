@@ -23,7 +23,7 @@ from meme_machine.runtime.robinhood.pons import plane_path
 from meme_machine.runtime.robinhood.provider_usage import evidence_work
 from . import BoundaryError
 from .abi import calldata,words,scalar
-from .identity import load,authenticate
+from .identity import metadata as load,authenticate
 from .keccak import keccak256
 from .protocols import PoolKey
 from .provider_topology import configured_rpc

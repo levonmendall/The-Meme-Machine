@@ -9,7 +9,7 @@ import time
 
 from . import BoundaryError
 from .abi import signature, topic
-from .identity import load
+from .identity import metadata as load
 from .pons import raw_event
 from .pons_selective_acquisition import _batched, SelectiveEvidenceContext
 from .log_windows import LogWindows,CheckpointHints

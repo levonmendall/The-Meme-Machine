@@ -13,7 +13,7 @@ import zlib
 
 from . import BoundaryError
 from .abi import calldata, topic, signature
-from .identity import authenticate, load
+from .identity import authenticate, metadata as load
 from .pons import factory_record, raw_event, prove_v4_lineage, prove_v1_v3_lineage
 from .provider_topology import configured_rpc
 

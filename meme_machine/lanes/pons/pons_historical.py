@@ -15,7 +15,7 @@ import time
 from meme_machine.runtime.journal import canonical, digest
 from meme_machine.runtime.robinhood.provider_authority import require_canonical
 from . import BoundaryError, CHAIN_ID
-from .identity import load, authenticate
+from .identity import metadata as load, authenticate
 from .abi import decode_event, calldata
 from .pons import raw_event, authenticate_curve
 from .pons_natural_paper import _event_topic, _factory_record_at, _graduation_transition

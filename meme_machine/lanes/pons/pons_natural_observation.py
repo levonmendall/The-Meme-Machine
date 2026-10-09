@@ -22,7 +22,7 @@ from .abi import calldata, decode_event, topic, words, scalar
 from .evidence import Stamp, Store
 from .evidence_queue import DeadlineEvidenceQueue
 from .finality import Finality
-from .identity import load
+from .identity import metadata as load
 from .pons import (
     CurveState, authenticate_curve, curve_abi, factory_record, raw_event,
 )

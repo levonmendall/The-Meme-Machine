@@ -24,7 +24,7 @@ from . import BoundaryError, CHAIN_ID
 from .abi import calldata, topic, words, scalar
 from .evidence import Stamp, Store, digest
 from .finality import Finality
-from .identity import load
+from .identity import metadata as load
 from .keccak import keccak256
 from .paper import Paper, Quote
 from .pons import factory_record, raw_event, curve_abi, prove_v4_lineage
