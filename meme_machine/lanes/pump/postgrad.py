@@ -422,8 +422,27 @@ class PostGraduationAdapter:
             else:
                 self.scan_rpc = PoolScanRPC(rpc.url, limit=scan_limit)
         self.scan_verified = False
+        # In-memory immutable identities only; never cache reserves or fees.
+        self._held_graduation = {}
+        self._held_pumpswap_vaults = {}
+        self.held_handoff_reuses = 0
+        self.held_pumpswap_probe_reuses = 0
+        self.held_finalized_time_reuses = 0
+        self.finalized_market_time = None
 
     def _market_time(self, slot, priority):
+        # Existing authenticated finalized slot receipts can replace RPC for
+        # this exact slot; a missing or invalid local proof uses the original RPC.
+        resolver = self.finalized_market_time
+        if resolver is not None:
+            try:
+                value = resolver(slot)
+                if type(value) is int and 0 < value <= self.rpc.clock():
+                    self.held_finalized_time_reuses += 1
+                    return value
+            except Exception:
+                # A local lookup is an optimization, not exit-price authority.
+                pass
         value = self.rpc.call('getBlockTime', [slot], priority)
         if value is None:
             raise Unavailable('missing_block_time')
@@ -449,19 +468,53 @@ class PostGraduationAdapter:
         graduation_handoff(snapshot, max(now, snapshot['available_time']))
         return snapshot
 
-    def pumpswap_snapshot(self, handoff, now, priority=True, *, additional_accounts=()):
+    def held_graduation_handoff(self, mint, now, priority=True):
+        """Revalidate static completed-curve lineage every 60 seconds.
+
+        Only funded maintenance may use this transient hint. Entry and scaling
+        still fetch fresh authentication. No mutable price/supply/fees are
+        carried between turns; failed revalidation blocks rather than using a
+        stale graduation identity.
+        """
+        prior = self._held_graduation.get(mint)
+        if prior is not None and 0 <= now - prior[0] < 60:
+            self.held_handoff_reuses += 1
+            return prior[1]
+        raw = self.graduation_snapshot(mint, now, priority=priority)
+        fresh = graduation_handoff(raw, max(now, raw['available_time']))
+        if prior is not None:
+            old = prior[1]
+            if (old.mint, old.creator, old.source_pool, old.mayhem_mode) != (
+                    fresh.mint, fresh.creator, fresh.source_pool, fresh.mayhem_mode):
+                self._held_graduation.pop(mint, None)
+                self._held_pumpswap_vaults.pop(mint, None)
+                raise ValueError('held_graduation_identity_changed')
+        if mint not in self._held_graduation and len(self._held_graduation) >= 64:
+            self._held_graduation.pop(next(iter(self._held_graduation)))
+        self._held_graduation[mint] = (now, fresh)
+        return fresh
+
+    def pumpswap_snapshot(self, handoff, now, priority=True, *, additional_accounts=(),
+                          reuse_verified_pool=False):
+        """Held-only verified vault addresses, never cached price/fee accounts."""
         pool_key = pumpswap_pool(handoff.mint)
-        probe = self.rpc.call(
-            'getMultipleAccounts',
-            [[pool_key], {'encoding':'base64', 'commitment':'finalized'}],
-            priority,
-        )
-        pool_account = probe['value'][0]
-        if pool_account is None:
-            raise Unavailable('pumpswap_pool_missing')
-        metadata = _decode_pumpswap_pool(pool_key, pool_account, handoff.mint)
+        known = (self._held_pumpswap_vaults.get(handoff.mint)
+                 if reuse_verified_pool else None)
+        probe = None
+        if known is None:
+            probe = self.rpc.call(
+                'getMultipleAccounts',
+                [[pool_key], {'encoding':'base64', 'commitment':'finalized'}],
+                priority,
+            )
+            if len(probe.get('value') or ()) != 1 or probe['value'][0] is None:
+                raise Unavailable('pumpswap_pool_missing')
+            metadata = _decode_pumpswap_pool(pool_key, probe['value'][0], handoff.mint)
+            vaults = metadata['base_vault'], metadata['quote_vault']
+        else:
+            vaults = known
         addresses = [
-            pool_key, handoff.mint, metadata['base_vault'], metadata['quote_vault'],
+            pool_key, handoff.mint, vaults[0], vaults[1],
             self.fee_address,
         ]
         addresses.extend(additional_accounts)
@@ -474,6 +527,11 @@ class PostGraduationAdapter:
             raise Unavailable('pumpswap_accounts_missing')
         pool_account, mint_account, base_vault, quote_vault, fee_account = result['value'][:5]
         metadata = _decode_pumpswap_pool(pool_key, pool_account, handoff.mint)
+        if known is not None and (
+                metadata['base_vault'], metadata['quote_vault']) != known:
+            self._held_pumpswap_vaults.pop(handoff.mint, None)
+            self._held_graduation.pop(handoff.mint, None)
+            raise ValueError('pumpswap_verified_vault_drift')
         supply, decimals = pump.mint_info(mint_account)
         if decimals <= 0 or supply <= 0:
             raise ValueError('invalid_postgrad_mint')
@@ -490,6 +548,15 @@ class PostGraduationAdapter:
         rates = _pumpswap_fee_rates(fee_account, market_cap, metadata['coin_creator'])
         slot = int(result['context']['slot'])
         market_time = self._market_time(slot, priority)
+        # Successful fresh economic validation is the only admission point.
+        if reuse_verified_pool:
+            if (handoff.mint not in self._held_pumpswap_vaults and
+                    len(self._held_pumpswap_vaults) >= 64):
+                self._held_pumpswap_vaults.pop(next(iter(self._held_pumpswap_vaults)))
+            self._held_pumpswap_vaults[handoff.mint] = (
+                metadata['base_vault'], metadata['quote_vault'])
+            if known is not None:
+                self.held_pumpswap_probe_reuses += 1
         return dict(
             mint=handoff.mint, pool=pool_key, creator=handoff.creator,
             surface='pumpswap', protocol='pump.swap', network='solana-mainnet',
@@ -506,7 +573,7 @@ class PostGraduationAdapter:
             ),
             source=dict(
                 graduation_slot=handoff.source_slot,
-                pool_probe_slot=int(probe['context']['slot']),
+                pool_probe_slot=slot if known is not None else int(probe['context']['slot']),
                 account_slot=slot,
                 fee_address=self.fee_address,
             ),
