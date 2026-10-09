@@ -5,6 +5,7 @@ shared components are neutral Pons protocol authentication, read-only provider,
 finality and paper-execution primitives.  No continuation-v1, Ramses, Pump.fun or
 other strategy signal/threshold/state is imported.
 """
+from meme_machine.runtime.provider_purchases import attributed_work
 from meme_machine.runtime.execution_capacity import resize
 
 
@@ -311,6 +312,7 @@ def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None
     return out,[locator_telemetry]+sessions
 
 
+@attributed_work('pons_held_protection',consumer='current')
 def _position_trajectory(endpoint,candidate):
     from .pons_current_history import active_history
     from .pons_quotes import canonical_boundary
@@ -361,6 +363,7 @@ def _refresh_curve_signal(endpoint,candidate,mark_meta,*,entry_evidence=None):
     return trajectory,demand,[trajectory_session]+sessions
 
 
+@attributed_work('pons_current_qualification')
 def _refresh_entry_persistence_signal(endpoint,candidate,entry_meta):
     """Dedicated fill-time thesis revalidation hook.
 
@@ -387,6 +390,7 @@ def _entry_generation(evaluation):
         finally:plane.close()
 
 
+@attributed_work('pons_current_qualification')
 def _confirm_entry_delta(endpoint,candidate,anchor,final,trajectory,demand,vector):
     """Authenticate only the interval after persistence, using immutable receipt reuse.
 
@@ -449,6 +453,7 @@ def _validate_final_entry(entry,meta,anchor_quote,amount,started_wall):
         raise BoundaryError('selective_entry_execution_economics')
 
 
+@attributed_work('pons_held_protection',consumer='current')
 def _delayed_exit(
     endpoint,*,paper,identity,rpc,candidate,gas_units,store,
     transition,v4_key,label,exit_tokens,
@@ -496,6 +501,7 @@ def _delayed_exit(
     return position,meta
 
 
+@attributed_work('pons_held_protection',consumer='current')
 def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label):
     pending=paper._get(identity)
     if pending["status"]!="exit_pending":
@@ -1348,6 +1354,7 @@ def _bridge_action(state,facts,action,position,*,now):
 
 
 
+@attributed_work('scaling_requalification',family='pons',consumer='current')
 def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_units,store,sleeve):
     """Authenticate a rolling horizon and a current executable exit independently."""
     from collections import defaultdict
@@ -1444,6 +1451,7 @@ def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_unit
     return evidence,position,mark,meta
 
 
+@attributed_work('scaling_requalification',family='pons',consumer='current')
 def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units,store,facts,position,*,trajectory=None,demand):
     from meme_machine.operational.position_continuation import position_only
     if position_only():

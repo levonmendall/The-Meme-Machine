@@ -292,6 +292,9 @@ class PacedRpc(Rpc):
             if len(params)>index and not isinstance(params[index],dict) and method not in self.hash_state_supported:
                 pins={}
         result=reuse.lookup(method,params,pins,getattr(self,'evidence_receipts',{}),getattr(self,'evidence_cost_epoch',None))
+        if result[0]:
+            from meme_machine.runtime.provider_purchases import ledger
+            ledger(self).consumer([method],cache_hit=True,shared=True,family='pons')
         if method=='eth_gasPrice' and result[0] and getattr(self,'evidence_timing',None) is not None:
             self.evidence_timing['gas_quote_origin']=dict(reuse.gas_quote_origin)
         return result
@@ -320,6 +323,8 @@ class PacedRpc(Rpc):
             cached=reuse.store.get(reuse.domain,key) if key else None
             if cached:
                 reuse.store.event(reuse.lane,reuse.domain,method,'coalesced',key,cached[1])
+                from meme_machine.runtime.provider_purchases import ledger
+                ledger(self).consumer([method],cache_hit=True,shared=True,family='pons')
                 return cached[0]
             value=super().call(method,self._wire_params(method,params,key),scope=scope)
             reuse.remember(method,params,value,key)
@@ -350,6 +355,8 @@ class PacedRpc(Rpc):
             hit,value,key=self._reuse_lookup(method,params)
             if hit:out[index]=value;continue
             if key and key in keys:
+                from meme_machine.runtime.provider_purchases import ledger
+                ledger(self).consumer([method],cache_hit=True,shared=True,family='pons')
                 followers[index]=keys[key];continue
             if key:keys[key]=index
             missing.append((index,method,params,key))
@@ -366,6 +373,8 @@ class PacedRpc(Rpc):
                     if cached:
                         out[index]=cached[0]
                         reuse.store.event(reuse.lane,reuse.domain,method,'coalesced',key,cached[1])
+                        from meme_machine.runtime.provider_purchases import ledger
+                        ledger(self).consumer([method],cache_hit=True,shared=True,family='pons')
                     else:pending.append(item)
                 if pending:
                     if deadline is not None and time.monotonic()>=deadline:raise BoundaryError('evidence_deadline_before_transport')

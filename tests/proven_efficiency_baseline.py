@@ -84,3 +84,39 @@ def original_restore_risk(book,identity):
         state=risk_record(state,row)
     if state is None:raise ValueError('survivor_fill_missing')
     return state
+
+
+from collections import Counter
+
+def original_provider_usage_record(db, row, *, wire=True):
+    """Update the shared materialized counters in the transport audit transaction."""
+    counts=Counter()
+    n=row.get('physical_requests',0) if wire else 0
+    if not wire:counts['completed_transport_attempts']=row.get('physical_requests',0)
+    purpose=row.get('category','unclassified')
+    if not wire:
+        counts['response_bytes']=row.get('response_bytes',0)
+        counts['category:'+purpose+':response_bytes']=row.get('response_bytes',0)
+    counts['physical_http_requests']=n
+    if n:
+        counts['request_bytes']=row.get('request_bytes',0)
+        counts['category:'+purpose+':request_bytes']=row.get('request_bytes',0)
+        counts['category:'+purpose+':physical_http_requests']=n
+        counts['category:'+purpose+':logical_rpc_calls']=len(row['methods'])
+        counts.update({'category:'+purpose+':method:'+m:v for m,v in Counter(row['methods']).items()})
+        counts['logical_rpc_calls']=len(row['methods'])
+        counts.update({'method:'+m:v for m,v in Counter(row['methods']).items()})
+        counts['retries']=int(row.get('retry_attempt',0)>0)
+        if row.get('batch'):
+            counts['batch_transports']=n;counts['batch_members']=len(row['methods'])
+        for label,words in [('repair',('repair','gap')),('execution_current_state',('paper','exit','unwind','confirm','current','execution'))]:
+            if any(w in row.get('scope','') for w in words):
+                counts[label+'_transports']=n;counts[label+'_logical_calls']=len(row['methods'])
+    counts['responses_429']=int(row.get('http_status')==429 or row.get('rpc_error_code')==429)
+    counts['provider_queue_wait_seconds']=row.get('wait_seconds',0)
+    counts['transport_latency_seconds']=row.get('latency_seconds',0)
+    counts['category:'+purpose+':scheduling_wait_seconds']=row.get('wait_seconds',0)
+    counts['category:'+purpose+':latency_seconds']=row.get('latency_seconds',0)
+    if row.get('boundary'):counts['failure:'+row['boundary']]=1
+    db.executemany('INSERT INTO provider_usage VALUES(?,?,?,?) ON CONFLICT(endpoint,lane,metric) DO UPDATE SET value=value+excluded.value',
+        [(row['endpoint_fingerprint'],row['lane'],key,value) for key,value in counts.items()])

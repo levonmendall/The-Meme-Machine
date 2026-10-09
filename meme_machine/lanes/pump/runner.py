@@ -7,6 +7,7 @@ transaction submission, live money, or threshold adaptation exists here.
 """
 from __future__ import annotations
 
+from meme_machine.runtime.provider_purchases import attributed_work
 import json
 import os
 import threading
@@ -544,6 +545,7 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
     }),confirmation
 
 
+@attributed_work('pump_current_qualification')
 def _reserve_position(
     report,pending,active,signal,qualification,snapshot,mode,concentration=0,
     *,decision_id=None
@@ -677,6 +679,7 @@ def _reserve_position(
     return True
 
 
+@attributed_work('pump_current_qualification')
 @position_work
 def _fill_pending(
     report,pending,active,sessions,postgrad,now,*,
@@ -936,6 +939,7 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
     return row
 
 
+@attributed_work('pump_held_protection',consumer='current')
 @position_work
 def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now):
     # Exact frozen exit controller on natural qualifiers.  Each qualifier is
@@ -1103,6 +1107,7 @@ def _pump_continuation_facts(life,current,qualification,snapshot,proceeds,now):
         fresh_strategy_requalified=valid and qualification.qualified)
 
 
+@attributed_work('scaling_requalification',family='pump',consumer='current')
 def _scale_current(life,row,current,qualification,snapshot,facts,now):
     from meme_machine.runtime.directional_continuation import scale_budget,native_sync
     from meme_machine.runtime.execution_capacity import breadth_retained
@@ -1192,6 +1197,7 @@ def _smoke_tail_should_exit(smoke_flat_tail,now,discovery_end,pending,active):
     )
 
 
+@attributed_work('recovery_restart',family='pump',consumer='current')
 def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
     """Actual startup reconstruction; JSON reports are never consulted."""
     created={};postgrad={};pending={};active={};qualifiers=[]

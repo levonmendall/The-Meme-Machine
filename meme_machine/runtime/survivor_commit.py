@@ -3,6 +3,7 @@
 The integer PaperBook is reused from the certified Pump accounting primitive.
 Each regime has its own native book and shares only sleeve reservation authority.
 """
+from meme_machine.runtime.provider_purchases import attributed_work
 from contextlib import nullcontext
 
 from meme_machine.runtime.execution_capacity import resize, breadth_retained
@@ -233,6 +234,7 @@ def exceptional_evidence_failure(runtime,*,family,blocker,rows=None):
         runtime.history.save(row)
 
 
+@attributed_work('scaling_requalification')
 def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_limit,stress_limit,minimum):
     """Fresh native requalification and one incremental economic event."""
     from .directional_continuation import scale_budget,scale_necessary_budget,native_sync,BRIDGE_GATES

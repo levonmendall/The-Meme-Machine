@@ -4,6 +4,7 @@ All transport uses the existing canonical Robinhood provider and governor. The
 Candidate/Evidence Plane owns generation fencing. History is incremental and
 bounded; it is never reconstructed by an unbounded seven-day RPC scan.
 """
+from meme_machine.runtime.provider_purchases import attributed_work
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -194,6 +195,7 @@ class Runtime:
             for role,code in zip(roles,results):authenticate(role,load(role)['address'],code)
             self.deployments_verified=True
 
+    @attributed_work('pons_discovery')
     @decision_work(4)
     def discover(self):
         """Independent prospective factory census, never a cold market scan.
@@ -231,6 +233,7 @@ class Runtime:
             worker.maintain(recovery_before=plan['cutoff']-86400)
             self.history.set_meta('pons_forward_maintenance_at',self.now())
 
+    @attributed_work('pons_discovery')
     def _discover_scout(self):
         """Consume the shared journal; zero independent broad Alchemy scans."""
         from .pons_historical import Preparation, FORWARD_PLAN
@@ -344,6 +347,7 @@ class Runtime:
         return dict(ready=not reasons,category='COMPLETE' if not reasons else 'INCOMPLETE_EVIDENCE',
                     reasons=reasons,market_wide_coverage_required=False)
 
+    @attributed_work('history_receipt',family='pons',consumer='survivor')
     @evidence_work('deep_watch')
     def _increment(self,row,end):
         start=row['block']+1
@@ -575,6 +579,7 @@ class Runtime:
         if execution['quantity']!=qty or not 0<=time.monotonic()-execution['acquired']<=5:
             raise BoundaryError('survivor_exit_quote_stale')
 
+    @attributed_work('pons_survivor_qualification')
     @decision_work(1)
     def _enter(self,row):
         sizing=self.sleeve.sizing_basis(500,minimum_bps=5)
@@ -634,6 +639,7 @@ class Runtime:
                 return dict(number=hex(number),hash=block_hash)
         return _latest_header(self.rpc)
 
+    @attributed_work('pons_held_protection',consumer='survivor')
     def _manage_position(self,row,*,admit=True):
         from meme_machine.operational.position_continuation import cancel_unfilled
         if cancel_unfilled(self.book,self.sleeve,self.history,row,self.now()):return

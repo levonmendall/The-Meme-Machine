@@ -6,6 +6,7 @@ session factory. No endpoint, money book, candidate deadline or provider rate is
 created here. Numeric log ranges are reusable only through their canonical range
 checkpoints; the generic immutable RPC cache deliberately does not cache them.
 """
+from meme_machine.runtime.provider_purchases import attributed_work
 from collections import Counter
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -487,6 +488,7 @@ class Preparation:
                 return False
             raise
 
+    @attributed_work('pons_discovery')
     @decision_work(5)
     def discover_step(self):
         if not self.restored:
@@ -709,6 +711,7 @@ class Preparation:
         self.last_authenticated_candidate=token
         return True
 
+    @attributed_work('history_receipt',family='pons')
     @decision_work(5)
     def history_step(self, runtime, token):
         """Hydrate one retained candidate using the native tape/append reducer.
@@ -747,6 +750,7 @@ class Preparation:
                 self.history.finish_recovery(token, block=end, block_hash=header['hash'])
         return self._packet(kind, query, first, number(p['target']), anchor, consume,participants=[token])
 
+    @attributed_work('history_receipt',family='pons')
     @decision_work(5)
     def history_group_step(self, runtime, rows):
         """Reuse the existing 64-market transport bound without capping population."""
@@ -833,6 +837,7 @@ class Preparation:
                     self.history_group_step(runtime,chosen)
         return self.readiness()
 
+    @attributed_work('recovery_restart',family='pons')
     @decision_work(5)
     def recover_candidate(self, runtime, token):
         if runtime.history is not self.history or not self.restored:

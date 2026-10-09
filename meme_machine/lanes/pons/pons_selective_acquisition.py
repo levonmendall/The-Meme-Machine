@@ -5,6 +5,7 @@ Robinhood/Pons transport, ABI, protocol-authentication and evidence primitives.
 """
 from __future__ import annotations
 
+from meme_machine.runtime.provider_purchases import attributed_work
 from collections import Counter, OrderedDict
 from dataclasses import asdict, replace
 import time
@@ -1028,6 +1029,7 @@ def refreshed_current_candidate(ctx,event,report,**kwargs):
     return candidate
 
 
+@attributed_work('pons_current_qualification')
 @decision_work(4)
 def evaluate_candidate(
     endpoint,event,tape,*,strategy_capital_quote,wallet_histories=None,

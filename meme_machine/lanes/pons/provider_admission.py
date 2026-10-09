@@ -224,6 +224,8 @@ class Admission:
             lane=self.lane,session=self.session,methods=methods,scope=scope,retry_attempt=retry_count,batch=batch)
         from meme_machine.runtime.robinhood.provider_usage import category
         attempt['category']=category(scope,role)
+        from meme_machine.runtime.provider_purchases import work_label
+        attempt['purchase_work']=work_label(family='pons')
         token=_active.set(attempt)
         try:admitted=self.acquire(scope,deadline,methods=methods)
         except BaseException:
@@ -250,6 +252,7 @@ class Admission:
             _active.reset(token)
             row=dict(lane=self.lane,endpoint_fingerprint=self.endpoint,session=self.session,
                      category=attempt['category'],response_bytes=attempt.get('response_bytes',0),
+                     purchase_work=attempt['purchase_work'],
                      methods=methods,scope=scope,http_status=http_status,rpc_error_code=rpc_code,
                      boundary=boundary,retry_count=retry_count,
                      retry_attempt=retry_count,physical_requests=attempt["physical_requests"],batch=batch,

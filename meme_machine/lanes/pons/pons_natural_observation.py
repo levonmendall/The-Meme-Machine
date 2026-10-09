@@ -10,6 +10,7 @@ The observer then waits a fixed 60 seconds, records subsequent authentic curve e
 rechecks canonical block identity, and promotes the original dependency to finalized
 only if the finalized frontier has actually reached it with the same hash.
 """
+from meme_machine.runtime.provider_purchases import attributed_work
 from dataclasses import asdict
 import json
 import os
@@ -463,6 +464,7 @@ def _quote_native_buy(rpc,curve,block,record,state,report):
     )
 
 
+@attributed_work('pons_current_qualification')
 def _authenticate_candidate(
     rpc,event,report,*,evidence_observed_at=None,
     evidence_observed_monotonic=None,max_evidence_latency_seconds=5,
@@ -656,6 +658,7 @@ def _chunks(rows,size):
         yield rows[i:i+size]
 
 
+@attributed_work('pons_current_qualification')
 def _authenticate_followup_events(rpc,candidate,events):
     """Authenticate fixed follow-up events with bounded immutable batch reads."""
     selected=[
@@ -709,6 +712,7 @@ def _authenticate_followup_events(rpc,candidate,events):
     return authentic
 
 
+@attributed_work('pons_held_protection',consumer='current')
 def _final_mark(rpc,candidate,block,report):
     try:
         state,_=_curve_state(rpc,candidate["curve"],block,candidate["auth"],report)
