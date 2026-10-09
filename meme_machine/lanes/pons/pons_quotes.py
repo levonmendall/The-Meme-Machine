@@ -35,7 +35,7 @@ def canonical_boundary(rpc,header,scope):
 
 
 class PinnedV4Reads:
-    """One current header and one bounded state/cost/membership batch."""
+    """One current header, bounded state batch, then ordered membership fence."""
     def __init__(self,rpc,key,side,amount,*,fresh_head=None):
         self.rpc=rpc;self.key=key;self.side=side;self.amount=amount;self.header=None;self.cache=None
         self.identity_snapshot=None
@@ -90,14 +90,14 @@ class PinnedV4Reads:
             wire=[]
             for m,p in requested:
                 wire.append((m,[*p[:-1],pinned_block(self.rpc,m,self.header)] if m in ('eth_call','eth_getCode') else p))
-            wire.append(('eth_getBlockByNumber',[block,False]))
             previous=getattr(self.rpc,'evidence_pins',{});self.rpc.evidence_pins={}
             try:values=self.rpc.batch(wire,scope=scope)
             finally:self.rpc.evidence_pins=previous
             if not isinstance(values,list) or len(values)!=len(wire):raise BoundaryError('pons_v4_quote_batch_incomplete')
-            if values[-1]['number']!=block or values[-1]['hash']!=self.header['hash']:
-                raise BoundaryError('pons_quote_canonical_membership_disagreement')
-            resolved=([prior['code'],prior['manager']]+values[:-1]) if same else values[:-1]
+            # JSON-RPC batch ordering says nothing about execution ordering.
+            # This uncached read starts AFTER every dependent state response.
+            canonical_boundary(self.rpc,self.header,scope)
+            resolved=([prior['code'],prior['manager']]+values) if same else values
             self.cache={canonical([m,p]):v for (m,p),v in zip(calls,resolved)}
             if (identity is not None and all(isinstance(v,str) for v in resolved[:2])
                     and sum(len(v.encode()) for v in resolved[:2])<=getattr(self.rpc,'max_response',2_000_000)):

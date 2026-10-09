@@ -513,12 +513,12 @@ class CapitalIndependenceTests(RuntimeCase):
             self.assertTrue(decision['candidate'],decision['all_rejections'])
             self.assertEqual(self.runtime.facts['execution']['capacity']['final_size'],cap)
             self.assertLess(cap,5*10**16)
-            self.assertEqual(len(rpc.transports)-before,3)
+            self.assertEqual(len(rpc.transports)-before,4)
             count=len(rpc.transports);self.assertIsNotNone(context.loss(2*cap))
             self.assertEqual(len(rpc.transports),count)
             partial=10**15-17;self.assertIsNotNone(context.loss(partial))
             self.assertLessEqual(context.entry(partial)['cost'],partial)
-            self.assertEqual(len(rpc.transports)-count,2)
+            self.assertEqual(len(rpc.transports)-count,3)
         self.assertTrue(all(d==decisions[0] for d in decisions[1:]))
 
 
@@ -547,7 +547,7 @@ class ExactQuoteRPC(OfflineRPC):
 
 
 class PinnedQuoteTests(unittest.TestCase):
-    def test_v4_reads_share_two_transports_and_canonical_numeric_boundary_is_fresh(self):
+    def test_v4_reads_use_ordered_post_batch_canonical_numeric_boundary(self):
         from meme_machine.lanes.pons.pons_quotes import PinnedV4Reads
         from meme_machine.lanes.pons.pons_natural_paper import V4_QUOTER,_v4_quoter_calldata
         from meme_machine.lanes.pons.abi import calldata
@@ -558,10 +558,11 @@ class PinnedQuoteTests(unittest.TestCase):
         self.assertEqual(manager,'0x'+load('uniswap_v4_manager')['address'][2:].zfill(64))
         reads.call('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(key,False,10**18)),header['number']],scope='pons_paper')
         self.assertEqual(reads.call('eth_gasPrice',[],scope='pons_paper'),'0x1')
-        self.assertEqual(len(rpc.transports),2)
-        batch=rpc.transports[-1][1]
+        self.assertEqual(len(rpc.transports),3)
+        batch=rpc.transports[-2][1]
         self.assertTrue(all(p[-1]==dict(blockHash=header['hash'],requireCanonical=True) for m,p in batch if m in ('eth_call','eth_getCode')))
-        self.assertEqual(batch[-1],('eth_getBlockByNumber',[hex(100),False]))
+        self.assertFalse(any(m=='eth_getBlockByNumber' for m,p in batch))
+        self.assertEqual(rpc.transports[-1],('call',[('eth_getBlockByNumber',[hex(100),False])]))
         self.assertEqual(rpc.evidence_pins,{hex(100):'old_alias'})
 
     def test_v4_reorg_during_quote_cannot_authorize_cached_exit_state(self):

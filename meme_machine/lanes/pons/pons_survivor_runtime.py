@@ -93,14 +93,13 @@ capacity. Searching cached quotes issues zero additional provider calls.
         decoded=[tuple(scalar('uint256',w) for w in words(raw)) for raw in buys]
         if any(len(v)!=2 or v[0]<=0 for v in decoded):raise BoundaryError('survivor_buy_quote_shape')
         calls=[('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(key,key.currency0!=ZERO,v[0])),block]) for v in decoded]
-        calls.append(('eth_getBlockByNumber',[header['number'],False]))
         previous=getattr(rpc,'evidence_pins',{});rpc.evidence_pins={}
         try:values=rpc.batch(calls,scope='pons_survivor')
         finally:rpc.evidence_pins=previous
         if len(values)!=len(calls):raise BoundaryError('survivor_sell_quote_incomplete')
-        if values[-1]['number']!=header['number'] or values[-1]['hash']!=header['hash']:
-            raise BoundaryError('pons_quote_canonical_membership_disagreement')
-        sells=values[:-1]
+        from .pons_quotes import canonical_boundary
+        canonical_boundary(rpc,header,'pons_survivor')
+        sells=values
         for n,b,raw in zip(ordered,decoded,sells):
             s=tuple(scalar('uint256',w) for w in words(raw))
             if len(s)!=2 or s[0]<=0:continue

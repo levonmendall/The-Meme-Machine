@@ -70,28 +70,37 @@ class _PinnedQuoteReads:
     Called inside the native quote's original acquisition timer. Each retry gets
     a new head and cache; no timestamp/deadline or strategy economics is changed.
     """
-    def __init__(self,rpc,curve,side):
+    def __init__(self,rpc,curve,side,*,fresh_head=None):
         self.rpc=rpc;self.curve=curve;self.side=side;self.header=None;self.cache=None;self.snipe=None
+        self.fresh_head=fresh_head
 
     def call(self,method,params,*,scope):
         if method=='eth_getBlockByNumber' and params==['latest',False]:
-            self.header=self.rpc.call(method,params,scope=scope);self.cache=None
+            fresh=self.fresh_head
+            if (isinstance(fresh,tuple) and len(fresh)==2 and isinstance(fresh[0],dict)
+                    and 0<=time.monotonic()-fresh[1]<=3):self.header=dict(fresh[0])
+            else:self.header=self.rpc.call(method,params,scope=scope)
+            self.cache=None
             return self.header
         if self.header is None:raise BoundaryError('selective_quote_head_required')
         if self.cache is None:
             block=hex(int(self.header['number'],16))
             calls=[('eth_call',[dict(to=self.curve,data=calldata(sig)),block])
                 for sig in ('getReserves()','realQuoteReserve()','reservedTokens()','graduated()')]
-            calls.append(('eth_getBlockByNumber',[block,False]))
             if self.side=='buy':
                 calls.append(('eth_call',[dict(to=self.curve,data=calldata('currentSnipeTaxBps(address)',RESEARCH_RECIPIENT)),block]))
             calls.append(('eth_gasPrice',[]))
             values=self.rpc.batch(calls,scope='pons_selective_paper_quote')
             if len(values)!=len(calls):raise BoundaryError('selective_quote_batch_incomplete')
-            pinned=values[4]
+            # The canonical witness must execute after the state batch, rather
+            # than depending on JSON-RPC's unspecified batch execution order.
+            previous=getattr(self.rpc,'evidence_pins',{});self.rpc.evidence_pins={}
+            try:pinned=self.rpc.call('eth_getBlockByNumber',[block,False],scope='pons_selective_paper_quote')
+            finally:self.rpc.evidence_pins=previous
             if any(pinned.get(k)!=self.header.get(k) for k in ('number','hash','parentHash','timestamp')):
                 raise BoundaryError('selective_quote_header_changed')
             self.cache={canonical([m,p]):v for (m,p),v in zip(calls,values)}
+            self.cache[canonical(['eth_getBlockByNumber',[block,False]])]=pinned
         key=canonical([method,params])
         if key not in self.cache:raise BoundaryError('selective_quote_read_not_pinned')
         value=self.cache.pop(key)
@@ -100,8 +109,8 @@ class _PinnedQuoteReads:
         return value
 
 
-def _curve_quote(rpc,candidate,side,*args,**kwargs):
-    return _native_curve_quote(_PinnedQuoteReads(rpc,candidate['curve'],side),candidate,side,*args,**kwargs)
+def _curve_quote(rpc,candidate,side,*args,fresh_head=None,**kwargs):
+    return _native_curve_quote(_PinnedQuoteReads(rpc,candidate['curve'],side,fresh_head=fresh_head),candidate,side,*args,**kwargs)
 
 
 def _wait_curve_quote(rpc,candidate,side,*args,**kwargs):
@@ -220,11 +229,11 @@ def _curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None):
     return result,sessions
 
 
-def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None,expected_previous_hash=None):
+def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None,expected_previous_hash=None,evidence_context=None):
     current_block=int(current_header["number"],16)
     current_at=int(current_header["timestamp"],16)
     if after_block is None:
-        locator=evidence_rpc(endpoint)
+        locator=evidence_context or evidence_rpc(endpoint)
         cache={current_block:current_header}
         lower=max(0,current_at-int(seconds))
         start_block=(0 if lower==0 else int(_header_search(
@@ -252,7 +261,7 @@ def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None
             fromBlock=hex(first),toBlock=hex(min(current_block,first+chunk-1)),
             address=curve,topics=[sigs],
         )]))
-    batches,sessions=_batched(endpoint,calls,"pons_selective_monitor") if calls else ([],[])
+    batches,sessions=_batched(endpoint,calls,"pons_selective_monitor",evidence_context=evidence_context) if calls else ([],[])
     if expected_previous_hash is not None:
         previous=batches.pop(0)
         if (int(previous['number'],16)!=after_block or previous['hash']!=expected_previous_hash):
@@ -269,13 +278,13 @@ def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None
         raise BoundaryError("selective_entry_delta_log_identity")
     hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
     headers_v,more=_batched(
-        endpoint,[("eth_getBlockByHash",[h,False]) for h in hashes],"pons_selective_monitor"
+        endpoint,[("eth_getBlockByHash",[h,False]) for h in hashes],"pons_selective_monitor",evidence_context=evidence_context
     ) if hashes else ([],[])
     sessions.extend(more);headers=dict(zip(hashes,headers_v))
     tx_rows=list(dict.fromkeys((e["transactionHash"],e["blockHash"]) for e in raw))
     # Reuse receipts only under the exact block hash authenticated below. Without
     # these pins every overlapping monitor window rehydrates the same bodies.
-    context=SelectiveEvidenceContext(endpoint)
+    context=evidence_context or SelectiveEvidenceContext(endpoint)
     for block_hash,header in headers.items():
         if header.get('hash')!=block_hash:
             raise BoundaryError('selective_monitor_header_identity')
@@ -309,6 +318,23 @@ def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None
             )
             normalized['canonical_order']=[row['block'],row['transaction_index'],row['log_index']]
             out.append(normalized)
+    # Ordered publication fence after logs, headers and receipt authentication.
+    # The preceding checkpoint cannot establish membership inside the log batch.
+    expected={current_block:current_header['hash']}
+    if expected_previous_hash is not None:expected[int(after_block)]=expected_previous_hash
+    for h in headers.values():
+        number=int(h['number'],16)
+        if number in expected and expected[number]!=h['hash']:raise BoundaryError('selective_monitor_header_identity')
+        expected[number]=h['hash']
+    previous=context.canonical_numbers;context.canonical_numbers=True
+    try:
+        members,more=_batched(endpoint,[('eth_getBlockByNumber',[hex(n),False]) for n in expected],
+            'pons_selective_monitor',evidence_context=context)
+    finally:context.canonical_numbers=previous
+    if len(members)!=len(expected) or any(not isinstance(h,dict) or
+            int(h['number'],16)!=n or h['hash']!=expected_hash for (n,expected_hash),h in zip(expected.items(),members)):
+        raise BoundaryError('pons_current_history_reorg')
+    sessions.extend(more)
     return out,[locator_telemetry]+sessions
 
 
