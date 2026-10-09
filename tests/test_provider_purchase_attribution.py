@@ -14,6 +14,34 @@ from meme_machine.lanes.pons.provider import Rpc
 
 
 class PurchaseAttributionTests(unittest.TestCase):
+    def test_unknown_payload_and_request_sizes_remain_unmeasured(self):
+        report=attribute([dict(purchase_id='unknown-bytes',methods=['eth_call'],
+            request_bytes=None,delivered_payload_bytes=None,billed_cu=None)])
+        self.assertEqual(report['unique_physical_purchases'],1)
+        self.assertEqual(report['purchases_without_request_byte_measurement'],1)
+        self.assertEqual(report['purchases_without_payload_byte_measurement'],1)
+        self.assertIsNone(report['total_measured_billed_cu'])
+
+    def test_native_evidence_consumer_deadline_join_bills_shared_purchase_once(self):
+        from operational.provider_cost_attribution import join_native_decisions
+        purchased=[dict(purchase_id='physical',completed=True,failed=False)]
+        evidence=[dict(evidence_id='native-quote',purchase_ids=['physical'],canonical_hash='h',
+            authenticated_by_native_validator=True)]
+        consumers=[dict(decision_id='decision-'+c,evidence_ids=['native-quote'],consumer=c,
+            canonical_hash='h',original_deadline=103,decided_at=102,native_decision={'action':'hold'})
+            for c in ('current','survivor')]
+        result=join_native_decisions(purchased,evidence,consumers)
+        self.assertEqual(result['unique_physical_purchases'],1)
+        self.assertEqual(result['linked_physical_purchases'],1)
+        self.assertEqual(len(result['links']),2)
+        self.assertEqual(result['provider_purchases_added'],0)
+        consumers[1]['canonical_hash']='fork'
+        with self.assertRaisesRegex(ValueError,'canonical'):join_native_decisions(purchased,evidence,consumers)
+        consumers[1]['canonical_hash']='h';consumers[1]['decided_at']=104
+        self.assertEqual(join_native_decisions(purchased,evidence,consumers)['late_consumer_links'],1)
+        evidence[0]['authenticated_by_native_validator']=False
+        self.assertEqual(join_native_decisions(purchased,evidence,consumers)['missing_or_unauthenticated_evidence_links'],2)
+
     def test_billed_weights_throughput_and_stream_redelivery_are_distinct(self):
         purchases=ProviderPurchases()
         with provider_work('history_receipt',family='pons',consumer='shared'):
