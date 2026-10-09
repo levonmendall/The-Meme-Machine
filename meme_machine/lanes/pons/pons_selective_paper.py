@@ -5,7 +5,7 @@ shared components are neutral Pons protocol authentication, read-only provider,
 finality and paper-execution primitives.  No continuation-v1, Ramses, Pump.fun or
 other strategy signal/threshold/state is imported.
 """
-from meme_machine.runtime.provider_purchases import attributed_work
+from meme_machine.runtime.provider_purchases import attributed_work,provider_work
 from meme_machine.runtime.execution_capacity import resize
 
 
@@ -573,7 +573,7 @@ def _run_lifecycle_steps(endpoint,evaluation,**kwargs):
     return (yield from _lifecycle_steps(endpoint,evaluation,**kwargs))
 
 
-def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None,exceptional_context=None):
+def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None,exceptional_context=None,_continued_session=None,_first_monitor_due=None):
     deadline=time.monotonic()+slice_seconds if slice_seconds is not None else None
     vector=evaluation["vector"]
     if not vector.get("current_threshold_pass"):
@@ -602,8 +602,11 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
             from meme_machine.runtime.robinhood.plane import project_native_position
             project_native_position(path,'pons',evaluation['candidate_broker_identity'],position,
                 ledger_path=db_path,policy=POLICY_HASH)
-    state=None
+    state=None;purchase_scope=None
     try:
+        purchase_scope=provider_work('pons_current_qualification' if _recovery is None else 'recovery_restart',
+            family='pons',consumer='current',purpose='qualification' if _recovery is None else 'recovery_restart')
+        purchase_scope.__enter__()
         if _recovery is None:
             gas_units=_gas_units(candidate["receipt"])
             rpc=paper_rpc(endpoint);rpc.verify_chain()
@@ -838,8 +841,22 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
             if capital_path is not None:
                 capital_guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
                 capital_guard.observe(paper,paper._get(identity))
-            rpc=paper_rpc(endpoint);rpc.verify_chain()
+            if _continued_session is None:
+                rpc=paper_rpc(endpoint);rpc.verify_chain()
+            else:
+                # A same-process worker handoff keeps this owner's already
+                # authenticated provider session. Startup/crash recovery still
+                # performs the original full verification above. No market
+                # state, executable quote or freshness clock is transferred.
+                if (_continued_session['position']!=identity
+                        or _continued_session['endpoint']!=endpoint):
+                    raise BoundaryError('current_worker_handoff_identity')
+                rpc=_continued_session['rpc']
             result.update(lifecycle_id=identity,resumed=True,entry_authority=False)
+
+        purchase_scope.__exit__(None,None,None)
+        purchase_scope=provider_work('pons_held_protection',family='pons',consumer='current',purpose='held_protection')
+        purchase_scope.__enter__()
 
         def record_session_rotation(telemetry,row):
             if telemetry is not None:result["provider_sessions"].append(telemetry)
@@ -872,6 +889,11 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 rpc.rotate_if_needed()
                 wait=dict(kind='monitor_wait',seconds=EXIT_POLICY['monitor_seconds'],
                     position=identity,pending_exit=paper._get(identity)['status']=='exit_pending')
+                # Private in-process scheduling data, never durable telemetry.
+                # Rotation/authentication completed before this boundary.
+                wait['continued_session']=dict(position=identity,endpoint=endpoint,rpc=rpc._current)
+                if _first_monitor_due is not None:
+                    wait['due_at']=_first_monitor_due;_first_monitor_due=None
                 if (yield wait)=='handoff':
                     result.update(status='handoff_required',entry_authority=False)
                     break
@@ -1354,8 +1376,11 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 try:store.close()
                 except Exception:pass
             result["ended_at"]=time.time()
-            held_shadow.close()
-            result["held_paper_shadow"]=held_shadow.status()
+            try:
+                held_shadow.close()
+                result["held_paper_shadow"]=held_shadow.status()
+            finally:
+                if purchase_scope is not None:purchase_scope.__exit__(None,None,None)
 
 
 def _continuation_facts(position,mark,meta,candidate,rbps,*,demand,soft_streak,action):

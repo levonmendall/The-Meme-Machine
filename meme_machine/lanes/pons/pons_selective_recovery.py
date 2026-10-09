@@ -172,7 +172,7 @@ def recovery_evaluation(base,db_path):
 
 
 @exclusive_lifecycle
-def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None,exceptional_context=None,_steps=False):
+def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None,exceptional_context=None,_steps=False,_continued_session=None,_first_monitor_due=None):
     """Reconcile and manage one existing native lifecycle; never reserve or enter."""
     from .pons_selective_paper import _run_lifecycle,STRATEGY_NAMESPACE,STRATEGY_CAPITAL_QUOTE,_cancel_proven_unfilled
     if slice_seconds is not None and not 1<=slice_seconds<=3300:
@@ -236,15 +236,18 @@ def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None,exc
     if _steps:
         from .pons_selective_paper import _run_lifecycle_steps
         _run_lifecycle=_run_lifecycle_steps
+    extra=({'_continued_session':_continued_session,'_first_monitor_due':_first_monitor_due}
+           if _steps else {})
     return _run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path,
-        _recovery=base,slice_seconds=slice_seconds,exceptional_context=exceptional_context)
+        _recovery=base,slice_seconds=slice_seconds,exceptional_context=exceptional_context,**extra)
 
 
 @exclusive_lifecycle
-def resume_lifecycle_steps(endpoint,*,db_path,capital_path=None,exceptional_context=None):
+def resume_lifecycle_steps(endpoint,*,db_path,capital_path=None,exceptional_context=None,_continued_session=None,_first_monitor_due=None):
     """The same recovery checks, with an idle controller yielding its worker."""
     result=resume_lifecycle.__wrapped__(endpoint,db_path=db_path,capital_path=capital_path,
-        exceptional_context=exceptional_context,_steps=True)
+        exceptional_context=exceptional_context,_steps=True,
+        _continued_session=_continued_session,_first_monitor_due=_first_monitor_due)
     if isinstance(result,dict):return result
     return (yield from result)
 
