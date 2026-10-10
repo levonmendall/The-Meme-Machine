@@ -31,7 +31,8 @@ class CurrentSharedOwnerTests(unittest.TestCase):
             time.sleep(.002)
 
     def run_owners(self,count,*,sharing,stagger=False,paced=False,latency=0,failure=None,unavailable=False,advertised_latency=None,
-                   price_factor=1.,rps=2,exit_sharing=True,survivor_count=0,allow_capacity_refusal=False):
+                   price_factor=1.,rps=2,exit_sharing=True,survivor_count=0,allow_capacity_refusal=False,
+                   exit_transport_failure=False):
         quote=accounting.PartialAccountingTests().quote;clock=[100.];sessions=[];thread_sessions={};events=[]
         with tempfile.TemporaryDirectory() as td,ExitStack() as stack:
             root=Path(td);plane_path=root/'candidate-evidence.sqlite'
@@ -101,6 +102,12 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     rpc.shared_quote_resources['max_latency_seconds']=advertised_latency
                 if failure=='fork':rpc.fork=True
                 elif failure:rpc.failure=failure
+                if exit_transport_failure:
+                    batch=rpc.batch
+                    def failed_exit(calls,**kwargs):
+                        if clock[0]>=107:rpc.failure='eth_call'
+                        return batch(calls,**kwargs)
+                    rpc.batch=failed_exit
                 sessions.append(rpc);thread_sessions[threading.get_ident()]=rpc
                 self.addCleanup(rpc.close);return rpc
             stack.enter_context(patch.object(paper,'paper_rpc',side_effect=provider))

@@ -73,3 +73,15 @@ class CurrentExitSharingTests(unittest.TestCase):
                 self.assertTrue(all(b-a>=.25-1e-8 for a,b in zip(starts,starts[1:])))
                 print('NATIVE_MIXED_OWNER_ENVELOPE',json.dumps(dict(current_owners=2,survivor_owners=2,
                     price_factor=factor,physical_starts=len(starts),worker=t)),flush=True)
+
+    def test_failed_execution_keeps_original_native_pending_intents_and_recovery(self):
+        results,rpcs,t=self.run_native(2,sharing=True,paced=True,latency=.1,price_factor=2.2,rps=4,
+            exit_transport_failure=True,allow_capacity_refusal=True)
+        for result in results:
+            p=result['final_position']
+            self.assertEqual(p['status'],'exit_pending')
+            self.assertEqual(p['tokens'],p['entry_tokens'])
+            self.assertGreater(p['pending_exit_tokens'],0)
+            self.assertEqual(p['realized_proceeds'],0)
+            self.assertTrue(result['provider_recoveries'])
+            self.assertTrue(result['reconciliation']['cash_basis_conservation'])

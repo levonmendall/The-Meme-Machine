@@ -111,6 +111,10 @@ def repair_survivor(count,action,rate,latency=.1,sender_fallback=False):
             eliminated_mock_starts=before['physical_mock_starts']-after['physical_mock_starts'],
             avoided_modeled_cu=before['estimated_billed_cu']-after['estimated_billed_cu'],
             identical_evidence_position_and_risk_parity=True,
+            measured_predecessor_local_wall_seconds=old.local_wall_seconds,
+            measured_predecessor_local_cpu_seconds=old.local_cpu_seconds,
+            measured_optimized_local_wall_seconds=warm.local_wall_seconds,
+            measured_optimized_local_cpu_seconds=warm.local_cpu_seconds,
             timed_economic_parity=f.economic(a,ra)==f.economic(positions,risks),
             native_accounting_verified=result['accounting']['reconciled'],
             native_actions=[r['last_action']['action'] for r in risks],
@@ -169,12 +173,19 @@ def main():
     with Scratch() as scratch:
         if args.capacity_repair:
             actions=('hold','full_exit','partial_exit');counts=(1,2,4,8,12,20)
-            survivors=[repair_survivor(n,a,rate) for rate in (2,3,4) for n in counts for a in actions]
-            survivors.extend(repair_survivor(n,'partial_exit',rate,latency=rtt,sender_fallback=sender)
+            # Keep completed native rows if a later adversarial specimen
+            # refuses. This bounded artifact never becomes runtime evidence.
+            with args.output.with_suffix('.rows.jsonl').open('w') as progress:
+                progress.write(json.dumps(dict(code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+                    predecessor=REPAIR_BASE,offline=True))+'\n');progress.flush()
+                def recorded(row):
+                    progress.write(json.dumps(row,sort_keys=True)+'\n');progress.flush();return row
+                survivors=[recorded(repair_survivor(n,a,rate)) for rate in (2,3,4) for n in counts for a in actions]
+                survivors.extend(recorded(repair_survivor(n,'partial_exit',rate,latency=rtt,sender_fallback=sender))
                 for n in (1,20) for rate in (2,3,4) for rtt,sender in ((.1,True),(.3,False),(.6,False)))
-            currents=[repair_current(n,a,rate) for rate in (2,3,4) for n in counts for a in actions]
-            staggered=[repair_current(n,a,rate,stagger=True) for n in (2,8,20) for a in actions for rate in (4,8,12)]
-            mixed=[repair_current(n,a,rate,survivor_count=n) for n in (2,10) for a in actions for rate in (3,4,8,12)]
+                currents=[recorded(repair_current(n,a,rate)) for rate in (2,3,4) for n in counts for a in actions]
+                staggered=[recorded(repair_current(n,a,rate,stagger=True)) for n in (2,8,20) for a in actions for rate in (4,8,12)]
+                mixed=[recorded(repair_current(n,a,rate,survivor_count=n)) for n in (2,10) for a in actions for rate in (3,4,8,12)]
             report=dict(schema='pr129-native-capacity-repair-v1',predecessor=REPAIR_BASE,
                 code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
                 actual_market_provider_calls=0,actual_provider_bill_savings_usd=0,production_physical_rps=2,
