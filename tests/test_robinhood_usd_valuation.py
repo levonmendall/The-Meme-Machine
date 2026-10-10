@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 from types import SimpleNamespace
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -356,9 +357,112 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_pons_oracle_and_conversion_reuse_one_pinned_block(self):
         NativeValueReader('pons',rpc=self.rpc)(NOW)
-        self.assertEqual(sum(method=='eth_getBlockByNumber' for method,_,_ in self.rpc.calls),1)
+        self.assertEqual(sum(method=='eth_getBlockByNumber' and params[0]=='latest'
+            for method,params,_ in self.rpc.calls),1)
+        self.assertEqual(self.rpc.calls[-1][:2],('eth_getBlockByNumber',['0x4bdc170',False]))
         blocks=[params[1] for method,params,_ in self.rpc.calls if method in ('eth_call','eth_getCode')]
         self.assertEqual(set(blocks),{'0x4bdc170'})
+
+    def test_pons_currency_fence_runs_after_route_state_and_refuses_reorganization(self):
+        original=self.rpc.call;fork=[False];reader=NativeValueReader('pons',rpc=self.rpc)
+        def call(method,params,**kw):
+            result=original(method,params,**kw)
+            if method=='eth_call' and params[0]['data']==calldata('getSwapOut(uint128,bool)',10**15,1):
+                fork[0]=True
+            if method=='eth_getBlockByNumber' and params[0]!='latest' and fork[0]:
+                result['hash']='0x'+'34'*32
+            return result
+        with patch.object(self.rpc,'call',side_effect=call):
+            with self.assertRaisesRegex(ValuationUnavailable,'canonical_block_changed'):reader(NOW)
+        self.assertIsNone(reader.cached);self.assertIsNone(reader.oracle)
+        self.assertIsNone(reader.oracle_block);self.assertFalse(reader.route_state)
+        self.assertEqual(self.rpc.calls[-1][0],'eth_getBlockByNumber')
+        # Refusal never permanently rejects a future canonical observation.
+        self.assertEqual(reader(NOW).usd_per_unit,Decimal('2500.349025'))
+
+    def test_pons_currency_fence_compares_numeric_identity_without_encoding_veto(self):
+        original=self.rpc.call
+        def call(method,params,**kw):
+            result=original(method,params,**kw)
+            if method=='eth_getBlockByNumber' and params[0]!='latest':result['number']='0x4BDC170'
+            return result
+        with patch.object(self.rpc,'call',side_effect=call):
+            self.assertEqual(NativeValueReader('pons',rpc=self.rpc)(NOW).usd_per_unit,Decimal('2500.349025'))
+
+    def test_concurrent_pons_currency_consumers_share_one_complete_acquisition(self):
+        reader=NativeValueReader('pons',rpc=self.rpc)
+        entered=threading.Event();release=threading.Event();values=[];errors=[]
+        original=self.rpc.call
+        def call(method,params,**kw):
+            if method=='eth_getBlockByNumber' and params[0]=='latest':
+                entered.set()
+                if not release.wait(2):raise AssertionError('fixture_release_missing')
+            return original(method,params,**kw)
+        def consume():
+            try:values.append(reader(NOW))
+            except Exception as error:errors.append(error)
+        with patch.object(self.rpc,'call',side_effect=call):
+            threads=[threading.Thread(target=consume) for _ in range(8)]
+            try:
+                for thread in threads:thread.start()
+                self.assertTrue(entered.wait(2))
+            finally:
+                release.set()
+                for thread in threads:thread.join(3)
+        self.assertFalse(errors);self.assertFalse(any(t.is_alive() for t in threads))
+        self.assertEqual(len(values),8);self.assertTrue(all(v is values[0] for v in values))
+        self.assertEqual(sum(m=='eth_getBlockByNumber' and p[0]=='latest' for m,p,_ in self.rpc.calls),1)
+        self.assertEqual(sum(m=='eth_chainId' for m,_,_ in self.rpc.calls),1)
+        self.assertEqual(len(self.rpc.calls),19)
+        self.assertEqual(values[0].amount(10**15,NOW),Decimal('2.500349025'))
+        self.assertEqual(values[1].amount(3*10**15,NOW),Decimal('7.501047075'))
+
+    def test_local_currency_wait_cannot_renew_or_return_expired_evidence(self):
+        reader=NativeValueReader('pons',rpc=self.rpc);first=reader(NOW)
+        started=threading.Event();values=[]
+        def consume():started.set();values.append(reader(NOW))
+        with reader._lock:
+            thread=threading.Thread(target=consume);thread.start()
+            self.assertTrue(started.wait(2))
+            self.rpc.now=NOW+6;self.rpc.route_output=2000000
+        thread.join(3);self.assertFalse(thread.is_alive())
+        self.assertIsNot(values[0],first)
+        self.assertEqual(values[0].observed_at,NOW+6);self.assertEqual(values[0].valid_until,NOW+11)
+        self.assertEqual(values[0].usd_per_unit,Decimal('2000.27922'))
+
+    def test_pons_cached_oracle_block_remains_an_independent_canonical_obligation(self):
+        reader=NativeValueReader('pons',rpc=self.rpc);reader(NOW)
+        original=self.rpc.call;self.rpc.now=NOW+6
+        def call(method,params,**kw):
+            result=original(method,params,**kw)
+            if method=='eth_getBlockByNumber':
+                result.update(number='0x4bdc171',hash='0x'+'34'*32)
+                if params[0]=='0x4bdc170':result.update(number=params[0],hash='0x'+'56'*32)
+            return result
+        with patch.object(self.rpc,'call',side_effect=call):
+            with self.assertRaisesRegex(ValuationUnavailable,'canonical_block_changed'):reader(NOW+6)
+            self.assertIsNone(reader.oracle)
+            # Fresh oracle and route on the new canonical block restore safely.
+            value=reader(NOW+6)
+            self.assertEqual(value.valid_until,NOW+11)
+            self.assertEqual(reader.oracle_block[0],int('4bdc171',16))
+
+    def test_pons_currency_fence_partial_response_and_delay_cannot_publish_or_refresh(self):
+        original=self.rpc.batch
+        def partial(calls,**kw):
+            result=original(calls,**kw)
+            return [] if calls[0][0]=='eth_getBlockByNumber' else result
+        reader=NativeValueReader('pons',rpc=self.rpc)
+        with patch.object(self.rpc,'batch',side_effect=partial):
+            with self.assertRaisesRegex(ValuationUnavailable,'canonical_block_proof_incomplete'):reader(NOW)
+        self.assertIsNone(reader.cached)
+        def delayed(calls,**kw):
+            result=original(calls,**kw)
+            if calls[0][0]=='eth_getBlockByNumber':self.rpc.now=NOW+6
+            return result
+        with patch.object(self.rpc,'batch',side_effect=delayed):
+            with self.assertRaises(ValuationUnavailable):reader(NOW)
+        self.assertIsNone(reader.cached)
 
     def test_pons_feed_depeg_is_composed_without_fixed_dollar_fallback(self):
         self.rpc.round[1]=80000000

@@ -4,6 +4,7 @@ from datetime import datetime,timezone
 from decimal import Decimal
 from meme_machine.exact_money import arithmetic, money, exact
 import re
+import threading
 import time
 
 USDG_FEED='0x61B7e5650328764B076A108EFF5fa7282a1B9aD2'
@@ -90,6 +91,26 @@ def _block(rpc,now):
     number=int(block['number'],16);timestamp=int(block['timestamp'],16)
     if number<=0 or not 0<timestamp<=now:raise _unavailable('invalid_block_time')
     return number,timestamp,block['hash']
+
+
+def _canonical_usd_blocks(rpc, blocks):
+    """An ordered membership fence after all dependent numeric state reads."""
+    expected={}
+    for number, _timestamp, block_hash in blocks:
+        if number in expected and expected[number].lower()!=block_hash.lower():
+            raise _unavailable('canonical_block_changed')
+        expected[number]=block_hash
+    calls=[('eth_getBlockByNumber',[hex(number),False]) for number in expected]
+    replies=rpc.batch(calls,scope='position_monitor')
+    if not isinstance(replies,list) or len(replies)!=len(calls):
+        raise _unavailable('canonical_block_proof_incomplete')
+    for (number, block_hash), reply in zip(expected.items(),replies):
+        try:
+            matches=(isinstance(reply,dict) and int(reply.get('number',''),16)==number
+                and isinstance(reply.get('hash'),str) and reply['hash'].lower()==block_hash.lower())
+        except (TypeError,ValueError):matches=False
+        if not matches:
+            raise _unavailable('canonical_block_changed')
 
 
 def _round(raw,decimals,now):
@@ -195,8 +216,10 @@ class NativeValueReader:
         self.rpc=rpc
         self.cached=None
         self.oracle=None
+        self.oracle_block=None
         self.oracle_checked_at=None
         self.route_state={}
+        self._lock=threading.RLock()
 
     def _robinhood(self,now):
         now=max(now,int(time.time()))
@@ -212,14 +235,28 @@ class NativeValueReader:
             if self.lane=='pons':
                 if rpc.verify_chain()!=4663:raise _unavailable('wrong_chain')
                 block=_block(rpc,now)
-            if not (self.oracle and self.oracle.observed_at<=now<=self.oracle.valid_until
+            oracle=self.oracle;oracle_block=self.oracle_block;checked_at=self.oracle_checked_at
+            if not (oracle and oracle.observed_at<=now<=oracle.valid_until
                     and self.oracle_checked_at<=now<=self.oracle_checked_at+USDG_CACHE_SECONDS):
-                self.oracle=robinhood_usd(rpc,now=now,_at_block=block)
-                self.oracle_checked_at=max(now,int(time.time()))
-            self.cached=_pons_usd(rpc,self.oracle,now,self.route_state,block) if self.lane=='pons' else self.oracle
+                oracle=robinhood_usd(rpc,now=now,_at_block=block)
+                checked_at=max(now,int(time.time()));oracle_block=block
+            result=_pons_usd(rpc,oracle,now,self.route_state,block) if self.lane=='pons' else oracle
+            if self.lane=='pons':
+                try:
+                    # Cached oracle evidence has its own canonical obligation.
+                    # A batch is safe here because it starts after every state
+                    # response; response ordering alone is never the proof.
+                    _canonical_usd_blocks(rpc,(block,oracle_block))
+                except Exception:
+                    self.cached=self.oracle=None
+                    self.oracle_block=self.oracle_checked_at=None
+                    self.route_state.clear()
+                    raise
             # Transport/admission waits cannot extend a quote or oracle deadline.
-            self.cached.amount(0,max(int(time.time()),now+int(time.monotonic()-started)))
-            return self.cached
+            result.amount(0,max(int(time.time()),now+int(time.monotonic()-started)))
+            self.oracle=oracle;self.oracle_block=oracle_block;self.oracle_checked_at=checked_at
+            self.cached=result
+            return result
         except Exception as error:
             failure=error if isinstance(error,ValuationUnavailable) else _unavailable('RPC_unavailable_or_invalid')
             from meme_machine.runtime.status import update
@@ -227,6 +264,12 @@ class NativeValueReader:
             raise failure from None
 
     def __call__(self,now):
+        # One unit-price acquisition serves compatible independently owned
+        # positions. Recheck the original validity after any local wait.
+        with self._lock:
+            return self._read(now)
+
+    def _read(self,now):
         now=max(now,int(time.time()))
         if self.lane in ('pons','ramses'):
             return self._robinhood(now)
@@ -242,6 +285,8 @@ class NativeValueReader:
 
 
 _readers={}
+_readers_lock=threading.Lock()
 def native_reader(lane):
-    if lane not in _readers:_readers[lane]=NativeValueReader(lane)
-    return _readers[lane]
+    with _readers_lock:
+        if lane not in _readers:_readers[lane]=NativeValueReader(lane)
+        return _readers[lane]

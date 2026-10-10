@@ -10,6 +10,7 @@
   ],
   "disposition": "No age-only sale; insufficient authorized resources are an operational blocker, never a market signal",
   "exclusions": [
+    "mandatory native USD monetary valuation acquisitions",
     "discovery",
     "qualification",
     "native streams and redelivery",

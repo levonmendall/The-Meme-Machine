@@ -34,6 +34,7 @@ class ResearchModelTests(unittest.TestCase):
     def test_sustained_projection_keeps_native_purchase_shape_and_exposes_finite_resource_failure(self):
         from engineering.extended_survivor_hold.research import maintenance_projection
         model=maintenance_projection();self.assertEqual(model['actual_provider_calls'],0)
+        self.assertIn('mandatory native USD monetary valuation acquisitions',model['exclusions'])
         self.assertFalse(model['holding_time_exit']);self.assertFalse(model['production_governor_changed'])
         rows=model['rows'];self.assertEqual(len(rows),180)
         self.assertEqual({r['hours'] for r in rows},{24,72,168,336,720})

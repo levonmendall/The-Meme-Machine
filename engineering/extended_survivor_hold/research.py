@@ -296,7 +296,7 @@ def maintenance_projection():
         holding_time_exit=False,production_governor_changed=False,price_usd_per_million_cu='0.525',
         price_classification='public sensitivity; authenticated account tariff unavailable',
         provider_actual_billing_savings_usd=0,rows=rows,
-        exclusions=['discovery','qualification','native streams and redelivery','entry and exit incidence','charged failures',
+        exclusions=['mandatory native USD monetary valuation acquisitions','discovery','qualification','native streams and redelivery','entry and exit incidence','charged failures',
             'cold recovery','archive classification','host and volume stock','database growth and backups'],
         limits=resources,capacity_unknowns=['sender fallback','slow provider responses','adversarial owner clocks',
             'account-wide Pump/Pons throughput','original protection deadlines at actual endpoint','recurring budget'],
