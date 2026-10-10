@@ -95,3 +95,24 @@ class ProviderEquivalencePreparationTests(unittest.TestCase):
         self.assertEqual(budget.starts,64)
         with self.assertRaisesRegex(BoundaryError,'payload'):budget.delivered(16*1024*1024+1)
         with self.assertRaisesRegex(BoundaryError,'wall'):OfflineEnvelope(cfg,100).reserve(['eth_call'],now=160)
+
+    def test_response_and_aggregate_payload_limits_stop_independently(self):
+        cfg=dict(ENVELOPE,enabled=True,maximum_marginal_usd='0.001',verified_tariff=dict(
+            independently_verified=True,source='SYNTHETIC_OFFLINE_PRICE',endpoint_fingerprint='fixture',
+            charged_failure_ceiling='full maximum',batch_member_treatment='per element',archive_rules='maximum included',
+            method_max_usd={'eth_call':'0.00001'}))
+        budget=OfflineEnvelope(cfg,100)
+        budget.reserve(['eth_call'],now=100)
+        with self.assertRaisesRegex(BoundaryError,'response_payload'):
+            budget.delivered(cfg['maximum_response_bytes']+1)
+        self.assertEqual(budget.bytes,cfg['maximum_response_bytes']+1)
+        self.assertEqual(budget.inflight,0)
+        self.assertGreater(budget.spending,0)
+        aggregate=OfflineEnvelope(dict(cfg,maximum_delivered_bytes=2_000_001),100)
+        aggregate.reserve(['eth_call'],now=100);aggregate.delivered(2_000_000)
+        aggregate.reserve(['eth_call'],now=100.5)
+        with self.assertRaisesRegex(BoundaryError,'^comparison_payload_ceiling$'):
+            aggregate.delivered(2)
+        self.assertEqual(aggregate.starts,2)
+        self.assertEqual(aggregate.bytes,2_000_002)
+        self.assertEqual(aggregate.inflight,0)

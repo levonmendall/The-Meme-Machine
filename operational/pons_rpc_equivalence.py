@@ -80,6 +80,7 @@ class OfflineEnvelope:
         if type(size) is not int or size<0:raise ValueError('comparison_byte_shape')
         self.bytes+=size
         self.inflight=max(0,self.inflight-self.config['maximum_response_bytes'])
+        if size>self.config['maximum_response_bytes']:raise BoundaryError('comparison_response_payload_ceiling')
         if self.bytes>self.config['maximum_delivered_bytes']:raise BoundaryError('comparison_payload_ceiling')
 
 
