@@ -213,9 +213,22 @@ def lifecycle(db, identity, regime, at, position, events=()):
     prior=get(db,'lifecycle:'+identity)
     actions={} if prior is None else {digest(e):e for e in prior['facts'].get('economic_actions',[])}
     marks={} if prior is None else dict(prior['facts'].get('mark_extrema',{}))
+    exits=[] if prior is None else list(prior['facts'].get('exit_observations',[]))
     for event in events:
         action = event.get('action', event.get('kind',event.get('event')))
         if action in ('mark','monitor','marked'):
+            evidence=event.get('evidence') or {}
+            risk=evidence.get('risk_state') or evidence.get('position_state') or {}
+            decision=risk.get('last_action') or risk.get('pending_action') or {}
+            reason=decision.get('reason') or risk.get('exit_reason')
+            if reason and (decision.get('action') in ('full_exit','partial_exit') or risk.get('exit_reason')):
+                # Preserve the first point-in-time trigger of each reason while
+                # folding raw marks. This is bounded diagnostic evidence, never
+                # an executable post-exit history or economic source of truth.
+                if len(exits)<8 and not any(e['reason']==reason for e in exits):
+                    exits.append(compact(dict(at=event.get('at'),reason=reason,
+                        identity=event.get('identity'),risk_state=risk,
+                        observation=evidence.get('observation'),position=event.get('position'))))
             source=event.get('position') or event
             for key in ('price','entry_price','executable_value','executable_quote','mark_value','mark','net_pnl','peak_quote_value'):
                 value=source.get(key)
@@ -231,10 +244,12 @@ def lifecycle(db, identity, regime, at, position, events=()):
             value={k:v for k,v in event.items() if k not in ('evidence','raw','transactions','blocks')}
             evidence=event.get('evidence') or {}
             value['decision_and_execution_facts']={k:evidence[k] for k in
-                ('qualification','features','decision','execution_capacity','cost','reason','request') if k in evidence}
+                ('qualification','features','decision','execution_capacity','execution',
+                 'exit_reason','cost','reason','request') if k in evidence}
             actions[digest(value)]=value
     facts = dict(native_lifecycle_id=identity, terminal_position=position,
                  economic_actions=list(actions.values()),mark_extrema=marks,
+                 exit_observations=exits,exit_observation_limit=8,
                  outcome_observability='NATIVE_PERSISTED_FACTS')
     save(db, 'lifecycle:'+identity, position.get('candidate', position.get('market', identity)),
          regime, at, facts, priority=2)

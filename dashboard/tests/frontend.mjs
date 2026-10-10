@@ -157,6 +157,13 @@ finally:t.doCleanups()
   assert.ok(healthy.includes('Holding age does not require a sale'));
   assert.ok(healthy.includes('MONITORING')&&healthy.includes('400.00%'));
   assert.ok(healthy.includes('240.00%')&&healthy.includes('300'));
+  const protective=detail({...longHeld,protection:{...longHeld.protection,
+    stop_signal_bps:-1000,observed_return_bps:-6000,executed_return_bps:-7300,
+    actionable_at:'2026-10-10T16:00:00Z',execution_at:'2026-10-10T16:00:03Z'}});
+  assert.ok(protective.includes('-10.00%')&&protective.includes('-60.00%')&&protective.includes('-73.00%'));
+  assert.ok(protective.includes('not guaranteed fill prices'));
+  assert.ok(protective.includes('Hypothetical outcomes never enter portfolio equity'));
+  assert.ok(healthy.includes('Executed native return Unavailable'));
   for(const state of ['DEGRADED_PROTECTION','OPERATIONAL_FAULT','EXIT_PENDING']) {
     const h=detail({...longHeld,protection:{...longHeld.protection,state,evidence_current:false,
       pending_exit:state==='EXIT_PENDING',last_reason:'<script>bad</script>'}});

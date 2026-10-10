@@ -296,8 +296,13 @@ class RuntimeCapital(PumpPonsCapital):
             elif kind!='reserve':raise CapitalError('unsupported_shared_native_delivery')
             if life in state['positions'] and isinstance(facts.get('protection'),dict):
                 prior=state['positions'][life].get('native_protection',{})
+                protection=deepcopy(facts['protection'])
+                if prior.get('pending_exit') and protection.get('pending_exit') and prior.get('actionable_at'):
+                    protection['actionable_at']=prior['actionable_at']
+                    if prior.get('trigger_return_bps') is not None:
+                        protection['trigger_return_bps']=prior['trigger_return_bps']
                 state['positions'][life]['native_protection']=dict(prior,
-                    **{k:deepcopy(v) for k,v in facts['protection'].items()
+                    **{k:deepcopy(v) for k,v in protection.items()
                         if v is not None or k in ('last_reason','decision_kind')})
             del state['runtime_pending'][key]
             return state,dict(accepted=True)

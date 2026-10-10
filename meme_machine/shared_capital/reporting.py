@@ -83,6 +83,20 @@ def export(authority,*,at=None):
         native.update(regime=r,original_basis=p['original_basis'],partial_exits=p['partials'],scale_committed=p['scale_committed'],
             staged_add_basis=amount(money(p['capital_deployed'])-money(p['original_basis'])))
         native['protection']=deepcopy(p.get('native_protection') or dict(state='UNKNOWN',evidence_current=False,pending_exit=False))
+        if r=='pump_current':
+            from meme_machine.lanes.pump.pump_acceleration_strategy import POLICY
+            stop=POLICY.hard_stop_bps
+        elif r=='pons_current':
+            from meme_machine.lanes.pons.pons_selective_continuation import EXIT_POLICY
+            stop=EXIT_POLICY['risk_bps']
+        elif r=='pump_survivor':
+            from meme_machine.lanes.pump.pumpswap_survivor import POLICY
+            stop=POLICY['exits']['hard_stop_bps']
+        elif r=='pons_survivor':
+            from meme_machine.lanes.pons.pons_postgrad_survivor import risk_policy
+            stop=risk_policy()['hard_stop_bps']
+        else:stop=None
+        if stop is not None:native['protection']['stop_signal_bps']=stop
         if native['protection'].get('entered_at'):
             native['entered_at']=native['protection']['entered_at']
         high=native['protection'].get('high_water_bps')

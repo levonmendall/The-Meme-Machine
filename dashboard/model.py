@@ -273,9 +273,14 @@ def position(row, epoch, observed):
         if risk.get('decision_kind') is not None:
             if risk['decision_kind'] not in ('STRATEGY_EXIT','PROTECTIVE_EXIT'):raise ValueError('position_decision_kind')
             clean['decision_kind']=risk['decision_kind']
-        for k in ('high_water_bps','remaining_quantity'):
+        for k in ('high_water_bps','remaining_quantity','stop_signal_bps','observed_return_bps','trigger_return_bps','executed_return_bps'):
             if risk.get(k) is not None:
                 if type(risk[k]) is not int or k=='remaining_quantity' and risk[k]<0:raise ValueError('position_protection_number')
+                clean[k]=risk[k]
+        for k in ('actionable_at','execution_at'):
+            if risk.get(k) is not None:
+                when=stamp(risk[k])
+                if not entered<=when<=observed:raise ValueError('position_protection_clock')
                 clean[k]=risk[k]
         if risk.get('trail') is not None:
             trail=risk['trail']

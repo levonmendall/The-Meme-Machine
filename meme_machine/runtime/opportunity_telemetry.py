@@ -461,3 +461,122 @@ def pons_context(evaluation):
         return context
     except Exception as error:
         return dict(capture_error='existing_context_unavailable:'+type(error).__name__)
+
+# Research only. This function has no runtime call site, provider, or order authority.
+SOFT_EXIT_REASONS = {
+    'pump_current': frozenset(('demand_deceleration', 'persistent_demand_deceleration')),
+    'pons_current': frozenset(('flow_reversal', 'demand_failure',
+        'persistent_pregraduation_deterioration', 'persistent_runner_deterioration')),
+    'pump_survivor': frozenset(('persistent_demand_deterioration', 'stale_thesis')),
+    'pons_survivor': frozenset(('persistent_demand_deterioration', 'stale_thesis')),
+}
+
+
+def shadow_demand_exit(receipt, samples, *, horizon_seconds, now):
+    """Read-only two-confirmation hypothesis using supplied point-in-time facts.
+
+    Callers must verify native reducers, quantity-specific quotes and canonical
+    interval coverage before export. Price-only opportunity outcomes cannot
+    establish hypothetical proceeds. A later winner never changes eligibility
+    at the original decision. Incomplete evidence remains inconclusive.
+    """
+    if horizon_seconds not in WINDOWS or len(samples) > 512:
+        raise ValueError('exit_shadow_bound')
+    if len(canonical([receipt, samples]).encode()) > MAX_RECEIPT_BYTES:
+        raise ValueError('exit_shadow_byte_bound')
+    result = dict(schema='demand-exit-shadow-v1', status='INCONCLUSIVE',
+        baseline_reason=receipt.get('reason'), original_decision_at=receipt.get('at'),
+        policy_hash=receipt.get('policy_hash'), horizon_seconds=horizon_seconds,
+        hypothetical_net_proceeds_difference=None, hypothetical_exit_at=None,
+        observed_mfe_bps=None, observed_mae_bps=None, additional_holding_seconds=None,
+        additional_analysis_provider_requests=0, incremental_monitoring_cost=None,
+        qualification_authority=False, order_authority=False, portfolio_equity_authority=False)
+    def refuse(reason):
+        return dict(result, evidence_status=reason)
+    family=receipt.get('regime');soft=SOFT_EXIT_REASONS.get(family, ())
+    if receipt.get('reason') not in soft:
+        return dict(result, status='BASELINE_RETAINED', evidence_status='hard_or_unsupported_exit')
+    at=receipt.get('at');quantity=receipt.get('quantity');basis=receipt.get('remaining_basis')
+    generation=receipt.get('source_generation');owner=receipt.get('native_identity')
+    if (type(at) is not int or type(quantity) is not int or quantity <= 0
+            or not owner or not generation or not receipt.get('policy_hash')):
+        return refuse('decision_identity_unavailable')
+    end=at+horizon_seconds
+    if type(now) is not int or now < end:
+        return refuse('horizon_not_observed')
+    try:
+        basis=Fraction(str(basis))
+        if basis <= 0:return refuse('remaining_basis_unavailable')
+    except (ValueError, ZeroDivisionError):return refuse('remaining_basis_unavailable')
+    evidence=receipt.get('decision_evidence') or {}
+    # These are original authenticated observations, never later price outcomes.
+    if (evidence.get('complete') is not True or not evidence.get('source_hash')
+            or type(evidence.get('available_at')) is not int or evidence['available_at'] > at):
+        return refuse('original_point_in_time_evidence_unavailable')
+    if not all(evidence.get(k) is True for k in
+            ('creator_safe', 'structure_valid', 'liquidity_valid', 'hard_exits_clear', 'price_retention_valid')):
+        return dict(result, status='BASELINE_RETAINED', evidence_status='independent_safety_or_retention_not_proven')
+    if (type(evidence.get('independent_buyers')) is not int or evidence['independent_buyers'] <= 0
+            or type(evidence.get('new_buyers')) is not int or evidence['new_buyers'] <= 0):
+        return dict(result, status='BASELINE_RETAINED', evidence_status='healthy_independent_demand_not_proven')
+    def proceeds(quote, when):
+        if (not isinstance(quote,dict) or quote.get('validated') is not True
+                or quote.get('quantity') != quantity or quote.get('native_identity') != owner
+                or quote.get('source_generation') != generation or not quote.get('source_hash')
+                or quote.get('currency') != receipt.get('currency')
+                or any(type(quote.get(k)) is not int for k in ('observed_at','available_at','valid_until'))
+                or not quote['observed_at'] <= quote['available_at'] <= when <= quote['valid_until']):
+            return None
+        try:
+            value=Fraction(str(quote['net_proceeds']))
+            return value if value >= 0 else None
+        except (KeyError,ValueError,ZeroDivisionError):return None
+    baseline=proceeds(receipt.get('executable_quote'), at)
+    if baseline is None:return refuse('original_exact_quantity_quote_unavailable')
+    coverage=receipt.get('followup_coverage') or {}
+    if (coverage.get('authenticated') is not True or not coverage.get('source_hash')
+            or coverage.get('native_identity') != owner or coverage.get('source_generation') != generation
+            or type(coverage.get('from_at')) is not int or coverage['from_at'] > at
+            or type(coverage.get('through_at')) is not int or coverage['through_at'] < end):
+        return refuse('canonical_followup_interval_incomplete')
+    rows={}
+    for sample in samples:
+        when=sample.get('at')
+        if type(when) is not int:return refuse('invalid_sample_clock')
+        if not at < when <= min(end,now):continue  # No future/out-of-window input.
+        key=sample.get('id')
+        if not key:return refuse('sample_identity_unavailable')
+        if key in rows and rows[key] != sample:return refuse('conflicting_sample')
+        rows[key]=sample
+    ordered=sorted(rows.values(),key=lambda s:(s['at'],s['id']))
+    if not ordered:return refuse('no_persisted_followup_observations')
+    streak=0;previous_at=at;values=[];chosen=None
+    for sample in ordered:
+        when=sample['at']
+        if (sample.get('evidence_complete') is not True or not sample.get('source_hash')
+                or sample.get('source_generation') != generation or sample.get('native_identity') != owner
+                or type(sample.get('available_at')) is not int or sample['available_at'] > when
+                or sample.get('native_action') not in ('hold','full_exit','partial_exit')
+                or type(sample.get('distribution_adverse')) is not bool):
+            return refuse('point_in_time_followup_unavailable_or_reorganized')
+        if sample['native_action']=='partial_exit':
+            return refuse('shadow_partial_realization_requires_quantity_lineage')
+        if sample['native_action']=='full_exit' and not sample.get('native_reason'):
+            return refuse('native_exit_reason_unavailable')
+        value=proceeds(sample.get('executable_quote'),when)
+        if value is None:return refuse('followup_exact_quantity_quote_unavailable')
+        values.append(value)
+        # Distinct observations at the same instant cannot confirm persistence.
+        if sample['distribution_adverse'] and when > previous_at:streak+=1
+        elif not sample['distribution_adverse']:streak=0
+        previous_at=when
+        hard=(sample['native_action']=='full_exit' and sample.get('native_reason') not in soft)
+        if chosen is None and (hard or streak >= 2):chosen=(when,value)
+    result.update(observed_mfe_bps=int((max(values)/basis-1)*10000),
+                  observed_mae_bps=int((min(values)/basis-1)*10000))
+    if chosen is None:
+        return dict(result, status='UNRESOLVED_HOLD', evidence_status='no_verified_shadow_exit')
+    when,value=chosen
+    return dict(result,status='HYPOTHETICAL_COMPARISON',evidence_status='supplied_complete_canonical_quotes',
+        hypothetical_net_proceeds_difference=str(value-baseline),hypothetical_exit_at=when,
+        additional_holding_seconds=when-at)

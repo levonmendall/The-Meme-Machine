@@ -163,7 +163,7 @@ class NativeBoundary:
             risk=data.get('risk_state') or data.get('position_state') or position.get('controller_state') or {}
             observed=data.get('observation') or {}
             last=risk.get('last_action') or risk.get('pending_action') or {}
-            reason=risk.get('exit_reason') or last.get('reason') or data.get('exit_reason')
+            reason=risk.get('exit_reason') or last.get('reason') or risk.get('recovery_exit_reason') or data.get('exit_reason')
             pending=(position.get('status')=='exit_pending' or
                 last.get('action') in ('full_exit','partial_exit') or bool(risk.get('exit_reason')) or bool(risk.get('pending_action')))
             current=not unavailable and bool(risk) and observed.get('evidence_current',True) is True
@@ -172,7 +172,8 @@ class NativeBoundary:
                 ('full_exit' if last.get('exit_tokens')==position.get('tokens') else 'partial_exit') if risk.get('pending_action') else
                 'hold' if kind=='mark' else action)
             protective=reason in ('risk','risk_stop','hard_stop','runner_trail','runner_trailing_stop',
-                'trailing_momentum_exit','tail_gain_giveback_exit','invalid_exit_liquidity','creator_distribution')
+                'pregraduation_runner_trailing_stop','high_water_trailing_stop',
+                'trailing_momentum_exit','tail_gain_giveback','tail_gain_giveback_exit','invalid_exit_liquidity','creator_distribution')
             facts['protection']=dict(state=state,observed_at=utc(native_at),
                 evidence_current=current,pending_exit=pending,last_reason=reason,
                 last_action=last_action,decision_kind=('PROTECTIVE_EXIT' if protective else 'STRATEGY_EXIT') if pending and reason else None,
@@ -180,6 +181,25 @@ class NativeBoundary:
                 remaining_quantity=position.get('tokens'))
             opened=risk.get('opened_at',native_at if kind=='enter' else None)
             if opened is not None:facts['protection']['entered_at']=utc(opened)
+            observed_return=observed.get('after_cost_return_bps')
+            if (observed_return is None and current and kind=='mark'
+                    and not position.get('scale_request') and type(position.get('mark')) is int):
+                basis=position.get('basis',position.get('remaining_cost'))
+                if type(basis) is int and basis>0:
+                    observed_return=(position['mark']-basis)*10000//basis
+            if current and type(observed_return) is int:
+                facts['protection']['observed_return_bps']=observed_return
+                if pending and reason:
+                    facts['protection']['actionable_at']=utc(native_at)
+                    facts['protection']['trigger_return_bps']=observed_return
+            if kind in ('harvest','settle'):
+                released_native=old_basis-new_basis
+                if released_native>0:
+                    facts['protection']['executed_return_bps']=(proceeds-released_native)*10000//released_native
+                    facts['protection']['execution_at']=utc(native_at)
+                if kind=='settle':
+                    facts['protection'].update(pending_exit=False,state='PROTECTIVE_EXIT' if protective else 'STRATEGY_EXIT',
+                        decision_kind='PROTECTIVE_EXIT' if protective else 'STRATEGY_EXIT')
         if kind in ('enter','harvest','settle','rebalance'):
             cost=0
             if quote:cost=int(quote.get('gas_quote',0))+int(quote.get('fee_quote',0))
