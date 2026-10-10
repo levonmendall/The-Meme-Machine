@@ -1,7 +1,7 @@
 {
   "classification": "ACTUAL_OFFLINE_TEST_EXECUTION; no provider workloads",
-  "source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
-  "recorded_at": "2026-10-10T01:23:08.309820+00:00",
+  "source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "recorded_at": "2026-10-10T04:36:44.933592+00:00",
   "python": "CPython 3.12.14",
   "network_guard": "operational.tests.network_guard",
   "artifact_isolation": "Scratch; failed and incomplete evidence preserved",
@@ -249,6 +249,94 @@
       "failures": 1,
       "errors": 3,
       "skipped": 33
+    },
+    {
+      "suite": "FAST",
+      "source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+      "source_tree_sha256_before": "fa29df7b2a8c35b168ffe74bd85d84a8b8067480acbc3273bb8d047de7d54e68",
+      "fingerprint_recipe": "SHA256 sorted tracked path + NUL + contents + NUL for meme_machine, tests, engineering, operational/tests.py",
+      "started_at": "2026-10-10T03:14:02.695296+00:00",
+      "command": [
+        "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+        "-m",
+        "operational.tests",
+        "FAST",
+        "--verbose"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 1735.1032386920415,
+      "ended_at": "2026-10-10T03:42:57.798572+00:00",
+      "source_tree_sha256_after": "fa29df7b2a8c35b168ffe74bd85d84a8b8067480acbc3273bb8d047de7d54e68",
+      "log_name": "FAST-release-2ec2fff2.log",
+      "log_sha256": "558f2ce29847fc05fdfc7ecec3950ed43d4492c97b56fdce1b90e46f78d2883a",
+      "status": "COMPLETED_FAIL",
+      "test_count": 1398,
+      "unittest_elapsed_seconds": 1734.272,
+      "source_tree_unchanged": true,
+      "failure_cases": [
+        "test_actual_cgroup_contains_and_kills_escaped_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant)",
+        "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=True)",
+        "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=False)"
+      ],
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0
+    },
+    {
+      "suite": "OPERATIONAL",
+      "source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+      "source_tree_sha256_before": "fa29df7b2a8c35b168ffe74bd85d84a8b8067480acbc3273bb8d047de7d54e68",
+      "fingerprint_recipe": "SHA256 sorted tracked path + NUL + contents + NUL for meme_machine, tests, engineering, operational/tests.py",
+      "started_at": "2026-10-10T04:00:25.763326+00:00",
+      "command": [
+        "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+        "-m",
+        "operational.tests",
+        "OPERATIONAL",
+        "--verbose"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 2103.4157758499496,
+      "ended_at": "2026-10-10T04:35:29.179135+00:00",
+      "source_tree_sha256_after": "fa29df7b2a8c35b168ffe74bd85d84a8b8067480acbc3273bb8d047de7d54e68",
+      "log_name": "OPERATIONAL-release-2ec2fff2.log",
+      "log_sha256": "791920ad8178258d79f9fb466a39ad84b0863d976f835c7235b7fa887aa9f78f",
+      "status": "COMPLETED_FAIL",
+      "test_count": 2819,
+      "unittest_elapsed_seconds": 2102.408,
+      "source_tree_unchanged": true,
+      "failure_cases": [
+        "test_actual_cgroup_contains_and_kills_escaped_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant)",
+        "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=True)",
+        "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=False)"
+      ],
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33
+    },
+    {
+      "log_name": "final-executable-sharing-focused.log",
+      "log_sha256": "685b56fee71f5ed370ad1b8b69c7019f970227bd43c861fc962eaa89bfc4ab96",
+      "tests": 57,
+      "elapsed_seconds": 49.747,
+      "result": "PASS",
+      "source_scope": "Focused finalization progression; full frozen-source suites are authoritative for exact complete code"
+    },
+    {
+      "log_name": "final-affected-regressions-verified.log",
+      "log_sha256": "39a1a33e6311d459acee4d14446a4b24e26f37cc6c84b24dd9c6658586115b02",
+      "tests": 130,
+      "elapsed_seconds": 31.557,
+      "result": "PASS",
+      "source_scope": "Final affected regressions; runtime and tests match frozen 2ec source, subsequent commit adds measurement driver only"
+    },
+    {
+      "log_name": "final-exit-boundaries.log",
+      "log_sha256": "3c94baa89df20dcdd1edd86bd8ff1bf424c3ea64fcb5ff3958b787e81a340e54",
+      "tests": 6,
+      "elapsed_seconds": 4.268,
+      "result": "PASS",
+      "source_scope": "Final gas/body/exit/proof/source boundary checks; runtime and tests match frozen 2ec source"
     }
   ],
   "baseline_failure": {
@@ -260,7 +348,7 @@
   },
   "pro_reference_tests_inspected": false,
   "pro_archive_available": false,
-  "full_suite_acceptance": "BLOCKED: exact final suites complete; required cgroup delegation unavailable and inherited b1f215ed whole-source pin conflicts with preserved cbfcb413 source. Native runtime regressions have no additional final failures.",
+  "full_suite_acceptance": "BLOCKED: cgroup delegation unavailable; no full-suite PASS claimed. Both frozen suites completed.",
   "reproduction_commands": [
     "python -m operational.tests FAST --verbose",
     "python -m operational.tests OPERATIONAL --verbose",
@@ -271,19 +359,16 @@
     "python -m engineering.proven_efficiency.cross_positions --output /tmp/cross-positions.json",
     "python -m engineering.proven_efficiency.provider_packages --output /tmp/packages.json",
     "python -m engineering.proven_efficiency.provider_snapshot --snapshot /path/to/consistent-offline-copy.sqlite --output /tmp/provider-usage.json",
-    "python -m operational.tests OPERATIONAL --modules tests.test_solana_read_rpc tests.lanes.pump.test_evidence_runtime_cutover tests.lanes.pump.test_pump_acceleration_natural_harness tests.lanes.pump.test_run369_liveness tests.lanes.pump.test_run370_pump_progression tests.test_native_pump_continuation --verbose"
+    "python -m operational.tests OPERATIONAL --modules tests.test_solana_read_rpc tests.lanes.pump.test_evidence_runtime_cutover tests.lanes.pump.test_pump_acceleration_natural_harness tests.lanes.pump.test_run369_liveness tests.lanes.pump.test_run370_pump_progression tests.test_native_pump_continuation --verbose",
+    "python -m operational.tests OPERATIONAL --modules tests.test_pons_protective_capacity tests.test_pons_current_shared_owners tests.test_pons_shared_native_acquisition tests.test_robinhood_usd_valuation --verbose",
+    "python -m engineering.proven_efficiency.finalization --output /tmp/pr129-native.json"
   ],
   "full_suite_blockers": [
     {
       "kind": "HOST_UNAVAILABLE",
       "message": "delegated_cpu_memory_io_controllers_required",
-      "error_entries": 3
-    },
-    {
-      "kind": "PREEXISTING_SOURCE_PIN_CONFLICT",
-      "message": "old b1f215ed whole-source guard at pons/evidence.py",
-      "failure_entries": 1,
-      "preserved_cbfcb_parent_case": "FAIL with identical assertion; guard retained"
+      "error_entries": 3,
+      "environment_report": "CGROUP_VALIDATION_ENVIRONMENT.json"
     }
   ],
   "resolved_predecessor_failures": {
@@ -294,5 +379,33 @@
     "stale_unpriced_method_expectation": true,
     "dirty_page_fixture_process_lifetime_scope": true,
     "assertions_and_resource_budgets_relaxed": false
+  },
+  "previous_frozen_source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "final_frozen_suites": [
+    {
+      "suite": "FAST",
+      "source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+      "test_count": 1398,
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0,
+      "status": "COMPLETED_FAIL"
+    },
+    {
+      "suite": "OPERATIONAL",
+      "source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+      "test_count": 2819,
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33,
+      "status": "COMPLETED_FAIL"
+    }
+  ],
+  "source_pin_resolution": {
+    "fixed_in_commit": "c0621384c653c211b333045658c9d02402ed5900",
+    "implementation_predecessor": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
+    "original_economics_and_nine_test_bytes_pinned": true,
+    "runtime_policy_hash_or_schema_changed": false,
+    "original_test_retained": true
   }
 }

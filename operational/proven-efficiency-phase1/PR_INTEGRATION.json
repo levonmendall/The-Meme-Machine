@@ -1,6 +1,6 @@
 {
-  "recorded_at": "2026-10-10T01:02:03.907508+00:00",
-  "candidate_source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "recorded_at": "2026-10-10T03:56:06.080902+00:00",
+  "candidate_source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
   "integration_parent": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
   "disposition": "Preserve later local source; no older PR applied or merged. Head ancestry and file equality are reported independently.",
   "prs": [
@@ -26,7 +26,7 @@
         {
           "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
           "present": true,
-          "current_sha256": "2a464377a1f3edb831e12495815754153744689fe73c5645601300b8747b0318",
+          "current_sha256": "b66cb91a939ab82b7a21e781bac4b073a8609e05c80183fbe666438a6c320491",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -82,7 +82,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "80ce3aa9262b5b28991c52c55ee081aa1752a1815cf159e7cd105bc2bb550db4",
+          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -863,7 +863,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "80ce3aa9262b5b28991c52c55ee081aa1752a1815cf159e7cd105bc2bb550db4",
+          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -949,7 +949,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "80ce3aa9262b5b28991c52c55ee081aa1752a1815cf159e7cd105bc2bb550db4",
+          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1014,21 +1014,21 @@
         {
           "path": "meme_machine/lanes/pons/pons_quotes.py",
           "present": true,
-          "current_sha256": "2a6cbeec8247f90c02c19178f77ab5f8d882dd7c319f0a936e6b49e818984974",
+          "current_sha256": "6f4fa53114e5718c2caf9e6e8d253f0b69ad0c32c02e709f04e73e40414fd310",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/pons_selective_paper.py",
           "present": true,
-          "current_sha256": "879d2d33d3bb8d961ea08a807c69ac96211f7e247b405c1b8425ca2c5f78fa3e",
+          "current_sha256": "2976c5c75c67e3bdb96cbc2ef0a760187bc1eb216d4a83c61661ff6dec84c7b5",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
           "present": true,
-          "current_sha256": "2a464377a1f3edb831e12495815754153744689fe73c5645601300b8747b0318",
+          "current_sha256": "b66cb91a939ab82b7a21e781bac4b073a8609e05c80183fbe666438a6c320491",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1049,7 +1049,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "80ce3aa9262b5b28991c52c55ee081aa1752a1815cf159e7cd105bc2bb550db4",
+          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1179,7 +1179,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "80ce3aa9262b5b28991c52c55ee081aa1752a1815cf159e7cd105bc2bb550db4",
+          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1223,21 +1223,21 @@
         {
           "path": "meme_machine/lanes/pons/pons_selective_paper.py",
           "present": true,
-          "current_sha256": "879d2d33d3bb8d961ea08a807c69ac96211f7e247b405c1b8425ca2c5f78fa3e",
+          "current_sha256": "2976c5c75c67e3bdb96cbc2ef0a760187bc1eb216d4a83c61661ff6dec84c7b5",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
           "present": true,
-          "current_sha256": "2a464377a1f3edb831e12495815754153744689fe73c5645601300b8747b0318",
+          "current_sha256": "b66cb91a939ab82b7a21e781bac4b073a8609e05c80183fbe666438a6c320491",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/provider_admission.py",
           "present": true,
-          "current_sha256": "e5a58150f91ee1bc945f3b13e1a699ee6712e54ecc0f99d80fa8df02e327934d",
+          "current_sha256": "4c51750a5e01ad673d2d1120b2105eb8cfa3a3091891f8cfcd7a02d2635fb562",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1251,7 +1251,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "80ce3aa9262b5b28991c52c55ee081aa1752a1815cf159e7cd105bc2bb550db4",
+          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1316,21 +1316,21 @@
         {
           "path": "meme_machine/lanes/pons/pons_selective_paper.py",
           "present": true,
-          "current_sha256": "879d2d33d3bb8d961ea08a807c69ac96211f7e247b405c1b8425ca2c5f78fa3e",
+          "current_sha256": "2976c5c75c67e3bdb96cbc2ef0a760187bc1eb216d4a83c61661ff6dec84c7b5",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
           "present": true,
-          "current_sha256": "2a464377a1f3edb831e12495815754153744689fe73c5645601300b8747b0318",
+          "current_sha256": "b66cb91a939ab82b7a21e781bac4b073a8609e05c80183fbe666438a6c320491",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/provider_admission.py",
           "present": true,
-          "current_sha256": "e5a58150f91ee1bc945f3b13e1a699ee6712e54ecc0f99d80fa8df02e327934d",
+          "current_sha256": "4c51750a5e01ad673d2d1120b2105eb8cfa3a3091891f8cfcd7a02d2635fb562",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1400,7 +1400,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "80ce3aa9262b5b28991c52c55ee081aa1752a1815cf159e7cd105bc2bb550db4",
+          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1430,6 +1430,133 @@
       "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665"
     }
   ],
-  "new_native_integration": "Ordered canonical fences, retained Current scaling history and generation binding, eight separate entry workers plus eight durable protected owner workers with session-preserving handoff and original first monitor clock, and conditional real Survivor shared acquisition. Legacy unattributed monitoring remains unknown.",
-  "runtime_unchanged_since": "f8744148d30cc28d9e1e049eabe3e1d34f9cbb4b"
+  "new_native_integration": {
+    "survivor": "Ordered joint frame and unchanged final execution facts",
+    "current": "Complete conditional independent-owner sharing and held/entry priority separation",
+    "governor": "unchanged 2 RPS",
+    "deployment": "none",
+    "source_commits": [
+      "c0621384c653c211b333045658c9d02402ed5900",
+      "4519476adf85fc1563e1dcd547e3f0395ab9e1af",
+      "e454af49aa66c05565675095dc61690dfd08006f",
+      "2ec2fff25245e774d68005a175467ea84127cc32"
+    ]
+  },
+  "runtime_unchanged_since": "e454af49aa66c05565675095dc61690dfd08006f",
+  "prior_frozen_candidate_source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "pr129_baseline": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
+  "latest_public_inventory": [
+    {
+      "baseRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "headRefName": "integration/pump-pons-efficiency-rc-20261009",
+      "headRefOid": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 129,
+      "state": "OPEN",
+      "title": "Pump/Pons efficiency RC: retained scaling history and bounded native ownership",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/129"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "headRefOid": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 128,
+      "state": "OPEN",
+      "title": "Integrate PRs #126 + #127 for next-start live PAPER testing (no host deploy)",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/128"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pons-event-driven-paper-20261009",
+      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 127,
+      "state": "OPEN",
+      "title": "Pons event-driven held-position PAPER shadow with native exit preservation",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/127"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
+      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 126,
+      "state": "OPEN",
+      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/126"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
+      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 125,
+      "state": "CLOSED",
+      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/125"
+    },
+    {
+      "baseRefName": "engineering/exceptional-winner-candidate-20261009",
+      "headRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 124,
+      "state": "OPEN",
+      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/124"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "maintenance/engineering-storage-retention-20261008",
+      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 123,
+      "state": "OPEN",
+      "title": "Bound engineering artifacts and preserve failure evidence under storage pressure",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/123"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "operational/pause-ramses-20261007",
+      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
+      "isDraft": false,
+      "mergedAt": "2026-10-07T15:24:06Z",
+      "number": 122,
+      "state": "MERGED",
+      "title": "Pause Ramses as a reversible operational lane",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/122"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "repair/final-alchemy-solana-20261007",
+      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 121,
+      "state": "OPEN",
+      "title": "Solana evidence: rolling prewarm startup and bounded provider proof",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/121"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "repair/observation-qualification-history-20261006",
+      "headRefOid": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 120,
+      "state": "OPEN",
+      "title": "Repair candidate qualification, retention and ordered Solana history",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/120"
+    }
+  ],
+  "file_comparison_source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "file_comparison_scope": "Frozen code candidate Git blobs; report publication changes excluded. Comparisons regenerated after runtime finalization, not inherited predecessor hashes."
 }

@@ -6833,5 +6833,52 @@
     "scope": "Additional final frozen-source native single-position active fallback measurement; no endpoint proof",
     "source_commit": "d7cae26fce377db209daadbc478822382d003d9f"
   },
-  "single_active_full_loop_capacity_blocker": "Seven required starts span at least three seconds at two RPS before final response/processing. Original fallback and conditional sharing produce the same one-position evidence and risk; no full three-second active capacity proof."
+  "single_active_full_loop_capacity_blocker": "Seven required starts span at least three seconds at two RPS before final response/processing. Original fallback and conditional sharing produce the same one-position evidence and risk; no full three-second active capacity proof.",
+  "historical_measurement": true,
+  "superseded_native_envelope": "FINALIZATION_NATIVE.json",
+  "latest_source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "latest_native_envelope": {
+    "full_loop_native_quiet": {
+      "shared_physical_transports": 3,
+      "previous_shared_physical_transports": 5,
+      "classified_as": "Native mocked quiet turns"
+    },
+    "full_loop_native_active": {
+      "shared_physical_transports": 4,
+      "previous_shared_physical_transports": 7,
+      "normal_single_full_or_partial_exit_transports": 6
+    },
+    "full_loop_capacity_certified": false,
+    "current_owner_capacity": {
+      "implementation": "Complete conditional native-owned sharing",
+      "positions_tested": [
+        2,
+        4,
+        8,
+        20
+      ],
+      "protected_workers": 8,
+      "entry_workers": 8,
+      "coincident_active_hold_transports": 4,
+      "staggered_shared_acquisitions": 0,
+      "endpoint_resource_profile_authenticated": false
+    },
+    "constraints": [
+      "Missing receipt sender adds one required body purchase: single-owner partial execution uses seven starts and finishes after three seconds.",
+      "Two coincident partial realizations use eight starts and finish at 3.601 virtual seconds plus local work.",
+      "Twenty coincident full exits use six starts but exceed three seconds when local monetary/validation work is added.",
+      "Source-shaped independent active Current/Survivor frames require 4/5 + 4/3 = 2.1333 physical starts/sec before entries/recovery, unless additional compatible sharing is proved.",
+      "Staggered owners cannot wait to enlarge a cohort; the whole-loop concurrent deadline envelope is not certified.",
+      "Exact endpoint batch/hash-state/sender/archive/canonical capability.",
+      "Measured worst-case RTT and whole native queue/processing/settlement envelope.",
+      "Logical method throughput weights and total competing qualification/recovery demand.",
+      "Bounded per-response and aggregate in-flight bytes, CPU/RSS, protected reserve and charged-failure/monetary limits.",
+      "Original staggered/mixed/pending-exit deadlines for all admitted owners; changing only one of the two software pacers is insufficient.",
+      "Source-shaped compatible consolidation may reduce demand further; this proposal is not a proof that 3 RPS supports full-market operation."
+    ],
+    "runtime_unchanged_since": "e454af49aa66c05565675095dc61690dfd08006f",
+    "single_active_full_loop_capacity_blocker": "Normal 100 ms modeled receipt path now fits; missing sender and slow-provider paths still fail; actual endpoint envelope remains unproved.",
+    "inactive_repair": "GOVERNOR_REPAIR_DISABLED.json"
+  },
+  "component_matrix_scope": "Prior d7 native quotation component specimens retained as baseline, not regenerated whole-loop acceptance."
 }

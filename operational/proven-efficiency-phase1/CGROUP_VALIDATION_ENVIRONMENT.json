@@ -1,0 +1,17 @@
+{
+  "classification": "READ_ONLY_HOST_CAPABILITY_INSPECTION",
+  "recorded_at": "2026-10-10T03:39:11.342227+00:00",
+  "root_enabled": "cpu memory pids",
+  "existing_scopes": 65,
+  "eligible_existing_scopes": [],
+  "host_modified": false,
+  "exact_blocker": "delegated_cpu_memory_io_controllers_required",
+  "minimum_environment": "Existing authorized Linux x86_64 cgroup v2 environment with cpu, memory and io enabled under /sys/fs/cgroup, permission to create an isolated child and set cpu.max/memory.max/memory.swap.max/io.max, cgroup.kill, block-device I/O accounting and libseccomp notification support. Keep original test assertions.",
+  "original_cases": [
+    "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+    "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (attached_to_cgroup True and False)"
+  ],
+  "original_source_assertions_unchanged": true,
+  "authorized_alternate_environment_exposed": false,
+  "scope_count_method": "Unique inspected cgroup directories, root included once"
+}

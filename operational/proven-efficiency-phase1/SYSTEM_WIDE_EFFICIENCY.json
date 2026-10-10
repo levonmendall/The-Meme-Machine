@@ -4101,5 +4101,8 @@
     "scope": "Additional final frozen-source native single-position active fallback measurement; no endpoint proof",
     "source_commit": "d7cae26fce377db209daadbc478822382d003d9f"
   },
-  "single_active_full_loop_capacity_blocker": "Seven required starts span at least three seconds at two RPS before final response/processing. Original fallback and conditional sharing produce the same one-position evidence and risk; no full three-second active capacity proof."
+  "single_active_full_loop_capacity_blocker": "Seven required starts span at least three seconds at two RPS before final response/processing. Original fallback and conditional sharing produce the same one-position evidence and risk; no full three-second active capacity proof.",
+  "baseline_scope": "Original d7 measurements retained; use successor report for latest native sharing and capacity.",
+  "finalization_successor_code_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "finalization_successor_measurements": "FINALIZATION_NATIVE.json"
 }

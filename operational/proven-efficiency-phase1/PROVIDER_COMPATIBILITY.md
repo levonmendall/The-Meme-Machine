@@ -1,4 +1,7 @@
-Read-only provider compatibility review, verified 2026-10-09. No subscription,
+Read-only provider compatibility review, public evidence recorded 2026-10-09;
+native implementation reconciled to `2ec2fff25245e774d68005a175467ea84127cc32`
+on 2026-10-10. Prices below remain frozen hypotheses, not newly verified tariffs.
+No subscription,
 provider endpoint test, paid request, credential insertion or deployed configuration
 change was performed. This document supersedes the earlier streaming-package
 hypothesis with the owner's preferred **Pons standard RPC-only hybrid**.
@@ -21,7 +24,7 @@ migration is part of the next recommended move.
 | Historical/archive reads | Original history intervals, canonical source identities and independent consumer cursors/acknowledgements retained. Exact old block reference included in offline comparisons. | Archive access, retention/depth, batch-member RU treatment and missing-state failure classification are not endpoint-verified. |
 | Missing/stale/forked evidence | Offline comparisons refuse stale or reorganized observations and preserve distinct unavailable/failure outcomes. | 429, timeout, partial-batch, node lag and reorganization behavior must be measured within original deadlines. |
 | Current/Survivor independence | Separate native qualification and position histories; shared acquisitions charge once; each consumer validates economics and retains its own obligation. | Provider transport confers no qualification or execution authority. A dependent decision must use one consistent canonical authority. |
-| Protection deadlines | Three-second Survivor and five-second Current requirements unchanged. Native component matrix uses actual governor/admission with a virtual clock and injected HTTP. Twenty new entries and twenty recovered Current owners are tested with eight protected workers and eight separately bounded entry workers, maximum sixteen local threads, using native durable handoff. | No real RTT or whole-loop concurrent capacity certificate. Ownership multiplexing does not prove that twenty active protective decisions meet their deadlines. Public plan RPS is not a latency guarantee. |
+| Protection deadlines | Three-second Survivor and five-second Current requirements unchanged. Complete native active HOLD/full/partial turns use actual admission with injected HTTP; independent Current owner HOLD turns share acquisition through eight protected workers and eight separate entry workers. Exact traces and local work are in `FINALIZATION_NATIVE.json`. | No real RTT or fleet certificate. Two Survivor partial exits and twenty full exits miss three seconds in paced fixtures. Body fallback and provider slowdown also fail; headline RPS is not a latency guarantee. |
 | Later Pump standard RPC | Existing finalized account context, complete concentration, transaction repair and native quotations remain unchanged. `getBlock` is publicly documented. | Owner/variant/context parity, complete payloads and incremental net savings must justify this later move. |
 | Solana discovery/history | Alchemy native filters, replay, gap repair and enhanced `getTransactionsForAddress` remain authoritative. | No Chainstack substitution is prepared or activated for these required functions. |
 
@@ -37,8 +40,9 @@ These public pages establish documented offerings, not authenticated runtime cap
 | Business | $499 | 200 million | $10 | 600 |
 
 Growth includes archive access in the published features; a free Developer test
-cannot be assumed to establish archive equivalence. All figures are current list
-prices, not an operating approval or invoice. See [official pricing](https://chainstack.com/pricing/).
+cannot be assumed to establish archive equivalence. Figures are the list prices
+recorded in the October 9 review, not a current tariff assurance, operating
+approval or invoice. See [official pricing](https://chainstack.com/pricing/).
 
 Global Node full requests are modeled as one RU and archive requests as two.
 For documented Robinhood archive-sensitive methods, reads at least 127 blocks
@@ -89,19 +93,31 @@ Before a separately authorized capability test, authenticate the exact endpoint
 and independently verify the selected plan's available units, archive/batch/failure
 classification, throughput weights and maximum charge for all attempted methods.
 
-Native active-market replay tightens the scheduling blocker. One active native
-owner on the original fallback needs seven transports and eleven logical elements
-(272 estimated billed/throughput CU); its native positions and risk remain equal.
-Two held Survivors
-use thirteen isolated transports versus seven shared transports; twenty use
-121 versus seven in the synthetic single-transaction specimen. At two physical
-starts/second, seven starts span at least three seconds before the last response
-or local processing. This cannot fit the original three-second deadline.
-`SYSTEM_WIDE_EFFICIENCY.json` preserves complete request traces and independent
-native positions/risk state. The shared resource proof is a fixture, so actual
-endpoint sharing remains inactive. Neither package headline RPS nor this reduction
-certifies whole-loop capacity. Adversarial staggering also defeats sharing in the
-native quotation component matrix; no wait was inserted to enlarge a batch.
+Native active-market acquisition now combines state and incremental logs, receipt
+enrichment and a genuine ordered canonical fence. One normal active HOLD uses
+four transports and nine logical elements (232 estimated billed/throughput CU),
+versus seven/eleven/272 on the published predecessor. A single full or partial
+exit uses six transports. With the unchanged two-RPS admission and injected
+100-ms responses, acquisition plus measured local work is about 1.64 seconds for
+HOLD and 2.65 seconds for execution. Quiet compatible sharing uses three transports.
+No membership read is inferred from batch response ordering.
+
+`FINALIZATION_NATIVE.json` preserves native risk/accounting parity, wire traces,
+bytes, waits and complete execution envelopes. Two simultaneous partial exits
+still need eight starts and about 3.67 seconds. Twenty full exits take about
+3.09 seconds including local work; a body fallback and 600-ms slowdown also fail.
+Twenty partial exits invoke fresh private fallback when shared evidence ages and
+take more requests than the unpaced comparison. These are real offline failures,
+not universal protectability or capacity claims.
+
+Complete owned Current HOLD acquisition is now integrated conditionally: two,
+four, eight and twenty coincident owners use four fixture transports while keeping
+separate native quantities, books, risk and recovery. Twenty finish in about
+2.20 seconds in the injected five-second envelope. Four independently staggered
+owners retain 29 private transports; no batching delay creates artificial sharing.
+Mixed/staggered exits and endpoint resources still require proof. Multi-owner
+resource profiles remain unauthenticated on the actual endpoint, so conditional
+sharing is inactive there. Single-owner consolidation uses existing native methods.
 
 The consistent offline provider copy independently records saved 0.5-second
 intervals for two historical endpoint identities. `LOCAL_PROVIDER_USAGE.json`
@@ -122,12 +138,13 @@ boundaries with measured logical throughput weights, bounded in-flight bytes,
 original protection reservations and ledger-derived monetary budgets after the
 provider profile is authenticated. The native Survivor runtime now contains a
 conditional quote union and unioned held history using the existing selector.
-It requires authenticated endpoint resource bounds and remains inactive without
-them; it introduces no wait to enlarge batches and no higher governor. Two quiet
-native owners use five mock transports instead of ten, but staggered quote
-components still miss deadlines under the unchanged governor. Current ownership
-has separately been decoupled from its eight physical workers. Neither proof
-certifies full-market concurrent history, execution, provider RTT or protection
-capacity.
+Multi-owner sharing requires authenticated endpoint resource bounds and remains
+inactive without them; no wait enlarges batches and no governor is raised. Two
+quiet native owners now use three mock transports. Current ownership and whole
+native acquisition sharing use the existing eight protected workers. None of
+these fixtures certifies full-market mixed history, execution, RTT or protection.
+`GOVERNOR_REPAIR_DISABLED.json` preserves exact capacity counterexamples and an
+inactive repair boundary. Its proposed future RPS profile is not implemented,
+authorized or a demonstrated provider minimum.
 If complete original deadlines cannot be met within supported limits, keep the
 configuration inactive and report the deficit; do not trade deadlines for savings.

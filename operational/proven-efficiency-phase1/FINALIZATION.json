@@ -1,0 +1,191 @@
+{
+  "schema": "pr129-final-completion-register-v1",
+  "recorded_at": "2026-10-10T04:36:44.933592+00:00",
+  "code_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "runtime_commit": "e454af49aa66c05565675095dc61690dfd08006f",
+  "baseline": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
+  "branch": "integration/pump-pons-efficiency-rc-20261009",
+  "pr": 129,
+  "readiness": "BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT",
+  "source_commits": [
+    {
+      "commit": "c0621384c653c211b333045658c9d02402ed5900",
+      "subject": "Reconcile USD source guard with PR 129 while pinning original trading economics",
+      "paths": [
+        "tests/test_robinhood_usd_valuation.py"
+      ]
+    },
+    {
+      "commit": "4519476adf85fc1563e1dcd547e3f0395ab9e1af",
+      "subject": "Consolidate native Pons protection into ordered canonical acquisition frames",
+      "paths": [
+        "meme_machine/lanes/pons/pons_quotes.py",
+        "meme_machine/lanes/pons/pons_selective_acquisition.py",
+        "meme_machine/lanes/pons/pons_selective_v4.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "operational/tests.py",
+        "tests/test_pons_protective_capacity.py",
+        "tests/test_pons_shared_native_acquisition.py",
+        "tests/test_robinhood_usd_valuation.py"
+      ]
+    },
+    {
+      "commit": "e454af49aa66c05565675095dc61690dfd08006f",
+      "subject": "Share compatible acquisitions across independently owned Pons Current controllers",
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_workers.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/provider_admission.py",
+        "operational/tests.py",
+        "tests/test_pons_current_shared_owners.py",
+        "tests/test_pons_current_worker_ownership.py"
+      ]
+    },
+    {
+      "commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+      "subject": "Reproduce native release purchase and deadline envelopes against the published predecessor",
+      "paths": [
+        "engineering/proven_efficiency/finalization.py",
+        "engineering/proven_efficiency/system_wide.py"
+      ]
+    }
+  ],
+  "completion_register": [
+    {
+      "task": "baseline_and_ancestry",
+      "status": "Completed",
+      "evidence": "Clean e1070404 continued; cbfcb413 original worktree and PR 126/127/128 ancestry retained."
+    },
+    {
+      "task": "current_scaling_900_seconds",
+      "status": "Completed",
+      "evidence": "Existing preparation/frontier/delta implementation retained; missing history, source changes, fork, native add/restart regressions pass."
+    },
+    {
+      "task": "survivor_native_acquisition_consolidation",
+      "status": "Completed",
+      "evidence": "Native state+logs, one receipt enrichment and ordered joint membership. Individual owner uses existing methods; multi-owner sharing requires existing resource proof."
+    },
+    {
+      "task": "single_active_survivor_protection",
+      "status": "Blocked by specific provider or resource constraint",
+      "evidence": "Normal warm single-receipt/100-ms HOLD and full/partial exit specimens fit three seconds. Missing-sender body fallback and slow-provider cases miss it; actual endpoint RTT/sender/payload, cold and dense-market envelope remain unproved."
+    },
+    {
+      "task": "fleet_protective_capacity",
+      "status": "Blocked by specific provider or resource constraint",
+      "evidence": "Two simultaneous partial realizations exceed three seconds at 2 RPS; twenty full exits exceed it with local work; missing-sender and slow-provider cases also exceed it."
+    },
+    {
+      "task": "current_owned_sharing",
+      "status": "Completed",
+      "evidence": "Conditional neutral acquisition joins already-due owners; independent native stores/quantities/risks/cursors/accounting. Eight entry/eight protection workers retained."
+    },
+    {
+      "task": "current_whole_loop_capacity",
+      "status": "Partially completed",
+      "evidence": "2/4/8/20 active HOLD owners have native parity and paced coincident five-second proof; adversarial private paths, exits and mixed regimes need capacity evidence. No waiting expands a cohort."
+    },
+    {
+      "task": "survivor_count_veto",
+      "status": "Completed",
+      "evidence": "Operative fixed two-position selection/funding veto stays removed. Legacy policy descriptor is retained only for original durable identity."
+    },
+    {
+      "task": "current_worker_admission",
+      "status": "Completed",
+      "evidence": "Temporary worker pressure remains durable/retryable; filled owners hand off recoverably. No numerical owner veto. Entry RPC priority repaired to 5 versus protected priority 0."
+    },
+    {
+      "task": "source_identity_failure",
+      "status": "Completed",
+      "evidence": "Original USD economic purpose reviewed, SQLite FULL boundary changes traced to predecessor, original nine tests/economic reducers pinned, approved e107 implementation identity explicit."
+    },
+    {
+      "task": "cgroup_containment_acceptance",
+      "status": "Blocked by unavailable validation environment",
+      "evidence": "No existing delegated cpu+memory+io scope found on this offline host; exact original containment tests retained. No delegation or privileged service modified."
+    },
+    {
+      "task": "full_suite_acceptance",
+      "status": "Blocked by unavailable validation environment",
+      "evidence": "Both exact frozen suites completed; FAST: 1398 tests, 0 failures, 3 errors, OPERATIONAL: 2819 tests, 0 failures, 3 errors. Required errors are not PASS."
+    },
+    {
+      "task": "durable_shared_receipts",
+      "status": "Completed",
+      "evidence": "Existing Plane/WAL bounded retention, independent obligations/acks, canonical generation invalidation and native recovery retained."
+    },
+    {
+      "task": "dense_pons_receipts",
+      "status": "Blocked by specific provider capability",
+      "evidence": "Existing selector remains capability/resource/deadline gated; complete endpoint census, payload, throughput and native whole-turn timing unproved."
+    },
+    {
+      "task": "pump_held_snapshot_optimization",
+      "status": "Completed",
+      "evidence": "PR 126 fresh per-position consolidation remains unchanged; original concentration and executable protection tests retained."
+    },
+    {
+      "task": "pump_account_union_and_known_slot_repair",
+      "status": "Blocked by specific provider capability",
+      "evidence": "Existing parity/preparation and complete original fallback retained. No account/stream/repair method activated without exact context/completeness/payload evidence."
+    },
+    {
+      "task": "source_abi_cache_and_risk_reuse",
+      "status": "Completed",
+      "evidence": "Prior bounded immutable/source/topic and verified risk-fold caches retained. Native monetary replay still runs; no unproved monetary authority cache."
+    },
+    {
+      "task": "purchase_attribution",
+      "status": "Completed",
+      "evidence": "Existing bounded physical purchase instrumentation and offline evidence/deadline/native join preserved. New wire traces separate physical starts, logical elements, estimates, reuse and fixture bytes; legacy missing fields remain unknown."
+    },
+    {
+      "task": "provider_equivalence",
+      "status": "Blocked by specific provider capability",
+      "evidence": "Existing diagnostic comparison remains disabled. Pons RPC-only Chainstack hypothesis first; retain Alchemy Solana streams/address history; no subscription or migration."
+    },
+    {
+      "task": "quote_wakeup_and_winner_economics",
+      "status": "Requiring separately authorized PAPER evidence",
+      "evidence": "Existing shadow and exceptional continuation remain inactive/unvalidated. Original native polls, right-tail/scaling/36h/72h economics untouched; no infrastructure-forced liquidation."
+    },
+    {
+      "task": "G01_G05_and_CAPACITY_RECOVERY_AUTONOMY",
+      "status": "Requiring separately authorized PAPER evidence",
+      "evidence": "Existing startup, volume, backup, monitoring, durable observations and dashboard machinery retained; prior receipts referenced without repeated host engineering. New candidate host acceptance remains separate."
+    },
+    {
+      "task": "deployment_and_funding",
+      "status": "Completed",
+      "evidence": "No merge, deploy, service startup, provider workload, funding, signing, provider-limit change or infrastructure change. Original native monetary digests unchanged."
+    }
+  ],
+  "actual_provider_calls": 0,
+  "actual_provider_spending_reduction_usd": 0,
+  "pro_research_archive_inspected": false,
+  "required_next_sequence": [
+    "Unchanged containment tests on an existing authorized offline delegated cgroup v2 environment.",
+    "Separately authorized bounded read-only endpoint parity/resource/price test; no canonical authority substitution.",
+    "Native mixed/staggered exit/recovery capacity acceptance against authenticated profile; any governor repair separately authorized.",
+    "Only after original protective deadlines and required offline suites pass: separately authorize bounded PAPER CAPACITY/RECOVERY/AUTONOMY with existing epoch/storage/recovery/monitoring."
+  ],
+  "full_suite_results": [
+    {
+      "suite": "FAST",
+      "test_count": 1398,
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0
+    },
+    {
+      "suite": "OPERATIONAL",
+      "test_count": 2819,
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33
+    }
+  ],
+  "source_tree_sha256": "fa29df7b2a8c35b168ffe74bd85d84a8b8067480acbc3273bb8d047de7d54e68"
+}

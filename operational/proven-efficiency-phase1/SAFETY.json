@@ -6,7 +6,7 @@
     "path": "meme_machine/lanes/pons/pons_postgrad_survivor.py",
     "proof": "tests.test_pons_owner_admission.OwnerAdmissionTests.test_existing_economic_policy_and_native_exit_functions_are_exact"
   },
-  "candidate_code_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "candidate_code_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
   "canonical_journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
   "canonical_sequence": 2036,
   "cash": "500.00",
@@ -56,7 +56,9 @@
     "meme_machine/lanes/pump/pumpswap_survivor.py": true,
     "meme_machine/runtime/survivor_risk.py": true
   },
-  "recorded_at": "2026-10-10T00:53:17.722134+00:00",
+  "recorded_at": "2026-10-10T04:15:13.816955+00:00",
   "service": "MainPID=0\nActiveState=inactive\nSubState=dead\nUnitFileState=disabled\n",
-  "state_operation": "native monetary file hashes only; no native monetary database opened or mutated. Existing provider observability ledger alone was copied through a read-only SQLite connection for offline attribution."
+  "state_operation": "Read-only native monetary byte hashes only; unchanged portfolio epoch/accounting. No native monetary database opened or mutated during finalization. Earlier consistent provider observability copy is separately documented.",
+  "prior_candidate_code_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "latest_read_only_verification": "FINALIZATION_SAFETY.json"
 }
