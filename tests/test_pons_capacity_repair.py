@@ -458,3 +458,130 @@ class ProtectivePhaseTests(unittest.TestCase):
         mixed=t['mixed_survivor']
         self.assertTrue(mixed['native_accounting_verified'])
         self.assertTrue(all(not r['realization_taken'] for r in mixed['risks']))
+
+
+class PendingExitSharingTests(unittest.TestCase):
+    baseline='da090e6d080383f0309517a5eb39aa4ead3360e8'
+
+    def replay_pending(self,count,*,baseline=False,proved=True,only_first=False,latency=0,paced=False,
+                       fork=False,factor=2.2,rps=4,real_seed=False,rpc_factory=None):
+        fixture=capacity.ProtectiveCapacityTests();self.addCleanup(fixture.doCleanups);seed={}
+        def failed_native_exit(runtime,rpc):
+            original=runtime.exit_quote;full_calls={}
+            def refuse(qty):
+                position=runtime.book._load(runtime.current['position'])
+                selected=not only_first or position['id'].endswith(':1')
+                if qty==position['tokens']:full_calls[position['id']]=full_calls.get(position['id'],0)+1
+                execution=qty<position['tokens'] or factor<1 and full_calls.get(position['id'],0)>1
+                return None if selected and execution else original(qty)
+            runtime.exit_quote=refuse
+            if real_seed:
+                saved=(rpc.governor,rpc.shared_admission,rpc.real_latency)
+                # Prior failed intent is a separate zero-RTT offline warmup.
+                # The measured recovery uses the actual pacer/sleeping HTTP.
+                rpc.governor=None;rpc.shared_admission=None;rpc.real_latency=False
+            try:
+                with patch('time.monotonic',side_effect=lambda:rpc.clock),patch('time.time',side_effect=lambda:rpc.clock),\
+                        patch('meme_machine.runtime.storage.compact_survivor'):
+                    runtime.step(admit=False)
+            finally:
+                runtime.exit_quote=original
+                if real_seed:rpc.governor,rpc.shared_admission,rpc.real_latency=saved
+            rows=runtime.history.rows()
+            self.assertEqual(sum(bool(r.get('position_safety',{}).get('pending_exit')) for r in rows),1 if only_first else count)
+            self.assertTrue(runtime.book.replay()['verified'])
+            rpc.sleep(max(0,103-rpc.clock))
+            seed.update(physical=len(rpc.starts),at=rpc.clock,methods=dict(rpc.methods),events=[])
+            transition=runtime.book.transition
+            def traced(identity,action,*args,**kw):
+                result=transition(identity,action,*args,**kw);seed['events'].append((identity,action,rpc.clock))
+                return result
+            runtime.book.transition=traced
+            rpc.fork=fork
+        if rpc_factory is None:
+            p,r,rpc,result=capacity.replay(fixture,count,predecessor=self.baseline if baseline else False,
+                proved=proved,price_factor=factor,latency=latency,paced=paced,rps=rps,before_step=failed_native_exit)
+        else:
+            from tests import test_pons_shared_native_acquisition as shared
+            with patch.object(shared,'TraceRPC',side_effect=rpc_factory):
+                p,r,rpc,result=fixture.run_positions(count,proved=proved,moving_clock=True,before_step=failed_native_exit)
+        from collections import Counter
+        methods=dict(Counter(rpc.methods)-Counter(seed['methods']))
+        trace=dict(positions=count,baseline_step=self.baseline if baseline else None,
+            physical_starts=len(rpc.starts)-seed['physical'],methods=methods,
+            starts=rpc.starts[seed['physical']:],responses=rpc.responses[seed['physical']:],
+            completion_seconds=rpc.native_completed_at-seed['at']+rpc.local_wall_seconds,
+            local_wall_seconds=rpc.local_wall_seconds,events=seed['events'],native_accounting_verified=True)
+        return p,r,rpc,result,trace
+
+    def test_pending_one_two_four_eight_twelve_twenty_keep_exact_money_and_native_decisions(self):
+        for n in (1,2,4,8,12,20):
+            with self.subTest(positions=n):
+                old,ro,_,_,a=self.replay_pending(n,baseline=True)
+                new,rn,_,_,b=self.replay_pending(n)
+                self.assertEqual(old,new);self.assertEqual(ro,rn)
+                self.assertTrue(all(r['realization_taken'] for r in rn))
+                self.assertEqual(b['physical_starts'],5)
+                self.assertEqual(a['physical_starts'],5+6*(n-1))
+                print('NATIVE_PENDING_EXIT_PARITY',json.dumps(dict(before=a,after=b)),flush=True)
+
+    def test_ordinary_owners_acquire_after_pending_native_exit_with_full_parity(self):
+        old,ro,_,_,a=self.replay_pending(20,baseline=True,only_first=True)
+        new,rn,_,_,b=self.replay_pending(20,only_first=True)
+        self.assertEqual(old,new);self.assertEqual(ro,rn)
+        self.assertEqual(b['physical_starts'],8)
+        events=b['events'];exit_index=next(i for i,e in enumerate(events) if e[0].endswith(':1') and e[1]=='partial_harvest')
+        self.assertTrue(all(i>exit_index for i,e in enumerate(events) if not e[0].endswith(':1') and e[1]=='mark'))
+        self.assertEqual(sum(e[1]=='partial_harvest' for e in events),1)
+        print('NATIVE_URGENT_THEN_ORDINARY',json.dumps(dict(before=a,after=b)),flush=True)
+
+    def test_twenty_pending_full_stops_keep_original_quantity_and_realized_money(self):
+        old,ro,_,_,a=self.replay_pending(20,baseline=True,factor=.6)
+        new,rn,_,_,b=self.replay_pending(20,factor=.6)
+        self.assertEqual(old,new);self.assertEqual(ro,rn)
+        self.assertTrue(all(p['status']=='settled' and p['tokens']==0 for p in new))
+        self.assertEqual(b['physical_starts'],3)
+        self.assertGreater(a['physical_starts'],b['physical_starts'])
+        print('NATIVE_PENDING_FULL_PARITY',json.dumps(dict(before=a,after=b)),flush=True)
+
+    def test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile(self):
+        import time
+        original=capacity.ActiveRPC
+        class RealRPC(original):
+            def __init__(self,**kwargs):
+                self.origin=time.perf_counter();super().__init__(**kwargs);self.real_latency=True
+            @property
+            def clock(self):return 100+time.perf_counter()-self.origin
+            @clock.setter
+            def clock(self,value):pass
+            def sleep(self,seconds):time.sleep(seconds)
+        for factor,starts in ((.6,3),(2.2,5)):
+            with self.subTest(factor=factor):
+                def rpc_factory(**kw):
+                    rpc=RealRPC(**kw,count=20,price_factor=factor,latency=.1,rps=2)
+                    self.addCleanup(rpc.close);return rpc
+                p,r,rpc,result,t=self.replay_pending(20,factor=factor,latency=.1,paced=True,rps=2,
+                    real_seed=True,rpc_factory=rpc_factory)
+                self.assertEqual(t['physical_starts'],starts)
+                # Real elapsed clock already contains local work; do not add
+                # it twice or reset the original acquisition/required clock.
+                completed=rpc.native_completed_at-103
+                self.assertLess(completed,3)
+                self.assertTrue(result['accounting']['reconciled'])
+                self.assertEqual(sum(e[1] in ('settled','partial_harvest') for e in t['events']),20)
+                print('REAL_CLOCK_PENDING_EXITS',json.dumps(dict(factor=factor,rps=2,positions=20,
+                    physical_starts=t['physical_starts'],starts=t['starts'],responses=t['responses'],
+                    complete_native_seconds=completed,native_accounting_verified=True)),flush=True)
+
+    def test_unproved_resources_keep_original_first_owner_and_complete_fallback(self):
+        old,ro,_,_,a=self.replay_pending(2,baseline=True,proved=False)
+        new,rn,_,_,b=self.replay_pending(2,proved=False)
+        self.assertEqual(old,new);self.assertEqual(ro,rn)
+        self.assertEqual(a['physical_starts'],b['physical_starts'])
+        self.assertTrue(all(r['realization_taken'] for r in rn))
+
+    def test_reorganized_pending_evidence_never_realizes_and_native_accounts_reconcile(self):
+        positions,risks,rpc,result,t=self.replay_pending(2,fork=True)
+        self.assertTrue(result['accounting']['reconciled'])
+        self.assertTrue(all(not r['realization_taken'] for r in risks))
+        self.assertTrue(all(p['tokens']==10**18+i*10000 for i,p in enumerate(positions,1)))

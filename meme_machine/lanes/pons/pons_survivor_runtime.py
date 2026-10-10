@@ -861,31 +861,39 @@ class Runtime:
             private_recovery=set(getattr(self,'private_history_recovery',set()))
             self.private_history_recovery=set(private_recovery)
             urgent=[r for r in ordered if position_priority(r)==0]
-            # Do not make an irreversible exit wait for another owner's
-            # acquisition. Its own state/logs/enrichment use the same ordered
-            # native frame; all remaining owners keep the complete fallback.
-            due=urgent[:1] if urgent else [r for r in ordered if position_priority(r)==1]
+            resources=getattr(self.rpc,'shared_quote_resources',None)
+            compatible=(isinstance(resources,dict) and resources.get('validated') is True and len(urgent)<=47)
+            # Pending exits are already due. Proven compatible urgent owners
+            # may use one native frame; ordinary owners acquire only AFTER
+            # those native exits finish. Unknown resources retain the original
+            # first-owner path. No consumer waits to enlarge a cohort.
+            urgent_ids={r['id'] for r in urgent}
+            groups=([urgent,[r for r in ordered if r['id'] not in urgent_ids]]
+                if urgent and compatible else [ordered])
             from .provider_admission import native_lifecycle_work
             admission=getattr(getattr(self.rpc,'_current',self.rpc),'shared_admission',None)
             # Production admission is unchanged. An explicit guarded offline
             # profile can reserve this already-due protective phase, keeping
             # peer requests from invalidating its ordered execution proof.
             with native_lifecycle_work(held=True):
-                with admission.protective_cohort() if admission is not None and due else nullcontext():
-                    try:self._prepare_held_acquisition([r for r in due if r['id'] not in private_recovery])
-                    except (ValueError,BoundaryError) as exc:
-                        self.shared_held_quotes={};self.shared_held_boundary=str(exc)
-                    try:self._prepare_shared_exits(due)
-                    except (ValueError,BoundaryError) as exc:
-                        self.shared_held_executions={};self.shared_exit_boundary=str(exc)
-                    for original in ordered:
-                        row=self.history.get(original['id']) or original
-                        if row.get('position'):
-                            try:self._position(row,admit=admit)
-                            except (ValueError,BoundaryError) as exc:
-                                errors.append(str(exc));self._failure(row,str(exc),phase='position')
-                                from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
-                                exceptional_evidence_failure(self,family='pons_survivor',blocker=str(exc),rows=[row])
+                with admission.protective_cohort() if admission is not None and any(r.get('position') for r in ordered) else nullcontext():
+                    for group in groups:
+                        pending=[r for r in group if r['id'] in urgent_ids]
+                        due=(pending if compatible else pending[:1]) if pending else [r for r in group if position_priority(r)==1]
+                        try:self._prepare_held_acquisition([r for r in due if r['id'] not in private_recovery])
+                        except (ValueError,BoundaryError) as exc:
+                            self.shared_held_quotes={};self.shared_held_boundary=str(exc)
+                        try:self._prepare_shared_exits(due)
+                        except (ValueError,BoundaryError) as exc:
+                            self.shared_held_executions={};self.shared_exit_boundary=str(exc)
+                        for original in group:
+                            row=self.history.get(original['id']) or original
+                            if row.get('position'):
+                                try:self._position(row,admit=admit)
+                                except (ValueError,BoundaryError) as exc:
+                                    errors.append(str(exc));self._failure(row,str(exc),phase='position')
+                                    from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
+                                    exceptional_evidence_failure(self,family='pons_survivor',blocker=str(exc),rows=[row])
             self.shared_held_quotes={}
             self.shared_held_executions={}
             self.held_history_failures={}
