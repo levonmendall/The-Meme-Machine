@@ -76,11 +76,12 @@ def scaling():
 def positions():
     f=SharedNativeAcquisitionTests()
     try:
-        original,a,old,_=f.run_positions(2,proved=False)
+        original,a,old,_=f.run_positions(2,proved=False,predecessor=True)
+        _,_,published,_=f.run_positions(2,proved=True,predecessor=True)
         optimized,b,new,_=f.run_positions(2,proved=True)
         assert original==optimized and a==b
         _,risk,twenty,result=f.run_positions(20,proved=True)
-        assert len(twenty.transports)==5 and len(risk)==20
+        assert len(twenty.transports)==3 and len(risk)==20
         assert result['accounting']['open_positions']==20
         def counts(rpc):
             spec=json.loads(Path('meme_machine/runtime/alchemy-cu-schedule.json').read_text())
@@ -90,7 +91,7 @@ def positions():
                 estimated_throughput_cu=sum(weights[m]*n for m,n in rpc.methods.items()),
                 traces=deepcopy(rpc.transports),mock_transport_elapsed_seconds=rpc.clock-100)
         return dict(classification='OFFLINE_NATIVE_SURVIVOR_RUNTIME_STEP; quiet mock markets, independent native books',
-            original_two=counts(old),shared_two=counts(new),shared_twenty=counts(twenty),
+            original_two=counts(old),published_shared_two=counts(published),shared_two=counts(new),shared_twenty=counts(twenty),
             identical_two_position_money_and_protective_state=True,
             independent_exact_quantity_simulations_preserved=True,
             shared_two_deployment_enabled=False,
@@ -126,7 +127,8 @@ def active_positions(count):
     test=SharedNativeAcquisitionTests()
     try:
         with patch.object(fixture,'TraceRPC',Active):
-            a,risk_a,old,_=test.run_positions(count,proved=False)
+            a,risk_a,old,_=test.run_positions(count,proved=False,predecessor=True)
+            _,_,published,_=test.run_positions(count,proved=True,predecessor=True)
             b,risk_b,new,_=test.run_positions(count,proved=True)
         assert a==b and risk_a==risk_b
         assert new.methods['eth_getTransactionReceipt']==1
@@ -140,7 +142,7 @@ def active_positions(count):
                 minimum_physical_start_span_at_two_rps=(physical-1)*.5,
                 delivered_bytes=None,request_bytes=None,traces=deepcopy(rpc.transports))
         return dict(classification='OFFLINE_NATIVE_SURVIVOR_ACTIVE_STEP; synthetic shared transaction in one canonical block',
-            held_positions=count,original=counts(old),shared=counts(new),
+            held_positions=count,original=counts(old),published_shared=counts(published),shared=counts(new),
             identical_native_positions_and_risk=True,unique_required_receipts=1,occupied_blocks=1,
             native_event_count=count,actual_provider_requests=0,
             caveat='Transport latency is injected, whole-loop pacing is not certified, and bytes were not measured. '
