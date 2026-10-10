@@ -20,6 +20,31 @@ AGES=(300,600,900,1800,36*3600,72*3600,96*3600,7*86400,14*86400,30*86400)
 MULTIPLES=(1,1.1,2,5,10,25,50,100,1000)
 
 
+class SourceDeltaTests(unittest.TestCase):
+    def test_reviewed_stale_helper_changes_only_adverse_guard_and_confirmation_order(self):
+        import ast,subprocess
+        from tests.test_robinhood_usd_valuation import assert_holding_delta
+        path='meme_machine/lanes/pons/pons_postgrad_survivor.py'
+        original=subprocess.check_output(['git','show','fe7524586217c44f18fd8d39614897b2cc5f169b:'+path])
+        expected=ast.parse(original)
+        helper=next(n for n in expected.body if isinstance(n,ast.FunctionDef) and n.name=='exit_action')
+        confirmation=next(n for n in helper.body if isinstance(n,ast.If) and isinstance(n.test,ast.Name) and n.test.id=='soft')
+        stale=next(n for n in helper.body if isinstance(n,ast.If) and
+            any(isinstance(v,ast.Constant) and v.value=='stale_thesis' for v in ast.walk(n)))
+        helper.body.remove(confirmation)
+        self.assertIsInstance(stale.test,ast.BoolOp);self.assertIsInstance(stale.test.op,ast.And)
+        stale.test.values.insert(0,ast.Name(id='soft',ctx=ast.Load()))
+        helper.body.insert(helper.body.index(stale)+1,confirmation)
+        current=Path(path).read_text()
+        # Independent review of the entire module, including original constants,
+        # policy identity, qualification and every other function/interface.
+        self.assertEqual(ast.dump(expected),ast.dump(ast.parse(current)))
+        assert_holding_delta(self,path,original,current)
+        for mutation in (current.replace('soft and int(hold_seconds)','int(hold_seconds)'),
+                         current.replace('current<=x["hard_stop_bps"]','current<x["hard_stop_bps"]')):
+            with self.assertRaises(AssertionError):assert_holding_delta(self,path,original,mutation)
+
+
 class CurrentLongHoldTests(unittest.TestCase):
     pump=fixtures.NativeCurrentTests.pump
     pump_mark=fixtures.NativeCurrentTests.pump_mark
