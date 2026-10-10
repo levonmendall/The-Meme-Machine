@@ -195,6 +195,7 @@ class PacedRpc(Rpc):
         pacer=None,
         transport=None,
         pace_injected_transport=False,
+        offline_admission=None,
         **kwargs,
     ):
         self.role = str(role)
@@ -204,7 +205,19 @@ class PacedRpc(Rpc):
             endpoint = primary_endpoint(endpoint)
         self.provider_fingerprint = authority.fingerprint(endpoint) if self.canonical_authority else None
         from .provider_admission import configured
-        self.shared_admission = configured(endpoint, mandatory=self.canonical_authority)
+        if offline_admission is None:
+            self.shared_admission = configured(endpoint, mandatory=self.canonical_authority)
+        else:
+            # Explicit fixture-only profile; configuration and live sessions
+            # cannot raise either the role pacer or shared physical ceiling.
+            profile=getattr(offline_admission,'offline_profile',None)
+            if profile is None:raise BoundaryError('provider_offline_profile_required')
+            profile.validate()
+            if offline_admission.endpoint!=authority.fingerprint(endpoint):
+                raise BoundaryError('provider_offline_endpoint_mismatch')
+            self.shared_admission=offline_admission
+            requests_per_second=profile.physical_starts_per_second
+            pacer=ProviderPacer(requests_per_second,clock=offline_admission.clock,sleeper=offline_admission.sleep)
         self.admission_scope = threading.local()
         self.provider_kind = _provider_kind(endpoint)
         from .immutable_rpc import configured as evidence_store, Reuse

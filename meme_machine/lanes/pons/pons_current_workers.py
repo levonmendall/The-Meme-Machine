@@ -34,6 +34,37 @@ def held_acquisition_request(endpoint,rpc,history,position,state,gas_units,token
         checkpoint=deepcopy(checkpoint),retained=deepcopy(retained),preholders=tuple(state.preholders),side='sell')
 
 
+def exit_acquisition_request(endpoint,rpc,position,key,gas_units):
+    """A durable native intent; no worker owns this data across its thread."""
+    raw=getattr(rpc,'_current',rpc);resources=getattr(raw,'shared_quote_resources',None)
+    if (key is None or position['status']!='exit_pending' or not isinstance(resources,dict)
+            or resources.get('validated') is not True):return None
+    from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+    from .evidence import digest
+    return dict(identity=position['id'],position_hash=digest(position),rpc=raw,endpoint=endpoint,
+        provider_fingerprint=getattr(raw,'provider_fingerprint',None),provider_session=id(raw),
+        source_generation=shared_evidence_domain(endpoint),key=key,pool_id=position['market'],
+        amount=int(position['pending_exit_tokens']),gas_units=gas_units,side='sell',execution=True)
+
+
+def acquire_current_exits(requests,deadline):
+    from .provider_admission import position_work
+    from meme_machine.runtime.provider_purchases import attributed_work
+    @position_work
+    @attributed_work('pons_held_protection',consumer='current')
+    def acquire():
+        from .pons_quotes import shared_v4_quotes
+        from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+        rpc=requests[0]['rpc'];endpoint=requests[0]['endpoint']
+        if any(r['source_generation']!=shared_evidence_domain(endpoint) for r in requests):
+            raise BoundaryError('pons_current_shared_source_changed')
+        quotes=shared_v4_quotes(rpc,requests,deadline_seconds=5,deadline_at=deadline)
+        return {r['identity']:dict(q,position_hash=r['position_hash'],
+            provider_fingerprint=r['provider_fingerprint'],source_generation=r['source_generation'],deadline=deadline)
+            for r,q in zip(requests,quotes)}
+    return acquire()
+
+
 def acquire_current_owners(requests,deadline):
     """The existing quote/range adapters, without moving native connections."""
     from .provider_admission import position_work
@@ -208,23 +239,25 @@ class LifecyclePool:
         """Called under the pool lock; never waits to form a cohort."""
         if owner.get('acquisition_future') is not None:return owner['acquisition_future'],None
         request=owner.get('acquisition_request')
-        if request is None or owner['pending_exit']:return None,None
+        execution=bool(request and request.get('execution'))
+        if request is None or owner['pending_exit'] and not execution:return None,None
         key=(request['provider_fingerprint'],request['source_generation'])
         selected=[owner]
         for worker in self.workers:
             for due,_,_,other in sorted(worker['queue'],key=lambda row:row[:3]):
                 r=other.get('acquisition_request')
-                if (due<=now and not other['pending_exit'] and r is not None
+                if (due<=now and r is not None and bool(r.get('execution'))==execution
+                        and (not other['pending_exit'] or execution)
                         and other.get('acquisition_future') is None
                         and (r['provider_fingerprint'],r['source_generation'])==key
                         and r['pool_id'] not in {x['acquisition_request']['pool_id'] for x in selected}):
                     selected.append(other)
                     if len(selected)==20:break
             if len(selected)==20:break
-        if len(selected)<2:return None,None
         future=Future()
         for other in selected:other['acquisition_future']=future
-        self.counts['shared_acquisitions']+=1;self.counts['shared_consumers']+=len(selected)
+        self.counts['shared_acquisitions']+=int(len(selected)>1)
+        self.counts['shared_consumers']+=len(selected) if len(selected)>1 else 0
         return future,selected
 
     def _worker(self,index):
@@ -251,7 +284,7 @@ class LifecyclePool:
                 for row in ready:heapq.heappush(worker['queue'],row)
                 age=max(0.,now-owner['due'])
                 self.counts['max_queue_age_seconds']=max(self.counts['max_queue_age_seconds'],age)
-                if owner['iterator'] is not None:
+                if owner['iterator'] is not None and owner.get('wait_kind','monitor_wait')=='monitor_wait':
                     self.counts['protection_turns']+=int(not self.closing)
                     self.counts['late_protection_turns']+=int(not self.closing and age>1e-6)
                 worker['running']=True;self.counts['active_physical_workers']+=1
@@ -274,7 +307,8 @@ class LifecyclePool:
                     if acquisition is not None:
                         if cohort is not None:
                             try:
-                                result=owner['context'].run(acquire_current_owners,
+                                acquire=(acquire_current_exits if owner['acquisition_request'].get('execution') else acquire_current_owners)
+                                result=owner['context'].run(acquire,
                                     [x['acquisition_request'] for x in cohort],min(x['due'] for x in cohort)+5)
                                 acquisition.set_result(result)
                             except Exception as exc:
@@ -288,8 +322,9 @@ class LifecyclePool:
                             command=dict(acquisition_failed=True,
                                 boundary=str(exc) if isinstance(exc,BoundaryError) else 'provider_transport_failure')
                     value=owner['context'].run(owner['iterator'].send,command)
-                if not done and (not isinstance(value,dict) or value.get('kind')!='monitor_wait'
-                        or value.get('seconds')!=5):
+                if not done and (not isinstance(value,dict) or value.get('kind') not in ('monitor_wait','exit_wait')
+                        or value['kind']=='monitor_wait' and value.get('seconds')!=5
+                        or value['kind']=='exit_wait' and not 0<=value.get('seconds',-1)<=20):
                     raise BoundaryError('current_native_monitor_schedule_changed')
             except StopIteration as result:done=True;value=result.value
             except BaseException as exc:done=True;error=exc
@@ -317,6 +352,7 @@ class LifecyclePool:
                         owner['due']=value.get('due_at',self.clock()+value['seconds'])
                         owner['pending_exit']=bool(value.get('pending_exit'))
                         owner['acquisition_request']=value.get('acquisition_request')
+                        owner['wait_kind']=value['kind']
                         owner['acquisition_future']=None
                         self._enqueue(index,owner)
                     self.lock.notify_all()

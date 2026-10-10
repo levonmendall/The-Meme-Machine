@@ -484,6 +484,19 @@ def _delayed_exit(
     endpoint,*,paper,identity,rpc,candidate,gas_units,store,
     transition,v4_key,label,exit_tokens,
 ):
+    steps=_delayed_exit_steps(endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
+        gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,label=label,exit_tokens=exit_tokens)
+    try:
+        while True:
+            wait=next(steps);_stop_sleep(wait['seconds'])
+    except StopIteration as done:return done.value
+    finally:steps.close()
+
+
+def _delayed_exit_steps(
+    endpoint,*,paper,identity,rpc,candidate,gas_units,store,
+    transition,v4_key,label,exit_tokens,
+):
     pending=paper._get(identity)
     if pending["status"]=="open":
         paper.advance(
@@ -494,9 +507,31 @@ def _delayed_exit(
           int(pending.get("pending_exit_tokens") or 0)!=int(exit_tokens)):
         raise BoundaryError("selective_pending_exit_identity")
     # A retry resumes the existing intent, amount and due time; never a new exit.
-    _stop_sleep(max(0,pending["due"]-int(time.time())))
+    from .pons_current_workers import exit_acquisition_request
+    request=exit_acquisition_request(endpoint,rpc,pending,v4_key,gas_units) if transition is not None else None
+    command=yield dict(kind='exit_wait',seconds=max(0,pending['due']-int(time.time())),
+        due_at=time.monotonic()+max(0,pending['due']-int(time.time())),
+        position=identity,pending_exit=True,acquisition_request=request)
+    if command=='handoff':raise BoundaryError('selective_exit_handoff_required')
+    if isinstance(command,dict) and command.get('acquisition_failed'):
+        raise BoundaryError('provider_transport_failure')
+    acquisition=command.get('acquisition') if isinstance(command,dict) else None
     amount=int(pending["pending_exit_tokens"])
-    if transition is None:
+    if acquisition is not None:
+        from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+        raw=getattr(rpc,'_current',rpc)
+        if (request is None or request['provider_session']!=id(raw)
+                or acquisition['position_hash']!=digest(paper._get(identity))
+                or acquisition['provider_fingerprint']!=rpc.provider_fingerprint
+                or acquisition['source_generation']!=shared_evidence_domain(endpoint)
+                or time.monotonic()>acquisition['deadline']
+                or not 0<=time.monotonic()-acquisition['acquired']<=5):
+            raise BoundaryError('provider_transport_failure')
+        from .pons_natural_paper import _v4_quote as parse_quote
+        quote,meta,ledger=parse_quote(acquisition['reads'],v4_key,pending['market'],amount,
+            gas_units,store,label,local_freshness=True)
+        if quote.stamp.observed_at<pending['due']:raise BoundaryError('selective_shared_exit_before_due')
+    elif transition is None:
         try:
             quote,meta,ledger=_wait_curve_quote(
                 rpc,candidate,"sell",amount,gas_units,store,label,
@@ -948,7 +983,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                     elif position["status"]=="open":
                         try:
                             state.recovery_exit_reason="max_total_hold"
-                            position,meta=_delayed_exit(
+                            position,meta=yield from _delayed_exit_steps(
                                 endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
                                 gas_units=gas_units,store=store,transition=state.transition,v4_key=state.v4_key,
                                 label="selective-timeout-exit",exit_tokens=position["tokens"],
@@ -1018,7 +1053,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                     position=paper._get(identity)
                 if position["status"]=="exit_pending":
                     try:
-                        position,exit_meta=_delayed_exit(
+                        position,exit_meta=yield from _delayed_exit_steps(
                             endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
                             gas_units=gas_units,store=store,transition=state.transition,v4_key=state.v4_key,
                             label="selective-provider-recovery-exit",
@@ -1095,7 +1130,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                     if action["action"] in ("partial_exit","full_exit"):
                         try:
                             state.recovery_exit_reason=action["reason"]
-                            position,exit_meta=_delayed_exit(
+                            position,exit_meta=yield from _delayed_exit_steps(
                                 endpoint,paper=paper,identity=identity,rpc=rpc,
                                 candidate=candidate,gas_units=gas_units,store=store,
                                 transition=None,v4_key=None,
@@ -1170,7 +1205,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                     paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
                     if not post["continuation_pass"]:
                         state.recovery_exit_reason="post_graduation_failure"
-                        position,exit_meta=_delayed_exit(
+                        position,exit_meta=yield from _delayed_exit_steps(
                             endpoint,paper=paper,identity=identity,rpc=rpc,
                             candidate=candidate,gas_units=gas_units,store=store,
                             transition=state.transition,v4_key=state.v4_key,
@@ -1258,7 +1293,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 ))
                 if action["action"] in ("partial_exit","full_exit"):
                     state.recovery_exit_reason=action["reason"]
-                    position,exit_meta=_delayed_exit(
+                    position,exit_meta=yield from _delayed_exit_steps(
                         endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
                         gas_units=gas_units,store=store,transition=state.transition,v4_key=state.v4_key,
                         label="selective-v4-exit",exit_tokens=action["exit_tokens"],
@@ -1307,6 +1342,9 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                         held_shadow.counts['isolated_unexpected_probe_error']+=1
                 state.recovery_streak=0
             except BoundaryError as exc:
+                if str(exc)=='selective_exit_handoff_required':
+                    result.update(status='handoff_required',entry_authority=False)
+                    break
                 state.bridge_probe_failed=True
                 # A provider outage after a fill is not a terminal strategy event.
                 # Retry a fresh observation on the SAME ledger and original hold

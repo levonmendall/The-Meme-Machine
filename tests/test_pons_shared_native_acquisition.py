@@ -65,14 +65,15 @@ class SharedNativeAcquisitionTests(unittest.TestCase):
             if predecessor:
                 import ast,subprocess
                 from meme_machine.lanes.pons import pons_quotes
-                source=subprocess.check_output(['git','show','e1070404849dfa86eb3e47d57cf24263b2fefc25:'+runtime.__name__.replace('.','/')+'.py'])
+                baseline=predecessor if isinstance(predecessor,str) else 'e1070404849dfa86eb3e47d57cf24263b2fefc25'
+                source=subprocess.check_output(['git','show',baseline+':'+runtime.__name__.replace('.','/')+'.py'])
                 cls=next(n for n in ast.parse(source).body if isinstance(n,ast.ClassDef) and n.name=='Runtime')
                 for name in ('_prepare_held_acquisition','exit_quote','validate_exit','step'):
                     method=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name==name)
                     method.decorator_list=[];namespace=dict(vars(runtime))
                     exec(compile(ast.Module(body=[method],type_ignores=[]),'<PR129 predecessor held path>','exec'),namespace)
                     stack.enter_context(patch.object(runtime.Runtime,name,namespace[name]))
-                quote_source=subprocess.check_output(['git','show','e1070404849dfa86eb3e47d57cf24263b2fefc25:'+pons_quotes.__name__.replace('.','/')+'.py'])
+                quote_source=subprocess.check_output(['git','show',baseline+':'+pons_quotes.__name__.replace('.','/')+'.py'])
                 method=next(n for n in ast.parse(quote_source).body if isinstance(n,ast.FunctionDef) and n.name=='shared_v4_quotes')
                 namespace=dict(vars(pons_quotes))
                 exec(compile(ast.Module(body=[method],type_ignores=[]),'<PR129 predecessor shared quote>','exec'),namespace)

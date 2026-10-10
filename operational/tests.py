@@ -2,6 +2,8 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_pons_current_exit_sharing',
+ 'tests.test_pons_capacity_repair',
  'tests.test_pons_current_shared_owners',
  'tests.test_pons_protective_capacity',
  'tests.test_pons_shared_native_acquisition',
@@ -198,6 +200,7 @@ def network_guard():
         except (ValueError,TypeError):local=False
         if not local:raise RuntimeError('market I/O forbidden in repository tests')
         return original(sock,address)
+    connect.meme_machine_offline=True
     socket.socket.connect=connect
     socket.socket.connect_ex=lambda sock,address:(connect(sock,address) or 0)
     original_urlopen=urllib.request.urlopen

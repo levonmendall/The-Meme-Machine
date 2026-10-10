@@ -1,6 +1,7 @@
 """Pons-native quote transport; exact arithmetic stays in the existing adapter."""
 from contextlib import contextmanager
 import time
+import sqlite3
 
 from . import BoundaryError
 from .abi import calldata
@@ -25,7 +26,6 @@ def quote_deadline(rpc,started):
 
 
 def canonical_boundary(rpc,header,scope):
-    from meme_machine.runtime.source_artifacts import REGISTRY
     # Do not let a caller's immutable number alias answer membership.
     previous=getattr(rpc,'evidence_pins',{})
     rpc.evidence_pins={}
@@ -33,25 +33,40 @@ def canonical_boundary(rpc,header,scope):
     finally:rpc.evidence_pins=previous
     if current['number']!=header['number'] or current['hash']!=header['hash']:
         raise BoundaryError('pons_quote_canonical_membership_disagreement')
+    completed_canonical_read(rpc,header)
+    return current
+
+
+def completed_canonical_read(rpc,header):
+    """Publish a target proof only after an ordered membership response."""
+    from meme_machine.runtime.source_artifacts import REGISTRY
     raw=getattr(rpc,'_current',rpc)
     fingerprint=getattr(raw,'provider_fingerprint',None);sequence=getattr(raw,'used',None)
+    admission=getattr(raw,'shared_admission',None)
+    try:activity=admission.activity_marker() if admission is not None else None
+    except (OSError,ValueError,sqlite3.Error):activity=None
     rpc.last_canonical_read=(dict(number=header['number'],hash=header['hash'],session=id(raw),
-        sequence=sequence,completed=time.monotonic(),provider_fingerprint=fingerprint,source_generation=REGISTRY.generation)
+        sequence=sequence,completed=time.monotonic(),provider_fingerprint=fingerprint,source_generation=REGISTRY.generation,
+        provider_activity=activity)
         if isinstance(fingerprint,str) and getattr(raw,'chain_verified',False) is True
-            and type(sequence) is int else None)
-    return current
+            and type(sequence) is int and (admission is None or activity is not None) else None)
 
 
 def unchanged_canonical_read(rpc,check,header):
     """One ordered read, reused only before any further provider operation."""
     from meme_machine.runtime.source_artifacts import REGISTRY
     raw=getattr(rpc,'_current',rpc)
-    return (isinstance(check,dict) and check is getattr(rpc,'last_canonical_read',None)
+    valid=(isinstance(check,dict) and check is getattr(rpc,'last_canonical_read',None)
         and check['session']==id(raw) and check['sequence']==getattr(raw,'used',None)
         and check['provider_fingerprint']==getattr(raw,'provider_fingerprint',None)
         and getattr(raw,'chain_verified',False) is True and check['source_generation']==REGISTRY.generation
         and check['number']==header['number'] and check['hash']==header['hash']
         and 0<=time.monotonic()-check['completed']<=5)
+    if not valid:return False
+    admission=getattr(raw,'shared_admission',None)
+    if admission is None:return check.get('provider_activity') is None
+    try:return check.get('provider_activity') is not None and admission.activity_marker()==check['provider_activity']
+    except (OSError,ValueError,sqlite3.Error):return False
 
 
 class PinnedV4Reads:
@@ -195,6 +210,8 @@ def shared_v4_quotes(rpc,requests,*,deadline_seconds=3,prepare_history=None,dead
             or 1+3*max_latency>=deadline_seconds
             or 80+26*(len(requests)+1)>resources.get('max_throughput_cu',0))):
         raise BoundaryError('pons_shared_quote_resource_or_deadline_bound')
+    from meme_machine.runtime.source_artifacts import REGISTRY
+    source_generation=REGISTRY.generation
     started=time.monotonic();wall=time.time()
     effective=started-5+deadline_seconds
     if deadline_at is not None:effective=min(effective,deadline_at-5)
@@ -225,6 +242,10 @@ def shared_v4_quotes(rpc,requests,*,deadline_seconds=3,prepare_history=None,dead
             boundary=authenticated.get(int(header['number'],16))
             if not boundary or boundary.get('hash')!=header['hash']:
                 raise BoundaryError('pons_shared_quote_history_boundary_missing')
+            # The history callback's numeric fence completed AFTER state,
+            # logs, receipts and sender fallback. Reuse this actual ordered
+            # proof; a same-batch membership read would not establish it.
+            completed_canonical_read(rpc,header)
         if not isinstance(values,list) or len(values)!=len(wire):raise BoundaryError('pons_shared_quote_incomplete')
         if len(canonical(values).encode())>max_bytes:raise BoundaryError('pons_shared_quote_payload_bound')
     observed=time.time()
@@ -238,8 +259,12 @@ def shared_v4_quotes(rpc,requests,*,deadline_seconds=3,prepare_history=None,dead
             q,meta,ledger=native_v4_quote(prepared,r['key'],r['pool_id'],r['amount'],r['gas_units'],store,
                 'shared-held-exact',side=r.get('side','sell'),local_freshness=True)
             q.check(int(time.time()),r['pool_id'],r.get('side','sell'),r['amount'],q.stamp.kind,finality_ledger=ledger)
-            result.append(dict(quote=q,meta=meta,acquired=started,header=header,reads=prepared))
+            result.append(dict(quote=q,meta=meta,acquired=started,header=header,reads=prepared,
+                source_generation=source_generation))
         finally:store.close()
+    if REGISTRY.generation!=source_generation:
+        rpc.last_canonical_read=None
+        raise BoundaryError('pons_shared_quote_source_changed')
     if (not 0<=time.monotonic()-started<=deadline_seconds or
             deadline_at is not None and time.monotonic()>deadline_at):
         raise BoundaryError('pons_shared_quote_original_deadline')
@@ -251,3 +276,77 @@ def shared_v4_quotes(rpc,requests,*,deadline_seconds=3,prepare_history=None,dead
         if all(isinstance(v,str) for v in pair) and sum(len(v.encode()) for v in pair)<=rpc.max_response:
             rpc.v4_identity_snapshot=dict(identity=identity,code=pair[0],manager=pair[1])
     return result
+
+
+def shared_exit_quotes(rpc,requests):
+    """Refresh execution facts for already-due exits at one original head.
+
+    Each request carries a previously parsed native full-position quotation.
+    Partial quantities receive independent exact simulations. The fresh head
+    and gas are common; membership is read AFTER every dependent response.
+    A changed head, incomplete batch or unproved resource envelope refuses
+    reuse, leaving the caller's original native exit path authoritative.
+    """
+    resources=getattr(rpc,'shared_quote_resources',None)
+    if (not isinstance(resources,dict) or resources.get('validated') is not True
+            or resources.get('provider_fingerprint')!=getattr(rpc,'provider_fingerprint',None)
+            or getattr(rpc,'chain_verified',False) is not True
+            or not {'eth_call','eth_getCode'}<=set(getattr(rpc,'hash_state_supported',()))):
+        raise BoundaryError('pons_shared_quote_resources_unproved')
+    if not 2<=len(requests)<=47:raise BoundaryError('pons_shared_exit_count')
+    from meme_machine.runtime.source_artifacts import REGISTRY
+    generation=REGISTRY.generation
+    first=requests[0]['prepared'];header=first['header'];started=first['acquired']
+    if (any(r['prepared']['header']!=header or r['prepared']['acquired']!=started
+            or r['prepared'].get('source_generation')!=generation for r in requests)
+            or not 0<=time.monotonic()-started<=3):
+        raise BoundaryError('pons_shared_exit_original_head_stale')
+    logical=[('eth_getBlockByNumber',['latest',False]),('eth_gasPrice',[])]
+    for r in requests:
+        q=r['prepared']['quote'];amount=r['amount']
+        if type(amount) is not int or not 0<amount<=q.amount_in or q.market!=r['pool_id']:
+            raise BoundaryError('pons_shared_exit_quantity_identity')
+        if amount!=q.amount_in:
+            direction=r['key'].currency0!=ZERO
+            logical.append(('eth_call',[dict(to=V4_QUOTER,
+                data=_v4_quoter_calldata(r['key'],direction,amount)),header['number']]))
+    unique=list({canonical([m,p]):(m,p) for m,p in logical}.values())
+    max_bytes=resources.get('max_response_bytes');latency=resources.get('max_latency_seconds')
+    if (not isinstance(max_bytes,int) or not 0<max_bytes<=rpc.max_response
+            or not isinstance(latency,(int,float)) or not 0<=latency<=1
+            or len(unique)>resources.get('max_logical_elements',0)
+            or 60+26*(len(unique)-2)>resources.get('max_throughput_cu',0)):
+        raise BoundaryError('pons_shared_quote_resource_or_deadline_bound')
+    wire=[(m,[*p[:-1],pinned_block(rpc,m,header)] if m=='eth_call' else p) for m,p in unique]
+    with quote_deadline(rpc,started):
+        values=rpc.batch(wire,scope='pons_survivor')
+        if (not isinstance(values,list) or len(values)!=len(unique) or any(v is None for v in values)
+                or len(canonical(values).encode())>max_bytes):
+            raise BoundaryError('pons_shared_quote_incomplete')
+        if values[0].get('number')!=header['number'] or values[0].get('hash')!=header['hash']:
+            raise BoundaryError('pons_shared_exit_head_changed')
+        canonical_boundary(rpc,header,'pons_survivor')
+    purchased={canonical([m,p]):v for (m,p),v in zip(unique,values)}
+    from .evidence import Store
+    results=[]
+    for r in requests:
+        old=r['prepared'];amount=r['amount'];direction=r['key'].currency0!=ZERO
+        call=('eth_call',[dict(to=V4_QUOTER,data=_v4_quoter_calldata(r['key'],direction,amount)),header['number']])
+        retained=dict(old['reads'].values)
+        retained[canonical(['eth_gasPrice',[]])]=purchased[canonical(['eth_gasPrice',[]])]
+        if amount!=old['quote'].amount_in:retained[canonical(list(call))]=purchased[canonical(list(call))]
+        reads=_SharedV4Reads(header,retained,started=started,
+            wall=old['reads'].original_acquisition_wall,observed=time.time())
+        store=Store(':memory:')
+        try:
+            q,meta,ledger=native_v4_quote(reads,r['key'],r['pool_id'],amount,r['gas_units'],store,
+                'shared-exit-exact',side='sell',local_freshness=True)
+            q.check(int(time.time()),r['pool_id'],'sell',amount,q.stamp.kind,finality_ledger=ledger)
+            results.append(dict(quote=q,meta=meta,acquired=started,header=header,
+                canonical_read=getattr(rpc,'last_canonical_read',None)))
+        finally:store.close()
+    if REGISTRY.generation!=generation:
+        rpc.last_canonical_read=None
+        raise BoundaryError('pons_shared_quote_source_changed')
+    if not 0<=time.monotonic()-started<=5:raise BoundaryError('pons_shared_exit_original_quote_stale')
+    return results

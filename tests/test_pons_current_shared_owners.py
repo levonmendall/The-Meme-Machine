@@ -30,12 +30,20 @@ class CurrentSharedOwnerTests(unittest.TestCase):
             if time.perf_counter()>until:self.fail('Current native owners failed to reach a bounded scheduling boundary')
             time.sleep(.002)
 
-    def run_owners(self,count,*,sharing,stagger=False,paced=False,latency=0,failure=None,unavailable=False,advertised_latency=None):
-        quote=accounting.PartialAccountingTests().quote;clock=[100.];sessions=[];thread_sessions={}
+    def run_owners(self,count,*,sharing,stagger=False,paced=False,latency=0,failure=None,unavailable=False,advertised_latency=None,
+                   price_factor=1.,rps=2,exit_sharing=True,survivor_count=0):
+        quote=accounting.PartialAccountingTests().quote;clock=[100.];sessions=[];thread_sessions={};events=[]
         with tempfile.TemporaryDirectory() as td,ExitStack() as stack:
             root=Path(td);plane_path=root/'candidate-evidence.sqlite'
             stack.enter_context(patch.dict(os.environ,{},clear=True))
             original_init=SelectivePaper.__init__
+            original_advance=SelectivePaper.advance
+            def trace_native(book,identity,**kwargs):
+                result=original_advance(book,identity,**kwargs)
+                if clock[0]>=105:events.append(dict(identity=identity,action=kwargs['action'],
+                    completed_monotonic=clock[0],tokens=result['tokens'],status=result['status']))
+                return result
+            stack.enter_context(patch.object(SelectivePaper,'advance',trace_native))
             def deterministic_clock(book,*args,**kwargs):
                 kwargs.setdefault('clock_ns',lambda:int(clock[0]*10**9))
                 return original_init(book,*args,**kwargs)
@@ -78,10 +86,17 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 def clock(self,value):clock[0]=value
                 def purchase(self,*args,**kwargs):
                     with transport_lock:return super().purchase(*args,**kwargs)
+                def value(self,method,params):
+                    result=super().value(method,params)
+                    if (survivor_count and method=='eth_getBlockByNumber' and result['number']=='0x65'):
+                        # One fixed canonical market frontier at the common
+                        # due instant, never renewed during execution.
+                        result['timestamp']=hex(105)
+                    return result
             def provider(endpoint):
                 rpc=(ClockRPC if paced or latency else ActiveRPC)(
                     proved=sharing,count=count,paced=paced,latency=latency,
-                    admission_path=str(root/'provider.sqlite'))
+                    admission_path=str(root/'provider.sqlite'),price_factor=price_factor,rps=rps)
                 if advertised_latency is not None:
                     rpc.shared_quote_resources['max_latency_seconds']=advertised_latency
                 if failure=='fork':rpc.fork=True
@@ -89,10 +104,78 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 sessions.append(rpc);thread_sessions[threading.get_ident()]=rpc
                 self.addCleanup(rpc.close);return rpc
             stack.enter_context(patch.object(paper,'paper_rpc',side_effect=provider))
+            if not exit_sharing:
+                stack.enter_context(patch('meme_machine.lanes.pons.pons_current_workers.exit_acquisition_request',return_value=None))
             stack.enter_context(patch('meme_machine.lanes.pons.pons_selective_acquisition._rpc',
                 side_effect=lambda *a,**kw:thread_sessions[threading.get_ident()]))
             stack.enter_context(patch.object(paper.time,'time',side_effect=lambda:clock[0]))
             stack.enter_context(patch.object(paper.time,'monotonic',side_effect=lambda:clock[0]))
+            native_steps=recovery._resume_receipt_steps
+            def one_turn(*args,**kwargs):
+                # Bound the fixture to one actual native turn per recovered
+                # owner. Finish its original delayed exit too; then perform the
+                # existing durable handoff instead of starting another cycle.
+                steps=native_steps(*args,**kwargs);monitored=False
+                try:
+                    wait=next(steps)
+                    while True:
+                        if wait['kind']=='monitor_wait':
+                            if monitored:
+                                try:steps.send('handoff')
+                                except StopIteration as done:return done.value
+                                raise AssertionError('native handoff did not finish')
+                            monitored=True
+                        command=yield wait
+                        try:wait=steps.send(command)
+                        except StopIteration as done:return done.value
+                finally:steps.close()
+            stack.enter_context(patch.object(recovery,'_resume_receipt_steps',one_turn))
+            survivor_ready=threading.Event();survivor_due=threading.Event();survivor_done=threading.Event();mixed={}
+            def survivor_turn():
+                # Own native connections stay on this thread. Share only the
+                # physical account admission and mock endpoint, not books.
+                from meme_machine.lanes.pons import pons_survivor_runtime as survivor
+                from meme_machine.runtime.survivor_commit import restore_risk
+                r=None
+                try:
+                    with patch.dict(os.environ,dict(MM_DIRECTIONAL_SLEEVE_DB=str(root/'survivor-sleeve'),
+                            MM_DIRECTIONAL_COHORT_ID='mixed-survivor')):
+                        r=survivor.Runtime(root/'survivor',10**18,'mixed-survivor',native.ENDPOINT)
+                    r.rpc=provider(native.ENDPOINT);r.deployments_verified=True;r.now=lambda:int(clock[0])
+                    r.rpc.fixture_consumer='survivor';mixed['native_events']=[]
+                    for i in range(1,survivor_count+1):
+                        token=native.address(i);row=r.history.graduate(token,native.graduation(i))
+                        identity='mixed-survivor:position:'+str(i);amount=10**16;qty=10**18+i*10000
+                        r.sleeve.reserve(identity,strategy=survivor.STRATEGY_VERSION,amount=amount,at=95,asset=token)
+                        r.book.reserve(identity,amount,95,dict(candidate=token))
+                        r.book.transition(identity,'filled',96,amount=amount,tokens=qty,evidence=dict(execution=dict(gas=0)))
+                        r.sleeve.acknowledge_native(identity,basis=amount,pnl=0,at=96,native_hash='offline-native-replay',
+                            native_verified=r.book.replay()['verified'])
+                        row.update(position=identity,state='open',generation=0,block=100,
+                            block_hash=r.rpc.value('eth_getBlockByNumber',['0x64',False])['hash']);r.history.save(row)
+                    transition=r.book.transition
+                    def trace_transition(identity,action,*args,**kwargs):
+                        result=transition(identity,action,*args,**kwargs)
+                        mixed['native_events'].append(dict(identity=identity,action=action,completed_monotonic=clock[0]))
+                        return result
+                    r.book.transition=trace_transition
+                    survivor_ready.set();survivor_due.wait(20)
+                    mixed['first_required_at']=105.;mixed['started_at']=clock[0]
+                    with patch('meme_machine.runtime.storage.compact_survivor'):
+                        result=r.step(admit=False)
+                    mixed.update(completed_at=clock[0],result=result,
+                        positions=[r.book._load('mixed-survivor:position:'+str(i)) for i in range(1,survivor_count+1)])
+                    mixed['risks']=[restore_risk(r.book,p['id']) for p in mixed['positions']]
+                    mixed['native_accounting_verified']=r.book.replay()['verified'] and r.sleeve.reconcile()['reconciled']
+                except BaseException as exc:mixed['error']=repr(exc);survivor_ready.set()
+                finally:
+                    if r is not None:r.close()
+                    survivor_done.set()
+            mixed_thread=None
+            if survivor_count:
+                mixed_thread=threading.Thread(target=survivor_turn,name='native-mixed-survivor')
+                mixed_thread.start();self.assertTrue(survivor_ready.wait(15),mixed)
+                self.assertNotIn('error',mixed)
             with LifecyclePool(max_workers=8,clock=lambda:clock[0]) as pool:
                 futures=[pool.submit(recovery._resume_receipt,native.ENDPOINT,None,
                     (i,path,dict(curve=native.address(101+i),token=native.address(i+1),source_transaction='source'),None))
@@ -100,7 +183,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 def waiting():
                     for f in futures:
                         if f.done():self.fail('native recovery terminated: '+repr(f.exception() or f.result()))
-                    return pool.telemetry()['active_physical_workers']==0 and len(sessions)==count
+                    return pool.telemetry()['active_physical_workers']==0 and len(sessions)==count+bool(survivor_count)
                 self.wait_for(waiting)
                 turn_wall=time.perf_counter();turn_cpu=time.process_time()
                 if stagger:
@@ -112,32 +195,35 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                                 rows.append((owner['due'],row[1],row[2],owner))
                             import heapq
                             worker['queue']=rows;heapq.heapify(worker['queue'])
-                    # Each owner is independently due; no delay enlarges a batch.
-                    turns=0
-                    for i in range(1,count+1):
-                        clock[0]=105+i*.1
-                        with pool.lock:pool.lock.notify_all()
-                        turns=i
-                        self.wait_for(lambda:pool.telemetry()['protection_turns']>=turns and
-                            pool.telemetry()['active_physical_workers']==0)
+                    clock[0]=105.1
                 else:
                     clock[0]=105
-                    with pool.lock:pool.lock.notify_all()
-                    self.wait_for(lambda:pool.telemetry()['protection_turns']==count and
-                        pool.telemetry()['active_physical_workers']==0)
+                survivor_due.set()
+                with pool.lock:pool.lock.notify_all()
+                # Advance only to the next native due boundary, never rewind
+                # after a paced acquisition or hold an already-due request.
+                until=time.perf_counter()+20
+                while not (all(f.done() for f in futures) and (not survivor_count or survivor_done.is_set())):
+                    if time.perf_counter()>until:self.fail('bounded native Current turn did not finish')
+                    with pool.lock:
+                        if pool.counts['active_physical_workers']==0 and (not survivor_count or survivor_done.is_set()):
+                            dues=[row[0] for worker in pool.workers for row in worker['queue']]
+                            if dues:clock[0]=max(clock[0],min(dues));pool.lock.notify_all()
+                    time.sleep(.002)
                 telemetry=pool.telemetry()
                 telemetry.update(native_local_wall_seconds=time.perf_counter()-turn_wall,
                     native_cpu_seconds=time.process_time()-turn_cpu)
                 pool.request_handoff()
                 results=[f.result(timeout=15) for f in futures]
                 for result in results:
-                    self.assertEqual(result['status'],'handoff_required',result.get('boundary'))
+                    self.assertEqual(result['status'],'settled' if price_factor==.6 and not unavailable else 'handoff_required',result.get('boundary'))
                     self.assertTrue(result['reconciliation']['cash_basis_conservation'])
                     self.assertEqual(len(result['monitor']),1,result)
                     if failure or unavailable:
                         self.assertFalse(result['monitor'][0]['available'])
-                    else:self.assertEqual(result['monitor'][0]['action']['action'],'hold')
-                    self.assertEqual(result['final_position']['tokens'],result['final_position']['entry_tokens'])
+                    else:self.assertEqual(result['monitor'][0]['action']['action'],
+                        'hold' if price_factor==1 else ('full_exit' if price_factor==.6 else 'partial_exit'))
+                    if price_factor==1:self.assertEqual(result['final_position']['tokens'],result['final_position']['entry_tokens'])
             plane=Plane(plane_path);history=CurrentHistory(plane,native.ENDPOINT)
             for i in range(1,count+1):
                 row=history.get(native.graduation(i)['transition']['market'])
@@ -146,7 +232,12 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 else:
                     self.assertEqual(row['block'],101);self.assertEqual(row['last_interval']['event_count'],1)
             plane.close()
+            if mixed_thread is not None:
+                mixed_thread.join(15);self.assertFalse(mixed_thread.is_alive());self.assertNotIn('error',mixed)
+                self.assertTrue(mixed['native_accounting_verified'])
+                telemetry['mixed_survivor']=mixed
             telemetry['complete_modeled_seconds']=clock[0]-105
+            telemetry['native_events']=events
             telemetry['complete_modeled_with_local_seconds']=(telemetry['complete_modeled_seconds']+
                 telemetry['native_local_wall_seconds'])
             return results,sessions,telemetry

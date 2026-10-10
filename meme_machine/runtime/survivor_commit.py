@@ -140,6 +140,31 @@ def _fold_risk(book,identity):
     return state
 
 
+def restore_risks(book,identities):
+    """One verified native snapshot for bounded, noncommitting preparation.
+
+    The final monitor still performs its original reconciliation and replay.
+    No monetary proof or prepared risk view is retained across mutations.
+    """
+    from copy import deepcopy
+    import json
+    wanted=set(identities)
+    with book.lock:
+        own_snapshot=not book.db.in_transaction
+        if own_snapshot:book.db.execute('BEGIN')
+        try:
+            book.replay()
+            prefix=book._archive()
+            states={key:deepcopy(prefix['risk_states'].get(key)) if prefix else None for key in wanted}
+            for raw, in book.db.execute('SELECT body FROM journal ORDER BY seq'):
+                row=json.loads(raw);key=row['position']['id']
+                if key in states:states[key]=risk_record(states[key],row)
+            if any(value is None for value in states.values()):raise ValueError('survivor_fill_missing')
+            return states
+        finally:
+            if own_snapshot:book.db.execute('ROLLBACK')
+
+
 def risk_record(state,row):
     """One unchanged native replay step, also used to seal a durable prefix."""
     p=row['position'];action=row['action'];e=row['evidence']

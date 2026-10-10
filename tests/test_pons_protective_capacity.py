@@ -10,13 +10,13 @@ import unittest
 from unittest.mock import patch
 
 from meme_machine.lanes.pons import BoundaryError
-from meme_machine.lanes.pons.provider_admission import Admission
+from meme_machine.lanes.pons.provider_admission import Admission,OfflineProfile
 from tests import test_pons_shared_native_acquisition as shared
 from tests.lanes.pons import test_pons_finalization as native
 
 
 class ActiveRPC(shared.TraceRPC):
-    def __init__(self,*,proved=False,count=1,latency=.1,price_factor=1.,paced=True,admission_path=None):
+    def __init__(self,*,proved=False,count=1,latency=.1,price_factor=1.,paced=True,admission_path=None,rps=2):
         super().__init__(proved=proved)
         from engineering.pons_history.fixtures import encoded_event
         self.transaction='0x'+'a9'*32;self.latency=latency;self.price_factor=price_factor
@@ -29,7 +29,8 @@ class ActiveRPC(shared.TraceRPC):
         self.tmp=tempfile.TemporaryDirectory();self.starts=[];self.waits=[];self.responses=[]
         self.bytes=0;self.request_bytes=0
         self.governor=Admission(admission_path or self.tmp.name+'/provider.sqlite',native.ENDPOINT,lane='pons',
-            clock=lambda:self.clock,sleeper=self.sleep) if paced else None
+            clock=lambda:self.clock,sleeper=self.sleep,offline_profile=OfflineProfile(rps) if rps!=2 else None) if paced else None
+        self.shared_admission=self.governor
 
     def sleep(self,seconds):self.clock+=seconds
     def close(self):self.tmp.cleanup()
@@ -55,15 +56,24 @@ class ActiveRPC(shared.TraceRPC):
 
     def purchase(self,rows,scope,invoke):
         deadline=getattr(self,'evidence_deadline',None)
-        admitted=(self.governor.acquire(scope,deadline,methods=[m for m,p in rows]) if self.governor
-            else dict(wait_seconds=0,admitted_at=self.clock))
-        self.starts.append(admitted['admitted_at']);self.waits.append(admitted['wait_seconds'])
-        self.request_bytes+=len(json.dumps(rows,separators=(',',':')).encode())
-        result=invoke();self.clock+=self.latency
-        self.bytes+=len(json.dumps(result,separators=(',',':')).encode());self.responses.append(self.clock)
-        if deadline is not None and self.clock>=deadline:
-            raise BoundaryError('evidence_deadline_during_transport')
-        return result
+        timing={}
+        def transport():
+            from meme_machine.runtime.robinhood.provider_usage import http_started,http_received
+            self.starts.append(self.clock);self.waits.append(timing.get('shared_provider_queue_wait_seconds',0))
+            request_bytes=len(json.dumps(rows,separators=(',',':')).encode())
+            self.request_bytes+=request_bytes
+            if self.governor:http_started(request_bytes)
+            result=invoke();self.clock+=self.latency
+            size=len(json.dumps(result,separators=(',',':')).encode())
+            self.bytes+=size;self.responses.append(self.clock)
+            if self.governor:http_received(size)
+            if deadline is not None and self.clock>=deadline:
+                raise BoundaryError('evidence_deadline_during_transport')
+            return result
+        if self.governor:
+            return self.governor.invoke(transport,[m for m,p in rows],scope,
+                deadline=deadline,timing=timing,batch=len(rows)>1)
+        return transport()
 
     def call(self,method,params,*,scope):
         return self.purchase([(method,params)],scope,lambda:super(ActiveRPC,self).call(method,params,scope=scope))
@@ -71,9 +81,9 @@ class ActiveRPC(shared.TraceRPC):
         return self.purchase(calls,scope,lambda:super(ActiveRPC,self).batch(calls,scope=scope))
 
 
-def replay(test,count,*,predecessor=False,proved=True,latency=.1,price_factor=1.,paced=True,before_step=None):
+def replay(test,count,*,predecessor=False,proved=True,latency=.1,price_factor=1.,paced=True,before_step=None,rps=2):
     def rpc(**kw):
-        obj=ActiveRPC(**kw,count=count,latency=latency,price_factor=price_factor,paced=paced)
+        obj=ActiveRPC(**kw,count=count,latency=latency,price_factor=price_factor,paced=paced,rps=rps)
         test.addCleanup(obj.close);return obj
     with patch.object(shared,'TraceRPC',side_effect=rpc):
         return test.run_positions(count,proved=proved,predecessor=predecessor,moving_clock=True,before_step=before_step)
@@ -89,7 +99,7 @@ class ProtectiveCapacityTests(shared.SharedNativeAcquisitionTests):
                     for r in risks])
 
     def test_one_active_native_survivor_finishes_hold_and_full_stop_inside_original_window(self):
-        for factor,action,starts in ((1.,'hold',4),(.6,'full_exit',6),(2.2,'partial_exit',6)):
+        for factor,action,starts in ((1.,'hold',4),(.6,'full_exit',4),(2.2,'partial_exit',6)):
             with self.subTest(action=action):
                 a,ra,old,_=replay(self,1,predecessor=True,price_factor=factor,paced=False,latency=0)
                 exact,re,_,_=replay(self,1,price_factor=factor,paced=False,latency=0)
@@ -168,7 +178,7 @@ class ProtectiveCapacityTests(shared.SharedNativeAcquisitionTests):
         self.assertEqual(a,b);self.assertEqual(ra,rb)
         _,risk,rpc,_=replay(self,1,before_step=pending)
         self.assertEqual(risk[0]['last_action']['action'],'full_exit')
-        self.assertEqual(len(rpc.starts),6)
+        self.assertEqual(len(rpc.starts),4)
         self.assertLess(rpc.clock-100+rpc.local_wall_seconds,3)
 
     def test_two_simultaneous_full_exits_share_only_valid_common_execution_facts(self):
@@ -178,7 +188,7 @@ class ProtectiveCapacityTests(shared.SharedNativeAcquisitionTests):
         positions,risk,rpc,_=replay(self,2,price_factor=.6)
         self.assertTrue(all(p['status']=='settled' for p in positions))
         self.assertTrue(all(r['last_action']['action']=='full_exit' for r in risk))
-        self.assertEqual(len(rpc.starts),6)
+        self.assertEqual(len(rpc.starts),4)
         self.assertLess(rpc.clock-100+rpc.local_wall_seconds,3)
 
     def test_shared_execution_gas_uses_each_native_gas_proxy_and_invalidates_after_new_provider_work(self):
@@ -195,7 +205,7 @@ class ProtectiveCapacityTests(shared.SharedNativeAcquisitionTests):
         a,ra,_,_=replay(self,2,price_factor=.6,predecessor=True,latency=0,paced=False,before_step=changed)
         b,rb,rpc,_=replay(self,2,price_factor=.6,latency=0,paced=False,before_step=changed)
         self.assertEqual(a,b);self.assertEqual(ra,rb)
-        self.assertEqual(rpc.methods['eth_gasPrice'],4)
+        self.assertEqual(rpc.methods['eth_gasPrice'],3)
 
     def test_missing_receipt_sender_preserves_body_fallback_and_exposes_its_extra_start(self):
         def missing_sender(r,rpc):
@@ -211,12 +221,14 @@ class ProtectiveCapacityTests(shared.SharedNativeAcquisitionTests):
         self.assertEqual(len(rpc.starts),7)
         self.assertGreater(rpc.clock-100,3)
 
-    def test_two_simultaneous_partial_realizations_expose_remaining_capacity_deficit(self):
+    def test_two_simultaneous_partial_realizations_batch_exact_execution_without_a_deadline_miss(self):
         positions,risk,rpc,_=replay(self,2,price_factor=2.2)
         self.assertTrue(all(r['realization_taken'] for r in risk))
-        self.assertEqual(len(rpc.starts),8)
-        self.assertGreater(rpc.clock-100,3)
-        print('NATIVE_CONCURRENT_EXIT_CAPACITY_BLOCKER',json.dumps(dict(
+        self.assertEqual(len(rpc.starts),6)
+        self.assertLess(rpc.clock-100+rpc.local_wall_seconds,3)
+        self.assertEqual([m for m,p in rpc.transports[-2][1]],
+            ['eth_getBlockByNumber','eth_gasPrice','eth_call','eth_call'])
+        print('NATIVE_CONCURRENT_EXACT_EXIT_BATCH',json.dumps(dict(
             action='partial_exit',held_positions=2,physical_starts=len(rpc.starts),starts=rpc.starts,responses=rpc.responses,
             modeled_decision_seconds=rpc.clock-100,native_local_wall_seconds=rpc.local_wall_seconds,
             native_cpu_seconds=rpc.local_cpu_seconds,original_deadline_seconds=3,
@@ -259,9 +271,9 @@ class ProtectiveCapacityTests(shared.SharedNativeAcquisitionTests):
             self.assertEqual(len(rpc.transports),count+1)
 
     def test_slow_provider_remains_an_explicit_protective_deadline_blocker(self):
-        positions,risk,rpc,_=replay(self,1,price_factor=.6,latency=.6)
-        self.assertEqual(positions[0]['status'],'settled')
-        self.assertEqual(risk[0]['last_action']['action'],'full_exit')
+        positions,risk,rpc,_=replay(self,1,price_factor=2.2,latency=.6)
+        self.assertEqual(positions[0]['status'],'open')
+        self.assertEqual(risk[0]['last_action']['action'],'partial_exit')
         self.assertGreater(rpc.clock-100,3)
         self.assertTrue(self.native_runtime.sleeve.reconcile()['reconciled'])
 

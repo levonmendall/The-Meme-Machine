@@ -572,10 +572,32 @@ class Runtime:
                     id(getattr(self.rpc,'_current',self.rpc)),getattr(self.rpc,'provider_fingerprint',None))
                 result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
                     acquired=prepared['acquired'],block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
-                if cache is not None:cache[qty]=dict(result,amount_out=q.amount_out,gas_units=meta['gas_units_proxy'])
+                if cache is not None:cache[qty]=dict(result,amount_out=q.amount_out,gas_units=meta['gas_units_proxy'],
+                    execution=result,canonical_read=getattr(self.rpc,'last_canonical_read',None))
                 return result
         cached=cache.get(qty) if cache is not None else None
+        shared=getattr(self,'shared_held_executions',{}).get(self.current.get('id'))
+        if shared is not None:
+            p=self.book._load(self.current['position']);q=shared['quote'];meta=shared['meta']
+            if (shared['position']==(p['id'],p['basis'],p['tokens'],p.get('scale_request'))
+                    and p['status']=='open' and q.amount_in==qty
+                    and q.market==grad['transition']['market']
+                    and 0<=time.monotonic()-shared['acquired']<=5
+                    and unchanged_canonical_read(self.rpc,shared['canonical_read'],shared['header'])):
+                result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
+                    acquired=shared['acquired'],block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
+                self.final_exit_quote_check=(result,shared['canonical_read'])
+                return result
         if cached and 0<=time.monotonic()-cached['acquired']<=5:
+            exact=cached.get('execution');proof=cached.get('canonical_read')
+            if (exact is not None and exact['quantity']==qty
+                    and unchanged_canonical_read(self.rpc,proof,dict(number=hex(exact['block']),hash=exact['block_hash']))):
+                # The risk observation was already an exact full executable
+                # simulation. Within this same turn, original quote clock and
+                # completed ordered proof, acquiring it again adds no evidence.
+                # Gas is the original fresh quote fact, never a renewed stamp.
+                self.final_exit_quote_check=(exact,proof)
+                return exact
             common=getattr(self,'held_exit_market',None)
             if (common is not None and common['header']['hash']==cached['block_hash']
                     and int(common['header']['number'],16)==cached['block']
@@ -751,11 +773,7 @@ class Runtime:
                 flow=buyer_persistence(events,now=self.now(),window_seconds=1800)
         except (ValueError,BoundaryError):pass
         record=row['graduation']['record'];creators={record.get('deployer'),record.get('creatorFeeRecipient')}
-        observation=dict(id=header['hash'] if header else 'unavailable:'+str(self.now()),at=self.now(),
-            after_cost_return_bps=None if net is None else (net-p['basis'])*10000//p['basis'],
-            net_exit_proceeds=p['mark'] if net is None else net,exit_liquidity_valid=True if q is not None else None,
-            creator_distribution=any(not e['buy'] and e['group'] in creators for e in events),
-            soft_deterioration=None if flow is None else flow['buy_flow']*10000<flow['sell_flow']*8000 and flow['new_buyers']==0)
+        observation=self._held_observation(row,p,q,events,flow,header)
         extension=None;factory=getattr(self,'exceptional_context',None)
         if factory is not None:
             try:extension=factory(self,p,row,q,flow,observation)
@@ -772,6 +790,18 @@ class Runtime:
                 stress_limit=650,minimum=self.sleeve.sizing_basis(500,minimum_bps=5)["minimum"])
         if action['action']=='partial_exit':
             row=self.history.get(row['id']);row['state']='runner';self.history.save(row)
+        self._observe_shadow(row,p,q,flow,observation,action)
+
+    def _held_observation(self,row,p,q,events,flow,header):
+        net=None if q is None else q['net_proceeds']
+        record=row['graduation']['record'];creators={record.get('deployer'),record.get('creatorFeeRecipient')}
+        return dict(id=header['hash'] if header else 'unavailable:'+str(self.now()),at=self.now(),
+            after_cost_return_bps=None if net is None else (net-p['basis'])*10000//p['basis'],
+            net_exit_proceeds=p['mark'] if net is None else net,exit_liquidity_valid=True if q is not None else None,
+            creator_distribution=any(not e['buy'] and e['group'] in creators for e in events),
+            soft_deterioration=None if flow is None else flow['buy_flow']*10000<flow['sell_flow']*8000 and flow['new_buyers']==0)
+
+    def _observe_shadow(self,row,p,q,flow,observation,action):
         # No optional provider work occurs until original native risk, exit,
         # accounting and potential scale work have already completed.
         shadow=getattr(self,'held_paper_shadow',None)
@@ -825,6 +855,7 @@ class Runtime:
                 return 0 if (position['status']=='exit_pending' or row.get('position_safety',{}).get('pending_exit')) else (1 if position['status']=='open' and position['tokens']>0 else 2)
             ordered=sorted(self.history.rows(),key=position_priority)
             self.shared_held_quotes={}
+            self.shared_held_executions={}
             self.held_exit_market=None
             self.held_history_failures={}
             private_recovery=set(getattr(self,'private_history_recovery',set()))
@@ -837,6 +868,9 @@ class Runtime:
             try:self._prepare_held_acquisition([r for r in due if r['id'] not in private_recovery])
             except (ValueError,BoundaryError) as exc:
                 self.shared_held_quotes={};self.shared_held_boundary=str(exc)
+            try:self._prepare_shared_exits(due)
+            except (ValueError,BoundaryError) as exc:
+                self.shared_held_executions={};self.shared_exit_boundary=str(exc)
             for original in ordered:
                 row=self.history.get(original['id']) or original
                 if row.get('position'):
@@ -846,6 +880,7 @@ class Runtime:
                         from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
                         exceptional_evidence_failure(self,family='pons_survivor',blocker=str(exc),rows=[row])
             self.shared_held_quotes={}
+            self.shared_held_executions={}
             self.held_history_failures={}
             self.held_exit_market=None
             self.private_history_recovery-=private_recovery
@@ -941,6 +976,48 @@ class Runtime:
                     held_paper_shadow=(getattr(self,'held_paper_shadow',None).status()
                         if getattr(self,'held_paper_shadow',None) is not None else
                         dict(enabled=False,mode='PAPER_SHADOW_ONLY')))
+
+    @position_work
+    @attributed_work('pons_held_protection',consumer='survivor')
+    @position_work
+    @attributed_work('pons_held_protection',consumer='survivor')
+    def _prepare_shared_exits(self,rows):
+        # Preparation is not risk or execution authority. The original monitor
+        # repeats its native decision and checks position identity/quantity at
+        # commit. Never wait for an owner not already in this due acquisition.
+        if (len(rows)<2 or getattr(self,'exceptional_context',None) is not None
+                or getattr(self.rpc,'shared_quote_resources',None) is None):return
+        from meme_machine.runtime.survivor_commit import restore_risks
+        from meme_machine.runtime.survivor_risk import mark
+        from meme_machine.runtime.directional_continuation import reference_return
+        from .pons_quotes import shared_exit_quotes
+        prepared=getattr(self,'shared_held_quotes',{})
+        owners=[r for r in rows if r['id'] in prepared and r['id'] not in self.held_history_failures]
+        states=restore_risks(self.book,[r['position'] for r in owners])
+        requests=[];positions=[];partial_count=0
+        for row in owners:
+            p=self.book._load(row['position']);old=prepared[row['id']];q=old['quote'];state=states[p['id']]
+            if state.get('exceptional') or state.get('settled'):continue
+            if p['status']!='open' or digest(p)!=old['position_hash']:continue
+            _,events=self.history.facts(row['id'],self.now())
+            flow=buyer_persistence(events,now=self.now(),window_seconds=1800)
+            observation=self._held_observation(row,p,dict(net_proceeds=max(0,q.amount_out-q.gas_quote)),
+                events,flow,old['header'])
+            if state.get('scale_committed'):
+                observation=dict(observation,after_cost_return_bps=reference_return(
+                    observation['net_exit_proceeds'],p['tokens'],state['original_basis'],state['original_quantity']))
+            _,action=mark(state,observation,risk_policy())
+            if action['action'] not in ('full_exit','partial_exit'):continue
+            partial_count+=int(action['action']=='partial_exit')
+            amount=p['tokens'] if action['action']=='full_exit' else action['quantity']
+            requests.append(dict(prepared=old,key=PoolKey(**row['graduation']['key']),
+                pool_id=row['graduation']['transition']['market'],amount=amount,
+                gas_units=row['graduation']['transition']['graduation_gas_used']))
+            positions.append((row,p))
+        if len(requests)<2 or not partial_count:return
+        quotes=shared_exit_quotes(self.rpc,requests)
+        self.shared_held_executions={row['id']:dict(q,position=(p['id'],p['basis'],p['tokens'],p.get('scale_request')))
+            for (row,p),q in zip(positions,quotes)}
 
     @position_work
     @attributed_work('pons_held_protection',consumer='survivor')
