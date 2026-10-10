@@ -31,7 +31,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
             time.sleep(.002)
 
     def run_owners(self,count,*,sharing,stagger=False,paced=False,latency=0,failure=None,unavailable=False,advertised_latency=None,
-                   price_factor=1.,rps=2,exit_sharing=True,survivor_count=0):
+                   price_factor=1.,rps=2,exit_sharing=True,survivor_count=0,allow_capacity_refusal=False):
         quote=accounting.PartialAccountingTests().quote;clock=[100.];sessions=[];thread_sessions={};events=[]
         with tempfile.TemporaryDirectory() as td,ExitStack() as stack:
             root=Path(td);plane_path=root/'candidate-evidence.sqlite'
@@ -216,9 +216,16 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 pool.request_handoff()
                 results=[f.result(timeout=15) for f in futures]
                 for result in results:
-                    self.assertEqual(result['status'],'settled' if price_factor==.6 and not unavailable else 'handoff_required',result.get('boundary'))
+                    capacity_refusal=allow_capacity_refusal and result['final_position']['status']=='exit_pending'
+                    self.assertEqual(result['status'],'settled' if price_factor==.6 and not unavailable and not capacity_refusal else 'handoff_required',result.get('boundary'))
                     self.assertTrue(result['reconciliation']['cash_basis_conservation'])
-                    self.assertEqual(len(result['monitor']),1,result)
+                    if capacity_refusal:
+                        self.assertTrue(result['final_position']['pending_exit_tokens']>0)
+                        self.assertTrue(result['provider_recoveries'])
+                        self.assertEqual(len(result['monitor']),2)
+                        self.assertFalse(result['monitor'][1]['available'])
+                        self.assertTrue(result['monitor'][1]['provider_recovery'])
+                    else:self.assertEqual(len(result['monitor']),1,result)
                     if failure or unavailable:
                         self.assertFalse(result['monitor'][0]['available'])
                     else:self.assertEqual(result['monitor'][0]['action']['action'],

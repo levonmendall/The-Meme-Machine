@@ -136,7 +136,7 @@ def repair_current(count,action,rate,*,stagger=False,survivor_count=0):
                 for x,y in zip(old,new))
             before=measurements(a);after=measurements(b)
         results,rpcs,t=f.run_owners(count,sharing=True,stagger=stagger,paced=True,latency=.1,
-            price_factor=factor,rps=rate,survivor_count=survivor_count)
+            price_factor=factor,rps=rate,survivor_count=survivor_count,allow_capacity_refusal=bool(survivor_count))
         decisions=[]
         for i in range(1,count+1):
             identity='current:owner:'+str(i);due=105+i*.1 if stagger else 105
@@ -154,6 +154,8 @@ def repair_current(count,action,rate,*,stagger=False,survivor_count=0):
             avoided_modeled_cu=before['estimated_billed_cu']-after['estimated_billed_cu'] if before else None,
             actual_admission_with_injected_rtt=measurements(rpcs),modeled_http_rtt_seconds=.1,
             native_accounting_verified=all(r['reconciliation']['cash_basis_conservation'] for r in results),
+            pending_native_exit_intents=sum(r['final_position']['status']=='exit_pending' for r in results),
+            native_recovery_events=sum(len(r.get('provider_recoveries',[])) for r in results),
             decisions=decisions,virtual_risk_deadline_misses=sum(not d['within_original_five_seconds'] for d in decisions),
             worker=t,original_paper_exit_delay_seconds=2,
             settlement_is_separate_from_original_risk_observation=True)
