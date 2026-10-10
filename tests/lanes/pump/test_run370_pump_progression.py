@@ -40,7 +40,11 @@ class Run370PumpProgression(unittest.TestCase):
             reports=[];screens=[];original=lane._late_stream_signal
             def signal(*args):
                 result=original(*args);screens.append(result[0]);return result
-            session=SimpleNamespace(finish=lambda:None,history=[],rpc=SimpleNamespace(provider_telemetry=lambda:{}))
+            session=SimpleNamespace(finish=lambda:None,history=[],
+                rpc=SimpleNamespace(provider_telemetry=lambda:{},http_requests=0),
+                pump=SimpleNamespace(local_finalized_time_reuses=0),
+                postgrad=SimpleNamespace(held_pumpswap_probe_reuses=0,held_finalized_time_reuses=0),
+                holder_probe_status=lambda:{})
             def end_iteration(_):now[0]=10000
             report_path=Path(tmp)/'native.json'
             try:

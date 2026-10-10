@@ -66,12 +66,13 @@ try:
     fresh=pumpswap_snapshot(kind='real',now=104,slot=104,quote=75_000_000_000)
     fresh['available_time']=105
     graduation=complete_pump_snapshot(now=104,retired=True);graduation['kind']='real';graduation['available_time']=105
-    reads=[]
+    reads=[];holder_probes=[]
     def call(method,*a,**kw):
         reads.append(method)
         assert method=='getTokenLargestAccounts',method
         return dict(context=dict(slot=fresh['slot']),value=[])
     sessions=SimpleNamespace(ensure=lambda *a:None,finish=lambda:None,
+        record_holder_probe=lambda mint,snapshot,value:holder_probes.append((mint,snapshot['slot'],value)),
         rpc=SimpleNamespace(call=call),postgrad=SimpleNamespace(
             graduation_snapshot=lambda *a,**kw:graduation,pumpswap_snapshot=lambda *a,**kw:fresh))
     with patch('meme_machine.lanes.pump.solana_evidence_runtime.RuntimeEvidence',return_value=fixture.plane) as planes,\
@@ -116,6 +117,7 @@ try:
     assert sum(r['action']=='settled' for r in rows)==1
     assert sum(r['action']=='partial_harvest' for r in rows)==1
     assert reads and set(reads)=={'getTokenLargestAccounts'}
+    assert len(holder_probes)==2 and [row[1] for row in holder_probes]==[104,105],holder_probes
     from meme_machine.runtime.directional_sleeve import open_sleeve
     sleeve=open_sleeve('pump',1_000_000_000)
     try:

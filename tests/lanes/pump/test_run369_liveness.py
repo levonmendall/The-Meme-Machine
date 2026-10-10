@@ -16,7 +16,11 @@ class Run369PumpLoop(unittest.TestCase):
             health=dict(state='USABLE' if usable else 'WARMING',usable=usable,
                         reason='authoritative_current' if usable else 'evidence_cold_start')
             plane=SimpleNamespace(health=lambda _:health,telemetry=lambda:{},close=lambda:None)
-            session=SimpleNamespace(finish=lambda:None,history=[],rpc=SimpleNamespace(provider_telemetry=lambda:{}))
+            session=SimpleNamespace(finish=lambda:None,history=[],
+                rpc=SimpleNamespace(provider_telemetry=lambda:{},http_requests=0),
+                pump=SimpleNamespace(local_finalized_time_reuses=0),
+                postgrad=SimpleNamespace(held_pumpswap_probe_reuses=0,held_finalized_time_reuses=0),
+                holder_probe_status=lambda:{})
             def tick(seconds):clock[0]+=seconds
             with patch.object(lane,'REPORT',report),patch.object(lane,'RuntimeEvidence',return_value=plane), \
                  patch.object(lane,'Sessions',return_value=session),patch.object(lane,'PumpLogStream') as stream, \
