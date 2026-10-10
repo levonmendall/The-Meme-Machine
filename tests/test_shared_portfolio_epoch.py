@@ -2,7 +2,7 @@
 from contextlib import closing
 from copy import deepcopy
 from dataclasses import replace
-from decimal import Decimal
+from decimal import Decimal, localcontext, Inexact, Rounded
 import hashlib
 import json
 import os
@@ -47,6 +47,25 @@ class NewHarness(Harness):
 
 
 class SharedEpochTests(unittest.TestCase):
+    def test_inception_validation_ignores_ambient_decimal_precision(self):
+        # The canonical-money suite deliberately changes ambient precision.
+        # New and historical receipts must replay without mutating that context.
+        for shared, capital in ((False, '500.00'), (True, '1000.00')):
+            expected = inception_receipt('explicit-offline-epoch', utc(0), 'inception',
+                starting_capital=capital, shared=shared)
+            with localcontext() as context:
+                context.prec=1;context.traps[Inexact]=True;context.traps[Rounded]=True
+                before=context.copy()
+                self.assertEqual(validate_inception(expected), expected)
+                self.assertEqual(inception_receipt('explicit-offline-epoch', utc(0), 'inception',
+                    starting_capital=capital, shared=shared), expected)
+                with self.assertRaises(ValueError):
+                    inception_receipt('explicit-offline-epoch', utc(0), 'inception',
+                        starting_capital=capital+'1', shared=shared)
+                self.assertEqual(context.prec,before.prec)
+                self.assertEqual(context.flags,before.flags)
+                self.assertEqual(context.traps,before.traps)
+
     def test_actual_dashboard_fixture_cli_contract_supports_both_epochs(self):
         from dashboard.fixtures import write,FIXTURE_NOW
         with tempfile.TemporaryDirectory() as folder:

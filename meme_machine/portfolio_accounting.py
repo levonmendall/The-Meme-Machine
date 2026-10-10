@@ -96,11 +96,13 @@ def _stamp(value):
     return parsed.timestamp()
 
 
+@exact
 def inception_receipt(epoch_id, inception_at, canonical_event_id, *, starting_capital="500.00", shared=False):
     """Validate caller-supplied inception facts without persisting them."""
     _stamp(inception_at)
     capital = _money(starting_capital, positive=True)
-    if capital != capital.quantize(Decimal("0.01")) or not shared and capital != STARTING_CAPITAL:
+    cents = capital * 100
+    if cents != cents.to_integral_value() or not shared and capital != STARTING_CAPITAL:
         raise ValueError("explicit_shared_inception_required")
     value = {
         "schema": SCHEMA_SHARED_INCEPTION if shared else SCHEMA_INCEPTION,
