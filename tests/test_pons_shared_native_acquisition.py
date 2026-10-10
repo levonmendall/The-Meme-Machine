@@ -120,8 +120,13 @@ class SharedNativeAcquisitionTests(unittest.TestCase):
         old,a,_,_=self.run_positions(2,proved=False,gas=2)
         new,b,rpc,_=self.run_positions(2,proved=True,gas=2)
         self.assertEqual(old,new);self.assertEqual(a,b)
-        _,_,rpc,_=self.run_positions(2,proved=True,pending=True)
-        self.assertEqual(len(rpc.transports),8)
+        before,a,original,_=self.run_positions(2,proved=True,pending=True,
+            predecessor='da090e6d080383f0309517a5eb39aa4ead3360e8')
+        after,b,rpc,_=self.run_positions(2,proved=True,pending=True)
+        self.assertEqual(before,after);self.assertEqual(a,b)
+        # The pending owner still completes first. The ordinary cohort then
+        # uses its own native frame instead of the repeated private path.
+        self.assertEqual((len(original.transports),len(rpc.transports)),(8,6))
 
     def test_unknown_or_mismatched_resources_refuse_before_any_transport(self):
         rpc=TraceRPC();requests=[dict(key=fixture.PoolKey(**fixture.graduation(i)['key']),
