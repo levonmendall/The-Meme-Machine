@@ -1,0 +1,225 @@
+{
+  "basis": "process-lifetime initiated HTTP attempts; streams are delivered messages",
+  "billing_status": "UNMEASURED",
+  "captured_measurements": [
+    {
+      "billing_period": {
+        "endTime": "2026-11-01T00:00:00.000Z",
+        "startTime": "2026-10-01T00:00:00.000Z"
+      },
+      "classification": "PREVIOUSLY_CAPTURED_PROVIDER_REPORTED_AGGREGATE",
+      "freshness": {
+        "containsPartialToday": true,
+        "dataThrough": "2026-10-09T05:44:00.000Z",
+        "updateCadence": "minute"
+      },
+      "month_to_date": {
+        "amount": "1740125.5362",
+        "unit": "ALCHEMY_COMPUTE_UNIT",
+        "usd": "0.91"
+      },
+      "note": "One month-to-date total only. Last-7/30-day windows overlap and are not added.",
+      "operation": "unattributed",
+      "physical_requests": null,
+      "source": {
+        "file": "alchemy-usage-summary.json",
+        "sha256": "be963f5602804c7e676376ae8834eb78e388f43d7ce7f7ac6173971054b0d895"
+      }
+    },
+    {
+      "classification": "PREVIOUSLY_CAPTURED_SELECTED_WINDOW_ROWS",
+      "freshness": {
+        "containsPartialToday": true,
+        "dataThrough": "2026-10-09T05:48:00.000Z",
+        "updateCadence": "minute"
+      },
+      "groups": [
+        {
+          "amount": "16745.0796",
+          "network": "solana-mainnet",
+          "request_type": "websocket",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "amount": "2874",
+          "network": "robinhood-mainnet",
+          "request_type": "http",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "amount": "420",
+          "network": "solana-mainnet",
+          "request_type": "http",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "amount": "0",
+          "network": "solana-mainnet",
+          "request_type": "grpc",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        }
+      ],
+      "note": "Account/app identifiers omitted. Returned windows are not a frequency model or additive to month-to-date. TB is kept in the reported unit, not converted into CU.",
+      "operation": "unattributed",
+      "partial_rows": 0,
+      "physical_requests": null,
+      "query": {
+        "endTime": "2026-10-09T05:48:00Z",
+        "granularity": "hour",
+        "products": [
+          "SUPERNODE_CU"
+        ],
+        "startTime": "2026-10-08T00:00:00Z"
+      },
+      "returned_rows": 9,
+      "source": {
+        "file": "alchemy-usage-by-app.json",
+        "sha256": "d65039e7e97406904632fb26a3f22e7fb8d758316637d647209f98158c1ef907"
+      }
+    },
+    {
+      "classification": "PREVIOUSLY_CAPTURED_SELECTED_WINDOW_ROWS",
+      "freshness": {
+        "containsPartialToday": true,
+        "dataThrough": "2026-10-09T05:55:00.000Z",
+        "updateCadence": "minute"
+      },
+      "groups": [
+        {
+          "amount": "0.0000397559",
+          "network": "unknown",
+          "request_type": "grpc",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "amount": "0",
+          "network": "unknown",
+          "request_type": "http",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "amount": "0",
+          "network": "unknown",
+          "request_type": "websocket",
+          "unit": "DATA_TERABYTE"
+        }
+      ],
+      "note": "Account/app identifiers omitted. Returned windows are not a frequency model or additive to month-to-date. TB is kept in the reported unit, not converted into CU.",
+      "operation": "unattributed",
+      "partial_rows": 0,
+      "physical_requests": null,
+      "query": {
+        "endTime": "2026-10-09T06:00:00Z",
+        "granularity": "hour",
+        "products": [
+          "SOLANA_GRPC_TB"
+        ],
+        "startTime": "2026-10-08T00:00:00Z"
+      },
+      "returned_rows": 7,
+      "source": {
+        "file": "alchemy-yellowstone-usage.json",
+        "sha256": "4bd0a9e6b9bed69085c8b1f1855c6e4ad3b6bc12d16108cfe3feae7643b4f462"
+      }
+    }
+  ],
+  "classification": "OFFLINE_CAPTURE_OR_MODEL; not a newly measured provider bill",
+  "input_classification": "OFFLINE MOCKED TRANSPORT RECORDS; NOT PROVIDER BILLINGS",
+  "input_sha256": "6ac9d3b685ef1b646d8b8bd0646a1764e7b85419d129250bda3e385a0cbcd66a",
+  "known_measured_billed_cu": "0",
+  "label_row_capacity": 256,
+  "largest_modeled_drivers": [
+    {
+      "completed_requests": 2,
+      "consumer": "survivor",
+      "consumer_method:eth_call": 1,
+      "consumer_method:eth_getBlockByNumber": 1,
+      "delivered_payload_bytes": 204,
+      "estimated_cu": 46,
+      "estimated_throughput_cu": 46,
+      "failed_requests": 0,
+      "family": "pons",
+      "known_estimated_cu": 46,
+      "known_estimated_throughput_cu": 46,
+      "logical_consumers": 2,
+      "operation": "scaling_requalification",
+      "origin_operation": "scaling_requalification",
+      "physical_requests": 2,
+      "purchased_method:eth_call": 1,
+      "purchased_method:eth_getBlockByNumber": 1,
+      "purpose": "scaling_requalification",
+      "request_bytes": 298,
+      "retry_requests": 0,
+      "unpriced_methods": {},
+      "verified_billed_cu": null
+    }
+  ],
+  "operation_categories": [
+    "pump_discovery",
+    "pump_current_qualification",
+    "pump_survivor_qualification",
+    "pump_held_protection",
+    "pons_discovery",
+    "pons_current_qualification",
+    "pons_survivor_qualification",
+    "pons_held_protection",
+    "scaling_requalification",
+    "history_receipt",
+    "recovery_restart",
+    "retries_duplicates",
+    "unattributed"
+  ],
+  "operations": [
+    {
+      "completed_requests": 2,
+      "consumer": "survivor",
+      "consumer_method:eth_call": 1,
+      "consumer_method:eth_getBlockByNumber": 1,
+      "delivered_payload_bytes": 204,
+      "estimated_cu": 46,
+      "estimated_throughput_cu": 46,
+      "failed_requests": 0,
+      "family": "pons",
+      "known_estimated_cu": 46,
+      "known_estimated_throughput_cu": 46,
+      "logical_consumers": 2,
+      "operation": "scaling_requalification",
+      "origin_operation": "scaling_requalification",
+      "physical_requests": 2,
+      "purchased_method:eth_call": 1,
+      "purchased_method:eth_getBlockByNumber": 1,
+      "purpose": "scaling_requalification",
+      "request_bytes": 298,
+      "retry_requests": 0,
+      "unpriced_methods": {},
+      "verified_billed_cu": null
+    }
+  ],
+  "purchases_without_billing_measurement": 2,
+  "purchases_without_payload_byte_measurement": 0,
+  "purchases_without_request_byte_measurement": 0,
+  "repeated_purchase_records": 0,
+  "request_identity_status": "not retained; exact duplicate requests require existing audit/captured records",
+  "retry_failure_overlay": "subset of operation totals; never add twice",
+  "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+  "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+  "schema_version": 1,
+  "shared_logical_consumers": 0,
+  "stream_cu_status": "UNPRICED; bytes do not imply a CU rate",
+  "total_measured_billed_cu": null,
+  "totals": {
+    "completed_requests": 2,
+    "delivered_payload_bytes": 204,
+    "estimated_cu": 46,
+    "estimated_throughput_cu": 46,
+    "failed_requests": 0,
+    "known_estimated_cu": 46,
+    "known_estimated_throughput_cu": 46,
+    "logical_consumers": 2,
+    "physical_requests": 2,
+    "request_bytes": 298,
+    "retry_requests": 0
+  },
+  "unique_physical_purchases": 2,
+  "verified_billed_cu": null
+}

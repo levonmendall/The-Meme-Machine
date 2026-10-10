@@ -6,6 +6,7 @@ Public discovery is intentionally not accepted by these interfaces.
 """
 from __future__ import annotations
 
+from meme_machine.runtime.provider_purchases import attributed_work
 from dataclasses import dataclass
 import hashlib
 import json
@@ -127,6 +128,7 @@ class AddressGapRepair:
         self.rpc=rpc;self.writer=writer
         self.endpoint_identity=endpoint_identity;self.max_pages=max_pages;self.record_mapper=record_mapper
 
+    @attributed_work('recovery_restart',family='pump',consumer='shared')
     def step(self, gap_id, address, *, now, finalized_through):
         row=self.writer.db.execute('SELECT scope,lo,hi,repaired,repair_cursor,pages FROM gaps WHERE id=?',(gap_id,)).fetchone()
         if not row or row[3] is not None or row[2] is None or row[5]>=self.max_pages:

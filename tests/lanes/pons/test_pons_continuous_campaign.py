@@ -64,7 +64,7 @@ class ContinuousCampaignTests(unittest.TestCase):
     def test_discovery_failure_drains_admitted_future_and_initializes_one_book(self):
         self._campaign_probe()
 
-    def _campaign_probe(self,blocked=False,startup=False,pressure=False):
+    def _campaign_probe(self,blocked=False,startup=False,pressure=False,worker_pressure=False):
         from meme_machine.lanes.pons import BoundaryError
         future=Future();clock_reads=[0]
         class State:
@@ -99,7 +99,7 @@ class ContinuousCampaignTests(unittest.TestCase):
                 except Exception as exc:ready.set_exception(exc)
                 return ready
             if function is cohort.evaluate_candidate:
-                ready=Future();ready.set_result(evaluation);return ready
+                ready=Future();ready.set_result(dict(evaluation,curve=a[1]['address']) if worker_pressure else evaluation);return ready
             return future
         pool=SimpleNamespace(submit=submit,shutdown=lambda **kw:None)
         event=dict(transactionHash='transaction',logIndex='0x1',blockNumber='0x1',address='curve',transactionIndex='0x0',blockHash='block',
@@ -113,8 +113,8 @@ class ContinuousCampaignTests(unittest.TestCase):
                 raise BoundaryError('injected_discovery_failure')
             if polls[0]==1:return rpc,2,[event]
             if polls[0]==2:return rpc,2,[]
-            if blocked and polls[0]==3:return rpc,3,[dict(event,blockNumber='0x2',blockHash='block2',transactionHash='transaction2')]
-            if blocked and polls[0]==4:return rpc,3,[]
+            if (blocked or worker_pressure) and polls[0]==3:return rpc,3,[dict(event,blockNumber='0x2',blockHash='block2',transactionHash='transaction2',address='curve2' if worker_pressure else event['address'])]
+            if (blocked or worker_pressure) and polls[0]==4:return rpc,3,[]
             future.set_result(dict(status='settled',final_position=dict(status='settled',entry_tokens=2),
                 reconciliation=dict(open_exposure=0)))
             raise BoundaryError('injected_discovery_failure')
@@ -127,7 +127,9 @@ class ContinuousCampaignTests(unittest.TestCase):
             for name,value in dict(TAPE_WARM_SECONDS=0,SequencerBlockClock=lambda:feed,_discovery=lambda endpoint:rpc,
                 WalletSkillBook=lambda path:SimpleNamespace(close=lambda:None),
                 SelectiveEvidenceContext=evidence,
-                ThreadPoolExecutor=lambda **kw:pool,_poll=poll,evaluate_candidate=lambda *a,**kw:evaluation,
+                ThreadPoolExecutor=lambda **kw:pool,LifecyclePool=lambda **kw:pool,
+                _poll=poll,evaluate_candidate=lambda *a,**kw:evaluation,
+                MAX_CONCURRENT_LIFECYCLES=1 if worker_pressure else cohort.MAX_CONCURRENT_LIFECYCLES,
                 public_evaluation=lambda value:dict(value),_attach_wallet_overlay=lambda *a:{'converged':False}).items():
                 stack.enter_context(patch.object(cohort,name,value))
             stack.enter_context(patch('meme_machine.lanes.pons.pons_selective_acquisition.public_evaluation',side_effect=lambda value:dict(value)))
@@ -140,6 +142,25 @@ class ContinuousCampaignTests(unittest.TestCase):
             if not (startup and pressure):self.assertEqual(len((root/'completed-lifecycles.jsonl').read_text().splitlines()),1)
             self.assertTrue(result['cohort_accounting']['conservation'])
             self.assertEqual(result['cohort_accounting']['genesis'],cohort.STRATEGY_CAPITAL_QUOTE)
+            if worker_pressure:
+                from meme_machine.runtime.robinhood.pons import Broker
+                from meme_machine.lanes.pons.pons_attempts import Attempts
+                queue=Broker(result['candidate_plane_path'],cohort.POLICY_HASH,source='unused',
+                    config=result['operational_configuration_hash'],clock=lambda:106)
+                try:
+                    funding=[r for r in Attempts(queue.plane).rows() if r['phase']=='funding']
+                    self.assertEqual([r['reason'] for r in funding],['physical_lifecycle_workers_busy'])
+                    self.assertTrue(funding[0]['execution']['temporary'])
+                    self.assertFalse(funding[0]['execution']['entry_authorized'])
+                    self.assertEqual(len(result['qualifiers']),1)
+                    self.assertEqual(result['rows'][-1]['live_authorization'],'worker_deferred')
+                    self.assertTrue(result['rows'][-1]['vector']['current_threshold_pass'])
+                    self.assertNotIn('capacity_censored',[r['status'] for r in result['lifecycles']])
+                    resumed={queue.reactivate_one(),queue.reactivate_one()}
+                    self.assertIn(funding[0]['candidate'],resumed)
+                    self.assertTrue(queue.plane.get(funding[0]['candidate'])['pending'])
+                    self.assertIsNone(queue.plane.get(funding[0]['candidate'])['result'])
+                finally:queue.close()
             if blocked:
                 from meme_machine.runtime.robinhood.plane import Plane
                 from meme_machine.lanes.pons.pons_attempts import Attempts

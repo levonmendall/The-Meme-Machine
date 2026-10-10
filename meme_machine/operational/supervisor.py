@@ -21,12 +21,17 @@ SOURCE_ROOT=Path(__file__).resolve().parents[2]
 from meme_machine.runtime.operating_families import ACTIVE_LANES,PAUSED_LANES,require_active
 
 
-def identities():
+def identities(receipt=None):
     from meme_machine.lanes.pump.pump_acceleration_strategy import policy_hash
     from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH as pons
     from meme_machine.lanes.ramses.ramses_strategy import POLICY_HASH as ramses
     from meme_machine.lanes.meteora.runner import load_policy
     config=digest(dict(paper_only=True,starting_capital='500.00',family_genesis='125.00'))
+    if receipt is not None:
+        from meme_machine.portfolio_accounting import validate_inception
+        value=validate_inception(receipt)
+        if value.get('funding_authority')=='SHARED':
+            config=digest(dict(paper_only=True,starting_capital=value['starting_capital'],sizing_basis=value['sizing_basis'],funding_authority='SHARED'))
     sources=dict(pump='3c9553afb3caa92ab5f3db769f870df033a9630f',pons='3de3d376847531ccb90e260cfcc96c37587ccb23',meteora='a3579b4cc748fdbb7b4a466680f8a224773adc8b',ramses='41b5f263efc31bedf9b39039a9f66bed264b70d3')
     policies=dict(pump=policy_hash(),pons=pons,meteora=digest(load_policy()),ramses=ramses)
     return {lane:dict(source_sha=sources[lane],policy_hash=policies[lane],config_hash=config) for lane in LANES}
@@ -135,6 +140,8 @@ class Supervisor:
                 raise RuntimeError('existing_epoch_state_requires_bound_portfolio')
             with self.account() as account:
                 binding=account.binding()
+                if binding and binding['receipt'].get('funding_authority')=='SHARED':
+                    raise RuntimeError('shared_epoch_requires_selected_authority')
                 if binding is None:
                     if existing_state:raise RuntimeError('existing_epoch_state_requires_bound_portfolio')
                     if not self.offline:raise RuntimeError('preserved_PAPER_epoch_required_no_reseed')
@@ -339,6 +346,8 @@ class Supervisor:
             for suffix in ('current','survivor'):
                 self.shared_capital.owner(lane+'_'+suffix,self.process_instances[lane],proc.pid,
                     ready=ready and not self.stop_requested,at=int(now))
+        if self.shared_capital.ledger()['inception'].get('sizing_basis')=='shared_realized_equity':
+            self.shared_capital.command('portfolio-history:'+str(int(now)),'runtime_publish',{},int(now))
         projection=export(self.shared_capital,at=int(now))
         projection['shared_capital']['allocation_latency']={lane:health.get(lane,{}).get('shared_capital_metrics',
             {'state':'UNMEASURED'}) for lane in ACTIVE_LANES}

@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit, unquote
 
-from .model import LANES, Reader, stamp
+from .model import LANES, REGIMES, Reader, stamp
 
 STATIC = Path(__file__).with_name('static')
 PERIODS = {'1H': 3600, '6H': 21600, '24H': 86400, '7D': 604800, '30D': 2592000, 'ALL': None}
@@ -38,10 +38,10 @@ class Dashboard:
                 raise ValueError('query')
             query = {k: v[0] for k, v in params.items()}
             route = parsed.path.removeprefix('/api/dashboard/')
-            allowed = {'portfolio': set(), 'lanes': set(), 'system': set(), 'analytics': set(),
+            allowed = {'portfolio': set(), 'lanes': set(), 'regimes':set(), 'system': set(), 'analytics': set(),
                        'equity': {'period', 'series', 'limit'},
-                       'positions': {'lane', 'q', 'limit', 'offset'},
-                       'trades': {'lane', 'q', 'outcome', 'strategy', 'from', 'to', 'limit', 'offset'}}
+                       'positions': {'lane', 'regime','q', 'limit', 'offset'},
+                       'trades': {'lane', 'regime','q', 'outcome', 'strategy', 'from', 'to', 'limit', 'offset'}}
             if route.startswith('lanes/') and route[6:] in LANES:
                 allowed[route] = set()
             if route.startswith('positions/'):
@@ -60,6 +60,8 @@ class Dashboard:
                             pnl_definition='net completed-lifecycle outcomes assigned to settlement day; excludes open partial realizations and shared costs; not daily equity change')
             elif route == 'lanes':
                 data['data'] = list(view['lanes'].values())
+            elif route == 'regimes':
+                data['data']=list(view['portfolio'].get('regimes',{}).values())
             elif route.startswith('lanes/'):
                 data['data'] = view['lanes'][route[6:]]
             elif route.startswith('positions/'):
@@ -83,11 +85,11 @@ class Dashboard:
                 shown = filtered[-limit:]
                 data.update(data=shown, series=series, unit='USD equity' if series=='portfolio' else 'USD cumulative net P&L',
                             sample_count=len(filtered), displayed_count=len(shown), truncated=len(filtered)>limit,
-                            reference='500.00' if series=='portfolio' else '0.00',
+                            reference=view['portfolio']['starting_capital']['value'] if series=='portfolio' else '0.00',
                             periods=[p for p, duration in PERIODS.items() if duration is None or points and end-stamp(points[0]['at']) >= duration])
             else:
-                lane, outcome = query.get('lane'), query.get('outcome')
-                if lane and lane not in LANES or outcome and outcome not in ('winner', 'loser', 'breakeven'):
+                lane, outcome, regime = query.get('lane'), query.get('outcome'), query.get('regime')
+                if lane and lane not in LANES or regime and regime not in REGIMES or outcome and outcome not in ('winner', 'loser', 'breakeven'):
                     raise ValueError('filter')
                 limit, offset = int(query.get('limit', '25')), int(query.get('offset', '0'))
                 if not 1 <= limit <= 100 or not 0 <= offset <= 5000:
@@ -98,6 +100,7 @@ class Dashboard:
                     raise ValueError('date_range')
                 rows = [p for p in view['positions'] if p['state'] == ('OPEN' if route=='positions' else 'SETTLED')]
                 rows = [p for p in rows if (not lane or p['lane']==lane)
+                        and (not regime or p.get('regime')==regime)
                         and (not outcome or p['outcome']==outcome)
                         and query.get('q', '').casefold() in (p['asset']+' '+p['id']).casefold()
                         and query.get('strategy', '').casefold() in ((p['strategy_id'] or '')+' '+str(p['identities']['source_sha'] or '')).casefold()

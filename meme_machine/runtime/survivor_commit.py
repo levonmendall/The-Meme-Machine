@@ -3,6 +3,7 @@
 The integer PaperBook is reused from the certified Pump accounting primitive.
 Each regime has its own native book and shares only sleeve reservation authority.
 """
+from meme_machine.runtime.provider_purchases import attributed_work
 from contextlib import nullcontext
 
 from meme_machine.runtime.execution_capacity import resize, breadth_retained
@@ -96,8 +97,38 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
 
 
 def restore_risk(book,identity):
-    """Rebuild runner state from the same immutable economic journal as fills."""
-    book.replay()
+    """Reuse only the risk fold of an unchanged, freshly verified native journal.
+
+    Monetary replay is deliberately retained: shared grant/recovery dependencies
+    can change outside this connection. This cache never supplies that proof.
+    A read transaction makes verification and the risk view one SQLite snapshot.
+    """
+    from copy import deepcopy
+    from meme_machine.runtime.source_artifacts import REGISTRY
+    with book.lock:
+        own_snapshot=not book.db.in_transaction
+        if own_snapshot:book.db.execute('BEGIN')
+        try:
+            proof=book.replay()
+            marker=(tuple(sorted(book.identity.items())),id(book.db),book.db.total_changes,
+                book.db.execute('PRAGMA data_version').fetchone()[0],
+                book.db.execute('PRAGMA schema_version').fetchone()[0],
+                book.db.execute('SELECT hash FROM journal_archive WHERE id=1').fetchone(),
+                proof['events'],proof['final_hash'],proof['cash'],REGISTRY.generation,
+                risk_record,getattr(book,'recovery_generation',None),id(getattr(book,'portfolio',None)))
+            cached=getattr(book,'_risk_replay_cache',None)
+            if cached and cached[:2]==(marker,identity):return deepcopy(cached[2])
+            state=_fold_risk(book,identity)
+            book._risk_replay_cache=(marker,identity,deepcopy(state))
+            return state
+        except BaseException:
+            book._risk_replay_cache=None
+            raise
+        finally:
+            if own_snapshot:book.db.execute('ROLLBACK')
+
+
+def _fold_risk(book,identity):
     prefix=book._archive()
     state=prefix['risk_states'].get(identity) if prefix else None
     import json
@@ -107,6 +138,31 @@ def restore_risk(book,identity):
         state=risk_record(state,row)
     if state is None:raise ValueError('survivor_fill_missing')
     return state
+
+
+def restore_risks(book,identities):
+    """One verified native snapshot for bounded, noncommitting preparation.
+
+    The final monitor still performs its original reconciliation and replay.
+    No monetary proof or prepared risk view is retained across mutations.
+    """
+    from copy import deepcopy
+    import json
+    wanted=set(identities)
+    with book.lock:
+        own_snapshot=not book.db.in_transaction
+        if own_snapshot:book.db.execute('BEGIN')
+        try:
+            book.replay()
+            prefix=book._archive()
+            states={key:deepcopy(prefix['risk_states'].get(key)) if prefix else None for key in wanted}
+            for raw, in book.db.execute('SELECT body FROM journal ORDER BY seq'):
+                row=json.loads(raw);key=row['position']['id']
+                if key in states:states[key]=risk_record(states[key],row)
+            if any(value is None for value in states.values()):raise ValueError('survivor_fill_missing')
+            return states
+        finally:
+            if own_snapshot:book.db.execute('ROLLBACK')
 
 
 def risk_record(state,row):
@@ -203,9 +259,11 @@ def exceptional_evidence_failure(runtime,*,family,blocker,rows=None):
         runtime.history.save(row)
 
 
+@attributed_work('scaling_requalification')
 def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_limit,stress_limit,minimum):
     """Fresh native requalification and one incremental economic event."""
     from .directional_continuation import scale_budget,native_sync,BRIDGE_GATES
+    from .scaling_necessary_conditions import scale_necessary_budget
     native_sync(book,sleeve,identity)
     from meme_machine.operational.position_continuation import position_only,addition_rejection
     if position_only():
@@ -214,9 +272,17 @@ def scale(*,book,sleeve,identity,candidate,generation,adapter,qualify,ordinary_l
     if (p['status']!='open' or risk.get('scale_committed') or not risk.get('realization_taken')
             or risk.get('first_tail_crossed_at') is None or now-risk['first_tail_crossed_at']<900
             or risk.get('last_action',{}).get('action')!='hold'):return None
-    target=min(sleeve.sizing_basis(250)['allocatable_target'],risk['original_basis']//2)
+    sizing=sleeve.sizing_basis(250)
+    target=min(sizing['allocatable_target'],risk['original_basis']//2)
     if target<minimum:return None
-    state=adapter.fresh_state(candidate);quotes=adapter.fresh_quotes(state,target)
+    if scale_necessary_budget(risk,now=now,sizing=sizing)<minimum:return None
+    state=adapter.fresh_state(candidate)
+    # Only an adapter's exact local calculation on this fresh native snapshot
+    # may reject on price. No old mark, quote, fee or observation is consulted.
+    local_return=getattr(adapter,'necessary_scale_return',lambda *args:None)(state,p,risk)
+    if local_return is not None and scale_necessary_budget(risk,now=adapter.now(),
+            sizing=sleeve.sizing_basis(250),after_cost_return_bps=local_return)<minimum:return None
+    quotes=adapter.fresh_quotes(state,target)
     facts=adapter.reconstruct(state,quotes);decision=qualify(facts)
     if decision.get('candidate') is not True:return None
     if not breadth_retained(adapter.current['decision']['features']['independent_buyers'],

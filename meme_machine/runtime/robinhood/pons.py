@@ -6,14 +6,16 @@ alone populate rolling strategy inputs. No public value supplies a canonical fie
 import hashlib
 import json
 import os
+import sqlite3
 from pathlib import Path
 import time
+from functools import lru_cache
 from .plane import Plane, canonical, digest, plane_path
 
 
 def interpretation(policy):
     from meme_machine.lanes.pons import CHAIN_ID
-    from meme_machine.lanes.pons.identity import load
+    from meme_machine.lanes.pons.identity import metadata as load
     from meme_machine.lanes.pons.pons import TEMPLATE
     return dict(schema=1,chain=CHAIN_ID,policy=policy,
         factory=load('pons_v2_factory')['address'].lower(),
@@ -197,6 +199,26 @@ class Broker:
                 self.plane.db.execute("UPDATE candidates SET state='watching' WHERE id=?",(key,))
                 self.plane._audit(self.plane._row(key),'watching','pons_native_attempt_complete_recheck_preserved')
 
+    def defer_execution_worker(self,key,generation,*,worker_limit):
+        """Retain the native watch when physical lifecycle workers are busy.
+
+        This disposition grants no entry, resets no clock and creates no terminal
+        lifecycle. The existing timer/new-event path must reacquire canonical
+        qualification before a later worker can execute it.
+        """
+        with self.plane.transaction():
+            row=self.plane._row(key)
+            watch=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+            if not row or row['generation']!=generation or row['completed']!=row['desired']:
+                return False
+            if not watch or digest(json.loads(watch[0]))!=watch[1]:
+                raise ValueError('pons_current_watch_corruption')
+            self.plane.db.execute("UPDATE candidates SET state='worker_deferred',reason='physical_lifecycle_workers_busy' WHERE id=?",(key,))
+            self.plane._audit(row,'worker_deferred','physical_lifecycle_workers_busy',
+                worker_limit=worker_limit,original_observed_at=row['observed'],
+                original_deadline=row['deadline'],requires_fresh_canonical_qualification=True)
+            return True
+
     def release_orphan_entry_guards(self,active_curves):
         """After native restart reconciliation, a pre-submit crash owns no entry.
 
@@ -339,15 +361,71 @@ class Broker:
     def close(self):self.plane.close()
 
 
+@lru_cache(maxsize=16)
+def _shared_source_digest(signatures):
+    from meme_machine.runtime.source_artifacts import fingerprint
+    hashes=[]
+    for path,stamp in signatures:
+        body=Path(path).read_bytes()
+        if fingerprint(Path(path))!=stamp:raise ValueError('shared_source_generation_changed_during_read')
+        hashes.append(hashlib.sha256(body).hexdigest())
+    return digest(hashes)
+
+
+def shared_evidence_domain(endpoint):
+    """Provider and interpretation generation; independent of strategy cursors."""
+    from meme_machine.lanes.pons.provider_admission import fingerprint
+    from meme_machine.runtime.source_artifacts import fingerprint as file_identity
+    from meme_machine.lanes.pons.identity import ROOT,metadata
+    from meme_machine.lanes.pons.pons import TEMPLATE,curve_abi
+    roles=('pons_v2_factory','pons_deployer','pons_v2_hook','uniswap_v4_manager')
+    for role in roles:metadata(role)
+    curve_abi() # Validate and process source-watch invalidations before cache use.
+    paths=[Path(__file__),TEMPLATE]+[ROOT/(r+'.json') for r in roles]
+    signatures=tuple((str(p),file_identity(p)) for p in paths)
+    return 'pons:shared:'+fingerprint(endpoint)+':'+_shared_source_digest(signatures)
+
+
 def durable_cache(plane,domain):
     from meme_machine.lanes.pons.pons_selective_acquisition import ImmutableEvidenceCache
     class Cache(ImmutableEvidenceCache):
-        def __init__(self):super().__init__();self.plane=plane;self.domain=domain
+        def __init__(self):super().__init__();self.plane=plane;self.domain=domain;self.receipt_scope=None
+        def _optional(self,function,*args):
+            if not domain.startswith('pons:shared:'):return function(*args)
+            # Optional retention never waits behind another consumer or writer.
+            # Native history/position commits retain their original durability.
+            if not plane.lock.acquire(blocking=False):
+                self.counts['durable_busy_fallback']+=1;return None
+            previous=None
+            try:
+                if plane.db.in_transaction:
+                    self.counts['durable_busy_fallback']+=1;return None
+                previous=plane.db.execute('PRAGMA busy_timeout').fetchone()[0]
+                plane.db.execute('PRAGMA busy_timeout=0')
+                return function(*args)
+            except sqlite3.OperationalError as exc:
+                code=getattr(exc,'sqlite_errorcode',0)&255
+                if code not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+                self.counts['durable_busy_fallback']+=1;return None
+            finally:
+                if previous is not None:plane.db.execute('PRAGMA busy_timeout='+str(previous))
+                plane.lock.release()
         def _load(self,kind,key):
-            row=plane.evidence(domain+':'+kind,canonical(key))
+            row=self._optional(plane.evidence,domain+':'+kind,canonical(key))
             return row[0] if row else None
         def _save(self,kind,key,value):
-            plane.put(domain+':'+kind,canonical(key),value,dict(authority='authenticated_alchemy',schema=1,finality='confirmed'))
+            proof=dict(authority='authenticated_alchemy',schema=1,finality='confirmed')
+            if kind=='receipt' and domain.startswith('pons:shared:'):
+                retained=self._optional(plane.put_receipt,domain+':receipt',canonical(key),value,proof,self.receipt_scope)
+                self.counts['durable_receipt_retained' if retained else 'durable_receipt_admission_fallback']+=1
+            else:self._optional(plane.put,domain+':'+kind,canonical(key),value,proof)
+        def begin_receipts(self,consumer,owner,generation):
+            self._optional(plane.receipt_scope,domain+':receipt',consumer,owner,generation)
+            self.receipt_scope=(consumer,owner,generation)
+        def acknowledge_receipts(self):
+            if self.receipt_scope:
+                self._optional(lambda:plane.receipt_scope(domain+':receipt',*self.receipt_scope,acknowledge=True))
+                self.receipt_scope=None
         def immutable_curve(self,curve,block):
             row=self._load('compiled_create2_curve',curve.lower())
             return row if row and int(block)>=row['origin_block'] else None
@@ -360,9 +438,11 @@ def durable_cache(plane,domain):
             return max((h for h in (memory,durable) if h),key=lambda h:int(h['number'],16),default=None)
         def invalidate_canonical_aliases(self):
             super().invalidate_canonical_aliases()
+            self.receipt_scope=None
             with plane.transaction():
                 kinds=('header_number','launch','real_quote','compiled_create2_curve')
                 plane.db.executemany('DELETE FROM evidence WHERE namespace=?',((domain+':'+kind,) for kind in kinds))
+                plane.db.execute('DELETE FROM receipt_obligations WHERE namespace=?',(domain+':receipt',))
                 plane._immutable.clear();plane._immutable_bytes=0
         def remember_compiled(self,curve,token,code,block,header,auth):
             # Verified CREATE2 deployer + exact non-proxy runtime; token() is
@@ -388,7 +468,13 @@ def durable_cache(plane,domain):
             self._save('header_hash',value['hash'],value)
             self._save('header_number',int(value['number'],16),value)
             return value
-        def receipt(self,tx,bh):return super().receipt(tx,bh) or self._load('receipt',[tx,bh])
+        def receipt(self,tx,bh):
+            memory=super().receipt(tx,bh)
+            value=memory or self._load('receipt',[tx,bh])
+            if value is not None:
+                self.counts['durable_receipt_hit' if memory is None else 'memory_receipt_hit']+=1
+                if self.receipt_scope:self._save('receipt',[tx,bh],value)
+            return value
         def remember_receipt(self,tx,bh,value):
             super().remember_receipt(tx,bh,value);self._save('receipt',[tx,bh],value);return value
         def launch(self,curve):

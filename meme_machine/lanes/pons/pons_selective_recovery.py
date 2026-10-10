@@ -19,6 +19,16 @@ GROUPS='pons_selective_controller_groups'
 
 
 def exclusive_lifecycle(function):
+    from inspect import isgeneratorfunction
+    if isgeneratorfunction(function):
+        @wraps(function)
+        def steps(*args,db_path,**kwargs):
+            path=Path(str(db_path)+'.controller.lock');path.parent.mkdir(parents=True,exist_ok=True)
+            with path.open('a+b') as handle:
+                try:fcntl.flock(handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                except BlockingIOError:raise BoundaryError('selective_controller_already_running') from None
+                return (yield from function(*args,db_path=db_path,**kwargs))
+        return steps
     @wraps(function)
     def locked(*args,db_path,**kwargs):
         # The OS releases this nonblocking ownership fence after a process crash.
@@ -162,7 +172,7 @@ def recovery_evaluation(base,db_path):
 
 
 @exclusive_lifecycle
-def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None,exceptional_context=None):
+def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None,exceptional_context=None,_steps=False,_continued_session=None,_first_monitor_due=None):
     """Reconcile and manage one existing native lifecycle; never reserve or enter."""
     from .pons_selective_paper import _run_lifecycle,STRATEGY_NAMESPACE,STRATEGY_CAPITAL_QUOTE,_cancel_proven_unfilled
     if slice_seconds is not None and not 1<=slice_seconds<=3300:
@@ -223,8 +233,23 @@ def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None,exc
                     evaluation['candidate_broker_identity'],p,ledger_path=db_path,policy=POLICY_HASH)
             return result
     finally:store.close()
+    if _steps:
+        from .pons_selective_paper import _run_lifecycle_steps
+        _run_lifecycle=_run_lifecycle_steps
+    extra=({'_continued_session':_continued_session,'_first_monitor_due':_first_monitor_due}
+           if _steps else {})
     return _run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path,
-        _recovery=base,slice_seconds=slice_seconds,exceptional_context=exceptional_context)
+        _recovery=base,slice_seconds=slice_seconds,exceptional_context=exceptional_context,**extra)
+
+
+@exclusive_lifecycle
+def resume_lifecycle_steps(endpoint,*,db_path,capital_path=None,exceptional_context=None,_continued_session=None,_first_monitor_due=None):
+    """The same recovery checks, with an idle controller yielding its worker."""
+    result=resume_lifecycle.__wrapped__(endpoint,db_path=db_path,capital_path=capital_path,
+        exceptional_context=exceptional_context,_steps=True,
+        _continued_session=_continued_session,_first_monitor_due=_first_monitor_due)
+    if isinstance(result,dict):return result
+    return (yield from result)
 
 
 def _pending_recoveries(root,qualifiers,lifecycles):
@@ -254,7 +279,6 @@ def _pending_recoveries(root,qualifiers,lifecycles):
         if not qualifier or qualifier.get('vector',{}).get('policy_hash')!=POLICY_HASH:
             raise BoundaryError('selective_recovery_qualifier_identity')
         pending.append((index,path,qualifier,prior))
-    if len(pending)>8:raise BoundaryError('selective_recovery_controller_capacity')
     if len({q[2]["curve"] for q in pending})!=len(pending):
         raise BoundaryError("selective_recovery_duplicate_curve")
     return pending,guard,capital_path
@@ -264,6 +288,18 @@ def _resume_receipt(endpoint,capital_path,pending):
     index,path,qualifier,prior=pending
     life=dict(prior or {})
     life.update(resume_lifecycle(endpoint,db_path=path,capital_path=capital_path))
+    life.update(index=index,curve=qualifier['curve'],token=qualifier['token'],
+        source_transaction=qualifier['source_transaction'],
+        recovery_replaces_index=index,entry_authority=False)
+    position=life.get('final_position') or {}
+    life['lifecycle_id']=position.get('id',life.get('lifecycle_id'))
+    return life
+
+
+def _resume_receipt_steps(endpoint,capital_path,pending):
+    index,path,qualifier,prior=pending
+    life=dict(prior or {})
+    life.update((yield from resume_lifecycle_steps(endpoint,db_path=path,capital_path=capital_path)))
     life.update(index=index,curve=qualifier['curve'],token=qualifier['token'],
         source_transaction=qualifier['source_transaction'],
         recovery_replaces_index=index,entry_authority=False)
@@ -286,11 +322,11 @@ def submit_existing_lifecycles(endpoint,root,qualifiers,lifecycles,*,pool):
 
 def recover_existing_lifecycles(endpoint,root,qualifiers,lifecycles,*,on_recovered):
     """Synchronous no-entry continuation for callers without discovery authority."""
-    from concurrent.futures import ThreadPoolExecutor
+    from .pons_current_workers import LifecyclePool
     from meme_machine.runtime.robinhood.pons import coalesce_lifecycle_rows
     pending,guard,capital_path=_pending_recoveries(root,qualifiers,lifecycles)
     receipts=[]
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with LifecyclePool(max_workers=8) as pool:
         futures=[pool.submit(_resume_receipt,endpoint,capital_path,row) for row in pending]
         for future in futures:
             life=future.result();on_recovered(life);receipts.append(life)

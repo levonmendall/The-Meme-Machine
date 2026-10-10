@@ -264,15 +264,16 @@ class SharedSleeve(SleeveReservations):
         return True
 
     def sizing_basis(self,target_bps,*,minimum_bps=0):
-        # Native family-equivalent equity and floor are unchanged. Shared cash
-        # supplies only the separate available/allocatable funding component.
+        # The existing native sizing bridge reads this epoch's verified realized
+        # base. Shared cash remains the separate funding component in both models.
         result=super().sizing_basis(target_bps,minimum_bps=minimum_bps)
         from meme_machine.runtime.usd_valuation import native_reader
         at=int(time.time());unit=native_reader(self.identity['lane'])(at).amount(1,at)
         from .authority import capital_view
-        result['available']=int(money(capital_view(self.authority.ledger())['free_cash'])/unit)
+        state=self.authority.ledger()
+        result['available']=int(money(capital_view(state)['free_cash'])/unit)
         result['allocatable_target']=min(result['target'],result['available'])
-        result['sizing_basis']='effective_family_equivalence'
+        result['sizing_basis']=state['policy']['sizing_basis']
         return result
 
 

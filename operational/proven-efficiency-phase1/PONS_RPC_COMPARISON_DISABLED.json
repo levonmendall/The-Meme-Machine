@@ -1,0 +1,17 @@
+{
+  "enabled": false,
+  "maximum_seconds": 60,
+  "maximum_http_starts": 64,
+  "maximum_logical_elements": 256,
+  "maximum_delivered_bytes": 16777216,
+  "maximum_response_bytes": 2000000,
+  "maximum_physical_rps": 2,
+  "maximum_inflight_bytes": 2000000,
+  "throughput_limit_profile": null,
+  "retries": 0,
+  "maximum_marginal_usd": null,
+  "verified_tariff": null,
+  "endpoint": null,
+  "canonical_authority_changed": false,
+  "stream_subscription": false
+}

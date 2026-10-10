@@ -1,0 +1,109 @@
+{
+  "recorded_at": "2026-10-09T17:28:48.619317+00:00",
+  "deployed_sha": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "deployed_ref": "DETACHED; operational/paper-v1 is newer repository lineage, not current deployment",
+  "repository_operational_ref": "operational/paper-v1",
+  "repository_operational_sha": "9f08f0db68fd3161c84bb955800db9a200a70f77",
+  "implementation_parent": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+  "integration_published_sha": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+  "preserved_unpublished_parent_fix": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+  "branch": "engineering/proven-efficiency-phase1-20261009",
+  "prs": [
+    {
+      "number": 124,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/124",
+      "state": "open",
+      "merged": false,
+      "draft": true,
+      "head": "engineering/pons-held-efficiency-20261009",
+      "head_sha": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "base": "engineering/exceptional-winner-candidate-20261009",
+      "base_sha": "743dcd9df2902941d3f3d6e4204d15f7469bba79",
+      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard"
+    },
+    {
+      "number": 125,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/125",
+      "state": "closed",
+      "merged": false,
+      "draft": true,
+      "head": "engineering/pump-held-vault-snapshot-20261008",
+      "head_sha": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "base": "engineering/pons-held-efficiency-20261009",
+      "base_sha": "cc5f45a0e04a86198a424681e2fbe125d29c2fef",
+      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)"
+    },
+    {
+      "number": 126,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/126",
+      "state": "open",
+      "merged": false,
+      "draft": true,
+      "head": "engineering/pump-pons-style-request-efficiency-20261008",
+      "head_sha": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "base": "engineering/pons-held-efficiency-20261009",
+      "base_sha": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode"
+    },
+    {
+      "number": 127,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/127",
+      "state": "open",
+      "merged": false,
+      "draft": true,
+      "head": "engineering/pons-event-driven-paper-20261009",
+      "head_sha": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "base": "engineering/pons-held-efficiency-20261009",
+      "base_sha": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "title": "Pons event-driven held-position PAPER shadow with native exit preservation"
+    },
+    {
+      "number": 128,
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/128",
+      "state": "open",
+      "merged": false,
+      "draft": false,
+      "head": "integration/pump-pons-live-paper-126-127-20261009",
+      "head_sha": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "base": "engineering/pons-held-efficiency-20261009",
+      "base_sha": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "title": "Integrate PRs #126 + #127 for next-start live PAPER testing (no host deploy)"
+    }
+  ],
+  "service": "MainPID=0\nActiveState=inactive\nSubState=dead\nUnitFileState=disabled\n",
+  "hashes": {
+    "meme_machine/runtime/survivor_commit.py": "ecbc79d0f5d61dcba40db9644488b0d3d99bb6ff1e79fe69d5ffa79adec3b9da",
+    "meme_machine/runtime/directional_continuation.py": "42a67c4a5438c5824f81b9612ef992bae4700b311e0009fc08a61c0fcdd98ca9",
+    "meme_machine/runtime/survivor_paper_book.py": "7d75f4b03a90bb6842d38c0ec1117ab8b282eaa2015d897157687f4a39cf1940",
+    "meme_machine/runtime/survivor_risk.py": "81a5b35f03cb7a53a2233c2ffa79dd866fdd41d02ad976ece9c6402136512226",
+    "meme_machine/lanes/pons/identity.py": "9cd47cf9d5316c8958fa85ab760064e1a4c30f42cdc0991da2ce41143a8a984d",
+    "meme_machine/lanes/pons/pons.py": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233",
+    "meme_machine/lanes/pons/abi.py": "524efaee6de4664fa3905bbf06b20db398542e9a88b0e740b0ec0afbfbd71a9b",
+    "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": "07057730e530915d5dc7e99bd011246e09da66ba83d52b3565f7d3f2203f672d",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "2da3753ffe0a82435940ae650eefa7657108b13b40aa1d91eaab06335c3c0831",
+    "meme_machine/provider.py": "132fafeedd318803f409b16ba1066d3e530206b704a948a733ce9888f9bd197c",
+    "meme_machine/runtime/robinhood/provider_usage.py": "577be6e6f366ae9a85c7c271d1f331b573b882b487466579e4afe5ae0d3aaccd"
+  },
+  "policy_hashes": {
+    "meme_machine/lanes/pump/pump_acceleration_strategy.py": "647445ade5a79acbccc7ec56d47d322abc3c0f8622ff8a40b8af4f291cee33d5",
+    "meme_machine/lanes/pump/pumpswap_survivor.py": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad",
+    "meme_machine/lanes/pons/pons_selective_continuation.py": "aec2863ebb5b89c0bfeb923ddffbb68e6bc992d2c477205b6df482c4459bb183",
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
+    "meme_machine/runtime/survivor_risk.py": "81a5b35f03cb7a53a2233c2ffa79dd866fdd41d02ad976ece9c6402136512226",
+    "meme_machine/runtime/directional_continuation.py": "42a67c4a5438c5824f81b9612ef992bae4700b311e0009fc08a61c0fcdd98ca9"
+  },
+  "source_artifact_bytes": {
+    "meme_machine/lanes/pons/pons_curve_template.json": 105041
+  },
+  "fixture_paths": [
+    "tests/lanes/pons/fixtures/pons_lineage_35378762520.json"
+  ],
+  "intended_changes": {
+    "scaling": "scale() deep acquisition precedes scale_budget gross-HWM drawdown and equity ceiling; preserve latter unchanged",
+    "artifacts": "curve_abi() parses entire template on every call; identity.load() rereads pins; decode_event() scans ABI",
+    "journal": "native_sync(), monitor(), scale(), and restore_risk() repeatedly verify and parse same chain; no cached proof activated before invalidation is demonstrated",
+    "attribution": "Robinhood has initiated-attempt ledger and categories; Pump transport lacks equivalent purchase purpose and delivered bytes",
+    "shared_acquisition": "offline parity boundaries only; existing acquisition unchanged"
+  },
+  "restriction": "offline tests; no provider workloads, infrastructure/configuration changes, service starts/restarts, merge, deployment, funding or real trading"
+}

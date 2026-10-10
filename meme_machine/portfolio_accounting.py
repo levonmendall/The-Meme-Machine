@@ -27,9 +27,11 @@ import threading
 
 
 SCHEMA_INCEPTION = "meme-machine-portfolio-inception-v1"
+SCHEMA_SHARED_INCEPTION = "meme-machine-portfolio-inception-v2"
 SCHEMA_EXPORT = "meme-machine-portfolio-export-v1"
 LANES = ("pump", "pons", "ramses", "meteora")
 STARTING_CAPITAL = Decimal("500.00")
+PLANNED_SHARED_CAPITAL = "1000.00"
 ZERO_HASH = "0" * 64
 MAX_POSITIONS = 5000
 MAX_HISTORY_POINTS = 2000
@@ -94,18 +96,24 @@ def _stamp(value):
     return parsed.timestamp()
 
 
-def inception_receipt(epoch_id, inception_at, canonical_event_id):
+def inception_receipt(epoch_id, inception_at, canonical_event_id, *, starting_capital="500.00", shared=False):
     """Validate caller-supplied inception facts without persisting them."""
     _stamp(inception_at)
-    return {
-        "schema": SCHEMA_INCEPTION,
+    capital = _money(starting_capital, positive=True)
+    if capital != capital.quantize(Decimal("0.01")) or not shared and capital != STARTING_CAPITAL:
+        raise ValueError("explicit_shared_inception_required")
+    value = {
+        "schema": SCHEMA_SHARED_INCEPTION if shared else SCHEMA_INCEPTION,
         "epoch_id": _identity(epoch_id),
         "inception_at": inception_at,
         "canonical_event_id": _identity(canonical_event_id),
-        "starting_capital": "500.00",
+        "starting_capital": format(capital, ".2f"),
         "currency": "USD",
         "paper_only": True,
     }
+    if shared:
+        value.update(funding_authority="SHARED", sizing_basis="shared_realized_equity")
+    return value
 
 
 def validate_inception(value):
@@ -113,7 +121,8 @@ def validate_inception(value):
         raise ValueError("inception_contract")
     try:
         expected = inception_receipt(
-            value["epoch_id"], value["inception_at"], value["canonical_event_id"]
+            value["epoch_id"], value["inception_at"], value["canonical_event_id"],
+            starting_capital=value["starting_capital"], shared=value.get("schema") == SCHEMA_SHARED_INCEPTION
         )
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("inception_contract") from error
@@ -353,7 +362,7 @@ class PortfolioAccounting:
     def status(self):
         value = self._inception()
         if value is None:
-            return {"state": "NOT_INITIALIZED", "paper_only": True, "starting_capital": "500.00"}
+            return {"state": "NOT_INITIALIZED", "paper_only": True, "starting_capital": PLANNED_SHARED_CAPITAL}
         state = deepcopy(self._state)
         projection_state = (
             "FAIL_CLOSED" if self.projection_error is not None
@@ -461,7 +470,7 @@ class PortfolioAccounting:
 
     def _blank_state(self, receipt, receipt_hash, identities):
         initial_history = [
-            {"epoch_id": receipt["epoch_id"], "series": "portfolio", "at": receipt["inception_at"], "value": "500.00"},
+            {"epoch_id": receipt["epoch_id"], "series": "portfolio", "at": receipt["inception_at"], "value": receipt["starting_capital"]},
             *({"epoch_id": receipt["epoch_id"], "series": lane, "at": receipt["inception_at"], "value": "0"}
               for lane in LANES),
         ]
@@ -469,7 +478,7 @@ class PortfolioAccounting:
             "receipt": receipt,
             "receipt_hash": receipt_hash,
             "identities": identities,
-            "available": STARTING_CAPITAL,
+            "available": _money(receipt["starting_capital"]),
             "reservations": {},
             "positions": {},
             "shared_costs": Decimal(0),
@@ -487,6 +496,8 @@ class PortfolioAccounting:
 
     def configure_family_sleeves(self):
         """Persist the prepared four equal $125 family allocations once."""
+        if self._inception()[0]["schema"] != SCHEMA_INCEPTION:
+            raise PortfolioIntegrityError("shared_epoch_has_no_family_allocations")
         with self.transaction():
             for lane in LANES:
                 self.db.execute("INSERT OR IGNORE INTO portfolio_sleeves VALUES(?,?)", (lane, "125.00"))
@@ -878,7 +889,7 @@ class PortfolioAccounting:
                 "remaining_basis": deployed == sum(
                     (row["remaining_basis"] for row in positions if row["state"] == "OPEN"), Decimal(0)
                 ),
-                "cash_basis_conservation": state["available"] + reserved + deployed == STARTING_CAPITAL + realized,
+                "cash_basis_conservation": state["available"] + reserved + deployed == _money(state["receipt"]["starting_capital"]) + realized,
                 "cost_attribution": attributable_fees + state["shared_costs"] == attributable_fees + state["shared_costs"],
             }
             if not all(checks.values()):
@@ -891,7 +902,7 @@ class PortfolioAccounting:
                 if row["state"] == "OPEN" and row["remaining_basis"] <= 0:
                     raise PortfolioIntegrityError("open_without_basis")
             validate_decimals([lane_realized, realized, reserved, deployed, attributable_fees,
-                               attributable_fees + state["shared_costs"], STARTING_CAPITAL + realized])
+                               attributable_fees + state["shared_costs"], _money(state["receipt"]["starting_capital"]) + realized])
             return {
                 "lane_realized": lane_realized,
                 "realized": realized,
@@ -909,6 +920,8 @@ class PortfolioAccounting:
             state = deepcopy(self._state)
             if state is None:
                 raise PortfolioIntegrityError("portfolio_not_initialized")
+            if state["receipt"]["schema"] == SCHEMA_SHARED_INCEPTION and action != "publish":
+                raise PortfolioIntegrityError("shared_epoch_requires_selected_authority")
             if action in ('reserve','enter','rebalance'):
                 from .runtime.operating_families import require_active,operational
                 lane=data.get('lane')
@@ -1069,7 +1082,7 @@ class PortfolioAccounting:
             delta = _money(mark["net_liquidation_value"]) - row["remaining_basis"]
             unrealized += delta
             lane_values[row["lane"]] += delta
-        equity = STARTING_CAPITAL + reconciliation["realized"] + unrealized if available else None
+        equity = _money(state["receipt"]["starting_capital"]) + reconciliation["realized"] + unrealized if available else None
         return equity, lane_values if available else None, unrealized if available else None
 
     def _history_rows(self, state, at):
@@ -1141,7 +1154,7 @@ class PortfolioAccounting:
         positions = [self._export_position(row, as_of) for _, row in sorted(state["positions"].items())]
         checks = dict(reconciliation["checks"])
         checks["equity_equals_inception_plus_net"] = (
-            equity == STARTING_CAPITAL + reconciliation["realized"] + unrealized
+            equity == _money(state["receipt"]["starting_capital"]) + reconciliation["realized"] + unrealized
             if equity is not None else None
         )
         complete_through = state["history_coverage_through"]

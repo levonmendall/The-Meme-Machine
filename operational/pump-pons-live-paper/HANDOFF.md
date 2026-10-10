@@ -20,6 +20,11 @@ existing continuation and exceptional-winner engineering in ancestry.
   all native actions BEFORE any optional shadow work. Eight samples per
   controller, every tenth eligible HOLD tick, are configured by the example.
   The two-second diagnostic deadline and priority-30 admission remain.
+  Live controllers dispatch the observer asynchronously, with at most one
+  sample in flight per controller. Its separate bounded RPC session uses the
+  same endpoint, cross-process governor and finite usage ledger; it does not
+  mutate or wait on the native controller's RPC or local pacing lock. Native
+  exits and shutdown never join an optional diagnostic.
 * Pons event-first quote omission is NOT activated: both original quote
   cadences (Current five seconds, Survivor three seconds) and all
   continuation/exceptional-winner rules remain unchanged.

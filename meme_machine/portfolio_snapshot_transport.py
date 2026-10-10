@@ -369,11 +369,15 @@ def _cleanup_generations(root, *, retain):
         shutil.rmtree(path)
 
 
-def apply_snapshot(bundle_path, replica_root, *, retain=DEFAULT_RETAINED_GENERATIONS):
+def apply_snapshot(bundle_path, replica_root, *, retain=DEFAULT_RETAINED_GENERATIONS, expected_epoch=None, expected_inception_sha256=None):
     """Validate then atomically expose a local dashboard replica generation."""
     if type(retain) is not int or not 1 <= retain <= MAX_RETAINED_GENERATIONS:
         raise SnapshotTransportError("snapshot_retention_bounds")
     bundle = load_snapshot(bundle_path)
+    if expected_epoch is not None and bundle['epoch_id']!=expected_epoch:
+        raise SnapshotTransportError('selected_replica_epoch_mismatch')
+    if expected_inception_sha256 is not None and bundle['inception_sha256']!=expected_inception_sha256:
+        raise SnapshotTransportError('selected_replica_inception_mismatch')
     root = Path(replica_root)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     current = _current_bundle(root)
@@ -446,6 +450,8 @@ def main(argv=None):
     apply.add_argument("--bundle", required=True)
     apply.add_argument("--replica-root", required=True)
     apply.add_argument("--retain", type=int, default=DEFAULT_RETAINED_GENERATIONS)
+    apply.add_argument('--epoch',required=False)
+    apply.add_argument('--inception-sha256',required=False)
 
     mirror = commands.add_parser("mirror-once")
     mirror.add_argument("--inception", required=True)
@@ -464,7 +470,8 @@ def main(argv=None):
             "snapshot_sha256": result["snapshot_sha256"],
         }
     elif args.command == "apply":
-        output = apply_snapshot(args.bundle, args.replica_root, retain=args.retain)
+        output = apply_snapshot(args.bundle, args.replica_root, retain=args.retain,
+                                expected_epoch=args.epoch,expected_inception_sha256=args.inception_sha256)
     else:
         output = mirror_once(
             args.inception, args.accounting, args.bundle, args.replica_root,

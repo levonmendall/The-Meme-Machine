@@ -10,9 +10,11 @@ import {once} from 'node:events';
 
 const root = await mkdtemp(path.join(os.tmpdir(),'mm-dashboard-ui-'));
 const fixture = path.join(root,'fixtures');
-const generated = spawnSync('python',['-m','dashboard.fixtures',fixture],{encoding:'utf8'});
+const generated = spawnSync(process.env.MM_TEST_PYTHON||'python3',['-m','dashboard.fixtures',fixture],{encoding:'utf8'});
 assert.equal(generated.status,0,generated.stderr);
-const server = spawn('python',['-m','dashboard','--fixture-dir',fixture,'--port','0'],{stdio:['ignore','pipe','pipe']});
+const auth = 'Basic '+Buffer.from('owner:synthetic-frontend-password').toString('base64');
+const server = spawn(process.env.MM_TEST_PYTHON||'python3',['-m','dashboard','--fixture-dir',fixture,'--port','0'],{
+  stdio:['ignore','pipe','pipe'], env:{...process.env,MM_DASHBOARD_OWNER_USER:'owner',MM_DASHBOARD_OWNER_PASSWORD:'synthetic-frontend-password'}});
 let stderr='';server.stderr.on('data',b=>{stderr+=b;});
 try {
   const [out] = await Promise.race([once(server.stdout,'data'),new Promise((_,reject)=>setTimeout(()=>reject(Error('preview startup timeout '+stderr)),8000))]);
@@ -26,7 +28,7 @@ try {
   const context = vm.createContext({
     document:{hidden:true,activeElement:{tagName:'BODY'},querySelector:element,querySelectorAll:()=>[]},
     window:{addEventListener(){}},location:{hash:'#overview'},
-    fetch:(url,options)=>{assert.ok(url.startsWith('/api/dashboard/'));return fetch(base+url,options);},
+    fetch:(url,options)=>{assert.ok(url.startsWith('/api/dashboard/'));return fetch(base+url,{...options,headers:{Authorization:auth}});},
     AbortController,URLSearchParams,setTimeout,clearTimeout,setInterval(){},console,FormData,
   });
   const source = await readFile('dashboard/static/app.js','utf8');
@@ -56,16 +58,16 @@ try {
   assert.ok(element('#detail-content').innerHTML.includes('partial realization'));
   assert.ok(element('#detail-content').innerHTML.includes('Remaining basis'));
   for(const method of ['POST','PUT','DELETE']) {
-    const r=await fetch(base+'/api/dashboard/portfolio',{method});assert.equal(r.status,405);
+    const r=await fetch(base+'/api/dashboard/portfolio',{method,headers:{Authorization:auth}});assert.equal(r.status,405);
   }
-  const response=await fetch(base+'/dashboard');
+  const response=await fetch(base+'/dashboard',{headers:{Authorization:auth}});
   assert.equal(response.status,200);
   assert.ok(response.headers.get('content-security-policy').includes("connect-src 'self'"));
   const css=await readFile('dashboard/static/style.css','utf8');
   assert.ok(css.includes('@media(max-width:760px)'));
   assert.ok(css.includes('env(safe-area-inset-bottom)'));
   assert.ok(css.includes('prefers-reduced-motion'));
-  const unavailable = spawnSync('python',['-c',
+  const unavailable = spawnSync(process.env.MM_TEST_PYTHON||'python3',['-c',
     'from dashboard.api import Dashboard; import json; app=Dashboard(); print(json.dumps({p:json.loads(app.response("GET","/api/dashboard/"+p)[2]) for p in ("portfolio","lanes","positions","trades","equity","system")}))'],{encoding:'utf8'});
   assert.equal(unavailable.status,0,unavailable.stderr);
   const emptyResponses = JSON.parse(unavailable.stdout);
@@ -76,6 +78,69 @@ try {
   assert.ok(element('#main').innerHTML.includes('Planned starting capital'));
   assert.ok(!element('#main').innerHTML.includes('$512.34'));
   assert.ok(!element('#main').innerHTML.includes('LIVE PAPER'));
+  assert.ok(element('#main').innerHTML.includes('$1,000.00'));
+  const shared = spawnSync(process.env.MM_TEST_PYTHON||'python3',['-c',`
+from tests.test_shared_portfolio_epoch import SharedEpochTests
+from dashboard.api import Dashboard
+import json
+t=SharedEpochTests()
+try:
+ h=t.harness()
+ def responses():
+  reader,_,_=t.view(h);app=Dashboard(reader)
+  paths=['portfolio','lanes','positions','trades','equity','system','analytics','regimes']
+  paths+=['lanes/'+f for f in ('pump','pons','meteora','ramses')]
+  paths+=['equity?series='+f for f in ('pump','pons','meteora','ramses')]
+  out={p:json.loads(app.response('GET','/api/dashboard/'+p)[2]) for p in paths}
+  for row in out['positions']['data']:
+   p='positions/'+row['id'];out[p]=json.loads(app.response('GET','/api/dashboard/'+p)[2])
+  return out
+ initial=responses()
+ q,_=h.allocate([('pump_current',dict(requested='50')),('pons_survivor',dict(requested='50'))])
+ pump,_=h.fill(q[0]);pons,_=h.fill(q[1]);h.at=1
+ h.realize('pump_current',pump,'60')
+ h.realize('pons_survivor',pons,'20',released='12.5',terminal=False)
+ h.mark('pons_survivor',pons,'40')
+ print(json.dumps(dict(initial=initial,ongoing=responses())))
+finally:t.doCleanups()
+`],{encoding:'utf8'});
+  assert.equal(shared.status,0,shared.stderr);
+  const newEpoch = JSON.parse(shared.stdout);
+  const serveSnapshot = responses => async url => {
+    const parsed=new URL(url,'http://offline.test');const route=decodeURIComponent(parsed.pathname.split('/api/dashboard/')[1]);
+    const key=route==='equity'&&parsed.searchParams.has('series')&&parsed.searchParams.get('series')!=='portfolio'?route+'?series='+parsed.searchParams.get('series'):route;
+    assert.ok(responses[key],'No synthetic response for '+key);
+    return {ok:true,json:async()=>responses[key]};
+  };
+  context.fetch=serveSnapshot(newEpoch.initial);
+  await vm.runInContext('render()',context);
+  const startHtml=element('#main').innerHTML;
+  assert.ok(startHtml.includes('$1,000.00')&&startHtml.includes('Total realized equity'));
+  assert.equal((startHtml.match(/New-position target/g)||[]).length,4);
+  assert.equal((startHtml.match(/Staged-add equity ceiling/g)||[]).length,4);
+  assert.ok(startHtml.includes('$50.00')&&startHtml.includes('$25.00'));
+  assert.ok(startHtml.includes('total portfolio realized equity'));
+  assert.ok(!startHtml.includes('family-equivalent')&&!startHtml.includes('$500'));
+  assert.ok(startHtml.includes('Meteora: PAUSED')&&startHtml.includes('Ramses: PAUSED'));
+  assert.ok(startHtml.includes('$1,000.00 inception reference'));
+  context.fetch=serveSnapshot(newEpoch.ongoing);
+  await vm.runInContext('render()',context);
+  assert.ok(element('#main').innerHTML.includes('$50.88')); // 5% of $1,017.50, presentation only
+  assert.ok(element('#main').innerHTML.includes('+2.00%')); // includes $2.50 open unrealized
+  assert.ok(element('#main').innerHTML.includes('Pons Survivor')&&element('#main').innerHTML.includes('Realized P&amp;L'));
+  const openPosition=newEpoch.ongoing.positions.data[0].id;
+  await vm.runInContext('showPosition('+JSON.stringify(openPosition)+')',context);
+  assert.ok(element('#detail-content').innerHTML.includes('Partial exits'));
+  assert.ok(element('#detail-content').innerHTML.includes('Remaining staged-add financial ceiling'));
+  const stopped={operations:{snapshot_state:'CURRENT',paper_state:'STOPPED',observer_state:'CURRENT',
+    monitor_state:'CURRENT',portfolio_state:'UNAVAILABLE',captured_at:'2026-10-08T00:00:00Z',
+    source:{},observer:{},acceptance:Object.fromEntries(['CAPACITY','RECOVERY','AUTONOMY'].map(p=>[p,{status:'NOT_STARTED',elapsed_seconds:0}])),alerts:['paper_stopped']}};
+  const connected=vm.runInContext('operationsPanel',context)(stopped,true);
+  assert.ok(connected.includes('PAPER STOPPED'));
+  assert.ok(connected.includes('NOT STARTED'));
+  assert.ok(connected.includes('Pump Current')&&connected.includes('Pons Survivor'));
+  assert.ok(connected.includes('PAUSED (PAPER stopped)'));
+  assert.ok(connected.includes('No authentic measurements available'));
   if(process.argv[2]) {
     // Static captures contain the exact renderer output and stylesheet. They
     // deliberately have no scripts/API access and are always synthetic.

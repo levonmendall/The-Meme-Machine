@@ -16,9 +16,22 @@ ROOT = Path(__file__).with_name('verified')
 
 
 def load(role):
+    """Compatibility view: callers may mutate their copy without poisoning metadata."""
+    from meme_machine.runtime.source_artifacts import mutable_copy
+    return mutable_copy(metadata(role))
+
+
+def metadata(role,*,generation=None):
     if not role.replace('_', '').isalnum():
         raise BoundaryError('invalid_contract_role')
-    return json.loads((ROOT / (role + '.json')).read_text())
+    from meme_machine.runtime.source_artifacts import REGISTRY
+    from .abi import compiled_metadata
+    try:
+        return REGISTRY.get(ROOT/(role+'.json'),validate=verify_compilation,
+            prepare=compiled_metadata,generation=generation)
+    except BoundaryError:raise
+    except (OSError,ValueError,KeyError,TypeError):
+        raise BoundaryError('source_artifact_unavailable_or_invalid') from None
 
 
 def compiler_input(pin):
@@ -75,7 +88,7 @@ def verify_compilation(pin):
 
 
 def authenticate(role, address, code):
-    pin = verify_compilation(load(role))
+    pin = metadata(role)
     if address.lower() != pin['address'].lower():
         raise BoundaryError('deployment_address_disagreement')
     if code.lower() != pin['runtimeBytecode']['onchainBytecode'].lower():

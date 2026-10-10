@@ -440,6 +440,16 @@ class ResourceTests(unittest.TestCase):
             counter.write_text('8:1 wbytes=1\n')
             with self.assertRaises(HostUnavailable):group.writes()
     def test_dirty_page_counters_are_retained_after_exit_and_prevent_more_writes(self):
+        # The guard deliberately counts a worker's lifetime writes. Use a fresh
+        # worker so earlier full-suite journals cannot consume this fixture's
+        # unchanged proof budget before the first measured write.
+        from tests.native_inline import run_native
+        result=run_native('''from tests.test_pump_pons_proof import ResourceTests
+ResourceTests()._check_dirty_page_counters()
+''',timeout=10)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def _check_dirty_page_counters(self):
         with tempfile.TemporaryDirectory() as d:
             group=Namespace(pids=lambda:[os.getpid()],writes=lambda:0)
             guard=KernelAdmission.__new__(KernelAdmission);guard.group=group

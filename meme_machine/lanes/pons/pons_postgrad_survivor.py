@@ -63,6 +63,8 @@ POLICY=dict(
         min_turnover_multiple=30,
         max_immediate_roundtrip_loss_bps=450,
         max_double_size_roundtrip_loss_bps=650,
+        # Legacy journal identity only. The owner's 2026-10-09 admission change
+        # removes this count veto; funding remains the native sleeve's decision.
         max_open_positions=2,
         minimum_fill_breadth_bps=5000,
         sizing_search_steps=32,
@@ -324,13 +326,13 @@ def select_entries(rows,open_positions=0):
     """Cross-sectional selection without fitted weights.
 
     Eligible survivors are ordered lexicographically by persistent trend, breadth,
-    flow and execution cost.  At most the remaining portfolio slots are returned.
+    flow and execution cost. Native capital and execution decide funding for
+    every eligible row. ``open_positions`` remains a compatible diagnostic input.
     """
-    capacity=max(0,POLICY["execution"]["max_open_positions"]-int(open_positions))
     decisions=[evaluate_entry(row) for row in rows]
     eligible=[(row,decision) for row,decision in zip(rows,decisions) if decision["candidate"]]
     eligible.sort(key=lambda pair:tuple(-x for x in pair[1]["priority"]))
-    return eligible[:capacity],decisions
+    return eligible,decisions
 
 
 def exit_action(

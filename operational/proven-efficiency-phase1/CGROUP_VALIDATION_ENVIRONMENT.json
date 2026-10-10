@@ -1,0 +1,51 @@
+{
+  "classification": "READ_ONLY_HOST_CAPABILITY_INSPECTION",
+  "recorded_at": "2026-10-10T07:17:38.794108+00:00",
+  "root_enabled": "cpu memory pids",
+  "existing_scopes": 65,
+  "eligible_existing_scopes": [],
+  "host_modified": false,
+  "exact_blocker": "delegated_cpu_memory_io_controllers_required",
+  "minimum_environment": "Existing authorized dedicated two-vCPU Linux x86_64 cgroup-v2 host with cpu, memory and io delegated to an isolated writable child, cpu.max/memory.max/memory.swap.max/io.max, cgroup.kill, block-device I/O accounting and libseccomp notification support; unchanged assertions.",
+  "original_cases": [
+    "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+    "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (attached_to_cgroup True and False)"
+  ],
+  "original_source_assertions_unchanged": true,
+  "authorized_alternate_environment_exposed": false,
+  "scope_count_method": "Unique inspected cgroup directories, root included once",
+  "current_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "existing_github_runner_inspected": true,
+  "github_predecessor_run": 38025007658,
+  "github_new_source_run": 38030100957,
+  "github_new_source_sha": "0ca74509f2f19c1181518fc3b0445b20dbf24593",
+  "github_environment_blockers": [
+    "cgroup_enforcement_unavailable",
+    "dedicated_two_vcpu_host_required"
+  ],
+  "local_focused_reproduction": {
+    "log": "cgroup-final-focused.log",
+    "sha256": "f855efea4a2d51c98fdc2ca542c63361aed3b4ac9acb2b1bda09f7b374704457",
+    "tests": 2,
+    "error_entries": 3,
+    "message": "delegated_cpu_memory_io_controllers_required"
+  },
+  "github_fixture_findings": {
+    "root_owner_fixture_fixed_in": "0ca74509f2f19c1181518fc3b0445b20dbf24593",
+    "wall_exact_boundary_fixture_fixed_in": "0ca74509f2f19c1181518fc3b0445b20dbf24593",
+    "extracted_shadow_order_fixed_in": "3c21002102987dfda23551c2b3211cb0122c2965",
+    "production_guards_and_containment_assertions_unchanged": true
+  },
+  "final_frozen_environment_errors": {
+    "FAST": [
+      "test_actual_cgroup_contains_and_kills_escaped_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant)",
+      "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=True)",
+      "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=False)"
+    ],
+    "OPERATIONAL": [
+      "test_actual_cgroup_contains_and_kills_escaped_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant)",
+      "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=True)",
+      "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=False)"
+    ]
+  }
+}

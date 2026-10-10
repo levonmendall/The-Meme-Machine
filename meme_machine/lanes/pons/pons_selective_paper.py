@@ -5,6 +5,7 @@ shared components are neutral Pons protocol authentication, read-only provider,
 finality and paper-execution primitives.  No continuation-v1, Ramses, Pump.fun or
 other strategy signal/threshold/state is imported.
 """
+from meme_machine.runtime.provider_purchases import attributed_work,provider_work
 from meme_machine.runtime.execution_capacity import resize
 
 
@@ -69,28 +70,37 @@ class _PinnedQuoteReads:
     Called inside the native quote's original acquisition timer. Each retry gets
     a new head and cache; no timestamp/deadline or strategy economics is changed.
     """
-    def __init__(self,rpc,curve,side):
+    def __init__(self,rpc,curve,side,*,fresh_head=None):
         self.rpc=rpc;self.curve=curve;self.side=side;self.header=None;self.cache=None;self.snipe=None
+        self.fresh_head=fresh_head
 
     def call(self,method,params,*,scope):
         if method=='eth_getBlockByNumber' and params==['latest',False]:
-            self.header=self.rpc.call(method,params,scope=scope);self.cache=None
+            fresh=self.fresh_head
+            if (isinstance(fresh,tuple) and len(fresh)==2 and isinstance(fresh[0],dict)
+                    and 0<=time.monotonic()-fresh[1]<=3):self.header=dict(fresh[0])
+            else:self.header=self.rpc.call(method,params,scope=scope)
+            self.cache=None
             return self.header
         if self.header is None:raise BoundaryError('selective_quote_head_required')
         if self.cache is None:
             block=hex(int(self.header['number'],16))
             calls=[('eth_call',[dict(to=self.curve,data=calldata(sig)),block])
                 for sig in ('getReserves()','realQuoteReserve()','reservedTokens()','graduated()')]
-            calls.append(('eth_getBlockByNumber',[block,False]))
             if self.side=='buy':
                 calls.append(('eth_call',[dict(to=self.curve,data=calldata('currentSnipeTaxBps(address)',RESEARCH_RECIPIENT)),block]))
             calls.append(('eth_gasPrice',[]))
             values=self.rpc.batch(calls,scope='pons_selective_paper_quote')
             if len(values)!=len(calls):raise BoundaryError('selective_quote_batch_incomplete')
-            pinned=values[4]
+            # The canonical witness must execute after the state batch, rather
+            # than depending on JSON-RPC's unspecified batch execution order.
+            previous=getattr(self.rpc,'evidence_pins',{});self.rpc.evidence_pins={}
+            try:pinned=self.rpc.call('eth_getBlockByNumber',[block,False],scope='pons_selective_paper_quote')
+            finally:self.rpc.evidence_pins=previous
             if any(pinned.get(k)!=self.header.get(k) for k in ('number','hash','parentHash','timestamp')):
                 raise BoundaryError('selective_quote_header_changed')
             self.cache={canonical([m,p]):v for (m,p),v in zip(calls,values)}
+            self.cache[canonical(['eth_getBlockByNumber',[block,False]])]=pinned
         key=canonical([method,params])
         if key not in self.cache:raise BoundaryError('selective_quote_read_not_pinned')
         value=self.cache.pop(key)
@@ -99,8 +109,8 @@ class _PinnedQuoteReads:
         return value
 
 
-def _curve_quote(rpc,candidate,side,*args,**kwargs):
-    return _native_curve_quote(_PinnedQuoteReads(rpc,candidate['curve'],side),candidate,side,*args,**kwargs)
+def _curve_quote(rpc,candidate,side,*args,fresh_head=None,**kwargs):
+    return _native_curve_quote(_PinnedQuoteReads(rpc,candidate['curve'],side,fresh_head=fresh_head),candidate,side,*args,**kwargs)
 
 
 def _wait_curve_quote(rpc,candidate,side,*args,**kwargs):
@@ -219,11 +229,11 @@ def _curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None):
     return result,sessions
 
 
-def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None,expected_previous_hash=None):
+def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None,expected_previous_hash=None,evidence_context=None):
     current_block=int(current_header["number"],16)
     current_at=int(current_header["timestamp"],16)
     if after_block is None:
-        locator=evidence_rpc(endpoint)
+        locator=evidence_context or evidence_rpc(endpoint)
         cache={current_block:current_header}
         lower=max(0,current_at-int(seconds))
         start_block=(0 if lower==0 else int(_header_search(
@@ -251,7 +261,7 @@ def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None
             fromBlock=hex(first),toBlock=hex(min(current_block,first+chunk-1)),
             address=curve,topics=[sigs],
         )]))
-    batches,sessions=_batched(endpoint,calls,"pons_selective_monitor") if calls else ([],[])
+    batches,sessions=_batched(endpoint,calls,"pons_selective_monitor",evidence_context=evidence_context) if calls else ([],[])
     if expected_previous_hash is not None:
         previous=batches.pop(0)
         if (int(previous['number'],16)!=after_block or previous['hash']!=expected_previous_hash):
@@ -268,13 +278,13 @@ def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None
         raise BoundaryError("selective_entry_delta_log_identity")
     hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
     headers_v,more=_batched(
-        endpoint,[("eth_getBlockByHash",[h,False]) for h in hashes],"pons_selective_monitor"
+        endpoint,[("eth_getBlockByHash",[h,False]) for h in hashes],"pons_selective_monitor",evidence_context=evidence_context
     ) if hashes else ([],[])
     sessions.extend(more);headers=dict(zip(hashes,headers_v))
     tx_rows=list(dict.fromkeys((e["transactionHash"],e["blockHash"]) for e in raw))
     # Reuse receipts only under the exact block hash authenticated below. Without
     # these pins every overlapping monitor window rehydrates the same bodies.
-    context=SelectiveEvidenceContext(endpoint)
+    context=evidence_context or SelectiveEvidenceContext(endpoint)
     for block_hash,header in headers.items():
         if header.get('hash')!=block_hash:
             raise BoundaryError('selective_monitor_header_identity')
@@ -308,9 +318,27 @@ def _read_curve_logs(endpoint,curve,current_header,seconds=60,*,after_block=None
             )
             normalized['canonical_order']=[row['block'],row['transaction_index'],row['log_index']]
             out.append(normalized)
+    # Ordered publication fence after logs, headers and receipt authentication.
+    # The preceding checkpoint cannot establish membership inside the log batch.
+    expected={current_block:current_header['hash']}
+    if expected_previous_hash is not None:expected[int(after_block)]=expected_previous_hash
+    for h in headers.values():
+        number=int(h['number'],16)
+        if number in expected and expected[number]!=h['hash']:raise BoundaryError('selective_monitor_header_identity')
+        expected[number]=h['hash']
+    previous=context.canonical_numbers;context.canonical_numbers=True
+    try:
+        members,more=_batched(endpoint,[('eth_getBlockByNumber',[hex(n),False]) for n in expected],
+            'pons_selective_monitor',evidence_context=context)
+    finally:context.canonical_numbers=previous
+    if len(members)!=len(expected) or any(not isinstance(h,dict) or
+            int(h['number'],16)!=n or h['hash']!=expected_hash for (n,expected_hash),h in zip(expected.items(),members)):
+        raise BoundaryError('pons_current_history_reorg')
+    sessions.extend(more)
     return out,[locator_telemetry]+sessions
 
 
+@attributed_work('pons_held_protection',consumer='current')
 def _position_trajectory(endpoint,candidate):
     from .pons_current_history import active_history
     from .pons_quotes import canonical_boundary
@@ -361,6 +389,7 @@ def _refresh_curve_signal(endpoint,candidate,mark_meta,*,entry_evidence=None):
     return trajectory,demand,[trajectory_session]+sessions
 
 
+@attributed_work('pons_current_qualification')
 def _refresh_entry_persistence_signal(endpoint,candidate,entry_meta):
     """Dedicated fill-time thesis revalidation hook.
 
@@ -387,6 +416,7 @@ def _entry_generation(evaluation):
         finally:plane.close()
 
 
+@attributed_work('pons_current_qualification')
 def _confirm_entry_delta(endpoint,candidate,anchor,final,trajectory,demand,vector):
     """Authenticate only the interval after persistence, using immutable receipt reuse.
 
@@ -449,7 +479,21 @@ def _validate_final_entry(entry,meta,anchor_quote,amount,started_wall):
         raise BoundaryError('selective_entry_execution_economics')
 
 
+@attributed_work('pons_held_protection',consumer='current')
 def _delayed_exit(
+    endpoint,*,paper,identity,rpc,candidate,gas_units,store,
+    transition,v4_key,label,exit_tokens,
+):
+    steps=_delayed_exit_steps(endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
+        gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,label=label,exit_tokens=exit_tokens)
+    try:
+        while True:
+            wait=next(steps);_stop_sleep(wait['seconds'])
+    except StopIteration as done:return done.value
+    finally:steps.close()
+
+
+def _delayed_exit_steps(
     endpoint,*,paper,identity,rpc,candidate,gas_units,store,
     transition,v4_key,label,exit_tokens,
 ):
@@ -463,9 +507,31 @@ def _delayed_exit(
           int(pending.get("pending_exit_tokens") or 0)!=int(exit_tokens)):
         raise BoundaryError("selective_pending_exit_identity")
     # A retry resumes the existing intent, amount and due time; never a new exit.
-    _stop_sleep(max(0,pending["due"]-int(time.time())))
+    from .pons_current_workers import exit_acquisition_request
+    request=exit_acquisition_request(endpoint,rpc,pending,v4_key,gas_units) if transition is not None else None
+    command=yield dict(kind='exit_wait',seconds=max(0,pending['due']-int(time.time())),
+        due_at=time.monotonic()+max(0,pending['due']-int(time.time())),
+        position=identity,pending_exit=True,acquisition_request=request)
+    if command=='handoff':raise BoundaryError('selective_exit_handoff_required')
+    if isinstance(command,dict) and command.get('acquisition_failed'):
+        raise BoundaryError('provider_transport_failure')
+    acquisition=command.get('acquisition') if isinstance(command,dict) else None
     amount=int(pending["pending_exit_tokens"])
-    if transition is None:
+    if acquisition is not None:
+        from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+        raw=getattr(rpc,'_current',rpc)
+        if (request is None or request['provider_session']!=id(raw)
+                or acquisition['position_hash']!=digest(paper._get(identity))
+                or acquisition['provider_fingerprint']!=rpc.provider_fingerprint
+                or acquisition['source_generation']!=shared_evidence_domain(endpoint)
+                or time.monotonic()>acquisition['deadline']
+                or not 0<=time.monotonic()-acquisition['acquired']<=5):
+            raise BoundaryError('provider_transport_failure')
+        from .pons_natural_paper import _v4_quote as parse_quote
+        quote,meta,ledger=parse_quote(acquisition['reads'],v4_key,pending['market'],amount,
+            gas_units,store,label,local_freshness=True)
+        if quote.stamp.observed_at<pending['due']:raise BoundaryError('selective_shared_exit_before_due')
+    elif transition is None:
         try:
             quote,meta,ledger=_wait_curve_quote(
                 rpc,candidate,"sell",amount,gas_units,store,label,
@@ -496,6 +562,7 @@ def _delayed_exit(
     return position,meta
 
 
+@attributed_work('pons_held_protection',consumer='current')
 def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label):
     pending=paper._get(identity)
     if pending["status"]!="exit_pending":
@@ -525,6 +592,23 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
 @position_work
 @with_history
 def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None,exceptional_context=None):
+    steps=_lifecycle_steps(endpoint,evaluation,db_path=db_path,capital_path=capital_path,
+        _recovery=_recovery,slice_seconds=slice_seconds,exceptional_context=exceptional_context)
+    try:
+        while True:
+            wait=next(steps)
+            _stop_sleep(wait['seconds'])
+    except StopIteration as done:return done.value
+    finally:steps.close()
+
+
+@position_work
+@with_history
+def _run_lifecycle_steps(endpoint,evaluation,**kwargs):
+    return (yield from _lifecycle_steps(endpoint,evaluation,**kwargs))
+
+
+def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=None,slice_seconds=None,exceptional_context=None,_continued_session=None,_first_monitor_due=None):
     deadline=time.monotonic()+slice_seconds if slice_seconds is not None else None
     vector=evaluation["vector"]
     if not vector.get("current_threshold_pass"):
@@ -543,7 +627,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
         provider_sessions=[],monitor=[],started_at=time.time(),
     )
     from .held_paper_shadow import PaperHeldShadow
-    held_shadow=PaperHeldShadow(endpoint)
+    held_shadow=PaperHeldShadow(endpoint,asynchronous=True)
     store=None;rpc=None;capital_guard=None;identity=None
     def observe_commit(paper,position):
         if state is not None:state.acknowledge(position)
@@ -553,8 +637,14 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
             from meme_machine.runtime.robinhood.plane import project_native_position
             project_native_position(path,'pons',evaluation['candidate_broker_identity'],position,
                 ledger_path=db_path,policy=POLICY_HASH)
-    state=None
+    state=None;purchase_scope=None;priority_scope=None
     try:
+        from .provider_admission import native_lifecycle_work
+        priority_scope=native_lifecycle_work(held=_recovery is not None)
+        priority_scope.__enter__()
+        purchase_scope=provider_work('pons_current_qualification' if _recovery is None else 'recovery_restart',
+            family='pons',consumer='current',purpose='qualification' if _recovery is None else 'recovery_restart')
+        purchase_scope.__enter__()
         if _recovery is None:
             gas_units=_gas_units(candidate["receipt"])
             rpc=paper_rpc(endpoint);rpc.verify_chain()
@@ -789,8 +879,25 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
             if capital_path is not None:
                 capital_guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
                 capital_guard.observe(paper,paper._get(identity))
-            rpc=paper_rpc(endpoint);rpc.verify_chain()
+            if _continued_session is None:
+                rpc=paper_rpc(endpoint);rpc.verify_chain()
+            else:
+                # A same-process worker handoff keeps this owner's already
+                # authenticated provider session. Startup/crash recovery still
+                # performs the original full verification above. No market
+                # state, executable quote or freshness clock is transferred.
+                if (_continued_session['position']!=identity
+                        or _continued_session['endpoint']!=endpoint):
+                    raise BoundaryError('current_worker_handoff_identity')
+                rpc=_continued_session['rpc']
             result.update(lifecycle_id=identity,resumed=True,entry_authority=False)
+
+        purchase_scope.__exit__(None,None,None)
+        priority_scope.__exit__(None,None,None)
+        priority_scope=native_lifecycle_work(held=True)
+        priority_scope.__enter__()
+        purchase_scope=provider_work('pons_held_protection',family='pons',consumer='current',purpose='held_protection')
+        purchase_scope.__enter__()
 
         def record_session_rotation(telemetry,row):
             if telemetry is not None:result["provider_sessions"].append(telemetry)
@@ -821,9 +928,41 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 break
             try:
                 rpc.rotate_if_needed()
-                _stop_sleep(EXIT_POLICY["monitor_seconds"])
-                header=_latest_header(rpc)
-                quote_head_at=time.monotonic()
+                wait=dict(kind='monitor_wait',seconds=EXIT_POLICY['monitor_seconds'],
+                    position=identity,pending_exit=paper._get(identity)['status']=='exit_pending')
+                # Private in-process scheduling data, never durable telemetry.
+                # Rotation/authentication completed before this boundary.
+                wait['continued_session']=dict(position=identity,endpoint=endpoint,rpc=rpc._current)
+                from .pons_current_history import active_history
+                from .pons_current_workers import held_acquisition_request
+                wait['acquisition_request']=held_acquisition_request(endpoint,rpc,active_history(),
+                    paper._get(identity),state,gas_units,evaluation['token'])
+                if _first_monitor_due is not None:
+                    wait['due_at']=_first_monitor_due;_first_monitor_due=None
+                command=yield wait
+                if command=='handoff':
+                    result.update(status='handoff_required',entry_authority=False)
+                    break
+                acquisition=command.get('acquisition') if isinstance(command,dict) else None
+                if isinstance(command,dict) and command.get('acquisition_failed'):
+                    if 'canonical' in command.get('boundary',''):
+                        history=active_history()
+                        if history is not None:
+                            history.invalidate(paper._get(identity)['market'],'pons_current_shared_canonical_failure')
+                            history.v4_header_cache={}
+                    raise BoundaryError('provider_transport_failure')
+                if acquisition is not None:
+                    from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+                    if (acquisition['position_hash']!=digest(paper._get(identity))
+                            or acquisition['provider_fingerprint']!=rpc.provider_fingerprint
+                            or acquisition['source_generation']!=shared_evidence_domain(endpoint)
+                            or time.monotonic()>acquisition['deadline']
+                            or not 0<=time.monotonic()-acquisition['acquired']<=5):
+                        raise BoundaryError('provider_transport_failure')
+                    header=acquisition['header'];quote_head_at=acquisition['acquired']
+                else:
+                    header=_latest_header(rpc)
+                    quote_head_at=time.monotonic()
                 block=int(header["number"],16)
                 position=paper._get(identity)
                 elapsed=int(time.time())-state.opened_at
@@ -844,7 +983,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     elif position["status"]=="open":
                         try:
                             state.recovery_exit_reason="max_total_hold"
-                            position,meta=_delayed_exit(
+                            position,meta=yield from _delayed_exit_steps(
                                 endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
                                 gas_units=gas_units,store=store,transition=state.transition,v4_key=state.v4_key,
                                 label="selective-timeout-exit",exit_tokens=position["tokens"],
@@ -914,7 +1053,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     position=paper._get(identity)
                 if position["status"]=="exit_pending":
                     try:
-                        position,exit_meta=_delayed_exit(
+                        position,exit_meta=yield from _delayed_exit_steps(
                             endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
                             gas_units=gas_units,store=store,transition=state.transition,v4_key=state.v4_key,
                             label="selective-provider-recovery-exit",
@@ -991,7 +1130,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     if action["action"] in ("partial_exit","full_exit"):
                         try:
                             state.recovery_exit_reason=action["reason"]
-                            position,exit_meta=_delayed_exit(
+                            position,exit_meta=yield from _delayed_exit_steps(
                                 endpoint,paper=paper,identity=identity,rpc=rpc,
                                 candidate=candidate,gas_units=gas_units,store=store,
                                 transition=None,v4_key=None,
@@ -1066,7 +1205,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
                     if not post["continuation_pass"]:
                         state.recovery_exit_reason="post_graduation_failure"
-                        position,exit_meta=_delayed_exit(
+                        position,exit_meta=yield from _delayed_exit_steps(
                             endpoint,paper=paper,identity=identity,rpc=rpc,
                             candidate=candidate,gas_units=gas_units,store=store,
                             transition=state.transition,v4_key=state.v4_key,
@@ -1081,11 +1220,19 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                         break
 
                 position=paper._get(identity)
-                mark,meta,ledger=_v4_quote(
-                    rpc,state.v4_key,position["market"],position["tokens"],gas_units,store,
-                    "selective-v4-mark-"+str(position['version']),
-                    local_freshness=True,fresh_head=(header,quote_head_at),
-                )
+                if acquisition is None:
+                    mark,meta,ledger=_v4_quote(
+                        rpc,state.v4_key,position["market"],position["tokens"],gas_units,store,
+                        "selective-v4-mark-"+str(position['version']),
+                        local_freshness=True,fresh_head=(header,quote_head_at),
+                    )
+                else:
+                    from .pons_quotes import native_v4_quote
+                    # Parse into THIS native owner's evidence store/finality
+                    # scope. Neutral sharing carries no accounting connection.
+                    mark,meta,ledger=native_v4_quote(acquisition['reads'],state.v4_key,
+                        position['market'],position['tokens'],gas_units,store,
+                        'selective-v4-mark-'+str(position['version']),local_freshness=True)
                 rbps=_position_return_bps(position,mark)
                 current_header=dict(
                     number=hex(int(meta["block"])),hash=meta["block_hash"],
@@ -1105,7 +1252,8 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                     from .pons_selective_v4 import rolling_position_activity
                     activity=rolling_position_activity(endpoint,rpc=rpc,history=history,pool_id=position['market'],
                         key=state.v4_key,token=evaluation['token'],header=current_header,
-                        seconds=min(15,max(0,mark.stamp.event_at-state.graduation_at)),preholder_groups=state.preholders)
+                        seconds=min(15,max(0,mark.stamp.event_at-state.graduation_at)),preholder_groups=state.preholders,
+                        prepared=acquisition['history'] if acquisition is not None else None)
                 result["provider_sessions"].extend(activity.pop("provider_sessions"))
                 buyers=set(activity["buyer_groups"])
                 growth=len(buyers-state.seen_v4_buyers)
@@ -1145,7 +1293,7 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 ))
                 if action["action"] in ("partial_exit","full_exit"):
                     state.recovery_exit_reason=action["reason"]
-                    position,exit_meta=_delayed_exit(
+                    position,exit_meta=yield from _delayed_exit_steps(
                         endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
                         gas_units=gas_units,store=store,transition=state.transition,v4_key=state.v4_key,
                         label="selective-v4-exit",exit_tokens=action["exit_tokens"],
@@ -1194,6 +1342,9 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                         held_shadow.counts['isolated_unexpected_probe_error']+=1
                 state.recovery_streak=0
             except BoundaryError as exc:
+                if str(exc)=='selective_exit_handoff_required':
+                    result.update(status='handoff_required',entry_authority=False)
+                    break
                 state.bridge_probe_failed=True
                 # A provider outage after a fill is not a terminal strategy event.
                 # Retry a fresh observation on the SAME ledger and original hold
@@ -1301,7 +1452,12 @@ def _run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,_recovery=Non
                 try:store.close()
                 except Exception:pass
             result["ended_at"]=time.time()
-            result["held_paper_shadow"]=held_shadow.status()
+            try:
+                held_shadow.close()
+                result["held_paper_shadow"]=held_shadow.status()
+            finally:
+                if purchase_scope is not None:purchase_scope.__exit__(None,None,None)
+                if priority_scope is not None:priority_scope.__exit__(None,None,None)
 
 
 def _continuation_facts(position,mark,meta,candidate,rbps,*,demand,soft_streak,action):
@@ -1347,22 +1503,45 @@ def _bridge_action(state,facts,action,position,*,now):
 
 
 
+@attributed_work('scaling_requalification',family='pons',consumer='current')
 def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_units,store,sleeve):
     """Authenticate a rolling horizon and a current executable exit independently."""
     from collections import defaultdict
     from .pons_selective_continuation import curve_progress_bps
-    started=time.time();position=paper._get(identity)
+    position=paper._get(identity)
+    from .pons_current_history import active_history
+    history=active_history();prepared=None;fresh_head=None
+    if history is not None:
+        market=candidate['curve'] if state.transition is None else position['market']
+        checkpoint=history.get(market)
+        if checkpoint is None:raise BoundaryError('pons_current_scale_history_not_prepared')
+        head_at=time.monotonic();target=_latest_header(rpc)
+        target_at=int(target['timestamp'],16);target_block=int(target['number'],16)
+        if (checkpoint['from_time']>max(0,target_at-900)
+                or target_block-checkpoint['block']>256 or target_at-checkpoint['through']>60):
+            raise BoundaryError('pons_current_scale_history_not_prepared')
+        if state.transition is None:
+            prepared=_curve_logs(endpoint,candidate['curve'],target,seconds=900)[0]
+        else:
+            from .pons_selective_v4 import rolling_position_activity
+            prepared=rolling_position_activity(endpoint,rpc=rpc,history=history,
+                pool_id=market,key=state.v4_key,token=candidate['token'],header=target,
+                seconds=900,preholder_groups=state.preholders)
+        fresh_head=(target,head_at)
+    # This clock covers the genuinely fresh execution-sensitive phase. The
+    # retained historical interval keeps its real acquisition/checkpoint times.
+    started=time.time()
     if state.transition is None:
         mark,meta=_curve_quote(rpc,candidate,'sell',position['tokens'],gas_units,store,
-            'selective-scale-current-exit',local_freshness=True)[:2]
+            'selective-scale-current-exit',local_freshness=True,fresh_head=fresh_head)[:2]
     else:
         mark,meta,_=_v4_quote(rpc,state.v4_key,position['market'],position['tokens'],gas_units,store,
-            'selective-scale-current-exit',local_freshness=True)
+            'selective-scale-current-exit',local_freshness=True,fresh_head=fresh_head)
     head=dict(number=hex(int(meta['block'])),hash=meta['block_hash'],timestamp=hex(int(meta['event_at'])))
     asof=int(meta['event_at']);creators={str(candidate['record'].get(k,'')).lower()
         for k in ('deployer','creatorFeeRecipient')}
     if state.transition is None:
-        events,_=_curve_logs(endpoint,candidate['curve'],head,seconds=900)
+        events=prepared if fresh_head and head['hash']==fresh_head[0]['hash'] else _curve_logs(endpoint,candidate['curve'],head,seconds=900)[0]
         trajectory,demand,_=_refresh_curve_signal(endpoint,candidate,meta)
         curve=CurveState(**meta['state'])
         progress=curve_progress_bps(curve.real_quote,candidate['record']['graduationThreshold'])
@@ -1379,11 +1558,23 @@ def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_unit
             soft_deterioration_streak=state.pregrad_soft_deterioration_streak)
         phase='pregraduation'
     else:
-        locator=evidence_rpc(endpoint)
-        start=_header_search(locator,int(meta['block']),asof,max(0,asof-900),{int(meta['block']):head})
-        activity=collect_v4_activity(endpoint,pool_id=position['market'],key=state.v4_key,
-            token=candidate['token'],start_block=int(start['number'],16),end_block=int(meta['block']),
-            preholder_groups=state.preholders,max_events=ENTRY_THRESHOLDS['max_market_events'])
+        if history is None:
+            # Legacy callers without the existing durable plane keep their
+            # original authority; a cache cannot invent a complete interval.
+            locator=evidence_rpc(endpoint)
+            start=_header_search(locator,int(meta['block']),asof,max(0,asof-900),{int(meta['block']):head})
+            activity=collect_v4_activity(endpoint,pool_id=position['market'],key=state.v4_key,
+                token=candidate['token'],start_block=int(start['number'],16),end_block=int(meta['block']),
+                preholder_groups=state.preholders,max_events=ENTRY_THRESHOLDS['max_market_events'])
+        else:
+            from .pons_selective_v4 import rolling_position_activity
+            checkpoint=history.get(position['market'])
+            if checkpoint is None or checkpoint['from_time']>max(0,asof-900):
+                raise BoundaryError('pons_current_scale_history_not_prepared')
+            activity=(prepared if fresh_head and head['hash']==fresh_head[0]['hash'] else
+                rolling_position_activity(endpoint,rpc=rpc,history=history,
+                    pool_id=position['market'],key=state.v4_key,token=candidate['token'],
+                    header=head,seconds=900,preholder_groups=state.preholders))
         events=[r for r in activity['swaps'] if asof-900<=int(r['event_at'])<=asof]
         recent=[r for r in events if int(r['event_at'])>=asof-15
             and str(r['group']).lower() not in creators
@@ -1443,6 +1634,7 @@ def _ongoing_scale_evidence(endpoint,rpc,paper,identity,state,candidate,gas_unit
     return evidence,position,mark,meta
 
 
+@attributed_work('scaling_requalification',family='pons',consumer='current')
 def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units,store,facts,position,*,trajectory=None,demand):
     from meme_machine.operational.position_continuation import position_only
     if position_only():
@@ -1457,9 +1649,29 @@ def _attempt_current_scale(endpoint,rpc,paper,identity,state,candidate,gas_units
     if (getattr(state,'scale_committed',False) or position.get('scale_request') or not state.partial_taken
             or getattr(state,'first_tail_crossed_at',None) is None
             or now-state.first_tail_crossed_at<900 or state.pending_action is not None):return None
+    # Native monitoring prepares this authenticated horizon incrementally,
+    # independently of the add's fresh quote clock. Missing/reorganized history
+    # refuses only this add; protection and normal ingestion keep running.
+    from .pons_current_history import active_history
+    history=active_history()
     sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
     if sleeve is None:return None
     with closing(sleeve):
+        if (state.high_water<10000 or position['status']!='open'
+                or (sleeve.get(identity) or {}).get('scale_reservation',{}).get('status')=='reserved'):
+            return None
+        sizing=sleeve.sizing_basis(250)
+        if min(sizing['allocatable_target'],position['original_basis']//2,
+               max(0,sizing['realized_equity'])*750//10000-position['original_basis'])<=0:
+            return None
+        if history is not None:
+            market=candidate['curve'] if state.transition is None else position['market']
+            checkpoint=history.get(market)
+            if checkpoint is None or checkpoint['from_time']>max(0,checkpoint['through']-900):
+                from .pons_current_history import prepare_scale_history
+                prepare_scale_history(history,endpoint,market,candidate,key=state.v4_key if state.transition else None,
+                    native_store=store,identity=identity)
+                return None
         try:
             current,position,mark,mark_meta=_ongoing_scale_evidence(
                 endpoint,rpc,paper,identity,state,candidate,gas_units,store,sleeve)
@@ -1554,6 +1766,19 @@ from .pons_selective_recovery import resume_lifecycle,exclusive_lifecycle
 @exclusive_lifecycle
 def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None,exceptional_context=None):
     result=_run_lifecycle(endpoint,evaluation,db_path=db_path,capital_path=capital_path,exceptional_context=exceptional_context)
+    _record_funding_result(evaluation,result)
+    return result
+
+
+@exclusive_lifecycle
+def run_lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,exceptional_context=None):
+    result=yield from _run_lifecycle_steps(endpoint,evaluation,db_path=db_path,
+        capital_path=capital_path,exceptional_context=exceptional_context)
+    _record_funding_result(evaluation,result)
+    return result
+
+
+def _record_funding_result(evaluation,result):
     if evaluation.get('candidate_plane_path') and evaluation.get('candidate_broker_identity'):
         from meme_machine.runtime.robinhood.plane import Plane
         from .pons_attempts import Attempts,failure_category

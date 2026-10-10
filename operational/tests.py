@@ -2,6 +2,26 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_shared_portfolio_epoch',
+ 'tests.test_pons_current_exit_sharing',
+ 'tests.test_pons_capacity_repair',
+ 'tests.test_pons_current_shared_owners',
+ 'tests.test_pons_protective_capacity',
+ 'tests.test_pons_shared_native_acquisition',
+ 'tests.test_pons_current_worker_ownership',
+ 'tests.test_pons_current_scaling_history',
+ 'tests.test_provider_package_sensitivities',
+ 'tests.test_pons_rpc_equivalence_preparation',
+ 'tests.test_pons_current_worker_admission',
+ 'tests.test_pons_owner_admission',
+ 'tests.test_pump_known_slot_block_repair',
+ 'tests.test_pons_durable_receipt_obligations',
+ 'tests.test_pons_dense_v4_receipts',
+ 'tests.test_shared_acquisition_preparation',
+ 'tests.test_provider_purchase_attribution',
+ 'tests.test_verified_risk_replay_reuse',
+ 'tests.test_immutable_source_artifacts',
+ 'tests.test_scaling_necessary_conditions',
  'tests.test_exceptional_winner_candidate',
  'tests.test_pons_held_quote_wakeup',
  'tests.test_pons_held_paper_shadow',
@@ -181,6 +201,7 @@ def network_guard():
         except (ValueError,TypeError):local=False
         if not local:raise RuntimeError('market I/O forbidden in repository tests')
         return original(sock,address)
+    connect.meme_machine_offline=True
     socket.socket.connect=connect
     socket.socket.connect_ex=lambda sock,address:(connect(sock,address) or 0)
     original_urlopen=urllib.request.urlopen

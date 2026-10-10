@@ -129,8 +129,11 @@ class ProductionCutover(unittest.TestCase):
             if method!='getTokenLargestAccounts':raise AssertionError('historical provider call:'+method)
             return dict(context=dict(slot=100),value=[])
         session=SimpleNamespace(plane=self.plane,ensure=lambda *_:None,finish=lambda:None,history=[],
-            rpc=SimpleNamespace(call=call,provider_telemetry=lambda:{}),
-            postgrad=SimpleNamespace(graduation_snapshot=lambda *a,**k:graduation,pumpswap_snapshot=lambda *a,**k:self.snapshot),
+            rpc=SimpleNamespace(call=call,provider_telemetry=lambda:{},http_requests=0),
+            pump=SimpleNamespace(local_finalized_time_reuses=0),
+            postgrad=SimpleNamespace(graduation_snapshot=lambda *a,**k:graduation,pumpswap_snapshot=lambda *a,**k:self.snapshot,
+                held_pumpswap_probe_reuses=0,held_finalized_time_reuses=0),
+            holder_probe_status=lambda:{},
             execution_interest=lambda *a,**k:self.state['execution_context'])
         runtime_plane=RuntimeEvidence(self.writer.path,owner='pump',clock=lambda:self.clock[0],command=self.fence.command)
         self.clock[0]=104

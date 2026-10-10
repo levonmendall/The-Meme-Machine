@@ -1,0 +1,241 @@
+{
+  "activation_blockers": [
+    "Exact endpoint batch/hash-state/sender/archive/canonical capability.",
+    "Measured worst-case RTT and whole native queue/processing/settlement envelope.",
+    "Logical method throughput weights and total competing qualification/recovery demand.",
+    "Bounded per-response and aggregate in-flight bytes, CPU/RSS, protected reserve and charged-failure/monetary limits.",
+    "Original staggered/mixed/pending-exit deadlines for all admitted owners; changing only one of the two software pacers is insufficient.",
+    "Source-shaped compatible consolidation may reduce demand further; this proposal is not a proof that 3 RPS supports full-market operation."
+  ],
+  "activation_path": "Explicit network-guarded fixture constructor only; no environment/configuration loading",
+  "affected_existing_boundaries": [
+    "pons/provider_admission.py Admission interval validation/shared limits row",
+    "pons/provider_topology.py DIRECTIONAL_RPS and existing role/global pacers"
+  ],
+  "candidate_physical_rps_for_future_offline_profile": null,
+  "code_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "current_physical_rps": 2,
+  "current_start_interval_seconds": 0.5,
+  "enabled": false,
+  "exact_native_evidence": "CAPACITY_REPAIR_NATIVE.json",
+  "known_counterexamples": [
+    "Frozen 9f5a5137 FAST real-clock twenty partial exits at default 2 RPS: 42 starts/20.676 seconds; prior 020a FAST had 54 starts/26.670 seconds and same-execution runtime checkpoint had 36 starts/17.672 seconds. Disabled 3 RPS: 6 starts/2.392 seconds at 100-ms mock RTT. Timing variation does not remove the two-RPS deadline failure.",
+    "Missing sender requires authenticated transaction body before canonical publication; 7 dependent starts miss the three-second envelope at 2 RPS.",
+    "600-ms responses create a six-phase 3.6-second floor before local work; merely raising RPS does not resolve it.",
+    "Mixed and staggered Current/Survivor owners cannot wait to enlarge cohorts; Current delayed fills remain independent.",
+    "Actual account-wide Solana streaming/history and cold recovery usage is not authenticated; public headline RPS is not capacity proof.",
+    "Unreserved real-clock staggered ten Current plus ten Survivor at 8/12/16/20/25 RPS missed Survivor protection; 8 RPS also lost four Current risk decisions in one diagnostic. Merely increasing RPS is insufficient.",
+    "With bounded phase, 3/4 RPS still produced unavailable Current observations for the ten+ten staggered workload; repeated 8-RPS checks missed Current five-second deadlines. A passing 12-RPS synthetic profile is not provider capacity proof.",
+    {
+      "source_commit": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
+      "workload": "Twenty independently staggered Current partial exits at four RPS",
+      "result": "Execution admission can expire; native pending intent/recovery preserved. Uniform-rate success is not established.",
+      "evidence": "CAPACITY_REPAIR_NATIVE.json:current_staggered_uniform_four_rps_counterexample"
+    },
+    {
+      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "workload": "one pending partial plus nineteen ordinary Survivor owners",
+      "rps": [
+        2,
+        3
+      ],
+      "physical_starts": 8,
+      "complete_seconds": [
+        4.288109366083518,
+        3.115460691973567
+      ],
+      "native_accounting_verified": true,
+      "pending_exit_on_time": true,
+      "all_owner_three_seconds_satisfied": false
+    }
+  ],
+  "logical_throughput_profile": {
+    "logical_elements_per_second": 256,
+    "max_logical_elements_per_transport": 50,
+    "method_elements_per_second": 50,
+    "throughput_cu_per_second": 2000
+  },
+  "maximum_inflight_payload_profile": {
+    "max_inflight_bytes": 4000000,
+    "max_inflight_requests": 2,
+    "max_response_bytes": 2000000
+  },
+  "minimum_formula": "Native real-clock observed workload envelope is authoritative; a start-spacing lower bound does not include dependent latency or CPU.",
+  "modeled_monetary_profile": {
+    "actual_account_tariff_verified": false,
+    "charged_failures_counted": true,
+    "maximum_usd": ".01",
+    "usd_per_million_billed_cu": ".525"
+  },
+  "offline_implemented": true,
+  "production_configuration_changed": false,
+  "protection_reservation_profile": {
+    "candidate_priority": 5,
+    "fraction": 0.25,
+    "protection_priority": 0,
+    "reserved_bytes": 2000000,
+    "reserved_inflight_slots": 1
+  },
+  "provider_limits_or_hardware_increase_authorized": false,
+  "reason": "Two partial exits now fit warm 100-ms mock evidence at 2 RPS. Twenty partial exits and sender/slow-response/mixed regimes still exceed the default envelope.",
+  "requested_limits_activation": false,
+  "runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "schema": "pr129-offline-account-wide-governor-v2",
+  "single_active_normal_receipt_status": "Four-start HOLD/full and six-start partial paths pass the warm offline envelope. Real sender, RTT, payload, cold/dense history and account contention remain externally unproved.",
+  "source_derived_minimum_rps_for_that_coincident_specimen": null,
+  "tested_rates": [
+    2,
+    3,
+    4,
+    8,
+    9,
+    10,
+    11,
+    12,
+    16,
+    20,
+    25
+  ],
+  "verified_monetary_budget": null,
+  "native_trading_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+  "offline_protective_phase": {
+    "enabled_in_production": false,
+    "constructor_only": true,
+    "default_seconds": 0,
+    "maximum_seconds": 3,
+    "implementation_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+    "scope": "Already-due native cohort; opportunistic, no wait for phase, earlier/equal protection deadlines bypass; existing in-flight completions still invalidate canonical proof; expiry and finally cleanup; no start/throughput/inflight/spending grant.",
+    "passing_development_rows": [
+      {
+        "current": 2,
+        "survivors": 2,
+        "rps": 3,
+        "phase_seconds": 3,
+        "physical_starts": 20,
+        "survivor_starts": 6,
+        "survivor_completion_seconds": 2.2485064510488826,
+        "current_risk_misses": 0,
+        "native_accounting_verified": true
+      },
+      {
+        "current": 10,
+        "survivors": 10,
+        "rps": 12,
+        "phase_seconds": 3,
+        "physical_starts": 69,
+        "survivor_starts": 6,
+        "survivor_completion_seconds": 1.204154656059103,
+        "current_risk_misses": 0,
+        "native_accounting_verified": true
+      }
+    ],
+    "final_frozen_rows": [
+      {
+        "kind": "REAL_CLOCK_RESERVED_PHASE",
+        "current": 2,
+        "survivors": 2,
+        "rps": 3,
+        "phase_seconds": 3,
+        "physical_starts": 20,
+        "survivor_starts": 6,
+        "survivor_completion_seconds": 1.9161100010620373,
+        "current_risk_misses": 0,
+        "native_accounting_verified": true
+      },
+      {
+        "kind": "REAL_CLOCK_RESERVED_PHASE",
+        "current": 10,
+        "survivors": 10,
+        "rps": 12,
+        "phase_seconds": 3,
+        "physical_starts": 69,
+        "survivor_starts": 6,
+        "survivor_completion_seconds": 1.3134025599807444,
+        "current_risk_misses": 0,
+        "native_accounting_verified": true
+      }
+    ]
+  },
+  "final_exact_source_envelopes": {
+    "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "warm_pending_full_20": {
+      "rps": 2,
+      "starts": 3,
+      "seconds": 1.7808663620380685
+    },
+    "warm_pending_partial_20": {
+      "rps": 2,
+      "starts": 5,
+      "seconds": 2.851176654919982
+    },
+    "active_partial_20": {
+      "lowest_tested_passing_rps": 3,
+      "seconds": 2.480537398951128,
+      "default_2_rps_late_seconds": 23.66288397903554
+    },
+    "staggered_mixed_2_plus_2": {
+      "lowest_tested_passing_phase_rps": 3,
+      "survivor_seconds": 1.9161100010620373
+    },
+    "staggered_mixed_10_plus_10": {
+      "lowest_demonstrated_phase_rps": 9,
+      "survivor_seconds": 1.3134025599807444,
+      "current_risk_misses": 0,
+      "lowest_observed_passing_phase_rps": 9,
+      "repeated_full_suite_profile_rps": 12,
+      "lower_rate_single_specimens": [
+        {
+          "rps": 9,
+          "physical_starts": 66,
+          "survivor_completion_seconds": 1.2458096209680605,
+          "current_deadline_misses": 0,
+          "current_exit_commits": 10,
+          "complete_native_capacity_proven_in_fixture": true
+        },
+        {
+          "rps": 10,
+          "physical_starts": 66,
+          "survivor_completion_seconds": 1.286832456965925,
+          "current_deadline_misses": 0,
+          "current_exit_commits": 10,
+          "complete_native_capacity_proven_in_fixture": true
+        },
+        {
+          "rps": 11,
+          "physical_starts": 66,
+          "survivor_completion_seconds": 1.194985931995319,
+          "current_deadline_misses": 0,
+          "current_exit_commits": 10,
+          "complete_native_capacity_proven_in_fixture": true
+        }
+      ],
+      "limitation": "One passing specimen each at nine/ten/eleven RPS; known eight-RPS misses remain. Twelve RPS was rechecked in both final frozen suites. No authenticated safe minimum or P95/P99 proof."
+    },
+    "limitation": "Synthetic 100-ms responses on this validation machine only. Sender,slow responses,entry/recovery and account-wide Pump load require authenticated capacity. Start rate cannot repair six dependent600-ms responses.",
+    "pending_partial_plus_19_ordinary": {
+      "lowest_tested_passing_rps": 4,
+      "physical_starts": 8,
+      "measurements": [
+        {
+          "rps": 2,
+          "first_pending_exit_seconds": 2.1184246049961075,
+          "complete_native_seconds": 4.288109366083518,
+          "within_three_second_complete_turn": false
+        },
+        {
+          "rps": 3,
+          "first_pending_exit_seconds": 1.4581101180519909,
+          "complete_native_seconds": 3.115460691973567,
+          "within_three_second_complete_turn": false
+        },
+        {
+          "rps": 4,
+          "first_pending_exit_seconds": 1.1262938959989697,
+          "complete_native_seconds": 2.547974674962461,
+          "within_three_second_complete_turn": true
+        }
+      ],
+      "urgent_exit_alone_is_not_all_owner_protection": true
+    }
+  }
+}

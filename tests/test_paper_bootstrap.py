@@ -24,7 +24,10 @@ class AdmissionTests(unittest.TestCase):
     def scope(self,a,now,root,*,arm=True):
         from tests.test_position_continuation import envelope,proof
         from meme_machine.operational.bounded_provider import PhaseBudget
-        budget=Budget.create(root/'bootstrap-test.sqlite',continuation=envelope())
+        # The provider and accounting scopes share the same original start.
+        # Fixture setup can cross a wall-clock second under a full suite.
+        with patch('time.time',return_value=now):
+            budget=Budget.create(root/'bootstrap-test.sqlite',continuation=envelope())
         data=dict(mode='OBSERVATION',run_id='offline-test',pid=os.getpid(),
             process_start=process_identity(os.getpid()),provider_db=str(budget.path),continuation_envelope=envelope())
         a.command('observe','runtime_admission',data,now)
@@ -198,9 +201,15 @@ class ProviderBudgetTests(unittest.TestCase):
         with self.assertRaises(BaseException):self.budget.stream_open('yellowstone')
 
     def test_wall_limit_and_host_restart_fail_closed(self):
-        with patch('meme_machine.operational.bounded_provider.time.monotonic',return_value=self.budget.started+1800):
+        # Exact boundary without host-dependent floating-point cancellation.
+        with patch('meme_machine.operational.bounded_provider.time.monotonic',return_value=100.):
+            budget=Budget.create(Path(self.tmp.name)/'exact-expiry.sqlite')
+        with patch('meme_machine.operational.bounded_provider.time.monotonic',return_value=1900.):
+            with self.assertRaises(BaseException):budget.admission()
+        self.assertEqual(budget.snapshot()['reason'],'bounded_run_wall_limit')
+        with patch('meme_machine.operational.bounded_provider.Path.read_text',return_value='different-host-boot'):
             with self.assertRaises(BaseException):self.budget.admission()
-        self.assertEqual(self.budget.snapshot()['reason'],'bounded_run_wall_limit')
+        self.assertEqual(self.budget.snapshot()['reason'],'bounded_run_host_restarted')
 
     def test_received_shutdown_tail_consumes_its_reserve_without_double_counting(self):
         from engineering.solana_capacity.proof_limits import MAX_FRAME

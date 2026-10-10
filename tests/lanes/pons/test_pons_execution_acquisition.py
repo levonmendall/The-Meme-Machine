@@ -71,7 +71,7 @@ class ExecutionAcquisitionTests(unittest.TestCase):
                 self.assertEqual([e['action'] for e in sorted(events,key=lambda e:e['position']['version'])],['reserve','cancel'])
                 store.close()
 
-    def test_identical_native_buy_and_sell_quotes_use_two_transports(self):
+    def test_identical_native_buy_and_sell_quotes_use_ordered_three_transports(self):
         for side,amount in [('buy',10**15),('sell',10**20)]:
             outputs=[];counts=[]
             for function in (serial_quote,_curve_quote):
@@ -79,7 +79,7 @@ class ExecutionAcquisitionTests(unittest.TestCase):
                 with patch('meme_machine.lanes.pons.pons_natural_paper.time.time',return_value=320),patch('meme_machine.lanes.pons.pons_natural_paper.time.monotonic',side_effect=[10,13]):
                     quote,meta=function(rpc,candidate(),side,amount,21000,store,'test',local_freshness=True)
                 outputs.append((asdict(quote),meta));counts.append((rpc.transports,rpc.logical));store.close()
-            self.assertEqual(outputs[0],outputs[1]);self.assertEqual(counts[1][0],2)
+            self.assertEqual(outputs[0],outputs[1]);self.assertEqual(counts[1][0],3)
             self.assertEqual(counts[0][1],counts[1][1]);self.assertGreater(counts[0][0],counts[1][0])
 
     def test_batch_time_remains_inside_five_second_gate_and_header_change_fails(self):
@@ -141,6 +141,7 @@ class MonitorReceiptReuseRegression(unittest.TestCase):
         event=dict(transactionHash='tx',blockHash='block')
         def transport(method,params):
             seen.append((method,params))
+            if method=='eth_getBlockByNumber':return header
             return dict(transactionHash='tx',blockHash='block')
         rpc=PacedRpc('https://robinhood-mainnet.g.alchemy.com/v2/offline',role='test',requests_per_second=2,transport=transport)
         rpc.evidence_reuse=Reuse('https://robinhood-mainnet.g.alchemy.com/v2/offline',store,'pons')
@@ -163,4 +164,5 @@ class MonitorReceiptReuseRegression(unittest.TestCase):
             first=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline','curve',header)
             second=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline','curve',header)
         self.assertEqual(first,second)
-        self.assertEqual(seen,[('eth_getTransactionReceipt',['tx'])])
+        self.assertEqual(seen,[('eth_getTransactionReceipt',['tx']),
+            ('eth_getBlockByNumber',['0x1',False]),('eth_getBlockByNumber',['0x1',False])])

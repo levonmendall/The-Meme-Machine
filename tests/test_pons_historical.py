@@ -28,7 +28,7 @@ class HistoricalTests(unittest.TestCase):
         provider=patch('meme_machine.lanes.pons.pons_survivor_runtime.configured_rpc',
                        side_effect=lambda *a,**kw:self.tape.provider())
         provider.start();self.addCleanup(provider.stop)
-        self.runtime = Runtime(Path(self.temp.name)/'new', 10**18, 'offline', 'https://offline.invalid')
+        self.runtime = Runtime(Path(self.temp.name)/'new', 10**18, 'offline', 'https://robinhood-mainnet.g.alchemy.com/v2/offline-fixture')
         self.addCleanup(self.runtime.close)
         self.runtime.rpc = self.tape
         self.history = self.runtime.history
@@ -107,7 +107,7 @@ class HistoricalTests(unittest.TestCase):
 
     def test_old_and_new_exact_complete_vectors_and_rejections(self):
         self.complete()
-        old = Runtime(Path(self.temp.name)/'old',10**18,'offline','https://offline.invalid')
+        old = Runtime(Path(self.temp.name)/'old',10**18,'offline','https://robinhood-mainnet.g.alchemy.com/v2/offline-fixture')
         self.addCleanup(old.close)
         old.rpc = self.tape
         old.now = lambda:int(self.tape.header(self.tape.top)['timestamp'],16)

@@ -195,6 +195,7 @@ class PacedRpc(Rpc):
         pacer=None,
         transport=None,
         pace_injected_transport=False,
+        offline_admission=None,
         **kwargs,
     ):
         self.role = str(role)
@@ -204,7 +205,19 @@ class PacedRpc(Rpc):
             endpoint = primary_endpoint(endpoint)
         self.provider_fingerprint = authority.fingerprint(endpoint) if self.canonical_authority else None
         from .provider_admission import configured
-        self.shared_admission = configured(endpoint, mandatory=self.canonical_authority)
+        if offline_admission is None:
+            self.shared_admission = configured(endpoint, mandatory=self.canonical_authority)
+        else:
+            # Explicit fixture-only profile; configuration and live sessions
+            # cannot raise either the role pacer or shared physical ceiling.
+            profile=getattr(offline_admission,'offline_profile',None)
+            if profile is None:raise BoundaryError('provider_offline_profile_required')
+            profile.validate()
+            if offline_admission.endpoint!=authority.fingerprint(endpoint):
+                raise BoundaryError('provider_offline_endpoint_mismatch')
+            self.shared_admission=offline_admission
+            requests_per_second=profile.physical_starts_per_second
+            pacer=ProviderPacer(requests_per_second,clock=offline_admission.clock,sleeper=offline_admission.sleep)
         self.admission_scope = threading.local()
         self.provider_kind = _provider_kind(endpoint)
         from .immutable_rpc import configured as evidence_store, Reuse
@@ -292,6 +305,9 @@ class PacedRpc(Rpc):
             if len(params)>index and not isinstance(params[index],dict) and method not in self.hash_state_supported:
                 pins={}
         result=reuse.lookup(method,params,pins,getattr(self,'evidence_receipts',{}),getattr(self,'evidence_cost_epoch',None))
+        if result[0]:
+            from meme_machine.runtime.provider_purchases import ledger
+            ledger(self).consumer([method],cache_hit=True,shared=True,family='pons')
         if method=='eth_gasPrice' and result[0] and getattr(self,'evidence_timing',None) is not None:
             self.evidence_timing['gas_quote_origin']=dict(reuse.gas_quote_origin)
         return result
@@ -320,6 +336,8 @@ class PacedRpc(Rpc):
             cached=reuse.store.get(reuse.domain,key) if key else None
             if cached:
                 reuse.store.event(reuse.lane,reuse.domain,method,'coalesced',key,cached[1])
+                from meme_machine.runtime.provider_purchases import ledger
+                ledger(self).consumer([method],cache_hit=True,shared=True,family='pons')
                 return cached[0]
             value=super().call(method,self._wire_params(method,params,key),scope=scope)
             reuse.remember(method,params,value,key)
@@ -350,6 +368,8 @@ class PacedRpc(Rpc):
             hit,value,key=self._reuse_lookup(method,params)
             if hit:out[index]=value;continue
             if key and key in keys:
+                from meme_machine.runtime.provider_purchases import ledger
+                ledger(self).consumer([method],cache_hit=True,shared=True,family='pons')
                 followers[index]=keys[key];continue
             if key:keys[key]=index
             missing.append((index,method,params,key))
@@ -366,6 +386,8 @@ class PacedRpc(Rpc):
                     if cached:
                         out[index]=cached[0]
                         reuse.store.event(reuse.lane,reuse.domain,method,'coalesced',key,cached[1])
+                        from meme_machine.runtime.provider_purchases import ledger
+                        ledger(self).consumer([method],cache_hit=True,shared=True,family='pons')
                     else:pending.append(item)
                 if pending:
                     if deadline is not None and time.monotonic()>=deadline:raise BoundaryError('evidence_deadline_before_transport')

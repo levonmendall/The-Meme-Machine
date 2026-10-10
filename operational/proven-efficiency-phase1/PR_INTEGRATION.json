@@ -1,0 +1,1619 @@
+{
+  "recorded_at": "2026-10-10T15:48:45.592525+00:00",
+  "candidate_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "integration_parent": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+  "disposition": "Existing PR129 successor. No older PR merged, deployed or reapplied; exact head ancestry and relevant file equality remain independent.",
+  "prs": [
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "repair/observation-qualification-history-20261006",
+      "headRefOid": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 120,
+      "state": "OPEN",
+      "title": "Repair candidate qualification, retention and ordered Solana history",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/120",
+      "head_ancestor_of_candidate": false,
+      "file_comparison": [
+        {
+          "path": "meme_machine/lanes/meteora/runner.py",
+          "present": true,
+          "current_sha256": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "present": true,
+          "current_sha256": "0a2ef9026b1d48e6d2715fc04de56f44019193b9e8ca3d4833124ec6d8cefe9d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+          "present": true,
+          "current_sha256": "1a4e04f9b89a959cb5f544d9207ec0885dfc32c72a0e09fd6f6fc35806e60c5c",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/runner.py",
+          "present": true,
+          "current_sha256": "e6275d1767cdd0f2476c6f9ceb1fe2693d77184e5a5ccbe044870710108092bf",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/solana_evidence_runtime.py",
+          "present": true,
+          "current_sha256": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/operational/supervisor.py",
+          "present": true,
+          "current_sha256": "2f5adc32d0c3a8417afc781c16ddebd1b0e8e8a903c08cd96f58a80ce726e849",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/runtime/candidate_history.py",
+          "present": true,
+          "current_sha256": "5446621a87cccaf28ba61d41dc6272437c5f830515523aff5dfab4a84ea2b7ea",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/runtime/survivor_history.py",
+          "present": true,
+          "current_sha256": "36e91b75db173c40b3a6e5720e4264e23a9aec64da66e861310fe3f29b7a76b1",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/solana_source_intake.py",
+          "present": true,
+          "current_sha256": "8dacbd0f2052d4654041bfc74b4141549faccd3430eb8043266a05a51ea32f6c",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "operational/tests.py",
+          "present": true,
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/test_candidate_history.py",
+          "present": true,
+          "current_sha256": "5dd621e5d950f8d2a799bdbbe74223ece1398e5463802b514dbd467be3fb00dc",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/test_solana_source_intake.py",
+          "present": true,
+          "current_sha256": "efdb611179b211cdf97434cc2d8c38f9205d588311fae93573855c8ae73b24e4",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/test_survivor_history.py",
+          "present": true,
+          "current_sha256": "5c8991c8d1684dbfab885b4a3a4ada0d774bb3b7ceb81c091d8ff467d159565b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        }
+      ],
+      "byte_identical_files": 0,
+      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-06T23:56:32Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "repair/final-alchemy-solana-20261007",
+      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 121,
+      "state": "OPEN",
+      "title": "Solana evidence: rolling prewarm startup and bounded provider proof",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/121",
+      "head_ancestor_of_candidate": true,
+      "file_comparison": [
+        {
+          "path": "engineering/solana_capacity/REPORT.md",
+          "present": true,
+          "current_sha256": "2d0139c6a56bfce25acfe5369d1880b18215e9c5730bc8fdf9abe6a824f0f617",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/__init__.py",
+          "present": true,
+          "current_sha256": "d0844bfc9ffed04d0fec176a54c9845c59dc6e530820c76f3fe1e1dcc5bdbde7",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/analyze.py",
+          "present": true,
+          "current_sha256": "51657f536a9e94f84c4d84d43b7965ad9ba69e2616f82fcd46942139ce5ef17b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/audit_final_mixed.py",
+          "present": true,
+          "current_sha256": "e5c7bad87fc1aa20b2a86a5478b707fcb9717c68b480864c2b3b4388568eef23",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/budget.json",
+          "present": true,
+          "current_sha256": "e429e34085d97d6db1deaf59bdd22bfd3b2ecdc407de84938f8da2d549e8ca98",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/capture_manifest.json",
+          "present": true,
+          "current_sha256": "48e974189c3f10ca379020af8f20045ed598f75fd42a6e3e114aeb670f18be9a",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/audit.json",
+          "present": true,
+          "current_sha256": "8dbfe19dd8ad636ff55a93d3445511952d8c89d6f326bdf4f90a469632f6af7b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part00",
+          "present": true,
+          "current_sha256": "853b5fcc1b0dc0c1fd04beb0e30d1a0408ecc849ad7f954ce7781b34f6232c0a",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part01",
+          "present": true,
+          "current_sha256": "7b9f41545ef918ee478b2ea3b60766e040cef95158c6db00ac2ad254e70028c3",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part02",
+          "present": true,
+          "current_sha256": "299b8ff6e125a332d85265c821e7e13874b0669a14d83847e6c35dbe24497731",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part03",
+          "present": true,
+          "current_sha256": "68771ebb07a54cd1c134a35003be342c2cbab195a0c09b7b4c92caec6e705391",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part04",
+          "present": true,
+          "current_sha256": "a9b75df5ae4b928faf67ba7baa2148e6043a1468815e9bcaa7d9a878e5c663ba",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part05",
+          "present": true,
+          "current_sha256": "81a17c6469e759e5fabb070ba821298a19688d4e018ad0daa8ad6cf34f7ea18d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/http.ndjson.zlib.part06",
+          "present": true,
+          "current_sha256": "7a42d4b87c0a132e8d4251a9f072a0a6d0113343d727c7eb461062c2f75c96a1",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/http_manifest.json",
+          "present": true,
+          "current_sha256": "372df9e24750338ca086d0d6c9a48d6d8dca1c4f92fea59f542f4158443002e1",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/provider.frames.zlib",
+          "present": true,
+          "current_sha256": "421c115307ba3baa30c291483423c065321e7017d47bb5534cab028ed66c0349",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared13/result.json",
+          "present": true,
+          "current_sha256": "79591a4666c9eb44f2f79d6507f0e3fff0ba0cf36c59945d2eec76aebb75fa8f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared14/audit.json",
+          "present": true,
+          "current_sha256": "0f77922fd2aedf9a1f8592214a8f9497c299ae49d2a5f4a9167bfe52839f0980",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared14/http.ndjson.zlib.part00",
+          "present": true,
+          "current_sha256": "c6f1540e3c903017c0b423f63bb4383b7a130fb0795b8667a6201805b199a61d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared14/http.ndjson.zlib.part01",
+          "present": true,
+          "current_sha256": "15caa8f82c96f992dccb443084a0ed3a7b4f0dccf6bc851e93381033d857a8d7",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared14/http_manifest.json",
+          "present": true,
+          "current_sha256": "c3d22fa0449cee7db0ccfc0ab455214bfb69f9a55a587007669df722dcad303b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared14/provider.frames.zlib",
+          "present": true,
+          "current_sha256": "673822d151d81b34cc21b8e5009ceadf45f885117221e4f4c432e45c1c2486e4",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/captures/final-shared14/result.json",
+          "present": true,
+          "current_sha256": "72999e7a6d68e4e7b625e5cf6a45937d89bcfa1bf29e541c42caf2371126257a",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/certification_plan.json",
+          "present": true,
+          "current_sha256": "8d439db70541f7e39d830c72053dc9198d7055ac2aa7551841bb2232407e88e2",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/certify.py",
+          "present": true,
+          "current_sha256": "a161b8b36db7d0034943a9b9a3d0e521f8eb5ee247683bc2447b290325c8600c",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "engineering/solana_capacity/cost_model.json",
+          "present": true,
+          "current_sha256": "f40222e67e2982c1c8d74aa2ef93f661a7e572eb5750652d42160143b25abbbd",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/cost_model.py",
+          "present": true,
+          "current_sha256": "8f53131d35c62f1b4204ad862b498f2144f666ae467437b95d9fb79157e4434f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/files_changed.json",
+          "present": true,
+          "current_sha256": "0ce87ebe05499dc1932b1ae4a9cbeb7519f91c45663987bcdab137cc29127b41",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/final_mixed.py",
+          "present": true,
+          "current_sha256": "e3d255a632f1665472d59ca7976288834507ceff1ba94f57cf78600e41520b94",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "engineering/solana_capacity/live_probe.py",
+          "present": true,
+          "current_sha256": "8c643c938b06e00d859e16bd69c057ef403e914474886e001d81aac40d2d8588",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/phase0.json",
+          "present": true,
+          "current_sha256": "d218ef31f7ee242196f7f4d98761e6ca135ca342aaa89cc7acdc417cc624fabc",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/pricing.json",
+          "present": true,
+          "current_sha256": "952fe5fdfce1831b1bd5c7d0117c1f5c5f677d151ea7a3fb46c6fc7eb431eba2",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/publication_check.json",
+          "present": true,
+          "current_sha256": "d87699c43a23dbccd88a1c03b95bb02f3ea4962f41c9237dac29ca30ce67c66b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/pump_candidates.py",
+          "present": true,
+          "current_sha256": "84f58c6b398a97ae4eaabb7a830a902a4aab92acb6163e2542d5aa64d2eaadbb",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "engineering/solana_capacity/source_identities.json",
+          "present": true,
+          "current_sha256": "ca9acaa10f22001ad2de6962d796b751d1bd766f4b675c13781f4a219e47d622",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/transport_meter.py",
+          "present": true,
+          "current_sha256": "208142e70219936197915e7e304a470e904231f16d666f6312c5d76290eea066",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "engineering/solana_capacity/validation.json",
+          "present": true,
+          "current_sha256": "920f4daa79c28f33bf4b2723c4a8d6c9f8a2b54592a9bc88ccaa87ad600a7438",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/validation/affected-operational.log",
+          "present": true,
+          "current_sha256": "cb0f112d2a999725af96855aebc17b297e83d992145732156c0fc201e7d91b70",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/validation/fast.log",
+          "present": true,
+          "current_sha256": "ec4c09e03ea166f8b7ddbe6ae3bc3b0e3b066a699b19e48abb07b56897087d43",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/validation/focused.log",
+          "present": true,
+          "current_sha256": "f4f3a8b0937fd9773edf3dfcd27b82bc2a1551ba77102af2a9fe8469afeed23e",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/validation/github-37616525528-attempt1.log",
+          "present": true,
+          "current_sha256": "69abbc0637c3c36a361a549bfdfca5307567c6f58b548bb655e28b6c129daa14",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/validation/github-37616530525-attempt1.log",
+          "present": true,
+          "current_sha256": "ebc53466232063e4c921cc7b2be08a76fb652ffab6442534b7f5570f1f7c06d4",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/validation/github-37616530525-attempt2.log",
+          "present": true,
+          "current_sha256": "e34e82a406aceb8cc10ed6c6efd57099f44ce33fb4dcd2c17159315d0a52680b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/validation/maintenance-backup.log",
+          "present": true,
+          "current_sha256": "f628314d324745944b58044d94d59ac176b557c8695d65d371f99de1bd948ccd",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_capacity/validation/operational-boundary.log",
+          "present": true,
+          "current_sha256": "b94e3de305e20f21e1c83cf6807aeff4961e53ece1ad071c63c6451ee1e1adee",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/REPORT.md",
+          "present": true,
+          "current_sha256": "1a3dd99a6039f77c952fc18c78b5f19d6fc45e5fb32b25b01b70ea56468adb4e",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/build_measurements.py",
+          "present": true,
+          "current_sha256": "61065b9b7f3bc2a791367e8194696c6a3415f65eddb3e43a8f91eaef51f6ac12",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/delivery-20261007T023339Z/scout.frames.zlib",
+          "present": true,
+          "current_sha256": "8a9e17d444acd4e25d63b78da5e9f648672c6fb3c545ebab29085ee3a38c3b2f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/diagnostic-summary.json",
+          "present": true,
+          "current_sha256": "4b7798b796c3b942605470870993dce9644ceecb06606aa34b88537155b6fa76",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/historical-reconnects.json",
+          "present": true,
+          "current_sha256": "c91c8789a7a9bc9e6e9f9aa780e595c96028e6c559d7747c61b613378d7006f7",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/manifest.json",
+          "present": true,
+          "current_sha256": "84fc2b63a8beff03e1bdc80295e8e829ce48dc8a06faba46dc43b68a67f45435",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/pump-handoff-20261007T010733Z/backfill-completion.json.zlib",
+          "present": true,
+          "current_sha256": "a0c6f335e9ac2180e9758d6e9dd070b12dd40b5eca54cc21d45c8ea84ec72ef7",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/routes-20261007T014803Z/bodies.json.zlib",
+          "present": true,
+          "current_sha256": "fe5357bcbc7a6b16a5568ff8d6954c1d508df6a8cafade4bbede76f8f73afebc",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/routes-20261007T014803Z/raw.frames.zlib",
+          "present": true,
+          "current_sha256": "08f7994a41f4407950c3137f2b962f4c4a54cc7fa6b69a2cb91bfcfb63d05517",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/routes-20261007T014803Z/statuses.json.zlib",
+          "present": true,
+          "current_sha256": "507becc8f4e3114057b8bad1561cfe62d4ca3c1c01a879577ebeb0e95871047f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/warming-20261007T041321Z/result.json.zlib",
+          "present": true,
+          "current_sha256": "46c13cb99ed83809e7f472808de7d66aad3b6977a906c68ac83a8f9e3a1b588d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/warming-20261007T041321Z/rpc.ndjson.zlib",
+          "present": true,
+          "current_sha256": "a6cd00b6848fbab58880077245278a2da81a0751a1f500a1dc204bfa8d52c067",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/warming-20261007T043221Z/position-result.json.zlib",
+          "present": true,
+          "current_sha256": "5c5ce9e2bdc8cdea09f9d1330e4bbe47d353f84c4b5fd6dd25aa73959cf86330",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/warming-20261007T043221Z/rpc.ndjson.zlib",
+          "present": true,
+          "current_sha256": "bfc1c7eb3d9101cff9ad1d3227da5e7d7a16a907e8a6435bbd56060e3ee3f09b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/warming-20261007T044454Z/native.frames.zlib",
+          "present": true,
+          "current_sha256": "c3d67b2adb81a579e0421b4e79969ad9df3e36bba49782f3b54286289e65a064",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/warming-20261007T044454Z/position-transport.json.zlib",
+          "present": true,
+          "current_sha256": "e34905b35b6c8fab184b462343391d31d1768b5a51b983f00ae4e24bb0f2208a",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/captures/warming-20261007T044454Z/rpc.ndjson.zlib",
+          "present": true,
+          "current_sha256": "8d0aecf61647a707c04042407168255d41bb6996f725820dc71ad8ae990c17d6",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/cost_model.py",
+          "present": true,
+          "current_sha256": "90497f1bb4a459827f1070229990406022220c080b572d89e1e1e29fe9209439",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/files_changed.json",
+          "present": true,
+          "current_sha256": "72085df310d335e9e23ba951ea25d03679aa038640c15e1c12bb5fdb4008c51e",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/full_reference.py",
+          "present": true,
+          "current_sha256": "e6da70bdcb66424fd7644c4ee0ed4e33471510c374bed23ef3c6e5b8d76f3b49",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/measure_recovery.py",
+          "present": true,
+          "current_sha256": "e569f19c3ca8f403df5dd33df90318e368f55b4d8f250e6ada32e1b8a8feaaff",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/measure_replay.py",
+          "present": true,
+          "current_sha256": "451c7efef4df925a9535c6c70a19be279a73600c635c1331ac4e90da6b74570f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/measurements.json",
+          "present": true,
+          "current_sha256": "f5ec0fe19da816ee7e904c27d71c0d002f8773f1215f567958eb7d393f9b7ee5",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/meteora_position_measurements.json",
+          "present": true,
+          "current_sha256": "39315317817302c1dc51f4104c8b0e863348bf9c173dc290b4972ddd478a50dd",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/position_transport_measurements.json",
+          "present": true,
+          "current_sha256": "126074d9e4a193ebf87ce639b0e5d41037f2987405037dc5752fc6f9b124882e",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/positive_parity.json",
+          "present": true,
+          "current_sha256": "11641d39cf5338c7b3b93631ec0eee636b538df2c3e2283bbe11ec4a0e61bc8b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/protected_state_audit.json",
+          "present": true,
+          "current_sha256": "1fe13784cadb8996e4c1e0244011680767a59adf2507df458837b6d909b526d7",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/pump_position_measurements.json",
+          "present": true,
+          "current_sha256": "c1211938987d8281192add2cba8db4b87d505a3b5ef762f16ad551e650502164",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/recovery_measurements.json",
+          "present": true,
+          "current_sha256": "3a19637bc2ed91feaa36ae8d63fa0c166bbd432735d0fe2ff9bbc99afb8f87bb",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/replay_positive.py",
+          "present": true,
+          "current_sha256": "d50a29599ba960ee65c516269cece6eb37d0c1a4cdb501a2c2f85fc1127ae644",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/retirement_measurements.json",
+          "present": true,
+          "current_sha256": "8e2ff879b3b0cbf68aa2dab87d11778fd5b854a1b32ac3cd34b0459e2d4b6b45",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/simultaneous_provider.json",
+          "present": true,
+          "current_sha256": "5347e702b7e39f543099ab618aeddc42d3a4418a81f77dd2e4bad065cbdbf4eb",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/validation.json",
+          "present": true,
+          "current_sha256": "b43fb0d70e82324d182d49192534734b8a616062e90c3f0b6618e6309035a652",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/validation_logs/FAST.log.zlib",
+          "present": true,
+          "current_sha256": "fa15210d7e3008fdc72f0f146ce898b43914192fea3abd5ef40bb1ae35bd280c",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/validation_logs/OPERATIONAL.log.zlib",
+          "present": true,
+          "current_sha256": "c071ece99fb928cdf98f271453b3ed63e4c8947e5f73640f01547c2bec1e3ed0",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/validation_logs/affected-OPERATIONAL.log.zlib",
+          "present": true,
+          "current_sha256": "5355689330659652b3ba6485089f8bc9ef0586f7ba226a61edf20f640b6e1d71",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/validation_logs/focused-final.log.zlib",
+          "present": true,
+          "current_sha256": "d3841ee3fb5404c929da2544cc30c85b447e2c39f18a4941e371e665337b654b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/validation_logs/gate1-retirement-affected.log.zlib",
+          "present": true,
+          "current_sha256": "450eb9a11148aa4deb3345ff44a190b03e3f89917ea042f2e227041097c3094d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/validation_logs/manifest.json",
+          "present": true,
+          "current_sha256": "09ea8e89c81a1013ac42f22abbc98eb15d8feb27495dfef7409a4e6b4fff6316",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_closure/validation_logs/portable-measurements.log.zlib",
+          "present": true,
+          "current_sha256": "82f74787b1179af4e62eedfe78aa6fe660c4e29471cede4811d42ffc5631a663",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/README.md",
+          "present": true,
+          "current_sha256": "94cb91814e12c0005dc9e0dadd87b6cedc0d4cf8f4b9a049c961dddd8978a56f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/REPORT.md",
+          "present": true,
+          "current_sha256": "7b4ee0885223a1e7298112f14ba3d0c2bcd46e2e8dc9e3100877436dea995227",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/audit.json.gz",
+          "present": true,
+          "current_sha256": "1240dac4b3e98139edba6b6f88a169ce58bc4ac68f41c5d917024977cdc9325e",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/boundary-stacks.txt.gz",
+          "present": true,
+          "current_sha256": "e5d367dbe78de0fe3e85f01fdaeb668854fd278a3856643d01c8a2ed3f88d4ef",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/candidate.sqlite.gz",
+          "present": true,
+          "current_sha256": "875d6c8894cfb2e51ade44a2b537b1d3aad85ae1f5d3356641c748333d043a41",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/canonical.sqlite.gz",
+          "present": true,
+          "current_sha256": "d3418640bcb46e8e84eb2ac9a6d6eaf36be4570c606161b540a1515e2d0d566d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/final4-focused.log.gz",
+          "present": true,
+          "current_sha256": "61079ec65ba388e573b3c8721b1d2a10de1d3cd419db6ada8aadf2e4c220726f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/final4-github-parity.json.gz",
+          "present": true,
+          "current_sha256": "a512a97196c04b29522c2fd519ba83227e8812a8aaa96e84c3b5f82b6ee90eec",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/final4-preflight.json.gz",
+          "present": true,
+          "current_sha256": "ef2c6e70ed47248ffccfbea57dd9c0bd84514171169f46fdefb4c01baf8645be",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/http.ndjson.zlib",
+          "present": true,
+          "current_sha256": "019880f8f101ce345e656ed30715b6bf47ef7f952a273373fbeff0c35dbdf3d3",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/manifest.json",
+          "present": true,
+          "current_sha256": "fa902fe77ffaa5def5111dfb08b52037c97b83d02c9bb45cf0b82114e8dd006b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/model-b-final4-console.log.gz",
+          "present": true,
+          "current_sha256": "37c3c58c0058ef121df8fc17709048586a2d03746b4fb5678d2c62bef55fdf18",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/native-origin.json",
+          "present": true,
+          "current_sha256": "f8bb5c3229d9fb5d2321728e308aa90cf56c3d485983df306c6881b1e08988a1",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/owner-profile.log.gz",
+          "present": true,
+          "current_sha256": "feff4cdfdf6af0b76f1ef1919394233f0c7def5880b2886b68c8b5bfcc295247",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "engineering/solana_final_mixed/captures/final-476bad20/owner-stacks.raw.gz",
+          "present": true,
+          "current_sha256": "fd923dc2c36f5febfa611706ff0011f66c6a9a9d85b7c9569d9f5a14b7623d61",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        }
+      ],
+      "byte_identical_files": 96,
+      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-07T20:46:53Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "operational/pause-ramses-20261007",
+      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
+      "isDraft": false,
+      "mergedAt": "2026-10-07T15:24:06Z",
+      "number": 122,
+      "state": "MERGED",
+      "title": "Pause Ramses as a reversible operational lane",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/122",
+      "head_ancestor_of_candidate": false,
+      "file_comparison": [
+        {
+          "path": "meme_machine/operational/acceptance.py",
+          "present": true,
+          "current_sha256": "e27d26a83a96c041fd424dda96d42543f601f7f0e3b124e0e40cc5c2403df3be",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/operational/supervisor.py",
+          "present": true,
+          "current_sha256": "2f5adc32d0c3a8417afc781c16ddebd1b0e8e8a903c08cd96f58a80ce726e849",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "operational/owner-decisions/ramses-pause.md",
+          "present": true,
+          "current_sha256": "380af53d004864ff81c21c9d8ab555f5abee760b324019ee762e3243d13ef9d6",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/tests.py",
+          "present": true,
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/test_operational_ramses_pause.py",
+          "present": true,
+          "current_sha256": "39562cf68c4ce95073aa4678dfca44a2c8b5d47ca5261c2286a3c685bb89351d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        }
+      ],
+      "byte_identical_files": 1,
+      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+      "closedAt": "2026-10-07T15:24:06Z",
+      "mergeCommit": {
+        "oid": "9f08f0db68fd3161c84bb955800db9a200a70f77"
+      },
+      "updatedAt": "2026-10-07T15:24:06Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "maintenance/engineering-storage-retention-20261008",
+      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 123,
+      "state": "OPEN",
+      "title": "Bound engineering artifacts and preserve failure evidence under storage pressure",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/123",
+      "head_ancestor_of_candidate": false,
+      "file_comparison": [
+        {
+          "path": "AGENTS.md",
+          "present": true,
+          "current_sha256": "3926c5c898f45a657241b10fd22bdab63de693967d9dc041179a7b3d09296925",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/operational/artifact_storage.py",
+          "present": true,
+          "current_sha256": "24d4362f465586d08fe8f917dcf69b553d39a2b9b0c87635e5b0ae9200bce87d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/operational/backup.py",
+          "present": true,
+          "current_sha256": "9bda39a2a6ce9156a3049e8ac04e9bc10c8dcba481198f14297fd86c3d81a6cb",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/operational/digitalocean_backup.py",
+          "present": true,
+          "current_sha256": "401956acd4dd57202c119188726ea674c934a4c91ba6a9079d5d590e9b807f72",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/operational/durable_acceptance.py",
+          "present": true,
+          "current_sha256": "64410269d3128725c24ab1e4268e2497ff4623d2ef2a9697d8c53e6d34e9e0b5",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/operational/monitoring.py",
+          "present": true,
+          "current_sha256": "81ce964cf8e7e05666c2ecd2eb500a8e6453d141969ef579386fff8b3b39276b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/operational/observation.py",
+          "present": true,
+          "current_sha256": "a826431b51dc8d21fabe7df457640a91b8b2c1e66fd45998b95740f5f4cde402",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "operational/ENGINEERING_STORAGE.md",
+          "present": true,
+          "current_sha256": "6aef57ae2ceda3713e2eeba8b3e407af905c9bfea39675985aa13b4c280acd60",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/tests.py",
+          "present": true,
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/test_durable_acceptance.py",
+          "present": true,
+          "current_sha256": "9dee7842e4fbe836dcfe70f5237515ed8a4258646d6f6c21e0705ceda04a7bd2",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "tests/test_engineering_artifact_storage.py",
+          "present": true,
+          "current_sha256": "c3e08d5590c93ed2f4f2e5f7f3e6668eb4ff7baf4b445117275193e6ae19040f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "tests/test_operational_backup.py",
+          "present": true,
+          "current_sha256": "f443e7570a0a0012b935604f362703b672b7a6efc540f6a801993e8b267fd281",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "tests/test_operational_monitoring.py",
+          "present": true,
+          "current_sha256": "2a567fb4e43fa0a4ff8d43e8444aea1065a65a6f7e9a1e855bc24df92ac2eee4",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        }
+      ],
+      "byte_identical_files": 7,
+      "baseRefOid": "9f08f0db68fd3161c84bb955800db9a200a70f77",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-08T00:56:21Z"
+    },
+    {
+      "baseRefName": "engineering/exceptional-winner-candidate-20261009",
+      "headRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 124,
+      "state": "OPEN",
+      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/124",
+      "head_ancestor_of_candidate": true,
+      "file_comparison": [
+        {
+          "path": "meme_machine/lanes/pons/held_event_coverage.py",
+          "present": true,
+          "current_sha256": "d1c5048adb6496e3bd9450dac65ccb43f9bfdf78d69d2e7c6269b7044e3704cc",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/held_quote_wakeup.py",
+          "present": true,
+          "current_sha256": "c007d3297dadc1b1a7e19ae7f8967ca2bb328a5fed7660478fc74b95f1d4c5e7",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/lanes/pons/pons_quotes.py",
+          "present": true,
+          "current_sha256": "7e425bd27b0343fcbff50ab24982c54ffc06a89eb0765cb23456fc2ab21d5fef",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "present": true,
+          "current_sha256": "920903b325ed16f803c437f76d48978148ccf31c7d00117024152d27d8f34e5f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "present": true,
+          "current_sha256": "0a2ef9026b1d48e6d2715fc04de56f44019193b9e8ca3d4833124ec6d8cefe9d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "operational/pons-held-efficiency/HANDOFF.md",
+          "present": true,
+          "current_sha256": "c3ac36ffea79d497c2151da31724f1e7d23743594f5dc9b0da095a0555d23ec8",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/pons-held-efficiency/LIVE_COST_OBSERVATION_20261009.md",
+          "present": true,
+          "current_sha256": "736a0edb36deefb3ac2ec1cfa585ef75358d283c4465f4562a235e1cb994cb2a",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/tests.py",
+          "present": true,
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/test_pons_held_quote_wakeup.py",
+          "present": true,
+          "current_sha256": "77af9dcaf9378b80fb891e21fc3a75da663a62768163c753c8aeee993730c94b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        }
+      ],
+      "byte_identical_files": 4,
+      "baseRefOid": "743dcd9df2902941d3f3d6e4204d15f7469bba79",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T03:55:38Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
+      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 125,
+      "state": "CLOSED",
+      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/125",
+      "head_ancestor_of_candidate": false,
+      "file_comparison": [
+        {
+          "path": "meme_machine/lanes/pump/postgrad.py",
+          "present": true,
+          "current_sha256": "d45c228067833ebcc498721c829a00e16eb8896bdfc36a2cda4dbc3db024eee5",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+          "present": true,
+          "current_sha256": "1a4e04f9b89a959cb5f544d9207ec0885dfc32c72a0e09fd6f6fc35806e60c5c",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "operational/pump-held-vault-snapshot/HANDOFF.md",
+          "present": false,
+          "current_sha256": null,
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/lanes/pump/test_postgrad.py",
+          "present": true,
+          "current_sha256": "affa91e2f2f9712dc79e0de48b2962b907ed90a64c03cca0ca31174aa118cfc9",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        }
+      ],
+      "byte_identical_files": 0,
+      "baseRefOid": "cc5f45a0e04a86198a424681e2fbe125d29c2fef",
+      "closedAt": "2026-10-09T04:25:26Z",
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T04:25:26Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
+      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 126,
+      "state": "OPEN",
+      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/126",
+      "head_ancestor_of_candidate": true,
+      "file_comparison": [
+        {
+          "path": ".github/workflows/pump-held-paper-offline-proof.yml",
+          "present": true,
+          "current_sha256": "0f069b16c11965f4631120d18d1e8d7163a535e1d962d2b06143392e4e19872e",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/lanes/pump/postgrad.py",
+          "present": true,
+          "current_sha256": "d45c228067833ebcc498721c829a00e16eb8896bdfc36a2cda4dbc3db024eee5",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/lanes/pump/provider.py",
+          "present": true,
+          "current_sha256": "13555d0926b31410c33232188733d3e3d6cf0c4c95d75c037dc4d538f61d2d52",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+          "present": true,
+          "current_sha256": "1a4e04f9b89a959cb5f544d9207ec0885dfc32c72a0e09fd6f6fc35806e60c5c",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/runner.py",
+          "present": true,
+          "current_sha256": "e6275d1767cdd0f2476c6f9ceb1fe2693d77184e5a5ccbe044870710108092bf",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/operational/supervisor.py",
+          "present": true,
+          "current_sha256": "2f5adc32d0c3a8417afc781c16ddebd1b0e8e8a903c08cd96f58a80ce726e849",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "operational/pump-request-efficiency/HANDOFF.md",
+          "present": true,
+          "current_sha256": "92f8b80219711693d1fc0517bbf81ecb798f5bac8a96a7e6ba072716dc227105",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/pump-request-efficiency/PAPER_LIVE_TEST.md",
+          "present": true,
+          "current_sha256": "c3bd884ae8784b75513e1878fa717dc5adfea497993b381ab7e0978c75cec128",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/tests.py",
+          "present": true,
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/lanes/pump/test_postgrad_read_efficiency.py",
+          "present": true,
+          "current_sha256": "23834a2f7f01300e44dbaadacb6df5fb3de98e92c95aa1aed982463e1eea1b82",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        }
+      ],
+      "byte_identical_files": 5,
+      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T05:27:34Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pons-event-driven-paper-20261009",
+      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 127,
+      "state": "OPEN",
+      "title": "Pons event-driven held-position PAPER shadow with native exit preservation",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/127",
+      "head_ancestor_of_candidate": true,
+      "file_comparison": [
+        {
+          "path": "meme_machine/lanes/pons/held_event_coverage.py",
+          "present": true,
+          "current_sha256": "d1c5048adb6496e3bd9450dac65ccb43f9bfdf78d69d2e7c6269b7044e3704cc",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/lanes/pons/held_paper_shadow.py",
+          "present": true,
+          "current_sha256": "8cc7830a8b54c235069175c128453caf23ad5b193efa90533a80fa55174477d3",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "present": true,
+          "current_sha256": "920903b325ed16f803c437f76d48978148ccf31c7d00117024152d27d8f34e5f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "present": true,
+          "current_sha256": "0a2ef9026b1d48e6d2715fc04de56f44019193b9e8ca3d4833124ec6d8cefe9d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/provider_admission.py",
+          "present": true,
+          "current_sha256": "166b2344ced2399f28af0083b951d72bf084f8be748bdaa99e4425e82dbe4891",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "operational/pons-held-efficiency/PAPER_SHADOW_RUNBOOK.md",
+          "present": true,
+          "current_sha256": "71bfce6a725acbaeb8849f982d7265f083141dce19a6d94c736c337cc60b6eeb",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/tests.py",
+          "present": true,
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/test_pons_held_paper_shadow.py",
+          "present": true,
+          "current_sha256": "ce63a255cff7e953ace497ed99061faef43abe42c61a1bceae50da414bf1ccec",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        }
+      ],
+      "byte_identical_files": 2,
+      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T04:50:39Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "headRefOid": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 128,
+      "state": "OPEN",
+      "title": "Integrate PRs #126 + #127 for next-start live PAPER testing (no host deploy)",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/128",
+      "head_ancestor_of_candidate": true,
+      "file_comparison": [
+        {
+          "path": ".github/workflows/pump-held-paper-offline-proof.yml",
+          "present": true,
+          "current_sha256": "0f069b16c11965f4631120d18d1e8d7163a535e1d962d2b06143392e4e19872e",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "deployment/pump-pons-live-paper.conf",
+          "present": true,
+          "current_sha256": "f1177bcb34b58e66e41b8a6d73d032eadb73ae7575d88e828cc4cdd99397c4e2",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "deployment/pump-pons-live-paper.env.example",
+          "present": true,
+          "current_sha256": "fabb06a2357ce61df3071dbca5edbfbf3f22049043163efcb285d4583f78eb8b",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/held_event_coverage.py",
+          "present": true,
+          "current_sha256": "d1c5048adb6496e3bd9450dac65ccb43f9bfdf78d69d2e7c6269b7044e3704cc",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/lanes/pons/held_paper_shadow.py",
+          "present": true,
+          "current_sha256": "8cc7830a8b54c235069175c128453caf23ad5b193efa90533a80fa55174477d3",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "present": true,
+          "current_sha256": "920903b325ed16f803c437f76d48978148ccf31c7d00117024152d27d8f34e5f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "present": true,
+          "current_sha256": "0a2ef9026b1d48e6d2715fc04de56f44019193b9e8ca3d4833124ec6d8cefe9d",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pons/provider_admission.py",
+          "present": true,
+          "current_sha256": "166b2344ced2399f28af0083b951d72bf084f8be748bdaa99e4425e82dbe4891",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/postgrad.py",
+          "present": true,
+          "current_sha256": "d45c228067833ebcc498721c829a00e16eb8896bdfc36a2cda4dbc3db024eee5",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "meme_machine/lanes/pump/provider.py",
+          "present": true,
+          "current_sha256": "13555d0926b31410c33232188733d3e3d6cf0c4c95d75c037dc4d538f61d2d52",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+          "present": true,
+          "current_sha256": "1a4e04f9b89a959cb5f544d9207ec0885dfc32c72a0e09fd6f6fc35806e60c5c",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/lanes/pump/runner.py",
+          "present": true,
+          "current_sha256": "e6275d1767cdd0f2476c6f9ceb1fe2693d77184e5a5ccbe044870710108092bf",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "meme_machine/operational/supervisor.py",
+          "present": true,
+          "current_sha256": "2f5adc32d0c3a8417afc781c16ddebd1b0e8e8a903c08cd96f58a80ce726e849",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/pons-held-efficiency/PAPER_SHADOW_RUNBOOK.md",
+          "present": true,
+          "current_sha256": "71bfce6a725acbaeb8849f982d7265f083141dce19a6d94c736c337cc60b6eeb",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/pump-pons-live-paper/HANDOFF.md",
+          "present": true,
+          "current_sha256": "3731d8fafd32bcbc7bdde06a1a1502cdd58ad0bf2d65e4b235dbbc170a37f701",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "operational/pump-request-efficiency/HANDOFF.md",
+          "present": true,
+          "current_sha256": "92f8b80219711693d1fc0517bbf81ecb798f5bac8a96a7e6ba072716dc227105",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/pump-request-efficiency/PAPER_LIVE_TEST.md",
+          "present": true,
+          "current_sha256": "c3bd884ae8784b75513e1878fa717dc5adfea497993b381ab7e0978c75cec128",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "operational/tests.py",
+          "present": true,
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/lanes/pump/test_postgrad_read_efficiency.py",
+          "present": true,
+          "current_sha256": "23834a2f7f01300e44dbaadacb6df5fb3de98e92c95aa1aed982463e1eea1b82",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        },
+        {
+          "path": "tests/test_pons_held_paper_shadow.py",
+          "present": true,
+          "current_sha256": "ce63a255cff7e953ace497ed99061faef43abe42c61a1bceae50da414bf1ccec",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": false
+        },
+        {
+          "path": "tests/test_pump_pons_live_paper_integration.py",
+          "present": true,
+          "current_sha256": "d4667fe195a4463d7ab554f6b2601eb9d7f70c67bf740c917b3b31d224f47341",
+          "pr_head_blob_available": true,
+          "byte_identical_to_pr_head": true
+        }
+      ],
+      "byte_identical_files": 10,
+      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T05:31:52Z"
+    }
+  ],
+  "new_native_integration": {
+    "survivor": "Ordered native frame, exact-quantity exit sharing, prioritized compatible pending cohorts then ordinary owners; generic canonical proof unchanged.",
+    "current": "Complete conditional independent-owner sharing and held/entry priority separation",
+    "governor": "Production remains 2 RPS; explicit offline-only bounded rate/resource profiles and opportunistic protective phase, earlier/equal-deadline priority and expiry.",
+    "deployment": "none",
+    "source_commits": [
+      "c0621384c653c211b333045658c9d02402ed5900",
+      "4519476adf85fc1563e1dcd547e3f0395ab9e1af",
+      "e454af49aa66c05565675095dc61690dfd08006f",
+      "2ec2fff25245e774d68005a175467ea84127cc32",
+      "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "286626b6e7c5c9e53af94afb5e28eb608fac3715"
+    ]
+  },
+  "runtime_unchanged_since": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "prior_frozen_candidate_source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "pr129_baseline": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
+  "latest_public_inventory": [
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
+      "headRefName": "repair/observation-qualification-history-20261006",
+      "headRefOid": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
+      "isDraft": false,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 120,
+      "state": "OPEN",
+      "title": "Repair candidate qualification, retention and ordered Solana history",
+      "updatedAt": "2026-10-06T23:56:32Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
+      "headRefName": "repair/final-alchemy-solana-20261007",
+      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 121,
+      "state": "OPEN",
+      "title": "Solana evidence: rolling prewarm startup and bounded provider proof",
+      "updatedAt": "2026-10-07T20:46:53Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": "2026-10-07T15:24:06Z",
+      "headRefName": "operational/pause-ramses-20261007",
+      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
+      "isDraft": false,
+      "mergeCommit": {
+        "oid": "9f08f0db68fd3161c84bb955800db9a200a70f77"
+      },
+      "mergedAt": "2026-10-07T15:24:06Z",
+      "number": 122,
+      "state": "MERGED",
+      "title": "Pause Ramses as a reversible operational lane",
+      "updatedAt": "2026-10-07T15:24:06Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
+      "headRefName": "maintenance/engineering-storage-retention-20261008",
+      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 123,
+      "state": "OPEN",
+      "title": "Bound engineering artifacts and preserve failure evidence under storage pressure",
+      "updatedAt": "2026-10-08T00:56:21Z"
+    },
+    {
+      "baseRefName": "engineering/exceptional-winner-candidate-20261009",
+      "closedAt": null,
+      "headRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 124,
+      "state": "OPEN",
+      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard",
+      "updatedAt": "2026-10-09T03:55:38Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": "2026-10-09T04:25:26Z",
+      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
+      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 125,
+      "state": "CLOSED",
+      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)",
+      "updatedAt": "2026-10-09T04:25:26Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": null,
+      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
+      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 126,
+      "state": "OPEN",
+      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode",
+      "updatedAt": "2026-10-09T05:27:34Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": null,
+      "headRefName": "engineering/pons-event-driven-paper-20261009",
+      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 127,
+      "state": "OPEN",
+      "title": "Pons event-driven held-position PAPER shadow with native exit preservation",
+      "updatedAt": "2026-10-09T04:50:39Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": null,
+      "headRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "headRefOid": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "isDraft": false,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 128,
+      "state": "OPEN",
+      "title": "Integrate PRs #126 + #127 for next-start live PAPER testing (no host deploy)",
+      "updatedAt": "2026-10-09T05:31:52Z"
+    },
+    {
+      "baseRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "closedAt": null,
+      "headRefName": "integration/pump-pons-efficiency-rc-20261009",
+      "headRefOid": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 129,
+      "state": "OPEN",
+      "title": "Pump/Pons native acquisition consolidation and protection capacity finalization",
+      "updatedAt": "2026-10-10T11:19:53Z"
+    }
+  ],
+  "file_comparison_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "file_comparison_scope": "Frozen code candidate Git blobs; report publication changes excluded. Comparisons regenerated after runtime finalization, not inherited predecessor hashes.",
+  "native_pons_runtime_unchanged_since": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+  "latest_runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "inventory_scope": "Read-only snapshot immediately before publishing final PR129 successor; no merges or older branch replay."
+}

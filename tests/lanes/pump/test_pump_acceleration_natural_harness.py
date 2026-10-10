@@ -85,7 +85,8 @@ class ReservationClockRegression(unittest.TestCase):
         pending={};report={'qualifiers':[]}
         with patch.object(prospective.time,'time',return_value=107), \
                 patch.object(prospective,'PumpAccelerationPaperLifecycle') as life, \
-                patch.object(prospective,'ACCOUNTING',None):
+                patch.object(prospective,'ACCOUNTING',None), \
+                patch.object(prospective,'FILL_PERSISTENCE_CONTEXT',None):
             prospective._reserve_position(report,pending,{},signal,q,{'available_time':100,'slot':1},prospective.MODE_POSTGRAD)
         row=report['qualifiers'][0]
         self.assertEqual(row['reserved_at'],107)
