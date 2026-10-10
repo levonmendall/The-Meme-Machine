@@ -294,8 +294,31 @@ class Admission:
         db.close()
     def connect(self):
         db=sqlite3.connect(self.path,timeout=10,isolation_level=None)
-        db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
-        return db
+        try:
+            # Established WAL connections need no journal-mode write. Two
+            # owners opening a new ledger can race its initial mode change;
+            # SQLite may return BUSY immediately despite the connection timeout.
+            # Retry only that local setup, never a provider purchase or commit.
+            setup_until=time.perf_counter()+10
+            for attempt in range(10):
+                try:
+                    mode=db.execute('PRAGMA journal_mode').fetchone()[0]
+                    if mode!='wal':mode=db.execute('PRAGMA journal_mode=WAL').fetchone()[0]
+                    if mode!='wal':raise BoundaryError('provider_ledger_wal_required')
+                    break
+                except sqlite3.OperationalError as error:
+                    if (getattr(error,'sqlite_errorcode',None)!=sqlite3.SQLITE_BUSY
+                            or attempt==9 or time.perf_counter()+.005>=setup_until):raise
+                    time.sleep(.005)
+                    # The attempts share the existing ten-second setup budget;
+                    # a retry cannot acquire a new ten-second busy wait.
+                    db.execute('PRAGMA busy_timeout='+str(max(0,int((setup_until-time.perf_counter())*1000))))
+            if attempt:db.execute('PRAGMA busy_timeout=10000')
+            db.execute('PRAGMA synchronous=FULL')
+            return db
+        except BaseException:
+            db.close()
+            raise
     def acquire(self,scope,deadline=None,*,methods=None):
         from meme_machine.operational.position_continuation import position_only
         if (_decision_priority.get() or 0)>=20 and not _position_work.get() and position_only():

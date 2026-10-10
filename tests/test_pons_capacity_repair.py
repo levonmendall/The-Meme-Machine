@@ -2,7 +2,9 @@
 from dataclasses import replace
 import json
 from pathlib import Path
+import sqlite3
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -11,6 +13,114 @@ from meme_machine.lanes.pons.provider_admission import Admission,OfflineProfile,
 from tests import test_pons_protective_capacity as capacity
 
 BASE='ed7b3c6616c59bfce21e96097d175ed3212214c2'
+
+
+class GovernorConnectionTests(unittest.TestCase):
+    def governor(self,path):
+        governor=Admission.__new__(Admission);governor.path=path
+        return governor
+
+    def test_new_shared_ledger_busy_mode_change_retries_and_keeps_full_durability(self):
+        original=sqlite3.connect;busy=threading.Event();opened=[];closed=[];result={}
+        class Tracked(sqlite3.Connection):
+            def execute(self,sql,*args,**kwargs):
+                try:return super().execute(sql,*args,**kwargs)
+                except sqlite3.OperationalError as error:
+                    if error.sqlite_errorcode==sqlite3.SQLITE_BUSY:busy.set()
+                    raise
+            def close(self):closed.append(self);return super().close()
+        def connect(*args,**kwargs):
+            kwargs.update(timeout=0,factory=Tracked)
+            db=original(*args,**kwargs);opened.append(db);return db
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'shared.sqlite';writer=original(path,isolation_level=None)
+            self.addCleanup(writer.close)
+            writer.execute('CREATE TABLE retained(value TEXT)')
+            writer.execute("INSERT INTO retained VALUES('unchanged')")
+            writer.execute('BEGIN IMMEDIATE')
+            def reopen():
+                try:
+                    db=self.governor(path).connect()
+                    try:
+                        result.update(mode=db.execute('PRAGMA journal_mode').fetchone()[0],
+                            synchronous=db.execute('PRAGMA synchronous').fetchone()[0],
+                            value=db.execute('SELECT value FROM retained').fetchone()[0])
+                    finally:db.close()
+                except BaseException as error:result['error']=error
+            with patch('sqlite3.connect',side_effect=connect):
+                worker=threading.Thread(target=reopen);worker.start()
+                try:self.assertTrue(busy.wait(2),'real WAL-mode contention was not reproduced')
+                finally:writer.execute('ROLLBACK')
+                worker.join(2);self.assertFalse(worker.is_alive())
+            self.assertNotIn('error',result)
+            self.assertEqual(result,dict(mode='wal',synchronous=2,value='unchanged'))
+            self.assertEqual(closed,opened)
+
+    def test_existing_wal_connection_never_reissues_journal_mode_write(self):
+        original=sqlite3.connect;statements=[]
+        class Tracked(sqlite3.Connection):
+            def execute(self,sql,*args,**kwargs):
+                statements.append(sql);return super().execute(sql,*args,**kwargs)
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'shared.sqlite';first=self.governor(path).connect();first.close()
+            with patch('sqlite3.connect',side_effect=lambda *a,**kw:original(*a,**kw,factory=Tracked)):
+                db=self.governor(path).connect()
+                try:self.assertEqual(db.execute('PRAGMA synchronous').fetchone()[0],2)
+                finally:db.close()
+            self.assertNotIn('PRAGMA journal_mode=WAL',statements)
+
+    def test_persistent_busy_is_bounded_propagated_and_failed_connection_closed(self):
+        original=sqlite3.connect;opened=[];closed=[];busy=[]
+        class Tracked(sqlite3.Connection):
+            def execute(self,sql,*args,**kwargs):
+                if sql.startswith('PRAGMA busy_timeout='):sql='PRAGMA busy_timeout=0'
+                try:return super().execute(sql,*args,**kwargs)
+                except sqlite3.OperationalError as error:
+                    if error.sqlite_errorcode==sqlite3.SQLITE_BUSY:busy.append(sql)
+                    raise
+            def close(self):closed.append(self);return super().close()
+        def connect(*args,**kwargs):
+            kwargs.update(timeout=0,factory=Tracked)
+            db=original(*args,**kwargs);opened.append(db);return db
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'shared.sqlite';writer=original(path,isolation_level=None)
+            try:
+                writer.execute('CREATE TABLE retained(value TEXT)');writer.execute('BEGIN IMMEDIATE')
+                with patch('sqlite3.connect',side_effect=connect):
+                    with self.assertRaises(sqlite3.OperationalError) as raised:self.governor(path).connect()
+                self.assertEqual(raised.exception.sqlite_errorcode,sqlite3.SQLITE_BUSY)
+                self.assertEqual(len(busy),10);self.assertEqual(closed,opened)
+            finally:writer.close()
+
+    def test_setup_retries_cannot_extend_the_existing_total_busy_wait(self):
+        original=sqlite3.connect;closed=[];attempts=[]
+        class Tracked(sqlite3.Connection):
+            def execute(self,sql,*args,**kwargs):
+                attempts.append(sql)
+                error=sqlite3.OperationalError('original-timeout');error.sqlite_errorcode=sqlite3.SQLITE_BUSY
+                raise error
+            def close(self):closed.append(self);return super().close()
+        with tempfile.TemporaryDirectory() as td:
+            with patch('sqlite3.connect',side_effect=lambda *a,**kw:original(*a,**kw,factory=Tracked)),\
+                    patch('time.perf_counter',side_effect=[0,10]),patch('time.sleep') as sleep:
+                with self.assertRaisesRegex(sqlite3.OperationalError,'original-timeout'):
+                    self.governor(Path(td)/'shared.sqlite').connect()
+            self.assertEqual(len(attempts),1);self.assertEqual(len(closed),1);sleep.assert_not_called()
+
+    def test_nonbusy_setup_failure_is_not_retried_and_connection_closed(self):
+        original=sqlite3.connect;opened=[];closed=[];attempts=[]
+        class Tracked(sqlite3.Connection):
+            def execute(self,sql,*args,**kwargs):
+                attempts.append(sql)
+                error=sqlite3.OperationalError('original-io-failure');error.sqlite_errorcode=sqlite3.SQLITE_IOERR
+                raise error
+            def close(self):closed.append(self);return super().close()
+        def connect(*args,**kwargs):
+            db=original(*args,**kwargs,factory=Tracked);opened.append(db);return db
+        with tempfile.TemporaryDirectory() as td,patch('sqlite3.connect',side_effect=connect):
+            with self.assertRaisesRegex(sqlite3.OperationalError,'original-io-failure'):
+                self.governor(Path(td)/'shared.sqlite').connect()
+            self.assertEqual(len(attempts),1);self.assertEqual(closed,opened)
 
 
 class ExitCapacityRepairTests(unittest.TestCase):

@@ -198,7 +198,9 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     for i,path in enumerate(paths)]
                 def waiting():
                     for f in futures:
-                        if f.done():self.fail('native recovery terminated: '+repr(f.exception() or f.result()))
+                        if f.done():
+                            error=f.exception()
+                            raise AssertionError('native recovery terminated: '+repr(error or f.result())) from error
                     return pool.telemetry()['active_physical_workers']==0 and len(sessions)==count+bool(survivor_count)
                 self.wait_for(waiting)
                 turn_wall=time.perf_counter();turn_cpu=time.process_time()
