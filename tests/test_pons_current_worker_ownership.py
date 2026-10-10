@@ -32,7 +32,9 @@ class CurrentWorkerOwnershipTests(unittest.TestCase):
         quote=PartialAccountingTests().quote;providers=[]
         def provider(*args):
             from meme_machine.runtime.provider_purchases import work_label
+            from meme_machine.lanes.pons.provider_admission import priority
             self.assertEqual(work_label()['operation'],'pons_current_qualification')
+            self.assertEqual(priority('pons_paper'),5)
             rpc=MagicMock();rpc.used=0;rpc.telemetry.return_value={};providers.append(rpc);return rpc
         def buy(*args,**kw):return replace(quote(102,'buy',100,1000),market=args[1]['curve']),dict(block=102,block_hash='h102',event_at=102),None
         with tempfile.TemporaryDirectory() as td,ExitStack() as stack:

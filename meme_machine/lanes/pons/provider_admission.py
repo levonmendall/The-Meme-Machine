@@ -49,6 +49,17 @@ def foreground_work(function):
     return wrapped
 
 
+@contextmanager
+def native_lifecycle_work(*,held):
+    """Entry probing cannot inherit held-position priority from its controller."""
+    position_token=_position_work.set(bool(held))
+    decision_token=_decision_priority.set(0 if held else 5)
+    try:yield
+    finally:
+        _decision_priority.reset(decision_token)
+        _position_work.reset(position_token)
+
+
 def decision_work(priority_class):
     if priority_class not in range(6):raise ValueError('candidate_priority_class')
     def decorate(function):

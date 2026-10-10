@@ -602,8 +602,11 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
             from meme_machine.runtime.robinhood.plane import project_native_position
             project_native_position(path,'pons',evaluation['candidate_broker_identity'],position,
                 ledger_path=db_path,policy=POLICY_HASH)
-    state=None;purchase_scope=None
+    state=None;purchase_scope=None;priority_scope=None
     try:
+        from .provider_admission import native_lifecycle_work
+        priority_scope=native_lifecycle_work(held=_recovery is not None)
+        priority_scope.__enter__()
         purchase_scope=provider_work('pons_current_qualification' if _recovery is None else 'recovery_restart',
             family='pons',consumer='current',purpose='qualification' if _recovery is None else 'recovery_restart')
         purchase_scope.__enter__()
@@ -855,6 +858,9 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
             result.update(lifecycle_id=identity,resumed=True,entry_authority=False)
 
         purchase_scope.__exit__(None,None,None)
+        priority_scope.__exit__(None,None,None)
+        priority_scope=native_lifecycle_work(held=True)
+        priority_scope.__enter__()
         purchase_scope=provider_work('pons_held_protection',family='pons',consumer='current',purpose='held_protection')
         purchase_scope.__enter__()
 
@@ -892,13 +898,36 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 # Private in-process scheduling data, never durable telemetry.
                 # Rotation/authentication completed before this boundary.
                 wait['continued_session']=dict(position=identity,endpoint=endpoint,rpc=rpc._current)
+                from .pons_current_history import active_history
+                from .pons_current_workers import held_acquisition_request
+                wait['acquisition_request']=held_acquisition_request(endpoint,rpc,active_history(),
+                    paper._get(identity),state,gas_units,evaluation['token'])
                 if _first_monitor_due is not None:
                     wait['due_at']=_first_monitor_due;_first_monitor_due=None
-                if (yield wait)=='handoff':
+                command=yield wait
+                if command=='handoff':
                     result.update(status='handoff_required',entry_authority=False)
                     break
-                header=_latest_header(rpc)
-                quote_head_at=time.monotonic()
+                acquisition=command.get('acquisition') if isinstance(command,dict) else None
+                if isinstance(command,dict) and command.get('acquisition_failed'):
+                    if 'canonical' in command.get('boundary',''):
+                        history=active_history()
+                        if history is not None:
+                            history.invalidate(paper._get(identity)['market'],'pons_current_shared_canonical_failure')
+                            history.v4_header_cache={}
+                    raise BoundaryError('provider_transport_failure')
+                if acquisition is not None:
+                    from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+                    if (acquisition['position_hash']!=digest(paper._get(identity))
+                            or acquisition['provider_fingerprint']!=rpc.provider_fingerprint
+                            or acquisition['source_generation']!=shared_evidence_domain(endpoint)
+                            or time.monotonic()>acquisition['deadline']
+                            or not 0<=time.monotonic()-acquisition['acquired']<=5):
+                        raise BoundaryError('provider_transport_failure')
+                    header=acquisition['header'];quote_head_at=acquisition['acquired']
+                else:
+                    header=_latest_header(rpc)
+                    quote_head_at=time.monotonic()
                 block=int(header["number"],16)
                 position=paper._get(identity)
                 elapsed=int(time.time())-state.opened_at
@@ -1156,11 +1185,19 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                         break
 
                 position=paper._get(identity)
-                mark,meta,ledger=_v4_quote(
-                    rpc,state.v4_key,position["market"],position["tokens"],gas_units,store,
-                    "selective-v4-mark-"+str(position['version']),
-                    local_freshness=True,fresh_head=(header,quote_head_at),
-                )
+                if acquisition is None:
+                    mark,meta,ledger=_v4_quote(
+                        rpc,state.v4_key,position["market"],position["tokens"],gas_units,store,
+                        "selective-v4-mark-"+str(position['version']),
+                        local_freshness=True,fresh_head=(header,quote_head_at),
+                    )
+                else:
+                    from .pons_quotes import native_v4_quote
+                    # Parse into THIS native owner's evidence store/finality
+                    # scope. Neutral sharing carries no accounting connection.
+                    mark,meta,ledger=native_v4_quote(acquisition['reads'],state.v4_key,
+                        position['market'],position['tokens'],gas_units,store,
+                        'selective-v4-mark-'+str(position['version']),local_freshness=True)
                 rbps=_position_return_bps(position,mark)
                 current_header=dict(
                     number=hex(int(meta["block"])),hash=meta["block_hash"],
@@ -1180,7 +1217,8 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                     from .pons_selective_v4 import rolling_position_activity
                     activity=rolling_position_activity(endpoint,rpc=rpc,history=history,pool_id=position['market'],
                         key=state.v4_key,token=evaluation['token'],header=current_header,
-                        seconds=min(15,max(0,mark.stamp.event_at-state.graduation_at)),preholder_groups=state.preholders)
+                        seconds=min(15,max(0,mark.stamp.event_at-state.graduation_at)),preholder_groups=state.preholders,
+                        prepared=acquisition['history'] if acquisition is not None else None)
                 result["provider_sessions"].extend(activity.pop("provider_sessions"))
                 buyers=set(activity["buyer_groups"])
                 growth=len(buyers-state.seen_v4_buyers)
@@ -1381,6 +1419,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 result["held_paper_shadow"]=held_shadow.status()
             finally:
                 if purchase_scope is not None:purchase_scope.__exit__(None,None,None)
+                if priority_scope is not None:priority_scope.__exit__(None,None,None)
 
 
 def _continuation_facts(position,mark,meta,candidate,rbps,*,demand,soft_streak,action):

@@ -15,6 +15,90 @@ import time
 from . import BoundaryError
 
 
+def held_acquisition_request(endpoint,rpc,history,position,state,gas_units,token):
+    """Copy neutral obligations on the native owner's SQLite thread."""
+    from copy import deepcopy
+    from meme_machine.runtime.journal import digest
+    if (history is None or state.transition is None or not state.post_grad_checked
+            or state.pending_action is not None or position['status']!='open'):
+        return None
+    raw=getattr(rpc,'_current',rpc);resources=getattr(raw,'shared_quote_resources',None)
+    if not isinstance(resources,dict) or resources.get('validated') is not True:return None
+    checkpoint=history.get(position['market'])
+    if checkpoint is None:return None
+    retained=history.v4_window_candidates(position['market'],max(0,checkpoint['through']-15))
+    if len(retained)>2048:return None  # private native path, not an admission veto
+    return dict(identity=position['id'],position_hash=digest(position),rpc=raw,endpoint=endpoint,
+        provider_fingerprint=getattr(raw,'provider_fingerprint',None),source_generation=history.source_generation,
+        key=state.v4_key,pool_id=position['market'],amount=position['tokens'],gas_units=gas_units,token=token,
+        checkpoint=deepcopy(checkpoint),retained=deepcopy(retained),preholders=tuple(state.preholders),side='sell')
+
+
+def acquire_current_owners(requests,deadline):
+    """The existing quote/range adapters, without moving native connections."""
+    from .provider_admission import position_work
+    from meme_machine.runtime.provider_purchases import attributed_work
+    @position_work
+    @attributed_work('pons_held_protection',consumer='current')
+    def acquire():
+        from .pons_quotes import shared_v4_quotes
+        from .pons_selective_v4 import collect_v4_activities
+        from .pons_selective_acquisition import SelectiveEvidenceContext
+        from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+        rpc=requests[0]['rpc'];endpoint=requests[0]['endpoint'];prepared={}
+        def history(header,state_calls):
+            top=int(header['number'],16);at=int(header['timestamp'],16);cutoff=max(0,at-15)
+            expected={top:header['hash']}
+            for r in requests:
+                old=r['checkpoint']
+                if (r['source_generation']!=shared_evidence_domain(endpoint)
+                        or not old['from_time']<=cutoff<old['through']
+                        or not 0<=top-old['block']<=40):
+                    raise BoundaryError('pons_current_shared_history_incomplete')
+                if old['block'] in expected and expected[old['block']]!=old['block_hash']:
+                    raise BoundaryError('pons_current_shared_checkpoint_conflict')
+                expected[old['block']]=old['block_hash']
+                older=[e for e in r['retained'] if e['event_at']<=cutoff]
+                boundary=max((e['block'] for e in older),default=None)
+                if boundary is not None and boundary<top:expected.setdefault(boundary+1,None)
+            context=SelectiveEvidenceContext(endpoint);context.rpc=rpc;context.deadline=rpc.evidence_deadline
+            start=min(r['checkpoint']['block'] for r in requests)+1;values=[]
+            if start>top:
+                values=rpc.batch(state_calls,scope='pons_paper')
+                pins=getattr(rpc,'evidence_pins',{});rpc.evidence_pins={}
+                try:members=rpc.batch([('eth_getBlockByNumber',[hex(n),False])
+                    for n in sorted(expected)],scope='pons_selective_v4')
+                finally:rpc.evidence_pins=pins
+                headers=dict(zip(sorted(expected),members))
+                if len(headers)!=len(expected) or any(h.get('number')!=hex(n) or not h.get('hash') or
+                        expected[n] is not None and h.get('hash')!=expected[n] for n,h in headers.items()):
+                    raise BoundaryError('pons_current_shared_membership')
+                tapes={r['token']:dict(swaps=[],provider_sessions=[]) for r in requests}
+            else:
+                tapes,headers=collect_v4_activities(endpoint,markets=[dict(pool_id=r['pool_id'],
+                    key=r['key'],token=r['token'],preholder_groups=r['preholders']) for r in requests],
+                    start_block=start,end_block=top,evidence_context=context,canonical_targets=expected,
+                    return_headers=True,initial_calls=state_calls,initial_values=values)
+            for r in requests:
+                tape=dict(tapes[r['token']]);old=r['checkpoint']
+                tape['swaps']=[e for e in tape['swaps'] if e['block']>old['block']]
+                if any(e['event_at']<old['through'] for e in tape['swaps']):
+                    raise BoundaryError('pons_current_shared_history_time_regression')
+                # Physical purchase telemetry belongs to the acquisition owner,
+                # not N logical consumers; it is never summed N times.
+                tape['provider_sessions']=[]
+                prepared[r['identity']]=dict(checkpoint=old,source_generation=r['source_generation'],
+                    headers=headers,header=header,tape=tape)
+            return headers,values
+        quotes=shared_v4_quotes(rpc,requests,deadline_seconds=5,prepare_history=history,deadline_at=deadline)
+        for r,q in zip(requests,quotes):
+            prepared[r['identity']]['acquired']=q['acquired']
+            q.update(position_hash=r['position_hash'],provider_fingerprint=r['provider_fingerprint'],
+                source_generation=r['source_generation'],history=prepared[r['identity']],deadline=deadline)
+        return dict(zip((r['identity'] for r in requests),quotes))
+    return acquire()
+
+
 class LifecyclePool:
     def __init__(self,*,max_workers=8,clock=None,wait_for_due=None):
         if not 1<=max_workers<=8:raise ValueError('current_physical_worker_limit')
@@ -26,7 +110,8 @@ class LifecyclePool:
         self.started=set();self.sequence=0;self.entries=0;self.closing=False
         self.counts=dict(owners=0,peak_owners=0,active_physical_workers=0,peak_physical_workers=0,
             protection_turns=0,late_protection_turns=0,max_queue_age_seconds=0.,
-            active_entry_workers=0,peak_entry_workers=0,entry_owner_handoffs=0)
+            active_entry_workers=0,peak_entry_workers=0,entry_owner_handoffs=0,
+            shared_acquisitions=0,shared_consumers=0,shared_failures=0)
 
     def entry_capacity_available(self):
         with self.lock:
@@ -119,6 +204,29 @@ class LifecyclePool:
         heapq.heappush(self.workers[index]['queue'],
             (owner['due'],0 if owner['pending_exit'] else 1,owner['sequence'],owner))
 
+    def _claim_acquisition(self,owner,now):
+        """Called under the pool lock; never waits to form a cohort."""
+        if owner.get('acquisition_future') is not None:return owner['acquisition_future'],None
+        request=owner.get('acquisition_request')
+        if request is None or owner['pending_exit']:return None,None
+        key=(request['provider_fingerprint'],request['source_generation'])
+        selected=[owner]
+        for worker in self.workers:
+            for due,_,_,other in sorted(worker['queue'],key=lambda row:row[:3]):
+                r=other.get('acquisition_request')
+                if (due<=now and not other['pending_exit'] and r is not None
+                        and other.get('acquisition_future') is None
+                        and (r['provider_fingerprint'],r['source_generation'])==key
+                        and r['pool_id'] not in {x['acquisition_request']['pool_id'] for x in selected}):
+                    selected.append(other)
+                    if len(selected)==20:break
+            if len(selected)==20:break
+        if len(selected)<2:return None,None
+        future=Future()
+        for other in selected:other['acquisition_future']=future
+        self.counts['shared_acquisitions']+=1;self.counts['shared_consumers']+=len(selected)
+        return future,selected
+
     def _worker(self,index):
         worker=self.workers[index]
         while True:
@@ -149,6 +257,7 @@ class LifecyclePool:
                 worker['running']=True;self.counts['active_physical_workers']+=1
                 self.counts['peak_physical_workers']=max(self.counts['peak_physical_workers'],
                     self.counts['active_physical_workers'])
+                acquisition,cohort=(None,None) if self.closing else self._claim_acquisition(owner,now)
             done=False;value=None;error=None
             try:
                 if owner['iterator'] is None:
@@ -161,7 +270,24 @@ class LifecyclePool:
                         owner['iterator']=owner['context'].run(owner['factory'],*owner['args'],**owner['kwargs'])
                         value=owner['context'].run(next,owner['iterator'])
                 else:
-                    value=owner['context'].run(owner['iterator'].send,'handoff' if self.closing else None)
+                    command='handoff' if self.closing else None
+                    if acquisition is not None:
+                        if cohort is not None:
+                            try:
+                                result=owner['context'].run(acquire_current_owners,
+                                    [x['acquisition_request'] for x in cohort],min(x['due'] for x in cohort)+5)
+                                acquisition.set_result(result)
+                            except Exception as exc:
+                                acquisition.set_exception(exc)
+                                with self.lock:self.counts['shared_failures']+=1
+                        try:
+                            remaining=max(0.,owner['due']+5-self.clock())
+                            result=acquisition.result(timeout=remaining)
+                            command=dict(acquisition=result[owner['acquisition_request']['identity']])
+                        except Exception as exc:
+                            command=dict(acquisition_failed=True,
+                                boundary=str(exc) if isinstance(exc,BoundaryError) else 'provider_transport_failure')
+                    value=owner['context'].run(owner['iterator'].send,command)
                 if not done and (not isinstance(value,dict) or value.get('kind')!='monitor_wait'
                         or value.get('seconds')!=5):
                     raise BoundaryError('current_native_monitor_schedule_changed')
@@ -190,6 +316,8 @@ class LifecyclePool:
                         # its previous turn, exactly as in the synchronous path.
                         owner['due']=value.get('due_at',self.clock()+value['seconds'])
                         owner['pending_exit']=bool(value.get('pending_exit'))
+                        owner['acquisition_request']=value.get('acquisition_request')
+                        owner['acquisition_future']=None
                         self._enqueue(index,owner)
                     self.lock.notify_all()
 
