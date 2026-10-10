@@ -316,3 +316,145 @@ class OfflineGovernorTests(unittest.TestCase):
             governor.complete(candidate['resource_reservation']);governor.complete(held['resource_reservation'])
             with self.assertRaisesRegex(BoundaryError,'modeled_spending_ceiling'):
                 governor.acquire('entry',methods=['eth_call'])
+
+
+class ProtectivePhaseTests(unittest.TestCase):
+    def open(self,root,*,seconds=3,lane='pons',endpoint='https://offline.example/rpc'):
+        return Admission(Path(root)/'governor.sqlite',endpoint,lane=lane,
+            offline_profile=OfflineProfile(8,protective_cohort_seconds=seconds),
+            clock=lambda:self.clock,sleeper=lambda s:setattr(self,'clock',self.clock+s))
+
+    def test_phase_requires_explicit_offline_profile_and_protection_context(self):
+        self.clock=100
+        with tempfile.TemporaryDirectory() as td:
+            default=Admission(Path(td)/'default','https://offline.example',lane='pons')
+            with default.protective_cohort():self.assertEqual(default.interval,.5)
+            disabled=self.open(td,seconds=0)
+            with disabled.protective_cohort():
+                with disabled.connect() as db:
+                    self.assertEqual(db.execute('SELECT COUNT(*) FROM offline_protective_phases').fetchone()[0],0)
+            with tempfile.TemporaryDirectory() as second:
+                enabled=self.open(second)
+                with self.assertRaisesRegex(BoundaryError,'requires_protection'):
+                    with enabled.protective_cohort():self.fail('candidate obtained a protective phase')
+            for seconds in (-1,3.001,float('inf'),float('nan')):
+                with self.assertRaises(BoundaryError):OfflineProfile(8,protective_cohort_seconds=seconds).validate()
+
+    def test_phase_has_no_purchase_and_exception_releases_it(self):
+        self.clock=100
+        with tempfile.TemporaryDirectory() as td:
+            one=self.open(td)
+            with native_lifecycle_work(held=True):
+                with self.assertRaisesRegex(RuntimeError,'native-error'):
+                    with one.protective_cohort():
+                        with one.connect() as db:
+                            state=json.loads(db.execute('SELECT state FROM offline_resource_accounts').fetchone()[0])
+                        self.assertEqual(state['starts'],0);self.assertEqual(state['spent_microdollars'],0)
+                        raise RuntimeError('native-error')
+            with one.connect() as db:
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM offline_protective_phases').fetchone()[0],0)
+
+    def test_existing_inflight_response_does_not_delay_phase_or_gain_new_capacity(self):
+        self.clock=100
+        with tempfile.TemporaryDirectory() as td:
+            one=self.open(td);peer=self.open(td)
+            with native_lifecycle_work(held=True):grant=peer.acquire('exit',methods=['eth_call'])
+            with native_lifecycle_work(held=True),one.protective_cohort():
+                self.assertEqual(self.clock,100)
+                with one.connect() as db:
+                    self.assertEqual(db.execute('SELECT COUNT(*) FROM offline_inflight').fetchone()[0],1)
+                    self.assertEqual(json.loads(db.execute('SELECT state FROM offline_resource_accounts').fetchone()[0])['starts'],1)
+                peer.complete(grant['resource_reservation'])
+
+    def test_account_wide_peer_waits_but_earlier_protection_deadline_precedes_phase(self):
+        self.clock=100
+        with tempfile.TemporaryDirectory() as td:
+            one=self.open(td);peer=self.open(td,lane='pump',endpoint='https://offline.solana/rpc')
+            with native_lifecycle_work(held=True),one.protective_cohort():
+                own=one.acquire('exit',methods=['eth_call']);one.complete(own['resource_reservation'])
+                urgent=peer.acquire('exit',methods=['getMultipleAccounts'],deadline=101)
+                self.assertLess(urgent['admitted_at'],101);peer.complete(urgent['resource_reservation'])
+                equal=peer.acquire('exit',methods=['getMultipleAccounts'],deadline=103)
+                self.assertLess(equal['admitted_at'],103);peer.complete(equal['resource_reservation'])
+                deferred=peer.acquire('exit',methods=['getMultipleAccounts'],deadline=104)
+                self.assertGreaterEqual(deferred['admitted_at'],103);peer.complete(deferred['resource_reservation'])
+                with one.connect() as db:
+                    self.assertEqual(db.execute('SELECT until FROM offline_protective_phases').fetchone()[0],103)
+                    state=json.loads(db.execute('SELECT state FROM offline_resource_accounts').fetchone()[0])
+                self.assertEqual(state['starts'],4)
+                self.assertEqual(state['spent_microdollars'],sum(OfflineProfile(8).cost([m])['microdollars']
+                    for m in ('eth_call','getMultipleAccounts','getMultipleAccounts','getMultipleAccounts')))
+
+    def test_earlier_queued_protection_is_not_displaced_when_claiming(self):
+        self.clock=100
+        with tempfile.TemporaryDirectory() as td:
+            one=self.open(td);peer=self.open(td);ticket=peer.session+':existing'
+            with peer.connect() as db:
+                db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(ticket,peer.endpoint,0,100,101))
+                db.execute('INSERT INTO queue_meta VALUES(?,?)',(ticket,'pons'))
+            with native_lifecycle_work(held=True),one.protective_cohort():
+                self.assertEqual(self.clock,100)
+                with one.connect() as db:
+                    self.assertEqual(db.execute('SELECT COUNT(*) FROM offline_protective_phases').fetchone()[0],0)
+                    self.assertEqual(db.execute('SELECT id FROM queue').fetchone()[0],ticket)
+
+    def test_phase_expiry_after_interruption_never_renews_or_grants_a_purchase(self):
+        self.clock=100
+        with tempfile.TemporaryDirectory() as td:
+            one=self.open(td);peer=self.open(td)
+            with native_lifecycle_work(held=True):grant=peer.acquire('exit',methods=['eth_call'])
+            # Simulate process interruption after claiming. Another native
+            # session must regain ordinary admission at the original expiry.
+            with one.connect() as db:
+                db.execute('INSERT INTO offline_protective_phases VALUES(?,?,?)',('offline-shared-account',one.session,103))
+            peer.complete(grant['resource_reservation'])
+            with native_lifecycle_work(held=True):new=peer.acquire('exit',methods=['eth_call'],deadline=104)
+            self.assertGreaterEqual(new['admitted_at'],103);peer.complete(new['resource_reservation'])
+            with one.connect() as db:
+                self.assertEqual(db.execute('SELECT until FROM offline_protective_phases').fetchone()[0],103)
+                self.assertEqual(json.loads(db.execute('SELECT state FROM offline_resource_accounts').fetchone()[0])['starts'],2)
+            with native_lifecycle_work(held=True),peer.protective_cohort():
+                with peer.connect() as db:self.assertEqual(db.execute('SELECT owner FROM offline_protective_phases').fetchone()[0],peer.session)
+            with peer.connect() as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM offline_protective_phases').fetchone()[0],0)
+
+    def test_real_native_staggered_current_and_survivor_exits_use_bounded_phase(self):
+        from tests.test_pons_current_shared_owners import CurrentSharedOwnerTests
+        # Eight RPS still missed Current deadlines in repeated development
+        # traces. Test the higher *offline* envelope without relaxing either
+        # controller's original deadline; production remains at two RPS.
+        for n,rate in ((2,3),(10,12)):
+            with self.subTest(current=n,survivors=n,rps=rate):
+                fixture=CurrentSharedOwnerTests();self.addCleanup(fixture.doCleanups)
+                profile=capacity.OfflineProfile
+                with patch.object(capacity,'OfflineProfile',side_effect=lambda *a,**kw:
+                        profile(*a,protective_cohort_seconds=3,**kw)):
+                    result,rpcs,t=fixture.run_owners(n,sharing=True,stagger=True,paced=True,
+                        latency=.1,price_factor=2.2,rps=rate,survivor_count=n,real_time=True)
+                survivor=t['mixed_survivor'];physical=next(r for r in rpcs if getattr(r,'fixture_consumer',None)=='survivor')
+                self.assertEqual(len(physical.starts),6)
+                self.assertLess(survivor['completed_at']-survivor['first_required_at'],3)
+                self.assertTrue(survivor['native_accounting_verified'])
+                self.assertTrue(all(r['realization_taken'] for r in survivor['risks']))
+                marks=[e for e in t['native_events'] if e['action']=='mark']
+                self.assertEqual(len(marks),n)
+                self.assertTrue(all(e['completed_monotonic']<=105+int(e['identity'].split(':')[-1])*.1+5 for e in marks))
+                self.assertTrue(all(r['reconciliation']['cash_basis_conservation'] for r in result))
+                print('REAL_CLOCK_RESERVED_PHASE',json.dumps(dict(current=n,survivors=n,rps=rate,
+                    phase_seconds=3,physical_starts=sum(len(r.starts) for r in rpcs),
+                    survivor_starts=len(physical.starts),survivor_completion_seconds=survivor['completed_at']-105,
+                    current_risk_misses=0,native_accounting_verified=True)),flush=True)
+
+    def test_native_phase_keeps_reorganization_refusal_and_independent_money(self):
+        from tests.test_pons_current_shared_owners import CurrentSharedOwnerTests
+        fixture=CurrentSharedOwnerTests();self.addCleanup(fixture.doCleanups)
+        profile=capacity.OfflineProfile
+        with patch.object(capacity,'OfflineProfile',side_effect=lambda *a,**kw:
+                profile(*a,protective_cohort_seconds=3,**kw)):
+            result,rpcs,t=fixture.run_owners(2,sharing=True,paced=True,latency=.1,
+                price_factor=2.2,rps=4,survivor_count=2,failure='fork')
+        self.assertTrue(all(r['final_position']['status']=='open' for r in result))
+        self.assertTrue(all(not r['monitor'][0]['available'] for r in result))
+        self.assertTrue(all(r['reconciliation']['cash_basis_conservation'] for r in result))
+        mixed=t['mixed_survivor']
+        self.assertTrue(mixed['native_accounting_verified'])
+        self.assertTrue(all(not r['realization_taken'] for r in mixed['risks']))

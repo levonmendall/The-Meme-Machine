@@ -160,6 +160,7 @@ class OfflineProfile:
     max_response_bytes: int=2_000_000
     max_inflight_bytes: int=4_000_000
     max_inflight_requests: int=2
+    protective_cohort_seconds: float=0
     protected_fraction: float=.25
     protected_inflight_bytes: int=2_000_000
     modeled_usd_per_million_cu: str='0.525'
@@ -176,6 +177,8 @@ class OfflineProfile:
                 or not 0<self.max_response_bytes<=2_000_000
                 or not self.max_response_bytes<=self.protected_inflight_bytes<self.max_inflight_bytes
                 or not 2<=self.max_inflight_requests<=64
+                or not isinstance(self.protective_cohort_seconds,(int,float))
+                or not 0<=self.protective_cohort_seconds<=3
                 or any(type(n) is not int or n<=0 for n in (self.logical_elements_per_second,
                     self.throughput_units_per_second,self.method_elements_per_second,self.max_modeled_microdollars))
                 or not Decimal(self.modeled_usd_per_million_cu).is_finite()
@@ -187,6 +190,7 @@ class OfflineProfile:
             CREATE TABLE IF NOT EXISTS offline_resource_accounts(account TEXT PRIMARY KEY,configuration TEXT,state TEXT);
             CREATE TABLE IF NOT EXISTS offline_resource_members(endpoint TEXT PRIMARY KEY,account TEXT);
             CREATE TABLE IF NOT EXISTS offline_inflight(ticket TEXT PRIMARY KEY,account TEXT,bytes INTEGER);
+            CREATE TABLE IF NOT EXISTS offline_protective_phases(account TEXT PRIMARY KEY,owner TEXT,until REAL);
         ''')
         spec=json.dumps(asdict(self),sort_keys=True)
         db.execute('INSERT OR IGNORE INTO offline_resource_accounts VALUES(?,?,?)',
@@ -212,12 +216,15 @@ class OfflineProfile:
         micro=int((Decimal(billed)*Decimal(self.modeled_usd_per_million_cu)).to_integral_value(rounding=ROUND_CEILING))
         return dict(logical=len(methods),throughput=throughput,methods=counts,microdollars=micro)
 
-    def first(self,db):
+    def first(self,db,now):
         from meme_machine.runtime.operating_families import active_scope_sql
         return db.execute('SELECT q.id,q.priority,m.lane,q.deadline FROM queue q '
             'JOIN offline_resource_members a ON a.endpoint=q.endpoint '
-            'LEFT JOIN queue_meta m ON m.id=q.id WHERE a.account=? AND '+active_scope_sql("COALESCE(m.lane,'shared')")+
-            ' ORDER BY q.priority,q.deadline,q.created,q.id LIMIT 1',(self.account,)).fetchone()
+            'LEFT JOIN queue_meta m ON m.id=q.id '
+            'LEFT JOIN offline_protective_phases p ON p.account=a.account WHERE a.account=? AND '
+            '(p.owner IS NULL OR p.until<=? OR q.id LIKE p.owner||\':%\' '
+            'OR q.priority=0 AND q.deadline<=p.until) AND '+active_scope_sql("COALESCE(m.lane,'shared')")+
+            ' ORDER BY q.priority,q.deadline,q.created,q.id LIMIT 1',(self.account,now)).fetchone()
 
     def wait(self,db,ticket,now,cost,protected):
         state=json.loads(db.execute('SELECT state FROM offline_resource_accounts WHERE account=?',(self.account,)).fetchone()[0])
@@ -319,14 +326,50 @@ class Admission:
         except BaseException:
             db.close()
             raise
+
+    @contextmanager
+    def protective_cohort(self):
+        """Offline-only, bounded service of an already-due native cohort.
+
+        Peer starts wait until native commits finish or the three-second bound
+        expires. Earlier protective deadlines retain precedence. Already
+        in-flight responses still invalidate ordered-proof reuse normally;
+        neither checks nor quotes gain a longer lifetime. An unavailable phase
+        leaves ordinary admission authoritative, without delaying protection.
+        The reservation grants no HTTP starts, logical tokens or spending.
+        """
+        resources=self.offline_profile
+        if resources is None or not resources.protective_cohort_seconds:
+            yield
+            return
+        if not _position_work.get():raise BoundaryError('provider_offline_phase_requires_protection')
+        deadline=self.clock()+resources.protective_cohort_seconds
+        claimed=False;db=self.connect()
+        try:
+            now=self.clock();db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM offline_protective_phases WHERE until<=?',(now,))
+            phase=db.execute('SELECT owner FROM offline_protective_phases WHERE account=?',
+                (resources.account,)).fetchone()
+            first=resources.first(db,now)
+            if now<deadline and phase is None and (first is None or first[1]>0 or first[3]>deadline):
+                db.execute('INSERT INTO offline_protective_phases VALUES(?,?,?)',
+                    (resources.account,self.session,deadline));claimed=True
+            db.execute('COMMIT')
+            yield
+        finally:
+            if db.in_transaction:db.execute('ROLLBACK')
+            if claimed:db.execute('DELETE FROM offline_protective_phases WHERE account=? AND owner=?',
+                (resources.account,self.session))
+            db.close()
     def acquire(self,scope,deadline=None,*,methods=None):
         from meme_machine.operational.position_continuation import position_only
         if (_decision_priority.get() or 0)>=20 and not _position_work.get() and position_only():
             raise BoundaryError('bootstrap_optional_work_closed')
         from meme_machine.runtime.operating_families import active_scope_sql
         live="id IN (SELECT q.id FROM queue q LEFT JOIN queue_meta m ON m.id=q.id WHERE "+active_scope_sql("COALESCE(m.lane,'shared')")+")"
-        ticket=uuid.uuid4().hex;started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30
         resources=self.offline_profile
+        ticket=(self.session+':' if resources is not None else '')+uuid.uuid4().hex
+        started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30
         cost=resources.cost(methods) if resources is not None else None
         granted=False;failure=None
         db=self.connect()
@@ -351,7 +394,7 @@ class Admission:
                 db.execute('DELETE FROM queue WHERE '+live+' AND deadline<=?',(now,))
                 next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
                 first=next_ticket(db,self.endpoint,now,interval)
-                if resources is not None:first=resources.first(db)
+                if resources is not None:first=resources.first(db,now)
                 resource_wait=(resources.wait(db,ticket,now,cost,priority(scope)==0)
                     if resources is not None and first and first[0]==ticket else 0)
                 if first and first[0]==ticket and now>=max(next_at,cooldown) and resource_wait<=0:
