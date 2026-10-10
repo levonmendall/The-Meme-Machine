@@ -1,305 +1,3941 @@
 {
-  "schema": "pr129-incremental-cost-sensitivities-v1",
-  "code_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "actual_infrastructure_bill_reduction_usd": 0,
   "actual_market_purchases": 0,
   "actual_provider_bill_reduction_usd": 0,
-  "actual_infrastructure_bill_reduction_usd": 0,
+  "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+  "code_commit": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
   "expected_monthly_net_saving_usd": null,
-  "monthly_workload_distribution": "Unavailable; legacy captured starts cannot assign a month or complete consumer incidence",
+  "historical_predecessor_comparison": {
+    "code_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+    "rows": [
+      {
+        "action": "hold",
+        "avoided_mock_physical_starts": 3,
+        "avoided_modeled_billed_cu": 40,
+        "avoided_modeled_throughput_cu": 40,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 2934,
+        "original_fixture_bytes": 3325,
+        "positions": 1,
+        "usd_per_one_million_same_evidence_turns": "21.000"
+      },
+      {
+        "action": "full_exit",
+        "avoided_mock_physical_starts": 3,
+        "avoided_modeled_billed_cu": 40,
+        "avoided_modeled_throughput_cu": 40,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 3330,
+        "original_fixture_bytes": 3721,
+        "positions": 1,
+        "usd_per_one_million_same_evidence_turns": "21.000"
+      },
+      {
+        "action": "partial_exit",
+        "avoided_mock_physical_starts": 5,
+        "avoided_modeled_billed_cu": 80,
+        "avoided_modeled_throughput_cu": 80,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 3268,
+        "original_fixture_bytes": 4047,
+        "positions": 1,
+        "usd_per_one_million_same_evidence_turns": "42.000"
+      },
+      {
+        "action": "hold",
+        "avoided_mock_physical_starts": 3,
+        "avoided_modeled_billed_cu": 40,
+        "avoided_modeled_throughput_cu": 40,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 4903,
+        "original_fixture_bytes": 5294,
+        "positions": 2,
+        "usd_per_one_million_same_evidence_turns": "21.000"
+      },
+      {
+        "action": "full_exit",
+        "avoided_mock_physical_starts": 5,
+        "avoided_modeled_billed_cu": 100,
+        "avoided_modeled_throughput_cu": 100,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 5299,
+        "original_fixture_bytes": 6086,
+        "positions": 2,
+        "usd_per_one_million_same_evidence_turns": "52.500"
+      },
+      {
+        "action": "partial_exit",
+        "avoided_mock_physical_starts": 7,
+        "avoided_modeled_billed_cu": 166,
+        "avoided_modeled_throughput_cu": 166,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "BLOCKED_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 5571,
+        "original_fixture_bytes": 6816,
+        "positions": 2,
+        "usd_per_one_million_same_evidence_turns": "87.150"
+      },
+      {
+        "action": "hold",
+        "avoided_mock_physical_starts": 3,
+        "avoided_modeled_billed_cu": 40,
+        "avoided_modeled_throughput_cu": 40,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 8841,
+        "original_fixture_bytes": 9232,
+        "positions": 4,
+        "usd_per_one_million_same_evidence_turns": "21.000"
+      },
+      {
+        "action": "full_exit",
+        "avoided_mock_physical_starts": 9,
+        "avoided_modeled_billed_cu": 220,
+        "avoided_modeled_throughput_cu": 220,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 9237,
+        "original_fixture_bytes": 10816,
+        "positions": 4,
+        "usd_per_one_million_same_evidence_turns": "115.500"
+      },
+      {
+        "action": "partial_exit",
+        "avoided_mock_physical_starts": 11,
+        "avoided_modeled_billed_cu": 246,
+        "avoided_modeled_throughput_cu": 246,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "BLOCKED_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 10177,
+        "original_fixture_bytes": 12198,
+        "positions": 4,
+        "usd_per_one_million_same_evidence_turns": "129.150"
+      },
+      {
+        "action": "hold",
+        "avoided_mock_physical_starts": 3,
+        "avoided_modeled_billed_cu": 40,
+        "avoided_modeled_throughput_cu": 40,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 16717,
+        "original_fixture_bytes": 17108,
+        "positions": 8,
+        "usd_per_one_million_same_evidence_turns": "21.000"
+      },
+      {
+        "action": "full_exit",
+        "avoided_mock_physical_starts": 17,
+        "avoided_modeled_billed_cu": 460,
+        "avoided_modeled_throughput_cu": 460,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 17113,
+        "original_fixture_bytes": 20276,
+        "positions": 8,
+        "usd_per_one_million_same_evidence_turns": "241.500"
+      },
+      {
+        "action": "partial_exit",
+        "avoided_mock_physical_starts": 19,
+        "avoided_modeled_billed_cu": 406,
+        "avoided_modeled_throughput_cu": 406,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "BLOCKED_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 19389,
+        "original_fixture_bytes": 22962,
+        "positions": 8,
+        "usd_per_one_million_same_evidence_turns": "213.150"
+      },
+      {
+        "action": "hold",
+        "avoided_mock_physical_starts": 3,
+        "avoided_modeled_billed_cu": 40,
+        "avoided_modeled_throughput_cu": 40,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 40353,
+        "original_fixture_bytes": 40744,
+        "positions": 20,
+        "usd_per_one_million_same_evidence_turns": "21.000"
+      },
+      {
+        "action": "full_exit",
+        "avoided_mock_physical_starts": 41,
+        "avoided_modeled_billed_cu": 1180,
+        "avoided_modeled_throughput_cu": 1180,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "BLOCKED_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 40749,
+        "original_fixture_bytes": 48664,
+        "positions": 20,
+        "usd_per_one_million_same_evidence_turns": "619.500"
+      },
+      {
+        "action": "partial_exit",
+        "avoided_mock_physical_starts": 43,
+        "avoided_modeled_billed_cu": 886,
+        "avoided_modeled_throughput_cu": 886,
+        "baseline": "e107 shared native path (single owner used original fallback)",
+        "deadline_envelope_status": "BLOCKED_IN_SPECIMEN",
+        "family": "pons_survivor",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 47033,
+        "original_fixture_bytes": 55262,
+        "positions": 20,
+        "usd_per_one_million_same_evidence_turns": "465.150"
+      },
+      {
+        "avoided_mock_physical_starts": 12,
+        "avoided_modeled_billed_cu": 326,
+        "avoided_modeled_throughput_cu": 326,
+        "baseline": "Existing private native owners; observed fixture cache reuse retained",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_current",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 4903,
+        "original_fixture_bytes": 8874,
+        "positions": 2,
+        "staggered": false,
+        "usd_per_one_million_same_evidence_turns": "171.150"
+      },
+      {
+        "avoided_mock_physical_starts": 28,
+        "avoided_modeled_billed_cu": 858,
+        "avoided_modeled_throughput_cu": 858,
+        "baseline": "Existing private native owners; observed fixture cache reuse retained",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_current",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 8841,
+        "original_fixture_bytes": 25092,
+        "positions": 4,
+        "staggered": false,
+        "usd_per_one_million_same_evidence_turns": "450.450"
+      },
+      {
+        "avoided_mock_physical_starts": 56,
+        "avoided_modeled_billed_cu": 1842,
+        "avoided_modeled_throughput_cu": 1842,
+        "baseline": "Existing private native owners; observed fixture cache reuse retained",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_current",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 16717,
+        "original_fixture_bytes": 49012,
+        "positions": 8,
+        "staggered": false,
+        "usd_per_one_million_same_evidence_turns": "967.050"
+      },
+      {
+        "avoided_mock_physical_starts": 138,
+        "avoided_modeled_billed_cu": 4754,
+        "avoided_modeled_throughput_cu": 4754,
+        "baseline": "Existing private native owners; observed fixture cache reuse retained",
+        "deadline_envelope_status": "FIT_IN_SPECIMEN",
+        "family": "pons_current",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 40353,
+        "original_fixture_bytes": 83478,
+        "positions": 20,
+        "staggered": false,
+        "usd_per_one_million_same_evidence_turns": "2495.850"
+      },
+      {
+        "avoided_mock_physical_starts": 0,
+        "avoided_modeled_billed_cu": 0,
+        "avoided_modeled_throughput_cu": 0,
+        "baseline": "Existing private native owners; observed fixture cache reuse retained",
+        "deadline_envelope_status": "NOT_PACED",
+        "family": "pons_current",
+        "monthly_occurrences": null,
+        "optimized_fixture_bytes": 13197,
+        "original_fixture_bytes": 13197,
+        "positions": 4,
+        "staggered": true,
+        "usd_per_one_million_same_evidence_turns": "0.000"
+      }
+    ]
+  },
+  "local_compute": "One full monetary replay for a bounded noncommitting exit preview; every native monetary decision still replays. Twenty-partial unpaced local CPU was 0.5555 to 0.5987 seconds in this specimen, so no material CPU or host-dollar saving claimed.",
+  "modeled_usd_per_million_cu": ".525",
+  "monthly_formula": "sum(mutually-exclusive eligible cohort frequency * avoided billed CU) * marginal USD/CU",
+  "monthly_workload_distribution": "Unavailable; captured starts are not a complete monthly operation/action distribution.",
+  "non_additive": [
+    "Do not add rate variants, HOLD plus exit for the same turn, prior PR 124-128/L1 savings or older e107 comparisons.",
+    "Same-evidence request savings are conditional on valid resource/canonical sharing. Paced fallback purchases remain charged and can exceed these counts."
+  ],
   "rows": [
     {
-      "family": "pons_survivor",
-      "positions": 1,
       "action": "hold",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 3,
-      "avoided_modeled_billed_cu": 40,
-      "avoided_modeled_throughput_cu": 40,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "21.000",
-      "original_fixture_bytes": 3325,
-      "optimized_fixture_bytes": 2934,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 1,
-      "action": "full_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 3,
-      "avoided_modeled_billed_cu": 40,
-      "avoided_modeled_throughput_cu": 40,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "21.000",
-      "original_fixture_bytes": 3721,
-      "optimized_fixture_bytes": 3330,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 1,
-      "action": "partial_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 5,
-      "avoided_modeled_billed_cu": 80,
-      "avoided_modeled_throughput_cu": 80,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "42.000",
-      "original_fixture_bytes": 4047,
-      "optimized_fixture_bytes": 3268,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 2,
-      "action": "hold",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 3,
-      "avoided_modeled_billed_cu": 40,
-      "avoided_modeled_throughput_cu": 40,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "21.000",
-      "original_fixture_bytes": 5294,
-      "optimized_fixture_bytes": 4903,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 2,
-      "action": "full_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 5,
-      "avoided_modeled_billed_cu": 100,
-      "avoided_modeled_throughput_cu": 100,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "52.500",
-      "original_fixture_bytes": 6086,
-      "optimized_fixture_bytes": 5299,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 2,
-      "action": "partial_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 7,
-      "avoided_modeled_billed_cu": 166,
-      "avoided_modeled_throughput_cu": 166,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "87.150",
-      "original_fixture_bytes": 6816,
-      "optimized_fixture_bytes": 5571,
-      "deadline_envelope_status": "BLOCKED_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 4,
-      "action": "hold",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 3,
-      "avoided_modeled_billed_cu": 40,
-      "avoided_modeled_throughput_cu": 40,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "21.000",
-      "original_fixture_bytes": 9232,
-      "optimized_fixture_bytes": 8841,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 4,
-      "action": "full_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 9,
-      "avoided_modeled_billed_cu": 220,
-      "avoided_modeled_throughput_cu": 220,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "115.500",
-      "original_fixture_bytes": 10816,
-      "optimized_fixture_bytes": 9237,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 4,
-      "action": "partial_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 11,
-      "avoided_modeled_billed_cu": 246,
-      "avoided_modeled_throughput_cu": 246,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "129.150",
-      "original_fixture_bytes": 12198,
-      "optimized_fixture_bytes": 10177,
-      "deadline_envelope_status": "BLOCKED_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 8,
-      "action": "hold",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 3,
-      "avoided_modeled_billed_cu": 40,
-      "avoided_modeled_throughput_cu": 40,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "21.000",
-      "original_fixture_bytes": 17108,
-      "optimized_fixture_bytes": 16717,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 8,
-      "action": "full_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 17,
-      "avoided_modeled_billed_cu": 460,
-      "avoided_modeled_throughput_cu": 460,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "241.500",
-      "original_fixture_bytes": 20276,
-      "optimized_fixture_bytes": 17113,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 8,
-      "action": "partial_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 19,
-      "avoided_modeled_billed_cu": 406,
-      "avoided_modeled_throughput_cu": 406,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "213.150",
-      "original_fixture_bytes": 22962,
-      "optimized_fixture_bytes": 19389,
-      "deadline_envelope_status": "BLOCKED_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 20,
-      "action": "hold",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 3,
-      "avoided_modeled_billed_cu": 40,
-      "avoided_modeled_throughput_cu": 40,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "21.000",
-      "original_fixture_bytes": 40744,
-      "optimized_fixture_bytes": 40353,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 20,
-      "action": "full_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 41,
-      "avoided_modeled_billed_cu": 1180,
-      "avoided_modeled_throughput_cu": 1180,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "619.500",
-      "original_fixture_bytes": 48664,
-      "optimized_fixture_bytes": 40749,
-      "deadline_envelope_status": "BLOCKED_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_survivor",
-      "positions": 20,
-      "action": "partial_exit",
-      "baseline": "e107 shared native path (single owner used original fallback)",
-      "avoided_mock_physical_starts": 43,
-      "avoided_modeled_billed_cu": 886,
-      "avoided_modeled_throughput_cu": 886,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "465.150",
-      "original_fixture_bytes": 55262,
-      "optimized_fixture_bytes": 47033,
-      "deadline_envelope_status": "BLOCKED_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_current",
-      "positions": 2,
-      "staggered": false,
-      "baseline": "Existing private native owners; observed fixture cache reuse retained",
-      "avoided_mock_physical_starts": 12,
-      "avoided_modeled_billed_cu": 326,
-      "avoided_modeled_throughput_cu": 326,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "171.150",
-      "original_fixture_bytes": 8874,
-      "optimized_fixture_bytes": 4903,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_current",
-      "positions": 4,
-      "staggered": false,
-      "baseline": "Existing private native owners; observed fixture cache reuse retained",
-      "avoided_mock_physical_starts": 28,
-      "avoided_modeled_billed_cu": 858,
-      "avoided_modeled_throughput_cu": 858,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "450.450",
-      "original_fixture_bytes": 25092,
-      "optimized_fixture_bytes": 8841,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_current",
-      "positions": 8,
-      "staggered": false,
-      "baseline": "Existing private native owners; observed fixture cache reuse retained",
-      "avoided_mock_physical_starts": 56,
-      "avoided_modeled_billed_cu": 1842,
-      "avoided_modeled_throughput_cu": 1842,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "967.050",
-      "original_fixture_bytes": 49012,
-      "optimized_fixture_bytes": 16717,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_current",
-      "positions": 20,
-      "staggered": false,
-      "baseline": "Existing private native owners; observed fixture cache reuse retained",
-      "avoided_mock_physical_starts": 138,
-      "avoided_modeled_billed_cu": 4754,
-      "avoided_modeled_throughput_cu": 4754,
-      "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "2495.850",
-      "original_fixture_bytes": 83478,
-      "optimized_fixture_bytes": 40353,
-      "deadline_envelope_status": "FIT_IN_SPECIMEN"
-    },
-    {
-      "family": "pons_current",
-      "positions": 4,
-      "staggered": true,
-      "baseline": "Existing private native owners; observed fixture cache reuse retained",
       "avoided_mock_physical_starts": 0,
       "avoided_modeled_billed_cu": 0,
       "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
       "monthly_occurrences": null,
-      "usd_per_one_million_same_evidence_turns": "0.000",
-      "original_fixture_bytes": 13197,
-      "optimized_fixture_bytes": 13197,
-      "deadline_envelope_status": "NOT_PACED"
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 2934,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 2934,
+      "original_mock_starts": 4,
+      "positions": 1,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 2,
+      "avoided_modeled_billed_cu": 60,
+      "avoided_modeled_throughput_cu": 60,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 2934,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 3330,
+      "original_mock_starts": 6,
+      "positions": 1,
+      "usd_per_1000_same_evidence_cohorts": 0.0315
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 3268,
+      "optimized_mock_starts": 6,
+      "original_fixture_bytes": 3268,
+      "original_mock_starts": 6,
+      "positions": 1,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 4903,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 4903,
+      "original_mock_starts": 4,
+      "positions": 2,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 2,
+      "avoided_modeled_billed_cu": 60,
+      "avoided_modeled_throughput_cu": 60,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 4903,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 5299,
+      "original_mock_starts": 6,
+      "positions": 2,
+      "usd_per_1000_same_evidence_cohorts": 0.0315
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 2,
+      "avoided_modeled_billed_cu": 20,
+      "avoided_modeled_throughput_cu": 20,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 5565,
+      "optimized_mock_starts": 6,
+      "original_fixture_bytes": 5571,
+      "original_mock_starts": 8,
+      "positions": 2,
+      "usd_per_1000_same_evidence_cohorts": 0.0105
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 8841,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 8841,
+      "original_mock_starts": 4,
+      "positions": 4,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 2,
+      "avoided_modeled_billed_cu": 60,
+      "avoided_modeled_throughput_cu": 60,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 8841,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 9237,
+      "original_mock_starts": 6,
+      "positions": 4,
+      "usd_per_1000_same_evidence_cohorts": 0.0315
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 6,
+      "avoided_modeled_billed_cu": 100,
+      "avoided_modeled_throughput_cu": 100,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 9769,
+      "optimized_mock_starts": 6,
+      "original_fixture_bytes": 10177,
+      "original_mock_starts": 12,
+      "positions": 4,
+      "usd_per_1000_same_evidence_cohorts": 0.0525
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 16717,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 16717,
+      "original_mock_starts": 4,
+      "positions": 8,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 2,
+      "avoided_modeled_billed_cu": 60,
+      "avoided_modeled_throughput_cu": 60,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 16717,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 17113,
+      "original_mock_starts": 6,
+      "positions": 8,
+      "usd_per_1000_same_evidence_cohorts": 0.0315
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 14,
+      "avoided_modeled_billed_cu": 260,
+      "avoided_modeled_throughput_cu": 260,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 18177,
+      "optimized_mock_starts": 6,
+      "original_fixture_bytes": 19389,
+      "original_mock_starts": 20,
+      "positions": 8,
+      "usd_per_1000_same_evidence_cohorts": 0.1365
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 24593,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 24593,
+      "original_mock_starts": 4,
+      "positions": 12,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 2,
+      "avoided_modeled_billed_cu": 60,
+      "avoided_modeled_throughput_cu": 60,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 24593,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 24989,
+      "original_mock_starts": 6,
+      "positions": 12,
+      "usd_per_1000_same_evidence_cohorts": 0.0315
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 22,
+      "avoided_modeled_billed_cu": 420,
+      "avoided_modeled_throughput_cu": 420,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 26585,
+      "optimized_mock_starts": 6,
+      "original_fixture_bytes": 28601,
+      "original_mock_starts": 28,
+      "positions": 12,
+      "usd_per_1000_same_evidence_cohorts": 0.2205
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 40353,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 40353,
+      "original_mock_starts": 4,
+      "positions": 20,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 2,
+      "avoided_modeled_billed_cu": 60,
+      "avoided_modeled_throughput_cu": 60,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 40353,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 40749,
+      "original_mock_starts": 6,
+      "positions": 20,
+      "usd_per_1000_same_evidence_cohorts": 0.0315
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 38,
+      "avoided_modeled_billed_cu": 740,
+      "avoided_modeled_throughput_cu": 740,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_survivor",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 43409,
+      "optimized_mock_starts": 6,
+      "original_fixture_bytes": 47033,
+      "original_mock_starts": 44,
+      "positions": 20,
+      "usd_per_1000_same_evidence_cohorts": 0.3885
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 2934,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 2934,
+      "original_mock_starts": 4,
+      "positions": 1,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 3462,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 3462,
+      "original_mock_starts": 7,
+      "positions": 1,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 3462,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 3462,
+      "original_mock_starts": 7,
+      "positions": 1,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 4903,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 4903,
+      "original_mock_starts": 4,
+      "positions": 2,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 3,
+      "avoided_modeled_billed_cu": 60,
+      "avoided_modeled_throughput_cu": 60,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 5642,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 6037,
+      "original_mock_starts": 10,
+      "positions": 2,
+      "usd_per_1000_same_evidence_cohorts": 0.0315
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 3,
+      "avoided_modeled_billed_cu": 60,
+      "avoided_modeled_throughput_cu": 60,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 5642,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 6037,
+      "original_mock_starts": 10,
+      "positions": 2,
+      "usd_per_1000_same_evidence_cohorts": 0.0315
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 8841,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 8841,
+      "original_mock_starts": 4,
+      "positions": 4,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 9,
+      "avoided_modeled_billed_cu": 272,
+      "avoided_modeled_throughput_cu": 272,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 9846,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 11187,
+      "original_mock_starts": 16,
+      "positions": 4,
+      "usd_per_1000_same_evidence_cohorts": 0.1428
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 9,
+      "avoided_modeled_billed_cu": 272,
+      "avoided_modeled_throughput_cu": 272,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 9846,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 11187,
+      "original_mock_starts": 16,
+      "positions": 4,
+      "usd_per_1000_same_evidence_cohorts": 0.1428
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 16717,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 16717,
+      "original_mock_starts": 4,
+      "positions": 8,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 21,
+      "avoided_modeled_billed_cu": 696,
+      "avoided_modeled_throughput_cu": 696,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 18254,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 21487,
+      "original_mock_starts": 28,
+      "positions": 8,
+      "usd_per_1000_same_evidence_cohorts": 0.36540000000000006
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 21,
+      "avoided_modeled_billed_cu": 696,
+      "avoided_modeled_throughput_cu": 696,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 18254,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 21487,
+      "original_mock_starts": 28,
+      "positions": 8,
+      "usd_per_1000_same_evidence_cohorts": 0.36540000000000006
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 24593,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 24593,
+      "original_mock_starts": 4,
+      "positions": 12,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 33,
+      "avoided_modeled_billed_cu": 1120,
+      "avoided_modeled_throughput_cu": 1120,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 26662,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 31787,
+      "original_mock_starts": 40,
+      "positions": 12,
+      "usd_per_1000_same_evidence_cohorts": 0.588
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 33,
+      "avoided_modeled_billed_cu": 1120,
+      "avoided_modeled_throughput_cu": 1120,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 26662,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 31787,
+      "original_mock_starts": 40,
+      "positions": 12,
+      "usd_per_1000_same_evidence_cohorts": 0.588
+    },
+    {
+      "action": "hold",
+      "avoided_mock_physical_starts": 0,
+      "avoided_modeled_billed_cu": 0,
+      "avoided_modeled_throughput_cu": 0,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 40353,
+      "optimized_mock_starts": 4,
+      "original_fixture_bytes": 40353,
+      "original_mock_starts": 4,
+      "positions": 20,
+      "usd_per_1000_same_evidence_cohorts": 0.0
+    },
+    {
+      "action": "full_exit",
+      "avoided_mock_physical_starts": 57,
+      "avoided_modeled_billed_cu": 1968,
+      "avoided_modeled_throughput_cu": 1968,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 43486,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 52395,
+      "original_mock_starts": 64,
+      "positions": 20,
+      "usd_per_1000_same_evidence_cohorts": 1.0332000000000001
+    },
+    {
+      "action": "partial_exit",
+      "avoided_mock_physical_starts": 57,
+      "avoided_modeled_billed_cu": 1968,
+      "avoided_modeled_throughput_cu": 1968,
+      "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
+      "family": "pons_current",
+      "monthly_occurrences": null,
+      "native_identical_evidence_parity": true,
+      "optimized_fixture_bytes": 43486,
+      "optimized_mock_starts": 7,
+      "original_fixture_bytes": 52395,
+      "original_mock_starts": 64,
+      "positions": 20,
+      "usd_per_1000_same_evidence_cohorts": 1.0332000000000001
     }
   ],
-  "frozen_marginal_rate_usd_per_million_cu": "0.525",
-  "formula": "Sum mutually exclusive monthly specimen occurrences * per-specimen avoided estimated CU / 1,000,000 * actual marginal CU tariff, then subtract any new complete plan, overrun, archive, fallback/retry/recovery/storage charges.",
-  "assumptions": [
-    "Prices are frozen repository sensitivities, not provider invoice measurements or current tariff assurances.",
-    "One million turns is a sensitivity denominator, not an invented workload or holding frequency.",
-    "Blocked deadline specimens cannot be promoted to operating cost forecasts.",
-    "Compare e107 already-shared paths to avoid counting PR 124-128/L1 savings twice.",
-    "Native Current private baseline includes its existing receipt/history hits; measured receipts and transport counts vary with worker interleaving.",
-    "No cheaper host, perfect sharing, blanket retry multiplier or event-only quotation suppression.",
-    "Growth plan remains an unpurchased $49/20m-RU hypothesis as of the prior Oct 9 review; all existing Alchemy Solana/fixed costs remain.",
-    "No expected hybrid net benefit is supported without current allowances and authenticated monthly method/archive/fallback distributions."
+  "runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+  "schema": "pr129-incremental-cost-sensitivities-v2",
+  "sources": [
+    "https://www.alchemy.com/pricing",
+    "https://www.alchemy.com/docs/reference/compute-unit-costs"
   ],
-  "known_remaining_attribution": "LOCAL_PROVIDER_USAGE.json and COST_ATTRIBUTION.json retain captured finite records and unresolved/unknown fields; Pro archive remains unavailable.",
-  "provider_preference": "Pons standard RPC-only compatibility first; keep Alchemy Solana streams/enhanced history; wider RPC or streaming changes deferred."
+  "native_trading_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+  "observed_legacy_inputs": {
+    "pons_source": "LOCAL_PROVIDER_USAGE.json",
+    "pons": {
+      "completed_attempts": 3009,
+      "delivered_bytes": null,
+      "estimated_billed_cu": {
+        "billing_estimate_only": true,
+        "estimated_cu": 270932,
+        "estimated_cu_by_method": {
+          "eth_call": 188552,
+          "eth_chainId": 0,
+          "eth_getBlockByNumber": 9420,
+          "eth_getCode": 72640,
+          "eth_getLogs": 300,
+          "eth_getTransactionReceipt": 20
+        },
+        "known_estimated_cu": 270932,
+        "logical_calls": 11828,
+        "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "estimated_throughput_cu": 273267,
+      "historical_inactive_family": false,
+      "logical_rpc_elements": 11828,
+      "methods": {
+        "eth_call": 7252,
+        "eth_chainId": 467,
+        "eth_getBlockByNumber": 471,
+        "eth_getCode": 3632,
+        "eth_getLogs": 5,
+        "eth_getTransactionReceipt": 1
+      },
+      "physical_starts": 3010,
+      "recorded_failure_count": 0,
+      "request_bytes": null,
+      "responses_429": 0,
+      "retries": 0,
+      "total_queue_wait_seconds": 452.3116600566136,
+      "total_transport_seconds": 744.4605274617497,
+      "unresolved_counter_difference": 1
+    },
+    "pons_consumer_evidence_deadline_join": null,
+    "pons_monthly_frequency": null,
+    "pons_largest_estimated_cu_methods": [
+      "eth_call: 188552",
+      "eth_getCode: 72640"
+    ],
+    "audit_ring_overlap": "Do not add audit rings to lifetime counts or sum different captured windows.",
+    "charged_failures_unverified": true,
+    "pump_source": "HIGH_VOLUME.json retained_provider_capture",
+    "hypothetical_multiplier_used": false,
+    "pons_unattributed_audit_ring": {
+      "records": 1413,
+      "estimated_billed_cu": 130886,
+      "overlaps_lifetime": true,
+      "consumer_evidence_deadline_join": null
+    },
+    "pump_completed_window": {
+      "source_commit": "476bad205014c8c3d586f45d87f84ec44306817a",
+      "input": {
+        "path": "engineering/solana_final_mixed/captures/final-476bad20/http.ndjson.zlib",
+        "sha256": "019880f8f101ce345e656ed30715b6bf47ef7f952a273373fbeff0c35dbdf3d3"
+      },
+      "retained_window": {
+        "end": 1791403248.2557404,
+        "start": 1791402840.3246994
+      },
+      "totals": {
+        "completed_requests": 3631,
+        "delivered_payload_bytes": 95059577,
+        "estimated_cu": 85230,
+        "estimated_throughput_cu": 85230,
+        "failed_requests": 78,
+        "known_estimated_cu": 85230,
+        "known_estimated_throughput_cu": 85230,
+        "logical_consumers": 3631,
+        "physical_requests": 3631,
+        "retry_requests": 0
+      },
+      "unattributed": [
+        {
+          "completed_requests": 1748,
+          "consumer": "shared",
+          "consumer_method:getBlockTime": 323,
+          "consumer_method:getGenesisHash": 1,
+          "consumer_method:getMultipleAccounts": 595,
+          "consumer_method:getProgramAccountsV2": 11,
+          "consumer_method:getSlot": 813,
+          "consumer_method:getTransactionsForAddress": 5,
+          "delivered_payload_bytes": 19157304,
+          "estimated_cu": 35350,
+          "estimated_throughput_cu": 35350,
+          "failed_requests": 0,
+          "family": "shared",
+          "known_estimated_cu": 35350,
+          "known_estimated_throughput_cu": 35350,
+          "logical_consumers": 1748,
+          "operation": "unattributed",
+          "origin_operation": "unattributed",
+          "physical_requests": 1748,
+          "purchased_method:getBlockTime": 323,
+          "purchased_method:getGenesisHash": 1,
+          "purchased_method:getMultipleAccounts": 595,
+          "purchased_method:getProgramAccountsV2": 11,
+          "purchased_method:getSlot": 813,
+          "purchased_method:getTransactionsForAddress": 5,
+          "purpose": "unknown",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        }
+      ],
+      "verified_billed_cu": null,
+      "actual_retry_count": null,
+      "pre_response_failures_unknown": true,
+      "known_eliminable_body_purchases": 0
+    }
+  },
+  "incremental_pending_exit_comparison": {
+    "rows": [
+      {
+        "workload": "pending_partial",
+        "positions": 1,
+        "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+        "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+        "before": {
+          "positions": 1,
+          "baseline_step": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+          "physical_starts": 5,
+          "methods": {
+            "eth_getBlockByNumber": 3,
+            "eth_getCode": 1,
+            "eth_call": 3,
+            "eth_gasPrice": 2
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002
+          ],
+          "completion_seconds": 0.0234138170443714,
+          "local_wall_seconds": 0.018413817044347525,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "after": {
+          "positions": 1,
+          "baseline_step": null,
+          "physical_starts": 5,
+          "methods": {
+            "eth_getBlockByNumber": 3,
+            "eth_getCode": 1,
+            "eth_call": 3,
+            "eth_gasPrice": 2
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002
+          ],
+          "completion_seconds": 0.022066768952669236,
+          "local_wall_seconds": 0.01706676895264536,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "physical_starts_avoided": 0,
+        "estimated_billed_cu_before": 198,
+        "estimated_billed_cu_after": 198,
+        "estimated_billed_cu_avoided": 0,
+        "modeled_usd_per_1000_disjoint_cohorts": 0.0,
+        "actual_provider_savings_usd": 0
+      },
+      {
+        "workload": "pending_partial",
+        "positions": 2,
+        "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+        "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+        "before": {
+          "positions": 2,
+          "baseline_step": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+          "physical_starts": 11,
+          "methods": {
+            "eth_getBlockByNumber": 7,
+            "eth_getCode": 1,
+            "eth_call": 5,
+            "eth_gasPrice": 4
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005
+          ],
+          "completion_seconds": 0.05210715701250024,
+          "local_wall_seconds": 0.041107157012447715,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.01100000000005
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "after": {
+          "positions": 2,
+          "baseline_step": null,
+          "physical_starts": 5,
+          "methods": {
+            "eth_getBlockByNumber": 4,
+            "eth_getCode": 1,
+            "eth_call": 5,
+            "eth_gasPrice": 2
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002
+          ],
+          "completion_seconds": 0.042315037916438314,
+          "local_wall_seconds": 0.03731503791641444,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.00500000000002
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "physical_starts_avoided": 6,
+        "estimated_billed_cu_before": 370,
+        "estimated_billed_cu_after": 270,
+        "estimated_billed_cu_avoided": 100,
+        "modeled_usd_per_1000_disjoint_cohorts": 0.0525,
+        "actual_provider_savings_usd": 0
+      },
+      {
+        "workload": "pending_partial",
+        "positions": 4,
+        "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+        "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+        "before": {
+          "positions": 4,
+          "baseline_step": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+          "physical_starts": 23,
+          "methods": {
+            "eth_getBlockByNumber": 15,
+            "eth_getCode": 1,
+            "eth_call": 9,
+            "eth_gasPrice": 8
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011
+          ],
+          "completion_seconds": 0.10850660300545201,
+          "local_wall_seconds": 0.08550660300534219,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.01100000000005
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.01400000000007
+            ],
+            [
+              "pons-finalization:position:3",
+              "partial_harvest",
+              103.01700000000008
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.0200000000001
+            ],
+            [
+              "pons-finalization:position:4",
+              "partial_harvest",
+              103.02300000000011
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "after": {
+          "positions": 4,
+          "baseline_step": null,
+          "physical_starts": 5,
+          "methods": {
+            "eth_getBlockByNumber": 4,
+            "eth_getCode": 1,
+            "eth_call": 9,
+            "eth_gasPrice": 2
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002
+          ],
+          "completion_seconds": 0.09502361691093597,
+          "local_wall_seconds": 0.0900236169109121,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:3",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:4",
+              "partial_harvest",
+              103.00500000000002
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "physical_starts_avoided": 18,
+        "estimated_billed_cu_before": 714,
+        "estimated_billed_cu_after": 374,
+        "estimated_billed_cu_avoided": 340,
+        "modeled_usd_per_1000_disjoint_cohorts": 0.1785,
+        "actual_provider_savings_usd": 0
+      },
+      {
+        "workload": "pending_partial",
+        "positions": 8,
+        "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+        "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+        "before": {
+          "positions": 8,
+          "baseline_step": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+          "physical_starts": 47,
+          "methods": {
+            "eth_getBlockByNumber": 31,
+            "eth_getCode": 1,
+            "eth_call": 17,
+            "eth_gasPrice": 16
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022
+          ],
+          "completion_seconds": 0.24821549093186945,
+          "local_wall_seconds": 0.20121549093164504,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.01100000000005
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.01400000000007
+            ],
+            [
+              "pons-finalization:position:3",
+              "partial_harvest",
+              103.01700000000008
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.0200000000001
+            ],
+            [
+              "pons-finalization:position:4",
+              "partial_harvest",
+              103.02300000000011
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.02600000000012
+            ],
+            [
+              "pons-finalization:position:5",
+              "partial_harvest",
+              103.02900000000014
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.03200000000015
+            ],
+            [
+              "pons-finalization:position:6",
+              "partial_harvest",
+              103.03500000000017
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.03800000000018
+            ],
+            [
+              "pons-finalization:position:7",
+              "partial_harvest",
+              103.0410000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.04400000000021
+            ],
+            [
+              "pons-finalization:position:8",
+              "partial_harvest",
+              103.04700000000022
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "after": {
+          "positions": 8,
+          "baseline_step": null,
+          "physical_starts": 5,
+          "methods": {
+            "eth_getBlockByNumber": 4,
+            "eth_getCode": 1,
+            "eth_call": 17,
+            "eth_gasPrice": 2
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002
+          ],
+          "completion_seconds": 0.22957394097002748,
+          "local_wall_seconds": 0.2245739409700036,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:3",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:4",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:5",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:6",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:7",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "partial_harvest",
+              103.00500000000002
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "physical_starts_avoided": 42,
+        "estimated_billed_cu_before": 1402,
+        "estimated_billed_cu_after": 582,
+        "estimated_billed_cu_avoided": 820,
+        "modeled_usd_per_1000_disjoint_cohorts": 0.4305,
+        "actual_provider_savings_usd": 0
+      },
+      {
+        "workload": "pending_partial",
+        "positions": 12,
+        "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+        "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+        "before": {
+          "positions": 12,
+          "baseline_step": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+          "physical_starts": 71,
+          "methods": {
+            "eth_getBlockByNumber": 47,
+            "eth_getCode": 1,
+            "eth_call": 25,
+            "eth_gasPrice": 24
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022,
+            103.04800000000023,
+            103.04900000000023,
+            103.05000000000024,
+            103.05100000000024,
+            103.05200000000025,
+            103.05300000000025,
+            103.05400000000026,
+            103.05500000000026,
+            103.05600000000027,
+            103.05700000000027,
+            103.05800000000028,
+            103.05900000000028,
+            103.06000000000029,
+            103.06100000000029,
+            103.0620000000003,
+            103.0630000000003,
+            103.0640000000003,
+            103.06500000000031,
+            103.06600000000032,
+            103.06700000000032,
+            103.06800000000032,
+            103.06900000000033,
+            103.07000000000033
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022,
+            103.04800000000023,
+            103.04900000000023,
+            103.05000000000024,
+            103.05100000000024,
+            103.05200000000025,
+            103.05300000000025,
+            103.05400000000026,
+            103.05500000000026,
+            103.05600000000027,
+            103.05700000000027,
+            103.05800000000028,
+            103.05900000000028,
+            103.06000000000029,
+            103.06100000000029,
+            103.0620000000003,
+            103.0630000000003,
+            103.0640000000003,
+            103.06500000000031,
+            103.06600000000032,
+            103.06700000000032,
+            103.06800000000032,
+            103.06900000000033,
+            103.07000000000033,
+            103.07100000000034
+          ],
+          "completion_seconds": 0.4303895769448616,
+          "local_wall_seconds": 0.35938957694452256,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.01100000000005
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.01400000000007
+            ],
+            [
+              "pons-finalization:position:3",
+              "partial_harvest",
+              103.01700000000008
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.0200000000001
+            ],
+            [
+              "pons-finalization:position:4",
+              "partial_harvest",
+              103.02300000000011
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.02600000000012
+            ],
+            [
+              "pons-finalization:position:5",
+              "partial_harvest",
+              103.02900000000014
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.03200000000015
+            ],
+            [
+              "pons-finalization:position:6",
+              "partial_harvest",
+              103.03500000000017
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.03800000000018
+            ],
+            [
+              "pons-finalization:position:7",
+              "partial_harvest",
+              103.0410000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.04400000000021
+            ],
+            [
+              "pons-finalization:position:8",
+              "partial_harvest",
+              103.04700000000022
+            ],
+            [
+              "pons-finalization:position:9",
+              "mark",
+              103.05000000000024
+            ],
+            [
+              "pons-finalization:position:9",
+              "partial_harvest",
+              103.05300000000025
+            ],
+            [
+              "pons-finalization:position:10",
+              "mark",
+              103.05600000000027
+            ],
+            [
+              "pons-finalization:position:10",
+              "partial_harvest",
+              103.05900000000028
+            ],
+            [
+              "pons-finalization:position:11",
+              "mark",
+              103.0620000000003
+            ],
+            [
+              "pons-finalization:position:11",
+              "partial_harvest",
+              103.06500000000031
+            ],
+            [
+              "pons-finalization:position:12",
+              "mark",
+              103.06800000000032
+            ],
+            [
+              "pons-finalization:position:12",
+              "partial_harvest",
+              103.07100000000034
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "after": {
+          "positions": 12,
+          "baseline_step": null,
+          "physical_starts": 5,
+          "methods": {
+            "eth_getBlockByNumber": 4,
+            "eth_getCode": 1,
+            "eth_call": 25,
+            "eth_gasPrice": 2
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002
+          ],
+          "completion_seconds": 0.3735084299650282,
+          "local_wall_seconds": 0.3685084299650043,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:3",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:4",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:5",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:6",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:7",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:9",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:9",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:10",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:10",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:11",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:11",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:12",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:12",
+              "partial_harvest",
+              103.00500000000002
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "physical_starts_avoided": 66,
+        "estimated_billed_cu_before": 2090,
+        "estimated_billed_cu_after": 790,
+        "estimated_billed_cu_avoided": 1300,
+        "modeled_usd_per_1000_disjoint_cohorts": 0.6825,
+        "actual_provider_savings_usd": 0
+      },
+      {
+        "workload": "pending_partial",
+        "positions": 20,
+        "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+        "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+        "before": {
+          "positions": 20,
+          "baseline_step": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+          "physical_starts": 119,
+          "methods": {
+            "eth_getBlockByNumber": 79,
+            "eth_getCode": 1,
+            "eth_call": 41,
+            "eth_gasPrice": 40
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022,
+            103.04800000000023,
+            103.04900000000023,
+            103.05000000000024,
+            103.05100000000024,
+            103.05200000000025,
+            103.05300000000025,
+            103.05400000000026,
+            103.05500000000026,
+            103.05600000000027,
+            103.05700000000027,
+            103.05800000000028,
+            103.05900000000028,
+            103.06000000000029,
+            103.06100000000029,
+            103.0620000000003,
+            103.0630000000003,
+            103.0640000000003,
+            103.06500000000031,
+            103.06600000000032,
+            103.06700000000032,
+            103.06800000000032,
+            103.06900000000033,
+            103.07000000000033,
+            103.07100000000034,
+            103.07200000000034,
+            103.07300000000035,
+            103.07400000000035,
+            103.07500000000036,
+            103.07600000000036,
+            103.07700000000037,
+            103.07800000000037,
+            103.07900000000038,
+            103.08000000000038,
+            103.08100000000039,
+            103.08200000000039,
+            103.0830000000004,
+            103.0840000000004,
+            103.0850000000004,
+            103.08600000000041,
+            103.08700000000042,
+            103.08800000000042,
+            103.08900000000042,
+            103.09000000000043,
+            103.09100000000043,
+            103.09200000000044,
+            103.09300000000044,
+            103.09400000000045,
+            103.09500000000045,
+            103.09600000000046,
+            103.09700000000046,
+            103.09800000000047,
+            103.09900000000047,
+            103.10000000000048,
+            103.10100000000048,
+            103.10200000000049,
+            103.10300000000049,
+            103.1040000000005,
+            103.1050000000005,
+            103.1060000000005,
+            103.10700000000051,
+            103.10800000000052,
+            103.10900000000052,
+            103.11000000000053,
+            103.11100000000053,
+            103.11200000000053,
+            103.11300000000054,
+            103.11400000000054,
+            103.11500000000055,
+            103.11600000000055,
+            103.11700000000056,
+            103.11800000000056
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022,
+            103.04800000000023,
+            103.04900000000023,
+            103.05000000000024,
+            103.05100000000024,
+            103.05200000000025,
+            103.05300000000025,
+            103.05400000000026,
+            103.05500000000026,
+            103.05600000000027,
+            103.05700000000027,
+            103.05800000000028,
+            103.05900000000028,
+            103.06000000000029,
+            103.06100000000029,
+            103.0620000000003,
+            103.0630000000003,
+            103.0640000000003,
+            103.06500000000031,
+            103.06600000000032,
+            103.06700000000032,
+            103.06800000000032,
+            103.06900000000033,
+            103.07000000000033,
+            103.07100000000034,
+            103.07200000000034,
+            103.07300000000035,
+            103.07400000000035,
+            103.07500000000036,
+            103.07600000000036,
+            103.07700000000037,
+            103.07800000000037,
+            103.07900000000038,
+            103.08000000000038,
+            103.08100000000039,
+            103.08200000000039,
+            103.0830000000004,
+            103.0840000000004,
+            103.0850000000004,
+            103.08600000000041,
+            103.08700000000042,
+            103.08800000000042,
+            103.08900000000042,
+            103.09000000000043,
+            103.09100000000043,
+            103.09200000000044,
+            103.09300000000044,
+            103.09400000000045,
+            103.09500000000045,
+            103.09600000000046,
+            103.09700000000046,
+            103.09800000000047,
+            103.09900000000047,
+            103.10000000000048,
+            103.10100000000048,
+            103.10200000000049,
+            103.10300000000049,
+            103.1040000000005,
+            103.1050000000005,
+            103.1060000000005,
+            103.10700000000051,
+            103.10800000000052,
+            103.10900000000052,
+            103.11000000000053,
+            103.11100000000053,
+            103.11200000000053,
+            103.11300000000054,
+            103.11400000000054,
+            103.11500000000055,
+            103.11600000000055,
+            103.11700000000056,
+            103.11800000000056,
+            103.11900000000057
+          ],
+          "completion_seconds": 0.8979993780903612,
+          "local_wall_seconds": 0.778999378089793,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.01100000000005
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.01400000000007
+            ],
+            [
+              "pons-finalization:position:3",
+              "partial_harvest",
+              103.01700000000008
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.0200000000001
+            ],
+            [
+              "pons-finalization:position:4",
+              "partial_harvest",
+              103.02300000000011
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.02600000000012
+            ],
+            [
+              "pons-finalization:position:5",
+              "partial_harvest",
+              103.02900000000014
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.03200000000015
+            ],
+            [
+              "pons-finalization:position:6",
+              "partial_harvest",
+              103.03500000000017
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.03800000000018
+            ],
+            [
+              "pons-finalization:position:7",
+              "partial_harvest",
+              103.0410000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.04400000000021
+            ],
+            [
+              "pons-finalization:position:8",
+              "partial_harvest",
+              103.04700000000022
+            ],
+            [
+              "pons-finalization:position:9",
+              "mark",
+              103.05000000000024
+            ],
+            [
+              "pons-finalization:position:9",
+              "partial_harvest",
+              103.05300000000025
+            ],
+            [
+              "pons-finalization:position:10",
+              "mark",
+              103.05600000000027
+            ],
+            [
+              "pons-finalization:position:10",
+              "partial_harvest",
+              103.05900000000028
+            ],
+            [
+              "pons-finalization:position:11",
+              "mark",
+              103.0620000000003
+            ],
+            [
+              "pons-finalization:position:11",
+              "partial_harvest",
+              103.06500000000031
+            ],
+            [
+              "pons-finalization:position:12",
+              "mark",
+              103.06800000000032
+            ],
+            [
+              "pons-finalization:position:12",
+              "partial_harvest",
+              103.07100000000034
+            ],
+            [
+              "pons-finalization:position:13",
+              "mark",
+              103.07400000000035
+            ],
+            [
+              "pons-finalization:position:13",
+              "partial_harvest",
+              103.07700000000037
+            ],
+            [
+              "pons-finalization:position:14",
+              "mark",
+              103.08000000000038
+            ],
+            [
+              "pons-finalization:position:14",
+              "partial_harvest",
+              103.0830000000004
+            ],
+            [
+              "pons-finalization:position:15",
+              "mark",
+              103.08600000000041
+            ],
+            [
+              "pons-finalization:position:15",
+              "partial_harvest",
+              103.08900000000042
+            ],
+            [
+              "pons-finalization:position:16",
+              "mark",
+              103.09200000000044
+            ],
+            [
+              "pons-finalization:position:16",
+              "partial_harvest",
+              103.09500000000045
+            ],
+            [
+              "pons-finalization:position:17",
+              "mark",
+              103.09800000000047
+            ],
+            [
+              "pons-finalization:position:17",
+              "partial_harvest",
+              103.10100000000048
+            ],
+            [
+              "pons-finalization:position:18",
+              "mark",
+              103.1040000000005
+            ],
+            [
+              "pons-finalization:position:18",
+              "partial_harvest",
+              103.10700000000051
+            ],
+            [
+              "pons-finalization:position:19",
+              "mark",
+              103.11000000000053
+            ],
+            [
+              "pons-finalization:position:19",
+              "partial_harvest",
+              103.11300000000054
+            ],
+            [
+              "pons-finalization:position:20",
+              "mark",
+              103.11600000000055
+            ],
+            [
+              "pons-finalization:position:20",
+              "partial_harvest",
+              103.11900000000057
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "after": {
+          "positions": 20,
+          "baseline_step": null,
+          "physical_starts": 5,
+          "methods": {
+            "eth_getBlockByNumber": 4,
+            "eth_getCode": 1,
+            "eth_call": 41,
+            "eth_gasPrice": 2
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002
+          ],
+          "completion_seconds": 0.8983164899936185,
+          "local_wall_seconds": 0.8933164899935946,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:3",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:4",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:5",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:6",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:7",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:8",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:9",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:9",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:10",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:10",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:11",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:11",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:12",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:12",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:13",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:13",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:14",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:14",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:15",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:15",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:16",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:16",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:17",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:17",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:18",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:18",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:19",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:19",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:20",
+              "mark",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:20",
+              "partial_harvest",
+              103.00500000000002
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "physical_starts_avoided": 114,
+        "estimated_billed_cu_before": 3466,
+        "estimated_billed_cu_after": 1206,
+        "estimated_billed_cu_avoided": 2260,
+        "modeled_usd_per_1000_disjoint_cohorts": 1.1865,
+        "actual_provider_savings_usd": 0
+      },
+      {
+        "workload": "pending_full",
+        "positions": 20,
+        "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+        "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+        "before": {
+          "positions": 20,
+          "baseline_step": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+          "physical_starts": 98,
+          "methods": {
+            "eth_getBlockByNumber": 78,
+            "eth_getCode": 1,
+            "eth_call": 21,
+            "eth_gasPrice": 39
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022,
+            103.04800000000023,
+            103.04900000000023,
+            103.05000000000024,
+            103.05100000000024,
+            103.05200000000025,
+            103.05300000000025,
+            103.05400000000026,
+            103.05500000000026,
+            103.05600000000027,
+            103.05700000000027,
+            103.05800000000028,
+            103.05900000000028,
+            103.06000000000029,
+            103.06100000000029,
+            103.0620000000003,
+            103.0630000000003,
+            103.0640000000003,
+            103.06500000000031,
+            103.06600000000032,
+            103.06700000000032,
+            103.06800000000032,
+            103.06900000000033,
+            103.07000000000033,
+            103.07100000000034,
+            103.07200000000034,
+            103.07300000000035,
+            103.07400000000035,
+            103.07500000000036,
+            103.07600000000036,
+            103.07700000000037,
+            103.07800000000037,
+            103.07900000000038,
+            103.08000000000038,
+            103.08100000000039,
+            103.08200000000039,
+            103.0830000000004,
+            103.0840000000004,
+            103.0850000000004,
+            103.08600000000041,
+            103.08700000000042,
+            103.08800000000042,
+            103.08900000000042,
+            103.09000000000043,
+            103.09100000000043,
+            103.09200000000044,
+            103.09300000000044,
+            103.09400000000045,
+            103.09500000000045,
+            103.09600000000046,
+            103.09700000000046
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022,
+            103.04800000000023,
+            103.04900000000023,
+            103.05000000000024,
+            103.05100000000024,
+            103.05200000000025,
+            103.05300000000025,
+            103.05400000000026,
+            103.05500000000026,
+            103.05600000000027,
+            103.05700000000027,
+            103.05800000000028,
+            103.05900000000028,
+            103.06000000000029,
+            103.06100000000029,
+            103.0620000000003,
+            103.0630000000003,
+            103.0640000000003,
+            103.06500000000031,
+            103.06600000000032,
+            103.06700000000032,
+            103.06800000000032,
+            103.06900000000033,
+            103.07000000000033,
+            103.07100000000034,
+            103.07200000000034,
+            103.07300000000035,
+            103.07400000000035,
+            103.07500000000036,
+            103.07600000000036,
+            103.07700000000037,
+            103.07800000000037,
+            103.07900000000038,
+            103.08000000000038,
+            103.08100000000039,
+            103.08200000000039,
+            103.0830000000004,
+            103.0840000000004,
+            103.0850000000004,
+            103.08600000000041,
+            103.08700000000042,
+            103.08800000000042,
+            103.08900000000042,
+            103.09000000000043,
+            103.09100000000043,
+            103.09200000000044,
+            103.09300000000044,
+            103.09400000000045,
+            103.09500000000045,
+            103.09600000000046,
+            103.09700000000046,
+            103.09800000000047
+          ],
+          "completion_seconds": 0.6414894469804153,
+          "local_wall_seconds": 0.5434894469799474,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00600000000003
+            ],
+            [
+              "pons-finalization:position:2",
+              "settled",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.01100000000005
+            ],
+            [
+              "pons-finalization:position:3",
+              "settled",
+              103.01300000000006
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.01600000000008
+            ],
+            [
+              "pons-finalization:position:4",
+              "settled",
+              103.01800000000009
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.0210000000001
+            ],
+            [
+              "pons-finalization:position:5",
+              "settled",
+              103.02300000000011
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.02600000000012
+            ],
+            [
+              "pons-finalization:position:6",
+              "settled",
+              103.02800000000013
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.03100000000015
+            ],
+            [
+              "pons-finalization:position:7",
+              "settled",
+              103.03300000000016
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.03600000000017
+            ],
+            [
+              "pons-finalization:position:8",
+              "settled",
+              103.03800000000018
+            ],
+            [
+              "pons-finalization:position:9",
+              "mark",
+              103.0410000000002
+            ],
+            [
+              "pons-finalization:position:9",
+              "settled",
+              103.0430000000002
+            ],
+            [
+              "pons-finalization:position:10",
+              "mark",
+              103.04600000000022
+            ],
+            [
+              "pons-finalization:position:10",
+              "settled",
+              103.04800000000023
+            ],
+            [
+              "pons-finalization:position:11",
+              "mark",
+              103.05100000000024
+            ],
+            [
+              "pons-finalization:position:11",
+              "settled",
+              103.05300000000025
+            ],
+            [
+              "pons-finalization:position:12",
+              "mark",
+              103.05600000000027
+            ],
+            [
+              "pons-finalization:position:12",
+              "settled",
+              103.05800000000028
+            ],
+            [
+              "pons-finalization:position:13",
+              "mark",
+              103.06100000000029
+            ],
+            [
+              "pons-finalization:position:13",
+              "settled",
+              103.0630000000003
+            ],
+            [
+              "pons-finalization:position:14",
+              "mark",
+              103.06600000000032
+            ],
+            [
+              "pons-finalization:position:14",
+              "settled",
+              103.06800000000032
+            ],
+            [
+              "pons-finalization:position:15",
+              "mark",
+              103.07100000000034
+            ],
+            [
+              "pons-finalization:position:15",
+              "settled",
+              103.07300000000035
+            ],
+            [
+              "pons-finalization:position:16",
+              "mark",
+              103.07600000000036
+            ],
+            [
+              "pons-finalization:position:16",
+              "settled",
+              103.07800000000037
+            ],
+            [
+              "pons-finalization:position:17",
+              "mark",
+              103.08100000000039
+            ],
+            [
+              "pons-finalization:position:17",
+              "settled",
+              103.0830000000004
+            ],
+            [
+              "pons-finalization:position:18",
+              "mark",
+              103.08600000000041
+            ],
+            [
+              "pons-finalization:position:18",
+              "settled",
+              103.08800000000042
+            ],
+            [
+              "pons-finalization:position:19",
+              "mark",
+              103.09100000000043
+            ],
+            [
+              "pons-finalization:position:19",
+              "settled",
+              103.09300000000044
+            ],
+            [
+              "pons-finalization:position:20",
+              "mark",
+              103.09600000000046
+            ],
+            [
+              "pons-finalization:position:20",
+              "settled",
+              103.09800000000047
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "after": {
+          "positions": 20,
+          "baseline_step": null,
+          "physical_starts": 3,
+          "methods": {
+            "eth_getBlockByNumber": 2,
+            "eth_getCode": 1,
+            "eth_call": 21,
+            "eth_gasPrice": 1
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001
+          ],
+          "completion_seconds": 0.5444573090383926,
+          "local_wall_seconds": 0.5414573090383783,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:2",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:3",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:4",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:5",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:6",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:7",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:8",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:9",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:9",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:10",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:10",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:11",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:11",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:12",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:12",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:13",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:13",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:14",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:14",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:15",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:15",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:16",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:16",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:17",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:17",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:18",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:18",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:19",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:19",
+              "settled",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:20",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:20",
+              "settled",
+              103.00300000000001
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "physical_starts_avoided": 95,
+        "estimated_billed_cu_before": 2906,
+        "estimated_billed_cu_after": 626,
+        "estimated_billed_cu_avoided": 2280,
+        "modeled_usd_per_1000_disjoint_cohorts": 1.197,
+        "actual_provider_savings_usd": 0
+      },
+      {
+        "workload": "pending_then_ordinary",
+        "positions": 20,
+        "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+        "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+        "before": {
+          "positions": 20,
+          "baseline_step": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+          "physical_starts": 62,
+          "methods": {
+            "eth_getBlockByNumber": 41,
+            "eth_getCode": 1,
+            "eth_call": 22,
+            "eth_gasPrice": 21
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022,
+            103.04800000000023,
+            103.04900000000023,
+            103.05000000000024,
+            103.05100000000024,
+            103.05200000000025,
+            103.05300000000025,
+            103.05400000000026,
+            103.05500000000026,
+            103.05600000000027,
+            103.05700000000027,
+            103.05800000000028,
+            103.05900000000028,
+            103.06000000000029,
+            103.06100000000029
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004,
+            103.00900000000004,
+            103.01000000000005,
+            103.01100000000005,
+            103.01200000000006,
+            103.01300000000006,
+            103.01400000000007,
+            103.01500000000007,
+            103.01600000000008,
+            103.01700000000008,
+            103.01800000000009,
+            103.01900000000009,
+            103.0200000000001,
+            103.0210000000001,
+            103.0220000000001,
+            103.02300000000011,
+            103.02400000000011,
+            103.02500000000012,
+            103.02600000000012,
+            103.02700000000013,
+            103.02800000000013,
+            103.02900000000014,
+            103.03000000000014,
+            103.03100000000015,
+            103.03200000000015,
+            103.03300000000016,
+            103.03400000000016,
+            103.03500000000017,
+            103.03600000000017,
+            103.03700000000018,
+            103.03800000000018,
+            103.03900000000019,
+            103.04000000000019,
+            103.0410000000002,
+            103.0420000000002,
+            103.0430000000002,
+            103.04400000000021,
+            103.04500000000021,
+            103.04600000000022,
+            103.04700000000022,
+            103.04800000000023,
+            103.04900000000023,
+            103.05000000000024,
+            103.05100000000024,
+            103.05200000000025,
+            103.05300000000025,
+            103.05400000000026,
+            103.05500000000026,
+            103.05600000000027,
+            103.05700000000027,
+            103.05800000000028,
+            103.05900000000028,
+            103.06000000000029,
+            103.06100000000029,
+            103.0620000000003
+          ],
+          "completion_seconds": 0.8178435389076526,
+          "local_wall_seconds": 0.7558435389073566,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.01100000000005
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.01400000000007
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.01700000000008
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.0200000000001
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.02300000000011
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.02600000000012
+            ],
+            [
+              "pons-finalization:position:9",
+              "mark",
+              103.02900000000014
+            ],
+            [
+              "pons-finalization:position:10",
+              "mark",
+              103.03200000000015
+            ],
+            [
+              "pons-finalization:position:11",
+              "mark",
+              103.03500000000017
+            ],
+            [
+              "pons-finalization:position:12",
+              "mark",
+              103.03800000000018
+            ],
+            [
+              "pons-finalization:position:13",
+              "mark",
+              103.0410000000002
+            ],
+            [
+              "pons-finalization:position:14",
+              "mark",
+              103.04400000000021
+            ],
+            [
+              "pons-finalization:position:15",
+              "mark",
+              103.04700000000022
+            ],
+            [
+              "pons-finalization:position:16",
+              "mark",
+              103.05000000000024
+            ],
+            [
+              "pons-finalization:position:17",
+              "mark",
+              103.05300000000025
+            ],
+            [
+              "pons-finalization:position:18",
+              "mark",
+              103.05600000000027
+            ],
+            [
+              "pons-finalization:position:19",
+              "mark",
+              103.05900000000028
+            ],
+            [
+              "pons-finalization:position:20",
+              "mark",
+              103.0620000000003
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "after": {
+          "positions": 20,
+          "baseline_step": null,
+          "physical_starts": 8,
+          "methods": {
+            "eth_getBlockByNumber": 5,
+            "eth_getCode": 2,
+            "eth_call": 23,
+            "eth_gasPrice": 3
+          },
+          "starts": [
+            103.0,
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003
+          ],
+          "responses": [
+            103.001,
+            103.00200000000001,
+            103.00300000000001,
+            103.00400000000002,
+            103.00500000000002,
+            103.00600000000003,
+            103.00700000000003,
+            103.00800000000004
+          ],
+          "completion_seconds": 0.7618271690719212,
+          "local_wall_seconds": 0.753827169071883,
+          "events": [
+            [
+              "pons-finalization:position:1",
+              "mark",
+              103.00300000000001
+            ],
+            [
+              "pons-finalization:position:1",
+              "partial_harvest",
+              103.00500000000002
+            ],
+            [
+              "pons-finalization:position:2",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:3",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:4",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:5",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:6",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:7",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:8",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:9",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:10",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:11",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:12",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:13",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:14",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:15",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:16",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:17",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:18",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:19",
+              "mark",
+              103.00800000000004
+            ],
+            [
+              "pons-finalization:position:20",
+              "mark",
+              103.00800000000004
+            ]
+          ],
+          "native_accounting_verified": true
+        },
+        "physical_starts_avoided": 54,
+        "estimated_billed_cu_before": 1832,
+        "estimated_billed_cu_after": 798,
+        "estimated_billed_cu_avoided": 1034,
+        "modeled_usd_per_1000_disjoint_cohorts": 0.54285,
+        "actual_provider_savings_usd": 0
+      }
+    ],
+    "measurement": "Deterministic native fixture original step versus repaired step, identical economic evidence; exact positions/risk/quantity/basis/realized money asserted. Prior failed-intent warmup is excluded from each recovery-turn delta.",
+    "non_additive": "Do not add cold ed7 exit, staggered phase and warm pending recovery comparisons for the same physical purchase. Monthly disjoint episode incidence is unavailable.",
+    "log_name": "final-protective-affected.log",
+    "log_sha256": "559218b7eaebc3da4d41a5d79ba59c5155a5bf23ac99968253d7660060ab5d36"
+  },
+  "final_source_compatibility": {
+    "acceptance_candidate": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "latest_runtime": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "native_pons_runtime": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+    "source_of_purchase_measurements_preserved": true,
+    "new_shutdown_repair_changes_provider_demand": false,
+    "new_capacity_followups_are_not_additional_savings": true
+  }
 }

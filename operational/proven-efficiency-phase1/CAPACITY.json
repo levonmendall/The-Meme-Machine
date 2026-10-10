@@ -6880,5 +6880,25 @@
     "single_active_full_loop_capacity_blocker": "Normal 100 ms modeled receipt path now fits; missing sender and slow-provider paths still fail; actual endpoint envelope remains unproved.",
     "inactive_repair": "GOVERNOR_REPAIR_DISABLED.json"
   },
-  "component_matrix_scope": "Prior d7 native quotation component specimens retained as baseline, not regenerated whole-loop acceptance."
+  "component_matrix_scope": "Prior d7 native quotation component specimens retained as baseline, not regenerated whole-loop acceptance.",
+  "historical_component_source": "d7cae26fce377db209daadbc478822382d003d9f",
+  "latest_native_repair": {
+    "code_commit": "9f5a51378112f6ce9380c9bc50e43045453f4af6",
+    "runtime_commit": "9f5a51378112f6ce9380c9bc50e43045453f4af6",
+    "native_trading_runtime_commit": "9f5a51378112f6ce9380c9bc50e43045453f4af6",
+    "artifact": "CAPACITY_REPAIR_NATIVE.json",
+    "specimens": 185,
+    "classification": "NATIVE_OFFLINE_INJECTED_PROVIDER; not endpoint capacity",
+    "production_limit_unchanged": true,
+    "real_clock_default_twenty_partial_deadline_pass": false,
+    "final_paper_capacity_acceptance": false
+  },
+  "latest_finalization": {
+    "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "register": "FINALIZATION.json",
+    "native_evidence": "CAPACITY_REPAIR_NATIVE.json",
+    "supersedes_only": "Later protective scheduling and pending-exit evidence; historical source pins and rows preserved.",
+    "readiness": "BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT"
+  }
 }

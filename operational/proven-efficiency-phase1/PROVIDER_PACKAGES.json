@@ -10,13 +10,14 @@
     "included_ru": 3000000,
     "rps": 25,
     "archive_access_proved": false,
-    "capability_test_authorized": false
+    "capability_test_authorized": false,
+    "overage_usd_per_million_ru": 20
   },
   "public_sources": [
     "https://chainstack.com/pricing/",
     "https://docs.chainstack.com/docs/request-units"
   ],
-  "verification_date": "2026-10-09",
+  "verification_date": "2026-10-10",
   "expected_net_saving_usd": null,
   "expected_savings_reason": "No authenticated full-month Pons method/archive/failure/fallback distribution or current plan allowance allocation is available.",
   "break_even_if_included_ru_suffice_and_no_fallback_or_extra_costs": {
@@ -779,5 +780,6 @@
   ],
   "operating_forecast": null,
   "actual_spend_reduced_usd": 0,
-  "provider_purchases": 0
+  "provider_purchases": 0,
+  "actual_account_tariffs_verified": false
 }

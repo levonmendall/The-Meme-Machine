@@ -798,5 +798,13 @@
   "finalization_native_measurements": "FINALIZATION_NATIVE.json",
   "prior_test_fixture_commit": "d7cae26fce377db209daadbc478822382d003d9f",
   "final_test_fixture_changes_source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
-  "finalization_driver_commit": "2ec2fff25245e774d68005a175467ea84127cc32"
+  "finalization_driver_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "latest_finalization": {
+    "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "register": "FINALIZATION.json",
+    "native_evidence": "CAPACITY_REPAIR_NATIVE.json",
+    "supersedes_only": "Later protective scheduling and pending-exit evidence; historical source pins and rows preserved.",
+    "readiness": "BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT"
+  }
 }

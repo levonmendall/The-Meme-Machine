@@ -1,23 +1,282 @@
 {
-  "schema": "pr129-final-completion-register-v1",
-  "recorded_at": "2026-10-10T04:36:44.933592+00:00",
-  "code_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
-  "runtime_commit": "e454af49aa66c05565675095dc61690dfd08006f",
-  "baseline": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
+  "actual_provider_calls": 0,
+  "actual_provider_spending_reduction_usd": 0,
+  "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
   "branch": "integration/pump-pons-efficiency-rc-20261009",
+  "code_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "completion_register": [
+    {
+      "evidence": "Clean ed7b3c66 continued. Same PR129 ancestry; cbfcb413 and deployed b577 unchanged. No reset or older branch replay.",
+      "status": "Implemented and validated offline",
+      "task": "baseline_and_ancestry"
+    },
+    {
+      "evidence": "Existing preparation/frontier/delta implementation retained; missing history, source changes, fork, native add/restart regressions pass.",
+      "status": "Implemented and validated offline",
+      "task": "current_scaling_900_seconds"
+    },
+    {
+      "evidence": "Full exits reuse the exact unchanged original quantity quote and ordered proof; partial exits share independently simulated quantities in one state/gas batch plus ordered fence. Source/session/account-wide activity/generation/time changes invalidate reuse.",
+      "status": "Implemented and validated offline",
+      "task": "survivor_native_acquisition_consolidation"
+    },
+    {
+      "evidence": "100-ms warm single HOLD/full uses four starts; partial uses six and fits offline. Sender body adds one start. 600-ms partial responses impose at least 3.6 seconds across six dependent responses, beyond the three-second complete-turn envelope at every tested rate.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "single_active_survivor_protection"
+    },
+    {
+      "evidence": "Frozen ad77dc80 FAST twenty active partials at default 2 RPS: 48 starts/23.663 s, late. Disabled 3 RPS: 6 starts/2.481 s. Warm twenty-pending recovery at 2 RPS passes a distinct 100-ms fixture; sender/600-ms responses remain failures. No universal account/provider capacity claim. One pending partial plus nineteen ordinary owners: 8 starts; all-owner completion 4.288/3.115/2.548s at 2/3/4 RPS. Urgent exit alone fits but 2/3-RPS full turns fail.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "fleet_protective_capacity"
+    },
+    {
+      "evidence": "Compatible already-due held and delayed-execution requests share existing native acquisition. A singleton delayed exit retains original private identity reuse and exactly the original method counts. Eight entry/eight protected workers; independent journals/quantities/cursors retained.",
+      "status": "Implemented and validated offline",
+      "task": "current_owned_sharing"
+    },
+    {
+      "evidence": "54 coincident, 27 virtual staggered, 24 mixed native specimens preserved. Real-clock staggered ten Current plus ten Survivor was late at unreserved 8/12/16/20/25 RPS. Disabled bounded phase at 12 RPS retains original risk deadlines/native money in the final fixture; eight-RPS phase checks still missed Current deadlines. Independent delayed PAPER fill clocks are distinct from risk decisions. Final single real-clock bounded-phase specimens at nine/ten/eleven RPS: 66 total transports each, all ten Current risks/exits and ten Survivor realizations pass; lower universal minimum remains unknown.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "current_whole_loop_capacity"
+    },
+    {
+      "evidence": "Operative fixed two-position selection/funding veto stays removed. Legacy policy descriptor is retained only for original durable identity.",
+      "status": "Implemented and validated offline",
+      "task": "survivor_count_veto"
+    },
+    {
+      "evidence": "Temporary worker pressure remains durable/retryable; filled owners hand off recoverably. No numerical owner veto. Entry RPC priority repaired to 5 versus protected priority 0.",
+      "status": "Implemented and validated offline",
+      "task": "current_worker_admission"
+    },
+    {
+      "evidence": "Original USD economic purpose reviewed, SQLite FULL boundary changes traced to predecessor, original nine tests/economic reducers pinned, approved e107 implementation identity explicit.",
+      "status": "Implemented and validated offline",
+      "task": "source_identity_failure"
+    },
+    {
+      "evidence": "Local root lacks I/O delegation and writable child controls. Existing GitHub runner also lacks cgroup containment and a dedicated two-vCPU environment. Assertions unchanged; no privileged configuration modified.",
+      "status": "Blocked by validation environment",
+      "task": "cgroup_containment_acceptance"
+    },
+    {
+      "evidence": "FAST: 1437 tests, 0 failures, 3 original cgroup errors, 0 skipped; OPERATIONAL: 2861 tests, 0 failures, 3 original cgroup errors, 33 skipped. Completed against one frozen unchanged fingerprint; required errors prevent PASS.",
+      "status": "Blocked by validation environment",
+      "task": "full_suite_acceptance"
+    },
+    {
+      "evidence": "Existing Plane/WAL bounded retention, independent obligations/acks, canonical generation invalidation and native recovery retained.",
+      "status": "Implemented and validated offline",
+      "task": "durable_shared_receipts"
+    },
+    {
+      "evidence": "Existing selector remains capability/resource/deadline gated; complete endpoint census, payload, throughput and native whole-turn timing unproved.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "dense_pons_receipts"
+    },
+    {
+      "evidence": "PR 126 fresh per-position consolidation remains unchanged; original concentration and executable protection tests retained.",
+      "status": "Implemented and validated offline",
+      "task": "pump_held_snapshot_optimization"
+    },
+    {
+      "evidence": "Existing parity/preparation and complete original fallback retained. No account/stream/repair method activated without exact context/completeness/payload evidence.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "pump_account_union_and_known_slot_repair"
+    },
+    {
+      "evidence": "Prior bounded immutable/source/topic and verified risk-fold caches retained. Native monetary replay still runs; no unproved monetary authority cache.",
+      "status": "Implemented and validated offline",
+      "task": "source_abi_cache_and_risk_reuse"
+    },
+    {
+      "evidence": "Existing bounded physical purchase instrumentation and offline evidence/deadline/native join preserved. New wire traces separate physical starts, logical elements, estimates, reuse and fixture bytes; legacy missing fields remain unknown.",
+      "status": "Implemented and validated offline",
+      "task": "purchase_attribution"
+    },
+    {
+      "evidence": "Native exact-state comparison boundaries and disabled 60s/64HTTP/256element/16MiB preparation retained. Public Oct10 tariff checked; actual account tariff, allowance, methods/archive/canonical behavior/latency unverified. No provider request, purchase or migration.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "provider_equivalence"
+    },
+    {
+      "evidence": "Event-wakeup remains shadow-only; mandatory native quotes remain. Exceptional winner extensions require separate economic and continuation safety approval, and remain inactive. Original native long-held management retained.",
+      "status": "Superseded or inactive",
+      "task": "quote_wakeup_and_winner_economics"
+    },
+    {
+      "evidence": "Existing source guards/recovery/monitoring/durable observations/dashboard retained; current native monetary byte hashes unchanged. Exact candidate CAPACITY/RECOVERY/AUTONOMY host evidence not inferred from offline tests.",
+      "status": "Requires separate PAPER authorization",
+      "task": "G01_G05_and_CAPACITY_RECOVERY_AUTONOMY"
+    },
+    {
+      "evidence": "Published engineering branch only. No merge, deployment, startup/restart, funding or provider activation. Original epoch and native state unchanged.",
+      "status": "Requires separate PAPER authorization",
+      "task": "deployment_and_funding"
+    },
+    {
+      "evidence": "Explicit offline-only profiles 2/3/4/8/12 RPS tested in the existing SQLite queue/role pacer, with logical/throughput/method weights, protected payload reserve, in-flight limits and modeled charged-failure budget. No production enable path or rate change.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "bounded_account_wide_governor"
+    },
+    {
+      "task": "concurrent_provider_ledger_initialization",
+      "status": "Implemented and validated offline",
+      "evidence": "020a OPERATIONAL exposed a real PRAGMA journal_mode=WAL startup race; isolated native two-owner stress failed after 32 successful iterations. Established WAL connections now avoid the mode write; initial SQLITE_BUSY setup retries share the original ten-second budget, preserve FULL durability and close failed connections. Five deterministic checks and forty repeated native two-owner exits pass; provider and monetary commits are never retried."
+    },
+    {
+      "task": "bounded_protective_phase_scheduling",
+      "status": "Implemented and validated offline",
+      "evidence": "da090e6d: offline-only opportunistic phase, max 3 seconds; earlier/equal protection deadlines bypass; expiry/exception cleanup, no token/spending grant, canonical guards unchanged. Final 2+2 at 3 RPS: 20 starts/1.916 s Survivor; 10+10 at 12 RPS: 69 total/6 Survivor starts/1.313 s. All Current risk deadlines/native money pass. Eight RPS not demonstrated sufficient. Final single real-clock bounded-phase specimens at nine/ten/eleven RPS: 66 total transports each, all ten Current risks/exits and ten Survivor realizations pass; lower universal minimum remains unknown."
+    },
+    {
+      "task": "pending_survivor_exit_consolidation",
+      "status": "Implemented and validated offline",
+      "evidence": "f9c82e40: already-due compatible pending owners share native acquisition; ordinary owners acquire after pending commits. Unknown capabilities keep original private fallback. Exact native position/quantity/basis/risk/realized-money parity against da090e6d for 1/2/4/8/12/20. Twenty pending partials: 119 to 5 starts, default 2 RPS 2.851 s; full: 98 to 3/1.781 s. Failed-intent warmup excluded; original next protection boundary/fresh clocks retained. Final suites have zero assertion failures; required containment errors remain."
+    },
+    {
+      "task": "current_staggered_clock_and_refusal_validation",
+      "status": "Implemented and validated offline",
+      "evidence": "4dc4c0fb: fourteen focused Current tests pass. Clock-monotonicity success uses existing offline 2-owner/4-RPS, 8-owner/8-RPS and 20-owner/12-RPS profiles. Original five-second first risks, integer PAPER due=now+2, executable observed_at>=due, complete independent fills and native money remain asserted. A forced admission-deadline refusal preserves due, pending exact quantity, zero proceeds and native recovery. Uniform four-RPS twenty-owner success was disproved by 286626b6 OPERATIONAL; no production limit or native timing expression changed."
+    },
+    {
+      "task": "accepted_maintenance_failure_during_shutdown",
+      "status": "Implemented and validated offline",
+      "evidence": "ad77dc80: 4dc OPERATIONAL exposed a race between stop and event-loop delivery of an accepted owner failure. Deterministic predecessor replay had no raised error/phase OFF despite terminal owner_lease_exceeded. Shutdown now consumes completed or bounded pending accepted maintenance work before cancelling its coroutine; native errors and five-second owner-close bound retained, cooperative yields nonterminal. Original expiry and record assertions remain. Three regressions plus adjacent native tests: 53 tests, zero failures, six existing archived-model skips. No provider calls or native strategy change."
+    }
+  ],
+  "external_blockers": [
+    {
+      "kind": "VALIDATION_ENVIRONMENT",
+      "required": "Existing authorized dedicated two-vCPU Linux x86_64 cgroup-v2 host with writable child cpu, memory, io delegation, block I/O accounting and seccomp notification."
+    },
+    {
+      "kind": "PROVIDER_CAPABILITY_AND_RESOURCE",
+      "required": "Authenticated native Pons method, hash-state, sender, archive, batch, payload and response-latency proof plus account-wide Pump/Pons headroom. Current 2 RPS cannot protect all demonstrated loads."
+    },
+    {
+      "kind": "MONETARY_AUTHORITY",
+      "required": "Verified actual tariff/allowance/charged-failure classification before a hard monetary ceiling and separately approved bounded comparison."
+    },
+    {
+      "kind": "PAPER_ACCEPTANCE",
+      "required": "Separate approval after preceding blockers for original-epoch CAPACITY/RECOVERY/AUTONOMY and G01-G05 operating evidence."
+    }
+  ],
+  "historical_full_suite_results": [
+    {
+      "errors": 3,
+      "failures": 0,
+      "skipped": 0,
+      "suite": "FAST",
+      "test_count": 1398
+    },
+    {
+      "errors": 3,
+      "failures": 0,
+      "skipped": 33,
+      "suite": "OPERATIONAL",
+      "test_count": 2819
+    },
+    {
+      "suite": "FAST",
+      "source_commit": "020a347720d35cdc5cacf6f0d62a85dfba001279",
+      "test_count": 1417,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0
+    },
+    {
+      "suite": "OPERATIONAL",
+      "source_commit": "020a347720d35cdc5cacf6f0d62a85dfba001279",
+      "test_count": 2838,
+      "status": "COMPLETED_FAIL",
+      "failures": 1,
+      "errors": 3,
+      "skipped": 33
+    },
+    {
+      "suite": "FAST",
+      "source_commit": "9f5a51378112f6ce9380c9bc50e43045453f4af6",
+      "test_count": 1422,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0
+    },
+    {
+      "suite": "OPERATIONAL",
+      "source_commit": "9f5a51378112f6ce9380c9bc50e43045453f4af6",
+      "test_count": 2843,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33
+    },
+    {
+      "suite": "FAST",
+      "source_commit": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
+      "test_count": 1436,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0
+    },
+    {
+      "suite": "OPERATIONAL",
+      "source_commit": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
+      "test_count": 2857,
+      "status": "COMPLETED_FAIL",
+      "failures": 1,
+      "errors": 3,
+      "skipped": 33
+    },
+    {
+      "suite": "FAST",
+      "source_commit": "4dc4c0fb95270924146ece290f1ea9f2a444ae3b",
+      "test_count": 1437,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0
+    },
+    {
+      "suite": "OPERATIONAL",
+      "source_commit": "4dc4c0fb95270924146ece290f1ea9f2a444ae3b",
+      "test_count": 2858,
+      "status": "COMPLETED_FAIL",
+      "failures": 1,
+      "errors": 3,
+      "skipped": 33
+    }
+  ],
+  "next_authorized_action": "No remaining independent source repair identified. Await a suitable existing authorized offline containment environment and authenticated account/provider proof; no provider or PAPER action is authorized.",
   "pr": 129,
+  "previous_candidate": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "pro_research_archive_inspected": false,
   "readiness": "BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT",
+  "recorded_at": "2026-10-10T15:47:09.817959+00:00",
+  "remaining_source_work": "No identified unresolved source defect after complete frozen suites. Higher-capacity production binding requires authenticated envelope and separate authorization; existing default stays at two RPS.",
+  "required_next_sequence": [
+    "Existing authorized dedicated two-vCPU Linux x86_64 cgroup-v2 host with writable child cpu, memory, io delegation, block I/O accounting and seccomp notification.",
+    "Authenticated native Pons method, hash-state, sender, archive, batch, payload and response-latency proof plus account-wide Pump/Pons headroom. Current 2 RPS cannot protect all demonstrated loads.",
+    "Verified actual tariff/allowance/charged-failure classification before a hard monetary ceiling and separately approved bounded comparison.",
+    "Separate approval after preceding blockers for original-epoch CAPACITY/RECOVERY/AUTONOMY and G01-G05 operating evidence."
+  ],
+  "runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "schema": "pr129-final-completion-register-v2",
   "source_commits": [
     {
       "commit": "c0621384c653c211b333045658c9d02402ed5900",
-      "subject": "Reconcile USD source guard with PR 129 while pinning original trading economics",
       "paths": [
         "tests/test_robinhood_usd_valuation.py"
-      ]
+      ],
+      "subject": "Reconcile USD source guard with PR 129 while pinning original trading economics"
     },
     {
       "commit": "4519476adf85fc1563e1dcd547e3f0395ab9e1af",
-      "subject": "Consolidate native Pons protection into ordered canonical acquisition frames",
       "paths": [
         "meme_machine/lanes/pons/pons_quotes.py",
         "meme_machine/lanes/pons/pons_selective_acquisition.py",
@@ -27,11 +286,11 @@
         "tests/test_pons_protective_capacity.py",
         "tests/test_pons_shared_native_acquisition.py",
         "tests/test_robinhood_usd_valuation.py"
-      ]
+      ],
+      "subject": "Consolidate native Pons protection into ordered canonical acquisition frames"
     },
     {
       "commit": "e454af49aa66c05565675095dc61690dfd08006f",
-      "subject": "Share compatible acquisitions across independently owned Pons Current controllers",
       "paths": [
         "meme_machine/lanes/pons/pons_current_workers.py",
         "meme_machine/lanes/pons/pons_selective_paper.py",
@@ -39,153 +298,299 @@
         "operational/tests.py",
         "tests/test_pons_current_shared_owners.py",
         "tests/test_pons_current_worker_ownership.py"
-      ]
+      ],
+      "subject": "Share compatible acquisitions across independently owned Pons Current controllers"
     },
     {
       "commit": "2ec2fff25245e774d68005a175467ea84127cc32",
-      "subject": "Reproduce native release purchase and deadline envelopes against the published predecessor",
       "paths": [
         "engineering/proven_efficiency/finalization.py",
         "engineering/proven_efficiency/system_wide.py"
+      ],
+      "subject": "Reproduce native release purchase and deadline envelopes against the published predecessor"
+    },
+    {
+      "commit": "b77d037ca4ae3841bf0807501242e079a966e45b",
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_workers.py",
+        "meme_machine/lanes/pons/pons_quotes.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/lanes/pons/provider_admission.py",
+        "meme_machine/lanes/pons/provider_topology.py",
+        "meme_machine/operational/offline.py",
+        "meme_machine/runtime/survivor_commit.py",
+        "operational/tests.py",
+        "tests/test_pons_capacity_repair.py",
+        "tests/test_pons_current_exit_sharing.py",
+        "tests/test_pons_current_shared_owners.py",
+        "tests/test_pons_protective_capacity.py",
+        "tests/test_pons_shared_native_acquisition.py"
+      ],
+      "subject": "Consolidate native protective exits and bound inactive account-wide capacity profiles"
+    },
+    {
+      "commit": "8c0cb5bca844d14ab76dd3d164a56f630006cb56",
+      "paths": [
+        "engineering/proven_efficiency/finalization.py"
+      ],
+      "subject": "Reproduce incremental exit purchases and mixed-owner capacity against ed7b3c66"
+    },
+    {
+      "commit": "fee79ea4f083711b509db29f63c57f0524ecfee6",
+      "paths": [
+        "engineering/proven_efficiency/finalization.py",
+        "tests/test_pons_current_shared_owners.py"
+      ],
+      "subject": "Retain and report native pending exits in overloaded mixed capacity replays"
+    },
+    {
+      "commit": "57b0e85c99f7f1e84c26505eb0eef749a661c7fa",
+      "paths": [
+        "engineering/proven_efficiency/finalization.py",
+        "tests/test_pons_current_exit_sharing.py",
+        "tests/test_pons_current_shared_owners.py"
+      ],
+      "subject": "Preserve native overload evidence and verify failed Current execution recovery"
+    },
+    {
+      "commit": "0ca74509f2f19c1181518fc3b0445b20dbf24593",
+      "paths": [
+        "tests/test_operational_storage_guard.py",
+        "tests/test_paper_bootstrap.py"
+      ],
+      "subject": "Make startup acceptance fixtures portable without relaxing production guards"
+    },
+    {
+      "commit": "71711d28560d7be41292a5fd7f253a33547bc842",
+      "paths": [
+        "engineering/proven_efficiency/finalization.py",
+        "meme_machine/lanes/pons/pons_current_workers.py",
+        "tests/test_pons_capacity_repair.py",
+        "tests/test_pons_current_exit_sharing.py",
+        "tests/test_pons_current_shared_owners.py",
+        "tests/test_pons_protective_capacity.py",
+        "tests/test_pons_shared_native_acquisition.py"
+      ],
+      "subject": "Keep single-owner execution economical and measure native capacity on a real offline clock"
+    },
+    {
+      "commit": "3c21002102987dfda23551c2b3211cb0122c2965",
+      "paths": [
+        "tests/test_pons_held_paper_shadow.py"
+      ],
+      "subject": "Verify shadow ordering through the extracted native HOLD helper"
+    },
+    {
+      "commit": "020a347720d35cdc5cacf6f0d62a85dfba001279",
+      "subject": "Enforce the disabled RPC comparison per-response byte ceiling",
+      "paths": [
+        "operational/pons_rpc_equivalence.py",
+        "tests/test_pons_rpc_equivalence_preparation.py"
+      ]
+    },
+    {
+      "commit": "9f5a51378112f6ce9380c9bc50e43045453f4af6",
+      "subject": "Handle concurrent provider-ledger WAL initialization without extending setup waits",
+      "paths": [
+        "meme_machine/lanes/pons/provider_admission.py",
+        "tests/test_pons_capacity_repair.py",
+        "tests/test_pons_current_shared_owners.py"
+      ]
+    },
+    {
+      "commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "subject": "Reserve bounded offline protective cohorts without relaxing canonical proofs",
+      "paths": [
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/lanes/pons/provider_admission.py",
+        "tests/test_pons_capacity_repair.py"
+      ]
+    },
+    {
+      "commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "subject": "Share pending native exits before acquiring ordinary owner protection",
+      "paths": [
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "tests/test_pons_capacity_repair.py"
+      ]
+    },
+    {
+      "commit": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
+      "subject": "Pin pending-owner purchase reductions to native predecessor parity",
+      "paths": [
+        "tests/test_pons_shared_native_acquisition.py"
+      ]
+    },
+    {
+      "commit": "4dc4c0fb95270924146ece290f1ea9f2a444ae3b",
+      "subject": "Validate staggered Current timing against demonstrated offline resource profiles",
+      "paths": [
+        "tests/test_pons_current_exit_sharing.py",
+        "tests/test_pons_current_shared_owners.py"
+      ]
+    },
+    {
+      "commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "subject": "Preserve accepted maintenance failures when shutdown wins coroutine delivery",
+      "paths": [
+        "meme_machine/solana_evidence_service.py",
+        "tests/test_production_maintenance_arbiter.py"
       ]
     }
   ],
-  "completion_register": [
-    {
-      "task": "baseline_and_ancestry",
-      "status": "Completed",
-      "evidence": "Clean e1070404 continued; cbfcb413 original worktree and PR 126/127/128 ancestry retained."
-    },
-    {
-      "task": "current_scaling_900_seconds",
-      "status": "Completed",
-      "evidence": "Existing preparation/frontier/delta implementation retained; missing history, source changes, fork, native add/restart regressions pass."
-    },
-    {
-      "task": "survivor_native_acquisition_consolidation",
-      "status": "Completed",
-      "evidence": "Native state+logs, one receipt enrichment and ordered joint membership. Individual owner uses existing methods; multi-owner sharing requires existing resource proof."
-    },
-    {
-      "task": "single_active_survivor_protection",
-      "status": "Blocked by specific provider or resource constraint",
-      "evidence": "Normal warm single-receipt/100-ms HOLD and full/partial exit specimens fit three seconds. Missing-sender body fallback and slow-provider cases miss it; actual endpoint RTT/sender/payload, cold and dense-market envelope remain unproved."
-    },
-    {
-      "task": "fleet_protective_capacity",
-      "status": "Blocked by specific provider or resource constraint",
-      "evidence": "Two simultaneous partial realizations exceed three seconds at 2 RPS; twenty full exits exceed it with local work; missing-sender and slow-provider cases also exceed it."
-    },
-    {
-      "task": "current_owned_sharing",
-      "status": "Completed",
-      "evidence": "Conditional neutral acquisition joins already-due owners; independent native stores/quantities/risks/cursors/accounting. Eight entry/eight protection workers retained."
-    },
-    {
-      "task": "current_whole_loop_capacity",
-      "status": "Partially completed",
-      "evidence": "2/4/8/20 active HOLD owners have native parity and paced coincident five-second proof; adversarial private paths, exits and mixed regimes need capacity evidence. No waiting expands a cohort."
-    },
-    {
-      "task": "survivor_count_veto",
-      "status": "Completed",
-      "evidence": "Operative fixed two-position selection/funding veto stays removed. Legacy policy descriptor is retained only for original durable identity."
-    },
-    {
-      "task": "current_worker_admission",
-      "status": "Completed",
-      "evidence": "Temporary worker pressure remains durable/retryable; filled owners hand off recoverably. No numerical owner veto. Entry RPC priority repaired to 5 versus protected priority 0."
-    },
-    {
-      "task": "source_identity_failure",
-      "status": "Completed",
-      "evidence": "Original USD economic purpose reviewed, SQLite FULL boundary changes traced to predecessor, original nine tests/economic reducers pinned, approved e107 implementation identity explicit."
-    },
-    {
-      "task": "cgroup_containment_acceptance",
-      "status": "Blocked by unavailable validation environment",
-      "evidence": "No existing delegated cpu+memory+io scope found on this offline host; exact original containment tests retained. No delegation or privileged service modified."
-    },
-    {
-      "task": "full_suite_acceptance",
-      "status": "Blocked by unavailable validation environment",
-      "evidence": "Both exact frozen suites completed; FAST: 1398 tests, 0 failures, 3 errors, OPERATIONAL: 2819 tests, 0 failures, 3 errors. Required errors are not PASS."
-    },
-    {
-      "task": "durable_shared_receipts",
-      "status": "Completed",
-      "evidence": "Existing Plane/WAL bounded retention, independent obligations/acks, canonical generation invalidation and native recovery retained."
-    },
-    {
-      "task": "dense_pons_receipts",
-      "status": "Blocked by specific provider capability",
-      "evidence": "Existing selector remains capability/resource/deadline gated; complete endpoint census, payload, throughput and native whole-turn timing unproved."
-    },
-    {
-      "task": "pump_held_snapshot_optimization",
-      "status": "Completed",
-      "evidence": "PR 126 fresh per-position consolidation remains unchanged; original concentration and executable protection tests retained."
-    },
-    {
-      "task": "pump_account_union_and_known_slot_repair",
-      "status": "Blocked by specific provider capability",
-      "evidence": "Existing parity/preparation and complete original fallback retained. No account/stream/repair method activated without exact context/completeness/payload evidence."
-    },
-    {
-      "task": "source_abi_cache_and_risk_reuse",
-      "status": "Completed",
-      "evidence": "Prior bounded immutable/source/topic and verified risk-fold caches retained. Native monetary replay still runs; no unproved monetary authority cache."
-    },
-    {
-      "task": "purchase_attribution",
-      "status": "Completed",
-      "evidence": "Existing bounded physical purchase instrumentation and offline evidence/deadline/native join preserved. New wire traces separate physical starts, logical elements, estimates, reuse and fixture bytes; legacy missing fields remain unknown."
-    },
-    {
-      "task": "provider_equivalence",
-      "status": "Blocked by specific provider capability",
-      "evidence": "Existing diagnostic comparison remains disabled. Pons RPC-only Chainstack hypothesis first; retain Alchemy Solana streams/address history; no subscription or migration."
-    },
-    {
-      "task": "quote_wakeup_and_winner_economics",
-      "status": "Requiring separately authorized PAPER evidence",
-      "evidence": "Existing shadow and exceptional continuation remain inactive/unvalidated. Original native polls, right-tail/scaling/36h/72h economics untouched; no infrastructure-forced liquidation."
-    },
-    {
-      "task": "G01_G05_and_CAPACITY_RECOVERY_AUTONOMY",
-      "status": "Requiring separately authorized PAPER evidence",
-      "evidence": "Existing startup, volume, backup, monitoring, durable observations and dashboard machinery retained; prior receipts referenced without repeated host engineering. New candidate host acceptance remains separate."
-    },
-    {
-      "task": "deployment_and_funding",
-      "status": "Completed",
-      "evidence": "No merge, deploy, service startup, provider workload, funding, signing, provider-limit change or infrastructure change. Original native monetary digests unchanged."
-    }
-  ],
-  "actual_provider_calls": 0,
-  "actual_provider_spending_reduction_usd": 0,
-  "pro_research_archive_inspected": false,
-  "required_next_sequence": [
-    "Unchanged containment tests on an existing authorized offline delegated cgroup v2 environment.",
-    "Separately authorized bounded read-only endpoint parity/resource/price test; no canonical authority substitution.",
-    "Native mixed/staggered exit/recovery capacity acceptance against authenticated profile; any governor repair separately authorized.",
-    "Only after original protective deadlines and required offline suites pass: separately authorize bounded PAPER CAPACITY/RECOVERY/AUTONOMY with existing epoch/storage/recovery/monitoring."
-  ],
+  "stage": "All identified authorized source repairs and final offline suites completed; blocked on delegated containment environment and authenticated provider/capacity/monetary evidence.",
+  "native_trading_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
   "full_suite_results": [
     {
       "suite": "FAST",
-      "test_count": 1398,
+      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "test_count": 1437,
+      "status": "COMPLETED_FAIL",
       "failures": 0,
       "errors": 3,
       "skipped": 0
     },
     {
       "suite": "OPERATIONAL",
-      "test_count": 2819,
+      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "test_count": 2861,
+      "status": "COMPLETED_FAIL",
       "failures": 0,
       "errors": 3,
       "skipped": 33
     }
   ],
-  "source_tree_sha256": "fa29df7b2a8c35b168ffe74bd85d84a8b8067480acbc3273bb8d047de7d54e68"
+  "source_tree_sha256": "e09044596d1d7c3a0803ab6f0e66c4e29df8b3d718c0d35e946c74919c9c2090",
+  "pending_purchase_gains": [
+    {
+      "workload": "pending_partial",
+      "positions": 1,
+      "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "physical_starts_avoided": 0,
+      "estimated_billed_cu_avoided": 0,
+      "modeled_usd_per_1000_disjoint_cohorts": 0.0,
+      "actual_provider_savings_usd": 0
+    },
+    {
+      "workload": "pending_partial",
+      "positions": 2,
+      "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "physical_starts_avoided": 6,
+      "estimated_billed_cu_avoided": 100,
+      "modeled_usd_per_1000_disjoint_cohorts": 0.0525,
+      "actual_provider_savings_usd": 0
+    },
+    {
+      "workload": "pending_partial",
+      "positions": 4,
+      "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "physical_starts_avoided": 18,
+      "estimated_billed_cu_avoided": 340,
+      "modeled_usd_per_1000_disjoint_cohorts": 0.1785,
+      "actual_provider_savings_usd": 0
+    },
+    {
+      "workload": "pending_partial",
+      "positions": 8,
+      "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "physical_starts_avoided": 42,
+      "estimated_billed_cu_avoided": 820,
+      "modeled_usd_per_1000_disjoint_cohorts": 0.4305,
+      "actual_provider_savings_usd": 0
+    },
+    {
+      "workload": "pending_partial",
+      "positions": 12,
+      "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "physical_starts_avoided": 66,
+      "estimated_billed_cu_avoided": 1300,
+      "modeled_usd_per_1000_disjoint_cohorts": 0.6825,
+      "actual_provider_savings_usd": 0
+    },
+    {
+      "workload": "pending_partial",
+      "positions": 20,
+      "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "physical_starts_avoided": 114,
+      "estimated_billed_cu_avoided": 2260,
+      "modeled_usd_per_1000_disjoint_cohorts": 1.1865,
+      "actual_provider_savings_usd": 0
+    },
+    {
+      "workload": "pending_full",
+      "positions": 20,
+      "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "physical_starts_avoided": 95,
+      "estimated_billed_cu_avoided": 2280,
+      "modeled_usd_per_1000_disjoint_cohorts": 1.197,
+      "actual_provider_savings_usd": 0
+    },
+    {
+      "workload": "pending_then_ordinary",
+      "positions": 20,
+      "baseline_step_commit": "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "replacement_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "physical_starts_avoided": 54,
+      "estimated_billed_cu_avoided": 1034,
+      "modeled_usd_per_1000_disjoint_cohorts": 0.54285,
+      "actual_provider_savings_usd": 0
+    }
+  ],
+  "source_activation_boundary": {
+    "shared_quote_resources": "Native adapters accept validated compatible resources, but present measurements inject descriptors through fixtures. Production binding awaits authenticated endpoint bounds and review.",
+    "higher_governor_profile": "Existing offline-only constructor/phase profiles are implemented. No production enable path is supplied or activated. Any binding follows verified account-wide capacity/spending and separate authorization.",
+    "independent_source_defect_remaining": false,
+    "operating_capacity_demonstrated": false
+  },
+  "maintenance_shutdown_repair": {
+    "failed_suite_source": "4dc4c0fb95270924146ece290f1ea9f2a444ae3b",
+    "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "before": {
+      "serve_errors": [],
+      "phase": "OFF",
+      "native_failure": "maintenance_owner_lease_exceeded",
+      "archived_records": 0
+    },
+    "baseline_reproduction": {
+      "log": "maintenance-shutdown-delivery-predecessor.log",
+      "sha256": "dd4e519b7f97dca3b3bff074414fe34347d32d592c390744d79d57744c36f2f2"
+    },
+    "sixty_isolated_original_runs": {
+      "log": "maintenance-queue-expiry-reproduction.log",
+      "sha256": "d0965722583909554cb744d2226a7ac2532f3707a26748048b71f37e290c9725",
+      "result": "All sixty original isolated calls raised the error; they did not erase the full-suite failure. Delayed future delivery then reproduced the real source race deterministically."
+    },
+    "final_focused": {
+      "log": "maintenance-accepted-outcome-final-focused.log",
+      "sha256": "96a6e96a15bd7114e90c56ecc493ce0805fe34be9b1cb9e41bbffe6bba157ac0",
+      "tests": 53,
+      "failures": 0,
+      "skipped": 6
+    }
+  },
+  "final_capacity_evidence": {
+    "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "source": "CAPACITY_REPAIR_NATIVE.json",
+    "frozen_FAST_recheck": "frozen_FAST_real_clock_recheck",
+    "frozen_OPERATIONAL_recheck": "frozen_OPERATIONAL_real_clock_recheck",
+    "mock_http_seconds": 0.1,
+    "provider_capability_proven": false
+  },
+  "pending_purchase_evidence": "FINALIZATION_COST.json:incremental_pending_exit_comparison; raw native traces/parity retained there and in CAPACITY_REPAIR_NATIVE.json.",
+  "supplemental_final_measurements": {
+    "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+    "evidence": "CAPACITY_REPAIR_NATIVE.json",
+    "pending_then_ordinary": "Eight starts; urgent commit timely but all-owner completion late at two/three RPS, passes four-RPS 100-ms fixture.",
+    "staggered_mixed": "Ten Current plus ten Survivor with bounded phase: nine/ten/eleven RPS all original risks, exits and native money pass in one specimen each; twelve-RPS final-suite rechecks retained.",
+    "provider_capacity_proven": false
+  }
 }

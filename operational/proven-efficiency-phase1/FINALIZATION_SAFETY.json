@@ -1,6 +1,6 @@
 {
-  "recorded_at": "2026-10-10T04:15:13.816955+00:00",
-  "source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "recorded_at": "2026-10-10T15:41:52.303583+00:00",
+  "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
   "native_monetary_digests": {
     "meteora/native-genesis.json": {
       "bytes": 241,
@@ -55,5 +55,6 @@
   "deployed_worktree_clean": true,
   "original_worktree_head": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
   "original_worktree_clean": true,
-  "actual_provider_limits_changed": false
+  "actual_provider_limits_changed": false,
+  "final_post_suite_verification": true
 }

@@ -1,8 +1,8 @@
 {
-  "recorded_at": "2026-10-10T03:56:06.080902+00:00",
-  "candidate_source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "recorded_at": "2026-10-10T15:48:45.592525+00:00",
+  "candidate_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
   "integration_parent": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
-  "disposition": "Preserve later local source; no older PR applied or merged. Head ancestry and file equality are reported independently.",
+  "disposition": "Existing PR129 successor. No older PR merged, deployed or reapplied; exact head ancestry and relevant file equality remain independent.",
   "prs": [
     {
       "baseRefName": "operational/paper-v1",
@@ -26,7 +26,7 @@
         {
           "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
           "present": true,
-          "current_sha256": "b66cb91a939ab82b7a21e781bac4b073a8609e05c80183fbe666438a6c320491",
+          "current_sha256": "0a2ef9026b1d48e6d2715fc04de56f44019193b9e8ca3d4833124ec6d8cefe9d",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -82,7 +82,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -109,7 +109,10 @@
         }
       ],
       "byte_identical_files": 0,
-      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0"
+      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-06T23:56:32Z"
     },
     {
       "baseRefName": "operational/paper-v1",
@@ -825,7 +828,10 @@
         }
       ],
       "byte_identical_files": 96,
-      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0"
+      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-07T20:46:53Z"
     },
     {
       "baseRefName": "operational/paper-v1",
@@ -863,7 +869,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -876,7 +882,12 @@
         }
       ],
       "byte_identical_files": 1,
-      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0"
+      "baseRefOid": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+      "closedAt": "2026-10-07T15:24:06Z",
+      "mergeCommit": {
+        "oid": "9f08f0db68fd3161c84bb955800db9a200a70f77"
+      },
+      "updatedAt": "2026-10-07T15:24:06Z"
     },
     {
       "baseRefName": "operational/paper-v1",
@@ -949,7 +960,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -983,7 +994,10 @@
         }
       ],
       "byte_identical_files": 7,
-      "baseRefOid": "9f08f0db68fd3161c84bb955800db9a200a70f77"
+      "baseRefOid": "9f08f0db68fd3161c84bb955800db9a200a70f77",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-08T00:56:21Z"
     },
     {
       "baseRefName": "engineering/exceptional-winner-candidate-20261009",
@@ -1014,21 +1028,21 @@
         {
           "path": "meme_machine/lanes/pons/pons_quotes.py",
           "present": true,
-          "current_sha256": "6f4fa53114e5718c2caf9e6e8d253f0b69ad0c32c02e709f04e73e40414fd310",
+          "current_sha256": "7e425bd27b0343fcbff50ab24982c54ffc06a89eb0765cb23456fc2ab21d5fef",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/pons_selective_paper.py",
           "present": true,
-          "current_sha256": "2976c5c75c67e3bdb96cbc2ef0a760187bc1eb216d4a83c61661ff6dec84c7b5",
+          "current_sha256": "920903b325ed16f803c437f76d48978148ccf31c7d00117024152d27d8f34e5f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
           "present": true,
-          "current_sha256": "b66cb91a939ab82b7a21e781bac4b073a8609e05c80183fbe666438a6c320491",
+          "current_sha256": "0a2ef9026b1d48e6d2715fc04de56f44019193b9e8ca3d4833124ec6d8cefe9d",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1049,7 +1063,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1062,7 +1076,10 @@
         }
       ],
       "byte_identical_files": 4,
-      "baseRefOid": "743dcd9df2902941d3f3d6e4204d15f7469bba79"
+      "baseRefOid": "743dcd9df2902941d3f3d6e4204d15f7469bba79",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T03:55:38Z"
     },
     {
       "baseRefName": "engineering/pons-held-efficiency-20261009",
@@ -1106,7 +1123,10 @@
         }
       ],
       "byte_identical_files": 0,
-      "baseRefOid": "cc5f45a0e04a86198a424681e2fbe125d29c2fef"
+      "baseRefOid": "cc5f45a0e04a86198a424681e2fbe125d29c2fef",
+      "closedAt": "2026-10-09T04:25:26Z",
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T04:25:26Z"
     },
     {
       "baseRefName": "engineering/pons-held-efficiency-20261009",
@@ -1179,7 +1199,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1192,7 +1212,10 @@
         }
       ],
       "byte_identical_files": 5,
-      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665"
+      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T05:27:34Z"
     },
     {
       "baseRefName": "engineering/pons-held-efficiency-20261009",
@@ -1223,21 +1246,21 @@
         {
           "path": "meme_machine/lanes/pons/pons_selective_paper.py",
           "present": true,
-          "current_sha256": "2976c5c75c67e3bdb96cbc2ef0a760187bc1eb216d4a83c61661ff6dec84c7b5",
+          "current_sha256": "920903b325ed16f803c437f76d48978148ccf31c7d00117024152d27d8f34e5f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
           "present": true,
-          "current_sha256": "b66cb91a939ab82b7a21e781bac4b073a8609e05c80183fbe666438a6c320491",
+          "current_sha256": "0a2ef9026b1d48e6d2715fc04de56f44019193b9e8ca3d4833124ec6d8cefe9d",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/provider_admission.py",
           "present": true,
-          "current_sha256": "4c51750a5e01ad673d2d1120b2105eb8cfa3a3091891f8cfcd7a02d2635fb562",
+          "current_sha256": "166b2344ced2399f28af0083b951d72bf084f8be748bdaa99e4425e82dbe4891",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1251,20 +1274,23 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "tests/test_pons_held_paper_shadow.py",
           "present": true,
-          "current_sha256": "0c646be1c46cc49c84bdf50d9af10741cc0a7b90720928ebde9e32df29cafb00",
+          "current_sha256": "ce63a255cff7e953ace497ed99061faef43abe42c61a1bceae50da414bf1ccec",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         }
       ],
       "byte_identical_files": 2,
-      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665"
+      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T04:50:39Z"
     },
     {
       "baseRefName": "engineering/pons-held-efficiency-20261009",
@@ -1316,21 +1342,21 @@
         {
           "path": "meme_machine/lanes/pons/pons_selective_paper.py",
           "present": true,
-          "current_sha256": "2976c5c75c67e3bdb96cbc2ef0a760187bc1eb216d4a83c61661ff6dec84c7b5",
+          "current_sha256": "920903b325ed16f803c437f76d48978148ccf31c7d00117024152d27d8f34e5f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
           "present": true,
-          "current_sha256": "b66cb91a939ab82b7a21e781bac4b073a8609e05c80183fbe666438a6c320491",
+          "current_sha256": "0a2ef9026b1d48e6d2715fc04de56f44019193b9e8ca3d4833124ec6d8cefe9d",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
         {
           "path": "meme_machine/lanes/pons/provider_admission.py",
           "present": true,
-          "current_sha256": "4c51750a5e01ad673d2d1120b2105eb8cfa3a3091891f8cfcd7a02d2635fb562",
+          "current_sha256": "166b2344ced2399f28af0083b951d72bf084f8be748bdaa99e4425e82dbe4891",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1400,7 +1426,7 @@
         {
           "path": "operational/tests.py",
           "present": true,
-          "current_sha256": "e7365d0c5be59dd8d8eb3829b31a165aa5ff190d4978b9b749b56b541416af5b",
+          "current_sha256": "ac1f0a4689b82333693f42b1adb7b62da69892a292145834afcc5c1599cb260f",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1414,7 +1440,7 @@
         {
           "path": "tests/test_pons_held_paper_shadow.py",
           "present": true,
-          "current_sha256": "0c646be1c46cc49c84bdf50d9af10741cc0a7b90720928ebde9e32df29cafb00",
+          "current_sha256": "ce63a255cff7e953ace497ed99061faef43abe42c61a1bceae50da414bf1ccec",
           "pr_head_blob_available": true,
           "byte_identical_to_pr_head": false
         },
@@ -1427,136 +1453,167 @@
         }
       ],
       "byte_identical_files": 10,
-      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665"
+      "baseRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "closedAt": null,
+      "mergeCommit": null,
+      "updatedAt": "2026-10-09T05:31:52Z"
     }
   ],
   "new_native_integration": {
-    "survivor": "Ordered joint frame and unchanged final execution facts",
+    "survivor": "Ordered native frame, exact-quantity exit sharing, prioritized compatible pending cohorts then ordinary owners; generic canonical proof unchanged.",
     "current": "Complete conditional independent-owner sharing and held/entry priority separation",
-    "governor": "unchanged 2 RPS",
+    "governor": "Production remains 2 RPS; explicit offline-only bounded rate/resource profiles and opportunistic protective phase, earlier/equal-deadline priority and expiry.",
     "deployment": "none",
     "source_commits": [
       "c0621384c653c211b333045658c9d02402ed5900",
       "4519476adf85fc1563e1dcd547e3f0395ab9e1af",
       "e454af49aa66c05565675095dc61690dfd08006f",
-      "2ec2fff25245e774d68005a175467ea84127cc32"
+      "2ec2fff25245e774d68005a175467ea84127cc32",
+      "da090e6d080383f0309517a5eb39aa4ead3360e8",
+      "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+      "286626b6e7c5c9e53af94afb5e28eb608fac3715"
     ]
   },
-  "runtime_unchanged_since": "e454af49aa66c05565675095dc61690dfd08006f",
+  "runtime_unchanged_since": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
   "prior_frozen_candidate_source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
   "pr129_baseline": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
   "latest_public_inventory": [
     {
-      "baseRefName": "integration/pump-pons-live-paper-126-127-20261009",
-      "headRefName": "integration/pump-pons-efficiency-rc-20261009",
-      "headRefOid": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
-      "isDraft": true,
-      "mergedAt": null,
-      "number": 129,
-      "state": "OPEN",
-      "title": "Pump/Pons efficiency RC: retained scaling history and bounded native ownership",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/129"
-    },
-    {
-      "baseRefName": "engineering/pons-held-efficiency-20261009",
-      "headRefName": "integration/pump-pons-live-paper-126-127-20261009",
-      "headRefOid": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
-      "isDraft": false,
-      "mergedAt": null,
-      "number": 128,
-      "state": "OPEN",
-      "title": "Integrate PRs #126 + #127 for next-start live PAPER testing (no host deploy)",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/128"
-    },
-    {
-      "baseRefName": "engineering/pons-held-efficiency-20261009",
-      "headRefName": "engineering/pons-event-driven-paper-20261009",
-      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
-      "isDraft": true,
-      "mergedAt": null,
-      "number": 127,
-      "state": "OPEN",
-      "title": "Pons event-driven held-position PAPER shadow with native exit preservation",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/127"
-    },
-    {
-      "baseRefName": "engineering/pons-held-efficiency-20261009",
-      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
-      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
-      "isDraft": true,
-      "mergedAt": null,
-      "number": 126,
-      "state": "OPEN",
-      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/126"
-    },
-    {
-      "baseRefName": "engineering/pons-held-efficiency-20261009",
-      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
-      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
-      "isDraft": true,
-      "mergedAt": null,
-      "number": 125,
-      "state": "CLOSED",
-      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/125"
-    },
-    {
-      "baseRefName": "engineering/exceptional-winner-candidate-20261009",
-      "headRefName": "engineering/pons-held-efficiency-20261009",
-      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
-      "isDraft": true,
-      "mergedAt": null,
-      "number": 124,
-      "state": "OPEN",
-      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/124"
-    },
-    {
       "baseRefName": "operational/paper-v1",
-      "headRefName": "maintenance/engineering-storage-retention-20261008",
-      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
-      "isDraft": true,
-      "mergedAt": null,
-      "number": 123,
-      "state": "OPEN",
-      "title": "Bound engineering artifacts and preserve failure evidence under storage pressure",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/123"
-    },
-    {
-      "baseRefName": "operational/paper-v1",
-      "headRefName": "operational/pause-ramses-20261007",
-      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
-      "isDraft": false,
-      "mergedAt": "2026-10-07T15:24:06Z",
-      "number": 122,
-      "state": "MERGED",
-      "title": "Pause Ramses as a reversible operational lane",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/122"
-    },
-    {
-      "baseRefName": "operational/paper-v1",
-      "headRefName": "repair/final-alchemy-solana-20261007",
-      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
-      "isDraft": true,
-      "mergedAt": null,
-      "number": 121,
-      "state": "OPEN",
-      "title": "Solana evidence: rolling prewarm startup and bounded provider proof",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/121"
-    },
-    {
-      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
       "headRefName": "repair/observation-qualification-history-20261006",
       "headRefOid": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
       "isDraft": false,
+      "mergeCommit": null,
       "mergedAt": null,
       "number": 120,
       "state": "OPEN",
       "title": "Repair candidate qualification, retention and ordered Solana history",
-      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/120"
+      "updatedAt": "2026-10-06T23:56:32Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
+      "headRefName": "repair/final-alchemy-solana-20261007",
+      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 121,
+      "state": "OPEN",
+      "title": "Solana evidence: rolling prewarm startup and bounded provider proof",
+      "updatedAt": "2026-10-07T20:46:53Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": "2026-10-07T15:24:06Z",
+      "headRefName": "operational/pause-ramses-20261007",
+      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
+      "isDraft": false,
+      "mergeCommit": {
+        "oid": "9f08f0db68fd3161c84bb955800db9a200a70f77"
+      },
+      "mergedAt": "2026-10-07T15:24:06Z",
+      "number": 122,
+      "state": "MERGED",
+      "title": "Pause Ramses as a reversible operational lane",
+      "updatedAt": "2026-10-07T15:24:06Z"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
+      "headRefName": "maintenance/engineering-storage-retention-20261008",
+      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 123,
+      "state": "OPEN",
+      "title": "Bound engineering artifacts and preserve failure evidence under storage pressure",
+      "updatedAt": "2026-10-08T00:56:21Z"
+    },
+    {
+      "baseRefName": "engineering/exceptional-winner-candidate-20261009",
+      "closedAt": null,
+      "headRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 124,
+      "state": "OPEN",
+      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard",
+      "updatedAt": "2026-10-09T03:55:38Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": "2026-10-09T04:25:26Z",
+      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
+      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 125,
+      "state": "CLOSED",
+      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)",
+      "updatedAt": "2026-10-09T04:25:26Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": null,
+      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
+      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 126,
+      "state": "OPEN",
+      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode",
+      "updatedAt": "2026-10-09T05:27:34Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": null,
+      "headRefName": "engineering/pons-event-driven-paper-20261009",
+      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 127,
+      "state": "OPEN",
+      "title": "Pons event-driven held-position PAPER shadow with native exit preservation",
+      "updatedAt": "2026-10-09T04:50:39Z"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": null,
+      "headRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "headRefOid": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "isDraft": false,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 128,
+      "state": "OPEN",
+      "title": "Integrate PRs #126 + #127 for next-start live PAPER testing (no host deploy)",
+      "updatedAt": "2026-10-09T05:31:52Z"
+    },
+    {
+      "baseRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "closedAt": null,
+      "headRefName": "integration/pump-pons-efficiency-rc-20261009",
+      "headRefOid": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 129,
+      "state": "OPEN",
+      "title": "Pump/Pons native acquisition consolidation and protection capacity finalization",
+      "updatedAt": "2026-10-10T11:19:53Z"
     }
   ],
-  "file_comparison_source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
-  "file_comparison_scope": "Frozen code candidate Git blobs; report publication changes excluded. Comparisons regenerated after runtime finalization, not inherited predecessor hashes."
+  "file_comparison_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "file_comparison_scope": "Frozen code candidate Git blobs; report publication changes excluded. Comparisons regenerated after runtime finalization, not inherited predecessor hashes.",
+  "native_pons_runtime_unchanged_since": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+  "latest_runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "inventory_scope": "Read-only snapshot immediately before publishing final PR129 successor; no merges or older branch replay."
 }
