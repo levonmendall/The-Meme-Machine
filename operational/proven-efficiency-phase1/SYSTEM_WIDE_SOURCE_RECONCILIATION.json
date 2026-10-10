@@ -1,0 +1,733 @@
+{
+  "schema": "source-reconciliation-v1",
+  "recorded_at": "2026-10-10T00:25:12.311618+00:00",
+  "candidate_source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "initial_latest_engineering_source": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+  "latest_system_audit_arrival_source": "cd1c16c4e867b8121e6ff8a8b02b6759ca46bef2",
+  "published_pro_source": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+  "deployed_source": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "branch": "integration/pump-pons-efficiency-rc-20261009",
+  "original_worktree_preserved": true,
+  "unrelated_local_changes_overwritten": false,
+  "pro_artifacts": {
+    "expected_archive": "Meme_Machine_Pro_Handoff.zip",
+    "available_in_this_workspace": false,
+    "report_ledger_workbooks_and_reference_tests_inspected": false,
+    "basis": "Owner supplied findings and actual local source; research-environment /mnt/data path is not this filesystem."
+  },
+  "findings": [
+    {
+      "finding": "retained_current_scaling_history",
+      "status_before_latest_mandate": "Missing",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "22974c04",
+        "46c433be",
+        "c59313bb"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/pons_current_history.py"
+      ],
+      "implementation": "Native 900-second frontier; prefix preparation outside quote clock; final new-block deltas; canonical/source invalidation and restart proof.",
+      "offline_evidence": "tests.test_pons_current_scaling_history; tests.test_pons_ongoing_scale",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "canonical_post_acquisition_order",
+      "status_before_latest_mandate": "Missing",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "4cfe8f5e"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_quotes.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py"
+      ],
+      "implementation": "Numeric membership starts after dependent quote/history responses. Batch response ordering is not used as proof.",
+      "offline_evidence": "tests.lanes.pons.test_pons_finalization; tests.lanes.pons.test_pons_execution_acquisition",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "survivor_cross_position_acquisition",
+      "status_before_latest_mandate": "Partially implemented",
+      "status_on_review_branch": "Partially implemented",
+      "commits": [
+        "2b68ddba",
+        "c4be0417",
+        "c59313bb"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/lanes/pons/pons_quotes.py"
+      ],
+      "implementation": "Actual Survivor step integrates common head, identity, gas and unioned history with independent exact simulations. Resource proof required and deployed endpoint lacks it. Quiet native two-position trace 10->5; twenty owners retain independent risk. Active native two-position trace 13->7 and twenty 121->7; at least three seconds between first and last active start, before network completion; current two-RPS deadline constraint unresolved.",
+      "offline_evidence": "tests.test_pons_shared_native_acquisition; engineering.proven_efficiency.cross_positions"
+    },
+    {
+      "finding": "current_cross_position_quotes",
+      "status_before_latest_mandate": "Partially implemented",
+      "status_on_review_branch": "Requiring additional evidence",
+      "commits": [
+        "50f87cf9",
+        "2b68ddba"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_quotes.py",
+        "engineering/proven_efficiency/cross_positions.py"
+      ],
+      "implementation": "Current quote component parity prepared; owned Current generators retain original independent native acquisition. No cross-thread batch wait or competing quote engine introduced. Full concurrent Current sharing and mixed-loop deadlines are not certified.",
+      "offline_evidence": "CROSS_POSITIONS.json; tests.test_pons_current_worker_ownership"
+    },
+    {
+      "finding": "dense_pons_block_receipts",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "377c7c16"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_v4.py",
+        "meme_machine/lanes/pons/pons_selective_acquisition.py"
+      ],
+      "implementation": "Existing selector adapted, separate billed/throughput CU, authenticated transaction census, bounded resource proof, missing/partial/fork refusal, sender fallback. Unknown deployed capability retains individual receipts.",
+      "offline_evidence": "tests.test_pons_dense_v4_receipts",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "durable_shared_receipts",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "25e17fa3",
+        "24996458",
+        "dafd4c1f"
+      ],
+      "paths": [
+        "meme_machine/runtime/robinhood/plane.py",
+        "meme_machine/runtime/robinhood/pons.py",
+        "meme_machine/lanes/pons/pons_selective_v4.py"
+      ],
+      "implementation": "Existing Plane WAL stores immutable receipts and consumer obligations; ack only after native history commit; source/reorg invalidation; busy-cache fallback; bounded byte/record admission.",
+      "offline_evidence": "tests.test_pons_durable_receipt_obligations",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "survivor_early_scaling_necessities",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "49e61a76",
+        "41e4cb8d"
+      ],
+      "paths": [
+        "meme_machine/runtime/survivor_commit.py",
+        "meme_machine/runtime/scaling_necessary_conditions.py"
+      ],
+      "implementation": "Original gross-high fifteen-percent expression and capital ceiling delegated unchanged; unknown/currentness ambiguity keeps full original path; no permanent failed decisions.",
+      "offline_evidence": "tests.test_scaling_necessary_conditions; tests.test_shared_capital_concurrency",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "current_early_scaling_necessities",
+      "status_before_latest_mandate": "Partially implemented",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "22974c04"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_paper.py"
+      ],
+      "implementation": "Native first realization, persistence, high qualification, one add, pending action, ownership/status, reservation and current allocatable capital precede research. Gross-high distance remains full fresh native validation where earlier complete identity is unavailable.",
+      "offline_evidence": "tests.test_pons_current_scaling_history; tests.test_pons_ongoing_scale",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "immutable_source_and_topic_dispatch",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "07c4a911",
+        "41e4cb8d"
+      ],
+      "paths": [
+        "meme_machine/runtime/source_artifacts.py",
+        "meme_machine/lanes/pons/abi.py",
+        "meme_machine/lanes/pons/identity.py",
+        "meme_machine/lanes/pons/pons.py"
+      ],
+      "implementation": "Bounded validated parsed metadata and strict precompiled dispatch; source watches/portable content fallback; no on-chain state cache.",
+      "offline_evidence": "tests.test_immutable_source_artifacts; BENCHMARK.json",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "verified_risk_fold_reuse",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "cc76c9c6"
+      ],
+      "paths": [
+        "meme_machine/runtime/survivor_commit.py"
+      ],
+      "implementation": "Verified risk folding reused under owner/journal/head/archive/mutation/source/recovery dependencies. Native monetary replay still runs every read.",
+      "offline_evidence": "tests.test_verified_risk_replay_reuse; BENCHMARK.json",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "full_monetary_replay_or_reconciliation_cache",
+      "status_before_latest_mandate": "Requiring additional evidence",
+      "status_on_review_branch": "Requiring additional evidence",
+      "commits": [],
+      "paths": [
+        "meme_machine/runtime/survivor_commit.py"
+      ],
+      "implementation": "Not activated: replacing full book replay, portfolio reconciliation or native monetary authority lacks sufficient invalidation proof. No additional database or authority.",
+      "offline_evidence": "Full native capital/recovery suites"
+    },
+    {
+      "finding": "provider_purchase_attribution",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "6463838a",
+        "e9e32f22",
+        "42e4a9d8",
+        "eea9e8cf",
+        "375d7496",
+        "f8744148d30cc28d9e1e049eabe3e1d34f9cbb4b"
+      ],
+      "paths": [
+        "meme_machine/runtime/provider_purchases.py",
+        "meme_machine/runtime/robinhood/provider_usage.py",
+        "operational/provider_cost_attribution.py",
+        "engineering/proven_efficiency/provider_snapshot.py"
+      ],
+      "implementation": "Physical boundary records separate logical reuse, retries, charged-failure uncertainty, bytes, billed/throughput weights and bounded operation labels. Offline join accepts only independently authenticated native evidence and original deadlines. Current entry, recovery and held-controller scopes are explicit. Legacy position_monitor is not inferred to be held protection because it is also used by valuation.",
+      "offline_evidence": "tests.test_provider_purchase_attribution; COST_ATTRIBUTION.json; LOCAL_PROVIDER_USAGE.json; consistent local DB copy 3,010 Pons starts, old consumer/deadline/byte attribution remains unavailable",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "pump_known_slot_block_repair",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "6132b17c",
+        "2ae04302"
+      ],
+      "paths": [
+        "meme_machine/solana_candidate_join.py"
+      ],
+      "implementation": "Existing repair selector chooses only authenticated known-slot complete blocks with proof of economic/payload/deadline bounds; no unknown interval completeness inference. Default short deadline keeps original repair.",
+      "offline_evidence": "tests.test_pump_known_slot_block_repair",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "pump_account_snapshot_union",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Requiring additional evidence",
+      "commits": [
+        "50732ef1"
+      ],
+      "paths": [
+        "operational/shared_acquisition_parity.py"
+      ],
+      "implementation": "Independent native partition validation and complete original concentration retained in offline fixtures; alternate operational union not activated without endpoint/deadline/resource proof.",
+      "offline_evidence": "tests.test_shared_acquisition_preparation"
+    },
+    {
+      "finding": "survivor_two_position_veto",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "aa9fdcee"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_postgrad_survivor.py"
+      ],
+      "implementation": "Operative admission count removed; no replacement count limit. Legacy policy descriptor preserves durable hash only; original allocation/liquidity/execution/protection expressions unchanged.",
+      "offline_evidence": "tests.test_pons_owner_admission; tests.test_pons_shared_native_acquisition",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "current_eight_lifecycle_worker_veto",
+      "status_before_latest_mandate": "Partially implemented",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "1c1cc59c",
+        "e2149bbb",
+        "31ce65b4",
+        "f8744148d30cc28d9e1e049eabe3e1d34f9cbb4b"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_workers.py",
+        "meme_machine/lanes/pons/pons_selective_cohort.py",
+        "meme_machine/lanes/pons/pons_selective_recovery.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py"
+      ],
+      "implementation": "Eight protected owner workers and eight separate bounded entry workers, maximum sixteen local threads. Existing durable native handoff/recovery transfers filled owners without repeated provider session or chain verification. Original first monitor deadline, qualification vector, native books and quantity/realization/high-water state retained. Durable capacity deferral, fresh requalification after expiry, twenty new and twenty restored native owners verified; blocked entry cannot occupy a due protection worker. Twenty simultaneous active full-loop deadlines remain unproved.",
+      "offline_evidence": "tests.test_pons_current_worker_ownership; tests.test_pons_current_worker_admission; tests.lanes.pons.test_pons_current_recovery",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "risk_acquisition_clock_separation",
+      "status_before_latest_mandate": "Partially implemented",
+      "status_on_review_branch": "Already implemented and validated",
+      "commits": [
+        "22974c04",
+        "31ce65b4"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_history.py",
+        "meme_machine/lanes/pons/pons_current_workers.py"
+      ],
+      "implementation": "History preparation lower priority and asynchronous; native risk cadence and executable requirements unchanged. No suppression activated.",
+      "offline_evidence": "tests.test_pons_current_scaling_history; tests.test_continuation_resource_efficiency",
+      "integration_status": "Integrated in this review candidate; not merged or deployed; validation is offline and scoped as recorded"
+    },
+    {
+      "finding": "held_quote_wakeup_shadow",
+      "status_before_latest_mandate": "Already implemented and validated",
+      "status_on_review_branch": "Superseded by newer work",
+      "commits": [
+        "cbfcb413"
+      ],
+      "paths": [
+        "meme_machine/lanes/pons/held_quote_wakeup.py",
+        "meme_machine/lanes/pons/held_paper_shadow.py"
+      ],
+      "implementation": "PR127 shadow preserved with later cbfcb protection-loop isolation. Synthetic event completeness is not operational quote suppression authority.",
+      "offline_evidence": "tests.test_pons_held_paper_shadow; tests.test_current_survivor_independence"
+    },
+    {
+      "finding": "governor_capacity_repair",
+      "status_before_latest_mandate": "Requiring additional evidence",
+      "status_on_review_branch": "Requiring additional evidence",
+      "commits": [],
+      "paths": [
+        "meme_machine/lanes/pons/provider_admission.py",
+        "meme_machine/lanes/pons/provider_topology.py"
+      ],
+      "implementation": "Half-second physical-start interval remains. Coincident quote sharing helps; adversarial staggered components still miss native deadlines. No unsupported limit increase or protection slowdown. Bounded provider comparison prepares bytes/logical/monetary constraints. Saved historical provider limits independently confirm 0.5 seconds; active shared seven-start path cannot fit three seconds.",
+      "offline_evidence": "CROSS_POSITIONS.json; tests.test_pons_rpc_equivalence_preparation"
+    },
+    {
+      "finding": "optional_provider_hybrid",
+      "status_before_latest_mandate": "Partially implemented",
+      "status_on_review_branch": "Requiring additional evidence",
+      "commits": [
+        "50f87cf9"
+      ],
+      "paths": [
+        "operational/pons_rpc_equivalence.py",
+        "engineering/proven_efficiency/provider_packages.py"
+      ],
+      "implementation": "RPC-only Pons candidate preferred, Alchemy Solana streams/history retained. Disabled configuration, no endpoints/credentials/network runner. Monetary/resource caps unverified.",
+      "offline_evidence": "PONS_RPC_COMPARISON_DISABLED.json; PROVIDER_COMPATIBILITY.md"
+    },
+    {
+      "finding": "parallel_speculative_receipt_enrichment",
+      "status_before_latest_mandate": "Requiring additional evidence",
+      "status_on_review_branch": "Requiring additional evidence",
+      "commits": [],
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_v4.py"
+      ],
+      "implementation": "Not activated: fresh canonical headers still precede receipt purchases; speculative fork purchases and deadline economics have no endpoint proof.",
+      "offline_evidence": "tests.test_continuation_resource_efficiency.V4WitnessTests"
+    },
+    {
+      "finding": "winner_continuation_extension",
+      "status_before_latest_mandate": "Partially implemented",
+      "status_on_review_branch": "Requiring additional evidence",
+      "commits": [],
+      "paths": [
+        "meme_machine/operational/position_continuation.py",
+        "engineering/extended_survivor_hold/research.py"
+      ],
+      "implementation": "Existing continuation and Current tail bridge retained; unvalidated exceptional holding changes inactive, no new infrastructure-duration liquidation.",
+      "offline_evidence": "tests.test_exceptional_winner_candidate; tests.test_extended_survivor_hold_research"
+    }
+  ],
+  "commits": [
+    {
+      "commit": "49e61a7608fe9f02f9d2d9526045e5a9c0bda35f",
+      "subject": "Skip impossible Survivor adds before deep requalification",
+      "paths": [
+        "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+        "meme_machine/runtime/directional_continuation.py",
+        "meme_machine/runtime/survivor_commit.py",
+        "operational/proven-efficiency-phase1/BASELINE.json",
+        "operational/tests.py",
+        "tests/proven_efficiency_baseline.py",
+        "tests/test_scaling_necessary_conditions.py"
+      ]
+    },
+    {
+      "commit": "07c4a911cf92c656fb0f8ed7d848eb6ffb70d35e",
+      "subject": "Reuse validated Pons source metadata and strict topic dispatch",
+      "paths": [
+        "meme_machine/lanes/pons/abi.py",
+        "meme_machine/lanes/pons/identity.py",
+        "meme_machine/lanes/pons/pons.py",
+        "meme_machine/lanes/pons/pons_breakout_sample.py",
+        "meme_machine/lanes/pons/pons_historical.py",
+        "meme_machine/lanes/pons/pons_lineage_capture.py",
+        "meme_machine/lanes/pons/pons_natural_observation.py",
+        "meme_machine/lanes/pons/pons_natural_paper.py",
+        "meme_machine/lanes/pons/pons_relative_value.py",
+        "meme_machine/lanes/pons/pons_selective_v4.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/runtime/source_artifacts.py",
+        "operational/tests.py",
+        "tests/test_immutable_source_artifacts.py"
+      ]
+    },
+    {
+      "commit": "cc76c9c661320f972ad55a5e75066baeb32a71a4",
+      "subject": "Reuse verified Survivor risk folds without caching monetary proofs",
+      "paths": [
+        "meme_machine/runtime/survivor_commit.py",
+        "operational/tests.py",
+        "tests/test_verified_risk_replay_reuse.py"
+      ]
+    },
+    {
+      "commit": "41e4cb8d298ac5f3c41bbba9403bb55f7f361492",
+      "subject": "Bound artifact watches and keep uncertain scaling evidence on the native path",
+      "paths": [
+        "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+        "meme_machine/runtime/source_artifacts.py",
+        "tests/test_immutable_source_artifacts.py",
+        "tests/test_scaling_necessary_conditions.py"
+      ]
+    },
+    {
+      "commit": "6463838a2b00935dde1e5b7d69c92ec510e691ff",
+      "subject": "Attribute physical provider purchases to bounded operational causes",
+      "paths": [
+        "meme_machine/lanes/pons/pons_historical.py",
+        "meme_machine/lanes/pons/pons_natural_observation.py",
+        "meme_machine/lanes/pons/pons_selective_acquisition.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/lanes/pons/provider.py",
+        "meme_machine/lanes/pons/provider_admission.py",
+        "meme_machine/lanes/pons/provider_topology.py",
+        "meme_machine/lanes/pump/provider.py",
+        "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+        "meme_machine/lanes/pump/runner.py",
+        "meme_machine/lanes/pump/solana_evidence_transport.py",
+        "meme_machine/lanes/pump/solana_read_rpc.py",
+        "meme_machine/runtime/provider_purchases.py",
+        "meme_machine/runtime/robinhood/provider_usage.py",
+        "meme_machine/runtime/survivor_commit.py",
+        "operational/provider_cost_attribution.py",
+        "operational/tests.py",
+        "tests/proven_efficiency_baseline.py",
+        "tests/test_provider_purchase_attribution.py"
+      ]
+    },
+    {
+      "commit": "50732ef1c8ae0b8ea1de63d3e337872a1ff00000",
+      "subject": "Prepare shared acquisition parity against native Pump and Pons evidence",
+      "paths": [
+        "operational/shared_acquisition_parity.py",
+        "operational/tests.py",
+        "tests/test_shared_acquisition_preparation.py"
+      ]
+    },
+    {
+      "commit": "377c7c16e42df6bd90011e3088fc0de3b519595a",
+      "subject": "Integrate existing dense Pons receipts after canonical block verification",
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_acquisition.py",
+        "meme_machine/lanes/pons/pons_selective_v4.py",
+        "operational/proven-efficiency-phase1/PRIORITY_UPDATE_BASELINE.json",
+        "operational/tests.py",
+        "tests/test_pons_dense_v4_receipts.py"
+      ]
+    },
+    {
+      "commit": "25e17fa3db53bc755a579b92b4343ae9727953e2",
+      "subject": "Retain shared Pons receipts until native consumer histories acknowledge them",
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_v4.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/runtime/robinhood/plane.py",
+        "meme_machine/runtime/robinhood/pons.py",
+        "operational/tests.py",
+        "tests/test_pons_durable_receipt_obligations.py"
+      ]
+    },
+    {
+      "commit": "ba14b47e63a93e41a5902013c58270ab7931362c",
+      "subject": "Keep the original directional strategy source unchanged by preflight checks",
+      "paths": [
+        "meme_machine/runtime/directional_continuation.py",
+        "meme_machine/runtime/scaling_necessary_conditions.py",
+        "meme_machine/runtime/survivor_commit.py",
+        "tests/test_scaling_necessary_conditions.py"
+      ]
+    },
+    {
+      "commit": "2499645832d75a301c4e0abb59448badf4d3aa22",
+      "subject": "Invalidate receipt obligations immediately during native fork recovery",
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_history.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/runtime/robinhood/pons.py"
+      ]
+    },
+    {
+      "commit": "e9e32f22bd36557985642aa5101ccdae5fd22407",
+      "subject": "Separate billed estimates from throughput and stream redelivery accounting",
+      "paths": [
+        "meme_machine/runtime/alchemy-cu-schedule.json",
+        "meme_machine/runtime/provider_purchases.py",
+        "operational/provider_cost_attribution.py",
+        "tests/test_provider_purchase_attribution.py"
+      ]
+    },
+    {
+      "commit": "6132b17ceb1add15350a5a78fd20dcd8ba7ce275",
+      "subject": "Select bounded known-slot Pump repairs with complete native fallback",
+      "paths": [
+        "meme_machine/runtime/evidence_worker.py",
+        "meme_machine/solana_candidate_join.py",
+        "meme_machine/solana_selective_source.py",
+        "operational/tests.py",
+        "tests/test_pump_known_slot_block_repair.py",
+        "tests/test_solana_shared_capacity.py"
+      ]
+    },
+    {
+      "commit": "2ae0430246d0b747699d4aaae0ebbf7615a4d766",
+      "subject": "Keep optional retention off busy writers and bound block repair payload work",
+      "paths": [
+        "meme_machine/runtime/robinhood/pons.py",
+        "meme_machine/solana_candidate_join.py",
+        "tests/test_pons_dense_v4_receipts.py",
+        "tests/test_pons_durable_receipt_obligations.py",
+        "tests/test_pump_known_slot_block_repair.py"
+      ]
+    },
+    {
+      "commit": "aa9fdcee23604ddacb740b454ca18c4909ca61d2",
+      "subject": "Remove owner-rejected Pons Survivor count veto while preserving native capital and journal identity",
+      "paths": [
+        "meme_machine/lanes/pons/pons_postgrad_survivor.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "operational/proven-efficiency-phase1/FINAL_ADDENDUM_BASELINE.json",
+        "operational/tests.py",
+        "tests/test_pons_owner_admission.py"
+      ]
+    },
+    {
+      "commit": "1c1cc59cab8ac117d6c495addc1ad0ee65f0c472",
+      "subject": "Keep Current worker pressure retryable through its durable canonical watch",
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_cohort.py",
+        "meme_machine/runtime/robinhood/pons.py",
+        "operational/tests.py",
+        "tests/test_pons_current_worker_admission.py"
+      ]
+    },
+    {
+      "commit": "e2149bbb4b5033d74a3daac48b774aa7ec22709b",
+      "subject": "Validate Current worker deferral through durable coverage and restart reporting",
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_cohort.py",
+        "meme_machine/runtime/robinhood/accounting.py",
+        "tests/lanes/pons/test_pons_continuous_campaign.py",
+        "tests/test_extended_survivor_hold_research.py",
+        "tests/test_pons_current_worker_admission.py"
+      ]
+    },
+    {
+      "commit": "dafd4c1f97d605d27fcb0abe09016184e6442800",
+      "subject": "Rebind retained canonical facts when validated Pons source artifacts change",
+      "paths": [
+        "meme_machine/lanes/pons/pons_selective_v4.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/runtime/robinhood/pons.py",
+        "tests/test_pons_durable_receipt_obligations.py",
+        "tests/test_robinhood_scout.py"
+      ]
+    },
+    {
+      "commit": "42e4a9d8fc39b2ca7be3d23adb2e9d584a6a84f8",
+      "subject": "Join bounded physical purchases to authenticated native evidence and original decision deadlines",
+      "paths": [
+        "operational/provider_cost_attribution.py",
+        "tests/test_provider_purchase_attribution.py"
+      ]
+    },
+    {
+      "commit": "37ba0e9e4dd4886487d0e38ad2c0ec21a92b0725",
+      "subject": "Pin unchanged economic sources and the exact owner-directed Survivor admission revision",
+      "paths": [
+        "tests/test_shared_capital_strategy.py"
+      ]
+    },
+    {
+      "commit": "50f87cf97c1ef979f13a8b7f371c45697f950ff1",
+      "subject": "Prepare inactive Pons RPC equivalence, native cross-position replay and complete package sensitivities",
+      "paths": [
+        "engineering/proven_efficiency/__init__.py",
+        "engineering/proven_efficiency/cross_positions.py",
+        "engineering/proven_efficiency/provider_packages.py",
+        "operational/pons_rpc_equivalence.py",
+        "operational/tests.py",
+        "tests/test_pons_rpc_equivalence_preparation.py",
+        "tests/test_provider_package_sensitivities.py"
+      ]
+    },
+    {
+      "commit": "cd1c16c4e867b8121e6ff8a8b02b6759ca46bef2",
+      "subject": "Reproduce source-cache, journal and high-volume purchase comparisons with offline native fixtures",
+      "paths": [
+        "engineering/proven_efficiency/benchmark.py",
+        "engineering/proven_efficiency/build_report.py",
+        "engineering/proven_efficiency/high_volume.py"
+      ]
+    },
+    {
+      "commit": "4cfe8f5eb81b2f0158b78316f5ecf881760c5b5b",
+      "subject": "Fence Pons executable state and history with ordered canonical checks",
+      "paths": [
+        "meme_machine/lanes/pons/pons_quotes.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "tests/lanes/pons/test_pons_execution_acquisition.py",
+        "tests/lanes/pons/test_pons_finalization.py"
+      ]
+    },
+    {
+      "commit": "22974c04ce5c74174d4ad706306206be22c11b8b",
+      "subject": "Prepare missing Current scaling history before fresh execution requalification",
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_history.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "tests/test_pons_current_scaling_history.py"
+      ]
+    },
+    {
+      "commit": "31ce65b4b82370a782e1038ab5c86043caafc322",
+      "subject": "Share eight Current workers across durable native lifecycle owners",
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_workers.py",
+        "meme_machine/lanes/pons/pons_selective_cohort.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/pons_selective_recovery.py",
+        "meme_machine/lanes/pons/provider_admission.py",
+        "tests/lanes/pons/test_pons_continuous_campaign.py",
+        "tests/lanes/pons/test_pons_current_recovery.py",
+        "tests/test_pons_current_worker_ownership.py",
+        "tests/test_pons_held_paper_shadow.py"
+      ]
+    },
+    {
+      "commit": "2b68ddba8bdc6b510ffa92059e533702c9eceea7",
+      "subject": "Integrate bounded shared Pons native quotations and held history acquisition",
+      "paths": [
+        "engineering/proven_efficiency/cross_positions.py",
+        "meme_machine/lanes/pons/pons_natural_paper.py",
+        "meme_machine/lanes/pons/pons_quotes.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "operational/tests.py",
+        "tests/test_pons_rpc_equivalence_preparation.py",
+        "tests/test_pons_shared_native_acquisition.py"
+      ]
+    },
+    {
+      "commit": "c4be0417b670987b9b4a0d34ced7bb3f33aa1e57",
+      "subject": "Preserve isolated quote fallback and measure native acquisition reuse",
+      "paths": [
+        "engineering/proven_efficiency/system_wide.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "tests/test_continuation_resource_efficiency.py"
+      ]
+    },
+    {
+      "commit": "46c433be920afcb77c8bf2ae599504c57d362106",
+      "subject": "Bind retained Current history to its authenticated source generation",
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_history.py",
+        "tests/test_pons_current_scaling_history.py"
+      ]
+    },
+    {
+      "commit": "c59313bb62448b5cfa4a6f1524b45050c935bf07",
+      "subject": "Reuse receipt-selection hits and prove fresh scaling deltas with concurrent protection",
+      "paths": [
+        "engineering/proven_efficiency/system_wide.py",
+        "meme_machine/lanes/pons/pons_selective_acquisition.py",
+        "tests/test_pons_current_scaling_history.py"
+      ]
+    },
+    {
+      "commit": "677053656295e4dca987fe9f4b0fc8b52e1a2d54",
+      "subject": "test: bind regression fixtures to reviewed source and canonical ordering",
+      "paths": [
+        "tests/test_continuation_resource_efficiency.py",
+        "tests/test_forward_survivor.py",
+        "tests/test_operational_capacity_repairs.py",
+        "tests/test_operational_storage_guard.py",
+        "tests/test_pons_historical.py",
+        "tests/test_solana_shared_capacity.py"
+      ]
+    },
+    {
+      "commit": "eea9e8cf7ae9c6f0d26fbc0b1e7777df16015efb",
+      "subject": "perf: report active native sharing and retained provider purchase attribution",
+      "paths": [
+        "engineering/proven_efficiency/provider_snapshot.py",
+        "engineering/proven_efficiency/system_wide.py",
+        "tests/test_provider_purchase_attribution.py"
+      ]
+    },
+    {
+      "commit": "375d7496d55828853f9314b7fa65ba0af26439e5",
+      "subject": "fix: keep legacy valuation scopes unattributed to position protection",
+      "paths": [
+        "engineering/proven_efficiency/provider_snapshot.py",
+        "tests/test_provider_purchase_attribution.py"
+      ]
+    },
+    {
+      "commit": "f8744148d30cc28d9e1e049eabe3e1d34f9cbb4b",
+      "subject": "Separate Current entry probes from protected native owners through durable handoff",
+      "paths": [
+        "meme_machine/lanes/pons/pons_current_workers.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/pons_selective_recovery.py",
+        "tests/test_pons_current_worker_ownership.py"
+      ]
+    },
+    {
+      "commit": "bb343fb5120bca0e486e8ea2b5a030114685854f",
+      "subject": "Require the ordered canonical fence in Current entry replay fixtures",
+      "paths": [
+        "tests/lanes/pons/test_pons_entry_confirmation_ordering.py"
+      ]
+    },
+    {
+      "commit": "d7cae26fce377db209daadbc478822382d003d9f",
+      "subject": "test: finalize offline Pump and purchase-accounting fixtures",
+      "paths": [
+        "tests/lanes/pump/test_evidence_runtime_cutover.py",
+        "tests/lanes/pump/test_pump_acceleration_natural_harness.py",
+        "tests/lanes/pump/test_run369_liveness.py",
+        "tests/lanes/pump/test_run370_pump_progression.py",
+        "tests/test_native_pump_continuation.py",
+        "tests/test_pump_pons_proof.py",
+        "tests/test_solana_read_rpc.py"
+      ]
+    }
+  ],
+  "candidate_runtime_commit": "f8744148d30cc28d9e1e049eabe3e1d34f9cbb4b",
+  "final_test_fixture_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "final_test_fixture_changes": "Pricing expectations assert 110 estimated CU including a failed physical start, without claiming charged CU; Pump passive diagnostic fakes implement existing PR126 interfaces; reservation clock fixture isolates stale module context; fresh-process dirty-page fixture retains original kernel assertions and write budget."
+}

@@ -1,0 +1,62 @@
+{
+  "accounting_claim": "cash and epoch from baseline preflight; final native monetary digests unchanged; no cash or native journal mutation",
+  "authorized_policy_exception": {
+    "change": "select_entries count veto removed; frozen policy identity and all economic functions unchanged",
+    "isolated_commit": "aa9fdcee23604ddacb740b454ca18c4909ca61d2",
+    "path": "meme_machine/lanes/pons/pons_postgrad_survivor.py",
+    "proof": "tests.test_pons_owner_admission.OwnerAdmissionTests.test_existing_economic_policy_and_native_exit_functions_are_exact"
+  },
+  "candidate_code_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "canonical_journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
+  "canonical_sequence": 2036,
+  "cash": "500.00",
+  "deployed_sha": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "deployed_worktree_clean": true,
+  "existing_read_only_observation_services": "left untouched; PAPER service remains inactive",
+  "identical_to_preflight": true,
+  "market_provider_calls": 0,
+  "native_monetary_digests": {
+    "meteora/native-genesis.json": {
+      "bytes": 241,
+      "sha256": "c9ef0e2e16be6714378d381b2c019f5ed3b50d8891c6c21b6dffc60fcba2c6e2"
+    },
+    "meteora/solana-dlmm-independent-v1-live.accounting.sqlite3": {
+      "bytes": 12288,
+      "sha256": "6d330ff5695b860706ae2ecac99384500effe68802f4d0be996116132fd7aa86"
+    },
+    "portfolio.sqlite": {
+      "bytes": 770048,
+      "sha256": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087"
+    },
+    "pump/directional-sleeve.sqlite": {
+      "bytes": 131072,
+      "sha256": "b6ff1324c81ff6ec3beb5468f03de30f24f9145c90ea0e49b88d2523d8b10dec"
+    },
+    "pump/native-genesis.json": {
+      "bytes": 241,
+      "sha256": "2fb1cddc05c30cf9416e2ed5d1189bc3c6a5898f8bb37ef50429263e148282a0"
+    },
+    "pump/pump-acceleration-natural-prospective.accounting.sqlite3": {
+      "bytes": 32768,
+      "sha256": "8f258a46260a87492b1cf925403861453e8469849288c9958300ff5da8bd7fdf"
+    },
+    "pump/pump-survivor/paper.sqlite": {
+      "bytes": 32768,
+      "sha256": "19b19ecf3fbf3ed27641c8f638dbb3eb13fe5712bb51df7bc5e5199693c49ee6"
+    }
+  },
+  "original_capital": "500.00",
+  "original_scale_budget_source_unchanged": true,
+  "original_worktree_clean": true,
+  "original_worktree_head": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+  "policy_files_unchanged": {
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": false,
+    "meme_machine/lanes/pons/pons_selective_continuation.py": true,
+    "meme_machine/lanes/pump/pump_acceleration_strategy.py": true,
+    "meme_machine/lanes/pump/pumpswap_survivor.py": true,
+    "meme_machine/runtime/survivor_risk.py": true
+  },
+  "recorded_at": "2026-10-10T00:53:17.722134+00:00",
+  "service": "MainPID=0\nActiveState=inactive\nSubState=dead\nUnitFileState=disabled\n",
+  "state_operation": "native monetary file hashes only; no native monetary database opened or mutated. Existing provider observability ledger alone was copied through a read-only SQLite connection for offline attribution."
+}

@@ -1,0 +1,594 @@
+{
+  "actual_infrastructure_spending_reduction": "0; no infrastructure changed",
+  "actual_provider_requests_dispatched": 0,
+  "artifacts": {
+    "capture_path": "tests/lanes/pons/fixtures/protocol_capture_35370277849.json",
+    "capture_sha256": "9702a4b12bafded92f9719020ed5c0109070b4598e0d08757edb56dcbbfa13c7",
+    "classification": "captured event decoding; repetition count is an explicit benchmark workload",
+    "cold_validation_cpu_seconds": 0.01502257100000004,
+    "eligible_captured_events": 33,
+    "identical_decoding": true,
+    "new": {
+      "cpu_seconds": 0.22827788399999993,
+      "iterations": 1000,
+      "wall_seconds": 0.3077521900413558
+    },
+    "new_allocations": {
+      "iterations": 25,
+      "peak_python_bytes": 71086,
+      "retained_python_bytes": 5032
+    },
+    "new_registry": {
+      "entries": 2,
+      "generation": 1,
+      "hits": 2050,
+      "misses": 2,
+      "parses": 2,
+      "retained_bytes": 491928
+    },
+    "new_source_parses_including_compiler_dependency": 2,
+    "old": {
+      "cpu_seconds": 1.047994275,
+      "iterations": 1000,
+      "wall_seconds": 1.8619552440941334
+    },
+    "old_allocations": {
+      "iterations": 25,
+      "peak_python_bytes": 330654,
+      "retained_python_bytes": 61239
+    },
+    "old_template_parses": 1000,
+    "provider_calls": 0,
+    "source_bytes": 105041,
+    "source_path": "meme_machine/lanes/pons/pons_curve_template.json"
+  },
+  "attribution_overhead": {
+    "classification": "synthetic instrumentation; zero provider work; durable comparison retains original transaction count",
+    "cpu_microseconds_per_attempt": 17.572151139999992,
+    "cpu_seconds": 0.8786075569999996,
+    "durable_transaction_comparison": [
+      {
+        "cpu_seconds": 0.24551139700000046,
+        "iterations": 500,
+        "path": "original",
+        "retained_counter_rows": 19,
+        "wall_seconds": 1.359393890015781
+      },
+      {
+        "cpu_seconds": 0.27401909199999963,
+        "iterations": 500,
+        "path": "optimized",
+        "retained_counter_rows": 26,
+        "wall_seconds": 1.5305432740133256
+      }
+    ],
+    "iterations": 50000,
+    "provider_calls": 0,
+    "retained_label_rows": 1,
+    "wall_seconds": 1.2888990070205182
+  },
+  "classification": "OFFLINE; measurements are this host and explicit fixtures",
+  "measurement_conditions": "Two-CPU host while the full offline suites were running. Process CPU and wall time are separate; these samples do not establish live latency or infrastructure savings.",
+  "native_pons_precheck": {
+    "avoided_fixture_rpc_elements": 2,
+    "avoided_mocked_physical_transport_attempts": 2,
+    "avoided_uncached_method_bundle": {
+      "eth_call": 1,
+      "eth_getBlockByNumber": 1
+    },
+    "caveat": "46 CU only if both original methods would be physical cache misses at the frozen schedule; deeper savings unspecified",
+    "classification": "existing Pons Runtime.fresh_state and native RPC with mocked HTTP; zero paid provider requests",
+    "optimized": {
+      "fixture_acquisitions": {},
+      "mocked_transport_attempts": 0,
+      "native": {
+        "cash": 941000,
+        "events": 4,
+        "final_hash": "29e5bc43b4e0804f48575f925abdae95247cca93b8be756392f5314f3c1391df",
+        "verified": true
+      },
+      "path": "optimized",
+      "purchase_accounting": {
+        "basis": "process-lifetime initiated HTTP attempts; streams are delivered messages",
+        "billing_status": "UNMEASURED",
+        "label_row_capacity": 256,
+        "operations": [],
+        "request_identity_status": "not retained; exact duplicate requests require existing audit/captured records",
+        "retry_failure_overlay": "subset of operation totals; never add twice",
+        "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "schema_version": 1,
+        "stream_cu_status": "UNPRICED; bytes do not imply a CU rate",
+        "totals": {
+          "estimated_cu": 0,
+          "estimated_throughput_cu": 0
+        },
+        "verified_billed_cu": null
+      },
+      "purchase_records": []
+    },
+    "original": {
+      "fixture_acquisitions": {
+        "eth_call": 1,
+        "eth_getBlockByNumber": 1
+      },
+      "mocked_transport_attempts": 2,
+      "native": {
+        "cash": 941000,
+        "events": 4,
+        "final_hash": "29e5bc43b4e0804f48575f925abdae95247cca93b8be756392f5314f3c1391df",
+        "verified": true
+      },
+      "path": "original",
+      "purchase_accounting": {
+        "basis": "process-lifetime initiated HTTP attempts; streams are delivered messages",
+        "billing_status": "UNMEASURED",
+        "label_row_capacity": 256,
+        "operations": [
+          {
+            "cache_misses": 2,
+            "completed_requests": 2,
+            "consumer": "survivor",
+            "consumer_method:eth_call": 1,
+            "consumer_method:eth_getBlockByNumber": 1,
+            "delivered_payload_bytes": 204,
+            "estimated_cu": 46,
+            "estimated_throughput_cu": 46,
+            "failed_requests": 0,
+            "family": "pons",
+            "known_estimated_cu": 46,
+            "known_estimated_throughput_cu": 46,
+            "logical_consumers": 2,
+            "operation": "scaling_requalification",
+            "origin_operation": "scaling_requalification",
+            "physical_requests": 2,
+            "purchased_method:eth_call": 1,
+            "purchased_method:eth_getBlockByNumber": 1,
+            "purpose": "scaling_requalification",
+            "request_bytes": 298,
+            "retry_requests": 0,
+            "unpriced_methods": {},
+            "verified_billed_cu": null
+          }
+        ],
+        "request_identity_status": "not retained; exact duplicate requests require existing audit/captured records",
+        "retry_failure_overlay": "subset of operation totals; never add twice",
+        "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "schema_version": 1,
+        "stream_cu_status": "UNPRICED; bytes do not imply a CU rate",
+        "totals": {
+          "cache_misses": 2,
+          "completed_requests": 2,
+          "delivered_payload_bytes": 204,
+          "estimated_cu": 46,
+          "estimated_throughput_cu": 46,
+          "failed_requests": 0,
+          "known_estimated_cu": 46,
+          "known_estimated_throughput_cu": 46,
+          "logical_consumers": 2,
+          "physical_requests": 2,
+          "request_bytes": 298,
+          "retry_requests": 0
+        },
+        "verified_billed_cu": null
+      },
+      "purchase_records": [
+        {
+          "consumer": "survivor",
+          "delivered_payload_bytes": 97,
+          "family": "pons",
+          "methods": [
+            "eth_getBlockByNumber"
+          ],
+          "operation": "scaling_requalification",
+          "purchase_id": "native-pons-precheck-0",
+          "purpose": "scaling_requalification",
+          "request_bytes": 90
+        },
+        {
+          "consumer": "survivor",
+          "delivered_payload_bytes": 107,
+          "family": "pons",
+          "methods": [
+            "eth_call"
+          ],
+          "operation": "scaling_requalification",
+          "purchase_id": "native-pons-precheck-1",
+          "purpose": "scaling_requalification",
+          "request_bytes": 208
+        }
+      ]
+    }
+  },
+  "python": "3.12.14",
+  "risk_replay": {
+    "classification": "100 reads of one unchanged 258-event journal; no observed production frequency inferred",
+    "identical_monetary_proof": true,
+    "identical_risk_state": true,
+    "monetary_verifications_retained": 100,
+    "new": {
+      "cpu_seconds": 2.143099382,
+      "iterations": 100,
+      "wall_seconds": 3.5333999500144273
+    },
+    "new_risk_folds": 1,
+    "old": {
+      "cpu_seconds": 2.5945995159999997,
+      "iterations": 100,
+      "wall_seconds": 3.88476858404465
+    },
+    "old_risk_folds": 100,
+    "provider_calls": 0
+  },
+  "scaling": {
+    "classification": "offline native integer-book replay; stage counts are not measured provider billings",
+    "provider_calls": 0,
+    "scenarios": [
+      {
+        "identical_decision_and_accounting": true,
+        "optimized": {
+          "capital": {
+            "available": 941000,
+            "capital": 1000000,
+            "final_hash": "50f0e7979bb6fa53e0fdc4b3ae53d3e2e3cd8d2d5fb5487195896033e66e2cd4",
+            "positions": 1,
+            "realized": 1000,
+            "reconciled": true,
+            "reserved": 60000
+          },
+          "cpu_seconds": 0.0021746389999997007,
+          "native_result": null,
+          "path": "optimized",
+          "position": {
+            "basis": 60000,
+            "capital_at_risk": 60000,
+            "capital_unit_seconds": 60040000,
+            "id": "r:p",
+            "last_at": 1001,
+            "mark": 0,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 1001,
+            "status": "open",
+            "tokens": 300000
+          },
+          "proof": {
+            "cash": 941000,
+            "events": 4,
+            "final_hash": "29e5bc43b4e0804f48575f925abdae95247cca93b8be756392f5314f3c1391df",
+            "verified": true
+          },
+          "stages": {}
+        },
+        "original": {
+          "capital": {
+            "available": 941000,
+            "capital": 1000000,
+            "final_hash": "50f0e7979bb6fa53e0fdc4b3ae53d3e2e3cd8d2d5fb5487195896033e66e2cd4",
+            "positions": 1,
+            "realized": 1000,
+            "reconciled": true,
+            "reserved": 60000
+          },
+          "cpu_seconds": 0.007791140000000141,
+          "native_result": null,
+          "path": "original",
+          "position": {
+            "basis": 60000,
+            "capital_at_risk": 60000,
+            "capital_unit_seconds": 60040000,
+            "id": "r:p",
+            "last_at": 1001,
+            "mark": 0,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 1001,
+            "status": "open",
+            "tokens": 300000
+          },
+          "proof": {
+            "cash": 941000,
+            "events": 4,
+            "final_hash": "29e5bc43b4e0804f48575f925abdae95247cca93b8be756392f5314f3c1391df",
+            "verified": true
+          },
+          "stages": {
+            "fresh_exit": 1,
+            "fresh_quotes": 1,
+            "fresh_state": 1,
+            "reconstruct": 1,
+            "size_probe": 2
+          }
+        },
+        "scenario": "equity_ceiling"
+      },
+      {
+        "identical_decision_and_accounting": true,
+        "optimized": {
+          "capital": {
+            "available": 963500,
+            "capital": 1000000,
+            "final_hash": "f3434acb006e1283e4866db546d7203037607a47cda7bc4937593950f22d4d96",
+            "positions": 1,
+            "realized": 1000,
+            "reconciled": true,
+            "reserved": 37500
+          },
+          "cpu_seconds": 0.0024340719999997873,
+          "native_result": null,
+          "path": "optimized",
+          "position": {
+            "basis": 37500,
+            "capital_at_risk": 37500,
+            "capital_unit_seconds": 37525000,
+            "id": "r:p",
+            "last_at": 1001,
+            "mark": 0,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 1001,
+            "status": "open",
+            "tokens": 300000
+          },
+          "proof": {
+            "cash": 963500,
+            "events": 4,
+            "final_hash": "a6777812b219f444f65f11acf61164e1cacea1b4bf6f13fa7bca6fcd5e70a050",
+            "verified": true
+          },
+          "stages": {
+            "fresh_state": 1,
+            "local_exit": 1
+          }
+        },
+        "original": {
+          "capital": {
+            "available": 963500,
+            "capital": 1000000,
+            "final_hash": "f3434acb006e1283e4866db546d7203037607a47cda7bc4937593950f22d4d96",
+            "positions": 1,
+            "realized": 1000,
+            "reconciled": true,
+            "reserved": 37500
+          },
+          "cpu_seconds": 0.0021359790000001766,
+          "native_result": null,
+          "path": "original",
+          "position": {
+            "basis": 37500,
+            "capital_at_risk": 37500,
+            "capital_unit_seconds": 37525000,
+            "id": "r:p",
+            "last_at": 1001,
+            "mark": 0,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 1001,
+            "status": "open",
+            "tokens": 300000
+          },
+          "proof": {
+            "cash": 963500,
+            "events": 4,
+            "final_hash": "a6777812b219f444f65f11acf61164e1cacea1b4bf6f13fa7bca6fcd5e70a050",
+            "verified": true
+          },
+          "stages": {
+            "fresh_exit": 1,
+            "fresh_quotes": 1,
+            "fresh_state": 1,
+            "reconstruct": 1,
+            "size_probe": 2
+          }
+        },
+        "scenario": "gross_high_distance"
+      },
+      {
+        "identical_decision_and_accounting": true,
+        "optimized": {
+          "capital": {
+            "available": 963500,
+            "capital": 1000000,
+            "final_hash": "f3434acb006e1283e4866db546d7203037607a47cda7bc4937593950f22d4d96",
+            "positions": 1,
+            "realized": 1000,
+            "reconciled": true,
+            "reserved": 37500
+          },
+          "cpu_seconds": 0.001958639000000595,
+          "native_result": null,
+          "path": "optimized",
+          "position": {
+            "basis": 37500,
+            "capital_at_risk": 37500,
+            "capital_unit_seconds": 37525000,
+            "id": "r:p",
+            "last_at": 1001,
+            "mark": 0,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 1001,
+            "status": "open",
+            "tokens": 300000
+          },
+          "proof": {
+            "cash": 963500,
+            "events": 4,
+            "final_hash": "4a6375a8fa22c4f70bde81593c71d18028d45e60d0f2ade5130124d1c366a8da",
+            "verified": true
+          },
+          "stages": {}
+        },
+        "original": {
+          "capital": {
+            "available": 963500,
+            "capital": 1000000,
+            "final_hash": "f3434acb006e1283e4866db546d7203037607a47cda7bc4937593950f22d4d96",
+            "positions": 1,
+            "realized": 1000,
+            "reconciled": true,
+            "reserved": 37500
+          },
+          "cpu_seconds": 0.002096048999999489,
+          "native_result": null,
+          "path": "original",
+          "position": {
+            "basis": 37500,
+            "capital_at_risk": 37500,
+            "capital_unit_seconds": 37525000,
+            "id": "r:p",
+            "last_at": 1001,
+            "mark": 0,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 1001,
+            "status": "open",
+            "tokens": 300000
+          },
+          "proof": {
+            "cash": 963500,
+            "events": 4,
+            "final_hash": "4a6375a8fa22c4f70bde81593c71d18028d45e60d0f2ade5130124d1c366a8da",
+            "verified": true
+          },
+          "stages": {
+            "fresh_exit": 1,
+            "fresh_quotes": 1,
+            "fresh_state": 1,
+            "reconstruct": 1,
+            "size_probe": 2
+          }
+        },
+        "scenario": "high_threshold"
+      },
+      {
+        "identical_decision_and_accounting": true,
+        "optimized": {
+          "capital": {
+            "available": 938500,
+            "capital": 1000000,
+            "final_hash": "81cb83d4a7e82cec6b3c4e0954ac0eb36371ff8c63f66afe9165004e939ae3ba",
+            "positions": 1,
+            "realized": 1000,
+            "reconciled": true,
+            "reserved": 62500
+          },
+          "cpu_seconds": 0.005736790000000269,
+          "native_result": {
+            "basis": 62500,
+            "capital_at_risk": 62500,
+            "capital_unit_seconds": 74987500,
+            "id": "r:p",
+            "last_at": 2000,
+            "mark": 25000,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 2000,
+            "scale_cost": 25000,
+            "scale_request": "r:p:scale:1",
+            "scale_tokens": 4000,
+            "status": "open",
+            "tokens": 304000
+          },
+          "path": "optimized",
+          "position": {
+            "basis": 62500,
+            "capital_at_risk": 62500,
+            "capital_unit_seconds": 74987500,
+            "id": "r:p",
+            "last_at": 2000,
+            "mark": 25000,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 2000,
+            "scale_cost": 25000,
+            "scale_request": "r:p:scale:1",
+            "scale_tokens": 4000,
+            "status": "open",
+            "tokens": 304000
+          },
+          "proof": {
+            "cash": 938500,
+            "events": 5,
+            "final_hash": "8171bac0f444f590c5658f81406d498903bab5228c1d297d1d3257eaa3eda46e",
+            "verified": true
+          },
+          "stages": {
+            "entry": 1,
+            "fresh_exit": 1,
+            "fresh_quotes": 1,
+            "fresh_state": 1,
+            "local_exit": 1,
+            "reconstruct": 1,
+            "size_probe": 2,
+            "validate": 1
+          }
+        },
+        "original": {
+          "capital": {
+            "available": 938500,
+            "capital": 1000000,
+            "final_hash": "81cb83d4a7e82cec6b3c4e0954ac0eb36371ff8c63f66afe9165004e939ae3ba",
+            "positions": 1,
+            "realized": 1000,
+            "reconciled": true,
+            "reserved": 62500
+          },
+          "cpu_seconds": 0.0056129880000002075,
+          "native_result": {
+            "basis": 62500,
+            "capital_at_risk": 62500,
+            "capital_unit_seconds": 74987500,
+            "id": "r:p",
+            "last_at": 2000,
+            "mark": 25000,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 2000,
+            "scale_cost": 25000,
+            "scale_request": "r:p:scale:1",
+            "scale_tokens": 4000,
+            "status": "open",
+            "tokens": 304000
+          },
+          "path": "original",
+          "position": {
+            "basis": 62500,
+            "capital_at_risk": 62500,
+            "capital_unit_seconds": 74987500,
+            "id": "r:p",
+            "last_at": 2000,
+            "mark": 25000,
+            "realized": 1000,
+            "reserved": 0,
+            "risk_at": 2000,
+            "scale_cost": 25000,
+            "scale_request": "r:p:scale:1",
+            "scale_tokens": 4000,
+            "status": "open",
+            "tokens": 304000
+          },
+          "proof": {
+            "cash": 938500,
+            "events": 5,
+            "final_hash": "8171bac0f444f590c5658f81406d498903bab5228c1d297d1d3257eaa3eda46e",
+            "verified": true
+          },
+          "stages": {
+            "entry": 1,
+            "fresh_exit": 1,
+            "fresh_quotes": 1,
+            "fresh_state": 1,
+            "reconstruct": 1,
+            "size_probe": 2,
+            "validate": 1
+          }
+        },
+        "scenario": "valid_add"
+      }
+    ]
+  },
+  "schema_version": 1,
+  "source_commit": "bb343fb5120bca0e486e8ea2b5a030114685854f"
+}
