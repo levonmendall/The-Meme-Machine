@@ -422,7 +422,7 @@ class SharedRiskPolicyTests(unittest.TestCase):
         self.assertEqual(result['decisions'][q[0].request_id]['status'],'QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
 
     def test_appreciation_is_marked_risk_not_cash_or_a_sale_and_other_assets_keep_independent_headroom(self):
-        for multiple in (2,5,10,25,50):
+        for multiple in (2,5,10,25,50,100,1000):
             h=self.harness(shared_risk_candidate());q,_=h.allocate([('pump_current',dict(requested='50'))]);life,_=h.fill(q[0])
             h.at=1;h.mark('pump_current',life,str(50*multiple));before=h.check()
             self.assertEqual(Decimal(before['capital']['realized_equity']),Decimal('1000'));self.assertEqual(Decimal(before['capital']['free_cash']),Decimal('950'))
@@ -434,6 +434,31 @@ class SharedRiskPolicyTests(unittest.TestCase):
             _,v,e=self.view(h)
             self.assertEqual(Decimal(e['shared_capital']['directional_sizing']['pump_current']['new_position_target']),50)
             self.assertEqual(Decimal(v['positions'][0]['risk_exposure']['marked_value']),50*multiple)
+
+    def test_staged_winner_upside_and_restart_never_reset_investment_or_fund_another_add(self):
+        fields=('original_basis','original_native_basis','capital_deployed','basis',
+                'partials','scale_committed','opened_at','realized_pnl')
+        for r in ACTIVE_REGIMES:
+            h,life=self.winner(r);q,result=self.stage(h,r,life)
+            self.assertEqual(result['decisions'][q[0].request_id]['basis'],'25')
+            h.fill(q[0]);original=deepcopy(h.check()['ledger']['positions'][life])
+            for multiple in (2,5,10,25,50,100,1000):
+                h.at+=1;h.mark(r,life,str(50*multiple));before=h.check();h.restart();after=h.check()
+                self.assertEqual(before,after);p=after['ledger']['positions'][life]
+                self.assertEqual({k:p[k] for k in fields},{k:original[k] for k in fields})
+                self.assertEqual(p['status'],'OPEN')
+                self.assertEqual(Decimal(after['capital']['actual_cash']),950)
+                self.assertEqual(Decimal(after['capital']['realized_equity']),Decimal('1012.5'))
+                self.assertEqual(Decimal(after['risk']['marked_exposure']),50*multiple)
+                _,v,_=self.view(h);row=next(p for p in v['positions'] if p['id']==life)
+                self.assertEqual(Decimal(row['risk_exposure']['invested_basis']),75)
+                self.assertEqual(Decimal(row['risk_exposure']['remaining_basis']),Decimal('62.5'))
+                self.assertEqual(Decimal(row['risk_exposure']['marked_value']),50*multiple)
+                self.assertEqual(row['staged_add_limits']['maximum_basis'],'0')
+                h.authority.verify_replay()
+            q,result=self.stage(h,r,life)
+            self.assertEqual(result['decisions'][q[0].request_id]['status'],'QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+            self.assertEqual(h.check()['ledger']['positions'][life]['status'],'OPEN')
 
     def test_simultaneous_funding_preserves_approved_aggregate_ceilings_and_candidates(self):
         h=self.harness(shared_risk_candidate());q,result=h.allocate([(r,dict(requested='50')) for _ in range(5) for r in ACTIVE_REGIMES])

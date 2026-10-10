@@ -361,15 +361,17 @@ def exit_action(
     soft=ratio<x["demand_failure_ratio_bps"] and int(new_buyers_30m)<=0
     if soft and int(deterioration_streak)>=x["demand_failure_confirmations"]:
         return dict(action="full_exit",reason="persistent_demand_failure")
-    if soft:
-        return dict(action="hold",reason="demand_deterioration_confirmation")
 
+    # Keep this legacy helper consistent with the native risk reducer: a low
+    # return and old high alone cannot invalidate healthy, continuing demand.
     if (
-        int(hold_seconds)>=x["no_new_high_seconds"]
+        soft and int(hold_seconds)>=x["no_new_high_seconds"]
         and int(seconds_since_high)>=x["no_new_high_seconds"]
         and current<x["no_new_high_return_ceiling_bps"]
     ):
         return dict(action="full_exit",reason="stale_thesis")
+    if soft:
+        return dict(action="hold",reason="demand_deterioration_confirmation")
     return dict(action="hold",reason=None)
 
 

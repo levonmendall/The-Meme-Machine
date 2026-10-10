@@ -17,7 +17,7 @@ from tests import test_position_continuation as operational_fixtures
 envelope=operational_fixtures.envelope
 
 AGES=(300,600,900,1800,36*3600,72*3600,96*3600,7*86400,14*86400,30*86400)
-MULTIPLES=(1,1.1,2,5,10,25,50)
+MULTIPLES=(1,1.1,2,5,10,25,50,100,1000)
 
 
 class CurrentLongHoldTests(unittest.TestCase):

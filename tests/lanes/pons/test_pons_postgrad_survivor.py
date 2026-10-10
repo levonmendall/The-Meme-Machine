@@ -179,6 +179,34 @@ class PonsPostgradSurvivorTests(unittest.TestCase):
         self.assertEqual(first["action"],"hold")
         self.assertEqual(second["reason"],"persistent_demand_failure")
 
+    def test_old_high_and_small_return_cannot_exit_healthy_long_held_demand(self):
+        for age in (6*3600,36*3600,72*3600,96*3600,7*86400,14*86400,30*86400):
+            for gain in (0,100,499):
+                for buy,sell,buyers in ((300,100,5),(70,100,1)):
+                    result=exit_action(after_cost_return_bps=gain,high_water_return_bps=gain,
+                        hold_seconds=age,seconds_since_high=age,buy_quote_30m=buy,
+                        sell_quote_30m=sell,new_buyers_30m=buyers)
+                    self.assertEqual(result['action'],'hold',(age,gain,buyers,result))
+
+    def test_stale_thesis_requires_adverse_flow_and_matches_native_age_return_boundaries(self):
+        from meme_machine.runtime.survivor_risk import mark
+        from meme_machine.lanes.pons.pons_postgrad_survivor import risk_policy
+        for age in (21600-1,21600,30*86400):
+            for gain in (100,499,500):
+                for soft in (False,True):
+                    for streak in (1,2):
+                        result=exit_action(after_cost_return_bps=gain,high_water_return_bps=gain,
+                            hold_seconds=age,seconds_since_high=age,buy_quote_30m=70 if soft else 300,
+                            sell_quote_30m=100,new_buyers_30m=0 if soft else 5,deterioration_streak=streak)
+                        state=dict(opened_at=0,high_at=0,high_water_bps=gain,
+                            original_quantity=400,remaining_quantity=400,realization_taken=False,
+                            deterioration_streak=streak-1 if soft else 0)
+                        _,native=mark(state,dict(id='flow',at=age,after_cost_return_bps=gain,
+                            soft_deterioration=soft,exit_liquidity_valid=True),risk_policy())
+                        self.assertEqual(result['action'],native['action'],(age,gain,soft,streak))
+                        if result['action']=='full_exit':
+                            self.assertEqual(result['reason'],'persistent_demand_failure' if streak==2 else 'stale_thesis')
+
     def test_strategy_has_no_pregrad_import_dependency(self):
         import inspect
         import meme_machine.lanes.pons.pons_postgrad_survivor as module
