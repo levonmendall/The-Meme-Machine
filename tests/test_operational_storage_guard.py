@@ -33,6 +33,16 @@ class StorageStartup(unittest.TestCase):
             inception_sha256=checksum)
         self.config.write_text(json.dumps(self.expected))
         self.config.chmod(0o644)
+        # Production requires a root-owned configuration. Model that fixture
+        # metadata without chown/sudo; ordinary CI runners are not uid 0.
+        actual_stat=Path.stat;self.configuration_owner=0
+        def configuration_stat(path,*args,**kwargs):
+            result=actual_stat(path,*args,**kwargs)
+            if path==self.config:
+                fields=list(result);fields[4]=self.configuration_owner
+                return os.stat_result(fields)
+            return result
+        self.enterContext(patch.object(Path,'stat',configuration_stat))
         self.mounted = dict(target=str(self.mount), uuid='expected-filesystem',
                             fstype='ext4', options='rw,noatime')
         self.mounted['maj:min'] = '8:0'
@@ -121,6 +131,12 @@ class StorageStartup(unittest.TestCase):
     def test_missing_configuration_fails_before_directory_creation(self):
         self.config.unlink()
         self.assert_startup_rejected(self.mounted, 'storage_identity_unavailable')
+
+    def test_untrusted_owner_and_writable_configuration_are_rejected(self):
+        self.configuration_owner=1001
+        self.assert_startup_rejected(self.mounted,'storage_configuration_permissions')
+        self.configuration_owner=0;self.config.chmod(0o666)
+        self.assert_startup_rejected(self.mounted,'storage_configuration_permissions')
 
     def test_service_requires_mount_and_checks_epoch_before_execstart(self):
         service = (Path(__file__).resolve().parents[1]/'deployment/meme-machine-paper.service').read_text()

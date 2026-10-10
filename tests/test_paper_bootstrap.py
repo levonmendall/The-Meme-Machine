@@ -201,9 +201,15 @@ class ProviderBudgetTests(unittest.TestCase):
         with self.assertRaises(BaseException):self.budget.stream_open('yellowstone')
 
     def test_wall_limit_and_host_restart_fail_closed(self):
-        with patch('meme_machine.operational.bounded_provider.time.monotonic',return_value=self.budget.started+1800):
+        # Exact boundary without host-dependent floating-point cancellation.
+        with patch('meme_machine.operational.bounded_provider.time.monotonic',return_value=100.):
+            budget=Budget.create(Path(self.tmp.name)/'exact-expiry.sqlite')
+        with patch('meme_machine.operational.bounded_provider.time.monotonic',return_value=1900.):
+            with self.assertRaises(BaseException):budget.admission()
+        self.assertEqual(budget.snapshot()['reason'],'bounded_run_wall_limit')
+        with patch('meme_machine.operational.bounded_provider.Path.read_text',return_value='different-host-boot'):
             with self.assertRaises(BaseException):self.budget.admission()
-        self.assertEqual(self.budget.snapshot()['reason'],'bounded_run_wall_limit')
+        self.assertEqual(self.budget.snapshot()['reason'],'bounded_run_host_restarted')
 
     def test_received_shutdown_tail_consumes_its_reserve_without_double_counting(self):
         from engineering.solana_capacity.proof_limits import MAX_FRAME
