@@ -397,12 +397,30 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual(decoder(old),decoder(current))
 
     def test_strategy_sources_and_nine_change_tests_byte_unchanged(self):
-        # Keep the owner-approved nine-change tests byte-pinned to their original
-        # directive. The older operational pin predates completed Pons/Pump
-        # repairs; the owner explicitly names b1f215ed as this task's reference.
+        # USD valuation originally had no authority to alter trading source.
+        # Keep that economic guard and the original nine changes. The owner's
+        # PR #129 finalization names e1070404 as the implementation predecessor;
+        # later reviewed transport/storage repairs are no longer USD changes.
         self.assertEqual((ROOT/'tests/test_operational_nine.py').read_bytes(),
                          baseline('tests/test_operational_nine.py'))
-        active='b1f215edd3dc079b623401c7e09e9c91a380e6a0'
+        economic_reference='b1f215edd3dc079b623401c7e09e9c91a380e6a0'
+        for rel in ('meme_machine/lanes/pump/pump_acceleration_strategy.py',
+                    'meme_machine/lanes/pump/pumpswap_survivor.py',
+                    'meme_machine/lanes/pons/pons_selective_continuation.py',
+                    'meme_machine/runtime/directional_continuation.py',
+                    'meme_machine/runtime/survivor_risk.py',
+                    'operational/nine-change-implementation.json'):
+            original=subprocess.check_output(['git','show',economic_reference+':'+rel],cwd=ROOT)
+            self.assertEqual((ROOT/rel).read_bytes(),original,rel)
+        rel='meme_machine/lanes/pons/pons_postgrad_survivor.py'
+        original=subprocess.check_output(['git','show',economic_reference+':'+rel],cwd=ROOT)
+        def survivor_economics(content):
+            # Explicit owner exception: remove the two-position selection veto.
+            # Policy identity, every qualification and every exit still pin.
+            return [ast.dump(n) for n in ast.parse(content).body
+                if not isinstance(n,ast.FunctionDef) or n.name!='select_entries']
+        self.assertEqual(survivor_economics(original),survivor_economics((ROOT/rel).read_bytes()))
+        active='e1070404849dfa86eb3e47d57cf24263b2fefc25'
         def source(path):
             return subprocess.check_output(['git','show',active+':'+path],cwd=ROOT)
         paths=subprocess.check_output(['git','ls-tree','-r','--name-only',active,'meme_machine/lanes'],cwd=ROOT,text=True).splitlines()
@@ -412,6 +430,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                         'meme_machine/lanes/pons/pons_natural_observation.py',
                         'meme_machine/lanes/pons/pons_selective_cohort.py',
                         'meme_machine/lanes/pons/pons_selective_v4.py',
+                        'meme_machine/lanes/pons/pons_quotes.py',
                         'meme_machine/lanes/pons/provider_topology.py',
                         'meme_machine/lanes/pons/provider_admission.py',
                         'meme_machine/lanes/pons/provider.py',
@@ -444,7 +463,7 @@ class RobinhoodUSDTests(unittest.TestCase):
             elif name!='Runtime':self.assertEqual(ast.dump(node),ast.dump(new[name]),rel+':'+name)
         old_methods=functions(old['Runtime']);new_methods=functions(new['Runtime'])
         mechanical={'__init__','historical_preparation_step','_provider','discover','_bootstrap_cursor',
-                    '_increment_candidates','reconstruct','step'}
+                    '_increment_candidates','reconstruct','step','_prepare_held_acquisition'}
         for name,node in old_methods.items():
             if name not in mechanical:
                 node.decorator_list=[];new_methods[name].decorator_list=[]
