@@ -1,0 +1,97 @@
+{
+  "recorded_at": "2026-10-10T22:14:44Z",
+  "scope": "Pre-publication read-only PR120\u2013129 inventory. PR129 head in this snapshot precedes this successor publication; the current GitHub PR is authoritative for published head. No PR was merged or closed by this work.",
+  "rows": [
+    {
+      "headRefName": "repair/observation-qualification-history-20261006",
+      "headRefOid": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 120,
+      "state": "OPEN",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/120"
+    },
+    {
+      "headRefName": "repair/final-alchemy-solana-20261007",
+      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 121,
+      "state": "OPEN",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/121"
+    },
+    {
+      "headRefName": "operational/pause-ramses-20261007",
+      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
+      "isDraft": false,
+      "mergedAt": "2026-10-07T15:24:06Z",
+      "number": 122,
+      "state": "MERGED",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/122"
+    },
+    {
+      "headRefName": "maintenance/engineering-storage-retention-20261008",
+      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 123,
+      "state": "OPEN",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/123"
+    },
+    {
+      "headRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 124,
+      "state": "OPEN",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/124"
+    },
+    {
+      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
+      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 125,
+      "state": "CLOSED",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/125"
+    },
+    {
+      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
+      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 126,
+      "state": "OPEN",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/126"
+    },
+    {
+      "headRefName": "engineering/pons-event-driven-paper-20261009",
+      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 127,
+      "state": "OPEN",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/127"
+    },
+    {
+      "headRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "headRefOid": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 128,
+      "state": "OPEN",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/128"
+    },
+    {
+      "headRefName": "integration/pump-pons-efficiency-rc-20261009",
+      "headRefOid": "bde1920b2e99260830358f3d096af7399474edde",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 129,
+      "state": "OPEN",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/129"
+    }
+  ],
+  "candidate_code_source": "e17d91fb1d95194774e94ae444b04cfe127d42ab"
+}

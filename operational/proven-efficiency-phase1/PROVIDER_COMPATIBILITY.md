@@ -1,9 +1,46 @@
 Read-only provider compatibility review, checked 2026-10-10. Candidate code:
-`ad77dc805cfd0c8261eeabd335f48445c0d63df1`; latest runtime is
-`ad77dc805cfd0c8261eeabd335f48445c0d63df1` (native Pons paths remain `f9c82e40baddb1a80520023c0243e25d55f4d1e2`). Native economic and execution
-methods retain their original quantity, canonical, freshness and monetary checks;
-successors repair local provider-ledger setup and protective scheduling. No endpoint requests, account changes,
+`e17d91fb1d95194774e94ae444b04cfe127d42ab`; runtime snapshot is the same frozen
+source. The successor preserves original exit thresholds and adds bounded native
+protective-return reporting and strict research-only shadow comparisons. The last
+economic/helper repair is `bdecfeb34ce2082e9ef8848739c71d8762a14755`; capital-risk
+policy preparation is `2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3`.
+Owner-approved age-only exits are removed and new-epoch sizing uses total realized
+portfolio equity. Original executable quantity, canonical, freshness and monetary
+checks remain. No market-data endpoint requests, account changes,
 credentials, subscriptions or deployments were performed.
+
+The inactive new-epoch policy recommendation separately caps invested asset basis
+at 7.5% and marked new-risk asset concentration at 10%; it needs owner approval.
+Existing aggregate limits, native integer sizing and USD half-original add limits
+remain. No production risk policy or governor has changed.
+
+Prior core controller traces omit the native USD financial boundary. Its actual
+source shapes are 10 cold/6 warm/8 oracle-refresh transports, zero on a valid original
+cache hit; shared callers reuse one immutable unit price with independent amounts.
+The new standalone canonical fence checks target and retained oracle blocks after
+state acquisition. Basic provider validation must include USDG proxy/aggregator,
+authenticated ETH→USDG router/factory/pool, route completion and original validity,
+in addition to token buy/sell/add, gas, logs and receipts. Those static helpers are
+Pons valuation references, not an activated Ramses consumer. Component 3/4/9-RPS
+profiles do not prove complete protection including finance, entry and recovery.
+
+Read-only administrative inspection is complete for the exposed interfaces.
+Alchemy app/usage tools authenticate 1,740,125.5362 core CU in the partial October
+billing period and $0.91 displayed core cost; Solana contributes 1,737,251.5362,
+Robinhood 2,874. Solana gRPC delivery is separately reported as 0.0063307322 TB.
+Neither core cost nor public tariff arithmetic is a complete invoice. Configured
+credential-to-app binding, actual plan/allowance/tariff, shared throughput, physical
+starts, logical method/batch/payload/in-flight limits, archive/failure charging and
+spending controls remain unknown. Exposed administrative tools cannot establish
+those entitlements; no market requests were made to fill the gaps.
+
+The next comparison should first test the **configured Alchemy Pons endpoint**.
+Optional Chainstack comparison is not prerequisite to existing-provider capacity
+validation. Native exact-state quotation acceptance must include the new $50
+directional target and eligible $25 staged-add size, with real gas, fee, liquidity
+and USD/native conversion evidence. Offline sizing tests do not prove authentic
+liquidity or quotation equivalence at those amounts. No operating $1,000 epoch is
+needed for this read-only capability comparison.
 
 The smallest candidate move remains **Pons standard RPC only**. Keep Alchemy's
 Solana streams and enhanced address history. Use the existing `PacedRpc` diagnostic
@@ -88,7 +125,40 @@ establish method behavior and sampled latency, not dependable P95/P99 tails or
 full-market protective capacity. Bounded PAPER acceptance remains separately gated.
 
 The 64-start comparison is a method/canonical/quote compatibility probe, not a
-whole twenty-owner mixed-loop capacity test: the final staggered 10+10 native
-fixture already uses 69 physical starts. A full-loop endpoint test needs its own
+whole twenty-owner mixed-loop capacity test: a prior staggered 10+10 native
+fixture used 69 physical starts, and the retained lowest passing specimen uses
+66. Both exceed 64. A full-loop endpoint test needs its own
 trace-sized element/payload/spend envelope and separate authorization. It cannot
 silently exceed the retained comparison limits.
+
+The completed native followups make separate envelopes necessary. One pending
+partial plus nineteen ordinary owners needs four RPS in its 100-ms fixture;
+ten independently staggered Current plus ten Survivor owners has a single
+passing nine-RPS bounded-phase specimen, 66 starts/151 logical elements/3,732
+modeled CU and 128,842 fixture response bytes. Eight has known misses. None is
+authenticated capacity or sufficient P95/P99 evidence, and six dependent 600-ms
+responses miss three seconds at any tested rate.
+
+Prepared future envelopes, all **inactive and unauthorized**:
+
+| Purpose | Proposed maximums | Monetary authority |
+|---|---|---|
+| Basic existing-Alchemy method/exact-state capability | 60 s; 64 aggregate HTTP starts; 256 logical elements; 16 MiB; 2 MB per response/in flight; 2 RPS; zero retries | Unknown actual tariff, no verified ceiling. Public $0.008064 is sensitivity only. |
+| Four-owner warm protection capacity specimen | 60 s; 32 starts; 128 elements; 16 MiB; 2 MB response; two in flight/4 MB; 3 RPS; zero retries | Must be independently priced before authorization. |
+| Core staggered 10-Current/10-Survivor specimen, excluding USD finance | 60 s; 80 starts; 256 elements; 16 MiB; 2 MB response; two in flight/4 MB; bounded phase at 9 RPS; zero retries | Must authenticate account-wide headroom and actual tariff before authorization. Its allowance does not yet bound the whole financial/protection loop. One loop cannot establish tail reliability. |
+
+Higher-rate profiles additionally bound logical elements at 256/s, throughput at
+2,000 modeled CU/s, methods at 50 elements/s and batches at 50 elements. They
+reserve held/pending protection while retaining native decisions and provider
+authority. Exact targets must be one authenticated canonical state with ordered
+post-acquisition verification; archive/body/receipt fallbacks consume the same
+finite envelope. Any size, time, throughput, spend, inconsistency, timeout or
+failure stops the test; zero retry means no replacement starts. No comparison may
+fund positions, submit transactions, alter active rate limits or change plans.
+
+Sustained long-hold projections in `LONG_HOLD_RESOURCE_MODEL.json` demonstrate
+that the existing finite allowance cannot support indefinite monitoring. They
+contain no new provider authorization or restart grant. Required recurring
+budget, actual market frequency, stream/redelivery and recovery demand remain
+external readiness blockers. Removing a holding timer does not make protection
+free; resource failure remains an operational condition, not a sell signal.

@@ -3,7 +3,7 @@
   "actual_market_purchases": 0,
   "actual_provider_bill_reduction_usd": 0,
   "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
-  "code_commit": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
+  "code_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "expected_monthly_net_saving_usd": null,
   "historical_predecessor_comparison": {
     "code_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
@@ -876,13 +876,13 @@
       "usd_per_1000_same_evidence_cohorts": 1.0332000000000001
     }
   ],
-  "runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+  "runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "schema": "pr129-incremental-cost-sensitivities-v2",
   "sources": [
     "https://www.alchemy.com/pricing",
     "https://www.alchemy.com/docs/reference/compute-unit-costs"
   ],
-  "native_trading_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
+  "native_trading_runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "observed_legacy_inputs": {
     "pons_source": "LOCAL_PROVIDER_USAGE.json",
     "pons": {
@@ -3937,5 +3937,928 @@
     "source_of_purchase_measurements_preserved": true,
     "new_shutdown_repair_changes_provider_demand": false,
     "new_capacity_followups_are_not_additional_savings": true
+  },
+  "latest_addendum_economics": {
+    "actual_provider_requests": 0,
+    "assumptions": [
+      "The four owners remain held throughout all 30 days and the original risk cadence is preserved.",
+      "Pons compatible acquisition is exactly the native fixture scope, not sharing across all independent clocks.",
+      "Alchemy public marginal price 0.525 per million CU is sensitivity; actual plan allowances and tariff unknown.",
+      "Growth public 49 subscription, 20 million included RU and 15 per million overage counted in full; reads 1 RU, archive 2 RU; endpoint rules unproved.",
+      "Archive fraction varied across complete bounds 0/0.5/1, not an observed distribution.",
+      "Zero fallback and additional operational cost is an explicitly optimistic sensitivity, not a production assumption.",
+      "Existing Alchemy Solana/fixed charges remain on both sides and are not claimed avoided.",
+      "No prior PR124-128, ed7 exit savings or da090e6d recovery savings are added again."
+    ],
+    "authenticated_host_component_usd": "68",
+    "classification": "SOURCE_SHAPED_CONDITIONAL_SENSITIVITY; no new authenticated workload frequencies or tariff",
+    "code_commit": "bde1920b2e99260830358f3d096af7399474edde",
+    "excluded": [
+      "full-market discovery and qualification incidence",
+      "streaming and redelivery",
+      "entry and exit rates",
+      "charged errors and retries",
+      "cold recovery and archive incidence",
+      "actual database/backups growth",
+      "tax and fixed provider subscription unknowns"
+    ],
+    "expected_actual_monthly_net_saving_usd": null,
+    "incremental_eliminated_physical_provider_purchases_verified": 0,
+    "local_computation_measurement": "Long replay fixture CPU/storage is recorded in TEST_RESULTS.json; no baseline compute saving or infrastructure dollar saving claimed.",
+    "monthly_four_position_rpc_only_public_sensitivity_usd": [
+      {
+        "scenario": "pump_current",
+        "value": "131.139288000"
+      },
+      {
+        "scenario": "pump_survivor",
+        "value": "109.282740000"
+      },
+      {
+        "scenario": "pons_current",
+        "value": "84.369600000"
+      },
+      {
+        "scenario": "pons_survivor",
+        "value": "140.616000000"
+      },
+      {
+        "scenario": "mixed_pump_pons",
+        "value": "171.670170000"
+      },
+      {
+        "scenario": "mixed_pons_current_survivor",
+        "value": "187.246080000"
+      }
+    ],
+    "pons_rpc_hybrid_sensitivities": [
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "0",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "84.369600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "monthly_modeled_cu": 160704000,
+        "monthly_modeled_elements": 6220800,
+        "optimistic_conditional_net_saving_usd": "35.369600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "scenario": "pons_current",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "49"
+      },
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "0.5",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "84.369600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "monthly_modeled_cu": 160704000,
+        "monthly_modeled_elements": 6220800,
+        "optimistic_conditional_net_saving_usd": "35.369600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "scenario": "pons_current",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "49"
+      },
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "1",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "84.369600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "monthly_modeled_cu": 160704000,
+        "monthly_modeled_elements": 6220800,
+        "optimistic_conditional_net_saving_usd": "35.369600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "scenario": "pons_current",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "49"
+      },
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "0",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "140.61600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "monthly_modeled_cu": 267840000,
+        "monthly_modeled_elements": 10368000,
+        "optimistic_conditional_net_saving_usd": "91.61600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "scenario": "pons_survivor",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "49"
+      },
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "0.5",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "140.61600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "monthly_modeled_cu": 267840000,
+        "monthly_modeled_elements": 10368000,
+        "optimistic_conditional_net_saving_usd": "91.61600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "scenario": "pons_survivor",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "49"
+      },
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "1",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "140.61600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "monthly_modeled_cu": 267840000,
+        "monthly_modeled_elements": 10368000,
+        "optimistic_conditional_net_saving_usd": "80.57600000000000000000000000000000000000000000000000000000000000000000000000000",
+        "scenario": "pons_survivor",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "60.04"
+      },
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "0",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "187.2460800000",
+        "monthly_modeled_cu": 356659200,
+        "monthly_modeled_elements": 13824000,
+        "optimistic_conditional_net_saving_usd": "138.2460800000",
+        "scenario": "mixed_pons_current_survivor",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "49"
+      },
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "0.5",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "187.2460800000",
+        "monthly_modeled_cu": 356659200,
+        "monthly_modeled_elements": 13824000,
+        "optimistic_conditional_net_saving_usd": "127.2060800000",
+        "scenario": "mixed_pons_current_survivor",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "60.04"
+      },
+      {
+        "actual_savings_usd": "0",
+        "additional_subscription_counted": true,
+        "archive_fraction_sensitivity": "1",
+        "fallback_recovery_operations_unknown": true,
+        "modeled_replaced_alchemy_rpc_usd": "187.2460800000",
+        "monthly_modeled_cu": 356659200,
+        "monthly_modeled_elements": 13824000,
+        "optimistic_conditional_net_saving_usd": "23.5260800000",
+        "scenario": "mixed_pons_current_survivor",
+        "source": "LONG_HOLD_RESOURCE_MODEL.json:four-positions-720-hours",
+        "whole_growth_subscription_and_overage_usd": "163.72"
+      }
+    ],
+    "provider_bill_saving_usd": "0",
+    "recommendation": "Configured Alchemy Pons capability/capacity first. Pons-only Chainstack remains the smallest optional economic move after exact-state equivalence; measured low historical Pons usage alone does not justify a new plan.",
+    "same_stock_infrastructure_public_tariff_usd": "77.7724",
+    "exclusions_additional_financial_boundary": "Native USD conversion acquisitions are excluded from sustained core-controller projections; whole-machine cost and provider capacity remain unknown."
+  },
+  "incremental_native_usd_comparison": {
+    "actual_provider_requests": 0,
+    "caution": "Synthetic transport shapes and frozen method weights; neither endpoint capacity nor monthly workload frequency is measured",
+    "classification": "Deterministic native monetary evidence boundary, excluded from prior core controller capacity fixtures",
+    "concurrent": {
+      "incremental_avoided_physical_shapes": 62,
+      "incremental_modeled_cu_avoided": 2780,
+      "original": {
+        "acquisition_trace": [
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 1
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 2
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 3
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 4
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 5
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 6
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 7
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 8
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 9
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 10
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 11
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 12
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 13
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 14
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 15
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 16
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 17
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 18
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 19
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 20
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 21
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 22
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 23
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 24
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 25
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 26
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 27
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 28
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 29
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 30
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 31
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 32
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 33
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 34
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 35
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 36
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 37
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 38
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 39
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 40
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 41
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 42
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 43
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 44
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 45
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 46
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 47
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 48
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 49
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 50
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 51
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 52
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 53
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 54
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 55
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 56
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 57
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 58
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 59
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 60
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 61
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 62
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 63
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 64
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 65
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 66
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 67
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 68
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 69
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 70
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 71
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 72
+          }
+        ],
+        "complete_seconds": 0.386797584942542,
+        "consumers": 8,
+        "equivalent_price_and_independent_amounts": true,
+        "logical_elements": 144,
+        "methods": {
+          "eth_call": 80,
+          "eth_chainId": 8,
+          "eth_getBlockByNumber": 8,
+          "eth_getCode": 48
+        },
+        "modeled_cu": 3200,
+        "physical_transport_shapes": 72,
+        "same_immutable_result": false
+      },
+      "updated": {
+        "acquisition_trace": [
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 1
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 2
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 3
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 4
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 5
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 6
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 7
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 8
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 9
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 10
+          }
+        ],
+        "complete_seconds": 0.0906386359129101,
+        "consumers": 8,
+        "equivalent_price_and_independent_amounts": true,
+        "logical_elements": 19,
+        "methods": {
+          "eth_call": 10,
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 2,
+          "eth_getCode": 6
+        },
+        "modeled_cu": 420,
+        "physical_transport_shapes": 10,
+        "same_immutable_result": true
+      }
+    },
+    "fixture_schedule": "eight compatible simultaneous cold consumers; each original logical phase meets a barrier",
+    "governor_exercised": false,
+    "original_source": "bde1920b2e99260830358f3d096af7399474edde",
+    "provider_actual_billing_savings_usd": 0,
+    "schema": "native-usd-boundary-existing-fixture-comparison-v1",
+    "serial": {
+      "original": [
+        {
+          "case": "cold",
+          "logical_elements": 18,
+          "methods": {
+            "eth_call": 10,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 1,
+            "eth_getCode": 6
+          },
+          "modeled_cu": 400,
+          "observed_at": 1791077122,
+          "physical_transport_shapes": 9,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077127
+        },
+        {
+          "case": "valid_cache",
+          "logical_elements": 0,
+          "methods": {},
+          "modeled_cu": 0,
+          "observed_at": 1791077122,
+          "physical_transport_shapes": 0,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077127
+        },
+        {
+          "case": "warm_route_refresh",
+          "logical_elements": 6,
+          "methods": {
+            "eth_call": 3,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 1,
+            "eth_getCode": 1
+          },
+          "modeled_cu": 118,
+          "observed_at": 1791077128,
+          "physical_transport_shapes": 5,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077133
+        },
+        {
+          "case": "oracle_refresh",
+          "logical_elements": 15,
+          "methods": {
+            "eth_call": 9,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 1,
+            "eth_getCode": 4
+          },
+          "modeled_cu": 334,
+          "observed_at": 1791077188,
+          "physical_transport_shapes": 7,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077193
+        }
+      ],
+      "updated": [
+        {
+          "case": "cold",
+          "logical_elements": 19,
+          "methods": {
+            "eth_call": 10,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 2,
+            "eth_getCode": 6
+          },
+          "modeled_cu": 420,
+          "observed_at": 1791077122,
+          "physical_transport_shapes": 10,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077127
+        },
+        {
+          "case": "valid_cache",
+          "logical_elements": 0,
+          "methods": {},
+          "modeled_cu": 0,
+          "observed_at": 1791077122,
+          "physical_transport_shapes": 0,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077127
+        },
+        {
+          "case": "warm_route_refresh",
+          "logical_elements": 7,
+          "methods": {
+            "eth_call": 3,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 2,
+            "eth_getCode": 1
+          },
+          "modeled_cu": 138,
+          "observed_at": 1791077128,
+          "physical_transport_shapes": 6,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077133
+        },
+        {
+          "case": "oracle_refresh",
+          "logical_elements": 16,
+          "methods": {
+            "eth_call": 9,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 2,
+            "eth_getCode": 4
+          },
+          "modeled_cu": 354,
+          "observed_at": 1791077188,
+          "physical_transport_shapes": 8,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077193
+        }
+      ]
+    },
+    "updated_source_sha256": "81439ab7fcf3f6c96fdee6f1c512cbcc327e75e2d906e380827b916ac399d6bd",
+    "monthly_formula": "For N independently observed simultaneous-eight-cold cohorts:2780 modeledCU avoided per cohort \u00d7applicable marginal tariff. No observed N or authenticated tariff; no monthly saving claimed. Single-reader canonical fencing adds20CU for one numeric proof or40CU for distinct oracle/target blocks."
+  },
+  "protective_exit_research": {
+    "additional_provider_requests": 0,
+    "additional_provider_purchases_eliminated": 0,
+    "live_bill_saving": 0,
+    "no_measured_cpu_saving": "Small bounded reporting/retention work; no paired CPU saving claim",
+    "no_active_exit_economic_change": true
   }
 }

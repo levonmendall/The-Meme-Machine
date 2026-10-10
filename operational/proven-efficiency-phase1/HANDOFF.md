@@ -1,441 +1,496 @@
-# PR #129 final protective-capacity handoff
+# PR #129 integrated capital, long-hold and protective-readiness handoff
 
-**BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT.** Software repairs are
-implemented and focused regressions pass. The unchanged two-RPS configuration
-still fails demonstrated twenty-owner partial-exit and sender/slow-response
-workloads. Higher rates are tested only in disabled offline profiles. Required
-containment acceptance needs an unavailable delegated environment. No PAPER
-readiness or provider capacity is inferred from synthetic timing.
+**BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT.** The source supports a
+separately initialized $1,000 shared epoch, its actual dashboard, and four-regime
+holding without age-only sales. The coherent risk-policy candidate is inactive
+pending owner numeric approval. Containment, authentic whole-machine provider
+capacity, recurring protection resources and operational acceptance remain unproved.
+No deployment, operating inception, PAPER start, funding or provider workload occurred.
 
-Continue the same draft [PR #129](https://github.com/levonmendall/The-Meme-Machine/pull/129),
-branch `integration/pump-pons-efficiency-rc-20261009`. Frozen acceptance source:
-**`ad77dc805cfd0c8261eeabd335f48445c0d63df1`**. Latest runtime is
-`ad77dc805cfd0c8261eeabd335f48445c0d63df1`; the native Pons implementation remains `f9c82e40baddb1a80520023c0243e25d55f4d1e2`. Native quotes, risk, monetary commits
-and Current controller files retain the earlier implementations; Survivor step
-scheduling adds bounded offline phase reservation and prioritized pending cohorts. Later
-publication commits contain handoff evidence only. `FINALIZATION.json` is the
-single completion register; `TEST_RESULTS.json` retains exact-source receipts.
+Draft [PR #129](https://github.com/levonmendall/The-Meme-Machine/pull/129), branch
+integration/pump-pons-efficiency-rc-20261009. Frozen code/runtime snapshot:
+**e17d91fb1d95194774e94ae444b04cfe127d42ab**. Latest runtime-changing commit:
+**e17d91fb1d95194774e94ae444b04cfe127d42ab**. Subsequent publication adds acceptance
+evidence only. FINALIZATION.json is the completion register; TEST_RESULTS.json
+retains current and predecessor receipts. Frozen code fingerprint:
+fe047325bbcfc94c51aad20c3df01d421c09cdda07b592a028a05d9661603e42
+(sorted tracked paths and bytes separated by NUL for meme_machine/, tests/,
+engineering/, dashboard/ and operational/tests.py; 1,085 files).
 
-## Source reconciliation and repairs
+## Source and integration
 
-Started from clean published `ed7b3c6616c59bfce21e96097d175ed3212214c2`, retaining
-all PR129 ancestry and previous tested `2ec2fff2`/runtime `e454af49` work. Original
-October 8 worktree `cbfcb4137f10474ffc7fe0e19f0b8772f25c1563` stays clean. Deployed
-`/opt/meme-machine` stays at detached `b577cc1c67f4d64f887b430f5e933f376b607dc2`;
-PAPER is inactive, disabled, PID 0. No resets, older branch replay or merge.
-Pro's archive, 27-category ledger, 104-row comparison and reference tests were
-not supplied or inspected. Owner-provided economic models remain hypotheses.
+Continued clean published 43d7f32e and tested/runtime ad77dc80 without replaying
+older branches. PR126 held snapshots, PR127 asynchronous shadow, PR128 integration,
+rolling scaling history, ordered canonical verification, durable receipts,
+source/ABI caching, risk-fold reuse, attribution, Current worker handoff and
+Survivor count-veto removal remain. PR125 is closed and unmerged; PR_INTEGRATION.json
+records PR120–129. Pro's archive/reference algorithms were not supplied or inspected.
 
-| Commit | Repair and source paths |
+| Commit | Changes |
 |---|---|
-| `b77d037ca4ae3841bf0807501242e079a966e45b` | Native full/partial exit consolidation and bounded offline account profiles. `pons_quotes.py`, `pons_survivor_runtime.py`, `pons_selective_paper.py`, `pons_current_workers.py`, `provider_admission.py`, `provider_topology.py`, `runtime/survivor_commit.py`; affected tests and offline registry. |
-| `8c0cb5bca844d14ab76dd3d164a56f630006cb56` | Existing `engineering/proven_efficiency/finalization.py` compares actual ed7 methods and preserved Current held sharing. |
-| `fee79ea4` / `57b0e85c99f7f1e84c26505eb0eef749a661c7fa` | Retain overload rows, original pending-exit refusal/accounting and native execution-fault recovery evidence. No failed capacity case is recast as timely protection. |
-| `0ca74509f2f19c1181518fc3b0445b20dbf24593` | Portable test-only root-owner fixture and exact wall-clock boundary. Production owner/resource guards unchanged. |
-| `71711d28560d7be41292a5fd7f253a33547bc842` | Singleton Current exits retain original identity reuse with no extra provider elements; real-clock native queue/CPU/commit probes. |
-| `3c21002102987dfda23551c2b3211cb0122c2965` | Shadow source-order test follows the extracted helper, retaining native-risk/scale-before-shadow and HOLD guards. |
-| `020a347720d35cdc5cacf6f0d62a85dfba001279` | Disabled offline comparison rejects an individual oversize response as well as aggregate overflow; charged reservation remains recorded. |
-| `9f5a51378112f6ce9380c9bc50e43045453f4af6` | Repair concurrent provider-ledger WAL initialization, preserve the original total busy budget and FULL durability, close failed connections. Five deterministic setup checks and forty repeated native two-owner reopen/exits pass. Worker errors retain their originating traceback. |
-| `da090e6d080383f0309517a5eb39aa4ead3360e8` | Offline-only bounded protection-phase reservation in existing `provider_admission.py` and Survivor step; earlier/equal protective deadlines retain precedence, expiry/exception cleanup, zero token/spending grant. Generic ordered-proof invalidation remains unchanged. |
-| `f9c82e40baddb1a80520023c0243e25d55f4d1e2` | Compatible already-due pending Survivor exits acquire together; ordinary owners acquire after pending native commits. Original unproved-resource/private fallback retained. Six native parity/recovery regressions in `test_pons_capacity_repair.py`. |
-| `286626b6e7c5c9e53af94afb5e28eb608fac3715` | Strengthen existing pending-owner acquisition test with exact native predecessor parity and the demonstrated eight-to-six quiet transport reduction. |
-| `4dc4c0fb95270924146ece290f1ea9f2a444ae3b` | Correct the staggered Current timing test scope; directly assert original risk deadline, persisted integer fill due and executable observation freshness, plus safe admission-expiry refusal. Test files only; runtime unchanged. |
-| `ad77dc805cfd0c8261eeabd335f48445c0d63df1` | Consume accepted maintenance outcomes before shutdown can report success; keep original lease/native-record checks, cooperative yields and native timeout identity. `meme_machine/solana_evidence_service.py`, `tests/test_production_maintenance_arbiter.py`. |
+| 8e2f3b4e2b07157d3968e5641c7e89b3a4c71f5a | Separate $1,000 inception; total-realized-equity sizing; actual dashboard model/API/frontend, publisher/receiver and snapshot transport; historical $500 compatibility. |
+| fe7524586217c44f18fd8d39614897b2cc5f169b | Remove native age-only sales; retain original positions/real exits; operational renewal diagnostics; cumulative maintenance envelope and recovery tests. |
+| c964b0f9bf7946da68a5c460583cf3c37e1460f5 | Native protection, original entry age, pending intent, high water and trail through shared accounting and dashboard; no oracle purchase or fabricated valuation for an unavailable pending exit. |
+| bde1920b2e99260830358f3d096af7399474edde | Reproducible sustained-protection projection from existing native traces/method model; finite allowances and unknowns remain explicit. |
+| e87bb3ff437344b1cfd34a8800553d615367afb8 | Exact cent validation independent of ambient Decimal precision; repairs five predecessor FAST errors without rounding money. |
+| 6bf25cde1c54c76b29d655e20678c6d42153bff4 | Ordered Pons USD canonical fence, cached-oracle obligations and concurrent unit-price reuse; native financial workload explicitly excluded from prior core projections. |
+| 2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3 | Inactive coherent capital-risk candidate, USD half-original/add caps and actual dashboard funding/risk disclosure; old policy identity preserved. |
+| bdecfeb34ce2082e9ef8848739c71d8762a14755 | Align unused legacy Pons stale-thesis helper with active native adverse-flow requirement; permanent 100×/1,000×, post-add/restart and dashboard regressions. |
+| f8b0a6ffbef263037e28679c5c2659e3648286cd | Independently derive the exact two-node helper AST change; update its reviewed pin while rejecting omitted adverse guard/changed stop and preserving every sibling/constant. No runtime change. |
+| cb41a9c62b68c738e207f1cbd2c7b0822aea8b76 | Preserve bounded first exit-trigger facts, native stop/observed/executed return clocks and pending/completed status through shared reporting and the actual dashboard; add strict read-only exit counterfactuals and actual funded/native collapse regressions. |
+| e17d91fb1d95194774e94ae444b04cfe127d42ab | Refuse shadow comparisons without every intervening native protection observation; a complete historical interval alone cannot prove that stops or trails were observed. No active exit-rule change. |
 
-Pons paths above are under `meme_machine/lanes/pons/`. Exact full identities and
-all changed paths are in the completion register. No new provider, accounting
-engine, database authority, polling schedule or permission system.
+Exact paths are recorded per commit in FINALIZATION.json. Conditional dense
+receipts, Pump account union/known-slot repair and sharing resource descriptors
+retain capability guards and full fallbacks. Event-only quote suppression and full
+monetary replay reuse remain inactive. No competing engine, database or supervisor.
 
-## Minimum native acquisition and deadline semantics
+## Capital and actual dashboard
 
-An active warm held turn requires:
+The new initializer exclusively creates a new root; startup cannot reseed an old
+ledger. Inception v2 binds **$1,000, one shared funding authority, zero positions,
+reservations and P&L**. Pump Current/Survivor and Pons Current/Survivor initially
+target **$50 each**, 5% of total realized equity. An independently eligible add is
+at most **$25**, half original basis, with combined basis at most **$75**, 7.5%.
+Realized P&L compounds these limits; unrealized P&L does not. Available cash,
+native execution/liquidity and approved aggregate/concentration controls remain.
+The existing directional exposure limit is an economic control, not an owner cap.
+No family-equivalence denominator or separately funded family cash applies to the
+new epoch. Meteora/Ramses stay visibly paused and receive no workload or funding.
 
-1. Fresh target header and original acquisition clock.
-2. Hash-pinned compatible state/gas/exact remaining-quantity simulations plus
-   unioned incremental pool logs.
-3. Unique missing receipt enrichment; transaction-body fallback when sender is
-   absent. Required identity/status/log/block/sender evidence is never omitted.
-4. **Ordered** numeric membership fence for target, event blocks and checkpoints,
-   after dependent responses. Batch response ordering is not a temporal proof.
+## Capital-policy decision requiring approval
 
-Quiet turns omit the receipt phase. Already-authenticated warm pending recovery
-therefore needs three transports for full exits and five for partial exits. Full exits reuse the exact completed native
-held simulation only for its original quantity, gas/frame and freshness scope.
-Partial exits need another compatible state/gas batch containing each original
-partial quantity and another ordered fence: six normal active transports,
-seven with a missing-sender body. A changed head, quantity, source generation,
-provider session or endpoint-wide activity forces original fresh fallback.
-No quote timestamps are renewed. Partial/forked evidence is never published.
+The approved policy hash remains
+e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2.
+Its 2.5% asset ceiling limits a fresh $1,000 portfolio to $25, while its historical
+family-equivalence denominator cannot initialize the new shared inception. Earlier
+feature-default fixtures were not evidence of compatibility with this policy.
+Read-only inspection confirms that the operating $500 root has **no shared-authority
+selection or shared-capital database**; approved limits are prepared cutover limits.
 
-`survivor_history.Worker.tick` schedules Pons observations at
-`Runtime.observation_interval_seconds=3`; an unfinished step prevents overlap.
-Current yields its original five-second `monitor_wait`. Its existing PAPER exit
-intent stores integer observation time and **due = that time + two seconds**.
-Both the native execution time and executable quote `observed_at` must reach
-that persisted due. Historical event time and SQLite commit completion are
-different clocks; neither is relabeled to manufacture freshness. Fresh execution
-evidence retains its original five-second validity. The tables retain
-a conservative three-second *completed Survivor turn* check and separate Current
-risk/intention and final fill times; a late response is never a timely turn.
+The recommended inactive file is
+[risk-policy.shared-1000.proposed.json](../shared-capital-activation/risk-policy.shared-1000.proposed.json).
+Canonical policy hash: **b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c**.
+It keeps portfolio/correlation/directional **75%**, active family/network **45%**,
+regime **30%**, cash floor **10% + $5**, and new-risk drawdown stop **10%**.
+The owner-directed sizing denominator is total realized equity. Proposed additional
+investment is constrained by **7.5% original-plus-added open asset/lineage basis**;
+the separate conservative marked asset admission reference is **10%**. Both use
+the existing risk base, which cannot grow from unrealized appreciation and shrinks
+with losses/cost obligations. Reservations, commitments and possible capitalized
+fees consume headroom. Partial realization does not refill lifetime investment.
 
-The two old partial-exit purchases per position were consolidated. No wait enlarges
-a cohort. A bounded noncommitting preview folds risks from one verified native
-snapshot; final native risk, journal replay, accounting and atomic commits remain
-independent and authoritative. All-full exits need no new execution purchase.
-Endpoint-wide transport activity invalidates proof reuse across another native RPC
-session. The optional offline phase reserves service for an already-due cohort for
-at most three seconds. It grants no provider tokens, ignores no in-flight completion,
-and does not renew evidence clocks. Earlier/equal protective deadlines can preempt;
-unavailable phases proceed through ordinary admission without waiting. Expiry and
-exception cleanup release the reservation. Default profile is zero seconds;
-production admission creates no phase table and remains at two RPS. Lost/stale/incomplete facts preserve native recovery and pending intent.
-
-## Capacity evidence
-
-`CAPACITY_REPAIR_NATIVE.json` contains 72 Survivor, 54 coincident Current,
-27 staggered Current, 24 mixed specimens and eight real-clock probes, with native
-traces, methods/logical CU/throughput, mock bytes, waits, independent quantities,
-deadlines and accounting. The original Survivor measurement source is `57b0e85c`; Current and real-clock
-measurement source is `71711d28`. The native quote, risk, execution and Current controller implementations retain
-those paths. The final Survivor scheduler also consolidates pending recovery
-and tests disabled phase reservations; original matrix timings retain their sources. Final
-exact-source suite rechecks are recorded separately. Inputs and source equivalence are identified explicitly. Prior
-`FINALIZATION_NATIVE.json` and `CAPACITY.json` rows remain historical evidence.
-
-| Survivor workload, 100-ms mock response | Starts | Completion | Evidence |
-|---|---:|---:|---|
-| One active HOLD / full exit, 2 RPS | 4 | 1.66 s | Virtual admission plus conservative local-work envelope |
-| Two HOLDs / full exits, 2 RPS | 4 | 1.67 / 1.69 s | Same envelope |
-| Twenty full exits, 2 RPS | 4 | 2.13 s | Same envelope; old six-start defect removed |
-| One partial exit, 2 RPS | 6 | 2.623 s | Final frozen real clock: queue, responses, CPU, native commits |
-| Two partial exits, 2 RPS | 6 | 2.644 s | Final frozen real clock: queue, responses, CPU, native commits |
-| Twenty partial exits, 2 RPS | 48 | 23.663 s **— late** | Final frozen real clock: queue, responses, CPU, native commits |
-| Twenty partial exits, disabled 3 RPS | 6 | 2.481 s | Final frozen real clock: queue, responses, CPU, native commits |
-| Missing sender, one partial, 2 / 3 RPS | 7 / 7 | **3.18 s late** / 2.22 s | Conservative virtual-plus-local envelope |
-| Twenty partial exits, 600-ms responses, 2 / 3 / 4 RPS | 126 | About **77 s — late** | Freshness fallback; six dependent responses alone cost 3.6 s |
-
-A real-clock probe measures queue wait, admission, responses, validation, CPU,
-SQLite commits and final native completion directly. Earlier conservative
-virtual-clock totals add all local wall work, including work that may overlap
-waiting; they are not substituted for real-clock results. Both forms use mock
-responses. Neither is authenticated endpoint capacity or P95/P99 proof. The real-clock
-rows above are the final frozen `ad77dc80` FAST recheck. The preserved
-020a FAST used 54 starts/26.670 seconds and the earlier runtime checkpoint used
-36 starts/17.672 seconds for twenty partial exits at two RPS. Interleaving and
-local timing change fallback counts; all three runs fail that deadline.
-
-The native fixtures mock periodic `compact_survivor` maintenance. Native risk,
-journal replay, reconciliation and monetary commits remain active. Host capacity
-acceptance must include actual compaction, backup, supervision and containment
-overhead, plus the outer worker's bounded observation-only telemetry and dispatch.
-`Worker.tick` measures its interval from the previous submission and permits no
-overlapping step; a long step postpones the next observation. The measured native
-`Runtime.step` envelope does not prove that outer production operating envelope.
-
-| Real-clock mixed partial exits, 100-ms mock HTTP | Starts | Last Current risk observation | Survivor completed turn | Last Current fill |
-|---|---:|---:|---:|---:|
-| 2 Current + 2 Survivor, disabled 4 RPS | 16 | 1.924 s | 2.404 s | 5.327 s |
-| 10 Current + 10 Survivor, disabled 8 RPS | 34 | 1.361 s | 1.622 s | 6.288 s |
-
-Current fills include original independent intent/delay/execution clocks. They
-are not mislabeled five-second risk decisions. Native books reconcile in both
-probes; these synthetic books do not claim the original $500 can fund arbitrary
-counts. Real interleaving loses some idealized seven-start execution sharing.
-
-Coincident Current HOLDs use four transports; compatible coincident full/partial
-exits use seven, with separate quantity simulations and native durable owners.
-One/two/four/eight/twelve/twenty owners were tested at 2/3/4 RPS. Staggered
-2/8/20-owner fixtures at 4/8/12 RPS have no virtual risk-window misses; physical
-counts vary with already-due work and valid fallback. Mixed 2+2 and 10+10 fixtures
-at 3/4/8/12 RPS expose Survivor deadline failures at lower rates. No global capacity
-claim follows from these specimens, and cold recovery/entry/market bursts can add
-necessary demand. Actual endpoint/account-wide Pump headroom remains unknown.
-
-
-Real-clock **staggered** followups are separate from that coincident table. At
-9f5a5137, ten Current plus ten Survivor partial exits used 88 starts and completed
-Survivor protection in 11.317 seconds at eight RPS (four unavailable Current
-risks), and 6.317 seconds at twelve RPS. Further unreserved 12/16/20/25-RPS
-traces all failed the Survivor window. Native accounting reconciled; the failed
-success-oriented fixture's `KeyError('action')` is retained, never a protection PASS.
-
-The source repair preserves the shared Survivor execution proof by an opportunistic
-bounded offline phase. Final frozen real-clock checks: 2+2 at three RPS, 20 starts,
-Survivor 1.916 seconds; 10+10 at twelve RPS, 69 total starts, **6 Survivor starts**,
-Survivor 1.313 seconds. Every Current original risk deadline and native accounting
-passed. Eight RPS still missed Current deadlines in repeated checks; a lower
-universal minimum is not established. These are 100-ms mock responses, not provider
-measurements. Current still performs independent exact quantities and its two-second
-PAPER fill delay; private acquisitions remain where owners genuinely stagger.
-
-Pending recovery is now source-grounded rather than inferred from first-exit tests:
-
-| Warm recovery after native refused execution | Original starts → repaired | Real-clock repaired completion at 2 RPS |
+| Actual temporary authority / all four native contracts | Initial grant on $50 target | Add after 2× and first 25% realization |
 |---|---:|---:|
-| Twenty pending full exits | 98 → 3 | 1.781 s |
-| Twenty pending partial exits | 119 → 5 | 2.851 s |
-| One pending partial plus nineteen ordinary owners | 62 → 8 | **4.288 s late**; urgent exit 2.118 s |
+| Original 2.5% asset cap, new sizing only for conflict replay | $25; $50 minimum denied | $0 |
+| A: marked 5%, existing native basis contract | $50 | $0 |
+| A: marked 7.5%, existing native basis contract | $50 | $0.9375 |
+| B: invested 7.5%, marked 10% (recommended) | $50 | $25 |
+| C: marked 10%, existing native/USD basis contract only | $50 | $25 |
 
-The original baseline for these rows is **da090e6d**, with the original failed-intent
-warmup excluded from the recovery-turn counts. Exact position, quantity, basis,
-realized money and native risk parity passed for one/two/four/eight/twelve/twenty
-pending owners. Reorganization and unknown-capability fallback remain tested.
-The real-clock warmup is a separate zero-RTT offline fault seed; the measured
-recovery waits until the original next required boundary and uses actual pacing,
-sleeping mock HTTP, validation, native journal/reconciliation and final completion.
-No quote clocks are reset. Warm pending recovery is distinct from the still-failing
-cold/active twenty-partial workload at default two RPS.
+The $0.9375 alternative binds **ASSET_CONCENTRATION**, not the staged investment
+contract: $1,012.50 × 7.5% − $75 marked value = $0.9375. At the recommended 10%
+reference, marked headroom is $26.25 and the original USD half-basis contract
+limits the grant to $25. The proposed 7.5% basis ceiling counts committed
+investment, not appreciation. It is not a maximum price, profit or position value.
 
-Final supplementary real-clock measurements on the same frozen source:
+B makes shared lineage/reservation/fee basis headroom explicit without a second
+ledger or adaptive allocator. This increases the marked asset admission ceiling
+from 2.5% to 10%; **owner approval is required**. It never generates a sale.
+Existing aggregate concentration and drawdown controls can intentionally block
+new assets or adds when winners become too concentrated. No automatic rebalance.
+In the canonical $50 example, $25 proceeds release $12.50 basis, realized equity
+becomes $1,012.50, cash $975 and remaining marked exposure $75. A $25 add leaves
+$75 original-plus-added investment, $62.50 remaining basis and cash $950. Unrealized
+gains grant no cash or sizing increase. Original native units remain pinned;
+native-currency appreciation cannot enlarge the USD half-original-basis ceiling.
 
-* One pending partial plus nineteen ordinary Survivor owners: eight starts at
-  two/three/four RPS. Complete native turns took **4.288 s late**,
-  **3.115 s late**, and **2.548 s passing**.
-  The pending exit itself took 2.118/1.458/1.126 s.
-  Prioritizing it does not prove every ordinary owner met its original schedule.
-* Ten staggered Current plus ten Survivor partial exits with bounded phase:
-  nine/ten/eleven RPS each used 66 total starts. Survivor completed in
-  1.246/1.287/1.195 s;
-  all original Current risk deadlines, ten Current exit commits, ten Survivor
-  realizations and native money passed. Nine is the lowest observed passing
-  specimen; eight has known misses and twelve retains both final-suite rechecks.
-  No universal safe rate follows from one 100-ms fixture at each lower rate.
-  The prepared 64-start comparison cannot execute these 66/69-start complete
-  mixed loops; they need a distinct trace-sized authorization envelope.
+Realized-equity $900/$1,100/$1,500/$2,000 cases preserve $45/$55/$75/$100 targets.
+The $900 material drawdown correctly blocks new funding. Fifteen $50 ordinary
+entries can fit the tested flat 75% aggregate scenario; this is a consequence of
+capital/risk, **not an owner-count rule**. Liquidity, execution, fees, exact native
+units and free cash can reduce grants. Full original one-add/2×/first-realization/
+900-second persistence/gross-high proximity/fresh qualification rules still bind.
+The dashboard shows actual grants, original/added/remaining basis, marked risk,
+separate references and binding constraints. The new initializer refuses an asset
+policy inherently below the 5% target before writing an epoch.
 
-The pending/ordinary path acquires each ordinary exact remaining quantity and
-its canonical fence after pending execution preparation. Extending a previous
-proof without validating its state, gas, quantity and time scope would weaken
-native evidence. The four-RPS passing profile remains offline-only. All six
-followups retain physical traces, original deadlines and native monetary states
-in `CAPACITY_REPAIR_NATIVE.json`; they are not live measurements or new savings.
+Additional acceptance extends the existing native matrix to **100× and 1,000×**
+through 30 days, retaining its partial, stop and recovery assertions. All four
+regimes keep original positions. After the $25 add, fresh marks through $50,000
+preserve original $50 investment, $25 addition, $62.50 remaining basis, $950 cash
+and $1,012.50 realized equity across restart. Marked concentration is reported;
+the second add is denied. No ceiling authorizes a concentration sale, portfolio
+rebalance or liquidation to fund another opportunity. Existing aggregate marked
+risk safeguards can still deny new purchases; changing those would need separate
+approval. There is no maximum profit multiple in these exit paths.
 
-A rejected attempt to reuse partial simulation while separately refreshing head,
-gas and fence did not improve overload; it was removed. Original counterexamples
-and rejected 8-RPS capacity assumptions remain in the native evidence register.
+The actual model/API/frontend, reporting and transport derive starting capital,
+return, equity-chart reference and contribution denominators from validated
+inception. Historical $500 epochs retain $500; the new epoch displays $1,000.
+Before initialization the display says **planned $1,000**, without active capital
+or trading. It shows realized/unrealized P&L, shared cash/reservations/deployment,
+four-regime results, partials, additions, sizing and risk limits.
 
-The lowest tested real-clock passing rate for twenty warm partial Survivor exits
-is **three RPS** in the 100-ms fixture. Warm already-pending recovery fits two
-in its distinct twenty-owner specimen. One/two normal partial exits fit two. Missing-sender specimens
-need three in the tested virtual envelope. Coincident mixed probes use four/eight; the bounded-phase staggered
-2+2/10+10 final-suite probes use three/twelve; the latter also has single passing
-nine/ten/eleven-RPS followups. Pending-plus-ordinary needs four in its tested
-envelope. No universal minimum is established. Six-phase
-600-ms latency cannot be repaired by start rate alone. Production stays at **two**.
-`GOVERNOR_REPAIR_DISABLED.json` documents the explicit offline profiles: logical
-256/s, throughput 2,000 CU/s, 50 elements/method/s, 50/request, response 2 MB,
-two in flight/4 MB, protected reserves and modeled charged-failure spending.
-Both native role pacer and account admission use the profile in tests; there is
-**no environment/configuration production activation path**.
+Position details show original entry/age, owner, original/remaining basis,
+realized partial profits, high water/trail, last native decision, pending intent,
+valuation freshness and separate protection health. Recent valuation alone never
+proves fresh protection. Age does not mean “overdue for sale.” Missing evidence
+cannot manufacture a fill or realized money.
 
-Native sessions do not automatically enable `shared_quote_resources`; the
-resource descriptors in these measurements are fixture inputs. Authenticated
-endpoint bounds and a reviewed production binding are still required. Absent
-that proof, the complete original private acquisition path remains available.
+Reader, receiver and transport still reject cross-epoch/inception/source/sequence
+conflicts. Cutover requires an **isolated new replica and explicit epoch/inception
+hash**, never silently repointing a $500 replica. Render remains on
+release/portfolio-dashboard-v1, deployed 1deb19415ab1683f1fb6071ed6a1d6fdd5785817,
+auto-deploy off, free plan. Later optional public reads were reconciled;
+authenticated ingestion stays mandatory and candidate reads default to protected.
+Latest owner-directed visible paused LP panels supersede older LP hiding.
+No Render configuration, deployment or data-source mutation occurred.
 
-## Retained strategy, history and accounting
+## Age-only exit audit
 
-Current still prepares authenticated 900-second history before fresh execution,
-retains complete intervals and acquires missing delta/final tails. Earlier
-25-event boundary: original full-window pass 43 mock starts/6,340 modeled CU;
-missing prefix 25/5,500; retained unchanged pass 3/60; new block delta 4/140.
-These prior savings exclude quotes/sizing and are not counted again here.
-One add, first realization, 2x, fifteen-minute persistence, gross-high 15% proximity,
-7.5% sleeve exposure, capital/liquidity and final native freshness stay intact.
-Missing history blocks the add, never future reconsideration or protective exit.
+| Native path / former boundary | Final behavior |
+|---|---|
+| Pump Current strategy: 300/600/900 seconds and ordinary extension | Age-only return removed. Stops, trails, confirmed demand and genuine venue conditions retained; entry-age/qualification windows unchanged. |
+| Pump Current paper/runner and shared bridge: 36 hours | Original position survives; failed bridge, 2× or realization classification supplies no sale. Native protective monitoring continues. |
+| Pons Current pregraduation: elapsed ETA/900 seconds | Age-only exit removed; momentum/flow/creator/stops/partials/trails retained. |
+| Pons Current lifecycle duplicate 900-second/36-hour checks | Removed. Retained history and fresh executable evidence remain mandatory; authentic economic market-transition failure remains a condition. |
+| Both Survivor native reducers, including Pons duplicate: 72 hours | Age-only exits removed. Stale-thesis exit also requires adverse soft evidence; age plus low profit alone cannot sell. |
+| Legacy Pons Survivor exit helper: six-hour old high and <5% return | Requires adverse buy/sell flow and absent new buyers, matching native stale-thesis boundaries. Healthy flat/low-profit demand holds; confirmed deterioration and stop/trail remain. This helper has no active runtime caller. |
+| Exceptional winner hourly/resource/2×/profit renewal | Failure is diagnostic NOT_RENEWED, not an exit authority. Native actions and already committed irreversible intents remain decisive. |
+| Evidence failure and recovery | DEGRADED_PROTECTION/OPERATIONAL_FAULT preserves ownership and money; a genuine prior decision remains EXIT_PENDING. No invented quotation/settlement. |
+| Service/resource window | Prepared maintenance v2 has no holding/service-age ceiling; finite cumulative purchase/spending and incident recovery bounds remain. Exhaustion closes admission and faults, never sells by timer. |
 
-Source/ABI/topic registry, risk-fold reuse, durable shared receipts and obligations,
-conditional dense receipts, Pump known-slot/account-union preparation, PR126 fresh
-held consolidation, PR127 asynchronous shadow, native continuation and portfolio
-accounting remain. Full monetary replay reuse remains inactive. Previous local
-benchmarks and source reconciliation are retained in the existing JSON artifacts.
-The operative Survivor two-position veto remains removed; its descriptor survives
-only for durable compatibility. Current has eight entry plus eight protected
-workers with durable temporary deferral and filled-owner handoff, no position
-count veto. It never fabricates an entry after its original deadline.
+Historical descriptors and previously committed accounting/intents remain
+compatible. Inactive Pons proof/cohort timers and paused Ramses rules are not active
+Pump/Pons holding authorities. No higher replacement holding limit was introduced.
+Original stops, trails, right-tail giveback, partial realization, demand,
+creator/concentration/liquidity safeguards and staged-add qualifications remain.
+Reviewed exact AST deltas pin only authorized changes; sibling functions/constants
+and the nine-change checks remain guarded.
 
-Original 5% allocation, realized-equity compounding, creator/concentration/liquidity,
-first-profit/stop/trailing/right-tail, high water, position identity, independent
-Current-to-Survivor decisions and native recovery remain. Event-only quote
-suppression and exceptional-winner extensions stay inactive. The original 36/72-hour
-strategy economics are unchanged; capacity/budget failure is exposed operationally
-with native recovery/exit intent, not a new infrastructure liquidation rule.
+The maintenance example and source systemd configuration are **not deployed or
+selected**. Restart retains original run/usage counters and grants no allowance.
+The existing supervisor closes new-exposure admission on degradation, prioritizes held/pending
+work and retains bounded recovery. No emergency liquidation rule was added;
+finite unapproved resources cannot promise indefinite protection.
 
 ## Offline acceptance
 
-FAST: **1,437 tests, 0 failures, 3 errors, 0 skipped**, 1,959.155 seconds.
-OPERATIONAL: **2,861 tests, 0 failures, 3 errors, 33 skipped**, 2,340.093 seconds.
+| Exact frozen source e17d91fb / sequential execution | Tests | Failures | Errors | Skipped | Seconds | Result |
+|---|---:|---:|---:|---:|---:|---|
+| FAST | 1,500 | 0 | 3 | 0 | 2140.478 | FAIL: delegated containment unavailable |
+| OPERATIONAL | 2,930 | 0 | 3 | 33 | 2542.985 | FAIL: delegated containment unavailable |
 
-Both are **COMPLETED_FAIL** because required containment errors remain; no full-suite PASS is claimed. `TEST_RESULTS.json` preserves actual receipts and unchanged before/after source fingerprints.
+These suites **do not pass**. All three errors in each are the unchanged
+`HostUnavailable: delegated_cpu_memory_io_controllers_required` cases. Exact
+log SHA-256 values are in TEST_RESULTS.json. The final source and additional
+deployment/resource/policy inputs retained the frozen hashes throughout testing.
+Actual app.js renderer and local API checks pass all ten routes on the same source;
+browser geometry was not tested.
 
-Preserved predecessor **9f5a5137** completed FAST 1,422 tests and OPERATIONAL
-2,843 tests with zero failures and three containment errors each (33 OP skipped).
-The intermediate da090e6d run was stopped for the independently demonstrated
-pending-owner acquisition defect; it is an interruption, not acceptance.
+The earlier parallel e17 FAST/OPERATIONAL attempt was stopped and is not an
+accepted full run. It produced four FAST verbose timing-failure entries and three
+OPERATIONAL entries under concurrent CPU/SQLite work. Logs and hashes are retained
+in the completion register. The three original methods passed unchanged in
+isolation (74.639 seconds); twenty already-pending partials took 2.982 seconds,
+leaving little margin. Final full suites ran sequentially. These outcomes expose
+contention sensitivity and do not certify real whole-machine protection.
 
-The preserved `020a3477` receipts were FAST 1,417 tests (zero failures/three
-errors) and OPERATIONAL 2,838 tests (one failure/three errors/33 skipped). The
-OPERATIONAL failure exposed a real local provider-ledger WAL initialization race;
-it was reproduced after 32 successful native two-owner iterations, repaired in
-`9f5a5137`, and validated by five deterministic setup tests plus forty
-successful repeated native two-owner exits. A 44-test adjacent development suite
-passed. These are development receipts; final frozen suites are authoritative.
+The exact-source bounded native/research focus passes 13 tests / 22.659 seconds.
+Its 32 native collapse cases, ten fundability cases and twelve transport timelines
+are supplemented by the 56 separately retained financial portfolio replays.
+The cb41 predecessor focused groups pass 96 / 51.724 seconds and 88 / 48.123;
+the successor only tightens research evidence refusal. Groups overlap and are
+not summed. The interrupted cb41 full runs were stopped before the shadow-gap
+repair and are not acceptance; original hard/soft active rules were untouched.
 
-The preserved **286626b6** run completed FAST 1,436 tests with zero failures and
-three containment errors; OPERATIONAL 2,857 tests had **one failure**, three errors
-and 33 skipped. Its clock-monotonicity test also assumed that twenty staggered
-Current exits always settle at four RPS. One actual native owner correctly refused
-late execution and retained pending intent/recovery. Twelve subsequent native
-replays do not erase that failed interleaving. The final test uses the existing
-2-owner/4-RPS, 8-owner/8-RPS and 20-owner/12-RPS offline profiles, retains strict
-successful fills and native accounting, and adds direct original risk/due/freshness
-checks plus an explicit admission-expiry refusal regression. Runtime economics,
-deadlines and production two RPS are unchanged. Rejected development assertions
-that confused floating commit or historical event time with native integer due
-are also retained in the test receipts; no source timestamp was changed.
 
-The preserved **4dc4c0fb** run completed FAST 1,437 tests with zero failures/three
-cgroup errors and OPERATIONAL 2,858 tests with one failure/three errors/33 skipped.
-The OPERATIONAL queue-expiry assertion exposed a genuine shutdown race: an accepted
-maintenance owner had failed, but its awaiting coroutine was still pending when
-stop won. A deterministic replay returned no error and persisted phase `OFF`
-despite `maintenance_owner_lease_exceeded`; native records were unchanged. The
-successor consumes the accepted outcome before cancelling its waiter, preserving
-native failure identity, the existing five-second owner-close bound and nonterminal
-cooperative yields. No original assertion was removed. **53 affected tests ran: 47 passed and
-six existing archived-model tests were skipped**; three new regressions cover the delayed
-failure, cooperative yield and native timeout. Sixty passing isolated original
-calls did not erase the full-suite failure or the deterministic counterexample.
+The bdecfeb3 predecessor completed FAST: 1,486 tests, four source-identity
+failures and three containment errors, 2,061.412 seconds. All four failures
+pointed to the same old Pons helper AST pin after the owner-directed adverse-flow
+repair. The f8b0a6ff successor independently derives the complete module from
+fe752458 with only that guard and confirmation ordering changed. Mutation checks
+still reject an omitted adverse guard or weakened stop. The affected final-source
+group passed **154 tests / 61.682 seconds**; no runtime behavior changed in this
+test-only correction. The final frontend/API run passed all **10 routes**; browser
+geometry was not tested.
 
-Latest Current timing/ownership regression: **14 tests PASS**. Earlier affected
-regression: **66 tests PASS**, including eight phase tests and six pending-recovery
-tests. Development focused receipts include 73 acquisition/profile/native regressions,
-12 final singleton/owner checks, two real-clock probes, 59 shadow/identity checks,
-35 comparison/budget/package checks and 30 portable startup/storage checks.
-These overlap and are not summed or substituted for the full suites.
+Passing focused groups: 119 native/continuation/economic tests; 21 Pons recovery;
+64 sharing/capacity; 45 strategy/admission compatibility; 174 actual dashboard,
+accounting, transport and security. Groups overlap and are not summed.
+Eight new long-duration tests plus the added cumulative-budget exhaustion test
+pass. Frontend checks pass ten routes plus $1,000/compounding/long-held health/XSS.
 
-The source-identity repair is preserved; original economics/nine-test pins remain.
-GitHub exposed stale test-only root UID, floating exact-wall-boundary and extracted
-shadow-location assumptions. Those fixtures were repaired without changing
-production ownership/time/resource assertions. Earlier interrupted suite attempts
-are retained as interruptions, not accepted runs.
+All four regimes are tested through former short limits, 36/72/96 hours and
+7/14/30 days, including healthy sub-2× positions. Original identity, entry, basis,
+high water, partial history and money survive; real exits still execute.
+Accelerated clocks prove mechanics, not thirty days of live coverage or profit.
 
-Local containment still lacks delegated I/O and writable child controls. Existing
-GitHub runners also lack enforcement and the required dedicated two-vCPU host.
-No available suitable authorized environment was found. Original CPU/memory/I/O,
-process-kill, escaped-descendant and write-accounting tests are unchanged.
-`CGROUP_VALIDATION_ENVIRONMENT.json` gives exact errors and minimal Linux/cgroup-v2/
-seccomp environment. No skip or simulated containment is accepted as PASS.
+Full-clock focused replay: **2 tests PASS / 929.400 s**. Current: 25,920 native
+turns, four restarts, maximum 99 retained records, 356,352-byte fixture database,
+529.610 CPU seconds. Survivor: 86,401 history turns, maximum 28,803 points/2,402
+events, original age retained, 9,293,824-byte database, 269.917 CPU seconds.
+These are local fixture measurements, not provider savings or host-size proof.
 
-## Incremental purchasing economics
+Containment assertions remain unchanged. Kernel/controller availability exists,
+but root enables cpu/memory/pids and **not io**; no suitable already-authorized
+writable delegated scope or alternate environment was found. The three required
+errors remain explicit. The interrupted $1,000-only FAST run is not acceptance.
 
-`FINALIZATION_COST.json` compares **ed7**, preserving previous held sharing and
-excluding earlier PR124–128/L1 gains. Identical-evidence fixture decisions reconcile
-within compatible sharing/resource scopes. These are synthetic purchase counts;
-default two-RPS overload can force extra fallback, and Current quotation-component
-counts do not replace the whole-controller traces above:
+## Protective execution and demand-exit research
 
-| Cohort | Starts before → after | Modeled billed CU avoided | USD per 1,000 cohorts at $0.525/million CU |
-|---|---:|---:|---:|
-| Survivor full exit, any tested count | 6 → 4 | 60 | $0.0315 |
-| Two Survivor partial exits | 8 → 6 | 20 | $0.0105 |
-| Twenty Survivor partial exits | 44 → 6 | 740 | $0.3885 |
-| Two Current full/partial exits | 10 → 7 | 60 | $0.0315 |
-| Twenty Current full/partial exits | 64 → 7 | 1,968 | $1.0332 |
+[PROTECTIVE_EXECUTION_RESEARCH.json](PROTECTIVE_EXECUTION_RESEARCH.json) retains
+the actual request traces, 32 native funded collapse cases, ten actual funding
+concurrency cases and 56 separate portfolio financial replays. All supplied
+market paths and executable quotes in these stress cases are **synthetic**.
+Native books, quantities, original policy reducers, temporary $1,000 funding
+authority, settlements and restart reconciliation are real offline code paths.
+There was no provider purchase, operating funding or economic rule promotion.
 
-HOLD and singleton Current purchases are unchanged. These are synthetic purchase
-reductions when valid sharing succeeds, not bills. Do not add rate variants,
-HOLD plus exit for the same turn or historical comparisons. Stale/private fallback
-can spend more and miss deadlines. Monthly workload/action frequencies and actual
-marginal tariff are unavailable; monthly net savings remain null. No blanket retry
-multiplier or unattributed busy/extreme forecast is retained as an operating bill.
-Additional warm recovery comparisons against da090e6d: twenty pending partials
-avoid 114 starts/2,260 modeled CU ($1.1865 per 1,000 disjoint recovery cohorts);
-twenty pending fulls avoid 95 starts/2,280 CU ($1.1970); pending-plus-ordinary
-avoids 54 starts/1,034 CU ($0.54285). These do not add to cold exit, phase or prior
-PR savings for the same physical purchase. CPU/local wall changes are recorded,
-not assumed to reduce host spending. Actual external provider calls and realized
-provider/host savings here are **zero**.
+Pump/Pons Current stops signal at **−8%**; Pump Survivor at **−12%** and Pons
+Survivor at **−10%**. They initiate native action using valid evidence; they do
+not guarantee a sale at that loss. The original Pons Current two-second fill
+delay remains separate from its five-second risk observation requirement.
+Survivor's three-second observation interval likewise is not a guaranteed
+three-second fill. Request admission, dependencies, quotes, native validation
+and durable settlement are recorded separately where the fixture captures them.
+Legacy queue/transport timestamps that were never recorded remain unknown.
 
-The retained Pons copy records 3,010 physical starts, 3,009 completions and 11,828
-logical elements, estimated at 270,932 billed CU. Largest methods are `eth_call`
-(188,552 CU) and `eth_getCode` (72,640). Its audit ring still has 1,413 unattributed
-records/130,886 estimated CU; that ring overlaps lifetime totals. The separate
-Pump completed-response window has 3,631 requests, 85,230 estimated CU and
-95,059,577 delivered bytes; 1,748 purchases/35,350 CU remain unattributed. Legacy
-consumer/evidence/deadline links and failures before response capture are unknown.
-Equal arguments alone do not prove waste. Historical Ramses records remain
-separate and cause no operational workload. No window is extrapolated to a bill.
+| Supplied rapid price collapse | Executable loss with 10% quote deterioration | Additional three-second delay and 25% further deterioration |
+|---|---:|---:|
+| 20% | 28% / $14 on $50 | 46% / $23 |
+| 40% | 46% / $23 | 59.5% / $29.75 |
+| 60% | 64% / $32 | 73% / $36.50 |
+| 80% | 82% / $41 | 86.5% / $43.25 |
 
-Local replay batching serves noncommitting preview only; every native monetary
-check remains. Twenty-partial unpaced CPU measured 0.5555 → 0.5987 s in this specimen;
-no material local CPU/host-dollar reduction is claimed for this repair. Harness
-RSS (about 88 / 76 MiB in the two reproduction runs) is not server sizing.
-Physical purchases, reuse, failure, native deadline/decision links are recorded
-where available; absent legacy evidence/bytes/consumer fields remain unknown.
+The actual Pons Current entry also carries $0.002 of native gas in that fixture;
+the table isolates zero-fee $50 principal sensitivity. A missing executable quote
+leaves EXIT_PENDING, unchanged quantity and no realized proceeds. The original
+valid full-exit intent remains irreversible through restart and later recovery.
 
-Pons standard-RPC Chainstack equivalence is the smallest conditional provider move;
-Alchemy Solana streams/enhanced history stay. `PROVIDER_COMPATIBILITY.md` records
-current official prices, archive rules, whole-plan/fallback sensitivities and the
-disabled comparison envelope. No subscription or credential is required by this
-release. Net expected migration benefit cannot be established from missing monthly
-distributions or included RU alone.
+The actual proposed authority funds fifteen $50 mixed entries before the 75%
+correlation limit binds; an ordinary twenty-$50 request is not fundable there.
+Twenty genuine executable $25 requests can be funded. Family/network 45% and
+regime 30% constraints further restrict single-family/regime cases. This is
+financial eligibility, not certified protective capacity or a numerical owner
+veto. In the financial-only correlated 80%-collapse/delay scenario, fifteen
+$50 positions lose $648.75 and leave $351.25 equity. New risk is then denied by
+the original drawdown protection; genuine existing exit settlement still works.
+These supplied proceeds do not prove that fifteen simultaneous native fills
+would actually complete on time.
 
-## Operational and authorization boundary
+The additional 1/2/5/10/15/20-owner timeline records four common full-exit starts
+and six partial-exit starts. Its virtual RPC clock **does not advance for local
+work**; measured local wall time is added afterward. At fifteen/twenty owners,
+partial totals were 3.198/3.474 seconds. Those arithmetic component envelopes
+must not replace real-clock late/fallback counterexamples or financial-boundary
+work. The original protective admission gate remains closed in normal/autonomous
+funding until combined position/candidate latency is certified.
 
-`FINALIZATION_SAFETY.json` verifies all seven native monetary files remain byte
-identical, including the original $500 portfolio, epoch and canonical journal.
-Deployed checkout/configuration/provider limits and service state are unchanged.
-Meteora/Ramses remain paused. No trading/funding/signing, paid provider workload,
-merge, deployment, host upgrade, service start/restart or new alert message.
+| Existing economic exit | Source assessment; active behavior retained |
+|---|---|
+| Pons Current flow reversal / runner demand failure | Sell flow at least 1.20× buy flow can exit despite other healthy facts; this is a testable consolidation hypothesis, not demonstrated premature selling. |
+| Pons Current soft runner decay | At least 120 seconds without a high plus non-growing buyer breadth, with two confirmations; pregraduation soft decay combines curve and flow deterioration. |
+| Pump Current demand decay | Below the original demand score, immediate at nonpositive return or after two deterioration confirmations at positive return. Graduation continuation has its own genuine thesis check. |
+| Pump/Pons Survivor soft/stale thesis | Native confirmed soft deterioration; stale thesis also requires adverse soft evidence. Hard creator, liquidity, stop and trail rules remain decisive. |
 
-| Existing requirement | Source status | Separate operating evidence |
+Read-only copies of the coherent existing backup contain **zero funded eligible
+demand-exit/post-exit comparisons**. Parasol's
+[published retrospective](https://parasol.so/blog/paper-trading-retrospective)
+supplies a hypothesis only; its detailed trade dataset was not inspected and its
+outcomes do not establish a directly applicable Meme Machine policy improvement.
+No out-of-sample improvement, actual net profit difference or promotion is claimed.
+
+The bounded research-only evaluator compares original point-in-time receipts
+with independently supplied follow-up evidence. It requires healthy breadth,
+new buyers, creator/structure/liquidity facts and price retention, then original
+cadence observations and fresh exact-quantity canonical executable quotes.
+Hard exits override the alternative; repeated adverse observations terminate it.
+Missing history, reorganization, sparse risk observations, partial quantity
+lineage gaps or unavailable exit quotations remain INCONCLUSIVE. No future fact
+can justify the initial choice. There is no active execution call site.
+Illustrative native-tail/hard-stop alternatives yield **+$165 / −$67.50** net
+proceeds against a supplied $75 baseline; these are synthetic, not PAPER profits.
+All active soft exits are **REQUIRES_FURTHER_PROSPECTIVE_EVIDENCE**, unchanged.
+
+Existing bounded learning compaction now keeps up to eight distinct first exit
+triggers and execution facts. Optional dashboard fields show original stop signal,
+observed/first-trigger/executed native return and pending/completed status. Unknown
+latency remains unknown; shadow status stays research-only and cannot enter actual
+cash, realized equity or return. No added acquisition or measured CPU/bill saving
+is claimed for this reporting/research work.
+
+## Native protective capacity
+
+Warm active Pons retains four ordered transports: fresh header; compatible
+hash-pinned state/gas/exact quantities plus incremental logs; missing immutable
+receipt; ordered post-acquisition canonical fence. Missing sender adds an
+authenticated body. Partials add exact partial-quantity state/gas and another
+ordered fence. No evidence timestamp, quantity, gas or canonical proof is reused
+outside its original scope; genuinely absent work is omitted.
+
+| Existing native 100-ms fixture | Starts / complete turn | Lowest passing tested profile |
 |---|---|---|
-| G01 | Volume/epoch/no-reseed controls retained | Actual current device/inception/permissions/startup |
-| G02 | Coherent backup and isolated native recovery retained | Current off-host point and recovery with open owners |
-| G03 | Independent monitor/owner attention retained | Fresh unattended monitor and alert delivery |
-| G04 | Durable phase observations retained | Candidate CAPACITY/RECOVERY/AUTONOMY outcomes |
-| G05 | Read-only dashboard transport/health retained | Snapshot freshness/replication/cutover |
+| One/two normal Survivor partial exits | 6 / 2.623 s; 6 / 2.644 s | 2 RPS |
+| Twenty normal partial exits | 48 / **23.663 s late** at 2; 6 / 2.481 s at 3 | Disabled 3 RPS |
+| Twenty warm already-pending partial recoveries | 5 / 2.851 s | 2 RPS, distinct recovery scope |
+| Pending partial + nineteen ordinary owners | 8 / **4.288 s late** at 2; **3.115 s late** at 3; 2.548 s at 4 | Disabled 4 RPS |
+| Missing sender, one partial | 7 / **3.18 s late** at 2; 2.22 s at 3 | Disabled 3 RPS, conservative virtual/local envelope |
+| Twenty coincident Current HOLDs | 4 / about 2.20 s | 2 RPS in that fixture |
+| Ten staggered Current + ten Survivor partial exits | 66 at 9 RPS; Survivor 1.246 s; original Current risk/fills and native money pass | Disabled bounded phase; 9 is lowest single passing specimen, 8 has counterexamples |
+| Six dependent 600-ms responses | At least **3.6 s** before local work | No tested start rate repairs that latency floor |
 
-Existing engineering was not rebuilt; prior receipts remain in
-`operational/pump-pons-consolidation/HANDOFF.md` and bootstrap preparation.
-Schema compatibility alone cannot justify rollback while positions are open:
-a predecessor with insufficient protective capacity is not an automatic safe
-rollback target. Retain original owners, journals and exit intent through failure.
+CAPACITY_REPAIR_NATIVE.json retains original measurement identities; new focused
+and frozen-suite tests recheck the successor. Neither is authentic endpoint proof.
+Original three/five-second risk schedules remain. Current's integer intent due
+and later PAPER fill are separate clocks, never relabeled risk deadlines.
+Quantities, risk, simulations, accounting and owners remain independent.
+No owner waits to enlarge a cohort; private fallback/late cases remain visible.
 
-Next external requirements, not executed or authorized here:
+Production stays **2 starts/s**. Optional sharing resource descriptors, higher
+rates and bounded phase reservations remain offline-only. A universal rate,
+account-wide Pump headroom, actual P95/P99/payload and whole-machine maintenance,
+SQLite, supervisor/backup capacity are unknown. Two CPUs/eight GiB are confirmed;
+neither an upgrade nor sufficient full-machine capacity is proved. Resource
+admission must support admitted positions without restoring numerical count vetoes.
 
-1. Existing authorized dedicated two-vCPU delegated cgroup-v2 environment; run
-   unchanged containment tests and complete required acceptance there.
-2. Confirm exact account tariff/allowance/archive/batch/failure treatment. Then
-   separately authorize read-only Pons comparison: **60 s, 64 aggregate starts,
-   256 elements, 16 MiB, 2 MB response/in flight, two RPS, zero retries**. Monetary
-   ceiling stays null until independently verified; public $0.008064 arithmetic
-   does not authenticate a $0.01 ceiling. Stop on any budget/evidence/timeout/failure.
-   No subscription, trading authority or state change. No archive proof from an
-   unsupported free endpoint.
-3. Separately authorize higher-rate proof only with verified provider/account-wide
-   headroom and spending. Start with the three-RPS warm partial specimen, retaining
-   bounded starts/elements/bytes/throughput/in-flight/protection budgets. Mixed
-   nine/twelve-RPS bounded-phase hypotheses and the four-RPS pending-plus-ordinary
-   case need their own complete native deadlines, sender,
-   slow-response, staggered, entry/recovery and actual RTT/payload evidence.
-4. Only after capacity and required offline acceptance pass, separately authorize
-   original-epoch bounded PAPER CAPACITY/RECOVERY/AUTONOMY and G01–G05 verification.
-   Preserve native intent/owners on failure; no reseed or arbitrary forced exit.
+**Financial-boundary limitation:** those preserved controller specimens stub the
+mandatory native USD valuation boundary. The real Pons reader additionally needs
+10 cold, 6 warm-route or 8 oracle-refresh transport shapes, with zero purchases on
+an originally valid cache hit. These are source/fixture counts; they are not simply
+added to every turn, and their actual cache/scheduling distribution is unmeasured.
+The successor fixes canonical publication and compatible concurrent reuse. It
+does **not** establish full end-to-end protection within three seconds, even for
+one active Survivor when this boundary refreshes. Include financial acquisition,
+shared reconciliation and its queue/CPU work in external acceptance. Core 3/4/9-RPS
+passing profiles are component lower bounds, not a production governor recommendation.
 
-Offline reproduction uses CPython 3.12.14, pinned requirements and the existing
-network-guarded Scratch driver:
+## Authenticated observations and economic sensitivity
 
-```sh
-python -m operational.tests FAST --verbose
-python -m operational.tests OPERATIONAL --verbose
-python -m operational.tests FAST --modules tests.test_pons_capacity_repair tests.test_pons_current_exit_sharing tests.test_pons_rpc_equivalence_preparation --verbose
-python -m engineering.proven_efficiency.finalization --capacity-repair --output /tmp/pr129-capacity.json
-```
+Alchemy read-only admin reports **1,740,125.5362 core CU** in October's partial
+billing window and **$0.91 displayed core cost**: Solana 1,737,251.5362 CU,
+Robinhood 2,874. Separate Solana gRPC delivery is **0.0063307322 TB**, not part of
+core CU billing. This is historical partial usage, not a full-market bill.
+Configured key/app binding, actual plan, allowances, shared throughput,
+batch/payload/archive/failure tariff and spending controls remain unavailable.
+No data-plane request was issued.
 
-`--family current` replays changed Current paths without repeating byte-unchanged
-Survivor specimens. Private logs/failed Scratch evidence are retained; no native
-state or secret archive is committed. No further identified source defect remains
-in these repaired paths; external capacity, containment and authorized PAPER
-acceptance are the remaining readiness boundaries.
+DigitalOcean authenticated inventory confirms the existing **$68/month** host,
+50-GiB volume and three off-host snapshots totaling 79.54 reported GiB.
+Public volume/snapshot tariffs give **$77.77/month pre-tax same-stock planning**.
+Invoice-to-date is not a future fixed bill. Render's free plan does not prove
+always-on health.
+
+LONG_HOLD_RESOURCE_MODEL.json supplies 180 conditional rows for 1/2/4/5/10/20 owners
+over 24/72 hours and 7/14/30 days, Pump/Pons and mixed clocks. Physical starts,
+logical methods/CU and fixture bytes are separate; unmeasured CPU/memory/storage
+are null. Independent clocks and exact quantities prevent perfect sharing.
+Pump uses a conservative existing method model, without an invented union discount.
+
+| Four continuously held positions / 30 days | RPC-only public $0.525/million CU sensitivity |
+|---|---:|
+| Pump Current / Survivor | $131.14 / $109.28 |
+| Pons Current / Survivor | $84.37 / $140.62 |
+| Two Pump Survivor + two Pons Survivor | $171.67 |
+| Two Pons Current + two Pons Survivor, independent clocks | $187.25 |
+
+With infrastructure stock this is a **$162–$265/month partial planning range**,
+plus unknown discovery/qualification/streams/redelivery/entries/exits/failures/
+recovery/archive/storage growth, **mandatory native USD conversion** and tax. It is not a complete operating forecast
+or authenticated tariff. Included allowances can change marginal bills.
+Finite maintenance counters do not support these thirty-day scenarios: four
+warm Pons Survivors consume the modeled 500,000-element allowance in about
+34.7 hours before other work. Recurring protection resources remain an activation
+blocker; a sell timer cannot substitute for them.
+
+Previous ed7/da090e6d purchasing comparisons remain in FINALIZATION_COST.json and
+are not counted again. This addendum proves mechanics/reporting, not additional
+avoided purchases. Actual provider calls and realized provider/host savings are
+**zero**. Longer holding changes demand duration; it is not a savings claim.
+
+The same four-position Pons scenarios, using the existing package calculator,
+produce conditional Growth charges of $49–$163.72 including the whole plan and
+0–100% archive sensitivity. Optimistic RPC-only net differences are $23.53–$138.25
+per month before unknown fallback/recovery/operations, assuming all replaced CU
+is marginal. Actual historical Pons usage does not justify that purchase alone.
+The comparison is not expected or verified savings; mandatory financial traffic is
+excluded from these component models. Retained Alchemy Solana and
+fixed charges remain on both sides. Broader RPC/stream migration is deferred.
+
+The **new** native USD fix has a separate deterministic purchase comparison.
+Eight simultaneous cold consumers made 72 transport shapes/144 elements/3,200
+modeled CU before, versus 10/19/420 after: **62 shapes and 2,780 modeled CU avoided
+in that fixture**, including the additional canonical fence. It is not a measured
+provider invoice reduction. For a single reader, cold/warm/oracle refresh changes
+9/5/7 to **10/6/8** transports; valid original cache reuse remains zero purchases.
+The fence may carry two header elements when the cached oracle has a different
+block. Independent amount conversion and original timestamps are unchanged.
+No monthly frequency is observed; N such cohorts × 2,780 CU × an authenticated
+marginal tariff is a sensitivity formula, not a savings forecast. Request counts
+already credited to earlier PRs are not credited again.
+
+## Operational gates and next authorization
+
+Original $500 epoch paper-1791089005190643467, sequence 2,036, remains intact/flat.
+Seven monetary-file hashes are unchanged. Deployed checkout remains detached
+b577cc1c67f4d64f887b430f5e933f376b607dc2; predecessor cbfcb413 stays clean.
+PAPER remains inactive, disabled, PID zero. No operating $1,000 epoch was created.
+
+| Gate | Read-only evidence | Remaining candidate acceptance |
+|---|---|---|
+| G01 | Existing mount/volume UUID and old-epoch guard pass | Explicit isolated $1,000 initialization, identity/permissions and no-reseed cutover |
+| G02 | Existing coherent backup: 47 files, 17 SQLite databases; replay/hash verification passes; Oct10 off-host snapshot READY | Current-point isolated restore and candidate open/pending-owner recovery |
+| G03 | Independent monitor/metrics/observer active; PAPER-off expectation correct | Unattended fresh protection-fault and owner-attention acceptance |
+| G04 | Durable observations retained | Exact-source CAPACITY/RECOVERY/AUTONOMY have not run |
+| G05 | Old snapshot validates and is honestly stale | New isolated local Reader/replica and separately authorized Render epoch/source cutover |
+
+**First owner decision:** approve or decline the exact inactive policy hash above:
+marked asset admission reference **2.5% → 10%** and explicit cumulative investment
+ceiling **7.5%**. Other approved numeric limits remain unchanged; realized-equity
+sizing was already owner-directed. This is a source-policy decision, **$0**, with
+no initialization, funding, deployment, provider traffic or PAPER activation.
+The 10% reference permits more additional asset concentration than the old policy;
+it does not limit upside or authorize a sale.
+
+**Smallest required environment authorization:** temporary I/O controller enablement with
+CPU/memory delegation to isolated writable test children on the existing offline
+validation host, unchanged containment tests and acceptance
+suites, up to 120 minutes, **$0 additional provider/infrastructure spend**.
+Only test child cgroups, descendant cleanup and safe restoration of original
+controller state; no PAPER service/configuration, provider traffic, operating
+accounting or deployment changes. Privileged host modifications were expressly
+excluded, so this requires separate permission.
+
+Obtain the configured Alchemy plan/tariff/entitlement record without secrets.
+Only then request the inactive basic read-only capability envelope: **60 seconds,
+64 aggregate HTTP starts, 256 elements, 16 MiB delivered, 2 MB response/in flight,
+2 RPS, zero retries**. Required exact canonical/hash calls, native $50 buy/sell and
+eligible $25 add simulations, gas/code/manager/logs/receipts/sender/archive checks
+remain read-only. The monetary ceiling is **unknown**, not an assumed $0.01;
+public $0.008064 arithmetic is sensitivity only. Stop on any time/start/element/
+spend/size/canonical/failure/timeout condition. No signing/funding/subscription.
+
+A distinct source-shaped higher-rate capacity test needs authenticated shared
+headroom/tariff. The basic 64 starts cannot cover the demonstrated 66/69-start
+mixed loop. Prepared profiles bound logical/throughput, bytes, inflight work,
+protection reserves and spending but remain inactive. Include sender, real
+latency, entry/recovery and adversarial clocks. Configured Alchemy Pons comes first;
+Chainstack Pons RPC is optional economic validation, retaining Alchemy Solana
+streams/enhanced history. No provider purchase or migration is required here.
+
+After containment, provider/capacity and recurring-budget proof, separately
+authorize review/merge/deployment, explicit new epoch, isolated dashboard cutover,
+then bounded PAPER CAPACITY/RECOVERY/AUTONOMY. Preserve the old $500 evidence and
+existing allocator/cutover guards. A rollback with open owners must preserve
+their money/intent and cannot restore old age-only exits or unsafe capacity.
+
+Offline reproduction (pinned CPython 3.12.14, existing network-guarded Scratch):
+
+    python -m operational.tests FAST --verbose
+    python -m operational.tests OPERATIONAL --verbose
+    python -m operational.tests FAST --modules tests.test_long_duration_positions tests.test_shared_portfolio_epoch --verbose
+    python -m operational.tests OPERATIONAL --modules tests.test_long_duration_positions tests.test_shared_portfolio_epoch tests.lanes.pons.test_pons_postgrad_survivor tests.test_survivor_risk_boundaries tests.test_operational_nine tests.test_pons_owner_admission tests.test_forward_survivor tests.test_shared_capital_strategy tests.test_robinhood_usd_valuation --verbose
+    MM_TEST_PYTHON=/path/to/pinned/python node dashboard/tests/frontend.mjs
+    python -m operational.tests FAST --modules tests.test_protective_execution_research --verbose
+    python -m engineering.extended_survivor_hold.research --maintenance --output /tmp/long-hold-projection.json

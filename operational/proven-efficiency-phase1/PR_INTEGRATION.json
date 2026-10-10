@@ -1,8 +1,8 @@
 {
-  "recorded_at": "2026-10-10T15:48:45.592525+00:00",
-  "candidate_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "recorded_at": "2026-10-10T21:51:17.726860+00:00",
+  "candidate_source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "integration_parent": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
-  "disposition": "Existing PR129 successor. No older PR merged, deployed or reapplied; exact head ancestry and relevant file equality remain independent.",
+  "disposition": "One coherent PR129 successor; approved earlier optimization ancestry retained. Inactive risk candidate needs owner review; no older PR merged/deployed/replayed.",
   "prs": [
     {
       "baseRefName": "operational/paper-v1",
@@ -1459,130 +1459,22 @@
       "updatedAt": "2026-10-09T05:31:52Z"
     }
   ],
-  "new_native_integration": {
-    "survivor": "Ordered native frame, exact-quantity exit sharing, prioritized compatible pending cohorts then ordinary owners; generic canonical proof unchanged.",
-    "current": "Complete conditional independent-owner sharing and held/entry priority separation",
-    "governor": "Production remains 2 RPS; explicit offline-only bounded rate/resource profiles and opportunistic protective phase, earlier/equal-deadline priority and expiry.",
-    "deployment": "none",
-    "source_commits": [
-      "c0621384c653c211b333045658c9d02402ed5900",
-      "4519476adf85fc1563e1dcd547e3f0395ab9e1af",
-      "e454af49aa66c05565675095dc61690dfd08006f",
-      "2ec2fff25245e774d68005a175467ea84127cc32",
-      "da090e6d080383f0309517a5eb39aa4ead3360e8",
-      "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
-      "286626b6e7c5c9e53af94afb5e28eb608fac3715"
-    ]
-  },
-  "runtime_unchanged_since": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-  "prior_frozen_candidate_source_commit": "d7cae26fce377db209daadbc478822382d003d9f",
+  "new_native_integration": "Same PR129 ancestry, new owner-approved shared-1000 capital/dashboard and age-only exit removal. No obsolete PR replay/merge.",
+  "runtime_unchanged_since": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "prior_frozen_candidate_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
   "pr129_baseline": "e1070404849dfa86eb3e47d57cf24263b2fefc25",
   "latest_public_inventory": [
     {
-      "baseRefName": "operational/paper-v1",
+      "baseRefName": "integration/pump-pons-live-paper-126-127-20261009",
       "closedAt": null,
-      "headRefName": "repair/observation-qualification-history-20261006",
-      "headRefOid": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
-      "isDraft": false,
-      "mergeCommit": null,
-      "mergedAt": null,
-      "number": 120,
-      "state": "OPEN",
-      "title": "Repair candidate qualification, retention and ordered Solana history",
-      "updatedAt": "2026-10-06T23:56:32Z"
-    },
-    {
-      "baseRefName": "operational/paper-v1",
-      "closedAt": null,
-      "headRefName": "repair/final-alchemy-solana-20261007",
-      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "headRefName": "integration/pump-pons-efficiency-rc-20261009",
+      "headRefOid": "bde1920b2e99260830358f3d096af7399474edde",
       "isDraft": true,
-      "mergeCommit": null,
       "mergedAt": null,
-      "number": 121,
+      "number": 129,
       "state": "OPEN",
-      "title": "Solana evidence: rolling prewarm startup and bounded provider proof",
-      "updatedAt": "2026-10-07T20:46:53Z"
-    },
-    {
-      "baseRefName": "operational/paper-v1",
-      "closedAt": "2026-10-07T15:24:06Z",
-      "headRefName": "operational/pause-ramses-20261007",
-      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
-      "isDraft": false,
-      "mergeCommit": {
-        "oid": "9f08f0db68fd3161c84bb955800db9a200a70f77"
-      },
-      "mergedAt": "2026-10-07T15:24:06Z",
-      "number": 122,
-      "state": "MERGED",
-      "title": "Pause Ramses as a reversible operational lane",
-      "updatedAt": "2026-10-07T15:24:06Z"
-    },
-    {
-      "baseRefName": "operational/paper-v1",
-      "closedAt": null,
-      "headRefName": "maintenance/engineering-storage-retention-20261008",
-      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
-      "isDraft": true,
-      "mergeCommit": null,
-      "mergedAt": null,
-      "number": 123,
-      "state": "OPEN",
-      "title": "Bound engineering artifacts and preserve failure evidence under storage pressure",
-      "updatedAt": "2026-10-08T00:56:21Z"
-    },
-    {
-      "baseRefName": "engineering/exceptional-winner-candidate-20261009",
-      "closedAt": null,
-      "headRefName": "engineering/pons-held-efficiency-20261009",
-      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
-      "isDraft": true,
-      "mergeCommit": null,
-      "mergedAt": null,
-      "number": 124,
-      "state": "OPEN",
-      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard",
-      "updatedAt": "2026-10-09T03:55:38Z"
-    },
-    {
-      "baseRefName": "engineering/pons-held-efficiency-20261009",
-      "closedAt": "2026-10-09T04:25:26Z",
-      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
-      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
-      "isDraft": true,
-      "mergeCommit": null,
-      "mergedAt": null,
-      "number": 125,
-      "state": "CLOSED",
-      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)",
-      "updatedAt": "2026-10-09T04:25:26Z"
-    },
-    {
-      "baseRefName": "engineering/pons-held-efficiency-20261009",
-      "closedAt": null,
-      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
-      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
-      "isDraft": true,
-      "mergeCommit": null,
-      "mergedAt": null,
-      "number": 126,
-      "state": "OPEN",
-      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode",
-      "updatedAt": "2026-10-09T05:27:34Z"
-    },
-    {
-      "baseRefName": "engineering/pons-held-efficiency-20261009",
-      "closedAt": null,
-      "headRefName": "engineering/pons-event-driven-paper-20261009",
-      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
-      "isDraft": true,
-      "mergeCommit": null,
-      "mergedAt": null,
-      "number": 127,
-      "state": "OPEN",
-      "title": "Pons event-driven held-position PAPER shadow with native exit preservation",
-      "updatedAt": "2026-10-09T04:50:39Z"
+      "title": "Pump/Pons native protection repair and bounded capacity finalization",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/129"
     },
     {
       "baseRefName": "engineering/pons-held-efficiency-20261009",
@@ -1590,30 +1482,160 @@
       "headRefName": "integration/pump-pons-live-paper-126-127-20261009",
       "headRefOid": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
       "isDraft": false,
-      "mergeCommit": null,
       "mergedAt": null,
       "number": 128,
       "state": "OPEN",
       "title": "Integrate PRs #126 + #127 for next-start live PAPER testing (no host deploy)",
-      "updatedAt": "2026-10-09T05:31:52Z"
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/128"
     },
     {
-      "baseRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
       "closedAt": null,
-      "headRefName": "integration/pump-pons-efficiency-rc-20261009",
-      "headRefOid": "286626b6e7c5c9e53af94afb5e28eb608fac3715",
+      "headRefName": "engineering/pons-event-driven-paper-20261009",
+      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
       "isDraft": true,
-      "mergeCommit": null,
       "mergedAt": null,
-      "number": 129,
+      "number": 127,
       "state": "OPEN",
-      "title": "Pump/Pons native acquisition consolidation and protection capacity finalization",
-      "updatedAt": "2026-10-10T11:19:53Z"
+      "title": "Pons event-driven held-position PAPER shadow with native exit preservation",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/127"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": null,
+      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
+      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 126,
+      "state": "OPEN",
+      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/126"
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "closedAt": "2026-10-09T04:25:26Z",
+      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
+      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 125,
+      "state": "CLOSED",
+      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/125"
+    },
+    {
+      "baseRefName": "engineering/exceptional-winner-candidate-20261009",
+      "closedAt": null,
+      "headRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 124,
+      "state": "OPEN",
+      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/124"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
+      "headRefName": "maintenance/engineering-storage-retention-20261008",
+      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 123,
+      "state": "OPEN",
+      "title": "Bound engineering artifacts and preserve failure evidence under storage pressure",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/123"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": "2026-10-07T15:24:06Z",
+      "headRefName": "operational/pause-ramses-20261007",
+      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
+      "isDraft": false,
+      "mergedAt": "2026-10-07T15:24:06Z",
+      "number": 122,
+      "state": "MERGED",
+      "title": "Pause Ramses as a reversible operational lane",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/122"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
+      "headRefName": "repair/final-alchemy-solana-20261007",
+      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 121,
+      "state": "OPEN",
+      "title": "Solana evidence: rolling prewarm startup and bounded provider proof",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/121"
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "closedAt": null,
+      "headRefName": "repair/observation-qualification-history-20261006",
+      "headRefOid": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 120,
+      "state": "OPEN",
+      "title": "Repair candidate qualification, retention and ordered Solana history",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/120"
     }
   ],
   "file_comparison_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-  "file_comparison_scope": "Frozen code candidate Git blobs; report publication changes excluded. Comparisons regenerated after runtime finalization, not inherited predecessor hashes.",
-  "native_pons_runtime_unchanged_since": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
-  "latest_runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-  "inventory_scope": "Read-only snapshot immediately before publishing final PR129 successor; no merges or older branch replay."
+  "file_comparison_scope": "Historical file comparisons below retain their recorded predecessor source; new runtime paths have authorized successor changes, not byte identity to old PR heads.",
+  "native_pons_runtime_unchanged_since": "fe7524586217c44f18fd8d39614897b2cc5f169b",
+  "latest_runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "inventory_scope": "Actual read-only PR120-129 inventory on October 10; file comparisons remain historical source-bound records.",
+  "latest_runtime_change_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "latest_source_changes": [
+    {
+      "commit": "8e2f3b4e2b07157d3968e5641c7e89b3a4c71f5a",
+      "subject": "Prepare isolated $1,000 shared epoch and integrate the actual dashboard"
+    },
+    {
+      "commit": "fe7524586217c44f18fd8d39614897b2cc5f169b",
+      "subject": "Remove age-only Pump and Pons sales and preserve bounded protection faults"
+    },
+    {
+      "commit": "c964b0f9bf7946da68a5c460583cf3c37e1460f5",
+      "subject": "Expose native long-held position protection in the shared-epoch dashboard"
+    },
+    {
+      "commit": "bde1920b2e99260830358f3d096af7399474edde",
+      "subject": "Project sustained native protection demand without extending provider authority"
+    },
+    {
+      "commit": "e87bb3ff437344b1cfd34a8800553d615367afb8",
+      "subject": "Keep shared inception validation exact under hostile Decimal contexts"
+    },
+    {
+      "commit": "6bf25cde1c54c76b29d655e20678c6d42153bff4",
+      "subject": "Fence canonical Pons USD evidence and share compatible currency acquisitions"
+    },
+    {
+      "commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "subject": "Reconcile shared portfolio investment and marked risk with an inactive approval candidate"
+    },
+    {
+      "commit": "bdecfeb34ce2082e9ef8848739c71d8762a14755",
+      "subject": "Preserve unlimited winner upside and require adverse stale-thesis evidence"
+    },
+    {
+      "commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+      "subject": "Validate the exact approved stale-thesis delta without weakening source guards"
+    },
+    {
+      "commit": "cb41a9c62b68c738e207f1cbd2c7b0822aea8b76",
+      "subject": "Preserve protective exit evidence and replay bounded demand-exit counterfactuals offline"
+    },
+    {
+      "commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "subject": "Require intervening native protection observations for exit shadow comparisons"
+    }
+  ],
+  "candidate_recorded_at": "2026-10-10T23:46:49.236607+00:00"
 }

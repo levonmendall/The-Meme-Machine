@@ -1,6 +1,6 @@
 {
-  "recorded_at": "2026-10-10T15:41:52.303583+00:00",
-  "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "recorded_at": "2026-10-10T23:46:35.732941+00:00",
+  "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "native_monetary_digests": {
     "meteora/native-genesis.json": {
       "bytes": 241,
@@ -43,7 +43,7 @@
   "original_sequence": 2036,
   "original_canonical_journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
   "market_provider_calls": 0,
-  "state_method": "Read-only byte hashes; no native monetary SQLite connection opened",
+  "state_method": "Read-only byte hashes; no native monetary SQLite connection opened. Prior validated cash/sequence/journal identity preserved by identical monetary bytes.",
   "deployment_or_restart": false,
   "service_observation": {
     "MainPID": 0,
@@ -56,5 +56,11 @@
   "original_worktree_head": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
   "original_worktree_clean": true,
   "actual_provider_limits_changed": false,
-  "final_post_suite_verification": true
+  "final_post_suite_verification": true,
+  "native_trading_runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "shared_authority_selected": false,
+  "selection_evidence": "Original portfolio bytes unchanged from verified no-selection state; shared-capital.sqlite absent",
+  "source_tree_sha256": "fe047325bbcfc94c51aad20c3df01d421c09cdda07b592a028a05d9661603e42",
+  "source_files": 1085,
+  "additional_frozen_inputs_unchanged": true
 }

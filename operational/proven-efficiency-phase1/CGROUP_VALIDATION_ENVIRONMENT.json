@@ -1,6 +1,6 @@
 {
   "classification": "READ_ONLY_HOST_CAPABILITY_INSPECTION",
-  "recorded_at": "2026-10-10T07:17:38.794108+00:00",
+  "recorded_at": "2026-10-10T18:06:56.263746+00:00",
   "root_enabled": "cpu memory pids",
   "existing_scopes": 65,
   "eligible_existing_scopes": [],
@@ -14,7 +14,7 @@
   "original_source_assertions_unchanged": true,
   "authorized_alternate_environment_exposed": false,
   "scope_count_method": "Unique inspected cgroup directories, root included once",
-  "current_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "current_source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "existing_github_runner_inspected": true,
   "github_predecessor_run": 38025007658,
   "github_new_source_run": 38030100957,
@@ -47,5 +47,24 @@
       "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=True)",
       "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=False)"
     ]
-  }
+  },
+  "authorized_writable_cpu_memory_io_scope": false,
+  "available_controllers": [
+    "cpuset",
+    "cpu",
+    "io",
+    "memory",
+    "hugetlb",
+    "pids",
+    "rdma",
+    "misc"
+  ],
+  "kernel": "Linux 6.8.0-142-generic",
+  "kernel_controller_capability_available": true,
+  "minimum_authorized_change": "Temporarily enable/delegate I/O with existing CPU/memory to isolated writable test child cgroups on the existing two-vCPU Linux host; unchanged CPU/memory/I/O/accounting/seccomp/termination tests, cleanup and safe restoration. No PAPER service or resource-policy change.",
+  "missing_kernel_capability_demonstrated": false,
+  "privileged_change_authorized": false,
+  "production_cpu_or_memory_shortage_demonstrated": false,
+  "root_io_enabled": false,
+  "final_frozen_environment_error_source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab"
 }

@@ -3,7 +3,7 @@
   "actual_provider_spending_reduction_usd": 0,
   "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
   "branch": "integration/pump-pons-efficiency-rc-20261009",
-  "code_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "code_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "completion_register": [
     {
       "evidence": "Clean ed7b3c66 continued. Same PR129 ancestry; cbfcb413 and deployed b577 unchanged. No reset or older branch replay.",
@@ -23,12 +23,14 @@
     {
       "evidence": "100-ms warm single HOLD/full uses four starts; partial uses six and fits offline. Sender body adds one start. 600-ms partial responses impose at least 3.6 seconds across six dependent responses, beyond the three-second complete-turn envelope at every tested rate.",
       "status": "Implemented but blocked by provider evidence",
-      "task": "single_active_survivor_protection"
+      "task": "single_active_survivor_protection",
+      "evidence_scope": "Core native controller fixtures only; mandatory financial valuation/reconciliation was stubbed. Complete-decision capacity including that work, provider queues and actual endpoint latency remains unproved, even for a single active Survivor refresh."
     },
     {
       "evidence": "Frozen ad77dc80 FAST twenty active partials at default 2 RPS: 48 starts/23.663 s, late. Disabled 3 RPS: 6 starts/2.481 s. Warm twenty-pending recovery at 2 RPS passes a distinct 100-ms fixture; sender/600-ms responses remain failures. No universal account/provider capacity claim. One pending partial plus nineteen ordinary owners: 8 starts; all-owner completion 4.288/3.115/2.548s at 2/3/4 RPS. Urgent exit alone fits but 2/3-RPS full turns fail.",
       "status": "Implemented but blocked by provider evidence",
-      "task": "fleet_protective_capacity"
+      "task": "fleet_protective_capacity",
+      "evidence_scope": "Core native controller fixtures only; mandatory financial valuation/reconciliation was stubbed. Complete-decision capacity including that work, provider queues and actual endpoint latency remains unproved, even for a single active Survivor refresh."
     },
     {
       "evidence": "Compatible already-due held and delayed-execution requests share existing native acquisition. A singleton delayed exit retains original private identity reuse and exactly the original method counts. Eight entry/eight protected workers; independent journals/quantities/cursors retained.",
@@ -38,7 +40,8 @@
     {
       "evidence": "54 coincident, 27 virtual staggered, 24 mixed native specimens preserved. Real-clock staggered ten Current plus ten Survivor was late at unreserved 8/12/16/20/25 RPS. Disabled bounded phase at 12 RPS retains original risk deadlines/native money in the final fixture; eight-RPS phase checks still missed Current deadlines. Independent delayed PAPER fill clocks are distinct from risk decisions. Final single real-clock bounded-phase specimens at nine/ten/eleven RPS: 66 total transports each, all ten Current risks/exits and ten Survivor realizations pass; lower universal minimum remains unknown.",
       "status": "Implemented but blocked by provider evidence",
-      "task": "current_whole_loop_capacity"
+      "task": "current_whole_loop_capacity",
+      "evidence_scope": "Core native controller fixtures only; mandatory financial valuation/reconciliation was stubbed. Complete-decision capacity including that work, provider queues and actual endpoint latency remains unproved, even for a single active Survivor refresh."
     },
     {
       "evidence": "Operative fixed two-position selection/funding veto stays removed. Legacy policy descriptor is retained only for original durable identity.",
@@ -51,7 +54,7 @@
       "task": "current_worker_admission"
     },
     {
-      "evidence": "Original USD economic purpose reviewed, SQLite FULL boundary changes traced to predecessor, original nine tests/economic reducers pinned, approved e107 implementation identity explicit.",
+      "evidence": "Inherited evidence-source pin repair preserved; newest owner-authorized timer deltas reviewed with exact AST digests while whole sibling economics/constants and nine-change tests remain pinned. Focused original guard passed.",
       "status": "Implemented and validated offline",
       "task": "source_identity_failure"
     },
@@ -61,7 +64,7 @@
       "task": "cgroup_containment_acceptance"
     },
     {
-      "evidence": "FAST: 1437 tests, 0 failures, 3 original cgroup errors, 0 skipped; OPERATIONAL: 2861 tests, 0 failures, 3 original cgroup errors, 33 skipped. Completed against one frozen unchanged fingerprint; required errors prevent PASS.",
+      "evidence": "Frozen bde1920b full suites running; required original cgroup errors remain. No PASS before completion or with errors.",
       "status": "Blocked by validation environment",
       "task": "full_suite_acceptance"
     },
@@ -96,17 +99,17 @@
       "task": "purchase_attribution"
     },
     {
-      "evidence": "Native exact-state comparison boundaries and disabled 60s/64HTTP/256element/16MiB preparation retained. Public Oct10 tariff checked; actual account tariff, allowance, methods/archive/canonical behavior/latency unverified. No provider request, purchase or migration.",
+      "evidence": "Existing inactive comparator retained. Read-only admin exposes usage/apps, not account tariff/limits or configured-key binding. Alchemy Pons first; no market RPC issued. New $50 target/$25 eligible-add liquidity needs exact-state endpoint proof.",
       "status": "Implemented but blocked by provider evidence",
       "task": "provider_equivalence"
     },
     {
-      "evidence": "Event-wakeup remains shadow-only; mandatory native quotes remain. Exceptional winner extensions require separate economic and continuation safety approval, and remain inactive. Original native long-held management retained.",
+      "evidence": "Quote suppression remains inactive. Owner superseded finite holding/exceptional renewal as sale authority; native four-regime age-only sales removed in fe752458, genuine economic/safety exits and classified diagnostic checkpoints retained.",
       "status": "Superseded or inactive",
       "task": "quote_wakeup_and_winner_economics"
     },
     {
-      "evidence": "Existing source guards/recovery/monitoring/durable observations/dashboard retained; current native monetary byte hashes unchanged. Exact candidate CAPACITY/RECOVERY/AUTONOMY host evidence not inferred from offline tests.",
+      "evidence": "Existing old-epoch volume guard and coherent backup passed read-only. Monitor/observations active; old dashboard is honestly stale. New $1,000 epoch, candidate CAPACITY/RECOVERY/AUTONOMY, current-point cloud restore, owner attention and Render cutover remain unexecuted.",
       "status": "Requires separate PAPER authorization",
       "task": "G01_G05_and_CAPACITY_RECOVERY_AUTONOMY"
     },
@@ -144,24 +147,127 @@
       "task": "accepted_maintenance_failure_during_shutdown",
       "status": "Implemented and validated offline",
       "evidence": "ad77dc80: 4dc OPERATIONAL exposed a race between stop and event-loop delivery of an accepted owner failure. Deterministic predecessor replay had no raised error/phase OFF despite terminal owner_lease_exceeded. Shutdown now consumes completed or bounded pending accepted maintenance work before cancelling its coroutine; native errors and five-second owner-close bound retained, cooperative yields nonterminal. Original expiry and record assertions remain. Three regressions plus adjacent native tests: 53 tests, zero failures, six existing archived-model skips. No provider calls or native strategy change."
+    },
+    {
+      "evidence": "8e2f3b4e: exclusive isolated initializer, v2 immutable receipt, zero P&L/positions/reservations, shared funding; no operating initialization. Historical $500 unchanged.",
+      "status": "Implemented and validated offline",
+      "task": "new_1000_shared_inception"
+    },
+    {
+      "evidence": "Four initial $50 5%-portfolio targets; $25 add/50%-original/7.5%-combined ceilings, realized compounding and unrealized exclusion; original cash/execution/exposure controls remain.",
+      "status": "Implemented and validated offline",
+      "task": "total_realized_equity_sizing"
+    },
+    {
+      "evidence": "Actual model/API/frontend/reporting/publisher/receiver/transport updated together. Dynamic inception/chart/return, explicit isolated epoch/hash selection, historical $500, fail-closed/stale and security regressions pass. Render unmodified.",
+      "status": "Implemented and validated offline",
+      "task": "actual_dashboard_capital_and_epoch_cutover"
+    },
+    {
+      "evidence": "fe752458: ordinary 300/600/900 and bounded extension, duplicate Pons 900, Current 36h and Survivor 72h sales removed. No larger cap. Genuine risks and old committed intents preserved; original entry eligibility unchanged.",
+      "status": "Implemented and validated offline",
+      "task": "four_regime_age_only_exit_removal"
+    },
+    {
+      "evidence": "Healthy sub-2x and 2/5/10/25/50x positions through 36/72/96h and 7/14/30d; native owners/restart/partials/pending intents/accounting. Full-clock 25,920 Current and 86,401 Survivor history turns pass.",
+      "status": "Implemented and validated offline",
+      "task": "long_held_native_identity_and_recovery"
+    },
+    {
+      "evidence": "Missing protection records DEGRADED_PROTECTION/OPERATIONAL_FAULT, closes new exposure through existing supervisor and preserves prior EXIT_PENDING. No renewal/time failure fabricates proceeds; native genuine settlement gates remain.",
+      "status": "Implemented and validated offline",
+      "task": "operational_fault_not_strategy_exit"
+    },
+    {
+      "evidence": "No service/hold-age maximum, original finite cumulative counters/spend and bounded incident recovery survive restart. Prepared only; thirty-day workloads exceed existing resources. No active allowance/rate change.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "prepared_cumulative_maintenance_envelope"
+    },
+    {
+      "evidence": "c964b0f9: original entry/age/basis, high water/trail/decision, pending intent and independent protection freshness. Actual native thirty-day history passes shared authority, Reader and isolated transport; no unavailable exit valuation oracle purchase.",
+      "status": "Implemented and validated offline",
+      "task": "actual_long_held_dashboard_health"
+    },
+    {
+      "evidence": "180 reproducible source-shaped projections, 1/2/4/5/10/20 positions and 24/72h/7/14/30d. Provider frequencies/tariff/failure/stream/storage and live CPU unknown; finite budgets insufficient, no invented recurring grant.",
+      "status": "Implemented but blocked by provider evidence",
+      "task": "sustained_provider_resource_economics"
+    },
+    {
+      "evidence": "Read-only Alchemy apps/usage, DigitalOcean host/volume/snapshot/billing, deployed source/service, storage/backup integrity and Render metadata inspected. Actual entitlement/tariff and provider data-plane proof remain unknown.",
+      "status": "Implemented and validated offline",
+      "task": "authenticated_admin_and_deployment_inventory"
+    },
+    {
+      "task": "inception_exact_decimal_context",
+      "status": "Implemented and validated offline",
+      "evidence": "Five predecessor FAST precision errors repaired with exact cent-integrality validation; historical $500 and new $1,000 monetary replay are unchanged under hostile Decimal precision/traps."
+    },
+    {
+      "task": "native_usd_canonical_publication_and_concurrent_reuse",
+      "status": "Implemented and validated offline",
+      "evidence": "Ordered standalone target/cached-oracle membership fence; fork/partial/delay refusal, cache invalidation and original five-second validity. Per-reader/registry synchronization avoids duplicate compatible unit-price acquisition, with independent raw amount conversion. No state timestamp is renewed.",
+      "whole_machine_protection_capacity": "NOT_PROVEN"
+    },
+    {
+      "task": "shared_1000_risk_policy_reconciliation",
+      "status": "Implemented; inactive pending owner numeric approval",
+      "evidence": "Original approved per-asset 2.5% conflict reproduced; candidate keeps portfolio75/family-network45/regime30/cash10%+$5/drawdown10, separates invested7.5 from marked10. Shared USD half-original/combined caps also constrain native-currency appreciation. Four real native entry interfaces and stage contract/authority tests pass.",
+      "selected_in_production": false,
+      "policy_sha256": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c"
+    },
+    {
+      "task": "actual_dashboard_risk_funding_integration",
+      "status": "Implemented and validated offline",
+      "evidence": "API/model/frontend show actual initial/add/remaining basis, marked position and asset references, retained funding decisions/constraints and new-risk restrictions separately from protection. Candidate temporary UI fixture matches actual selected authority; historical $500, stale/fail-closed and protected transport remain."
+    },
+    {
+      "task": "unlimited_upside_and_legacy_stale_helper_parity",
+      "status": "Implemented and validated offline",
+      "evidence": "Permanent100x/1000x/30day native strata retain original stops/partials/recovery; actual funding and dashboard preserve50original+25added+62.50remaining basis after appreciation and restart. Uncalled legacy Pons stale helper now also requires adverse demand, as the active reducer already did; thresholds/policy hash are unchanged."
+    },
+    {
+      "task": "exact_owner_directed_helper_source_identity",
+      "status": "Implemented and validated offline",
+      "evidence": "Four new exact-AST pin failures reconciled after full predecessor run. Independent whole-module AST derivation from fe752458 permits only soft adverse guard and confirmation ordering; original interfaces/constants/qualification/siblings stay pinned. Removing adverse guard or weakening stop comparator is rejected.154 affected tests pass; no runtime change in the test-only successor."
+    },
+    {
+      "task": "protective_execution_clock_and_loss_observability",
+      "status": "Implemented and validated offline",
+      "evidence": "Real native quantities, original stop signals, first trigger and completed execution returns retain existing source clocks; historical missing timing is unknown."
+    },
+    {
+      "task": "bounded_demand_exit_shadow",
+      "status": "Implemented and validated offline",
+      "evidence": "Pure bounded offline comparisons retain native hard exits, reject cadence/history/quote/quantity/fork gaps and partials without lineage; no active call site, extra acquisitions or economic promotion."
+    },
+    {
+      "task": "financially_admissible_protective_stress",
+      "status": "Implemented and validated offline",
+      "evidence": "Actual 1000-dollar temporary authority entries, native collapse quotes and separate correlated portfolio settlement/replay. Timing and fundability remain separate; no production capacity claim."
     }
   ],
   "external_blockers": [
     {
+      "kind": "RISK_POLICY_APPROVAL",
+      "required": "Owner approve exact inactive $1,000 candidate marked-asset10% plus invested-asset7.5%; existing numeric limits otherwise unchanged. Approval does not activate, initialize, fund, deploy or start PAPER.",
+      "policy_sha256": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c"
+    },
+    {
       "kind": "VALIDATION_ENVIRONMENT",
-      "required": "Existing authorized dedicated two-vCPU Linux x86_64 cgroup-v2 host with writable child cpu, memory, io delegation, block I/O accounting and seccomp notification."
+      "required": "Separate privileged-host authorization to enable/delegate I/O with existing CPU/memory to writable isolated cgroup-v2 test children; original containment/resource/descendant assertions. No suitable already-authorized environment."
     },
     {
       "kind": "PROVIDER_CAPABILITY_AND_RESOURCE",
-      "required": "Authenticated native Pons method, hash-state, sender, archive, batch, payload and response-latency proof plus account-wide Pump/Pons headroom. Current 2 RPS cannot protect all demonstrated loads."
+      "required": "Authenticated configured Alchemy account-wide Pump/Pons headroom, exact-state method/hash/sender/archive/batch/payload/latency; actual protective/concurrent/execution/recovery tails. Two-RPS default fails documented workloads; optional descriptors/profiles remain inactive."
     },
     {
-      "kind": "MONETARY_AUTHORITY",
-      "required": "Verified actual tariff/allowance/charged-failure classification before a hard monetary ceiling and separately approved bounded comparison."
+      "kind": "MONETARY_AND_RECURRING_AUTHORITY",
+      "required": "Actual tariff/allowance/archive/failure classification for a verified bounded-test monetary ceiling and separately approved recurring protection resources. New maintenance examples exceed finite existing limits under long holds; restart cannot refill."
     },
     {
-      "kind": "PAPER_ACCEPTANCE",
-      "required": "Separate approval after preceding blockers for original-epoch CAPACITY/RECOVERY/AUTONOMY and G01-G05 operating evidence."
+      "kind": "PAPER_AND_DASHBOARD_ACCEPTANCE",
+      "required": "After prior gates: separately approved new isolated $1,000 operating epoch, review/deployment/Render cutover and native CAPACITY/RECOVERY/AUTONOMY/G01-G05 acceptance. Old $500 never reseeded."
     }
   ],
   "historical_full_suite_results": [
@@ -250,23 +356,99 @@
       "failures": 1,
       "errors": 3,
       "skipped": 33
+    },
+    {
+      "errors": 3,
+      "failures": 0,
+      "skipped": 0,
+      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "status": "COMPLETED_FAIL",
+      "suite": "FAST",
+      "test_count": 1437
+    },
+    {
+      "errors": 3,
+      "failures": 0,
+      "skipped": 33,
+      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "status": "COMPLETED_FAIL",
+      "suite": "OPERATIONAL",
+      "test_count": 2861
+    },
+    {
+      "log_name": "long-held-frozen-FAST.log",
+      "sha256": "99038ab1b653a2a12330e9cd34ca0b7c214f205a5ec1adc799977a7024d25a8f",
+      "source_commit": "bde1920b2e99260830358f3d096af7399474edde",
+      "tests": 1465,
+      "elapsed_seconds": 2032.958,
+      "result": "FAIL",
+      "failures": 0,
+      "errors": 8,
+      "skipped": 0,
+      "suite": "FAST",
+      "status": "COMPLETED_FAIL",
+      "test_count": 1465,
+      "classification": "Three cgroup environmental errors plus five exact-money inception errors; successor repair is explicit"
+    },
+    {
+      "log_name": "unlimited-upside-final-frozen-FAST.log",
+      "sha256": "7e96e9bd396a66e69ecbef09c8392ad5cefb88d28cda192741f34e6f38754c38",
+      "source_commit": "bdecfeb34ce2082e9ef8848739c71d8762a14755",
+      "tests": 1486,
+      "elapsed_seconds": 2061.412,
+      "result": "FAIL",
+      "failures": 4,
+      "errors": 3,
+      "skipped": 0,
+      "suite": "FAST",
+      "status": "COMPLETED_FAIL",
+      "test_count": 1486,
+      "classification": "Four exact AST pins omitted the later owner-directed legacy adverse-flow correction; three unchanged cgroup environmental errors. Whole-module two-node derivation and mutation guards repair the test identity without changing runtime."
+    },
+    {
+      "suite": "FAST",
+      "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+      "test_count": 1487,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0,
+      "log_name": "winner-final-frozen-FAST.log",
+      "sha256": "58fdd2618ed72a93db811980b2571398edd66a53749dbb01d6daa57d9049928b",
+      "tests": 1487,
+      "elapsed_seconds": 2160.199,
+      "result": "FAIL"
+    },
+    {
+      "suite": "OPERATIONAL",
+      "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+      "test_count": 2917,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33,
+      "log_name": "winner-final-frozen-OPERATIONAL.log",
+      "sha256": "aabd7a8cb0581d284a24067fa8c76d2e76dbfa412b70756617e273850e68a51d",
+      "tests": 2917,
+      "elapsed_seconds": 2560.557,
+      "result": "FAIL"
     }
   ],
-  "next_authorized_action": "No remaining independent source repair identified. Await a suitable existing authorized offline containment environment and authenticated account/provider proof; no provider or PAPER action is authorized.",
+  "next_authorized_action": "Owner review the inactive capital policy and authorize isolated containment delegation; obtain authenticated account tariff/entitlement before separately bounded provider validation.",
   "pr": 129,
-  "previous_candidate": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "previous_candidate": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
   "pro_research_archive_inspected": false,
   "readiness": "BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT",
-  "recorded_at": "2026-10-10T15:47:09.817959+00:00",
-  "remaining_source_work": "No identified unresolved source defect after complete frozen suites. Higher-capacity production binding requires authenticated envelope and separate authorization; existing default stays at two RPS.",
+  "recorded_at": "2026-10-10T23:46:49.236607+00:00",
+  "remaining_source_work": [],
   "required_next_sequence": [
-    "Existing authorized dedicated two-vCPU Linux x86_64 cgroup-v2 host with writable child cpu, memory, io delegation, block I/O accounting and seccomp notification.",
-    "Authenticated native Pons method, hash-state, sender, archive, batch, payload and response-latency proof plus account-wide Pump/Pons headroom. Current 2 RPS cannot protect all demonstrated loads.",
-    "Verified actual tariff/allowance/charged-failure classification before a hard monetary ceiling and separately approved bounded comparison.",
-    "Separate approval after preceding blockers for original-epoch CAPACITY/RECOVERY/AUTONOMY and G01-G05 operating evidence."
+    "Separate privileged-host authorization to enable/delegate I/O with existing CPU/memory to writable isolated cgroup-v2 test children; original containment/resource/descendant assertions. No suitable already-authorized environment.",
+    "Authenticated configured Alchemy account-wide Pump/Pons headroom, exact-state method/hash/sender/archive/batch/payload/latency; actual protective/concurrent/execution/recovery tails. Two-RPS default fails documented workloads; optional descriptors/profiles remain inactive.",
+    "Actual tariff/allowance/archive/failure classification for a verified bounded-test monetary ceiling and separately approved recurring protection resources. New maintenance examples exceed finite existing limits under long holds; restart cannot refill.",
+    "After prior gates: separately approved new isolated $1,000 operating epoch, review/deployment/Render cutover and native CAPACITY/RECOVERY/AUTONOMY/G01-G05 acceptance. Old $500 never reseeded."
   ],
-  "runtime_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-  "schema": "pr129-final-completion-register-v2",
+  "runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "schema": "pr129-final-completion-register-v3",
   "source_commits": [
     {
       "commit": "c0621384c653c211b333045658c9d02402ed5900",
@@ -437,31 +619,211 @@
         "meme_machine/solana_evidence_service.py",
         "tests/test_production_maintenance_arbiter.py"
       ]
-    }
-  ],
-  "stage": "All identified authorized source repairs and final offline suites completed; blocked on delegated containment environment and authenticated provider/capacity/monetary evidence.",
-  "native_trading_runtime_commit": "f9c82e40baddb1a80520023c0243e25d55f4d1e2",
-  "full_suite_results": [
-    {
-      "suite": "FAST",
-      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-      "test_count": 1437,
-      "status": "COMPLETED_FAIL",
-      "failures": 0,
-      "errors": 3,
-      "skipped": 0
     },
     {
-      "suite": "OPERATIONAL",
-      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-      "test_count": 2861,
-      "status": "COMPLETED_FAIL",
-      "failures": 0,
-      "errors": 3,
-      "skipped": 33
+      "commit": "8e2f3b4e2b07157d3968e5641c7e89b3a4c71f5a",
+      "paths": [
+        "dashboard/__main__.py",
+        "dashboard/api.py",
+        "dashboard/fixtures.py",
+        "dashboard/model.py",
+        "dashboard/publisher.py",
+        "dashboard/snapshots.py",
+        "dashboard/static/app.js",
+        "dashboard/tests/frontend.mjs",
+        "dashboard/tests/test_server_security.py",
+        "meme_machine/operational/lane.py",
+        "meme_machine/operational/supervisor.py",
+        "meme_machine/portfolio_accounting.py",
+        "meme_machine/portfolio_snapshot_transport.py",
+        "meme_machine/shared_capital/adapter.py",
+        "meme_machine/shared_capital/migration.py",
+        "meme_machine/shared_capital/native_sleeve.py",
+        "meme_machine/shared_capital/operational_candidate.py",
+        "meme_machine/shared_capital/reporting.py",
+        "meme_machine/shared_capital/runtime.py",
+        "operational/tests.py",
+        "tests/test_pump_pons_capital_preparation.py",
+        "tests/test_shared_portfolio_epoch.py"
+      ],
+      "subject": "Prepare isolated $1,000 shared epoch and integrate the actual dashboard"
+    },
+    {
+      "commit": "fe7524586217c44f18fd8d39614897b2cc5f169b",
+      "paths": [
+        "deployment/paper-bootstrap.conf",
+        "meme_machine/lanes/pons/pons_postgrad_survivor.py",
+        "meme_machine/lanes/pons/pons_selective_continuation.py",
+        "meme_machine/lanes/pons/pons_selective_paper.py",
+        "meme_machine/lanes/pons/pons_survivor_runtime.py",
+        "meme_machine/lanes/pump/pump_acceleration_paper.py",
+        "meme_machine/lanes/pump/pump_acceleration_strategy.py",
+        "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+        "meme_machine/lanes/pump/runner.py",
+        "meme_machine/operational/bounded_provider.py",
+        "meme_machine/operational/exceptional_window.py",
+        "meme_machine/operational/position_continuation.py",
+        "meme_machine/runtime/directional_continuation.py",
+        "meme_machine/runtime/exceptional_winner.py",
+        "meme_machine/runtime/survivor_commit.py",
+        "meme_machine/runtime/survivor_risk.py",
+        "operational/position-continuation/RESOURCE_ENVELOPE.maintenance.example.json",
+        "operational/tests.py",
+        "tests/lanes/pons/test_pons_current_recovery.py",
+        "tests/lanes/pons/test_pons_position_provider_recovery.py",
+        "tests/lanes/pump/test_pump_acceleration_paper.py",
+        "tests/lanes/pump/test_pump_campaign_tail_drain.py",
+        "tests/test_continuation_resource_efficiency.py",
+        "tests/test_directional_execution_capacity.py",
+        "tests/test_exceptional_winner_candidate.py",
+        "tests/test_forward_survivor.py",
+        "tests/test_long_duration_positions.py",
+        "tests/test_operational_nine.py",
+        "tests/test_paper_bootstrap.py",
+        "tests/test_pons_current_shared_owners.py",
+        "tests/test_pons_owner_admission.py",
+        "tests/test_position_continuation.py",
+        "tests/test_robinhood_usd_valuation.py",
+        "tests/test_shared_capital_strategy.py",
+        "tests/test_survivor_risk_boundaries.py"
+      ],
+      "subject": "Remove age-only Pump and Pons sales and preserve bounded protection faults"
+    },
+    {
+      "commit": "c964b0f9bf7946da68a5c460583cf3c37e1460f5",
+      "paths": [
+        "dashboard/__main__.py",
+        "dashboard/model.py",
+        "dashboard/static/app.js",
+        "dashboard/tests/frontend.mjs",
+        "dashboard/tests/test_server_security.py",
+        "meme_machine/runtime/native_boundary.py",
+        "meme_machine/shared_capital/reporting.py",
+        "meme_machine/shared_capital/runtime.py",
+        "tests/test_shared_portfolio_epoch.py"
+      ],
+      "subject": "Expose native long-held position protection in the shared-epoch dashboard"
+    },
+    {
+      "commit": "bde1920b2e99260830358f3d096af7399474edde",
+      "paths": [
+        "engineering/extended_survivor_hold/research.py",
+        "operational/proven-efficiency-phase1/LONG_HOLD_RESOURCE_MODEL.json",
+        "tests/test_extended_survivor_hold_research.py"
+      ],
+      "subject": "Project sustained native protection demand without extending provider authority"
+    },
+    {
+      "commit": "e87bb3ff437344b1cfd34a8800553d615367afb8",
+      "subject": "Keep shared inception validation exact under hostile Decimal contexts",
+      "paths": [
+        "meme_machine/portfolio_accounting.py",
+        "tests/test_shared_portfolio_epoch.py"
+      ]
+    },
+    {
+      "commit": "6bf25cde1c54c76b29d655e20678c6d42153bff4",
+      "subject": "Fence canonical Pons USD evidence and share compatible currency acquisitions",
+      "paths": [
+        "engineering/extended_survivor_hold/research.py",
+        "meme_machine/runtime/usd_valuation.py",
+        "operational/proven-efficiency-phase1/LONG_HOLD_RESOURCE_MODEL.json",
+        "tests/test_extended_survivor_hold_research.py",
+        "tests/test_robinhood_usd_valuation.py"
+      ]
+    },
+    {
+      "commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "subject": "Reconcile shared portfolio investment and marked risk with an inactive approval candidate",
+      "paths": [
+        "dashboard/fixtures.py",
+        "dashboard/model.py",
+        "dashboard/static/app.js",
+        "dashboard/tests/frontend.mjs",
+        "meme_machine/shared_capital/authority.py",
+        "meme_machine/shared_capital/model.py",
+        "meme_machine/shared_capital/operational_candidate.py",
+        "meme_machine/shared_capital/reporting.py",
+        "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json",
+        "tests/test_shared_portfolio_epoch.py"
+      ]
+    },
+    {
+      "commit": "bdecfeb34ce2082e9ef8848739c71d8762a14755",
+      "subject": "Preserve unlimited winner upside and require adverse stale-thesis evidence",
+      "paths": [
+        "meme_machine/lanes/pons/pons_postgrad_survivor.py",
+        "tests/lanes/pons/test_pons_postgrad_survivor.py",
+        "tests/test_long_duration_positions.py",
+        "tests/test_shared_portfolio_epoch.py"
+      ]
+    },
+    {
+      "commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+      "subject": "Validate the exact approved stale-thesis delta without weakening source guards",
+      "paths": [
+        "tests/test_long_duration_positions.py",
+        "tests/test_robinhood_usd_valuation.py"
+      ]
+    },
+    {
+      "commit": "cb41a9c62b68c738e207f1cbd2c7b0822aea8b76",
+      "subject": "Preserve protective exit evidence and replay bounded demand-exit counterfactuals offline",
+      "paths": [
+        "dashboard/model.py",
+        "dashboard/static/app.js",
+        "dashboard/tests/frontend.mjs",
+        "meme_machine/runtime/learning.py",
+        "meme_machine/runtime/native_boundary.py",
+        "meme_machine/runtime/opportunity_telemetry.py",
+        "meme_machine/shared_capital/reporting.py",
+        "meme_machine/shared_capital/runtime.py",
+        "operational/tests.py",
+        "tests/test_protective_execution_research.py"
+      ]
+    },
+    {
+      "commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "subject": "Require intervening native protection observations for exit shadow comparisons",
+      "paths": [
+        "meme_machine/runtime/opportunity_telemetry.py",
+        "tests/test_protective_execution_research.py"
+      ]
     }
   ],
-  "source_tree_sha256": "e09044596d1d7c3a0803ab6f0e66c4e29df8b3d718c0d35e946c74919c9c2090",
+  "stage": "Protective-execution observation and shadow-evidence repair integrated; final offline acceptance completed with three environmental errors",
+  "native_trading_runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "full_suite_results": [
+    {
+      "log_name": "protective-final-frozen-FAST.log",
+      "sha256": "0938ea04432339e34c33e07b616e66543cd6f19dcfb2c2695d0c47871b313a8c",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 1500,
+      "tests": 1500,
+      "elapsed_seconds": 2140.478,
+      "result": "FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0,
+      "suite": "FAST",
+      "status": "COMPLETED_FAIL"
+    },
+    {
+      "log_name": "protective-final-frozen-OPERATIONAL.log",
+      "sha256": "f10f06acf78f57bbc0fb1398d8a5ec2445b25c61ac947af6142f7a2ab8c01b92",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 2930,
+      "tests": 2930,
+      "elapsed_seconds": 2542.985,
+      "result": "FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33,
+      "suite": "OPERATIONAL",
+      "status": "COMPLETED_FAIL"
+    }
+  ],
+  "source_tree_sha256": "fe047325bbcfc94c51aad20c3df01d421c09cdda07b592a028a05d9661603e42",
   "pending_purchase_gains": [
     {
       "workload": "pending_partial",
@@ -544,12 +906,7 @@
       "actual_provider_savings_usd": 0
     }
   ],
-  "source_activation_boundary": {
-    "shared_quote_resources": "Native adapters accept validated compatible resources, but present measurements inject descriptors through fixtures. Production binding awaits authenticated endpoint bounds and review.",
-    "higher_governor_profile": "Existing offline-only constructor/phase profiles are implemented. No production enable path is supplied or activated. Any binding follows verified account-wide capacity/spending and separate authorization.",
-    "independent_source_defect_remaining": false,
-    "operating_capacity_demonstrated": false
-  },
+  "source_activation_boundary": "No deployment, live epoch initialization, risk-policy selection, funding, service start, provider data-plane call or active rate increase. Old $500 epoch preserved. Source profile and temporary tests are the only changes.",
   "maintenance_shutdown_repair": {
     "failed_suite_source": "4dc4c0fb95270924146ece290f1ea9f2a444ae3b",
     "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
@@ -583,7 +940,18 @@
     "frozen_FAST_recheck": "frozen_FAST_real_clock_recheck",
     "frozen_OPERATIONAL_recheck": "frozen_OPERATIONAL_real_clock_recheck",
     "mock_http_seconds": 0.1,
-    "provider_capability_proven": false
+    "provider_capability_proven": false,
+    "additional_financial_boundary": {
+      "artifact": "native_usd_boundary_evidence in this register",
+      "excluded_from_prior_native_capacity_specimens": true,
+      "cold_transport_shapes": 10,
+      "warm_route_shapes": 6,
+      "oracle_refresh_shapes": 8,
+      "within_original_validity_cache_hit_shapes": 0,
+      "distinct_cached_oracle_block": "One fence transport may carry two independent numeric membership elements",
+      "single_active_survivor_whole_machine_protectable": "UNKNOWN; prior core passing fixtures do not include synchronous financial valuation/reconciliation",
+      "capacity_requirement": "Existing 3/4/9-RPS synthetic profiles are component lower bounds, not a complete account/host/provider envelope. Actual native financial callback scheduling, valid cache distribution and Pump/entry/recovery headroom need end-to-end acceptance."
+    }
   },
   "pending_purchase_evidence": "FINALIZATION_COST.json:incremental_pending_exit_comparison; raw native traces/parity retained there and in CAPACITY_REPAIR_NATIVE.json.",
   "supplemental_final_measurements": {
@@ -592,5 +960,2807 @@
     "pending_then_ordinary": "Eight starts; urgent commit timely but all-owner completion late at two/three RPS, passes four-RPS 100-ms fixture.",
     "staggered_mixed": "Ten Current plus ten Survivor with bounded phase: nine/ten/eleven RPS all original risks, exits and native money pass in one specimen each; twelve-RPS final-suite rechecks retained.",
     "provider_capacity_proven": false
+  },
+  "bounded_next_containment_authorization": {
+    "action": "Temporarily enable/delegate I/O alongside CPU/memory to isolated unchanged test cgroups; child and descendant cleanup; safe restoration of initial controller state.",
+    "additional_infrastructure_spend_usd": "0",
+    "additional_provider_spend_usd": "0",
+    "environment": "existing offline two-vCPU Linux host",
+    "maximum_minutes": 120,
+    "monetary_epoch_untouched": true,
+    "no_paper_or_deployment": true,
+    "not_executed": true
+  },
+  "code_file_count": 1085,
+  "external_read_only_evidence": {
+    "attached_volume_gib": 50,
+    "authenticated_account_plan": null,
+    "authenticated_account_rate": null,
+    "authenticated_tariff": null,
+    "configured_key_app_binding_verified": false,
+    "core_cu": "1740125.5362",
+    "cu_by_application": {
+      "Robinhood": "2874",
+      "Solana": "1737251.5362"
+    },
+    "cu_by_method": {
+      "eth_blockNumber": "50",
+      "eth_call": "104",
+      "eth_chainId": "0",
+      "eth_getBlockByNumber": "60",
+      "eth_getLogs": "2640",
+      "eth_getTransactionReceipt": "20",
+      "getAccountInfo": "190",
+      "getBlock": "920",
+      "getBlockTime": "115480",
+      "getGenesisHash": "21590",
+      "getMultipleAccounts": "154640",
+      "getProgramAccounts": "17880",
+      "getProgramAccountsV2": "23600",
+      "getSignatureStatuses": "20",
+      "getSignaturesForAddress": "40",
+      "getSlot": "121700",
+      "getTokenLargestAccounts": "36200",
+      "getTransaction": "17040",
+      "getTransactionsForAddress": "645600",
+      "logs": "582351.5362",
+      "subscribe": "0"
+    },
+    "displayed_core_mtd_usd": "0.91",
+    "do_actual_host_monthly_usd": "68",
+    "host_memory_mib": 8192,
+    "host_vcpu": 2,
+    "market_requests": 0,
+    "operational": {
+      "backup": {
+        "at": "2026-10-10T04:02:23.983578+00:00",
+        "bytes": 896339777,
+        "files": 47,
+        "isolated_cloud_restore_performed": false,
+        "off_host": true,
+        "quiesced": true,
+        "snapshot_end": "2026-10-10T04:02:24.977763+00:00",
+        "snapshot_id": "667566c5-c45f-11f1-8971-e2481c04ff76",
+        "snapshot_start": "2026-10-10T04:01:54.535070+00:00",
+        "snapshot_status": "SNAPSHOT_READY",
+        "sqlite_consistent": true,
+        "sqlite_databases": 17
+      },
+      "dashboard_snapshot": {
+        "as_of": "2026-10-06T16:47:23.393374Z",
+        "balances": {
+          "available_cash": "500.00",
+          "deployed_capital": "0",
+          "equity": "500.00",
+          "fees": "0",
+          "realized_pnl": "0",
+          "reserved_cash": "0",
+          "shared_costs": "0",
+          "unrealized_pnl": "0"
+        },
+        "epoch_id": "paper-1791089005190643467",
+        "hashes_and_semantics_valid": true,
+        "sequence": 2036,
+        "valid_until": "2026-10-06T16:47:53.393374Z"
+      },
+      "existing_backup_verify_copy": {
+        "epoch_id": "paper-1791089005190643467",
+        "files": 47,
+        "passed": true,
+        "reconciliation": "PASS"
+      },
+      "market_provider_calls": 0,
+      "native_monetary_digests": {
+        "meteora/native-genesis.json": "c9ef0e2e16be6714378d381b2c019f5ed3b50d8891c6c21b6dffc60fcba2c6e2",
+        "meteora/solana-dlmm-independent-v1-live.accounting.sqlite3": "6d330ff5695b860706ae2ecac99384500effe68802f4d0be996116132fd7aa86",
+        "portfolio.sqlite": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087",
+        "pump/directional-sleeve.sqlite": "b6ff1324c81ff6ec3beb5468f03de30f24f9145c90ea0e49b88d2523d8b10dec",
+        "pump/native-genesis.json": "2fb1cddc05c30cf9416e2ed5d1189bc3c6a5898f8bb37ef50429263e148282a0",
+        "pump/pump-acceleration-natural-prospective.accounting.sqlite3": "8f258a46260a87492b1cf925403861453e8469849288c9958300ff5da8bd7fdf",
+        "pump/pump-survivor/paper.sqlite": "19b19ecf3fbf3ed27641c8f638dbb3eb13fe5712bb51df7bc5e5199693c49ee6"
+      },
+      "native_monetary_unchanged": true,
+      "production_writers_opened": 0,
+      "recorded_at": "2026-10-10T16:12:33.553106+00:00",
+      "schema": "external-operational-read-only-v1",
+      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "storage_guard": {
+        "epoch_id": "paper-1791089005190643467",
+        "filesystem_uuid": "0ce00d89-000b-4af1-960f-d5be400ff115",
+        "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+        "mount_target": "/mnt/volume_nyc1_1790918115030"
+      },
+      "verification_seconds": 9.463069458957762
+    },
+    "provider_admin_methods": [
+      "list_apps",
+      "get_app",
+      "get_usage_summary",
+      "get_usage_time_series"
+    ],
+    "recorded_at": "2026-10-10T16:12:33.553106+00:00",
+    "render": {
+      "auto_deploy": false,
+      "branch": "release/portfolio-dashboard-v1",
+      "deployed_commit": "1deb19415ab1683f1fb6071ed6a1d6fdd5785817",
+      "modified": false,
+      "plan": "free",
+      "service": "meme-machine-dashboard-staging"
+    },
+    "same_stock_public_tariff_usd": "77.772400",
+    "snapshot_reported_gib": "79.5400",
+    "snapshots": 3,
+    "solana_grpc_delivered_tb": "0.0063307322"
+  },
+  "fingerprint_recipe": "sorted tracked paths and bytes separated by NUL; meme_machine, tests, engineering, dashboard and operational/tests.py",
+  "holding_time_exit_audit": [
+    {
+      "age_only_exit_removed": true,
+      "original": "300/600/900 ordinary timeout, bounded extension and 36h bridge",
+      "regime": "pump_current"
+    },
+    {
+      "age_only_exit_removed": true,
+      "original": "elapsed ETA/900 total and duplicate lifecycle/36h bridge",
+      "regime": "pons_current"
+    },
+    {
+      "age_only_exit_removed": true,
+      "original": "72h native maximum_hold",
+      "regime": "pump_survivor"
+    },
+    {
+      "age_only_exit_removed": true,
+      "original": "72h shared mark and duplicate exit_action",
+      "regime": "pons_survivor"
+    },
+    {
+      "age_only_exit_removed": true,
+      "operational_limits_preserved": true,
+      "original": "hourly exceptional/resource renewal and service window",
+      "regime": "all"
+    }
+  ],
+  "latest_runtime_change_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "long_hold_resource_evidence": "LONG_HOLD_RESOURCE_MODEL.json: conditional source-shaped demand, not actual provider or profitability proof",
+  "additional_frozen_inputs": {
+    "deployment/paper-bootstrap.conf": "57bb012022828e2d67cfa913be6e7d16405e9dfee1e58237a0d0d23db31ca64e",
+    "operational/position-continuation/RESOURCE_ENVELOPE.maintenance.example.json": "674e28872ad3c36215c3e8539579f3cbd22cd9e728637b3f2cfcabb3e8dda674",
+    "operational/proven-efficiency-phase1/CAPACITY_REPAIR_NATIVE.json": "bdad44680ed769edf28dc6255d1e1eb9b32326be198de8a551af875614852296",
+    "operational/proven-efficiency-phase1/LONG_HOLD_RESOURCE_MODEL.json": "f0ba01d1d15563767f2c6171786dedfd201d03a50c0fa8677571da5be1eccacc",
+    "operational/shared-capital-activation/risk-policy.proposed.json": "46e3c7c01ecba9ad2f12587f6e5e5c1ddd3111a688fce97b83df44a42f4b016d",
+    "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json": "f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034"
+  },
+  "capital_policy_decision_package": {
+    "actual_existing_selection": {
+      "approved_policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
+      "method": "existing files, read-only SQLite snapshot; no schema, checkpoint or financial writes",
+      "operating_risk_disposition": "No shared authority selected; historical approved limits are a prepared cutover policy, not an activated shared ledger",
+      "selected": false,
+      "shared_capital_database_exists": false
+    },
+    "actual_provider_calls": 0,
+    "classification": "deterministic native contract and actual shared authority; temporary ledgers",
+    "owner_approval_required": true,
+    "production_selected": false,
+    "rows": [
+      {
+        "asset_invested_bps": null,
+        "asset_marked_bps": 250,
+        "decisions": [
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "987.50000000000000000000000000000",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "25.00000000000000000000000000000",
+            "granted_and_consumed_add": "0",
+            "marked_position": "37.50000000000000000000000000",
+            "open_original_position": true,
+            "original_basis": "25.00000000000000000000000000000",
+            "original_plus_added_basis": "25.00000000000000000000000000000",
+            "realized_equity": "1006.250000000000000000000000000",
+            "regime": "pump_current",
+            "remaining_basis": "18.75000000000000000000000000000",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "987.50000000000000000000000000000",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "25.00000000000000000000000000000",
+            "granted_and_consumed_add": "0",
+            "marked_position": "37.50000000000000000000000000",
+            "open_original_position": true,
+            "original_basis": "25.00000000000000000000000000000",
+            "original_plus_added_basis": "25.00000000000000000000000000000",
+            "realized_equity": "1006.250000000000000000000000000",
+            "regime": "pump_survivor",
+            "remaining_basis": "18.75000000000000000000000000000",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "987.50000000000000000000000000000",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "25.00000000000000000000000000000",
+            "granted_and_consumed_add": "0",
+            "marked_position": "37.50000000000000000000000000",
+            "open_original_position": true,
+            "original_basis": "25.00000000000000000000000000000",
+            "original_plus_added_basis": "25.00000000000000000000000000000",
+            "realized_equity": "1006.250000000000000000000000000",
+            "regime": "pons_current",
+            "remaining_basis": "18.75000000000000000000000000000",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "987.50000000000000000000000000000",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "25.00000000000000000000000000000",
+            "granted_and_consumed_add": "0",
+            "marked_position": "37.50000000000000000000000000",
+            "open_original_position": true,
+            "original_basis": "25.00000000000000000000000000000",
+            "original_plus_added_basis": "25.00000000000000000000000000000",
+            "realized_equity": "1006.250000000000000000000000000",
+            "regime": "pons_survivor",
+            "remaining_basis": "18.75000000000000000000000000000",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          }
+        ],
+        "policy_sha256": "6f57bd7392915fad7426c0fd5b82f87e3b57143008c3bb259f9bdae1a550ab39",
+        "profile": "old_approved_asset_cap_with_new_sizing_for_conflict_replay"
+      },
+      {
+        "asset_invested_bps": null,
+        "asset_marked_bps": 500,
+        "decisions": [
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2",
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "0",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "50",
+            "realized_equity": "1012.50",
+            "regime": "pump_current",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2",
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "0",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "50",
+            "realized_equity": "1012.50",
+            "regime": "pump_survivor",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2",
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "0",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "50",
+            "realized_equity": "1012.50",
+            "regime": "pons_current",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2",
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "0",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "50",
+            "realized_equity": "1012.50",
+            "regime": "pons_survivor",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          }
+        ],
+        "policy_sha256": "e1cdb54fce9d8844b694b9d0d48ce78e9c16fda892f622cae0f5c24b4939831a",
+        "profile": "A_marked_5_percent"
+      },
+      {
+        "asset_invested_bps": null,
+        "asset_marked_bps": 750,
+        "decisions": [
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "0.93750000000000000000000000000",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "50.93750000000000000000000000000",
+            "realized_equity": "1012.50",
+            "regime": "pump_current",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "0.93750000000000000000000000000",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "50.93750000000000000000000000000",
+            "realized_equity": "1012.50",
+            "regime": "pump_survivor",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "0.93750000000000000000000000000",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "50.93750000000000000000000000000",
+            "realized_equity": "1012.50",
+            "regime": "pons_current",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "ASSET_CONCENTRATION:asset:req-2"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "0.93750000000000000000000000000",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "50.93750000000000000000000000000",
+            "realized_equity": "1012.50",
+            "regime": "pons_survivor",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          }
+        ],
+        "policy_sha256": "2fe5b4b3846dd5cad838050ba15de7ce88de1b723cdc8673d99a862d2ba52e95",
+        "profile": "A_marked_7_5_percent"
+      },
+      {
+        "asset_invested_bps": 750,
+        "asset_marked_bps": 1000,
+        "decisions": [
+          {
+            "add_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "STAGED_SCALE_CONTRACT",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "25",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "75",
+            "realized_equity": "1012.50",
+            "regime": "pump_current",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "STAGED_SCALE_CONTRACT",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "25",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "75",
+            "realized_equity": "1012.50",
+            "regime": "pump_survivor",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "STAGED_SCALE_CONTRACT",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "25",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "75",
+            "realized_equity": "1012.50",
+            "regime": "pons_current",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "STAGED_SCALE_CONTRACT",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "25",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "75",
+            "realized_equity": "1012.50",
+            "regime": "pons_survivor",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          }
+        ],
+        "policy_sha256": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c",
+        "profile": "B_recommended_invested_7_5_marked_10"
+      },
+      {
+        "asset_invested_bps": null,
+        "asset_marked_bps": 1000,
+        "decisions": [
+          {
+            "add_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "STAGED_SCALE_CONTRACT",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "25",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "75",
+            "realized_equity": "1012.50",
+            "regime": "pump_current",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "STAGED_SCALE_CONTRACT",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "25",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "75",
+            "realized_equity": "1012.50",
+            "regime": "pump_survivor",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "STAGED_SCALE_CONTRACT",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "25",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "75",
+            "realized_equity": "1012.50",
+            "regime": "pons_current",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          },
+          {
+            "add_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "STAGED_SCALE_CONTRACT",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "available_shared_cash_before_add": "975.00",
+            "capital_conservation": true,
+            "entry_bindings": [
+              "EXECUTION_CAPACITY",
+              "LIQUIDITY_CAPACITY",
+              "POSITION_SIZING_BASIS",
+              "STRATEGY_CAPACITY",
+              "STRATEGY_REQUEST"
+            ],
+            "first_realization_fraction": "0.25",
+            "funded_entry": "50",
+            "granted_and_consumed_add": "25",
+            "marked_position": "75.0",
+            "open_original_position": true,
+            "original_basis": "50",
+            "original_plus_added_basis": "75",
+            "realized_equity": "1012.50",
+            "regime": "pons_survivor",
+            "remaining_basis": "37.5",
+            "requested_add": "25",
+            "restart_verified": true,
+            "target": "50"
+          }
+        ],
+        "policy_sha256": "f65a41e3a6cc3f07230487d5968b02a68773687548c553b7112b53f8859f242a",
+        "profile": "C_marked_10_plus_existing_native_USD_contract_only"
+      }
+    ],
+    "scope": "Counterfactual old asset cap uses owner-directed new sizing only for comparison. The original effective-family policy cannot initialize a new shared inception; marked-2x fixtures are not provider or execution-capacity evidence.",
+    "source_code_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+    "recommended_policy": {
+      "portfolio_bps": 7500,
+      "regime_base_bps": {
+        "pump_current": 3000,
+        "pump_survivor": 3000,
+        "pons_current": 3000,
+        "pons_survivor": 3000,
+        "meteora": 1,
+        "ramses": 1
+      },
+      "regime_max_bps": {
+        "pump_current": 3000,
+        "pump_survivor": 3000,
+        "pons_current": 3000,
+        "pons_survivor": 3000,
+        "meteora": 1,
+        "ramses": 1
+      },
+      "family_max_bps": {
+        "pump": 4500,
+        "pons": 4500,
+        "meteora": 1,
+        "ramses": 1
+      },
+      "asset_bps": 1000,
+      "group_bps": {
+        "crypto_beta": 7500,
+        "solana": 4500,
+        "robinhood": 4500,
+        "directional": 7500,
+        "lp": 1
+      },
+      "groups": {
+        "pump_current": [
+          "crypto_beta",
+          "solana",
+          "directional"
+        ],
+        "pump_survivor": [
+          "crypto_beta",
+          "solana",
+          "directional"
+        ],
+        "pons_current": [
+          "crypto_beta",
+          "robinhood",
+          "directional"
+        ],
+        "pons_survivor": [
+          "crypto_beta",
+          "robinhood",
+          "directional"
+        ],
+        "meteora": [
+          "crypto_beta",
+          "solana",
+          "lp"
+        ],
+        "ramses": [
+          "crypto_beta",
+          "robinhood",
+          "lp"
+        ]
+      },
+      "multiplier_min_bps": 8000,
+      "multiplier_max_bps": 12000,
+      "cooldown_seconds": 3600,
+      "hysteresis_bps": 250,
+      "maximum_step_bps": 500,
+      "confidence_trades": 20,
+      "confidence_capital_days": 500,
+      "recent_seconds": 604800,
+      "reference_seconds": 2592000,
+      "max_samples": 512,
+      "drawdown_stop_bps": 1000,
+      "cash_floor_bps": 1000,
+      "transaction_cost_floor": "5",
+      "sizing_basis": "shared_realized_equity",
+      "adaptive": false,
+      "asset_invested_bps": 750
+    },
+    "recommended_policy_sha256": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c",
+    "approval_required": {
+      "asset_marked_bps": {
+        "old": 250,
+        "proposed": 1000
+      },
+      "asset_invested_bps": {
+        "old": null,
+        "proposed": 750
+      },
+      "sizing_basis": {
+        "old": "effective_family_equivalence",
+        "proposed": "shared_realized_equity",
+        "authority": "Owner already directed the new $1,000 sizing model"
+      }
+    },
+    "safety_consequences": [
+      "Marked asset admission reference increases from2.5% to10% of the conservative risk base; it never authorizes a forced sale.",
+      "Original plus added open asset/lineage investment, reservations, commitments and cost headroom separately constrained at7.5%; realizations do not refill this lifetime principal allowance.",
+      "All previously approved aggregate and drawdown limits remain; large concentrated gains can intentionally restrict new exposure.",
+      "5% targets and2.5% add targets are not guaranteed fills; USD/native integer sizing, fees, cash, liquidity, execution and full original scaling qualification still bind."
+    ],
+    "recommended_over_C": "Explicit basis headroom also covers shared open lineage and capitalized-fee/reservation obligations; no new ledger or adaptive allocator. C relies only on the retained native/USD position contract for this distinction.",
+    "live_authority_selection": "No shared authority selected and no shared-capital.sqlite on the preserved operating $500 root; this is an offline proposed cutover only."
+  },
+  "native_usd_boundary_evidence": {
+    "actual_provider_requests": 0,
+    "caution": "Synthetic transport shapes and frozen method weights; neither endpoint capacity nor monthly workload frequency is measured",
+    "classification": "Deterministic native monetary evidence boundary, excluded from prior core controller capacity fixtures",
+    "concurrent": {
+      "incremental_avoided_physical_shapes": 62,
+      "incremental_modeled_cu_avoided": 2780,
+      "original": {
+        "acquisition_trace": [
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 1
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 2
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 3
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 4
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 5
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 6
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 7
+          },
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 8
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 9
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 10
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 11
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 12
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 13
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 14
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 15
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 16
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 17
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 18
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 19
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 20
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 21
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 22
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 23
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 24
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 25
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 26
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 27
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 28
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 29
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 30
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 31
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 32
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 33
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 34
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 35
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 36
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 37
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 38
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 39
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 40
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 41
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 42
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 43
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 44
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 45
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 46
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 47
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 48
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 49
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 50
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 51
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 52
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 53
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 54
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 55
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 56
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 57
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 58
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 59
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 60
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 61
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 62
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 63
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 64
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 65
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 66
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 67
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 68
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 69
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 70
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 71
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 72
+          }
+        ],
+        "complete_seconds": 0.386797584942542,
+        "consumers": 8,
+        "equivalent_price_and_independent_amounts": true,
+        "logical_elements": 144,
+        "methods": {
+          "eth_call": 80,
+          "eth_chainId": 8,
+          "eth_getBlockByNumber": 8,
+          "eth_getCode": 48
+        },
+        "modeled_cu": 3200,
+        "physical_transport_shapes": 72,
+        "same_immutable_result": false
+      },
+      "updated": {
+        "acquisition_trace": [
+          {
+            "methods": [
+              "eth_chainId"
+            ],
+            "physical_index": 1
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 2
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_call",
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 3
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 4
+          },
+          {
+            "methods": [
+              "eth_getCode"
+            ],
+            "physical_index": 5
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 6
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 7
+          },
+          {
+            "methods": [
+              "eth_getCode",
+              "eth_call"
+            ],
+            "physical_index": 8
+          },
+          {
+            "methods": [
+              "eth_call"
+            ],
+            "physical_index": 9
+          },
+          {
+            "methods": [
+              "eth_getBlockByNumber"
+            ],
+            "physical_index": 10
+          }
+        ],
+        "complete_seconds": 0.0906386359129101,
+        "consumers": 8,
+        "equivalent_price_and_independent_amounts": true,
+        "logical_elements": 19,
+        "methods": {
+          "eth_call": 10,
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 2,
+          "eth_getCode": 6
+        },
+        "modeled_cu": 420,
+        "physical_transport_shapes": 10,
+        "same_immutable_result": true
+      }
+    },
+    "fixture_schedule": "eight compatible simultaneous cold consumers; each original logical phase meets a barrier",
+    "governor_exercised": false,
+    "original_source": "bde1920b2e99260830358f3d096af7399474edde",
+    "provider_actual_billing_savings_usd": 0,
+    "schema": "native-usd-boundary-existing-fixture-comparison-v1",
+    "serial": {
+      "original": [
+        {
+          "case": "cold",
+          "logical_elements": 18,
+          "methods": {
+            "eth_call": 10,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 1,
+            "eth_getCode": 6
+          },
+          "modeled_cu": 400,
+          "observed_at": 1791077122,
+          "physical_transport_shapes": 9,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077127
+        },
+        {
+          "case": "valid_cache",
+          "logical_elements": 0,
+          "methods": {},
+          "modeled_cu": 0,
+          "observed_at": 1791077122,
+          "physical_transport_shapes": 0,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077127
+        },
+        {
+          "case": "warm_route_refresh",
+          "logical_elements": 6,
+          "methods": {
+            "eth_call": 3,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 1,
+            "eth_getCode": 1
+          },
+          "modeled_cu": 118,
+          "observed_at": 1791077128,
+          "physical_transport_shapes": 5,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077133
+        },
+        {
+          "case": "oracle_refresh",
+          "logical_elements": 15,
+          "methods": {
+            "eth_call": 9,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 1,
+            "eth_getCode": 4
+          },
+          "modeled_cu": 334,
+          "observed_at": 1791077188,
+          "physical_transport_shapes": 7,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077193
+        }
+      ],
+      "updated": [
+        {
+          "case": "cold",
+          "logical_elements": 19,
+          "methods": {
+            "eth_call": 10,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 2,
+            "eth_getCode": 6
+          },
+          "modeled_cu": 420,
+          "observed_at": 1791077122,
+          "physical_transport_shapes": 10,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077127
+        },
+        {
+          "case": "valid_cache",
+          "logical_elements": 0,
+          "methods": {},
+          "modeled_cu": 0,
+          "observed_at": 1791077122,
+          "physical_transport_shapes": 0,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077127
+        },
+        {
+          "case": "warm_route_refresh",
+          "logical_elements": 7,
+          "methods": {
+            "eth_call": 3,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 2,
+            "eth_getCode": 1
+          },
+          "modeled_cu": 138,
+          "observed_at": 1791077128,
+          "physical_transport_shapes": 6,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077133
+        },
+        {
+          "case": "oracle_refresh",
+          "logical_elements": 16,
+          "methods": {
+            "eth_call": 9,
+            "eth_chainId": 1,
+            "eth_getBlockByNumber": 2,
+            "eth_getCode": 4
+          },
+          "modeled_cu": 354,
+          "observed_at": 1791077188,
+          "physical_transport_shapes": 8,
+          "usd_per_unit": "2500.34902500",
+          "valid_until": 1791077193
+        }
+      ]
+    },
+    "updated_source_sha256": "81439ab7fcf3f6c96fdee6f1c512cbcc327e75e2d906e380827b916ac399d6bd",
+    "monthly_formula": "For N independently observed simultaneous-eight-cold cohorts:2780 modeledCU avoided per cohort \u00d7applicable marginal tariff. No observed N or authenticated tariff; no monthly saving claimed. Single-reader canonical fencing adds20CU for one numeric proof or40CU for distinct oracle/target blocks."
+  },
+  "unlimited_upside_evidence": {
+    "source_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+    "actual_provider_calls": 0,
+    "runtime_changes": false,
+    "native_price_strata": [
+      1,
+      1.1,
+      2,
+      5,
+      10,
+      25,
+      50,
+      100,
+      1000
+    ],
+    "native_age_seconds": [
+      300,
+      600,
+      900,
+      1800,
+      129600,
+      259200,
+      345600,
+      604800,
+      1209600,
+      2592000
+    ],
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "rows": [
+      {
+        "regime": "pump_current",
+        "price_multiple": 2,
+        "marked_value": "100",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 29,
+          "journal_hash": "819f065c5249c3fbe850ff52ec4871e161866d66c609ee25e29135f6726fe81c",
+          "state_sha256": "981fa80ba459abc1b6433cb4edc0b6e53a3fe4f116c30dbefb0d9a73eb5db1bd",
+          "conservation": true
+        },
+        "new_risk_restrictions": []
+      },
+      {
+        "regime": "pump_current",
+        "price_multiple": 5,
+        "marked_value": "250",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 30,
+          "journal_hash": "0a67ccb8987fec1b3c87b4ea464a1e2073c0fa18f56e4a121b8d85388435132d",
+          "state_sha256": "18c404d1b9c4e85d9ae57d376af62d41c2448ad674ff9b0403a9de6670865948",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "ASSET_CONCENTRATION:asset:req-2"
+        ]
+      },
+      {
+        "regime": "pump_current",
+        "price_multiple": 10,
+        "marked_value": "500",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 31,
+          "journal_hash": "4cd000e77a77a76329b0a4aefed2a404e45e7be3841b2c1c76bc341279cc5dba",
+          "state_sha256": "be47e71c1fdf273bc9c4883a967f5aab45bf875b2b8e3f1162bc4759dee1f1d8",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_current",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2"
+        ]
+      },
+      {
+        "regime": "pump_current",
+        "price_multiple": 25,
+        "marked_value": "1250",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 32,
+          "journal_hash": "e0c4c83b8f987538f8d9aa0ea17379641837889ed248fd57ca9237ddfcfc1649",
+          "state_sha256": "f5476f1faf64509915738017c36c6dc6e767f470501422eb7971965c4055339d",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_current",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pump_current",
+        "price_multiple": 50,
+        "marked_value": "2500",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 33,
+          "journal_hash": "0b659f1ea36e0f1fbca53140b973fad7fade4dd7bafedef4d5494aec7d8a6711",
+          "state_sha256": "c6fcab7d6d9a1a2f8342452134044286174bdfa7e4428e773f079dc31750b56b",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_current",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pump_current",
+        "price_multiple": 100,
+        "marked_value": "5000",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 34,
+          "journal_hash": "05f7cd24cd20ffce42874a8e955e0365eb1dd9ffc12f6383a2ac540091c93dbf",
+          "state_sha256": "a350c6b5964368cdde5d5b4532f182660a363770002f65705883b73843b0dde4",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_current",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pump_current",
+        "price_multiple": 1000,
+        "marked_value": "50000",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 35,
+          "journal_hash": "9b94f78544e1c36780f96176a4da7887a2e0b71b01213d39bf0e00f48ed58465",
+          "state_sha256": "80cd44f8d6276997e3e6e7eb3ffc3d0e21924a70d375938a0428f8fb3267f9a9",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_current",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pump_survivor",
+        "price_multiple": 2,
+        "marked_value": "100",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 29,
+          "journal_hash": "0800ffa3c82d1769936075620cc8a0f4afb6ecc5a50b5654a922e73dbf778977",
+          "state_sha256": "44101a9657b5bdbd88b051c52bbc032929d3a58dd162eb6c209b76f83d279e03",
+          "conservation": true
+        },
+        "new_risk_restrictions": []
+      },
+      {
+        "regime": "pump_survivor",
+        "price_multiple": 5,
+        "marked_value": "250",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 30,
+          "journal_hash": "8a3e5bbf5f91b899607316bdf155a9e4e71bd7abb2116393be86045163144603",
+          "state_sha256": "c7ca5b491946e46d82822d39cfa26aacca54d540c5f51f5cca99dca559d5d7c0",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "ASSET_CONCENTRATION:asset:req-2"
+        ]
+      },
+      {
+        "regime": "pump_survivor",
+        "price_multiple": 10,
+        "marked_value": "500",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 31,
+          "journal_hash": "456524ce80b1b3932d8677bd2cb40cede25a09f41889efab75c047698f24e4c5",
+          "state_sha256": "13822648cd585beb796f21a329a85b933ec7c36e70cf533c6b0fbeee50fc52bf",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_survivor",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2"
+        ]
+      },
+      {
+        "regime": "pump_survivor",
+        "price_multiple": 25,
+        "marked_value": "1250",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 32,
+          "journal_hash": "921ef1585e075b1fb48fc641b2abb5d4c1f9d2b98ba896dc2227d0492e624a7a",
+          "state_sha256": "da53b418bd63eaf88358d0c3236456ab285470398a139848ecde0631284bc8ba",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_survivor",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pump_survivor",
+        "price_multiple": 50,
+        "marked_value": "2500",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 33,
+          "journal_hash": "7523db0fa4cbf9bb711c3c372e069dec4c5d096be05b5dc1f7855b35e2a6f836",
+          "state_sha256": "d2842f55fdce462b1333399a4ce4fe867d87529addc0d8c1be246daff1a5a5d1",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_survivor",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pump_survivor",
+        "price_multiple": 100,
+        "marked_value": "5000",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 34,
+          "journal_hash": "5f130044a4ebd04485d3aadec0e4bd5fba2844f4533228704f174264f4a59879",
+          "state_sha256": "9035f38cf281d3db8dd2dca523a4cd29a50888d77207620694f1b982b29871ee",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_survivor",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pump_survivor",
+        "price_multiple": 1000,
+        "marked_value": "50000",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 35,
+          "journal_hash": "752f700404fd9341b742ace9db2d85006f61068e11ad0f29bbdc709e922a614a",
+          "state_sha256": "1a7a0c85d7ff9a255616c3d1d235a1b3f27ac32e81cb7b40418de5e97256a099",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pump",
+          "REGIME_EXPOSURE_HEADROOM:pump_survivor",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:solana",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pons_current",
+        "price_multiple": 2,
+        "marked_value": "100",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 29,
+          "journal_hash": "d2e770814e8978cf1e65d980a5dc262d30b7d0a521026d349e0431e7b3488674",
+          "state_sha256": "f1e2e2edbb930b9d7d9cfa23a39827ebac51c2b2aca0e3a7cad2796ca289c271",
+          "conservation": true
+        },
+        "new_risk_restrictions": []
+      },
+      {
+        "regime": "pons_current",
+        "price_multiple": 5,
+        "marked_value": "250",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 30,
+          "journal_hash": "28acde890ab8db0a1ce16faa6c9711d558a975997ada2e706498fbcfb2559c24",
+          "state_sha256": "9d9be530467bdedcabba8c37ca3c2ebc7132aa1ec290178b6abe797b43da1952",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "ASSET_CONCENTRATION:asset:req-2"
+        ]
+      },
+      {
+        "regime": "pons_current",
+        "price_multiple": 10,
+        "marked_value": "500",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 31,
+          "journal_hash": "1457e537ee562693eab1578013f6fc0d8d650062f3a4b0ce4a64db70af556fa5",
+          "state_sha256": "a25afefa37f5ec4e30eba4c437126dd9eb21af03d1c61f3b100d8ef68897d25f",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_current",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2"
+        ]
+      },
+      {
+        "regime": "pons_current",
+        "price_multiple": 25,
+        "marked_value": "1250",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 32,
+          "journal_hash": "94898ec28eb2fe8b3a52771ef911dfe09a73ef3f68d37275835ccdf6725525cf",
+          "state_sha256": "27b305f2330ad061418cb1a8233fa1df0dae9fdfcda56c0544160b8a660cadc7",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_current",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pons_current",
+        "price_multiple": 50,
+        "marked_value": "2500",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 33,
+          "journal_hash": "fb942f1ff832f554f9e49e9127ccf9d90cbaa158b6872fceef17e3bdc91b0c5b",
+          "state_sha256": "4768fea8bd6f0def887a2f1067ce0470c89b892ba675f96e4741c9a858147c8b",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_current",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pons_current",
+        "price_multiple": 100,
+        "marked_value": "5000",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 34,
+          "journal_hash": "4958ba5ff6666d3aaeac6255ddf4be69adb163b55af28476597114a5d16891f0",
+          "state_sha256": "ded09bca8013235e635c13f320dd15e4c34155868c6a7c5e36a708fceeebea66",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_current",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pons_current",
+        "price_multiple": 1000,
+        "marked_value": "50000",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 35,
+          "journal_hash": "9fb5342681370e3e6a27bde43f8d1f80a146dea19772c778b050747a8f132385",
+          "state_sha256": "d71ce5f64382adfa239c93aeb92407918438e373a9e54a1605738aba221dddc5",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_current",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pons_survivor",
+        "price_multiple": 2,
+        "marked_value": "100",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 29,
+          "journal_hash": "4374ecb7c2b346ab9e1a6a09cc31d53b510e09651a1369fece64550e43f3826c",
+          "state_sha256": "636dd905fb1801c9d7b72169022a219a0c41a833cbcdb1e8ffbab8d402629b6d",
+          "conservation": true
+        },
+        "new_risk_restrictions": []
+      },
+      {
+        "regime": "pons_survivor",
+        "price_multiple": 5,
+        "marked_value": "250",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 30,
+          "journal_hash": "b313d5096180c7f41585f20d2d2a113ab189be887f70ea01e447e6e51b8e129d",
+          "state_sha256": "cc476e65e053761efef6fc6c628aff37b38641885efb4e7464bae871833ffb64",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "ASSET_CONCENTRATION:asset:req-2"
+        ]
+      },
+      {
+        "regime": "pons_survivor",
+        "price_multiple": 10,
+        "marked_value": "500",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 31,
+          "journal_hash": "5c732c8befc1042151ca28bcb4cf1074f32f09c2b54bb26c82583cf366a432f1",
+          "state_sha256": "33f46881358dfdf99df77b9f801935d8b48d56f674757f37daee48eb855d5d73",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_survivor",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2"
+        ]
+      },
+      {
+        "regime": "pons_survivor",
+        "price_multiple": 25,
+        "marked_value": "1250",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 32,
+          "journal_hash": "9393247317e89b61f40fa1e9f616cd30bcb90a209103831d436c9eda53925f62",
+          "state_sha256": "15f789204eb3073c8254f9e6580ba1cee159c7acfa75a23fcfbe589a6c0cfebb",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_survivor",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pons_survivor",
+        "price_multiple": 50,
+        "marked_value": "2500",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 33,
+          "journal_hash": "b4a8750b2b44021a370651947ab8d95ac9cafb63f5c3bb262539db8805cf5114",
+          "state_sha256": "43be59136f92dc4ed02c2d98ef144cf1c26082f7c0df6bb83a4808c08a1ce324",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_survivor",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pons_survivor",
+        "price_multiple": 100,
+        "marked_value": "5000",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 34,
+          "journal_hash": "fe66bca5b8fc34e06807fa533a9544e61ee29fef26a88d119bb80bfd7a52165d",
+          "state_sha256": "df044c62a364ac83a6f5cdfba93b016dfd218ae0f8c22ab45f4e38685e160ca8",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_survivor",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      },
+      {
+        "regime": "pons_survivor",
+        "price_multiple": 1000,
+        "marked_value": "50000",
+        "cumulative_investment": "75",
+        "remaining_basis": "62.5",
+        "original_basis": "50",
+        "added_basis": "25",
+        "partials": 1,
+        "original_native_basis": 5000000000000000000000000000000,
+        "realized_equity": "1012.50",
+        "cash": "950.00",
+        "status": "OPEN",
+        "replay": {
+          "events": 35,
+          "journal_hash": "884ae580937eceda4c20c2d76bc9d1d8babffc7cb5eaa2a54338d20c7fde25d4",
+          "state_sha256": "d68ec7ec566dddfab3200621a3269974cc9cd61ce07a4ad409e955e16c14c9a1",
+          "conservation": true
+        },
+        "new_risk_restrictions": [
+          "FAMILY_EXPOSURE_HEADROOM:pons",
+          "REGIME_EXPOSURE_HEADROOM:pons_survivor",
+          "CORRELATED_EXPOSURE:crypto_beta",
+          "CORRELATED_EXPOSURE:directional",
+          "CORRELATED_EXPOSURE:robinhood",
+          "ASSET_CONCENTRATION:asset:req-2",
+          "PORTFOLIO_EXPOSURE_HEADROOM"
+        ]
+      }
+    ],
+    "scope": "Existing native reducers/controllers, original partial and stop assertions, actual temporary shared authority and dashboard; not authentic market, provider latency or economic profit proof.",
+    "log_sha256": "4c83094a89c676a27359dbc7d7220ecc7a36537af3fa3cc2ae489cb009b9aeea",
+    "fixture_script_sha256": "fe7dc1c54f2472136f299c4b126865988e78834819fbe0e64245774358eb1d47",
+    "marked_75_root_cause": "After the25% realization, conservative risk base1012.50 \u00d77.5% =75.9375; marked remaining exposure75 leaves0.9375 for additional funding. This is marked headroom, not invested-basis headroom.",
+    "candidate_2x_result": "The same economic state has26.25 marked headroom under the proposed10% reference; originalUSD half-basis and the native one-add contract cap the actual grant at25. Cumulative investment becomes75, remaining basis62.50.",
+    "scope_boundary": "Marked and aggregate concentration still constrain new purchases, not ownership, sales, price multiples or holding age. No numeric change is selected or activated."
+  },
+  "final_frozen_local_storage_traces": {
+    "scope": "Local native deterministic replay/page-pressure evidence only; not provider billing or proof of sustained real endpoint coverage",
+    "records": [
+      {
+        "suite": "FAST",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "boundaries": [
+            {
+              "complete_authenticated_history": false,
+              "hours": 72,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 96,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 120,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 168,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 240,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 336,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            }
+          ],
+          "classification": "actual SQLite capacity/restart test; deliberately incomplete synthetic history",
+          "cpu_seconds": 57.121494781000024,
+          "process_peak_rss_kib": 251760,
+          "terminal_cleanup": true
+        }
+      },
+      {
+        "suite": "FAST",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "current_v4_monitor_turns": 25920,
+          "original_boundary_parity_every_turn": true,
+          "maximum_retained_events": 721,
+          "sqlite_bytes": 790528,
+          "wal_bytes": 4152,
+          "cpu_seconds": 143.89394758400005,
+          "restarts": 3
+        }
+      },
+      {
+        "suite": "FAST",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "survivor_monitor_turns": 86401,
+          "maximum_retained_points": 28803,
+          "maximum_retained_events": 2402,
+          "sqlite_bytes": 9293824,
+          "wal_bytes": 9405992,
+          "cpu_seconds": 289.19052872599997,
+          "original_opened_at": 100,
+          "risk_high_water": 98400,
+          "automatic_terminal_history_cleanup": true
+        }
+      },
+      {
+        "suite": "FAST",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "page_pressure_records": 2012,
+          "sqlite_pages": 16379,
+          "page_size": 4096,
+          "pending_exit_preserved": true
+        }
+      },
+      {
+        "suite": "FAST",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "current_monitor_turns": 25920,
+          "maximum_records": 99,
+          "final_records": 10,
+          "journal_rows": 7,
+          "maximum_sqlite_bytes": 356352,
+          "cpu_seconds": 491.7488306219999,
+          "restarts": 4,
+          "original_opened_at": 102,
+          "high_water": 37920,
+          "partial_quantity": 750,
+          "final_booked_realized": 314
+        }
+      },
+      {
+        "suite": "FAST",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "original_current_stop_turn": 8191,
+          "stop_hours": 11.376388888888888,
+          "body_bytes": 1327762,
+          "sqlite_bytes": 3821568
+        }
+      },
+      {
+        "suite": "FAST",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "original_survivor_quote_scope_stop_turn": 4,
+          "sqlite_record_capacity": 10000,
+          "sqlite_bytes": 28672,
+          "classification": "actual original four-block Finality scope fails before record limit; fast-chain gaps fail earlier"
+        }
+      },
+      {
+        "suite": "OPERATIONAL",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "boundaries": [
+            {
+              "complete_authenticated_history": false,
+              "hours": 72,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 96,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 120,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 168,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 240,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            },
+            {
+              "complete_authenticated_history": false,
+              "hours": 336,
+              "page_size": 4096,
+              "physical_main_bytes": 14295040,
+              "repeated_observation_new_point_rows": 0,
+              "retained_numeric_points": 86403,
+              "sqlite_page_stock_bytes": 14295040,
+              "sqlite_pages": 3490,
+              "wal_bytes": 0
+            }
+          ],
+          "classification": "actual SQLite capacity/restart test; deliberately incomplete synthetic history",
+          "cpu_seconds": 56.56346186899998,
+          "process_peak_rss_kib": 255444,
+          "terminal_cleanup": true
+        }
+      },
+      {
+        "suite": "OPERATIONAL",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "current_v4_monitor_turns": 25920,
+          "original_boundary_parity_every_turn": true,
+          "maximum_retained_events": 721,
+          "sqlite_bytes": 790528,
+          "wal_bytes": 4152,
+          "cpu_seconds": 141.55543575500002,
+          "restarts": 3
+        }
+      },
+      {
+        "suite": "OPERATIONAL",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "survivor_monitor_turns": 86401,
+          "maximum_retained_points": 28803,
+          "maximum_retained_events": 2402,
+          "sqlite_bytes": 9293824,
+          "wal_bytes": 9405992,
+          "cpu_seconds": 289.32872122000003,
+          "original_opened_at": 100,
+          "risk_high_water": 98400,
+          "automatic_terminal_history_cleanup": true
+        }
+      },
+      {
+        "suite": "OPERATIONAL",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "page_pressure_records": 2012,
+          "sqlite_pages": 16379,
+          "page_size": 4096,
+          "pending_exit_preserved": true
+        }
+      },
+      {
+        "suite": "OPERATIONAL",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "current_monitor_turns": 25920,
+          "maximum_records": 99,
+          "final_records": 10,
+          "journal_rows": 7,
+          "maximum_sqlite_bytes": 356352,
+          "cpu_seconds": 487.3666028350001,
+          "restarts": 4,
+          "original_opened_at": 102,
+          "high_water": 37920,
+          "partial_quantity": 750,
+          "final_booked_realized": 314
+        }
+      },
+      {
+        "suite": "OPERATIONAL",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "original_current_stop_turn": 8191,
+          "stop_hours": 11.376388888888888,
+          "body_bytes": 1327762,
+          "sqlite_bytes": 3821568
+        }
+      },
+      {
+        "suite": "OPERATIONAL",
+        "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+        "measurement": {
+          "original_survivor_quote_scope_stop_turn": 4,
+          "sqlite_record_capacity": 10000,
+          "sqlite_bytes": 28672,
+          "classification": "actual original four-block Finality scope fails before record limit; fast-chain gaps fail earlier"
+        }
+      }
+    ]
+  },
+  "protective_execution_addendum": {
+    "artifact": "PROTECTIVE_EXECUTION_RESEARCH.json",
+    "actual_shadow_comparisons": 0,
+    "active_economic_changes": [],
+    "provider_calls": 0
+  },
+  "interrupted_candidate": {
+    "source_commit": "cb41a9c62b68c738e207f1cbd2c7b0822aea8b76",
+    "status": "NOT_ACCEPTED; interrupted before edits for independently identified insufficient intervening native shadow observations",
+    "preserved_logs": [
+      "protective-interrupted-cb41-FAST.log",
+      "protective-interrupted-cb41-OPERATIONAL.log"
+    ]
+  },
+  "validation_contention": {
+    "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "status": "INTERRUPTED_NOT_ACCEPTED",
+    "source_or_assertion_changes": 0,
+    "explanation": "FAST and OPERATIONAL were mistakenly run concurrently, with a separate early financial replay. CPU/SQLite contention produced timing failures. Both owned suite processes were stopped; original tests passed unchanged in isolation, and final suites run sequentially. This is evidence of capacity sensitivity, not an accepted full-suite result.",
+    "logs": [
+      {
+        "suite": "FAST",
+        "log_name": "protective-parallel-interrupted-e17-FAST.log",
+        "sha256": "7b65583b59555d1a0690b72a4dfd3bb563591085ddaa7c965b42efab39e36d92",
+        "verbose_failure_entries": [
+          "test_real_clock_native_partial_exits_include_cpu_queue_wait_and_final_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_real_clock_native_partial_exits_include_cpu_queue_wait_and_final_commits)",
+          "test_two_three_four_rps_measure_last_response_and_native_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_two_three_four_rps_measure_last_response_and_native_commits) (rate=3, positions=20, factor=2.2)",
+          "test_two_three_four_rps_measure_last_response_and_native_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_two_three_four_rps_measure_last_response_and_native_commits) (rate=4, positions=20, factor=2.2)",
+          "test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile (tests.test_pons_capacity_repair.PendingExitSharingTests.test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile) (factor=2.2)"
+        ]
+      },
+      {
+        "suite": "OPERATIONAL",
+        "log_name": "protective-parallel-interrupted-e17-OPERATIONAL.log",
+        "sha256": "e21ac9231fb7181596120b833f2c0764fbbdd9926bd8c24c350a9d9eedd5f402",
+        "verbose_failure_entries": [
+          "test_two_three_four_rps_measure_last_response_and_native_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_two_three_four_rps_measure_last_response_and_native_commits) (rate=3, positions=20, factor=2.2)",
+          "test_two_three_four_rps_measure_last_response_and_native_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_two_three_four_rps_measure_last_response_and_native_commits) (rate=4, positions=20, factor=2.2)",
+          "test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile (tests.test_pons_capacity_repair.PendingExitSharingTests.test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile) (factor=2.2)"
+        ]
+      }
+    ],
+    "unchanged_isolated_reproduction": {
+      "log_name": "protective-isolated-timing-reproduction.log",
+      "sha256": "9587b10fc3e06553057a821ac60eed04d5666487563475a5530848f7bd7a4d9a",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 3,
+      "tests": 3,
+      "elapsed_seconds": 74.639,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "scope": "The three original methods covering these failing checks, unchanged and sequential; mocked RPC, real local processing. Not authenticated endpoint or whole-machine certification."
+    },
+    "isolated_twenty_pending_partial_completion_seconds": 2.981503015034832
+  },
+  "final_frozen_frontend": {
+    "log_name": "protective-final-source-frontend.log",
+    "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "sha256": "1583f2c02f9bf7dfc90d87be455de130bd98278c0d338296b5ce2367e98db83d",
+    "result": "PASS",
+    "routes": 10,
+    "scope": "Actual app.js renderer, fixtures and local read-only API; security and responsive rules; browser geometry not tested"
+  },
+  "final_safety_verification": {
+    "artifact": "FINALIZATION_SAFETY.json",
+    "recorded_at": "2026-10-10T23:46:35.732941+00:00",
+    "original_monetary_files": 7,
+    "unchanged": true,
+    "paper_service": {
+      "MainPID": 0,
+      "ActiveState": "inactive",
+      "SubState": "dead",
+      "UnitFileState": "disabled"
+    }
   }
 }

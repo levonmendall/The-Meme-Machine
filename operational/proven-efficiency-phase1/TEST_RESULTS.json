@@ -1,7 +1,7 @@
 {
   "classification": "ACTUAL_OFFLINE_TEST_EXECUTION; no provider workloads",
-  "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-  "recorded_at": "2026-10-10T15:41:51.871181+00:00",
+  "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "recorded_at": "2026-10-10T23:46:49.236607+00:00",
   "python": "CPython 3.12.14",
   "network_guard": "operational.tests.network_guard",
   "artifact_isolation": "Scratch; failed and incomplete evidence preserved",
@@ -950,6 +950,308 @@
         "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=True)",
         "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) (attached_to_cgroup=False)"
       ]
+    },
+    {
+      "elapsed_seconds": 4.28,
+      "log_name": "shared-1000-focused.log",
+      "log_sha256": "86daebf7c4b461e159b7855251459bada35b73333c2f2d434461a21a7880eb6a",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 17
+    },
+    {
+      "elapsed_seconds": 68.772,
+      "log_name": "shared-1000-affected.log",
+      "log_sha256": "5033fca10b55cebae542d7d448a8911a768abb5207e2e9bea9e4205c3dd1ecf2",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 206
+    },
+    {
+      "elapsed_seconds": 22.218,
+      "log_name": "shared-1000-final-adjacent.log",
+      "log_sha256": "f90bded5c5f8bc27df30da1348cc2cea3890cb7bf9d1de123f3f37d827ddfbaa",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 50
+    },
+    {
+      "elapsed_seconds": 7.041,
+      "log_name": "long-hold-native-final-focused.log",
+      "log_sha256": "bcf445ad045f3b115c932e1684ec1c3fefd4bdcb8f8a3a47d2f63210c5cd2b5d",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 8
+    },
+    {
+      "elapsed_seconds": 0.233,
+      "log_name": "long-held-cumulative-limits.log",
+      "log_sha256": "51ddfabf58ccfa73fe3d6110e0e820f1c9f9b49fa1ec3f13decc6f1e965a6935",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 1
+    },
+    {
+      "elapsed_seconds": 125.593,
+      "log_name": "long-hold-affected-focused.log",
+      "log_sha256": "af2961fcd342c8195d8e8c3df2d6efdbbbfc5977de27d9067223109c9261bf73",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 119
+    },
+    {
+      "elapsed_seconds": 8.691,
+      "log_name": "long-hold-pons-recovery.log",
+      "log_sha256": "14d96bd14ea3a9bbda677cc12b8c1223e89679b9f348018f5cc4ac4b982b5f33",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 21
+    },
+    {
+      "elapsed_seconds": 82.827,
+      "log_name": "long-held-concurrency-focused.log",
+      "log_sha256": "dc2459e46a81503169d5f9d7aae6aa247bc8941d5eb9fc2ac559fc35c85a193e",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 64
+    },
+    {
+      "elapsed_seconds": 82.034,
+      "log_name": "long-held-policy-compatibility-final.log",
+      "log_sha256": "e9a9dc390dab475b475901c180f125c898c2c86cee0d191e197ac8b368b9a945",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 45
+    },
+    {
+      "elapsed_seconds": 56.501,
+      "log_name": "long-held-dashboard-accounting-final.log",
+      "log_sha256": "6eaedd8cf287437a883b1724913dc913b9435c4b209b6937c51cfc6fbbf52d3d",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 174
+    },
+    {
+      "elapsed_seconds": 0.522,
+      "log_name": "long-held-dashboard-native.log",
+      "log_sha256": "bd5b2236626a77fe9841dba6de49d73bd08a482cf28249a0b90554da469fab04",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 1
+    },
+    {
+      "elapsed_seconds": 0.093,
+      "log_name": "long-held-resource-projection.log",
+      "log_sha256": "7dd1cb7fbf981b5956beef043215c9177c6f365e88cd6759e7dfe3678a02dbc0",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 1
+    },
+    {
+      "elapsed_seconds": 5.285,
+      "log_name": "long-hold-source-identity.log",
+      "log_sha256": "ed19bda3326d695a537a5768b04631b717799892128125b7f0d73b3a2a01e3b8",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Development focused checkpoint integrated in frozen bde1920b; final suites are authoritative",
+      "tests": 1
+    },
+    {
+      "elapsed_seconds": 929.4,
+      "log_name": "long-held-native-full-clock.log",
+      "log_sha256": "8540b5feaaacd064b9a26c735501a985bd54311ed468b25ec71fbc5199625a4a",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Exact frozen bde1920b",
+      "tests": 2
+    },
+    {
+      "log_name": "shared-1000-frontend.log",
+      "log_sha256": "1583f2c02f9bf7dfc90d87be455de130bd98278c0d338296b5ce2367e98db83d",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Actual frontend regression script; focused checkpoint integrated in frozen bde1920b"
+    },
+    {
+      "log_name": "long-held-dashboard-frontend.log",
+      "log_sha256": "1583f2c02f9bf7dfc90d87be455de130bd98278c0d338296b5ce2367e98db83d",
+      "provider_calls": 0,
+      "result": "PASS",
+      "source_scope": "Actual frontend regression script; focused checkpoint integrated in frozen bde1920b"
+    },
+    {
+      "acceptance": false,
+      "log_name": "shared-1000-fast.log",
+      "log_sha256": "f3f4228c6f8d4b342c1260254e2924e49d5d909e3c811c32166172c5506b4643",
+      "reason": "Owner mandatory long-duration directive changed the final source while this initial capital-only checkpoint was running. No complete-suite result inferred.",
+      "source_commit": "8e2f3b4e2b07157d3968e5641c7e89b3a4c71f5a",
+      "status": "INTERRUPTED_BY_OWNER_SCOPE_CHANGE"
+    },
+    {
+      "log_name": "financial-boundary-final-focused.log",
+      "sha256": "37c4a430cff9c595aa3ef450131d7a521fad7fd4e53a77172a1204b2562a4200",
+      "source_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "tests": 97,
+      "elapsed_seconds": 14.157,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "source_scope": "Exact-money/USD repair before later risk-policy extension; preserved predecessor-focused receipt"
+    },
+    {
+      "log_name": "financial-projection-final-focused.log",
+      "sha256": "45bdb0a9ed7561fa0cd7f0a95e93c74ae9fec4dc0cc49827fc18dd00d7775e3e",
+      "source_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "tests": 2,
+      "elapsed_seconds": 0.141,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "log_name": "shared-risk-native-money-focused.log",
+      "sha256": "333efa635c16a8fad89e31b51c03c30a1dbd9452a8452b8d2f63c79d0b4604fd",
+      "source_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "tests": 65,
+      "elapsed_seconds": 16.953,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "log_name": "shared-risk-final-regression.log",
+      "sha256": "c8f05928a2e50dfb0d40c78f2f0438f2e7f0bacedd2c375c6d97991a984de0e4",
+      "source_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "tests": 48,
+      "elapsed_seconds": 13.611,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "log_name": "shared-risk-dashboard-source-final.log",
+      "sha256": "557d4209a6360ebaed44bd0e44cd9f03a89dc207b38f89a8b04d6bd61e1a7a16",
+      "source_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "tests": 94,
+      "elapsed_seconds": 22.493,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "log_name": "shared-risk-dashboard-frozen-ready.log",
+      "sha256": "1583f2c02f9bf7dfc90d87be455de130bd98278c0d338296b5ce2367e98db83d",
+      "source_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "result": "PASS",
+      "scope": "10 actual frontend/API routes; proposed policy,50 target versus20 executable grant, independent marked/invested references, stale/XSS/security; browser geometry not tested"
+    },
+    {
+      "log_name": "unlimited-upside-final-focused.log",
+      "sha256": "dfd584365c63b70b6b337dda5cc4b7fc5af6d4c47068ff5d1eafc9058f6ac33f",
+      "source_commit": "bdecfeb34ce2082e9ef8848739c71d8762a14755",
+      "tests": 83,
+      "elapsed_seconds": 23.347,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "log_name": "unlimited-winner-acceptance.log",
+      "sha256": "4c83094a89c676a27359dbc7d7220ecc7a36537af3fa3cc2ae489cb009b9aeea",
+      "source_commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+      "tests": 15,
+      "elapsed_seconds": 26.081,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "scope": "Existing native and capital matrix extended to100x/1000x and30days with original assertions; original/added/remaining basis, restarts, funding and dashboard. No runtime changes or external I/O."
+    },
+    {
+      "log_name": "unlimited-upside-source-identity-focused.log",
+      "sha256": "710d5e227a706df2af1e02c1dd024f8fd8bec2e57c0b67f7128c9f28f687a7f1",
+      "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+      "tests": 154,
+      "elapsed_seconds": 61.682,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "log_name": "winner-final-frozen-frontend.log",
+      "sha256": "1583f2c02f9bf7dfc90d87be455de130bd98278c0d338296b5ce2367e98db83d",
+      "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+      "result": "PASS",
+      "scope": "Final frozen actual frontend/API;10 rendered routes, epoch/inception, funding/risk and long-held protection, XSS/CSP/mutating-method and responsive-rule checks; browser geometry not tested"
+    },
+    {
+      "log_name": "protective-research-final-official-focused.log",
+      "sha256": "d00b27362b71addcd968664dcea33f439e51c8910c0ad4dadd9130402f028fa6",
+      "source_commit": "cb41a9c62b68c738e207f1cbd2c7b0822aea8b76",
+      "test_count": 96,
+      "tests": 96,
+      "elapsed_seconds": 51.724,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "scope": "Preserved predecessor focus; successor adds stricter shadow gap refusal only"
+    },
+    {
+      "log_name": "protective-research-final-focused.log",
+      "sha256": "9810dc3b9e27f46dbfa6f3ee180648968d027a56614373b4f1deede8b407121b",
+      "source_commit": "cb41a9c62b68c738e207f1cbd2c7b0822aea8b76",
+      "test_count": 88,
+      "tests": 88,
+      "elapsed_seconds": 48.123,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "scope": "Preserved predecessor focus; successor adds stricter shadow gap refusal only"
+    },
+    {
+      "log_name": "protective-shadow-gap-final-focused.log",
+      "sha256": "a5f1ab90825405967620023030177909fd67fbdb958488f3524c7d5e9ff80816",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 13,
+      "tests": 13,
+      "elapsed_seconds": 22.659,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "log_name": "protective-isolated-timing-reproduction.log",
+      "sha256": "9587b10fc3e06553057a821ac60eed04d5666487563475a5530848f7bd7a4d9a",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 3,
+      "tests": 3,
+      "elapsed_seconds": 74.639,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
     }
   ],
   "baseline_failure": {
@@ -961,7 +1263,7 @@
   },
   "pro_reference_tests_inspected": false,
   "pro_archive_available": false,
-  "full_suite_acceptance": "COMPLETED_FAIL: both frozen suites have zero failures and three original unavailable cgroup errors. No full-suite PASS claimed.",
+  "full_suite_acceptance": "COMPLETED_FAIL; three unavailable delegated-controller errors each",
   "reproduction_commands": [
     "python -m operational.tests FAST --verbose",
     "python -m operational.tests OPERATIONAL --verbose",
@@ -976,7 +1278,9 @@
     "python -m operational.tests OPERATIONAL --modules tests.test_pons_protective_capacity tests.test_pons_current_shared_owners tests.test_pons_shared_native_acquisition tests.test_robinhood_usd_valuation --verbose",
     "python -m engineering.proven_efficiency.finalization --output /tmp/pr129-native.json",
     "python -m operational.tests FAST --modules tests.test_pons_capacity_repair tests.test_pons_current_exit_sharing tests.test_pons_rpc_equivalence_preparation --verbose",
-    "python -m engineering.proven_efficiency.finalization --capacity-repair --output /tmp/pr129-capacity.json"
+    "python -m engineering.proven_efficiency.finalization --capacity-repair --output /tmp/pr129-capacity.json",
+    "python -m operational.tests OPERATIONAL --modules tests.test_shared_portfolio_epoch dashboard.tests.test_dashboard dashboard.tests.test_server_security --verbose",
+    "MM_TEST_PYTHON=<pinned CPython3.12.14> node dashboard/tests/frontend.mjs"
   ],
   "full_suite_blockers": [
     {
@@ -995,25 +1299,35 @@
     "dirty_page_fixture_process_lifetime_scope": true,
     "assertions_and_resource_budgets_relaxed": false
   },
-  "previous_frozen_source_commit": "2ec2fff25245e774d68005a175467ea84127cc32",
+  "previous_frozen_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
   "final_frozen_suites": [
     {
-      "suite": "FAST",
-      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-      "test_count": 1437,
-      "status": "COMPLETED_FAIL",
+      "log_name": "protective-final-frozen-FAST.log",
+      "sha256": "0938ea04432339e34c33e07b616e66543cd6f19dcfb2c2695d0c47871b313a8c",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 1500,
+      "tests": 1500,
+      "elapsed_seconds": 2140.478,
+      "result": "FAIL",
       "failures": 0,
       "errors": 3,
-      "skipped": 0
+      "skipped": 0,
+      "suite": "FAST",
+      "status": "COMPLETED_FAIL"
     },
     {
-      "suite": "OPERATIONAL",
-      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
-      "test_count": 2861,
-      "status": "COMPLETED_FAIL",
+      "log_name": "protective-final-frozen-OPERATIONAL.log",
+      "sha256": "f10f06acf78f57bbc0fb1398d8a5ec2445b25c61ac947af6142f7a2ab8c01b92",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 2930,
+      "tests": 2930,
+      "elapsed_seconds": 2542.985,
+      "result": "FAIL",
       "failures": 0,
       "errors": 3,
-      "skipped": 33
+      "skipped": 33,
+      "suite": "OPERATIONAL",
+      "status": "COMPLETED_FAIL"
     }
   ],
   "source_pin_resolution": {
@@ -1023,7 +1337,7 @@
     "runtime_policy_hash_or_schema_changed": false,
     "original_test_retained": true
   },
-  "final_frozen_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+  "final_frozen_source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "supplemental_final_native_measurements": [
     {
       "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
@@ -1048,5 +1362,198 @@
       "log_sha256": "19a26728b3a8129742d66cb1befce147524129232f321ad638d07633f2f852f2",
       "provider_calls": 0
     }
-  ]
+  ],
+  "full_clock_long_duration_traces": [
+    {
+      "cpu_seconds": 529.6099493119999,
+      "current_monitor_turns": 25920,
+      "final_booked_realized": 314,
+      "final_records": 10,
+      "high_water": 37920,
+      "journal_rows": 7,
+      "maximum_records": 99,
+      "maximum_sqlite_bytes": 356352,
+      "original_opened_at": 102,
+      "partial_quantity": 750,
+      "restarts": 4
+    },
+    {
+      "automatic_terminal_history_cleanup": true,
+      "cpu_seconds": 269.91710559800003,
+      "maximum_retained_events": 2402,
+      "maximum_retained_points": 28803,
+      "original_opened_at": 100,
+      "risk_high_water": 98400,
+      "sqlite_bytes": 9293824,
+      "survivor_monitor_turns": 86401,
+      "wal_bytes": 9405992
+    }
+  ],
+  "historical_frozen_suites": [
+    {
+      "errors": 3,
+      "failures": 0,
+      "skipped": 0,
+      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "status": "COMPLETED_FAIL",
+      "suite": "FAST",
+      "test_count": 1437
+    },
+    {
+      "errors": 3,
+      "failures": 0,
+      "skipped": 33,
+      "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
+      "status": "COMPLETED_FAIL",
+      "suite": "OPERATIONAL",
+      "test_count": 2861
+    },
+    {
+      "log_name": "long-held-frozen-FAST.log",
+      "sha256": "99038ab1b653a2a12330e9cd34ca0b7c214f205a5ec1adc799977a7024d25a8f",
+      "source_commit": "bde1920b2e99260830358f3d096af7399474edde",
+      "tests": 1465,
+      "elapsed_seconds": 2032.958,
+      "result": "FAIL",
+      "failures": 0,
+      "errors": 8,
+      "skipped": 0,
+      "suite": "FAST",
+      "status": "COMPLETED_FAIL",
+      "test_count": 1465,
+      "classification": "Three cgroup environmental errors plus five exact-money inception errors; successor repair is explicit"
+    },
+    {
+      "log_name": "unlimited-upside-final-frozen-FAST.log",
+      "sha256": "7e96e9bd396a66e69ecbef09c8392ad5cefb88d28cda192741f34e6f38754c38",
+      "source_commit": "bdecfeb34ce2082e9ef8848739c71d8762a14755",
+      "tests": 1486,
+      "elapsed_seconds": 2061.412,
+      "result": "FAIL",
+      "failures": 4,
+      "errors": 3,
+      "skipped": 0,
+      "suite": "FAST",
+      "status": "COMPLETED_FAIL",
+      "test_count": 1486,
+      "classification": "Four exact AST pins omitted the later owner-directed legacy adverse-flow correction; three unchanged cgroup environmental errors. Whole-module two-node derivation and mutation guards repair the test identity without changing runtime."
+    },
+    {
+      "suite": "FAST",
+      "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+      "test_count": 1487,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0,
+      "log_name": "winner-final-frozen-FAST.log",
+      "sha256": "58fdd2618ed72a93db811980b2571398edd66a53749dbb01d6daa57d9049928b",
+      "tests": 1487,
+      "elapsed_seconds": 2160.199,
+      "result": "FAIL"
+    },
+    {
+      "suite": "OPERATIONAL",
+      "source_commit": "f8b0a6ffbef263037e28679c5c2659e3648286cd",
+      "test_count": 2917,
+      "status": "COMPLETED_FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33,
+      "log_name": "winner-final-frozen-OPERATIONAL.log",
+      "sha256": "aabd7a8cb0581d284a24067fa8c76d2e76dbfa412b70756617e273850e68a51d",
+      "tests": 2917,
+      "elapsed_seconds": 2560.557,
+      "result": "FAIL"
+    }
+  ],
+  "new_fingerprint_recipe": "sorted tracked paths and bytes separated by NUL; meme_machine, tests, engineering, dashboard and operational/tests.py",
+  "new_frozen_code_fingerprint": "fe047325bbcfc94c51aad20c3df01d421c09cdda07b592a028a05d9661603e42",
+  "additional_frozen_inputs": {
+    "deployment/paper-bootstrap.conf": "57bb012022828e2d67cfa913be6e7d16405e9dfee1e58237a0d0d23db31ca64e",
+    "operational/position-continuation/RESOURCE_ENVELOPE.maintenance.example.json": "674e28872ad3c36215c3e8539579f3cbd22cd9e728637b3f2cfcabb3e8dda674",
+    "operational/proven-efficiency-phase1/CAPACITY_REPAIR_NATIVE.json": "bdad44680ed769edf28dc6255d1e1eb9b32326be198de8a551af875614852296",
+    "operational/proven-efficiency-phase1/LONG_HOLD_RESOURCE_MODEL.json": "f0ba01d1d15563767f2c6171786dedfd201d03a50c0fa8677571da5be1eccacc",
+    "operational/shared-capital-activation/risk-policy.proposed.json": "46e3c7c01ecba9ad2f12587f6e5e5c1ddd3111a688fce97b83df44a42f4b016d",
+    "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json": "f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034"
+  },
+  "exact_money_predecessor_repair": {
+    "source_commit": "bde1920b2e99260830358f3d096af7399474edde",
+    "kind": "FIVE_INCEPTION_DECIMAL_ERRORS",
+    "repair_commit": "e87bb3ff437344b1cfd34a8800553d615367afb8",
+    "unchanged_cgroup_errors": 3
+  },
+  "risk_policy_predecessor_interruption": {
+    "additional_inputs": {
+      "deployment/paper-bootstrap.conf": "57bb012022828e2d67cfa913be6e7d16405e9dfee1e58237a0d0d23db31ca64e",
+      "operational/position-continuation/RESOURCE_ENVELOPE.maintenance.example.json": "674e28872ad3c36215c3e8539579f3cbd22cd9e728637b3f2cfcabb3e8dda674",
+      "operational/proven-efficiency-phase1/CAPACITY_REPAIR_NATIVE.json": "bdad44680ed769edf28dc6255d1e1eb9b32326be198de8a551af875614852296",
+      "operational/proven-efficiency-phase1/LONG_HOLD_RESOURCE_MODEL.json": "f0ba01d1d15563767f2c6171786dedfd201d03a50c0fa8677571da5be1eccacc",
+      "operational/shared-capital-activation/risk-policy.proposed.json": "46e3c7c01ecba9ad2f12587f6e5e5c1ddd3111a688fce97b83df44a42f4b016d",
+      "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json": "f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034"
+    },
+    "code_files": 1084,
+    "code_fingerprint": "de701722efae68f43bef5a3ecaaf8aa7ce744a03f2b41ec1812f2011868460bf",
+    "commit": "2a9b6f1797a7a3bc3ee38972fc950e76c13bc3b3",
+    "python": "Python 3.12.14",
+    "reason": "Owner unlimited-upside acceptance identified uncalled legacy Pons stale helper discrepancy; final source will include its correction and permanent100x/1000x tests. Existing partial receipt is preserved, not accepted as a full suite.",
+    "recipe": "sorted tracked paths and bytes separated by NUL; meme_machine, tests, engineering, dashboard and operational/tests.py",
+    "recorded_at": "2026-10-10T19:22:45.279844+00:00",
+    "status": "INTERRUPTED_FOR_SOURCE_REPAIR",
+    "interrupted_at": "2026-10-10T19:45:19.579199+00:00",
+    "log_name": "shared-risk-final-frozen-FAST.log",
+    "log_sha256": "2d5ee1c371c6c9fbba8f48c8315e9ef21f47368f4c31dca8732e3cf89a07af84",
+    "classification": "Not accepted as completed suite; preserved interruption for independently demonstrated legacy helper repair and permanent owner100x/1000x requirements. Final FAST/OPERATIONAL are once against the successor freeze."
+  },
+  "validation_contention": {
+    "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "status": "INTERRUPTED_NOT_ACCEPTED",
+    "source_or_assertion_changes": 0,
+    "explanation": "FAST and OPERATIONAL were mistakenly run concurrently, with a separate early financial replay. CPU/SQLite contention produced timing failures. Both owned suite processes were stopped; original tests passed unchanged in isolation, and final suites run sequentially. This is evidence of capacity sensitivity, not an accepted full-suite result.",
+    "logs": [
+      {
+        "suite": "FAST",
+        "log_name": "protective-parallel-interrupted-e17-FAST.log",
+        "sha256": "7b65583b59555d1a0690b72a4dfd3bb563591085ddaa7c965b42efab39e36d92",
+        "verbose_failure_entries": [
+          "test_real_clock_native_partial_exits_include_cpu_queue_wait_and_final_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_real_clock_native_partial_exits_include_cpu_queue_wait_and_final_commits)",
+          "test_two_three_four_rps_measure_last_response_and_native_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_two_three_four_rps_measure_last_response_and_native_commits) (rate=3, positions=20, factor=2.2)",
+          "test_two_three_four_rps_measure_last_response_and_native_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_two_three_four_rps_measure_last_response_and_native_commits) (rate=4, positions=20, factor=2.2)",
+          "test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile (tests.test_pons_capacity_repair.PendingExitSharingTests.test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile) (factor=2.2)"
+        ]
+      },
+      {
+        "suite": "OPERATIONAL",
+        "log_name": "protective-parallel-interrupted-e17-OPERATIONAL.log",
+        "sha256": "e21ac9231fb7181596120b833f2c0764fbbdd9926bd8c24c350a9d9eedd5f402",
+        "verbose_failure_entries": [
+          "test_two_three_four_rps_measure_last_response_and_native_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_two_three_four_rps_measure_last_response_and_native_commits) (rate=3, positions=20, factor=2.2)",
+          "test_two_three_four_rps_measure_last_response_and_native_commits (tests.test_pons_capacity_repair.ExitCapacityRepairTests.test_two_three_four_rps_measure_last_response_and_native_commits) (rate=4, positions=20, factor=2.2)",
+          "test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile (tests.test_pons_capacity_repair.PendingExitSharingTests.test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile) (factor=2.2)"
+        ]
+      }
+    ],
+    "unchanged_isolated_reproduction": {
+      "log_name": "protective-isolated-timing-reproduction.log",
+      "sha256": "9587b10fc3e06553057a821ac60eed04d5666487563475a5530848f7bd7a4d9a",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 3,
+      "tests": 3,
+      "elapsed_seconds": 74.639,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "scope": "The three original methods covering these failing checks, unchanged and sequential; mocked RPC, real local processing. Not authenticated endpoint or whole-machine certification."
+    },
+    "isolated_twenty_pending_partial_completion_seconds": 2.981503015034832
+  },
+  "final_frozen_frontend": {
+    "log_name": "protective-final-source-frontend.log",
+    "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "sha256": "1583f2c02f9bf7dfc90d87be455de130bd98278c0d338296b5ce2367e98db83d",
+    "result": "PASS",
+    "routes": 10,
+    "scope": "Actual app.js renderer, fixtures and local read-only API; security and responsive rules; browser geometry not tested"
+  }
 }
