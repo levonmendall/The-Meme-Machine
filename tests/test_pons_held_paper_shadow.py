@@ -388,8 +388,12 @@ class ShadowIntegrationTests(TestCase):
     def test_native_monitors_call_shadow_only_after_original_exit_logic(self):
         from inspect import getsource
         surv=getsource(pons_survivor_runtime.Runtime._manage_position)
+        surv_shadow=getsource(pons_survivor_runtime.Runtime._observe_shadow)
         cur=getsource(pons_selective_paper._lifecycle_steps)
-        self.assertLess(surv.index('action=monitor('),surv.index('shadow.observe_after_hold('))
+        self.assertLess(surv.index('action=monitor('),surv.index('self._observe_shadow('))
+        self.assertLess(surv.index('scale(book='),surv.index('self._observe_shadow('))
+        self.assertLess(surv_shadow.index("if action['action']=='hold' and q is not None and p['status']=='open':"),
+                        surv_shadow.index('shadow.observe_after_hold('))
         self.assertLess(cur.index('action=runner_action('),cur.index('held_shadow.observe_after_hold('))
         self.assertLess(cur.index('paper.advance(identity,now=mark.stamp.observed_at,action="mark"'),
                         cur.index('held_shadow.observe_after_hold('))
