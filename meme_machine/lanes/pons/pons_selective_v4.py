@@ -45,7 +45,7 @@ def acquisition_windows(endpoint, pool_ids, state=None,*,batch_elements=4):
         topics=[_event_topic('uniswap_v4_manager','Swap'),list(pool_ids)]),state=state,batch_elements=batch_elements)
 
 
-def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_state=None,evidence_context=None,log_batch_elements=4):
+def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_state=None,evidence_context=None,log_batch_elements=4,canonical_targets=None,initial_calls=(),initial_values=None):
     manager=load("uniswap_v4_manager")["address"].lower()
     # One range planner serves both strategies. Wider queries require an exact
     # credential/filter comparison; unverified endpoints retain ten blocks.
@@ -64,10 +64,20 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
     # membership is reacquired on every range, including quiet markets and forks.
     context.cache.headers_by_number.clear()
     context.receipt_pins={};context.timing={}
+    pending=list(initial_calls)
     def acquire(calls):
+        calls=list(calls)
+        if pending:
+            extra=list(pending)
+            if len(extra)+len(calls)>50:raise BoundaryError('selective_v4_initial_batch_bound')
+            values=_batched(endpoint,extra+calls,'pons_selective_v4',evidence_context=context)[0]
+            pending.clear()
+            initial_values.extend(values[:len(extra)])
+            return values[len(extra):]
         return _batched(endpoint,calls,'pons_selective_v4',evidence_context=context)[0]
     windows=acquisition_windows(endpoint,pool_ids,acquisition_state,batch_elements=log_batch_elements)
     raw=windows.read(int(start_block),int(end_block),acquire)
+    if pending:acquire([])
     for event in raw:
         if (event.get('address','').lower()!=manager or len(event.get('topics',[]))<2
                 or event['topics'][1] not in pool_ids
@@ -81,13 +91,18 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
         (event["transactionHash"],event["blockHash"]) for event in raw
     ))
     context.receipt_pins=dict(tx_rows)
-    # Canonical membership must succeed before receipt acquisition. An orphan
-    # economic block must neither authorize evidence nor purchase receipt work.
-    previous_force=context.canonical_numbers;context.canonical_numbers=True
-    try:
-        headers_v=acquire([("eth_getBlockByNumber",[hex(n),False]) for n,_ in blocks])
-    finally:context.canonical_numbers=previous_force
-    if any(header.get('hash')!=h or int(header['number'],16)!=n for (n,h),header in zip(blocks,headers_v)):
+    # The ordinary path refuses orphan receipts before purchasing them. A held
+    # turn may instead enrich already identified transactions first, then fence
+    # ALL event blocks and its target/checkpoints after every dependent response.
+    # Nothing from that speculative enrichment is published before the fence.
+    deferred=canonical_targets is not None and not context.block_receipts_supported
+    def numeric_headers(numbers):
+        previous_force=context.canonical_numbers;context.canonical_numbers=True
+        try:return acquire([('eth_getBlockByNumber',[hex(n),False]) for n in numbers])
+        finally:context.canonical_numbers=previous_force
+    headers_v=[] if deferred else numeric_headers([n for n,_ in blocks])
+    if not deferred and any(not isinstance(header,dict) or header.get('hash')!=h or
+            int(header['number'],16)!=n for (n,h),header in zip(blocks,headers_v)):
         raise BoundaryError('selective_v4_canonical_header_membership')
     hashes=[h for _,h in blocks]
     headers=dict(zip(hashes,headers_v))
@@ -97,6 +112,8 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
     individual=[pair for pair in tx_rows if pair not in dense]
     fetched=dict(zip(individual,acquire([("eth_getTransactionReceipt",[tx]) for tx,_ in individual])))
     receipts_v=[dense[pair] if pair in dense else fetched[pair] for pair in tx_rows]
+    if any(not isinstance(r,dict) for r in receipts_v):
+        raise BoundaryError('selective_v4_receipt_missing')
     # Authenticated standard receipts carry the transaction sender. Keep the
     # original transaction-body path for providers/captures missing that field.
     senders={k:context.block_reads.get(('authenticated_v4_sender',*k)) for k in tx_rows}
@@ -112,6 +129,7 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
             raise BoundaryError('selective_v4_receipt_sender_identity')
         txrow=(fallback[keyrow] if not sender and not senders[keyrow]
             else dict(hash=tx,blockHash=bh,**{'from':sender or senders[keyrow]}))
+        if not isinstance(txrow,dict):raise BoundaryError('selective_v4_transaction_missing')
         sender=txrow.get('from')
         if (not isinstance(sender,str) or len(sender)!=42 or not sender.startswith('0x')
                 or any(c not in '0123456789abcdef' for c in sender[2:].lower())):
@@ -122,11 +140,30 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
             raise BoundaryError("selective_v4_transaction_identity")
         receipts[keyrow]=receipt;txs[keyrow]=txrow
 
+    canonical_headers={}
+    if canonical_targets is not None:
+        expected=dict(canonical_targets)
+        for number,block_hash in blocks:
+            if number in expected and expected[number] not in (None,block_hash):
+                raise BoundaryError('selective_v4_conflicting_canonical_targets')
+            expected[number]=block_hash
+        numbers=sorted(expected)
+        values=numeric_headers(numbers)
+        if len(values)!=len(numbers) or any(not isinstance(h,dict) or
+                h.get('number')!=hex(n) or not h.get('hash') or
+                expected[n] is not None and h.get('hash')!=expected[n]
+                for n,h in zip(numbers,values)):
+            context.cache.invalidate_canonical_aliases();context.block_reads.clear()
+            raise BoundaryError('selective_v4_canonical_header_membership')
+        canonical_headers=dict(zip(numbers,values))
+        headers={block_hash:canonical_headers[n] for n,block_hash in blocks}
+
     telemetry=context.telemetry()
     sessions=list(telemetry['completed_sessions'])
     if telemetry['current_session']:sessions.append(telemetry['current_session'])
     if sessions:sessions[-1]=dict(sessions[-1],log_windows=windows.telemetry())
-    return dict(raw=raw,sessions=sessions,headers=headers,receipts=receipts,txs=txs,context=context)
+    return dict(raw=raw,sessions=sessions,headers=headers,receipts=receipts,txs=txs,context=context,
+        canonical_headers=canonical_headers)
 
 
 def collect_v4_activity(
@@ -245,7 +282,7 @@ def activity_summary(rows,*,preholder_groups=(),provider_sessions=()):
     )
 
 
-def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,seconds=15,preholder_groups=()):
+def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,seconds=15,preholder_groups=(),prepared=None):
     """Existing Current history, fresh membership, and only the uncovered tail.
 
     The native quote supplies the authenticated current frontier. The previous
@@ -256,8 +293,19 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
     from .pons_selective_acquisition import _header_search
     block=int(header['number'],16);at=int(header['timestamp'],16)
     old=history.get(pool_id)
+    if prepared is not None:
+        from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+        from meme_machine.runtime.journal import digest
+        if (prepared['checkpoint']!=old or prepared['source_generation']!=shared_evidence_domain(endpoint)
+                or prepared['header']['hash']!=header['hash']
+                or not 0<=time.monotonic()-prepared['acquired']<=5):
+            raise BoundaryError('pons_current_shared_history_superseded')
     if old:
-        try:canonical_boundary(rpc,dict(number=hex(old['block']),hash=old['block_hash']),'pons_selective_v4')
+        try:
+            if prepared is None:
+                canonical_boundary(rpc,dict(number=hex(old['block']),hash=old['block_hash']),'pons_selective_v4')
+            elif prepared['headers'][old['block']]['hash']!=old['block_hash']:
+                raise BoundaryError('pons_current_shared_history_membership')
         except BoundaryError:
             history.invalidate(pool_id,'v4_position_canonical_membership_failure')
             history.v4_header_cache={};raise
@@ -285,9 +333,10 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
         history.v4_header_cache={n:h for n,h in sorted(headers.items())[-256:]}
         first=int(first_header['number'],16);lower=int(first_header['timestamp'],16)
         retained=[]
-    tape=collect_v4_activity(endpoint,pool_id=pool_id,key=key,token=token,
+    if prepared is not None and not complete:raise BoundaryError('pons_current_shared_history_incomplete')
+    tape=(prepared['tape'] if prepared is not None else collect_v4_activity(endpoint,pool_id=pool_id,key=key,token=token,
         start_block=first,end_block=block,preholder_groups=preholder_groups,
-        acquisition_state=CheckpointHints(history.plane),evidence_context=context,log_batch_elements=5)
+        acquisition_state=CheckpointHints(history.plane),evidence_context=context,log_batch_elements=5))
     events=[dict(row,canonical_order=[row['block'],row['transaction_index'],row['log_index']]) for row in tape['swaps']]
     candidates=retained+events
     if complete:
@@ -299,7 +348,8 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
         include_boundary=boundary==block
         if boundary is not None and boundary<block:
             previous_pins=getattr(rpc,'evidence_pins',{});rpc.evidence_pins={}
-            try:successor=rpc.call('eth_getBlockByNumber',[hex(boundary+1),False],scope='pons_selective_v4')
+            try:successor=(prepared['headers'][boundary+1] if prepared is not None else
+                rpc.call('eth_getBlockByNumber',[hex(boundary+1),False],scope='pons_selective_v4'))
             finally:rpc.evidence_pins=previous_pins
             if (not isinstance(successor,dict) or int(successor['number'],16)!=boundary+1
                     or not successor.get('hash')):raise BoundaryError('pons_current_history_successor_identity')
@@ -316,7 +366,8 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
     expected={block:header['hash']}
     if old:expected[old['block']]=old['block_hash']
     previous_pins=getattr(rpc,'evidence_pins',{});rpc.evidence_pins={}
-    try:members=rpc.batch([('eth_getBlockByNumber',[hex(n),False]) for n in expected],scope='pons_selective_v4')
+    try:members=([prepared['headers'][n] for n in expected] if prepared is not None else
+        rpc.batch([('eth_getBlockByNumber',[hex(n),False]) for n in expected],scope='pons_selective_v4'))
     finally:rpc.evidence_pins=previous_pins
     if (not isinstance(members,list) or len(members)!=len(expected) or any(not isinstance(h,dict) or int(h['number'],16)!=n or h['hash']!=bh
             for (n,bh),h in zip(expected.items(),members))):
@@ -342,7 +393,7 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
         provider_sessions=tape['provider_sessions'])
 
 
-def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=256,acquisition_state=None,evidence_context=None):
+def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=256,acquisition_state=None,evidence_context=None,canonical_targets=None,return_headers=False,initial_calls=(),initial_values=None):
     """One authenticated bounded range for at most 64 independent markets.
 
     Shared transport does not share candidate populations: each result traverses
@@ -356,6 +407,8 @@ def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=25
     if not 0<=end_block-start_block<min(160,4*windows.ceiling):
         raise BoundaryError('survivor_shared_range_bound')
     shared=_transport(endpoint,pool_ids=ids,start_block=start_block,end_block=end_block,
-        max_events=max_events*len(markets),acquisition_state=acquisition_state,evidence_context=evidence_context)
-    return {m['token']:collect_v4_activity(endpoint,**m,start_block=start_block,
+        max_events=max_events*len(markets),acquisition_state=acquisition_state,evidence_context=evidence_context,
+        canonical_targets=canonical_targets,initial_calls=initial_calls,initial_values=initial_values)
+    tapes={m['token']:collect_v4_activity(endpoint,**m,start_block=start_block,
         end_block=end_block,max_events=max_events,_shared=shared) for m in markets}
+    return (tapes,shared['canonical_headers']) if return_headers else tapes

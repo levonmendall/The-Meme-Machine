@@ -3,6 +3,7 @@ from collections import Counter
 from contextlib import ExitStack
 from copy import deepcopy
 import json
+import time
 import unittest
 from unittest.mock import patch
 
@@ -44,9 +45,11 @@ class TraceRPC(fixture.ExactQuoteRPC):
 
 
 class SharedNativeAcquisitionTests(unittest.TestCase):
-    def run_positions(self,count,*,proved,gas=1,pending=False):
+    def run_positions(self,count,*,proved,gas=1,pending=False,predecessor=False,moving_clock=False,before_step=None):
         f=fixture.RuntimeCase();f.setUp();self.addCleanup(f.doCleanups)
-        r=f.runtime;rpc=TraceRPC(proved=proved);rpc.gas=gas;r.rpc=rpc;r.now=lambda:100
+        r=f.runtime;self.native_runtime=r
+        rpc=TraceRPC(proved=proved);rpc.gas=gas;r.rpc=rpc
+        r.now=(lambda:int(rpc.clock)) if moving_clock else (lambda:100)
         for i in range(1,count+1):
             token=fixture.address(i);row=r.history.graduate(token,fixture.graduation(i))
             identity='pons-finalization:position:'+str(i);amount=10**16;qty=10**18+i*10000
@@ -57,12 +60,31 @@ class SharedNativeAcquisitionTests(unittest.TestCase):
             row.update(position=identity,state='open',generation=0,block=100,block_hash=rpc.value('eth_getBlockByNumber',['0x64',False])['hash'])
             if pending and i==1:row['position_safety']=dict(pending_exit=True)
             r.history.save(row)
+        if before_step is not None:before_step(r,rpc)
         with ExitStack() as stack:
+            if predecessor:
+                import ast,subprocess
+                from meme_machine.lanes.pons import pons_quotes
+                source=subprocess.check_output(['git','show','e1070404849dfa86eb3e47d57cf24263b2fefc25:'+runtime.__name__.replace('.','/')+'.py'])
+                cls=next(n for n in ast.parse(source).body if isinstance(n,ast.ClassDef) and n.name=='Runtime')
+                for name in ('_prepare_held_acquisition','exit_quote','validate_exit','step'):
+                    method=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name==name)
+                    method.decorator_list=[];namespace=dict(vars(runtime))
+                    exec(compile(ast.Module(body=[method],type_ignores=[]),'<PR129 predecessor held path>','exec'),namespace)
+                    stack.enter_context(patch.object(runtime.Runtime,name,namespace[name]))
+                quote_source=subprocess.check_output(['git','show','e1070404849dfa86eb3e47d57cf24263b2fefc25:'+pons_quotes.__name__.replace('.','/')+'.py'])
+                method=next(n for n in ast.parse(quote_source).body if isinstance(n,ast.FunctionDef) and n.name=='shared_v4_quotes')
+                namespace=dict(vars(pons_quotes))
+                exec(compile(ast.Module(body=[method],type_ignores=[]),'<PR129 predecessor shared quote>','exec'),namespace)
+                stack.enter_context(patch.object(pons_quotes,'shared_v4_quotes',namespace[method.name]))
             stack.enter_context(patch('time.time',side_effect=lambda:rpc.clock))
             stack.enter_context(patch('time.monotonic',side_effect=lambda:rpc.clock))
             stack.enter_context(patch('meme_machine.runtime.storage.compact_survivor'))
             stack.enter_context(patch('meme_machine.lanes.pons.pons_selective_acquisition._rpc',return_value=rpc))
+            wall=time.perf_counter();cpu=time.process_time()
             result=r.step(admit=False)
+            rpc.local_wall_seconds=time.perf_counter()-wall
+            rpc.local_cpu_seconds=time.process_time()-cpu
         self.assertFalse(result['deferred_boundaries'],result['deferred_boundaries'])
         self.assertTrue(r.book.replay()['verified']);self.assertTrue(r.sleeve.reconcile()['reconciled'])
         positions=[r.book._load('pons-finalization:position:'+str(i)) for i in range(1,count+1)]
@@ -73,18 +95,21 @@ class SharedNativeAcquisitionTests(unittest.TestCase):
         old,a,baseline,_=self.run_positions(2,proved=False)
         new,b,optimized,_=self.run_positions(2,proved=True)
         self.assertEqual(old,new);self.assertEqual(a,b)
-        self.assertEqual((len(baseline.transports),len(optimized.transports)),(10,5))
+        self.assertEqual((len(baseline.transports),len(optimized.transports)),(10,3))
+        self.assertEqual([m for m,p in optimized.transports[-1][1]],
+            ['eth_getBlockByNumber','eth_getBlockByNumber'])
+        self.assertIn('eth_getLogs',[m for m,p in optimized.transports[1][1]])
         self.assertEqual(optimized.methods['eth_getLogs'],1)
         simulations=sum(m=='eth_call' and p[0]['data']!=runtime.calldata('poolManager()')
             for kind,rows in optimized.transports for m,p in rows)
         self.assertEqual(simulations,2)
-        print('NATIVE_SHARED_TRACE',json.dumps(dict(original_physical=10,optimized_physical=5,
+        print('NATIVE_SHARED_TRACE',json.dumps(dict(original_physical=10,optimized_physical=3,
             original_methods=dict(baseline.methods),optimized_methods=dict(optimized.methods),
             traces=optimized.transports)),flush=True)
 
     def test_twenty_native_positions_share_only_common_acquisition_without_a_position_count_veto(self):
         _,risks,rpc,result=self.run_positions(20,proved=True)
-        self.assertEqual(len(rpc.transports),5)
+        self.assertEqual(len(rpc.transports),3)
         self.assertTrue(all(r['last_action']['action']=='hold' for r in risks))
         self.assertEqual(result['accounting']['open_positions'],20)
         self.assertEqual(result['admission']['position_count_limit'],None)
@@ -94,7 +119,7 @@ class SharedNativeAcquisitionTests(unittest.TestCase):
         new,b,rpc,_=self.run_positions(2,proved=True,gas=2)
         self.assertEqual(old,new);self.assertEqual(a,b)
         _,_,rpc,_=self.run_positions(2,proved=True,pending=True)
-        self.assertEqual(len(rpc.transports),10)
+        self.assertEqual(len(rpc.transports),8)
 
     def test_unknown_or_mismatched_resources_refuse_before_any_transport(self):
         rpc=TraceRPC();requests=[dict(key=fixture.PoolKey(**fixture.graduation(i)['key']),

@@ -551,35 +551,61 @@ class Runtime:
 
     @position_work
     def exit_quote(self,qty):
-        from .pons_quotes import v4_quote as _v4_quote,quote_deadline
+        from .pons_quotes import v4_quote as _v4_quote,quote_deadline,unchanged_canonical_read
         from .evidence import Store
         grad=self.current['graduation'];key=PoolKey(**grad['key'])
         cache=getattr(self,'position_exit_quotes',None)
+        self.final_exit_quote_check=None
+        self.pending_exit_market=None
         prepared=getattr(self,'shared_held_quotes',{}).pop(self.current.get('id'),None)
         if prepared is not None:
             p=self.book._load(self.current['position']);q=prepared['quote'];meta=prepared['meta']
             if (digest(p)==prepared['position_hash'] and p['tokens']==qty and q.amount_in==qty
                     and q.market==grad['transition']['market'] and
                     0<=time.monotonic()-prepared['acquired']<=self.observation_interval_seconds):
+                # A later partial realization still buys its own exact-quantity
+                # simulation and current gas. It may use this same native fresh
+                # head, with the original acquisition clock and a NEW ordered
+                # canonical check. This is scoped to one owner/turn, never a
+                # restart quote or a substitute for executable pricing.
+                self.position_exit_head=(prepared['header'],prepared['acquired'],
+                    id(getattr(self.rpc,'_current',self.rpc)),getattr(self.rpc,'provider_fingerprint',None))
                 result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
                     acquired=prepared['acquired'],block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
                 if cache is not None:cache[qty]=dict(result,amount_out=q.amount_out,gas_units=meta['gas_units_proxy'])
                 return result
         cached=cache.get(qty) if cache is not None else None
         if cached and 0<=time.monotonic()-cached['acquired']<=5:
+            common=getattr(self,'held_exit_market',None)
+            if (common is not None and common['header']['hash']==cached['block_hash']
+                    and int(common['header']['number'],16)==cached['block']
+                    and 0<=time.monotonic()-common['acquired']<=self.observation_interval_seconds
+                    and unchanged_canonical_read(self.rpc,common['canonical_read'],common['header'])):
+                # Same already-due cohort, independently simulated quantity.
+                # The preceding owner's fresh gas/head and ordered membership
+                # also fence this unchanged canonical state. Any intervening
+                # provider operation invalidates this reuse immediately.
+                gas=cached['gas_units']*common['gas_price']
+                result=dict(net_proceeds=max(0,cached['amount_out']-gas),quantity=qty,
+                    acquired=cached['acquired'],block=cached['block'],block_hash=cached['block_hash'],gas=gas)
+                self.final_exit_quote_check=(result,common['canonical_read'])
+                return result
             # Reuse only within this one evaluation at an unchanged current
             # canonical head. Gas is mutable even then and is reacquired. No
             # observed/acquisition clock is renewed, and no full-size quote is
             # substituted for a partial exit. validate_exit() still fences fill.
             try:
                 with quote_deadline(self.rpc,cached['acquired']):
+                    gas_at=time.monotonic()
                     header,gas=self.rpc.batch([('eth_getBlockByNumber',['latest',False]),
                         ('eth_gasPrice',[])],scope='pons_survivor')
                 if (header['hash']==cached['block_hash'] and int(header['number'],16)==cached['block']
                         and 0<=time.monotonic()-cached['acquired']<=5):
-                    gas=cached['gas_units']*int(gas,16)
-                    return dict(net_proceeds=max(0,cached['amount_out']-gas),quantity=qty,
+                    price=int(gas,16);gas=cached['gas_units']*price
+                    result=dict(net_proceeds=max(0,cached['amount_out']-gas),quantity=qty,
                         acquired=cached['acquired'],block=cached['block'],block_hash=cached['block_hash'],gas=gas)
+                    self.pending_exit_market=(result,dict(header=header,gas_price=price,acquired=gas_at))
+                    return result
             except BoundaryError:
                 cache.clear();return None
         if cache is not None:cache.pop(qty,None)
@@ -591,22 +617,38 @@ class Runtime:
         # The old quote-evidence file is retained, with no journal deletion.
         store=Store(':memory:')
         acquired=time.monotonic()
+        head=getattr(self,'position_exit_head',None);fresh_head=None
+        if (head is not None and head[2]==id(getattr(self.rpc,'_current',self.rpc))
+                and head[3]==getattr(self.rpc,'provider_fingerprint',None)
+                and 0<=acquired-head[1]<=self.observation_interval_seconds):
+            fresh_head=head[:2];acquired=head[1]
         try:
             q,meta,ledger=_v4_quote(self.rpc,key,grad['transition']['market'],qty,
-                grad['transition']['graduation_gas_used'],store,'survivor_exit',local_freshness=True)
+                grad['transition']['graduation_gas_used'],store,'survivor_exit',local_freshness=True,
+                fresh_head=fresh_head)
             q.check(self.now(),q.market,'sell',qty,q.stamp.kind,finality_ledger=ledger)
             result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
                 acquired=acquired,block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
+            self.final_exit_quote_check=(result,getattr(self.rpc,'last_canonical_read',None))
             if cache is not None:cache[qty]=dict(result,amount_out=q.amount_out,gas_units=meta['gas_units_proxy'])
             return result
         except BoundaryError:return None
         finally:store.close()
 
     def validate_exit(self,execution,qty,now):
-        from .pons_quotes import canonical_boundary
-        canonical_boundary(self.rpc,dict(number=hex(execution['block']),hash=execution['block_hash']),'pons_survivor')
+        from .pons_quotes import canonical_boundary,unchanged_canonical_read
         if execution['quantity']!=qty or not 0<=time.monotonic()-execution['acquired']<=5:
             raise BoundaryError('survivor_exit_quote_stale')
+        header=dict(number=hex(execution['block']),hash=execution['block_hash'])
+        prepared=getattr(self,'final_exit_quote_check',None)
+        if not (prepared is not None and prepared[0] is execution
+                and unchanged_canonical_read(self.rpc,prepared[1],header)):
+            canonical_boundary(self.rpc,header,'pons_survivor')
+        pending=getattr(self,'pending_exit_market',None)
+        if pending is not None and pending[0] is execution:
+            facts=dict(pending[1],canonical_read=getattr(self.rpc,'last_canonical_read',None))
+            if unchanged_canonical_read(self.rpc,facts['canonical_read'],facts['header']):
+                self.held_exit_market=facts
 
     @attributed_work('pons_survivor_qualification')
     @decision_work(1)
@@ -638,8 +680,13 @@ class Runtime:
         # Transient exact-quantity quote reuse has no restart or next-turn
         # authority. The existing native monitor remains the sole exit owner.
         self.position_exit_quotes={}
+        self.position_exit_head=None
         try:return self._manage_position(row,admit=admit)
-        finally:self.position_exit_quotes=None
+        finally:
+            self.position_exit_quotes=None
+            self.position_exit_head=None
+            self.final_exit_quote_check=None
+            self.pending_exit_market=None
 
     def _position_head(self, row, quote):
         """Reuse the fresh authenticated quote head for this history turn.
@@ -696,6 +743,8 @@ class Runtime:
         events=[];flow=None;header=None
         try:
             header=self._position_head(row,q);end=int(header['number'],16)
+            if row['id'] in getattr(self,'held_history_failures',{}):
+                raise BoundaryError(self.held_history_failures[row['id']])
             self._increment(row,min(end,row['block']+40))
             if end-self.history.get(row['id'])['block']<=1:
                 _,events=self.history.facts(row['id'],self.now())
@@ -776,10 +825,18 @@ class Runtime:
                 return 0 if (position['status']=='exit_pending' or row.get('position_safety',{}).get('pending_exit')) else (1 if position['status']=='open' and position['tokens']>0 else 2)
             ordered=sorted(self.history.rows(),key=position_priority)
             self.shared_held_quotes={}
-            if not any(position_priority(r)==0 for r in ordered):
-                try:self._prepare_held_acquisition([r for r in ordered if position_priority(r)==1])
-                except (ValueError,BoundaryError) as exc:
-                    self.shared_held_quotes={};self.shared_held_boundary=str(exc)
+            self.held_exit_market=None
+            self.held_history_failures={}
+            private_recovery=set(getattr(self,'private_history_recovery',set()))
+            self.private_history_recovery=set(private_recovery)
+            urgent=[r for r in ordered if position_priority(r)==0]
+            # Do not make an irreversible exit wait for another owner's
+            # acquisition. Its own state/logs/enrichment use the same ordered
+            # native frame; all remaining owners keep the complete fallback.
+            due=urgent[:1] if urgent else [r for r in ordered if position_priority(r)==1]
+            try:self._prepare_held_acquisition([r for r in due if r['id'] not in private_recovery])
+            except (ValueError,BoundaryError) as exc:
+                self.shared_held_quotes={};self.shared_held_boundary=str(exc)
             for original in ordered:
                 row=self.history.get(original['id']) or original
                 if row.get('position'):
@@ -789,6 +846,9 @@ class Runtime:
                         from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
                         exceptional_evidence_failure(self,family='pons_survivor',blocker=str(exc),rows=[row])
             self.shared_held_quotes={}
+            self.held_history_failures={}
+            self.held_exit_market=None
+            self.private_history_recovery-=private_recovery
             if admit:
                 # Discovery never depends on population or allocatable capital.
                 try:self.discover()
@@ -886,7 +946,8 @@ class Runtime:
     @attributed_work('pons_held_protection',consumer='survivor')
     def _prepare_held_acquisition(self,rows):
         """Only already-due compatible owners; no batching wait or changed clock."""
-        if len(rows)<2 or getattr(self.rpc,'shared_quote_resources',None) is None:return
+        if not rows or len(rows)>47:return
+        if len(rows)>1 and getattr(self.rpc,'shared_quote_resources',None) is None:return
         from .pons_quotes import shared_v4_quotes
         requests=[];positions=[]
         for row in rows:
@@ -894,11 +955,74 @@ class Runtime:
             positions.append(p)
             requests.append(dict(key=PoolKey(**grad['key']),pool_id=grad['transition']['market'],
                 amount=p['tokens'],gas_units=grad['transition']['graduation_gas_used'],side='sell'))
-        quotes=shared_v4_quotes(self.rpc,requests,deadline_seconds=self.observation_interval_seconds)
+        prepared={}
+        def prepare_history(header,state_calls):
+            top=int(header['number'],16)
+            if not all(0<=top-r['block']<=40 for r in rows):
+                raise BoundaryError('survivor_monitoring_not_caught_up')
+            expected={top:header['hash']}
+            for row in rows:
+                previous=row.get('block_hash',row['graduation']['block_hash'])
+                if row['block'] in expected and expected[row['block']]!=previous:
+                    raise BoundaryError('survivor_history_reorg')
+                expected[row['block']]=previous
+            context=self._position_context()
+            if hasattr(context.cache,'begin_receipts'):
+                context.cache.begin_receipts('survivor',digest(sorted(r['id'] for r in rows)),
+                    digest([(r['id'],r['block'],r.get('block_hash')) for r in rows]))
+            deadline=context.deadline;session=context.rpc;state_values=[]
+            context.deadline=self.rpc.evidence_deadline;context.rpc=self.rpc
+            try:
+                # Include quiet/current checkpoints too. The ordered final
+                # numeric batch is also the quote's publication fence.
+                start=min(r['block'] for r in rows)+1
+                markets=[dict(pool_id=r['graduation']['transition']['market'],
+                    key=PoolKey(**r['graduation']['key']),token=r['id']) for r in rows]
+                if start>top:
+                    state_values=self.rpc.batch(state_calls,scope='pons_survivor')
+                    previous=getattr(self.rpc,'evidence_pins',{});self.rpc.evidence_pins={}
+                    try:values=self.rpc.batch([('eth_getBlockByNumber',[hex(n),False])
+                        for n in sorted(expected)],scope='pons_survivor')
+                    finally:self.rpc.evidence_pins=previous
+                    headers=dict(zip(sorted(expected),values))
+                    if len(headers)!=len(expected) or any(h.get('number')!=hex(n) or
+                            h.get('hash')!=expected[n] for n,h in headers.items()):
+                        raise BoundaryError('survivor_history_reorg')
+                    tapes={r['id']:dict(swaps=[]) for r in rows}
+                else:
+                    tapes,headers=collect_v4_activities(self.endpoint,markets=markets,
+                        start_block=start,end_block=top,acquisition_state=self.history,
+                        evidence_context=context,canonical_targets=expected,return_headers=True,
+                        initial_calls=state_calls,initial_values=state_values)
+                prepared.update(top=top,tapes=tapes,headers=headers,context=context)
+                return headers,state_values
+            except (ValueError,BoundaryError) as exc:
+                if len(state_values)!=len(state_calls) or any(v is None for v in state_values):raise
+                # History refusal does not discard a still-valid protective
+                # sell simulation. Fence that simulation independently, retain
+                # UNKNOWN flow, and leave every history obligation outstanding.
+                from .pons_quotes import canonical_boundary
+                member=canonical_boundary(self.rpc,header,'pons_survivor')
+                prepared.update(top=top,headers={top:member},context=context,history_failure=str(exc))
+                return {top:member},state_values
+            finally:context.deadline=deadline;context.rpc=session
+        quotes=shared_v4_quotes(self.rpc,requests,deadline_seconds=self.observation_interval_seconds,
+            prepare_history=prepare_history)
+        # Neither a failed quote nor partial/forked enrichment advances durable
+        # history. Each owner keeps its own original checkpoint and native book.
+        top=prepared['top'];headers=prepared['headers']
+        if not hasattr(self,'private_history_recovery'):self.private_history_recovery=set()
+        if prepared.get('history_failure'):
+            self.held_history_failures={r['id']:prepared['history_failure'] for r in rows}
+            self.private_history_recovery.update(self.held_history_failures)
+        for row in rows:
+            if not prepared.get('history_failure') and top>row['block']:
+                tape=dict(prepared['tapes'][row['id']])
+                tape['swaps']=[e for e in tape['swaps'] if e['block']>row['block']]
+                self._append_tape(row,top,headers[top],tape)
+        context=prepared['context']
+        if not prepared.get('history_failure') and hasattr(context.cache,'acknowledge_receipts'):context.cache.acknowledge_receipts()
         self.shared_held_quotes={row['id']:dict(q,position_hash=digest(p)) for row,p,q in zip(rows,positions,quotes)}
-        top=int(quotes[0]['header']['number'],16)
-        if all(0<=top-r['block']<=40 for r in rows):
-            self._increment_candidates(rows,top,held=True)
 
     def close(self):
         shadow=getattr(self,'held_paper_shadow',None)

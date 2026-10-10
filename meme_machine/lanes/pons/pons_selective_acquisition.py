@@ -312,6 +312,8 @@ class SelectiveEvidenceContext:
                 self.timing['first_transport_submitted_monotonic']=before
             from .view_batch import batch as view_batch
             values=view_batch(rpc,[x[1] for x in group],scope,self.view_batch_state) if scope in ('pons_natural','pons_selective_trajectory') else rpc.batch([x[1] for x in group],scope=scope)
+            if not isinstance(values,(list,tuple)) or len(values)!=len(group):
+                raise BoundaryError('selective_evidence_batch_incomplete')
             self.timing['rpc_batch_seconds']=self.timing.get('rpc_batch_seconds',0)+time.monotonic()-before
             for (index,(method,params),key),value in zip(group,values):
                 out[index]=value

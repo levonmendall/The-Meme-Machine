@@ -431,6 +431,9 @@ class RobinhoodUSDTests(unittest.TestCase):
                         'meme_machine/lanes/pons/pons_selective_cohort.py',
                         'meme_machine/lanes/pons/pons_selective_v4.py',
                         'meme_machine/lanes/pons/pons_quotes.py',
+                        'meme_machine/lanes/pons/pons_selective_paper.py',
+                        'meme_machine/lanes/pons/pons_current_workers.py',
+                        'meme_machine/lanes/pons/pons_selective_acquisition.py',
                         'meme_machine/lanes/pons/provider_topology.py',
                         'meme_machine/lanes/pons/provider_admission.py',
                         'meme_machine/lanes/pons/provider.py',
@@ -463,7 +466,8 @@ class RobinhoodUSDTests(unittest.TestCase):
             elif name!='Runtime':self.assertEqual(ast.dump(node),ast.dump(new[name]),rel+':'+name)
         old_methods=functions(old['Runtime']);new_methods=functions(new['Runtime'])
         mechanical={'__init__','historical_preparation_step','_provider','discover','_bootstrap_cursor',
-                    '_increment_candidates','reconstruct','step','_prepare_held_acquisition'}
+                    '_increment_candidates','reconstruct','step','_prepare_held_acquisition','_manage_position',
+                    '_position','exit_quote','validate_exit'}
         for name,node in old_methods.items():
             if name not in mechanical:
                 node.decorator_list=[];new_methods[name].decorator_list=[]
@@ -483,6 +487,17 @@ class RobinhoodUSDTests(unittest.TestCase):
             assigns['window']=ast.dump(next(n for n in ast.walk(node) if isinstance(n,ast.FunctionDef) and n.name=='window'))
             return assigns
         self.assertEqual(economic_expressions(before),economic_expressions(after))
+        # This release changes acquisition order/reuse, not native settlement
+        # arithmetic or its exact-quantity/five-second commit prerequisites.
+        def net_expressions(node):
+            return {ast.dump(k.value) for n in ast.walk(node) if isinstance(n,ast.Call)
+                for k in n.keywords if k.arg in ('net_proceeds','gas')}
+        self.assertEqual(net_expressions(old_methods['exit_quote']),net_expressions(new_methods['exit_quote']))
+        def stale_expression(node):
+            return ast.dump(next(n.test for n in ast.walk(node) if isinstance(n,ast.If)
+                and any(isinstance(a,ast.Constant) and a.value=='survivor_exit_quote_stale'
+                    for a in ast.walk(n))))
+        self.assertEqual(stale_expression(old_methods['validate_exit']),stale_expression(new_methods['validate_exit']))
         def constants(tree):
             return [ast.dump(n) for n in tree.body if isinstance(n,(ast.Assign,ast.AnnAssign))]
         self.assertEqual(constants(original),constants(current))
