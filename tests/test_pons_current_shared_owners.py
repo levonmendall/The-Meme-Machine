@@ -45,7 +45,10 @@ class CurrentSharedOwnerTests(unittest.TestCase):
             def trace_native(book,identity,**kwargs):
                 result=original_advance(book,identity,**kwargs)
                 if now_clock()>=105:events.append(dict(identity=identity,action=kwargs['action'],
-                    completed_monotonic=now_clock(),tokens=result['tokens'],status=result['status']))
+                    completed_monotonic=now_clock(),native_at=kwargs['now'],native_due=result.get('due'),
+                    quote_event_at=kwargs['quote'].stamp.event_at if kwargs.get('quote') is not None else None,
+                    quote_observed_at=kwargs['quote'].stamp.observed_at if kwargs.get('quote') is not None else None,
+                    tokens=result['tokens'],status=result['status']))
                 return result
             stack.enter_context(patch.object(SelectivePaper,'advance',trace_native))
             def deterministic_clock(book,*args,**kwargs):
