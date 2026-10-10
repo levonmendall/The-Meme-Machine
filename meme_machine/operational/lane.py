@@ -98,7 +98,14 @@ def run_native(root,lane):
                     if requested.wait(15):return
             with localcontext() as context:
                 context.prec=80
-                capital=int(Decimal('125')*(Decimal(10)**value.decimals)/value.usd_per_unit)
+                from meme_machine.shared_capital.runtime import selected,connection
+                shared=selected(Path(root)/'portfolio.sqlite')
+                # Native journal genesis is attribution, never a second cash
+                # authority. Preserve old genesis and bind a new shared book to
+                # its immutable total inception; live sizing compounds elsewhere.
+                ledger=connection(shared).ledger() if shared else None
+                equity=Decimal(ledger['initial_capital']) if ledger and ledger['policy']['sizing_basis']=='shared_realized_equity' else Decimal('125')
+                capital=int(equity*(Decimal(10)**value.decimals)/value.usd_per_unit)
             _atomic_json(path,dict(capital=capital,valuation=value.evidence(int(time.time()))))
     if lane=='pump':
         from meme_machine.lanes.pump import runner

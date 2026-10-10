@@ -18,6 +18,11 @@ def sizing_comparison(ledger, regime_name):
         raise CapitalError("lp_sizing_remains_strategy_native")
     from .authority import realized_equity
     family = FAMILIES[r]
+    if ledger['policy']['sizing_basis']=='shared_realized_equity' and not ledger['family_sizing_genesis']:
+        equity=realized_equity(ledger)
+        return wire(dict(default='shared_realized_equity',portfolio_realized_sizing_base=equity,
+            shared_equity_request=scaled(max(ZERO,equity),500),shared_add_ceiling=scaled(max(ZERO,equity),250),
+            shared_position_ceiling=scaled(max(ZERO,equity),750)))
     equivalent = money(ledger["family_sizing_genesis"][family]) + sum(
         (money(ledger["realized"][other]) for other in REGIMES if FAMILIES[other] == family), ZERO)
     equity = realized_equity(ledger)

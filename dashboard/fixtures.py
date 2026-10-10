@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 import hashlib
 import json
+import tempfile
 from pathlib import Path
 from .model import canonical, inception_receipt, LANES
 
@@ -71,10 +72,29 @@ def example():
     return epoch, export, telemetry
 
 
-def write(directory):
+def shared_example():
+    """Explicit new-epoch UI fixture from the same capital/reporting reducers."""
+    from contextlib import closing
+    from meme_machine.shared_capital import REGIMES,RiskPolicy
+    from meme_machine.shared_capital.operational_candidate import initialize_new_epoch,PumpPonsCapital
+    from meme_machine.shared_capital.reporting import export
+    epoch=inception_receipt('fixture-shared-1000',iso(FIXTURE_NOW-60),'synthetic-shared-inception',starting_capital='1000.00',shared=True)
+    ids=dict(source_sha='a'*40,policy_hash='b'*64,config_hash='c'*64)
+    contracts={r:dict(strategy_id=r,policy_hash='b'*64) for r in REGIMES}
+    with tempfile.TemporaryDirectory() as folder:
+        plan=initialize_new_epoch(Path(folder)/'new',epoch,portfolio_identities=ids,lane_identities={f:ids for f in LANES},
+            contracts=contracts,policy=RiskPolicy(sizing_basis='shared_realized_equity'))
+        with closing(PumpPonsCapital(Path(folder)/'fixture.sqlite')) as authority:
+            authority.install_migration(plan);projection=export(authority,at=FIXTURE_NOW);projection['mode']='fixture'
+    telemetry=dict(observed_at=FIXTURE_NOW,lanes={f:dict(phase='PAUSED' if f in ('meteora','ramses') else 'DISCOVERING',
+        paused=f in ('meteora','ramses'),pid=None,reconciled=True,accounting_reconciled=True) for f in LANES})
+    return epoch,projection,telemetry
+
+
+def write(directory,*,shared=False):
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
-    for name, data in zip(('inception', 'accounting', 'telemetry'), example()):
+    for name, data in zip(('inception', 'accounting', 'telemetry'), shared_example() if shared else example()):
         # Fixtures never overwrite any existing file, including canonical input.
         with (root/(name+'.json')).open('x') as file:
             json.dump(data, file, indent=2)
@@ -83,4 +103,6 @@ def write(directory):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory')
-    write(parser.parse_args().directory)
+    parser.add_argument('--shared-1000',action='store_true',help='Isolated zero-position shared-capital fixture')
+    args=parser.parse_args()
+    write(args.directory,shared=args.shared_1000)

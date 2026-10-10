@@ -147,6 +147,23 @@ class RuntimeCapital(PumpPonsCapital):
             state['runtime_owner_version']=state.get('runtime_owner_version',0)+1
             return state,dict(accepted=True)
         if action=='runtime_publish':
+            if state['inception'].get('sizing_basis')=='shared_realized_equity':
+                from .authority import risk_view
+                from meme_machine.portfolio_accounting import _decode_checkpoint
+                from meme_machine.runtime.usd_valuation import utc
+                risk=risk_view(state,at)
+                history=state.setdefault('reporting_history',_decode_checkpoint(state['migration_source']['replayed_state'])['history'])
+                values={'portfolio':amount(risk['marked_equity']) if risk['marked_equity'] is not None else None}
+                for family in set(FAMILIES.values()):
+                    value=sum((money(state['realized'][r]) for r in state['realized'] if FAMILIES[r]==family),Decimal(0))
+                    if risk['valuation_ready']:
+                        value+=sum((money(p['mark']['net_value'])-money(p['basis']) for p in state['positions'].values()
+                                    if p['status']=='OPEN' and FAMILIES[p['regime']]==family),Decimal(0))
+                    values[family]=amount(value) if risk['valuation_ready'] else None
+                when=utc(at)
+                history[:]=[h for h in history if h['at']!=when]
+                history.extend(dict(epoch_id=state['epoch_id'],series=key,at=when,value=value) for key,value in sorted(values.items()))
+                history[:]=history[-2000:]
             return state,dict(accepted=True)
         if action=='runtime_cancel':
             req_id=data['request_id'];queued=state.get('runtime_inbox',{}).pop(req_id,None)
