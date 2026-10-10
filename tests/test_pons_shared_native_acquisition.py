@@ -84,6 +84,7 @@ class SharedNativeAcquisitionTests(unittest.TestCase):
             stack.enter_context(patch('meme_machine.lanes.pons.pons_selective_acquisition._rpc',return_value=rpc))
             wall=time.perf_counter();cpu=time.process_time()
             result=r.step(admit=False)
+            rpc.native_completed_at=rpc.clock
             rpc.local_wall_seconds=time.perf_counter()-wall
             rpc.local_cpu_seconds=time.process_time()-cpu
         self.assertFalse(result['deferred_boundaries'],result['deferred_boundaries'])

@@ -169,6 +169,7 @@ def repair_current(count,action,rate,*,stagger=False,survivor_count=0):
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--capacity-repair',action='store_true',help='Incremental ed7 comparison and inactive resource profiles')
+    parser.add_argument('--family',choices=('all','current'),default='all',help='Reproduce only changed Current ownership paths when appropriate')
     args=parser.parse_args();network_guard()
     with Scratch() as scratch:
         if args.capacity_repair:
@@ -180,13 +181,15 @@ def main():
                     predecessor=REPAIR_BASE,offline=True))+'\n');progress.flush()
                 def recorded(row):
                     progress.write(json.dumps(row,sort_keys=True)+'\n');progress.flush();return row
-                survivors=[recorded(repair_survivor(n,a,rate)) for rate in (2,3,4) for n in counts for a in actions]
-                survivors.extend(recorded(repair_survivor(n,'partial_exit',rate,latency=rtt,sender_fallback=sender))
-                for n in (1,20) for rate in (2,3,4) for rtt,sender in ((.1,True),(.3,False),(.6,False)))
+                survivors=[]
+                if args.family=='all':
+                    survivors=[recorded(repair_survivor(n,a,rate)) for rate in (2,3,4) for n in counts for a in actions]
+                    survivors.extend(recorded(repair_survivor(n,'partial_exit',rate,latency=rtt,sender_fallback=sender))
+                        for n in (1,20) for rate in (2,3,4) for rtt,sender in ((.1,True),(.3,False),(.6,False)))
                 currents=[recorded(repair_current(n,a,rate)) for rate in (2,3,4) for n in counts for a in actions]
                 staggered=[recorded(repair_current(n,a,rate,stagger=True)) for n in (2,8,20) for a in actions for rate in (4,8,12)]
                 mixed=[recorded(repair_current(n,a,rate,survivor_count=n)) for n in (2,10) for a in actions for rate in (3,4,8,12)]
-            report=dict(schema='pr129-native-capacity-repair-v1',predecessor=REPAIR_BASE,
+            report=dict(schema='pr129-native-capacity-repair-v1',predecessor=REPAIR_BASE,reproduced_family=args.family,
                 code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
                 actual_market_provider_calls=0,actual_provider_bill_savings_usd=0,production_physical_rps=2,
                 alternative_resource_profiles_enabled=False,source_tariff_estimate=estimate({}),

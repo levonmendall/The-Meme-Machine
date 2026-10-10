@@ -24,6 +24,15 @@ class CurrentExitSharingTests(unittest.TestCase):
                 fill=next(e for e in row if e['action']=='exit')
                 self.assertGreaterEqual(fill['completed_monotonic']-intent['completed_monotonic'],2)
 
+    def test_single_exit_retains_native_identity_reuse_without_extra_provider_elements(self):
+        for factor in (.6,2.2):
+            old,a,_=self.run_native(1,sharing=True,price_factor=factor,exit_sharing=False)
+            new,b,_=self.run_native(1,sharing=True,price_factor=factor)
+            self.assertEqual(old[0]['final_position'],new[0]['final_position'])
+            self.assertEqual(old[0]['reconciliation'],new[0]['reconciliation'])
+            self.assertEqual(sum(len(r.transports) for r in a),sum(len(r.transports) for r in b))
+            self.assertEqual([dict(r.methods) for r in a],[dict(r.methods) for r in b])
+
     def test_one_two_four_eight_twelve_twenty_coincident_decisions_and_exits(self):
         for rate in (2,3,4):
             for count in (1,2,4,8,12,20):
@@ -85,3 +94,14 @@ class CurrentExitSharingTests(unittest.TestCase):
             self.assertEqual(p['realized_proceeds'],0)
             self.assertTrue(result['provider_recoveries'])
             self.assertTrue(result['reconciliation']['cash_basis_conservation'])
+
+    def test_real_clock_mixed_native_queue_and_execution_keep_original_accounting(self):
+        for current,survivors,rate in ((2,2,4),(10,10,8)):
+            results,rpcs,t=self.run_native(current,sharing=True,paced=True,latency=.1,price_factor=2.2,
+                rps=rate,survivor_count=survivors,real_time=True,allow_capacity_refusal=True)
+            self.assertTrue(t['mixed_survivor']['native_accounting_verified'])
+            self.assertTrue(all(r['reconciliation']['cash_basis_conservation'] for r in results))
+            print('REAL_CLOCK_MIXED_PARTIAL',json.dumps(dict(current=current,survivors=survivors,rps=rate,
+                physical_starts=sum(len(r.starts) for r in rpcs),starts=sorted(s for r in rpcs for s in r.starts),
+                responses=sorted(s for r in rpcs for s in r.responses),queue_wait_seconds=sum(sum(r.waits) for r in rpcs),
+                worker=t)),flush=True)

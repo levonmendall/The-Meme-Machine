@@ -103,6 +103,34 @@ class ExitCapacityRepairTests(unittest.TestCase):
         self.assertFalse(f.native_runtime.shared_held_executions)
         self.assertTrue(all(x['realization_taken'] for x in r))
 
+    def test_real_clock_native_partial_exits_include_cpu_queue_wait_and_final_commits(self):
+        import time
+        from tests import test_pons_shared_native_acquisition as shared
+        class RealRPC(capacity.ActiveRPC):
+            def __init__(self,**kwargs):
+                self.origin=time.perf_counter();super().__init__(**kwargs);self.real_latency=True
+            @property
+            def clock(self):return 100+time.perf_counter()-self.origin
+            @clock.setter
+            def clock(self,value):pass
+            def sleep(self,seconds):time.sleep(seconds)
+        for rate in (2,3):
+            for n in (1,2,20):
+                f=self.fixture()
+                def rpc(**kwargs):
+                    r=RealRPC(**kwargs,count=n,price_factor=2.2,rps=rate)
+                    f.addCleanup(r.close);return r
+                with patch.object(shared,'TraceRPC',side_effect=rpc):
+                    p,r,transport,result=f.run_positions(n,proved=True,moving_clock=True,
+                        before_step=lambda runtime,rpc:setattr(rpc,'origin',time.perf_counter()))
+                self.assertTrue(result['accounting']['reconciled'])
+                self.assertTrue(all(x['realization_taken'] for x in r))
+                if rate==3:self.assertLess(transport.native_completed_at-100,3)
+                print('REAL_CLOCK_SURVIVOR_PARTIAL',json.dumps(dict(positions=n,rps=rate,
+                    physical_starts=len(transport.starts),starts=transport.starts,responses=transport.responses,
+                    queue_wait_seconds=sum(transport.waits),complete_native_seconds=transport.native_completed_at-100,
+                    within_three_seconds=transport.native_completed_at<103,native_accounting_verified=True)),flush=True)
+
 
 class OfflineGovernorTests(unittest.TestCase):
     def open(self,root,profile,endpoint='https://offline.example/rpc',lane='pons'):

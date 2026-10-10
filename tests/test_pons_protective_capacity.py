@@ -63,7 +63,11 @@ class ActiveRPC(shared.TraceRPC):
             request_bytes=len(json.dumps(rows,separators=(',',':')).encode())
             self.request_bytes+=request_bytes
             if self.governor:http_started(request_bytes)
-            result=invoke();self.clock+=self.latency
+            result=invoke()
+            if getattr(self,'real_latency',False):
+                import time
+                time.sleep(self.latency)
+            else:self.clock+=self.latency
             size=len(json.dumps(result,separators=(',',':')).encode())
             self.bytes+=size;self.responses.append(self.clock)
             if self.governor:http_received(size)

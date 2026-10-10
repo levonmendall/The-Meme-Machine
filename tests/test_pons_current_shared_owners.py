@@ -32,8 +32,11 @@ class CurrentSharedOwnerTests(unittest.TestCase):
 
     def run_owners(self,count,*,sharing,stagger=False,paced=False,latency=0,failure=None,unavailable=False,advertised_latency=None,
                    price_factor=1.,rps=2,exit_sharing=True,survivor_count=0,allow_capacity_refusal=False,
-                   exit_transport_failure=False):
+                   exit_transport_failure=False,real_time=False):
         quote=accounting.PartialAccountingTests().quote;clock=[100.];sessions=[];thread_sessions={};events=[]
+        real_origin=[None]
+        def now_clock():
+            return clock[0]+(time.perf_counter()-real_origin[0] if real_time and real_origin[0] is not None else 0)
         with tempfile.TemporaryDirectory() as td,ExitStack() as stack:
             root=Path(td);plane_path=root/'candidate-evidence.sqlite'
             stack.enter_context(patch.dict(os.environ,{},clear=True))
@@ -41,12 +44,12 @@ class CurrentSharedOwnerTests(unittest.TestCase):
             original_advance=SelectivePaper.advance
             def trace_native(book,identity,**kwargs):
                 result=original_advance(book,identity,**kwargs)
-                if clock[0]>=105:events.append(dict(identity=identity,action=kwargs['action'],
-                    completed_monotonic=clock[0],tokens=result['tokens'],status=result['status']))
+                if now_clock()>=105:events.append(dict(identity=identity,action=kwargs['action'],
+                    completed_monotonic=now_clock(),tokens=result['tokens'],status=result['status']))
                 return result
             stack.enter_context(patch.object(SelectivePaper,'advance',trace_native))
             def deterministic_clock(book,*args,**kwargs):
-                kwargs.setdefault('clock_ns',lambda:int(clock[0]*10**9))
+                kwargs.setdefault('clock_ns',lambda:int(now_clock()*10**9))
                 return original_init(book,*args,**kwargs)
             stack.enter_context(patch.object(SelectivePaper,'__init__',deterministic_clock))
             plane=Plane(plane_path);history=CurrentHistory(plane,native.ENDPOINT)
@@ -82,22 +85,28 @@ class CurrentSharedOwnerTests(unittest.TestCase):
             transport_lock=threading.RLock()
             class ClockRPC(ActiveRPC):
                 @property
-                def clock(self):return clock[0]
+                def clock(self):return now_clock()
                 @clock.setter
-                def clock(self,value):clock[0]=value
+                def clock(self,value):
+                    if not real_time:clock[0]=value
+                def sleep(self,seconds):
+                    if real_time:time.sleep(seconds)
+                    else:super().sleep(seconds)
                 def purchase(self,*args,**kwargs):
+                    if real_time:return super().purchase(*args,**kwargs)
                     with transport_lock:return super().purchase(*args,**kwargs)
                 def value(self,method,params):
                     result=super().value(method,params)
-                    if (survivor_count and method=='eth_getBlockByNumber' and result['number']=='0x65'):
+                    if ((survivor_count or real_time) and method=='eth_getBlockByNumber' and result['number']=='0x65'):
                         # One fixed canonical market frontier at the common
                         # due instant, never renewed during execution.
                         result['timestamp']=hex(105)
                     return result
             def provider(endpoint):
-                rpc=(ClockRPC if paced or latency else ActiveRPC)(
+                rpc=(ClockRPC if paced or latency or real_time else ActiveRPC)(
                     proved=sharing,count=count,paced=paced,latency=latency,
                     admission_path=str(root/'provider.sqlite'),price_factor=price_factor,rps=rps)
+                rpc.real_latency=real_time
                 if advertised_latency is not None:
                     rpc.shared_quote_resources['max_latency_seconds']=advertised_latency
                 if failure=='fork':rpc.fork=True
@@ -105,7 +114,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 if exit_transport_failure:
                     batch=rpc.batch
                     def failed_exit(calls,**kwargs):
-                        if clock[0]>=107:rpc.failure='eth_call'
+                        if now_clock()>=107:rpc.failure='eth_call'
                         return batch(calls,**kwargs)
                     rpc.batch=failed_exit
                 sessions.append(rpc);thread_sessions[threading.get_ident()]=rpc
@@ -115,8 +124,8 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 stack.enter_context(patch('meme_machine.lanes.pons.pons_current_workers.exit_acquisition_request',return_value=None))
             stack.enter_context(patch('meme_machine.lanes.pons.pons_selective_acquisition._rpc',
                 side_effect=lambda *a,**kw:thread_sessions[threading.get_ident()]))
-            stack.enter_context(patch.object(paper.time,'time',side_effect=lambda:clock[0]))
-            stack.enter_context(patch.object(paper.time,'monotonic',side_effect=lambda:clock[0]))
+            stack.enter_context(patch.object(paper.time,'time',side_effect=now_clock))
+            stack.enter_context(patch.object(paper.time,'monotonic',side_effect=now_clock))
             native_steps=recovery._resume_receipt_steps
             def one_turn(*args,**kwargs):
                 # Bound the fixture to one actual native turn per recovered
@@ -148,7 +157,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     with patch.dict(os.environ,dict(MM_DIRECTIONAL_SLEEVE_DB=str(root/'survivor-sleeve'),
                             MM_DIRECTIONAL_COHORT_ID='mixed-survivor')):
                         r=survivor.Runtime(root/'survivor',10**18,'mixed-survivor',native.ENDPOINT)
-                    r.rpc=provider(native.ENDPOINT);r.deployments_verified=True;r.now=lambda:int(clock[0])
+                    r.rpc=provider(native.ENDPOINT);r.deployments_verified=True;r.now=lambda:int(now_clock())
                     r.rpc.fixture_consumer='survivor';mixed['native_events']=[]
                     for i in range(1,survivor_count+1):
                         token=native.address(i);row=r.history.graduate(token,native.graduation(i))
@@ -163,14 +172,14 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     transition=r.book.transition
                     def trace_transition(identity,action,*args,**kwargs):
                         result=transition(identity,action,*args,**kwargs)
-                        mixed['native_events'].append(dict(identity=identity,action=action,completed_monotonic=clock[0]))
+                        mixed['native_events'].append(dict(identity=identity,action=action,completed_monotonic=now_clock()))
                         return result
                     r.book.transition=trace_transition
                     survivor_ready.set();survivor_due.wait(20)
-                    mixed['first_required_at']=105.;mixed['started_at']=clock[0]
+                    mixed['first_required_at']=105.;mixed['started_at']=now_clock()
                     with patch('meme_machine.runtime.storage.compact_survivor'):
                         result=r.step(admit=False)
-                    mixed.update(completed_at=clock[0],result=result,
+                    mixed.update(completed_at=now_clock(),result=result,
                         positions=[r.book._load('mixed-survivor:position:'+str(i)) for i in range(1,survivor_count+1)])
                     mixed['risks']=[restore_risk(r.book,p['id']) for p in mixed['positions']]
                     mixed['native_accounting_verified']=r.book.replay()['verified'] and r.sleeve.reconcile()['reconciled']
@@ -183,7 +192,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 mixed_thread=threading.Thread(target=survivor_turn,name='native-mixed-survivor')
                 mixed_thread.start();self.assertTrue(survivor_ready.wait(15),mixed)
                 self.assertNotIn('error',mixed)
-            with LifecyclePool(max_workers=8,clock=lambda:clock[0]) as pool:
+            with LifecyclePool(max_workers=8,clock=now_clock) as pool:
                 futures=[pool.submit(recovery._resume_receipt,native.ENDPOINT,None,
                     (i,path,dict(curve=native.address(101+i),token=native.address(i+1),source_transaction='source'),None))
                     for i,path in enumerate(paths)]
@@ -205,6 +214,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     clock[0]=105.1
                 else:
                     clock[0]=105
+                if real_time:real_origin[0]=time.perf_counter()
                 survivor_due.set()
                 with pool.lock:pool.lock.notify_all()
                 # Advance only to the next native due boundary, never rewind
@@ -213,7 +223,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 while not (all(f.done() for f in futures) and (not survivor_count or survivor_done.is_set())):
                     if time.perf_counter()>until:self.fail('bounded native Current turn did not finish')
                     with pool.lock:
-                        if pool.counts['active_physical_workers']==0 and (not survivor_count or survivor_done.is_set()):
+                        if not real_time and pool.counts['active_physical_workers']==0 and (not survivor_count or survivor_done.is_set()):
                             dues=[row[0] for worker in pool.workers for row in worker['queue']]
                             if dues:clock[0]=max(clock[0],min(dues));pool.lock.notify_all()
                     time.sleep(.002)
@@ -250,10 +260,11 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 mixed_thread.join(15);self.assertFalse(mixed_thread.is_alive());self.assertNotIn('error',mixed)
                 self.assertTrue(mixed['native_accounting_verified'])
                 telemetry['mixed_survivor']=mixed
-            telemetry['complete_modeled_seconds']=clock[0]-105
+            telemetry['complete_modeled_seconds']=now_clock()-105
             telemetry['native_events']=events
+            telemetry['real_clock_with_injected_transport_sleep']=real_time
             telemetry['complete_modeled_with_local_seconds']=(telemetry['complete_modeled_seconds']+
-                telemetry['native_local_wall_seconds'])
+                (0 if real_time else telemetry['native_local_wall_seconds']))
             return results,sessions,telemetry
 
     def test_whole_native_two_current_owners_share_history_quotes_and_preserve_each_ledger(self):

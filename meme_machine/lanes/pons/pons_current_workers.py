@@ -254,6 +254,10 @@ class LifecyclePool:
                     selected.append(other)
                     if len(selected)==20:break
             if len(selected)==20:break
+        # One exit already has the native block-scoped identity reuse and the
+        # same three transports. A shared adapter would repurchase code and
+        # manager evidence without reducing physical starts.
+        if execution and len(selected)==1:return None,None
         future=Future()
         for other in selected:other['acquisition_future']=future
         self.counts['shared_acquisitions']+=int(len(selected)>1)
