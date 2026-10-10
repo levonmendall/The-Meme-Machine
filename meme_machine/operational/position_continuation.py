@@ -24,9 +24,13 @@ PHASES=('BOOTSTRAP','CONTINUATION','RECOVERY','FAULT','FLAT')
 
 def validate_envelope(row):
     """Explicit finite operational allowances, never provider account quotas."""
-    if row.get('schema')!='paper-position-continuation-resources-v1':
+    if row.get('schema') not in ('paper-position-continuation-resources-v1','paper-position-maintenance-resources-v2'):
         raise CapitalError('explicit_continuation_resource_envelope_required')
-    if row.get('maximum_seconds')!=TOTAL_SECONDS or row.get('recovery_seconds')!=EXIT_RECOVERY_SECONDS:
+    maintenance=row['schema']=='paper-position-maintenance-resources-v2'
+    if (row.get('recovery_seconds')!=EXIT_RECOVERY_SECONDS or
+            (not maintenance and row.get('maximum_seconds')!=TOTAL_SECONDS) or
+            (maintenance and (row.get('maximum_seconds') is not None or
+                row.get('holding_time_exit') is not False or row.get('cumulative_usage') is not True))):
         raise CapitalError('original_hold_and_bounded_exit_recovery_required')
     for phase in ('continuation','recovery'):
         limits=row.get(phase,{})
@@ -208,12 +212,15 @@ def tick(supervisor):
             budget.set_phase('FLAT','all_positions_exited_and_reconciled')
             supervisor.stop_requested=True
     if outstanding(state):
-        # Hard service deadlines are absolute, not renewed per systemd restart.
-        # Native 72h/36h clocks still evaluate at their original economic times.
-        if now>=scope['started_at']+TOTAL_SECONDS-SHUTDOWN_SECONDS:
+        # The legacy acceptance wall stays absolute on restart. The separately
+        # selected maintenance schema has no position/service age ceiling, but
+        # retains every cumulative purchase, byte, spending and incident bound.
+        wall=budget.envelope['maximum_seconds']
+        if wall is not None and now>=scope['started_at']+wall-SHUTDOWN_SECONDS:
             budget.set_phase('FAULT','original_continuation_and_exit_recovery_deadline_exhausted')
-        elif now>=scope['funding_until']+HOLD_SECONDS and budget.phase() not in ('RECOVERY','FAULT'):
-            budget.set_phase('RECOVERY','original_maximum_hold_expired_exit_or_reconciliation_pending')
+        elif (wall is not None and now>=scope['started_at']+wall-EXIT_RECOVERY_SECONDS-SHUTDOWN_SECONDS
+                and budget.phase() not in ('RECOVERY','FAULT')):
+            budget.set_phase('RECOVERY','finite_operating_window_exhausted_protection_degraded')
         if budget.phase()=='RECOVERY':
             from .bounded_provider import Budget
             recovery=Budget(budget.path,phase='recovery')
@@ -242,7 +249,7 @@ def provider_failure(supervisor,reason):
         row=db.execute("SELECT value FROM run WHERE key='provider_degraded_at'").fetchone()
         at=int(row[0]) if row else now
         db.execute('INSERT OR IGNORE INTO run VALUES(?,?)',('provider_degraded_at',str(at)))
-        detail=dict(phase='DEGRADED',reason=reason,at=at,deadline=at+EXIT_RECOVERY_SECONDS,
+        detail=dict(phase='DEGRADED',state='DEGRADED_PROTECTION',reason=reason,at=at,deadline=at+EXIT_RECOVERY_SECONDS,
             funding_closed=True,protected=False,action='restore_authenticated_market_evidence_and_exit_connectivity')
         db.execute('INSERT INTO run VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
             ('provider_fault',json.dumps(detail)))

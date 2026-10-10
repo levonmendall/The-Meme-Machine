@@ -821,8 +821,7 @@ class LongHoldStorageTests(unittest.TestCase):
                 buy_quote=300,sell_quote=100,soft_deterioration_streak=0)
             action=runner_action(**args);self.assertEqual(action,original_risk.runner_action(**args))
             action=current._bridge_action(state,dict(facts,observed_at=at),action,p,now=at)
-            if turn<25920:self.assertEqual(action['action'],'hold')
-            else:self.assertEqual((action['action'],action['reason']),('full_exit','max_total_hold'))
+            self.assertEqual(action['action'],'hold')
             q,ledger=self.quote(at,'sell',750,2+77*(10000+rbps)//10000,
                 label='selective-v4-mark-'+str(p['version']),block=1020+50*turn)
             state.remember_action(action,p)
@@ -838,7 +837,14 @@ class LongHoldStorageTests(unittest.TestCase):
                 state=LifecycleState.restore(self.paper,'x');self.paper.controller_context=state.checkpoint
                 self.assertEqual(vars(state),checkpoint);self.assertEqual(self.paper.reconcile(),before)
                 self.assertEqual(state.opened_at,102);self.assertTrue(state.partial_taken)
-        self.clock[0]=129702;pending=self.paper.advance('x',now=129702,action='exit_intent',exit_tokens=750)
+        # The old 36h boundary grants no sale. A later genuine giveback does,
+        # and its pending intent remains irreversible through a price rebound.
+        action=runner_action(**dict(args,after_cost_return_bps=1000))
+        action=current._bridge_action(state,dict(facts,after_cost_return_bps=1000),action,p,now=129707)
+        self.assertEqual(action['action'],'full_exit');state.remember_action(action,p)
+        self.clock[0]=129707;q,ledger=self.quote(129707,'sell',750,85,label='selective-v4-mark-stop')
+        p=self.paper.advance('x',now=129707,action='mark',quote=q,finality_ledger=ledger)
+        pending=self.paper.advance('x',now=129707,action='exit_intent',exit_tokens=750)
         # A missing provider quote cannot settle. The native intent survives restart.
         self.assertEqual(pending['status'],'exit_pending');before=self.paper.reconcile()
         self.store.close();self.store=Store(self.path,max_records=8192)
@@ -937,9 +943,9 @@ class LongHoldHistoryTests(unittest.TestCase):
                     observation=dict(id=header['hash'],at=at,after_cost_return_bps=12000+turn,
                         creator_distribution=False,exit_liquidity_valid=True,soft_deterioration=False)
                     state,action=mark(state,observation,risk_policy());old,prior=legacy.mark(old,observation,risk_policy())
-                    self.assertEqual((state,action),(old,prior));self.assertEqual(state['opened_at'],100)
-                    if turn<86400:self.assertEqual(action['action'],'hold')
-                    else:self.assertEqual((action['action'],action['reason']),('full_exit','maximum_hold'))
+                    if turn<86400:self.assertEqual((state,action),(old,prior))
+                    else:self.assertEqual((prior['action'],prior['reason']),('full_exit','maximum_hold'))
+                    self.assertEqual(state['opened_at'],100);self.assertEqual(action['action'],'hold')
                     if turn%1200==0:
                         points,events=history.facts(row['id'],at)
                         maximum_points=max(maximum_points,len(points));maximum_events=max(maximum_events,len(events))

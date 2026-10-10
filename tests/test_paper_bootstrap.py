@@ -21,15 +21,15 @@ class AdmissionTests(unittest.TestCase):
     queue=native_tests.RuntimeIntegrationTests.queue
     native_position=native_tests.RuntimeIntegrationTests.native_position
 
-    def scope(self,a,now,root,*,arm=True):
+    def scope(self,a,now,root,*,arm=True,resources=None):
         from tests.test_position_continuation import envelope,proof
         from meme_machine.operational.bounded_provider import PhaseBudget
         # The provider and accounting scopes share the same original start.
         # Fixture setup can cross a wall-clock second under a full suite.
         with patch('time.time',return_value=now):
-            budget=Budget.create(root/'bootstrap-test.sqlite',continuation=envelope())
+            budget=Budget.create(root/'bootstrap-test.sqlite',continuation=resources or envelope())
         data=dict(mode='OBSERVATION',run_id='offline-test',pid=os.getpid(),
-            process_start=process_identity(os.getpid()),provider_db=str(budget.path),continuation_envelope=envelope())
+            process_start=process_identity(os.getpid()),provider_db=str(budget.path),continuation_envelope=resources or envelope())
         a.command('observe','runtime_admission',data,now)
         if arm:a.command('arm','runtime_admission',dict(data,mode='BOOTSTRAP',continuation_ready=proof()),now)
         return PhaseBudget(budget.path),data

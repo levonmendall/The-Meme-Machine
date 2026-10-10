@@ -1079,8 +1079,7 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 active.pop(key,None)
             row['position_safety']=dict(at=now,evidence_current=True,exit_quote_available=True,blocker=None)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
-            if (life.position is not None and now-life.position.opened_at>=129600
-                    and (life.position.exceptional or getattr(sessions,'exceptional_context',None) is not None)):
+            if life.position is not None:
                 life.exceptional_exit_intent('exceptional_authenticated_evidence_unavailable',now)
             row['position_safety']=dict(at=now,evidence_current=False,
                 blocker='pump_current_native_monitor_failed:'+type(exc).__name__)

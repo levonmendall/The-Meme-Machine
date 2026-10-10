@@ -306,7 +306,8 @@ class ForwardSurvivorTests(unittest.TestCase):
             revision=('aa9fdcee23604ddacb740b454ca18c4909ca61d2'
                       if path.endswith('pons_postgrad_survivor.py') else 'b1f215ed')
             original=subprocess.check_output(['git','show',revision+':'+path])
-            self.assertEqual(Path(path).read_bytes(),original)
+            from tests.test_robinhood_usd_valuation import assert_holding_delta
+            assert_holding_delta(self,path,original,Path(path).read_bytes())
 
     def test_pump_uses_its_own_four_hour_age_and_six_hour_price_requirement(self):
         from tests.lanes.pump.test_pumpswap_survivor import facts

@@ -34,9 +34,9 @@ class LifecycleTests(unittest.TestCase):
     from tests.test_pump_pons_capital_preparation import RuntimeIntegrationTests as Native
     fixture=Native.fixture;native_position=Native.native_position
 
-    def service(self,*,armed=True):
+    def service(self,*,armed=True,resources=None):
         from tests.test_paper_bootstrap import AdmissionTests
-        root,a,now,_=self.fixture();budget,data=AdmissionTests.scope(self,a,now,root,arm=armed)
+        root,a,now,_=self.fixture();budget,data=AdmissionTests.scope(self,a,now,root,arm=armed,resources=resources)
         s=Supervisor(root,offline=True,admission='BOOTSTRAP');s.shared_capital=a;s.run_id=data['run_id']
         s.provider_budget=budget;s.admission_data=data;s.bootstrap_armed=armed
         s.processes={lane:SimpleNamespace() for lane in ('pump','pons')}
@@ -144,13 +144,18 @@ class NativeHoldTests(unittest.TestCase):
             state=restore_risk(self.book,'run:one')
             self.assertEqual(state['opened_at'],10);self.assertEqual(state['high_water_bps'],4000)
             self.assertEqual(state['remaining_quantity'],300);self.assertTrue(state['realization_taken'])
+        self.assertEqual(action['action'],'hold');self.reopen()
+        self.adapter.at=259211
+        action=monitor(book=self.book,sleeve=self.sleeve,identity='run:one',
+            observation=dict(id='real-stop',at=259211,after_cost_return_bps=-1200,exit_liquidity_valid=True),
+            policy=policy,adapter=self.adapter)
         self.assertEqual(action['action'],'exit_pending');self.reopen()
-        risk=restore_risk(self.book,'run:one');self.assertEqual(risk['last_action']['reason'],'maximum_hold')
+        risk=restore_risk(self.book,'run:one');self.assertEqual(risk['last_action']['reason'],'hard_stop')
         self.assertEqual(self.book._load('run:one')['realized'],7)
-        self.adapter.at=259211;self.adapter.quote_available=True;self.adapter.proceeds=90
-        observation=dict(id='recovery',at=259211,after_cost_return_bps=4000,exit_liquidity_valid=True)
+        self.adapter.at=259214;self.adapter.quote_available=True;self.adapter.proceeds=90
+        observation=dict(id='recovery',at=259214,after_cost_return_bps=4000,exit_liquidity_valid=True)
         action=monitor(book=self.book,sleeve=self.sleeve,identity='run:one',observation=observation,policy=policy,adapter=self.adapter)
-        self.assertEqual(action['reason'],'maximum_hold');self.assertEqual(self.book._load('run:one')['status'],'settled')
+        self.assertEqual(action['reason'],'hard_stop');self.assertEqual(self.book._load('run:one')['status'],'settled')
         self.assertEqual(self.sleeve.reconcile()['available'],1022);self.assertTrue(self.book.replay()['verified'])
         before=deepcopy(self.book.reconcile())
         monitor(book=self.book,sleeve=self.sleeve,identity='run:one',observation=observation,policy=policy,adapter=self.adapter)

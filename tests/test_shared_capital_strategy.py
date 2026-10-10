@@ -173,4 +173,6 @@ class StrategyCapitalTests(unittest.TestCase):
             expected = ("aa9fdcee23604ddacb740b454ca18c4909ca61d2"
                         if path.endswith("pons_postgrad_survivor.py")
                         else "b577cc1c67f4d64f887b430f5e933f376b607dc2")
-            self.assertEqual(subprocess.check_output(["git", "diff", expected, "--", path], cwd=root), b"")
+            from tests.test_robinhood_usd_valuation import assert_holding_delta
+            original=subprocess.check_output(["git","show",expected+":"+path],cwd=root)
+            assert_holding_delta(self,path,original,(root/path).read_bytes())

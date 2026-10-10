@@ -16,15 +16,16 @@ def bridge_state(state,facts,*,now,ordinary_expired):
     updated=dict(state)
     if now<state['opened_at']:raise ValueError('bridge_time_regression')
     if state.get('bridged'):
-        return updated,now-state['opened_at']>=BRIDGE_SECONDS
+        return updated,False
     if not ordinary_expired:return updated,False
     eligible=(state.get('realization_taken') is True and state.get('high_water_bps',0)>=5000
-        and now-state['opened_at']<BRIDGE_SECONDS
         and all(facts.get(gate) is True for gate in BRIDGE_GATES))
     if eligible:
         updated.update(bridged=True,bridged_at=now,bridge_deadline=state['opened_at']+BRIDGE_SECONDS)
         return updated,False
-    return updated,True
+    # Bridge classification and its old checkpoint are telemetry, not holding
+    # permission. Ordinary healthy positions need neither profit nor a bridge.
+    return updated,False
 
 
 def scale_budget(state,facts,*,now,sleeve,execution_allowance):

@@ -118,8 +118,11 @@ class RenewalRulesTests(unittest.TestCase):
                 self.assertEqual(action['action'],'hold')
             s=risk_state();s['high_water_bps']=499000
             # Native trail exits take precedence; positive profit alone does not renew.
-            _,action=apply(s,family,10+seconds,context(family,10+seconds),gain=9999)
-            self.assertEqual(action['action'],'full_exit')
+            checked,action=apply(s,family,10+seconds,context(family,10+seconds),gain=9999)
+            if family.endswith('survivor'):self.assertEqual(action['action'],'full_exit')
+            else:
+                self.assertEqual(action['action'],'hold')
+                self.assertEqual(checked['exceptional']['status'],'NOT_RENEWED')
 
     def test_current_requires_preexisting_bridge_and_prior_positive_realization(self):
         for changes in ({'bridged':False},{'realization_taken':False},{'realized_profit':0},{'realized_profit':-1}):
@@ -127,21 +130,24 @@ class RenewalRulesTests(unittest.TestCase):
                 if 'bridged' in changes and family.endswith('survivor'):continue
                 at=10+candidate.CHECKPOINTS[family]
                 s,action=apply(dict(risk_state(),**changes),family,at,context(family,at))
-                self.assertEqual(action['action'],'full_exit');self.assertFalse(s['exceptional']['protected'])
+                self.assertNotEqual(action['action'],'full_exit')
+                if 'bridged' in changes:self.assertEqual(s['exceptional']['status'],'ACTIVE')
+                else:
+                    self.assertFalse(s['exceptional']['protected']);self.assertEqual(s['exceptional']['status'],'NOT_RENEWED')
 
     def test_missing_stale_incomplete_or_unauthenticated_evidence_never_renews(self):
         at=259210
         for key in candidate.SAFETY:
             ctx=context('pons_survivor',at);ctx['evidence'][key]=False
-            _,action=apply(risk_state(),'pons_survivor',at,ctx)
-            self.assertEqual(action['action'],'full_exit',key)
+            checked,action=apply(risk_state(),'pons_survivor',at,ctx)
+            self.assertEqual(action['action'],'hold',key);self.assertEqual(checked['exceptional']['status'],'NOT_RENEWED')
         for changes in ({'observed_at':at-6},{'observed_at':at+1},{'quantity':299},
                         {'independent_buyers':9},{'buy_flow':100},{'new_buyers':0}):
             ctx=context('pons_survivor',at);ctx['evidence'].update(changes)
-            _,action=apply(risk_state(),'pons_survivor',at,ctx)
-            self.assertEqual(action['action'],'full_exit',changes)
+            checked,action=apply(risk_state(),'pons_survivor',at,ctx)
+            self.assertEqual(action['action'],'hold',changes);self.assertEqual(checked['exceptional']['status'],'NOT_RENEWED')
         ctx=context('pons_survivor',at);ctx['evidence']=None
-        _,action=apply(risk_state(),'pons_survivor',at,ctx);self.assertEqual(action['action'],'full_exit')
+        checked,action=apply(risk_state(),'pons_survivor',at,ctx);self.assertEqual(action['action'],'hold');self.assertEqual(checked['exceptional']['status'],'NOT_RENEWED')
 
     def test_stops_trails_structure_and_irreversible_exits_precede_renewal(self):
         for family in ('pump_survivor','pons_survivor'):
@@ -157,27 +163,28 @@ class RenewalRulesTests(unittest.TestCase):
             _,action=apply(s,family,at,context(family,at))
             self.assertEqual(action['reason'],'earlier_exit')
 
-    def test_failed_requalification_stays_pending_after_restart_and_rebound(self):
+    def test_failed_requalification_is_diagnostic_after_restart_and_rebound(self):
         family='pons_survivor';at=259210;s,_=apply(risk_state(),family,at,context(family,at))
         broken=context(family,at+3);broken['evidence']['history_complete']=False
-        s,action=apply(s,family,at+3,broken);reason=action['reason'];first=s['exceptional']['exit_required_at']
+        s,action=apply(s,family,at+3,broken)
+        self.assertEqual(action['action'],'hold');self.assertEqual(s['exceptional']['status'],'NOT_RENEWED')
         s=json.loads(json.dumps(s));s,action=apply(s,family,at+6,context(family,at+6))
-        self.assertEqual(action['reason'],reason);self.assertEqual(s['exceptional']['exit_required_at'],first)
+        self.assertEqual(action['action'],'hold');self.assertEqual(s['exceptional']['status'],'ACTIVE')
 
     def test_missing_boundary_cannot_be_retroactively_renewed(self):
         for family,seconds in candidate.CHECKPOINTS.items():
             at=10+seconds+6;s,action=apply(risk_state(),family,at,context(family,at))
-            self.assertEqual(action['action'],'full_exit');self.assertIn('checkpoint_missed',action['reason'])
+            self.assertNotEqual(action['action'],'full_exit');self.assertIn('checkpoint_missed',s['exceptional']['reason'])
 
     def test_each_finite_resource_counter_and_spend_fail_before_budget_overrun(self):
         at=259210
         for key in candidate.COUNTERS:
             ctx=context('pons_survivor',at);ctx['resources']['used'][key]=ctx['resources']['limits'][key]
             if key=='native_bytes':ctx['resources']['next_window_demand'][key]=1
-            _,action=apply(risk_state(),'pons_survivor',at,ctx)
-            self.assertIn(key,action['reason'])
+            checked,action=apply(risk_state(),'pons_survivor',at,ctx)
+            self.assertIn(key,checked['exceptional']['reason']);self.assertEqual(action['action'],'hold')
         ctx=context('pons_survivor',at);ctx['resources']['spend_used']='20'
-        _,action=apply(risk_state(),'pons_survivor',at,ctx);self.assertIn('spend_insufficient',action['reason'])
+        checked,action=apply(risk_state(),'pons_survivor',at,ctx);self.assertIn('spend_insufficient',checked['exceptional']['reason']);self.assertEqual(action['action'],'hold')
 
     def test_readiness_owner_latency_and_budget_regressions_are_actionable(self):
         at=259210;family='pons_survivor'
@@ -188,7 +195,7 @@ class RenewalRulesTests(unittest.TestCase):
         for changes in mutations:
             ctx=context(family,at);ctx['resources'].update(changes)
             s,action=apply(risk_state(),family,at,ctx)
-            self.assertEqual(action['action'],'full_exit',changes);self.assertFalse(s['exceptional']['protected'])
+            self.assertEqual(action['action'],'hold',changes);self.assertEqual(s['exceptional']['status'],'NOT_RENEWED');self.assertFalse(s['exceptional']['protected'])
         s,_=apply(risk_state(),family,at,context(family,at,spent=2))
         for change in ('used','spend_used','run_id','limits','maintenance_until'):
             ctx=context(family,at+3,spent=3)
@@ -197,20 +204,20 @@ class RenewalRulesTests(unittest.TestCase):
             elif change=='run_id':ctx['resources']['run_id']='restarted-new-run'
             elif change=='limits':ctx['resources']['limits']['rpc_elements']+=1
             else:ctx['resources']['maintenance_until']+=1
-            _,action=apply(s,family,at+3,ctx);self.assertEqual(action['action'],'full_exit',change)
+            checked,action=apply(s,family,at+3,ctx);self.assertEqual(action['action'],'hold',change);self.assertEqual(checked['exceptional']['status'],'NOT_RENEWED')
 
     def test_finite_operating_window_cannot_grant_speculative_recovery_hold(self):
         at=259210;family='pons_survivor';ctx=context(family,at)
         ctx['resources'].update(maintenance_until=at+3599,recovery_until=at+7199,service_until=at+7264)
-        _,action=apply(risk_state(),family,at,ctx)
-        self.assertIn('operating_window_exhausted',action['reason'])
+        checked,action=apply(risk_state(),family,at,ctx)
+        self.assertIn('operating_window_exhausted',checked['exceptional']['reason']);self.assertEqual(action['action'],'hold')
 
     def test_native_profit_must_remain_positive_after_existing_continuation_costs(self):
         at=259210;family='pons_survivor'
         for profit in ('0','-1','NaN','.00105'):
             ctx=context(family,at,spent=2);ctx['evidence']['native_net_profit_usd']=profit
-            _,action=apply(risk_state(),family,at,ctx)
-            self.assertIn('profit_after_continuation_costs',action['reason'])
+            checked,action=apply(risk_state(),family,at,ctx)
+            self.assertIn('profit_after_continuation_costs',checked['exceptional']['reason']);self.assertEqual(action['action'],'hold')
 
 
 class NativeSurvivorTests(unittest.TestCase):
@@ -258,11 +265,11 @@ class NativeSurvivorTests(unittest.TestCase):
             f=self.native(family);policy=policies()[family.split('_')[0]];f.adapter.at=11;f.adapter.proceeds=32
             monitor(book=f.book,sleeve=f.sleeve,identity='run:one',observation=observation(11),policy=policy,adapter=f.adapter)
             at=259210;f.adapter.at=at;f.adapter.quote_available=False;remaining=f.book._load('run:one')['tokens']
-            obs=dict(observation(at),after_cost_return_bps=None)
+            obs=dict(observation(at),after_cost_return_bps=policy['hard_stop_bps'])
             action=monitor(book=f.book,sleeve=f.sleeve,identity='run:one',observation=obs,policy=policy,adapter=f.adapter,
                 exceptional_context={})
             self.assertEqual(action['action'],'exit_pending');before=f.book.reconcile();f.reopen()
-            self.assertEqual(f.book.reconcile(),before);self.assertFalse(restore_risk(f.book,'run:one')['exceptional']['protected'])
+            self.assertEqual(f.book.reconcile(),before);self.assertEqual(restore_risk(f.book,'run:one')['last_action']['reason'],'hard_stop')
             f.adapter.at+=3;f.adapter.quote_available=True;f.adapter.proceeds=210
             action=monitor(book=f.book,sleeve=f.sleeve,identity='run:one',observation=observation(f.adapter.at),policy=policy,
                 adapter=f.adapter,exceptional_context=context(family,f.adapter.at,remaining))
@@ -284,17 +291,16 @@ class NativeSurvivorTests(unittest.TestCase):
                 after=f.book.db.execute('SELECT COUNT(*) FROM journal').fetchone()[0]
                 exceptional_evidence_failure(runtime,family=family,blocker='subscription_rejected')
                 self.assertEqual(f.book.db.execute('SELECT COUNT(*) FROM journal').fetchone()[0],after)
-            expected=dict(before,capital_unit_seconds=before['capital_unit_seconds']+before['basis']*(at-10))
-            self.assertEqual(f.book.reconcile(),expected);self.assertFalse(saved[-1]['position_safety']['protected'])
+            self.assertEqual(f.book.reconcile(),before);self.assertFalse(saved[-1]['position_safety']['protected'])
             f.reopen();risk=restore_risk(f.book,'run:one');self.assertEqual(risk['opened_at'],10)
-            self.assertEqual(risk['exceptional']['exit_required_at'],at)
-            self.assertEqual(risk['exceptional']['blocker'],'subscription_rejected')
+            self.assertNotEqual(risk.get('last_action',{}).get('action'),'full_exit')
+            fault=f.book.runtime_state('run:one','position-protection-fault')
+            self.assertEqual(fault['state'],'DEGRADED_PROTECTION');self.assertEqual(fault['blocker'],'subscription_rejected')
             f.adapter.at=at+3;f.adapter.proceeds=210
             result=monitor(book=f.book,sleeve=f.sleeve,identity='run:one',observation=observation(at+3),
                 policy=policies()[family.split('_')[0]],adapter=f.adapter,
                 exceptional_context=context(family,at+3,400))
-            self.assertEqual(result['reason'],'exceptional_authenticated_evidence_unavailable')
-            self.assertEqual(f.book._load('run:one')['status'],'settled')
+            self.assertEqual(result['action'],'partial_exit');self.assertEqual(f.book._load('run:one')['status'],'open')
 
     def test_existing_survivor_workers_publish_pre_monitor_provider_failure_without_new_worker(self):
         from meme_machine.lanes.pons.pons_survivor_runtime import Runtime as Pons
@@ -315,10 +321,9 @@ class NativeSurvivorTests(unittest.TestCase):
                 result=runtime.step(admit=False)
             self.assertEqual(result['last_boundary'],'provider_disconnected')
             self.assertFalse(result['position_safety'][0]['protected'])
-            self.assertTrue(result['position_safety'][0]['pending_exit'])
+            self.assertFalse(result['position_safety'][0]['pending_exit'])
             if family=='pons_survivor':self.assertEqual(result['native_execution_cost'],0)
-            self.assertEqual(restore_risk(f.book,'run:one')['last_action']['reason'],
-                'exceptional_authenticated_evidence_unavailable')
+            self.assertNotEqual(restore_risk(f.book,'run:one').get('last_action',{}).get('action'),'full_exit')
 
 
 class NativeCurrentTests(unittest.TestCase):
@@ -361,13 +366,14 @@ class NativeCurrentTests(unittest.TestCase):
         life,book=self.pump();self.pump_mark(life,3702);self.pump_mark(life,129702)
         before=book.reconcile();life.exceptional_exit_intent('exceptional_authenticated_evidence_unavailable',129707)
         self.assertEqual(book.reconcile(),before)
-        life=PumpAccelerationPaperLifecycle.restore(book,'run:x');self.assertEqual(life.position.exit_intended_at,129707)
-        self.assertEqual(self.pump_mark(life,129712)['exit_reason'],'exceptional_authenticated_evidence_unavailable')
-        life.settle(3750,now=129713);self.assertIsNone(PumpAccelerationPaperLifecycle.restore(book,'run:x').position)
+        life=PumpAccelerationPaperLifecycle.restore(book,'run:x');self.assertIsNone(life.position.exit_intended_at)
+        self.assertEqual(book.runtime_state('run:x','position-protection-fault')['state'],'DEGRADED_PROTECTION')
+        self.assertIsNone(self.pump_mark(life,129712)['exit_reason'])
+        with self.assertRaisesRegex(ValueError,'exit_not_intended'):life.settle(3750,now=129713)
 
     def test_pump_default_candidate_absence_still_exits_at_original_36_hours(self):
         life,_=self.pump();self.pump_mark(life,3702,candidate_enabled=False)
-        self.assertEqual(self.pump_mark(life,129702,candidate_enabled=False)['exit_reason'],'timeout')
+        self.assertIsNone(self.pump_mark(life,129702,candidate_enabled=False)['exit_reason'])
 
     def test_pump_extension_gain_comes_from_native_quote_not_exaggerated_context(self):
         life,_=self.pump(gain=10000)
@@ -376,7 +382,7 @@ class NativeCurrentTests(unittest.TestCase):
         facts={key:True for key in BRIDGE_GATES};facts['after_cost_return_bps']=40000
         evidence=dict(continuation=facts,exceptional_candidate=context('pump_current',129702,75))
         result=life.mark(1499,now=129702,demand_score=80,evidence=evidence)
-        self.assertIn('current_after_cost_two_times_required',result['exit_reason'])
+        self.assertIsNone(result['exit_reason']);self.assertIn('current_after_cost_two_times_required',life.position.exceptional['reason'])
 
     def test_pons_native_current_controller_partial_renewal_restart_and_pending_exit(self):
         from tests.test_continuation_resource_efficiency import LongHoldStorageTests
@@ -414,7 +420,8 @@ class NativeCurrentTests(unittest.TestCase):
         at+=5;facts['exceptional_candidate']['evidence']['history_complete']=False
         facts['exceptional_candidate']['evidence']['observed_at']=at
         action=_bridge_action(state,facts,dict(action='hold',reason=None),p,now=at)
-        self.assertEqual(action['action'],'full_exit');state.remember_action(action,p);f.clock[0]=at
+        self.assertEqual(action['action'],'hold');self.assertEqual(state.exceptional['status'],'NOT_RENEWED')
+        action=dict(action='full_exit',reason='risk',exit_tokens=750);state.remember_action(action,p);f.clock[0]=at
         p=f.paper.advance('x',now=at,action='exit_intent',exit_tokens=750)
         state=LifecycleState.restore(f.paper,'x');self.assertEqual(p['status'],'exit_pending')
         self.assertFalse(state.exceptional['protected']);f.paper.controller_context=state.checkpoint

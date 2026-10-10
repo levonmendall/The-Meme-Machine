@@ -343,8 +343,6 @@ def exit_action(
     """Full-exit lifecycle for the independent post-graduation position."""
     x=POLICY["exit"]
     current=int(after_cost_return_bps);high=max(current,int(high_water_return_bps))
-    if int(hold_seconds)>=x["max_hold_seconds"]:
-        return dict(action="full_exit",reason="max_hold")
     if current<=x["hard_stop_bps"]:
         return dict(action="full_exit",reason="hard_stop")
 
@@ -372,8 +370,6 @@ def exit_action(
         and current<x["no_new_high_return_ceiling_bps"]
     ):
         return dict(action="full_exit",reason="stale_thesis")
-    if int(hold_seconds)>=x["max_hold_seconds"]:
-        return dict(action="full_exit",reason="max_hold")
     return dict(action="hold",reason=None)
 
 

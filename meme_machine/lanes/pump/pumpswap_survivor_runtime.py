@@ -289,6 +289,7 @@ class Runtime:
         net=None if q is None else q['net_proceeds']
         flow={} if facts is None else buyer_persistence(facts['demand_events'],now=facts['now'],window_seconds=1800)
         observation=dict(id=str(state['slot']) if state else 'unavailable:'+str(self.now()),at=self.now(),
+            evidence_current=state is not None and facts is not None and q is not None,
             after_cost_return_bps=None if net is None else (net-position['basis'])*10000//position['basis'],
             net_exit_proceeds=position['mark'] if net is None else net,
             exit_liquidity_valid=True if q is not None else None,creator_distribution=facts is not None and not facts['creator_distribution_safe'],
@@ -303,7 +304,7 @@ class Runtime:
             exit_quote_available=q is not None,pending_exit=action['action']=='exit_pending',
             blocker='pump_survivor_authenticated_state_flow_or_exit_quote_unavailable')
         self.history.save(row)
-        if action['action']=='hold':
+        if action['action']=='hold' and row['position_safety']['evidence_current']:
             scale(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],
                 generation=row['generation'],adapter=self,qualify=evaluate_entry,ordinary_limit=600,
                 stress_limit=600,minimum=GAS*2+1)

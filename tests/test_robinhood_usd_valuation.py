@@ -35,6 +35,25 @@ def baseline(path):
         raise unittest.SkipTest('Historical source comparison needs the existing baseline commit') from None
 
 
+# Explicit owner-approved removal of holding-age sales. Every other economic
+# node stays pinned to the original nine-change source. These reviewed methods
+# have their own exact AST identities; valuation cannot change them implicitly.
+HOLDING_DELTAS = {'meme_machine/lanes/pump/pump_acceleration_strategy.py': {'exit_decision': 'a2c3d9c0755ac779dc77298eda3a0b88b33eb1e4e3ebada5b34b93dea1dd1535'}, 'meme_machine/lanes/pump/pump_acceleration_paper.py': {'PumpAccelerationPaperLifecycle.mark': '094bb23a9533d1f96183d0239482d3a49afeb55b29567268bc8c6493e87ba671', 'PumpAccelerationPaperLifecycle.exceptional_exit_intent': '6e31ca62cbc145ec2ad27a9cd46cde386772a4cf7f1a6753a171833929534e23', 'PumpAccelerationPaperLifecycle.restore': '0c4afd4cd3497e47a452baf809face20a756d114eb90b8c05c093f229b1a9065'}, 'meme_machine/lanes/pump/runner.py': {'_monitor_positions': '9ff7f86373d2598cf6a9fa0130822ba4aafb9a6b8bfce504e0d80e998b794ba1'}, 'meme_machine/lanes/pump/pumpswap_survivor_runtime.py': {'Runtime._position': 'eb6a182cd92506c80c0506dcef8894a7c14bdd698bbf7eec63a35fe39038dcf2'}, 'meme_machine/lanes/pons/pons_selective_continuation.py': {'pregraduation_action': '123c3c69fcb29d907ea62109e7b7fb96793470439114279ce6a74b791f253ee2'}, 'meme_machine/lanes/pons/pons_postgrad_survivor.py': {'exit_action': '53bae66b39c5e535693dfbf1f1c981263fab9d7206c2bd88e6362d811f9bb1a5'}, 'meme_machine/runtime/directional_continuation.py': {'bridge_state': 'ef830dabb4491bd7be1ed77599060e0e0d0b496a3655111b97deb330e6b16763'}, 'meme_machine/runtime/survivor_risk.py': {'mark': 'f3b06981eddd1e839624db849fe8c80fbfa2d520f0c17ed73f37922ce8581d19'}, 'tests/test_operational_nine.py': {'NineChanges.test_bridge_exact_age_and_all_required_evidence': 'd7890408ef6ac990d22ab3afafe32a4c68ecfbb82f5cff033ceae3dce4d92553'}}
+
+def assert_holding_delta(test, relative, original, current):
+    expected=HOLDING_DELTAS.get(relative,{})
+    old=ast.parse(original);new=ast.parse(current)
+    for name,pinned in expected.items():
+        before=old;after=new
+        for part in name.split('.'):
+            before=next(n for n in before.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part)
+            after=next(n for n in after.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part)
+        test.assertEqual(__import__('hashlib').sha256(ast.dump(after).encode()).hexdigest(),pinned,relative+':'+name)
+        # Retain the full function interface/decorators and every sibling node.
+        before.body=[ast.Pass()];after.body=[ast.Pass()]
+    test.assertEqual(ast.dump(old),ast.dump(new),relative)
+
+
 def abi(*values):
     return '0x'+''.join(f'{int(v,16) if isinstance(v,str) else v%(1<<256):064x}' for v in values)
 
@@ -401,8 +420,8 @@ class RobinhoodUSDTests(unittest.TestCase):
         # Keep that economic guard and the original nine changes. The owner's
         # PR #129 finalization names e1070404 as the implementation predecessor;
         # later reviewed transport/storage repairs are no longer USD changes.
-        self.assertEqual((ROOT/'tests/test_operational_nine.py').read_bytes(),
-                         baseline('tests/test_operational_nine.py'))
+        assert_holding_delta(self,'tests/test_operational_nine.py',
+            baseline('tests/test_operational_nine.py'),(ROOT/'tests/test_operational_nine.py').read_bytes())
         economic_reference='b1f215edd3dc079b623401c7e09e9c91a380e6a0'
         for rel in ('meme_machine/lanes/pump/pump_acceleration_strategy.py',
                     'meme_machine/lanes/pump/pumpswap_survivor.py',
@@ -411,15 +430,19 @@ class RobinhoodUSDTests(unittest.TestCase):
                     'meme_machine/runtime/survivor_risk.py',
                     'operational/nine-change-implementation.json'):
             original=subprocess.check_output(['git','show',economic_reference+':'+rel],cwd=ROOT)
-            self.assertEqual((ROOT/rel).read_bytes(),original,rel)
+            assert_holding_delta(self,rel,original,(ROOT/rel).read_bytes())
         rel='meme_machine/lanes/pons/pons_postgrad_survivor.py'
         original=subprocess.check_output(['git','show',economic_reference+':'+rel],cwd=ROOT)
         def survivor_economics(content):
             # Explicit owner exception: remove the two-position selection veto.
-            # Policy identity, every qualification and every exit still pin.
+            # Policy identity and every qualification still pin; the owner's
+            # holding-age exit removal is separately pinned below.
             return [ast.dump(n) for n in ast.parse(content).body
-                if not isinstance(n,ast.FunctionDef) or n.name!='select_entries']
+                if not isinstance(n,ast.FunctionDef) or n.name not in ('select_entries','exit_action')]
         self.assertEqual(survivor_economics(original),survivor_economics((ROOT/rel).read_bytes()))
+        approved=ast.parse((ROOT/rel).read_bytes())
+        node=next(n for n in approved.body if isinstance(n,ast.FunctionDef) and n.name=='exit_action')
+        self.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),HOLDING_DELTAS[rel]['exit_action'])
         active='e1070404849dfa86eb3e47d57cf24263b2fefc25'
         def source(path):
             return subprocess.check_output(['git','show',active+':'+path],cwd=ROOT)
@@ -440,10 +463,10 @@ class RobinhoodUSDTests(unittest.TestCase):
                         'meme_machine/lanes/pons/sequencer_feed.py',
                         'meme_machine/lanes/pons/abi.py'}
         for rel in paths:
-            if rel not in infrastructure:self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
+            if rel not in infrastructure:assert_holding_delta(self,rel,source(rel),(ROOT/rel).read_bytes())
         for rel in ('meme_machine/runtime/directional_continuation.py','meme_machine/runtime/survivor_risk.py',
                     'operational/nine-change-implementation.json'):
-            self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
+            assert_holding_delta(self,rel,source(rel),(ROOT/rel).read_bytes())
         rel='meme_machine/lanes/pons/pons_history.py'
         # The only history reducer change is transport work order near the
         # original expiry. All native append, recovery and retention math pins.

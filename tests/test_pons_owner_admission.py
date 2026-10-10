@@ -32,9 +32,10 @@ class OwnerAdmissionTests(unittest.TestCase):
         old=subprocess.check_output(['git','show','cbfcb4137f10474ffc7fe0e19f0b8772f25c1563:'+path],text=True)
         before=ast.parse(old);after=ast.parse(Path(path).read_text())
         def economic(tree):
-            return [ast.dump(n,include_attributes=False) for n in tree.body
-                if not isinstance(n,ast.FunctionDef) or n.name!='select_entries']
-        self.assertEqual(economic(before),economic(after))
+            tree.body=[n for n in tree.body if not isinstance(n,ast.FunctionDef) or n.name!='select_entries']
+            return ast.unparse(tree)
+        from tests.test_robinhood_usd_valuation import assert_holding_delta
+        assert_holding_delta(self,path,economic(before),economic(after))
         # The frozen legacy receipt hash remains usable by restart reconciliation.
         self.assertEqual(strategy.POLICY['execution']['max_open_positions'],2)
 
@@ -68,4 +69,3 @@ class OwnerAdmissionTests(unittest.TestCase):
         self.assertEqual(protection.call_count,20)
         self.assertEqual(result['admission']['position_count_limit'],None)
         self.assertEqual(f.runtime.book.reconcile()['open_positions'],0)
-

@@ -784,7 +784,7 @@ class Runtime:
             exit_quote_available=q is not None,pending_exit=action['action']=='exit_pending',
             blocker='pons_survivor_authenticated_flow_or_exit_quote_unavailable')
         self.history.save(row)
-        if action['action']=='hold':
+        if action['action']=='hold' and row['position_safety']['evidence_current']:
             scale(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],
                 generation=row['generation'],adapter=self,qualify=self.qualify,ordinary_limit=450,
                 stress_limit=650,minimum=self.sleeve.sizing_basis(500,minimum_bps=5)["minimum"])
@@ -796,6 +796,7 @@ class Runtime:
         net=None if q is None else q['net_proceeds']
         record=row['graduation']['record'];creators={record.get('deployer'),record.get('creatorFeeRecipient')}
         return dict(id=header['hash'] if header else 'unavailable:'+str(self.now()),at=self.now(),
+            evidence_current=header is not None and flow is not None and q is not None,
             after_cost_return_bps=None if net is None else (net-p['basis'])*10000//p['basis'],
             net_exit_proceeds=p['mark'] if net is None else net,exit_liquidity_valid=True if q is not None else None,
             creator_distribution=any(not e['buy'] and e['group'] in creators for e in events),

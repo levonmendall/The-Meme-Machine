@@ -32,8 +32,8 @@ class CurrentSharedOwnerTests(unittest.TestCase):
 
     def run_owners(self,count,*,sharing,stagger=False,paced=False,latency=0,failure=None,unavailable=False,advertised_latency=None,
                    price_factor=1.,rps=2,exit_sharing=True,survivor_count=0,allow_capacity_refusal=False,
-                   exit_transport_failure=False,real_time=False):
-        quote=accounting.PartialAccountingTests().quote;clock=[100.];sessions=[];thread_sessions={};events=[]
+                   exit_transport_failure=False,real_time=False,holding_seconds=0):
+        quote=accounting.PartialAccountingTests().quote;clock=[100.];sessions=[];thread_sessions={};events=[];acquisition_errors=[]
         real_origin=[None]
         def now_clock():
             return clock[0]+(time.perf_counter()-real_origin[0] if real_time and real_origin[0] is not None else 0)
@@ -81,17 +81,21 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 state.graduation_at=50;state.graduation_block=50;state.post_grad_checked=True
                 store.put('graduation',state.transition['proof_hash'],state.transition)
                 book.advance(identity,now=97,action='transition',transition=state.transition)
-                header=dict(native.block_header(100),timestamp=hex(100))
-                history.remember(market,header,[],from_time=0)
+                header=dict(native.block_header(100),timestamp=hex(100+holding_seconds))
+                history.remember(market,header,[],from_time=max(0,100+holding_seconds-900) if holding_seconds else 0)
                 self.assertTrue(book.reconcile()['cash_basis_conservation']);store.close()
             plane.close()
+            # Restart the owner at the maintained canonical frontier. Entry
+            # remains at 96; advancing a not-yet-started scheduler by days would
+            # instead test an intentionally missed original monitor deadline.
+            if holding_seconds:clock[0]=100+holding_seconds
             transport_lock=threading.RLock()
             class ClockRPC(ActiveRPC):
                 @property
                 def clock(self):return now_clock()
                 @clock.setter
                 def clock(self,value):
-                    if not real_time:clock[0]=value
+                    if not real_time:clock[0]=value+holding_seconds if holding_seconds and value==100. else value
                 def sleep(self,seconds):
                     if real_time:time.sleep(seconds)
                     else:super().sleep(seconds)
@@ -100,10 +104,11 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     with transport_lock:return super().purchase(*args,**kwargs)
                 def value(self,method,params):
                     result=super().value(method,params)
-                    if ((survivor_count or real_time) and method=='eth_getBlockByNumber' and result['number']=='0x65'):
+                    if (method=='eth_getBlockByNumber' and
+                            (holding_seconds or ((survivor_count or real_time) and result['number']=='0x65'))):
                         # One fixed canonical market frontier at the common
                         # due instant, never renewed during execution.
-                        result['timestamp']=hex(105)
+                        result['timestamp']=hex((105 if int(result['number'],16)>=101 else 100)+holding_seconds) if holding_seconds else hex(105)
                     return result
             def provider(endpoint):
                 rpc=(ClockRPC if paced or latency or real_time else ActiveRPC)(
@@ -129,6 +134,13 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 side_effect=lambda *a,**kw:thread_sessions[threading.get_ident()]))
             stack.enter_context(patch.object(paper.time,'time',side_effect=now_clock))
             stack.enter_context(patch.object(paper.time,'monotonic',side_effect=now_clock))
+            from meme_machine.lanes.pons import pons_current_workers as workers
+            acquire=workers.acquire_current_owners
+            def checked_acquire(*args,**kwargs):
+                try:return acquire(*args,**kwargs)
+                except Exception as exc:
+                    acquisition_errors.append(str(exc));raise
+            stack.enter_context(patch.object(workers,'acquire_current_owners',checked_acquire))
             native_steps=recovery._resume_receipt_steps
             def one_turn(*args,**kwargs):
                 # Bound the fixture to one actual native turn per recovered
@@ -216,9 +228,9 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                                 rows.append((owner['due'],row[1],row[2],owner))
                             import heapq
                             worker['queue']=rows;heapq.heapify(worker['queue'])
-                    clock[0]=105.1
+                    clock[0]=105.1+holding_seconds
                 else:
-                    clock[0]=105
+                    clock[0]=105+holding_seconds
                 if real_time:real_origin[0]=time.perf_counter()
                 survivor_due.set()
                 with pool.lock:pool.lock.notify_all()
@@ -250,8 +262,10 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     else:self.assertEqual(len(result['monitor']),1,result)
                     if failure or unavailable:
                         self.assertFalse(result['monitor'][0]['available'])
-                    else:self.assertEqual(result['monitor'][0]['action']['action'],
-                        'hold' if price_factor==1 else ('full_exit' if price_factor==.6 else 'partial_exit'))
+                    else:
+                        self.assertIn('action',result['monitor'][0],(result['monitor'][0],acquisition_errors))
+                        self.assertEqual(result['monitor'][0]['action']['action'],
+                            'hold' if price_factor==1 else ('full_exit' if price_factor==.6 else 'partial_exit'))
                     if price_factor==1:self.assertEqual(result['final_position']['tokens'],result['final_position']['entry_tokens'])
             plane=Plane(plane_path);history=CurrentHistory(plane,native.ENDPOINT)
             for i in range(1,count+1):
@@ -265,7 +279,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 mixed_thread.join(15);self.assertFalse(mixed_thread.is_alive());self.assertNotIn('error',mixed)
                 self.assertTrue(mixed['native_accounting_verified'])
                 telemetry['mixed_survivor']=mixed
-            telemetry['complete_modeled_seconds']=now_clock()-105
+            telemetry['complete_modeled_seconds']=now_clock()-105-holding_seconds
             telemetry['native_events']=events
             telemetry['real_clock_with_injected_transport_sleep']=real_time
             telemetry['complete_modeled_with_local_seconds']=(telemetry['complete_modeled_seconds']+

@@ -731,10 +731,8 @@ def pregraduation_action(
                 int(demand.get("current_sell_quote",0))*10000 >=
                 max(1,int(demand.get("current_buy_quote",0)))*EXIT_POLICY["min_adverse_sell_buy_ratio_bps"]):
         return dict(action="full_exit",reason="flow_reversal",exit_tokens=tokens)
-    eta=max(1,int(frozen_eta_seconds or ENTRY_THRESHOLDS["max_graduation_eta_seconds"]))
-    deadline=min(EXIT_POLICY["max_pregraduation_thesis_seconds"],eta*2)
-    if int(elapsed_seconds) > deadline:
-        return dict(action="full_exit",reason="graduation_thesis_timeout",exit_tokens=tokens)
+    # A stale forecast of graduation is not adverse economic evidence. The
+    # momentum, flow, creator, stop and trailing conditions above still apply.
     return dict(action="hold",reason=None,exit_tokens=0)
 
 

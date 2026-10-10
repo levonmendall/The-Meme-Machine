@@ -1,4 +1,4 @@
-"""Inactive proposed renewal rules. No provider, admission or execution owner.
+"""Optional winner classification/resource checkpoints, never holding permits.
 
 Native callers supply fresh authenticated evidence and the existing usage
 ledger's finite operating window. No live caller supplies this context by
@@ -72,7 +72,7 @@ def _resources(resources,previous,*,now,next_boundary):
 
 
 def checkpoint(state,facts,*,family,now,current_return,context):
-    """Fresh check on every extended safety turn; renewal grid stays entry-bound.
+    """Fresh diagnostic check; renewal grid stays entry-bound.
 
 Returns native state plus expired/reason. Qualification never executes an exit,
 opens a position, buys evidence, creates funding or replenishes a budget.
@@ -81,7 +81,7 @@ opens a position, buys evidence, creates funding or replenishes a budget.
     first=state['opened_at']+CHECKPOINTS[family]
     if now<state['opened_at']:raise ValueError('exceptional_time_regression')
     if now<first:return updated,False,None
-    if context is None and not previous:return updated,True,None
+    if context is None and not previous:return updated,False,None
     due=previous['until'] if previous else first
     reason=None;balances=None
     try:
@@ -110,7 +110,8 @@ opens a position, buys evidence, creates funding or replenishes a budget.
             if not isinstance(resources,dict) or resources.get('family')!=family:
                 reason='original_resource_family_required'
             else:
-                reason,balances=_resources(resources,previous,now=now,next_boundary=next_boundary)
+                reason,balances=_resources(resources,previous if previous and previous.get('resource_identity') else None,
+                    now=now,next_boundary=next_boundary)
                 if reason is None:
                     profit=Decimal(str(facts['native_net_profit_usd']))
                     costs=Decimal(str(resources['spend_used']))+Decimal(str(resources['next_window_spend']))
@@ -123,9 +124,11 @@ opens a position, buys evidence, creates funding or replenishes a budget.
     except (KeyError,TypeError,ValueError,InvalidOperation):reason='exceptional_native_evidence_incomplete'
     if reason:
         updated['exceptional']=dict(previous or {},version=VERSION,family=family,
-            opened_at=state['opened_at'],until=due,status='EXIT_REQUIRED',reason=reason,
-            protected=False,exit_required_at=(previous or {}).get('exit_required_at',now))
-        return updated,True,'exceptional_'+reason
+            opened_at=state['opened_at'],until=due,status='NOT_RENEWED',reason=reason,
+            protected=False,last_checked_at=now)
+        # Classification/resource renewal never supplies an economic exit.
+        # Actual native risk and any already committed intent remain decisive.
+        return updated,False,'exceptional_'+reason
     renew=now>=due
     updated['exceptional']=dict(previous or {},**balances,version=VERSION,family=family,
         opened_at=state['opened_at'],until=due+RENEWAL_SECONDS if renew else due,
@@ -138,11 +141,9 @@ def survivor_mark(state,observation,policy,*,family,context):
     from .survivor_risk import mark
     if observation['at']-state['opened_at']<CHECKPOINTS[family]:return mark(state,observation,policy)
     if context is None and not state.get('exceptional'):return mark(state,observation,policy)
-    # Only the original fixed hold is deferred for this evaluation. All other
-    # native exits, partials, timers and irreversible pending intents still run.
-    shadow=dict(policy,maximum_hold_seconds=max(policy['maximum_hold_seconds'],
-        observation['at']-state['opened_at']+1))
-    native,action=mark(state,observation,shadow)
+    # Only the native strategy reducer can produce an economic exit. Optional
+    # classification and finite-resource diagnostics do not modify its action.
+    native,action=mark(state,observation,policy)
     if action['action']=='full_exit':
         if native.get('exceptional'):
             native['exceptional']=dict(native['exceptional'],status='EXIT_REQUIRED',reason=action['reason'],
@@ -151,9 +152,6 @@ def survivor_mark(state,observation,policy,*,family,context):
     evidence=(context or {}).get('evidence',{})
     native,expired,reason=checkpoint(native,evidence,family=family,now=observation['at'],
         current_return=observation.get('after_cost_return_bps'),context=context)
-    if expired:
-        action=dict(action='full_exit',reason=reason or 'maximum_hold')
-        native['last_action']=action
     return native,action
 
 
@@ -163,6 +161,6 @@ def current_bridge(state,facts,*,now,ordinary_expired,context):
     if now-state['opened_at']<129600:return native,expired,None
     if context is None and not state.get('exceptional'):return native,expired,None
     family=(context or {}).get('family') or (state.get('exceptional') or {}).get('family')
-    if family not in ('pump_current','pons_current'):return native,True,'exceptional_current_family_missing'
+    if family not in ('pump_current','pons_current'):return native,False,'exceptional_current_family_missing'
     return checkpoint(native,(context or {}).get('evidence',{}),family=family,now=now,
         current_return=facts.get('after_cost_return_bps'),context=context)

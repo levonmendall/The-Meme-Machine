@@ -967,45 +967,6 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 position=paper._get(identity)
                 elapsed=int(time.time())-state.opened_at
 
-                exceptional_checkpoint=(elapsed>=129600 and getattr(state,'bridged',False)
-                    and exceptional_context is not None and position['status']=='open' and state.pending_action is None)
-                if (elapsed>=(129600 if getattr(state,'bridged',False) else EXIT_POLICY["max_total_hold_seconds"]) and
-                        not exceptional_checkpoint and
-                        not (not getattr(state,'bridge_probe_failed',False) and elapsed<129600
-                            and state.partial_taken and state.high_water>=5000
-                            and position['status']=='open' and state.pending_action is None) and
-                        not (position["status"]=="exit_pending" and state.transition is None)):
-                    if position["status"]=="exit_pending" and state.transition is not None:
-                        position,meta=_complete_pending_v4_exit(
-                            paper=paper,identity=identity,rpc=rpc,v4_key=state.v4_key,
-                            gas_units=gas_units,store=store,label="selective-timeout-pending-v4-exit",
-                        )
-                    elif position["status"]=="open":
-                        try:
-                            state.recovery_exit_reason="max_total_hold"
-                            position,meta=yield from _delayed_exit_steps(
-                                endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
-                                gas_units=gas_units,store=store,transition=state.transition,v4_key=state.v4_key,
-                                label="selective-timeout-exit",exit_tokens=position["tokens"],
-                            )
-                        except BoundaryError as exc:
-                            if str(exc)=="graduated_during_selective_exit":
-                                state.pending_transition_exit_reason="max_total_hold"
-                                continue
-                            raise
-                    else:
-                        continue
-                    if position['status']=='open':
-                        # A pre-existing partial intent remains partial even when
-                        # its fill arrives after max hold. Exit the remainder on
-                        # the next fresh observation before claiming settlement.
-                        result.setdefault('exits',[]).append(dict(
-                            reason=state.recovery_exit_reason,quote=meta,position=position))
-                        continue
-                    result["exit"]=dict(reason="max_total_hold",quote=meta,position=position)
-                    result["status"]="settled"
-                    break
-
                 if state.transition is None:
                     maybe=_graduation_transition(
                         rpc,candidate,state.last_block,block,candidate["report"]
@@ -1350,32 +1311,28 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 # Retry a fresh observation on the SAME ledger and original hold
                 # clock. Any pending exit keeps its original intent/amount/due.
                 position=paper._get(identity)
-                if (int(time.time())-state.opened_at>=129600 and position['status']=='open'
-                        and (exceptional_context is not None or getattr(state,'exceptional',None))):
-                    state.remember_action(dict(action='full_exit',reason='exceptional_authenticated_evidence_unavailable',
-                        exit_tokens=position['tokens']),position)
-                    position=paper.advance(identity,now=int(time.time()),action='exit_intent',exit_tokens=position['tokens'])
                 if (str(exc)=="impossible_full_position_exit" and state.transition is None
                         and position["status"] in ("open","exit_pending")):
-                    # Keep the original exit intent/clock while waiting for the
-                    # original maximum hold. Never infer a writeoff from transport.
-                    if int(time.time())-state.opened_at<EXIT_POLICY["max_total_hold_seconds"]:
+                    # Only an existing economic exit may seek the original
+                    # authenticated no-liquidity writeoff. Age grants no intent.
+                    if position["status"]!="exit_pending" or state.pending_action is None:
                         result["monitor"].append(dict(at=int(time.time()),available=False,
-                            reason=str(exc),pending_exit_preserved=True))
+                            reason=str(exc),state="DEGRADED_PROTECTION",pending_exit_preserved=True))
                         continue
                     try:
                         proof=_prove_impossible_full_exit(rpc,candidate,position,store)
                     except BoundaryError as verification:
                         if str(verification)=="graduated_during_selective_exit":
-                            state.pending_transition_exit_reason=state.recovery_exit_reason or "max_total_hold"
+                            state.pending_transition_exit_reason=state.recovery_exit_reason or state.pending_action["reason"]
                             continue
                         exc=verification
                     else:
                         if proof is None:continue  # liquidity returned; retry the same exit
+                        exit_reason=state.pending_action["reason"]
                         position=paper.advance(identity,now=int(time.time()),
                             action="liquidity_writeoff",cancel_reason="impossible_full_position_exit")
                         result["settlement_kind"]="liquidity_writeoff"
-                        result["exit"]=dict(reason="max_total_hold",position=position,
+                        result["exit"]=dict(reason=exit_reason,position=position,
                             quote=dict(venue="paper_liquidity_writeoff",amount_out=0,
                                        executable=False,proof=proof))
                         result["status"]="settled"
@@ -1498,7 +1455,6 @@ def _bridge_action(state,facts,action,position,*,now):
     for name in ('bridged','bridged_at','bridge_deadline','exceptional'):
         if name in updated:setattr(state,name,updated[name])
     state.bridge_probe_failed=False
-    if expired:return dict(action='full_exit',reason=extension_reason or 'max_total_hold',exit_tokens=position['tokens'])
     return action
 
 

@@ -224,38 +224,32 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter,exceptional_contex
 
 
 def exceptional_evidence_failure(runtime,*,family,blocker,rows=None):
-    """Provider failure before monitoring: durable intent, zero acquisition.
+    """Provider failure before monitoring: durable fault, zero acquisition.
 
     Use the same Book/risk journal and existing worker. A prior quote remains
     explicitly unavailable; no execution or successful settlement is inferred.
-    Normal policies have no exceptional state and this is a no-op for them.
+    No age, classification or failed renewal supplies an economic exit intent.
     """
-    from .exceptional_winner import CHECKPOINTS,VERSION
-    enabled=getattr(runtime,'exceptional_context',None) is not None
     now=runtime.now()
     for row in runtime.history.rows() if rows is None else rows:
         identity=row.get('position')
         if not identity:continue
-        try:position=runtime.book._load(identity)
-        except ValueError:
-            if not enabled:continue
-            raise
+        if runtime.book.db.execute('SELECT 1 FROM positions WHERE id=?',(identity,)).fetchone() is None:
+            # A native capital refusal may leave only an unfunded candidate's
+            # provisional identity. It is not an owned position to protect.
+            # A missing book for a claimed open owner remains an integrity fault.
+            if row.get('state')!='open':continue
+            raise ValueError('paper_position_missing')
+        position=runtime.book._load(identity)
         if position['status']!='open':continue
-        state=restore_risk(runtime.book,identity);previous=state.get('exceptional')
-        if not enabled and not previous:continue
-        if now-state['opened_at']<CHECKPOINTS[family]:continue
-        action=state.get('last_action',{})
-        if action.get('action')!='full_exit':
-            action=dict(action='full_exit',reason='exceptional_authenticated_evidence_unavailable')
-        if not previous or previous.get('status')!='EXIT_REQUIRED':
-            state=dict(state,last_action=action,last_at=now,last_observation='unavailable:'+str(now),
-                exceptional=dict(previous or {},version=VERSION,family=family,opened_at=state['opened_at'],
-                    until=(previous or {}).get('until',state['opened_at']+CHECKPOINTS[family]),
-                    status='EXIT_REQUIRED',reason=action['reason'],protected=False,exit_required_at=now,blocker=blocker))
-            runtime.book.transition(identity,'mark',now,amount=position['mark'],
-                evidence=dict(risk_state=state,observation=dict(at=now,after_cost_return_bps=None,blocker=blocker)))
-        row['position_safety']=dict(at=now,evidence_current=False,exit_quote_available=False,
-            pending_exit=True,protected=False,blocker=blocker)
+        state=restore_risk(runtime.book,identity)
+        pending=state.get('last_action',{}).get('action') in ('full_exit','partial_exit')
+        # A runtime checkpoint records no valuation, risk observation or sale.
+        # Fresh recovery alone can replace unavailable evidence.
+        detail=dict(at=now,state='DEGRADED_PROTECTION',evidence_current=False,
+            exit_quote_available=False,pending_exit=pending,protected=False,blocker=blocker)
+        runtime.book.checkpoint_runtime(identity,'position-protection-fault',detail,claim=True)
+        row['position_safety']=detail
         runtime.history.save(row)
 
 
