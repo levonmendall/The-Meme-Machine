@@ -550,9 +550,12 @@ def shadow_demand_exit(receipt, samples, *, horizon_seconds, now):
         rows[key]=sample
     ordered=sorted(rows.values(),key=lambda s:(s['at'],s['id']))
     if not ordered:return refuse('no_persisted_followup_observations')
+    cadence=3 if family=='pons_survivor' else 5
     streak=0;previous_at=at;values=[];chosen=None
     for sample in ordered:
         when=sample['at']
+        if chosen is None and when-previous_at>cadence:
+            return refuse('intervening_native_protection_observations_missing')
         if (sample.get('evidence_complete') is not True or not sample.get('source_hash')
                 or sample.get('source_generation') != generation or sample.get('native_identity') != owner
                 or type(sample.get('available_at')) is not int or sample['available_at'] > when
@@ -575,6 +578,8 @@ def shadow_demand_exit(receipt, samples, *, horizon_seconds, now):
     result.update(observed_mfe_bps=int((max(values)/basis-1)*10000),
                   observed_mae_bps=int((min(values)/basis-1)*10000))
     if chosen is None:
+        if end-previous_at>cadence:
+            return refuse('intervening_native_protection_observations_missing')
         return dict(result, status='UNRESOLVED_HOLD', evidence_status='no_verified_shadow_exit')
     when,value=chosen
     return dict(result,status='HYPOTHETICAL_COMPARISON',evidence_status='supplied_complete_canonical_quotes',

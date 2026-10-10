@@ -37,7 +37,7 @@ def sample(at,net,*,adverse=False,reason=None):
     return dict(id='observation:'+str(at),at=at,available_at=at,evidence_complete=True,
         source_hash='canonical:'+str(at),source_generation='canonical-generation',
         native_identity='original-owner',executable_quote=quote(at,net),
-        native_action='full_exit' if reason else 'hold',native_reason=reason,
+        native_action='full_exit' if reason or adverse else 'hold',native_reason=reason or ('demand_failure' if adverse else None),
         distribution_adverse=adverse)
 
 
@@ -47,9 +47,9 @@ class ShadowTests(unittest.TestCase):
 
     def test_synthetic_winner_and_collapse_keep_real_equity_and_baseline_untouched(self):
         original=receipt();before=deepcopy(original)
-        winner=self.run_shadow(original,[sample(105,80),sample(120,375,reason='runner_trailing_stop')])
-        self.assertEqual(winner['hypothetical_net_proceeds_difference'],'300')
-        loser=self.run_shadow(original,[sample(105,74),sample(120,7.5,reason='risk')])
+        winner=self.run_shadow(original,[sample(105,80),sample(110,375),sample(115,375),sample(120,240,reason='tail_gain_giveback_exit')])
+        self.assertEqual(winner['hypothetical_net_proceeds_difference'],'165')
+        loser=self.run_shadow(original,[sample(105,74),sample(110,74),sample(115,70),sample(120,7.5,reason='risk')])
         self.assertEqual(loser['hypothetical_net_proceeds_difference'],'-135/2')
         self.assertEqual(original,before)
         self.assertFalse(winner['order_authority']);self.assertFalse(winner['portfolio_equity_authority'])
@@ -81,13 +81,22 @@ class ShadowTests(unittest.TestCase):
     def test_distinct_confirmations_future_exclusion_and_conflicts(self):
         first=sample(103,80,adverse=True)
         result=self.run_shadow(rows=[first,deepcopy(first),sample(401,10000,reason='risk')])
-        self.assertEqual(result['status'],'UNRESOLVED_HOLD')
+        self.assertEqual(result['status'],'INCONCLUSIVE')
         result=self.run_shadow(rows=[first,sample(106,70,adverse=True)])
         self.assertEqual(result['hypothetical_exit_at'],106)
         self.assertEqual(result['hypothetical_net_proceeds_difference'],'-5')
         conflict=deepcopy(first);conflict['distribution_adverse']=False
         self.assertEqual(self.run_shadow(rows=[first,conflict])['status'],'INCONCLUSIVE')
         self.assertEqual(self.run_shadow(rows=[first],now=399)['status'],'INCONCLUSIVE')
+        continuous=[sample(at,80) for at in range(105,401,5)]
+        self.assertEqual(self.run_shadow(rows=continuous)['status'],'UNRESOLVED_HOLD')
+
+    def test_complete_market_history_cannot_replace_missing_protective_observations(self):
+        self.assertEqual(self.run_shadow(rows=[sample(105,80),sample(120,240,reason='tail_gain_giveback_exit')])['status'],
+            'INCONCLUSIVE')
+        r=receipt();r.update(regime='pons_survivor',reason='persistent_demand_deterioration')
+        self.assertEqual(self.run_shadow(r,[sample(104,80),sample(105,70,reason='hard_stop')])['status'],
+            'INCONCLUSIVE')
 
     def test_shadow_quantity_change_requires_complete_partial_lineage(self):
         row=sample(103,80);row['native_action']='partial_exit'
