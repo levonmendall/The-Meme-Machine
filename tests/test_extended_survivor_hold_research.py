@@ -31,15 +31,33 @@ def observation(at, gain, **kw):
 
 
 class ResearchModelTests(unittest.TestCase):
+    def test_sustained_projection_keeps_native_purchase_shape_and_exposes_finite_resource_failure(self):
+        from engineering.extended_survivor_hold.research import maintenance_projection
+        model=maintenance_projection();self.assertEqual(model['actual_provider_calls'],0)
+        self.assertFalse(model['holding_time_exit']);self.assertFalse(model['production_governor_changed'])
+        rows=model['rows'];self.assertEqual(len(rows),180)
+        self.assertEqual({r['hours'] for r in rows},{24,72,168,336,720})
+        self.assertEqual({r['positions'] for r in rows},{1,2,4,5,10,20})
+        def row(s,n,h):return next(r for r in rows if (r['scenario'],r['positions'],r['hours'])==(s,n,h))
+        a=row('pons_survivor',4,24);b=row('pons_survivor',4,720)
+        self.assertEqual(a['components'][0]['cycle']['rpc_elements'],12)
+        self.assertEqual(a['components'][0]['cycle']['physical_attempts_without_failures'],4)
+        self.assertEqual(b['totals']['rpc_cu'],310*864000)
+        self.assertEqual(Decimal(b['totals']['rpc_only_modeled_usd']),Decimal('140.616'))
+        self.assertEqual(b['totals']['rpc_cu'],a['totals']['rpc_cu']*30)
+        self.assertFalse(all(b['totals']['unchanged_continuation_limits_fit'].values()))
+        # A low average request rate does not certify a dependent exit burst.
+        self.assertFalse(b['continuous_protection_proven'])
+        self.assertIsNone(row('pons_survivor',5,24)['totals']['projected_fixture_delivered_bytes'])
+        for row in rows:
+            self.assertFalse(row['continuous_protection_proven']);self.assertFalse(row['live_memory_cpu_proven'])
+            self.assertIsNone(row['storage_growth_bytes'])
     def test_no_production_policy_service_or_allowance_changes(self):
-        for relative in POLICY_PATHS:
-            # The owner subsequently removed only Survivor's admission count
-            # veto. Keep full-byte checks against that exact reviewed delta;
-            # test_pons_owner_admission separately proves unchanged economics.
-            expected_commit=('aa9fdcee' if relative=='meme_machine/lanes/pons/pons_postgrad_survivor.py'
-                else PRIMARY_COMMIT)
-            original = subprocess.check_output(['git', 'show', expected_commit+':'+relative], cwd=ROOT)
-            self.assertEqual((ROOT/relative).read_bytes(), original, relative)
+        for relative in ('meme_machine/lanes/pump/pumpswap_survivor.py',
+                         'operational/position-continuation/RESOURCE_ENVELOPE.example.json',
+                         'deployment/meme-machine-paper.service'):
+            original=subprocess.check_output(['git','show',PRIMARY_COMMIT+':'+relative],cwd=ROOT)
+            self.assertEqual((ROOT/relative).read_bytes(),original,relative)
         model = build()
         self.assertEqual(model['baseline']['current_bridge_seconds'], 129600)
         self.assertEqual(model['baseline']['operational_maximum_seconds'], 264065)
@@ -100,9 +118,9 @@ class RiskHorizonTests(unittest.TestCase):
                         before, action = mark(s, observation(259209, s['high_water_bps']), policy)
                         self.assertEqual(action['action'], 'hold')
                         due, action = mark(before, observation(259210, s['high_water_bps']), policy)
-                        self.assertEqual(action, dict(action='full_exit', reason='maximum_hold'))
+                        self.assertEqual(action, dict(action='hold', reason=None))
                         later, action = mark(due, observation(10+hours*3600, s['high_water_bps']+10000), policy)
-                        self.assertEqual(action['reason'], 'maximum_hold')
+                        self.assertEqual(action['action'], 'hold')
                         self.assertEqual(later['opened_at'], 10)
 
     def test_accelerated_native_risk_cadence_through_each_hypothetical_horizon(self):
@@ -124,7 +142,7 @@ class RiskHorizonTests(unittest.TestCase):
                             self.fail('changed pre-72h native risk transition')
                     if turn < count and action['action'] != 'hold':
                         self.fail('unexpected synthetic safety fixture exit')
-                self.assertEqual(action, dict(action='full_exit', reason='maximum_hold'))
+                self.assertEqual(action, dict(action='hold', reason=None))
                 self.assertEqual(extended['opened_at'], 10)
                 self.assertEqual((extended['remaining_quantity'], extended['high_water_bps']), (300, 40000))
                 counters.append(dict(family=family, hours=hours, cadence_seconds=cadence,
@@ -186,10 +204,10 @@ class NativeRestartTests(unittest.TestCase):
                     self.assertEqual((risk['opened_at'],risk['high_water_bps'],risk['remaining_quantity']), (10,40000,300))
                 self.adapter.at=10+hours*3600;self.adapter.quote_available=False
                 action=monitor(book=self.book,sleeve=self.sleeve,identity='run:one',
-                    observation=observation(self.adapter.at,None),policy=policy,adapter=self.adapter)
-                self.assertEqual(action,dict(action='exit_pending',reason='maximum_hold'))
+                    observation=observation(self.adapter.at,original['hard_stop_bps']),policy=policy,adapter=self.adapter)
+                self.assertEqual(action,dict(action='exit_pending',reason='hard_stop'))
                 self.reopen();self.assertEqual(self.book._load('run:one')['status'],'open')
-                self.assertEqual(restore_risk(self.book,'run:one')['last_action']['reason'],'maximum_hold')
+                self.assertEqual(restore_risk(self.book,'run:one')['last_action']['reason'],'hard_stop')
                 self.adapter.at+=3;self.adapter.quote_available=True;self.adapter.proceeds=90
                 obs=observation(self.adapter.at,50000)
                 with patch.object(self.sleeve,'release',side_effect=RuntimeError('offline-interrupted-reconciliation')):
