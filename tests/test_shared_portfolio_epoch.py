@@ -290,6 +290,63 @@ class SharedEpochTests(unittest.TestCase):
 
 class NewNativeEpochTests(unittest.TestCase):
     fixture=native_fixtures.RuntimeIntegrationTests.fixture
+    def test_long_held_native_protection_survives_readonly_transport_and_fails_closed_on_staleness(self):
+        from meme_machine.lanes.pump.paper_accounting import PaperBook
+        from meme_machine.runtime.directional_sleeve import open_sleeve,policies
+        root,a,now,plan=self.fixture(new_epoch=True);(root/'pump').mkdir()
+        with patch.dict(os.environ,{'MM_DIRECTIONAL_SLEEVE_DB':str(root/'pump/directional-sleeve.sqlite')}):
+            sleeve=open_sleeve('pump',1_000_000);self.addCleanup(sleeve.close)
+            strategy=next(k for k in policies('pump') if 'survivor' in k);policy=policies('pump')[strategy]
+            book=PaperBook(root/'pump/native-long.sqlite',run_id='long',lane=strategy,policy_hash=policy,initial=1_000_000)
+            self.addCleanup(book.close);identity='long:original'
+            sleeve.reserve(identity,strategy=strategy,amount=50_000,at=now,asset='asset:long',funding_evidence=dict(qualified=True))
+            book.reserve(identity,50_000,now,dict(qualified=True))
+            book.transition(identity,'filled',now,amount=50_000,tokens=400,evidence=dict(execution={'gas':0}))
+            age=30*86400;at=now+age
+            from meme_machine.runtime.usd_valuation import USDValue
+            # New authenticated synthetic valuation at the new economic clock;
+            # the old fixture's observation/expiry is never renewed in place.
+            book.portfolio.value_reader=lambda t:USDValue('offline-native',3,Decimal('1'),t,t+5,'offline-long-'+str(t),'d'*64)
+            risk=dict(opened_at=now,high_water_bps=10000,last_action=dict(action='hold',reason=None))
+            book.transition(identity,'mark',at,amount=90_000,evidence=dict(risk_state=risk,observation=dict(evidence_current=True,after_cost_return_bps=8000)))
+            def view(clock,projection=None):
+                p=projection or export(a,at=clock);folder=root/'view';folder.mkdir(exist_ok=True)
+                (folder/'inception.json').write_text(canonical(plan['seed']['inception']))
+                (folder/'accounting.json').write_text(canonical(p))
+                reader=Reader(folder/'inception.json',folder/'accounting.json',clock=lambda:clock,
+                    expected_epoch=plan['seed']['epoch_id'],expected_inception_sha256=plan['seed']['inception_sha256'])
+                return reader,reader.view(),p
+            reader,v,p=view(at);row=v['positions'][0]
+            self.assertEqual(row['entered_at'],utc(now).replace('+00:00','Z'));self.assertEqual(row['original_basis'],'50')
+            self.assertEqual(row['age_seconds'],age);self.assertEqual(row['protection']['state'],'MONITORING')
+            self.assertTrue(row['protection']['evidence_current']);self.assertEqual(row['protection']['trail']['return_floor_bps'],6000)
+            # A current economic valuation cannot conceal stale monitoring.
+            _,stale,_=view(at+6,p)
+            self.assertEqual(stale['positions'][0]['protection']['state'],'DEGRADED_PROTECTION')
+            self.assertFalse(stale['positions'][0]['protection']['evidence_current'])
+            replica=root/'new-replica';receipt=plan['seed']['inception']
+            packed=build_snapshot(receipt,p)
+            bundle=root/'new-bundle.json';bundle.write_text(canonical(packed))
+            apply_snapshot(bundle,replica,expected_epoch=receipt['epoch_id'],expected_inception_sha256=plan['seed']['inception_sha256'])
+            paths=current_paths(replica)
+            transported=Reader(paths['inception_path'],paths['accounting_path'],clock=lambda:at,
+                expected_epoch=receipt['epoch_id'],expected_inception_sha256=plan['seed']['inception_sha256']).view()
+            self.assertEqual(transported['positions'],v['positions'])
+            # Pending exit publication uses durable native facts, no new oracle
+            # purchase, fabricated valuation, proceeds or realized accounting.
+            before=a.snapshot()['capital'];book.portfolio.value_reader=lambda *_:(_ for _ in ()).throw(AssertionError('no oracle for unavailable protection'))
+            with patch('time.time',return_value=at+1):
+                book.transition(identity,'mark',at+1,amount=90_000,evidence=dict(
+                    risk_state=dict(risk,last_action=dict(action='full_exit',reason='hard_stop')),
+                    observation=dict(after_cost_return_bps=None,evidence_current=False)))
+            self.assertEqual(a.snapshot()['capital'],before)
+            _,pending,_=view(at+1)
+            self.assertEqual(pending['positions'][0]['protection']['state'],'EXIT_PENDING')
+            self.assertEqual(pending['positions'][0]['protection']['last_reason'],'hard_stop')
+            self.assertEqual(pending['positions'][0]['protection']['decision_kind'],'PROTECTIVE_EXIT')
+            self.assertFalse(pending['positions'][0]['protection']['evidence_current'])
+            self.assertIsNone(pending['positions'][0]['current_value']['value']);a.verify_replay()
+
     def test_four_actual_native_regimes_target_50_and_use_one_shared_authority(self):
         from meme_machine.runtime.directional_sleeve import open_sleeve,policies
         from meme_machine.lanes.pump.paper_accounting import PaperBook

@@ -132,6 +132,23 @@ finally:t.doCleanups()
   await vm.runInContext('showPosition('+JSON.stringify(openPosition)+')',context);
   assert.ok(element('#detail-content').innerHTML.includes('Partial exits'));
   assert.ok(element('#detail-content').innerHTML.includes('Remaining staged-add financial ceiling'));
+  const detail=vm.runInContext('positionProtectionDetails',context);
+  const longHeld={...newEpoch.ongoing.positions.data[0],age_seconds:30*86400,
+    protection:{state:'MONITORING',evidence_current:true,pending_exit:false,
+      observed_at:'2026-10-10T16:00:00Z',high_water_bps:40000,remaining_quantity:300,
+      trail:{kind:'tail_gain_giveback',return_floor_bps:24000},last_action:'hold'}};
+  const healthy=detail(longHeld);
+  assert.ok(healthy.includes('Holding age 30d 0h'));
+  assert.ok(healthy.includes('Holding age does not require a sale'));
+  assert.ok(healthy.includes('MONITORING')&&healthy.includes('400.00%'));
+  assert.ok(healthy.includes('240.00%')&&healthy.includes('300'));
+  for(const state of ['DEGRADED_PROTECTION','OPERATIONAL_FAULT','EXIT_PENDING']) {
+    const h=detail({...longHeld,protection:{...longHeld.protection,state,evidence_current:false,
+      pending_exit:state==='EXIT_PENDING',last_reason:'<script>bad</script>'}});
+    assert.ok(h.includes(state)&&h.includes('unavailable or stale'));
+    assert.ok(!h.includes('<script>bad</script>')&&h.includes('&lt;script&gt;'));
+  }
+  assert.ok(detail({...longHeld,protection:undefined}).includes('Protective monitoring unavailable'));
   const stopped={operations:{snapshot_state:'CURRENT',paper_state:'STOPPED',observer_state:'CURRENT',
     monitor_state:'CURRENT',portfolio_state:'UNAVAILABLE',captured_at:'2026-10-08T00:00:00Z',
     source:{},observer:{},acceptance:Object.fromEntries(['CAPACITY','RECOVERY','AUTONOMY'].map(p=>[p,{status:'NOT_STARTED',elapsed_seconds:0}])),alerts:['paper_stopped']}};

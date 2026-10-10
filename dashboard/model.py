@@ -224,6 +224,33 @@ def position(row, epoch, observed):
         if min(values.values())<0 or values['maximum_basis']>min(values[k] for k in keys[:-1]) or limits.get('native_qualification_required') is not True:
             raise ValueError('staged_add_limits')
         optional['staged_add_limits']=dict({k:format(v,'f') for k,v in values.items()},native_qualification_required=True)
+    if row.get('protection') is not None:
+        risk=row['protection']
+        if risk['state'] not in ('UNKNOWN','MONITORING','STRATEGY_EXIT','PROTECTIVE_EXIT','DEGRADED_PROTECTION','EXIT_PENDING','OPERATIONAL_FAULT'):
+            raise ValueError('position_protection_state')
+        if type(risk.get('evidence_current')) is not bool or type(risk.get('pending_exit')) is not bool:
+            raise ValueError('position_protection_flags')
+        clean={k:risk[k] for k in ('state','evidence_current','pending_exit')}
+        if risk.get('observed_at') is not None:
+            when=stamp(risk['observed_at'])
+            if not entered<=when<=observed:raise ValueError('position_protection_clock')
+            clean['observed_at']=risk['observed_at']
+        for k in ('last_action','last_reason'):
+            if risk.get(k) is not None:clean[k]=identity(risk[k])
+        if risk.get('decision_kind') is not None:
+            if risk['decision_kind'] not in ('STRATEGY_EXIT','PROTECTIVE_EXIT'):raise ValueError('position_decision_kind')
+            clean['decision_kind']=risk['decision_kind']
+        for k in ('high_water_bps','remaining_quantity'):
+            if risk.get(k) is not None:
+                if type(risk[k]) is not int or k=='remaining_quantity' and risk[k]<0:raise ValueError('position_protection_number')
+                clean[k]=risk[k]
+        if risk.get('trail') is not None:
+            trail=risk['trail']
+            if trail['kind'] not in ('not_armed','ordinary_trail','tail_gain_giveback'):raise ValueError('position_trail_kind')
+            floor=trail.get('return_floor_bps')
+            if floor is not None and type(floor) is not int:raise ValueError('position_trail_floor')
+            clean['trail']=dict(kind=trail['kind'],return_floor_bps=floor)
+        optional['protection']=clean
     return dict(id=identity(row['id']), lane=row['lane'], asset=identity(row['asset']),
                 state=state, entered_at=row['entered_at'], settled_at=settled_at,
                 strategy_id=strategy_identity(row['strategy_id']) if row.get('strategy_id') else None,
@@ -599,6 +626,14 @@ class Reader:
                     p['unrealized_pnl'] = m['unrealized_pnl']
                     p['unrealized_pct'] = metric(decimal(m['unrealized_pnl']['value'])*100/decimal(p['remaining_basis']) if p['state']=='OPEN' and p['remaining_basis'] is not None and m['unrealized_pnl']['value'] is not None else None, m['unrealized_pnl']['state'])
                     p['age_seconds'] = int((stamp(p['settled_at']) if p['settled_at'] else now)-stamp(p['entered_at']))
+                    risk=p.get('protection')
+                    if risk and p['state']=='OPEN':
+                        age=now-stamp(risk['observed_at']) if risk.get('observed_at') else None
+                        cadence=3 if p.get('regime')=='pons_survivor' else 5
+                        risk['observation_age_seconds']=age
+                        if age is None or age>cadence or state!='CURRENT':
+                            risk['evidence_current']=False
+                            if risk['state']=='MONITORING':risk['state']='DEGRADED_PROTECTION'
                     p['current_value'] = metric(p['mark']['value'] if p['mark'] and m['unrealized_pnl']['state']=='CURRENT' else None, m['unrealized_pnl']['state'])
                     p.pop('mark')
                     p['outcome'] = ('winner' if decimal(p['realized_pnl']) > 0 else 'loser' if decimal(p['realized_pnl']) < 0 else 'breakeven') if p['state']=='SETTLED' and p['realized_pnl'] is not None else None

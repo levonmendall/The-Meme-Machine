@@ -82,6 +82,31 @@ def export(authority,*,at=None):
             exit_value=None,mark=value,lifecycle=native.get('lifecycle',[]),**identities['lanes'][family])
         native.update(regime=r,original_basis=p['original_basis'],partial_exits=p['partials'],scale_committed=p['scale_committed'],
             staged_add_basis=amount(money(p['capital_deployed'])-money(p['original_basis'])))
+        native['protection']=deepcopy(p.get('native_protection') or dict(state='UNKNOWN',evidence_current=False,pending_exit=False))
+        if native['protection'].get('entered_at'):
+            native['entered_at']=native['protection']['entered_at']
+        high=native['protection'].get('high_water_bps')
+        if type(high) is int:
+            if high>=10000:
+                native['protection']['trail']=dict(kind='tail_gain_giveback',return_floor_bps=high*6000//10000)
+            else:
+                if r=='pump_current':
+                    from meme_machine.lanes.pump.pump_acceleration_strategy import POLICY
+                    trail=POLICY.trailing_drawdown_bps;armed=high>0
+                elif r=='pons_current':
+                    from meme_machine.lanes.pons.pons_selective_continuation import EXIT_POLICY
+                    trail=EXIT_POLICY['runner_trailing_drawdown_bps'];armed=p['partials']>0
+                else:
+                    if family=='pump':
+                        from meme_machine.lanes.pump.pumpswap_survivor import POLICY
+                        policy=POLICY['exits']
+                    else:
+                        from meme_machine.lanes.pons.pons_postgrad_survivor import risk_policy
+                        policy=risk_policy()
+                    trail=policy['tight_trail_bps'] if high>=policy['tight_arm_bps'] else policy['trail_bps']
+                    armed=high>=policy['first_profit_bps']
+                native['protection']['trail']=dict(kind='ordinary_trail' if armed else 'not_armed',
+                    return_floor_bps=((10000+high)*(10000-trail)//10000-10000) if armed else None)
         ceilings = dict(portfolio_equity=scaled(max(ZERO,_size_equity(state,r)),250),
             half_original_basis=scaled(money(p['original_basis']),5000),
             combined_basis_headroom=max(ZERO,scaled(max(ZERO,_size_equity(state,r)),750)-money(p['original_basis'])))

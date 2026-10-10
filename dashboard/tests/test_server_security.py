@@ -41,7 +41,7 @@ class DashboardServerSecurityTests(unittest.TestCase):
         now[0] += 60.0
         self.assertTrue(limiter.allow("client"))
 
-    def server(self, store=None):
+    def server(self, store=None, public_reads=None):
         server = make_server(
             Dashboard(Reader()),
             "127.0.0.1",
@@ -49,6 +49,7 @@ class DashboardServerSecurityTests(unittest.TestCase):
             max_concurrency=4,
             rate_limit_per_minute=30,
             owner=OWNER, ingest_token='synthetic-ingestion-token', snapshot_store=store,
+            public_reads=public_reads,
         )
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -128,6 +129,32 @@ class DashboardServerSecurityTests(unittest.TestCase):
                     'Authorization': 'Bearer synthetic-ingestion-token', 'Content-Type': 'application/json'}), timeout=2)
             self.assertEqual(error.exception.code, 400)
             self.assertEqual(store.get()['schema'], SCHEMA)
+
+    def test_public_read_only_mode_requires_no_visitor_credentials(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = SnapshotStore(Path(folder)/'latest.json', epoch='synthetic-dashboard', candidate='a'*40)
+            server = self.server(store, public_reads=True)
+            base = f'http://127.0.0.1:{server.server_port}'
+            for path in ('/dashboard', '/dashboard/app.js', '/dashboard/style.css',
+                         '/api/dashboard/portfolio', '/api/dashboard/system'):
+                with urlopen(base+path, timeout=2) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertNotIn('WWW-Authenticate', response.headers)
+
+            with self.assertRaises(HTTPError) as error:
+                urlopen(Request(base+'/api/dashboard/portfolio', data=b'{}', method='POST'), timeout=2)
+            self.assertEqual(error.exception.code, 405)
+
+            raw = json.dumps(snapshot(time.time())).encode()
+            for auth in ('', AUTH, 'Bearer incorrect'):
+                with self.assertRaises(HTTPError) as error:
+                    urlopen(Request(base+'/api/dashboard/snapshot', data=raw, method='POST',
+                        headers={'Authorization': auth, 'Content-Type': 'application/json'}), timeout=2)
+                self.assertEqual(error.exception.code, 401)
+            with urlopen(Request(base+'/api/dashboard/snapshot', data=raw, method='POST',
+                headers={'Authorization': 'Bearer synthetic-ingestion-token',
+                         'Content-Type': 'application/json'}), timeout=2) as response:
+                self.assertEqual(response.status, 202)
 
     def test_schema_epoch_candidate_pass_and_time_fail_closed(self):
         with tempfile.TemporaryDirectory() as folder:

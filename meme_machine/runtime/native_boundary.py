@@ -70,12 +70,14 @@ class NativeBoundary:
 
     @exact
     def record(self, native, action, position, previous, *, at, checksum, quote=None, data=None):
-        if action not in ('reserved','reserve','filled','entry','open','partial_harvest','exit','settled','settle','cancelled','cancel','scale_add','mark','monitor','liquidity_writeoff','writeoff'):
+        if action not in ('reserved','reserve','filled','entry','open','partial_harvest','exit','exit_intent','settled','settle','cancelled','cancel','scale_add','mark','monitor','liquidity_writeoff','writeoff'):
             return
         data = data or {}
         # Cancelling an unfilled intent and declaring a missing mark consume no
         # market value. Provider outages must not strand their capital holds.
-        needs_value = action not in ('cancelled','cancel') and not (self.lane=='ramses' and action in ('mark','monitor'))
+        unavailable=(action=='exit_intent' or (action in ('mark','monitor') and
+            isinstance(data.get('observation'),dict) and data['observation'].get('after_cost_return_bps') is None))
+        needs_value = action not in ('cancelled','cancel') and not unavailable and not (self.lane=='ramses' and action in ('mark','monitor'))
         value = self.value_reader(at) if needs_value else None
         native_at=at
         valuation_acquired_at=max(native_at,int(time.time())) if value is not None else None
@@ -143,8 +145,8 @@ class NativeBoundary:
                     raise PortfolioIntegrityError('increment_exceeds_realized_USD_lifecycle_limit')
             kind = "rebalance"
             facts = {"basis_released":"0","gross_proceeds":"0","basis_added":amount(raw),"fee":"0","native_reservation_id":reservation}
-        elif kind in ("mark","monitor"):
-            if self.lane == "ramses":
+        elif kind in ("mark","monitor","exit_intent"):
+            if self.lane == "ramses" or unavailable:
                 # The controller's token inventory/fee marks stay native until
                 # a verified liquidation quote exists; no invented USD mark.
                 facts = {"state":"UNAVAILABLE"}
@@ -157,6 +159,27 @@ class NativeBoundary:
         else:
             return
         if facts is None:return
+        if self.lane in ('pump','pons'):
+            risk=data.get('risk_state') or data.get('position_state') or position.get('controller_state') or {}
+            observed=data.get('observation') or {}
+            last=risk.get('last_action') or risk.get('pending_action') or {}
+            reason=risk.get('exit_reason') or last.get('reason') or data.get('exit_reason')
+            pending=(position.get('status')=='exit_pending' or
+                last.get('action') in ('full_exit','partial_exit') or bool(risk.get('exit_reason')) or bool(risk.get('pending_action')))
+            current=not unavailable and bool(risk) and observed.get('evidence_current',True) is True
+            state=('EXIT_PENDING' if pending else 'DEGRADED_PROTECTION' if not current else 'MONITORING')
+            last_action=last.get('action') or ('full_exit' if risk.get('exit_reason') else
+                ('full_exit' if last.get('exit_tokens')==position.get('tokens') else 'partial_exit') if risk.get('pending_action') else
+                'hold' if kind=='mark' else action)
+            protective=reason in ('risk','risk_stop','hard_stop','runner_trail','runner_trailing_stop',
+                'trailing_momentum_exit','tail_gain_giveback_exit','invalid_exit_liquidity','creator_distribution')
+            facts['protection']=dict(state=state,observed_at=utc(native_at),
+                evidence_current=current,pending_exit=pending,last_reason=reason,
+                last_action=last_action,decision_kind=('PROTECTIVE_EXIT' if protective else 'STRATEGY_EXIT') if pending and reason else None,
+                high_water_bps=risk.get('high_water_bps',risk.get('high_water')),
+                remaining_quantity=position.get('tokens'))
+            opened=risk.get('opened_at',native_at if kind=='enter' else None)
+            if opened is not None:facts['protection']['entered_at']=utc(opened)
         if kind in ('enter','harvest','settle','rebalance'):
             cost=0
             if quote:cost=int(quote.get('gas_quote',0))+int(quote.get('fee_quote',0))
