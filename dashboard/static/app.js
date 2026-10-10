@@ -100,7 +100,7 @@ function sharedCapital(p) {
   const limits=c.risk_limits,base=Number(c.risk.risk_base);
   const riskRows=limits ? [['Portfolio',c.risk.exposure.portfolio,limits.portfolio_bps],
     ...['pump','pons'].map(f=>[names[f],c.risk.exposure.family[f],limits.family_max_bps[f]]),
-    ['Most exposed asset / lineage',Math.max(0,...Object.values(c.risk.exposure.asset).map(Number)),limits.asset_bps],
+    ['Conservative marked asset / lineage',Math.max(0,...Object.values(c.risk.exposure.asset).map(Number)),limits.asset_bps],
     ...['solana','robinhood','directional','crypto_beta'].map(g=>[title(g),c.risk.exposure.group[g],limits.group_bps[g]])] : [];
   const riskUse=(exposure,bps)=>{const ceiling=base*Number(bps)/10000;return ceiling>0 ? `${(Number(exposure)/ceiling*100).toFixed(1)}% of ${ceiling.toFixed(2)} USD` : 'Unavailable'};
   const latency=Object.values(c.allocation_latency||{}).flatMap(row=>Object.entries(row.regimes||{})).map(([r,v])=>`${title(r)}: median ${(v.median_us/1000).toFixed(1)} ms, p95 ${(v.p95_us/1000).toFixed(1)} ms, p99 ${(v.p99_us/1000).toFixed(1)} ms (${v.samples} requests)`).join(' · ') || 'Unmeasured';
@@ -111,6 +111,8 @@ function sharedCapital(p) {
     <table><thead><tr><th>Regime</th><th>Deployed basis</th><th>Risk utilization</th><th>Qualified, unfunded</th><th>Funding constraints</th></tr></thead>
     <tbody>${regimes.map(r=>{const row=c.regimes[r];return `<tr><td>${esc(title(r))}</td><td>${value({value:row.deployed_basis,state:p.state})}</td><td>${esc(limits ? riskUse(row.aggregate_exposure,limits.regime_max_bps[r]) : 'Unavailable')}</td><td>${esc(row.qualified_but_unfunded)}</td><td>${esc(Object.entries(row.denials).map(([reason,n])=>`${reason}: ${n}`).join(', ')||'None')}</td></tr>`}).join('')}</tbody></table>
     <p>${riskRows.map(([label,exposure,bps])=>`${esc(label)} risk: ${esc(riskUse(exposure,bps))}`).join(' · ')}</p>
+    ${limits&&limits.asset_invested_bps!=null?`<p>Asset invested-basis limit: ${esc((Number(limits.asset_invested_bps)/100).toFixed(2))}% of risk equity, counting original and added capital. Marked asset limit: ${esc((Number(limits.asset_bps)/100).toFixed(2))}%. Unrealized appreciation remains marked risk; it grants no spendable cash.</p>`:''}
+    <p>Limits govern additional funding; exceeding a reference does not authorize a sale. New risk constraints: ${esc((c.new_risk_restrictions||[]).join(', ')||'None reported')}. Constraints may apply to a specific asset, family or regime. Existing-position protection remains independent.</p>
     <p>Meteora: PAUSED · Ramses: PAUSED. Historical attribution remains in the portfolio.</p>
     <p>Portfolio exposure: ${value({value:c.risk.exposure.portfolio,state:p.state})} · Drawdown: ${esc(c.risk.drawdown_bps)} bps · Allocation latency: ${esc(latency)}</p>
     </section>`;
@@ -158,7 +160,9 @@ function regimePerformance(p) {
 function positionCapitalDetails(p) {
   if (!p.regime) return '';
   const limit=p.staged_add_limits;
-  return `<h2>${esc(regimeName(p.regime))}</h2><div class="detail-metrics">${stat('Original basis',{value:p.original_basis,state:'CURRENT'})}${stat('Staged additions',{value:p.staged_add_basis,state:'CURRENT'})}${stat('Partial exits',{value:p.partial_exits,state:'CURRENT'},'count')}${limit?stat('Remaining staged-add financial ceiling',{value:limit.maximum_basis,state:'CURRENT'}):''}</div><p>One staged add ${p.scale_committed?'committed':'not committed'}. Fresh native qualification and all capital/risk gates remain required.</p>`;
+  const risk=p.risk_exposure;
+  const decisions=p.funding_decisions||[];
+  return `<h2>${esc(regimeName(p.regime))}</h2><div class="detail-metrics">${stat('Actual initial funded basis',{value:p.original_basis,state:'CURRENT'})}${stat('Original basis',{value:p.original_basis,state:'CURRENT'})}${stat('Staged additions',{value:p.staged_add_basis,state:'CURRENT'})}${stat('Partial exits',{value:p.partial_exits,state:'CURRENT'},'count')}${limit?stat('Remaining staged-add financial ceiling',{value:limit.maximum_basis,state:'CURRENT'}):''}${risk?stat('Original plus added investment',{value:risk.invested_basis,state:'CURRENT'})+stat('Marked position exposure',{value:risk.marked_value,state:p.current_value.state})+stat('Marked asset reference',{value:risk.asset_marked_ceiling,state:'CURRENT'})+(risk.asset_invested_ceiling!=null?stat('Invested asset reference',{value:risk.asset_invested_ceiling,state:'CURRENT'}):''):''}</div><p>One staged add ${p.scale_committed?'committed':'not committed'}. Fresh native qualification and all capital/risk gates remain required. Invested-basis ceilings and marked-value references are separate; neither mandates a sale.</p>${decisions.length?`<h3>Retained funding decisions</h3><table><thead><tr><th>Kind</th><th>Requested</th><th>Granted</th><th>Constraints</th></tr></thead><tbody>${decisions.map(d=>`<tr><td>${esc(d.kind)} · ${esc(d.status)}</td><td>${value({value:d.requested_basis,state:'CURRENT'})}</td><td>${value({value:d.granted_basis,state:'CURRENT'})}</td><td>${esc(d.binding_constraints.join(', ')||'None recorded')}</td></tr>`).join('')}</tbody></table>`:''}`;
 }
 function positionProtectionDetails(p) {
   const r=p.protection;

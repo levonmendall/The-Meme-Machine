@@ -80,12 +80,12 @@ try {
   assert.ok(!element('#main').innerHTML.includes('LIVE PAPER'));
   assert.ok(element('#main').innerHTML.includes('$1,000.00'));
   const shared = spawnSync(process.env.MM_TEST_PYTHON||'python3',['-c',`
-from tests.test_shared_portfolio_epoch import SharedEpochTests
+from tests.test_shared_portfolio_epoch import SharedEpochTests,shared_risk_candidate
 from dashboard.api import Dashboard
 import json
 t=SharedEpochTests()
 try:
- h=t.harness()
+ h=t.harness(policy=shared_risk_candidate())
  def responses():
   reader,_,_=t.view(h);app=Dashboard(reader)
   paths=['portfolio','lanes','positions','trades','equity','system','analytics','regimes']
@@ -101,7 +101,11 @@ try:
  h.realize('pump_current',pump,'60')
  h.realize('pons_survivor',pons,'20',released='12.5',terminal=False)
  h.mark('pons_survivor',pons,'40')
- print(json.dumps(dict(initial=initial,ongoing=responses())))
+ ongoing=responses()
+ h=t.harness(policy=shared_risk_candidate())
+ q,_=h.allocate([('pump_current',dict(requested='50',minimum_basis='1',execution_capacity='20'))])
+ h.fill(q[0])
+ print(json.dumps(dict(initial=initial,ongoing=ongoing,reduced=responses())))
 finally:t.doCleanups()
 `],{encoding:'utf8'});
   assert.equal(shared.status,0,shared.stderr);
@@ -120,6 +124,8 @@ finally:t.doCleanups()
   assert.equal((startHtml.match(/Staged-add equity ceiling/g)||[]).length,4);
   assert.ok(startHtml.includes('$50.00')&&startHtml.includes('$25.00'));
   assert.ok(startHtml.includes('total portfolio realized equity'));
+  assert.ok(startHtml.includes('Asset invested-basis limit: 7.50%'));
+  assert.ok(startHtml.includes('Marked asset limit: 10.00%'));
   assert.ok(!startHtml.includes('family-equivalent')&&!startHtml.includes('$500'));
   assert.ok(startHtml.includes('Meteora: PAUSED')&&startHtml.includes('Ramses: PAUSED'));
   assert.ok(startHtml.includes('$1,000.00 inception reference'));
@@ -132,6 +138,15 @@ finally:t.doCleanups()
   await vm.runInContext('showPosition('+JSON.stringify(openPosition)+')',context);
   assert.ok(element('#detail-content').innerHTML.includes('Partial exits'));
   assert.ok(element('#detail-content').innerHTML.includes('Remaining staged-add financial ceiling'));
+  assert.ok(element('#detail-content').innerHTML.includes('Original plus added investment'));
+  assert.ok(element('#detail-content').innerHTML.includes('Marked position exposure'));
+  context.fetch=serveSnapshot(newEpoch.reduced);
+  await vm.runInContext('render()',context);
+  await vm.runInContext('showPosition('+JSON.stringify(newEpoch.reduced.positions.data[0].id)+')',context);
+  const reducedHtml=element('#detail-content').innerHTML;
+  assert.ok(reducedHtml.includes('EXECUTION_CAPACITY'));
+  assert.ok(reducedHtml.includes('$50.00')&&reducedHtml.includes('$20.00'));
+  assert.ok(reducedHtml.includes('neither mandates a sale'));
   const detail=vm.runInContext('positionProtectionDetails',context);
   const longHeld={...newEpoch.ongoing.positions.data[0],age_seconds:30*86400,
     protection:{state:'MONITORING',evidence_current:true,pending_exit:false,

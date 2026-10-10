@@ -81,9 +81,13 @@ def shared_example():
     epoch=inception_receipt('fixture-shared-1000',iso(FIXTURE_NOW-60),'synthetic-shared-inception',starting_capital='1000.00',shared=True)
     ids=dict(source_sha='a'*40,policy_hash='b'*64,config_hash='c'*64)
     contracts={r:dict(strategy_id=r,policy_hash='b'*64) for r in REGIMES}
+    # This explicit temporary fixture illustrates the inactive recommendation;
+    # canonical readers never initialize or select a policy from this file.
+    proposed=Path(__file__).resolve().parents[1]/'operational/shared-capital-activation/risk-policy.shared-1000.proposed.json'
+    policy=RiskPolicy(**json.loads(proposed.read_text()))
     with tempfile.TemporaryDirectory() as folder:
         plan=initialize_new_epoch(Path(folder)/'new',epoch,portfolio_identities=ids,lane_identities={f:ids for f in LANES},
-            contracts=contracts,policy=RiskPolicy(sizing_basis='shared_realized_equity'))
+            contracts=contracts,policy=policy)
         with closing(PumpPonsCapital(Path(folder)/'fixture.sqlite')) as authority:
             authority.install_migration(plan);projection=export(authority,at=FIXTURE_NOW);projection['mode']='fixture'
     telemetry=dict(observed_at=FIXTURE_NOW,lanes={f:dict(phase='PAUSED' if f in ('meteora','ramses') else 'DISCOVERING',

@@ -224,6 +224,39 @@ def position(row, epoch, observed):
         if min(values.values())<0 or values['maximum_basis']>min(values[k] for k in keys[:-1]) or limits.get('native_qualification_required') is not True:
             raise ValueError('staged_add_limits')
         optional['staged_add_limits']=dict({k:format(v,'f') for k,v in values.items()},native_qualification_required=True)
+    if row.get('risk_exposure') is not None:
+        risk=row['risk_exposure'];clean={}
+        for key in ('invested_basis','remaining_basis','marked_value','asset_exposure','asset_marked_ceiling',
+                    'lineage_invested_basis','asset_invested_ceiling'):
+            value=decimal(risk[key]) if risk.get(key) is not None else None
+            if value is not None and value<0:raise ValueError('position_risk_exposure')
+            clean[key]=format(value,'f') if value is not None else None
+        if (decimal(clean['invested_basis'])!=decimal(row['capital']) or
+                decimal(clean['remaining_basis'])!=decimal(row['remaining_basis']) or
+                risk.get('reference_only') is not True or risk.get('additional_funding_requires_native_decision') is not True):
+            raise ValueError('position_risk_exposure')
+        if clean['marked_value'] is not None:
+            source_mark=row.get('mark') or {}
+            if (state!='OPEN' or source_mark.get('state')!='CURRENT' or
+                    decimal(source_mark['net_liquidation_value'])!=decimal(clean['marked_value']) or
+                    not stamp(source_mark['as_of'])<=observed<=stamp(source_mark['valid_until'])):
+                raise ValueError('position_marked_risk_evidence')
+        optional['risk_exposure']=dict(clean,reference_only=True,additional_funding_requires_native_decision=True)
+    if row.get('funding_decisions') is not None:
+        if not isinstance(row['funding_decisions'],list) or len(row['funding_decisions'])>8:raise ValueError('funding_decisions')
+        decisions=[]
+        for decision in row['funding_decisions']:
+            if decision['kind'] not in ('new','scale','safety','continuation'):raise ValueError('funding_decision_kind')
+            amounts={k:decimal(decision[k]) for k in ('requested_basis','granted_basis')}
+            if min(amounts.values())<0 or amounts['granted_basis']>amounts['requested_basis']:raise ValueError('funding_decision_amount')
+            constraints=decision['binding_constraints']
+            if (not isinstance(constraints,list) or len(constraints)>32 or any(
+                    not isinstance(c,str) or '://' in c or not re.fullmatch(r'[A-Za-z0-9_.:/-]{1,320}',c) for c in constraints)):
+                raise ValueError('funding_decision_constraints')
+            decisions.append(dict(kind=decision['kind'],status=identity(decision['status']),
+                **{k:format(v,'f') for k,v in amounts.items()},
+                binding_constraints=constraints[:]))
+        optional['funding_decisions']=decisions
     if row.get('protection') is not None:
         risk=row['protection']
         if risk['state'] not in ('UNKNOWN','MONITORING','STRATEGY_EXIT','PROTECTIVE_EXIT','DEGRADED_PROTECTION','EXIT_PENDING','OPERATIONAL_FAULT'):
@@ -322,6 +355,11 @@ def validate_export(raw, epoch, mode):
         expected=epoch.get('sizing_basis','effective_family_equivalence')
         if not isinstance(shared,dict) or shared.get('sizing_basis')!=expected:
             raise ValueError('shared_capital_sizing_contract')
+        limits=shared.get('risk_limits',{})
+        invested_limit=limits.get('asset_invested_bps')
+        if invested_limit is not None and (type(invested_limit) is not int or
+                not 0<invested_limit<=limits.get('asset_bps',0)<=10000):
+            raise ValueError('shared_capital_risk_policy')
         amounts={k:decimal(shared[k]) for k in ('inception_equity','realized_equity','actual_cash','free_cash',
             'deployed_basis','active_reservations','pending_authoritative_commitments','required_funding_obligations')}
         if (amounts['inception_equity']!=decimal(epoch['starting_capital']) or min(amounts.values())<0 or

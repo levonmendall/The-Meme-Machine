@@ -113,6 +113,20 @@ def export(authority,*,at=None):
         native['staged_add_limits'] = dict({k:amount(v) for k,v in ceilings.items()},
             maximum_basis=amount(min(ceilings.values())) if p['status']=='OPEN' and not p['scale_committed'] else '0',
             native_qualification_required=True)
+        keys=p['economic_keys'];base=money(risk['risk_base']);policy=state['policy']
+        asset_risk=max((money(risk['exposure']['asset'].get(k,'0')) for k in keys),default=ZERO)
+        invested=max((money(risk['asset_invested_basis'].get(k,'0')) for k in keys),default=ZERO)
+        native['risk_exposure']=dict(invested_basis=p['capital_deployed'],remaining_basis=p['basis'],
+            marked_value=mark['net_value'] if mark and mark['valuation']['as_of']<=at<=mark['valuation']['valid_until'] else None,
+            asset_exposure=amount(asset_risk),asset_marked_ceiling=amount(scaled(base,policy['asset_bps'])),
+            lineage_invested_basis=amount(invested),
+            asset_invested_ceiling=amount(scaled(base,policy['asset_invested_bps'])) if policy.get('asset_invested_bps') is not None else None,
+            reference_only=True,additional_funding_requires_native_decision=True)
+        native['funding_decisions']=[dict(kind=q['value']['kind'],status=q['status'],
+            requested_basis=q['value']['requested_basis'],granted_basis=q['decision']['basis'],
+            binding_constraints=q['decision'].get('binding_constraints',[]))
+            for _,q in sorted(state['requests'].items()) if q.get('decision') and
+                q.get('bound_lifecycle_id',q['value'].get('lifecycle_id'))==life][-8:]
         positions.append(native)
     reserved=sum((money(c[k]) for k in ('active_reservations','pending_authoritative_commitments','required_funding_obligations')),Decimal(0))
     pnl=money(c['realized_equity'])-money(state['initial_capital'])
@@ -127,9 +141,25 @@ def export(authority,*,at=None):
             target_bps=500,add_bps=250,combined_bps=750,native_qualification_required=True) for r in state['realized'] if '_' in r},
         regimes=snap['lanes'],risk=wire_risk(risk),risk_limits={
             **{k:state['policy'][k] for k in ('portfolio_bps','family_max_bps','regime_max_bps','asset_bps','group_bps','drawdown_stop_bps')},
+            'asset_invested_bps':state['policy'].get('asset_invested_bps'),
             'cash_floor_bps':state['policy'].get('cash_floor_bps',0),
             'transaction_cost_floor':state['policy'].get('transaction_cost_floor','0')},authority_health='CURRENT',cutover_status='SHARED',
         paused_families={'meteora':'PAUSED','ramses':'PAUSED'},allocation_latency=state.get('runtime_latency',{'state':'UNMEASURED'}))
+    details['policy_sha256']=digest(state['policy'])
+    details['new_risk_restrictions']=[]
+    if not risk['valuation_ready']:details['new_risk_restrictions'].append('PORTFOLIO_VALUATION_UNAVAILABLE_OR_INVALID')
+    if risk['drawdown_bps']>=state['policy']['drawdown_stop_bps']:details['new_risk_restrictions'].append('PORTFOLIO_DRAWDOWN_LIMIT')
+    if money(c['free_cash'])<=scaled(risk['risk_base'],state['policy'].get('cash_floor_bps',0))+money(state['policy'].get('transaction_cost_floor','0')):
+        details['new_risk_restrictions'].append('CASH_AND_TRANSACTION_COST_FLOOR')
+    for label,amounts,ceilings in (
+        ('FAMILY_EXPOSURE_HEADROOM',risk['exposure']['family'],state['policy']['family_max_bps']),
+        ('REGIME_EXPOSURE_HEADROOM',risk['exposure']['regime'],state['policy']['regime_max_bps']),
+        ('CORRELATED_EXPOSURE',risk['exposure']['group'],state['policy']['group_bps']),
+        ('ASSET_CONCENTRATION',risk['exposure']['asset'],{k:state['policy']['asset_bps'] for k in risk['exposure']['asset']}),
+        ('ASSET_INVESTED_BASIS',risk['asset_invested_basis'],{k:state['policy']['asset_invested_bps'] for k in risk['asset_invested_basis']} if state['policy'].get('asset_invested_bps') is not None else {})):
+        details['new_risk_restrictions'] += [label+':'+k for k,bps in ceilings.items() if money(amounts.get(k,'0'))>=scaled(risk['risk_base'],bps)]
+    if money(risk['exposure']['portfolio'])>=scaled(risk['risk_base'],state['policy']['portfolio_bps']):
+        details['new_risk_restrictions'].append('PORTFOLIO_EXPOSURE_HEADROOM')
     if state['policy']['sizing_basis']=='effective_family_equivalence':
         details['family_equivalent_equity']={f:amount(_size_equity(state,f+'_current' if f in ('pump','pons') else f)) for f in LANES}
     sequence=old['sequence']+authority.db.execute('SELECT count(*) FROM shared_capital_events').fetchone()[0]

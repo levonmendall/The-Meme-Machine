@@ -60,6 +60,10 @@ def initialize_new_epoch(root, receipt, *, portfolio_identities, lane_identities
         raise CapitalError('new_1000_shared_inception_required')
     selected_policy = policy.value() if isinstance(policy, RiskPolicy) else RiskPolicy(**policy).value()
     verify_sizing_policy(dict(inception=value, policy=selected_policy))
+    # Refuse a contradictory fresh inception before creating any durable state.
+    # Later liquidity/cash/marked-risk reductions remain genuine funding limits.
+    if min(selected_policy['asset_bps'],selected_policy.get('asset_invested_bps',10000)) < 500:
+        raise CapitalError('new_shared_initial_target_conflicts_with_asset_policy')
     if set(contracts) != set(REGIMES):
         raise CapitalError('all_six_strategy_contracts_required')
     root = Path(root)

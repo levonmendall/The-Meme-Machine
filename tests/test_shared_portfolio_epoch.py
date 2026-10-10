@@ -20,12 +20,19 @@ from meme_machine.portfolio_accounting import (PortfolioAccounting, PortfolioInt
 from meme_machine.portfolio_snapshot_transport import (build_snapshot, apply_snapshot, current_paths,
     SnapshotTransportError)
 from meme_machine.shared_capital import CapitalError, RiskPolicy
+from meme_machine.shared_capital.model import UNIT
 from meme_machine.shared_capital.operational_candidate import (initialize_new_epoch, PumpPonsCapital, ACTIVE_REGIMES)
 from meme_machine.shared_capital.reporting import export, summary
 from meme_machine.shared_capital.runtime import RuntimeCapital
 from meme_machine.runtime.directional_continuation import BRIDGE_GATES
 from tests.shared_capital_support import Harness, CONTRACTS, legacy_identities, legacy_fixture, utc
 from tests import test_pump_pons_capital_preparation as native_fixtures
+
+
+def shared_risk_candidate():
+    # Deliberate offline selection. No runtime or deployment imports this file.
+    root=Path(__file__).resolve().parents[1]
+    return RiskPolicy(**json.loads((root/'operational/shared-capital-activation/risk-policy.shared-1000.proposed.json').read_text()))
 
 
 class NewHarness(Harness):
@@ -79,13 +86,13 @@ class SharedEpochTests(unittest.TestCase):
                     self.assertEqual(view['portfolio']['metrics']['open_positions']['value'],0)
                     self.assertEqual(view['system']['lanes']['meteora']['operational']['value'],'paused')
                     self.assertEqual(view['system']['lanes']['ramses']['operational']['value'],'paused')
-    def harness(self):
+    def harness(self,policy=None):
         temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)
         root=Path(temp.name)
         receipt=inception_receipt('offline-fixture-new-1000',utc(0),'new-inception',starting_capital='1000.00',shared=True)
         plan=initialize_new_epoch(root/'new',receipt,portfolio_identities=legacy_identities(),
             lane_identities={f:legacy_identities(f) for f in ('pump','pons','meteora','ramses')},
-            contracts=CONTRACTS,policy=RiskPolicy(sizing_basis='shared_realized_equity'))
+            contracts=CONTRACTS,policy=policy or RiskPolicy(sizing_basis='shared_realized_equity'))
         h=NewHarness(root,plan=plan);h.authority.close();h.authority=PumpPonsCapital(h.path)
         self.addCleanup(h.close)
         return h
@@ -307,6 +314,209 @@ class SharedEpochTests(unittest.TestCase):
         self.assertLessEqual(len(state['reporting_history']),2000)
 
 
+class SharedRiskPolicyTests(unittest.TestCase):
+    harness=SharedEpochTests.harness
+    view=SharedEpochTests.view
+
+    def old_policy(self):
+        root=Path(__file__).resolve().parents[1]
+        return RiskPolicy(**json.loads((root/'operational/shared-capital-activation/risk-policy.proposed.json').read_text()))
+
+    def conflicting_authority(self,policy):
+        # Reproduce the old cap through the actual authority, without using the
+        # new initializer that now refuses this contradiction before persistence.
+        from meme_machine.shared_capital.migration import plan_migration
+        from tests.shared_capital_support import empty_mapping
+        temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup);root=Path(temp.name)
+        with closing(PortfolioAccounting(root/'empty.sqlite')) as a:
+            a.establish_inception(inception_receipt('offline-risk-conflict',utc(0),'new',starting_capital='1000.00',shared=True),
+                portfolio_identities=legacy_identities(),lane_identities={f:legacy_identities(f) for f in ('pump','pons','meteora','ramses')})
+        h=NewHarness(root,plan=plan_migration(root/'empty.sqlite',empty_mapping(),policy))
+        h.authority.close();h.authority=PumpPonsCapital(h.path)
+        self.addCleanup(h.close);return h
+
+    def stage(self,h,r,life,requested='25',**changes):
+        p=h.check()['ledger']['positions'][life]
+        control=dict(opened_at=0,high_water_bps=10000,first_tail_crossed_at=0,realization_taken=True,
+            original_basis=p['original_native_basis'])
+        facts=dict({g:True for g in BRIDGE_GATES},fresh_strategy_requalified=True,
+            fresh_execution_requalified=True,after_cost_return_bps=10000)
+        control.update(changes.pop('control',{}));facts.update(changes.pop('facts',{}))
+        return h.allocate([(r,dict(requested=requested,minimum_basis='0.01',kind='scale',lifecycle_id=life,
+            asset=p['economic_keys'][0],scale_state=control,scale_facts=facts,**changes))])
+
+    def winner(self,r,policy=None):
+        h=self.harness(policy or shared_risk_candidate())
+        q,decision=h.allocate([(r,dict(requested='50'))]);self.assertEqual(Decimal(decision['decisions'][q[0].request_id]['basis']),Decimal('50'))
+        life,_=h.fill(q[0]);h.at=1;h.mark(r,life,'100')
+        self.assertEqual(Decimal(h.check()['capital']['realized_equity']),Decimal('1000'))
+        h.realize(r,life,'25',released='12.5',terminal=False);h.mark(r,life,'75');h.at=900
+        return h,life
+
+    def test_recommended_policy_is_explicit_and_original_identity_is_unchanged(self):
+        from meme_machine.shared_capital.model import digest
+        original=self.old_policy().value();candidate=shared_risk_candidate().value()
+        self.assertEqual(digest(original),'e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2')
+        self.assertNotIn('asset_invested_bps',original)
+        self.assertEqual({k:v for k,v in candidate.items() if original.get(k)!=v},
+            dict(asset_bps=1000,asset_invested_bps=750,sizing_basis='shared_realized_equity'))
+        with self.assertRaisesRegex(ValueError,'invested_limit_exceeds_marked_asset_limit'):
+            replace(shared_risk_candidate(),asset_bps=500).value()
+        h=self.harness(shared_risk_candidate());h.restart();h.authority.verify_replay()
+
+    def test_old_approved_cap_reduces_or_denies_50_and_conflicting_inception_is_refused(self):
+        policy=replace(self.old_policy(),sizing_basis='shared_realized_equity')
+        for r in ACTIVE_REGIMES:
+            with self.subTest(regime=r):
+                h=self.conflicting_authority(policy)
+                q,result=h.allocate([(r,dict(requested='50',minimum_basis='1'))])
+                d=result['decisions'][q[0].request_id]
+                self.assertEqual(Decimal(d['basis']),Decimal('25'));self.assertTrue(any(c.startswith('ASSET_CONCENTRATION:') for c in d['binding_constraints']))
+                h.authority.cancel(operation_id='cancel-old',request_id=q[0].request_id,at=h.at,proof_sha256='d'*64,proof_kind='VERIFIED_NATIVE_ABSENCE')
+                q,result=h.allocate([(r,dict(requested='50'))])
+                self.assertEqual(result['decisions'][q[0].request_id]['status'],'QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/'refused'
+            with self.assertRaisesRegex(CapitalError,'new_shared_initial_target_conflicts_with_asset_policy'):
+                initialize_new_epoch(root,inception_receipt('offline-refusal',utc(0),'inception',starting_capital='1000.00',shared=True),
+                    portfolio_identities=legacy_identities(),lane_identities={},contracts=CONTRACTS,policy=policy)
+            self.assertFalse(root.exists())
+
+    def test_numeric_75_marked_ceiling_still_blocks_full_staged_add(self):
+        for ceiling,expected in ((500,'0'),(750,'0.9375'),(1000,'25')):
+            h,life=self.winner('pons_current',replace(shared_risk_candidate(),asset_bps=ceiling,asset_invested_bps=None))
+            q,result=self.stage(h,'pons_current',life)
+            d=result['decisions'][q[0].request_id]
+            self.assertEqual(Decimal(d['basis']),Decimal(expected))
+            if ceiling<1000:self.assertTrue(any(c.startswith('ASSET_CONCENTRATION:') for c in d['binding_constraints']))
+            self.assertEqual(Decimal(h.check()['capital']['realized_equity']),Decimal('1012.5'))
+
+    def test_first_25_percent_realization_and_25_add_for_each_native_contract(self):
+        for r in ACTIVE_REGIMES:
+            with self.subTest(regime=r):
+                h,life=self.winner(r);before=h.check();p=before['ledger']['positions'][life]
+                original_native=p['original_native_basis']
+                self.assertEqual(Decimal(p['basis']),Decimal('37.5'));self.assertEqual(Decimal(p['realized_pnl']),Decimal('12.5'))
+                self.assertEqual(Decimal(before['risk']['marked_exposure']),Decimal('75'));self.assertEqual(Decimal(before['capital']['free_cash']),Decimal('975'))
+                q,result=self.stage(h,r,life);d=result['decisions'][q[0].request_id]
+                self.assertEqual(Decimal(d['basis']),Decimal('25'));self.assertEqual(Decimal(d['limits']['STAGED_SCALE_CONTRACT']),25)
+                h.fill(q[0]);h.mark(r,life,'100');h.restart();after=h.check();p=after['ledger']['positions'][life]
+                self.assertEqual(Decimal(p['original_basis']),Decimal('50'));self.assertEqual(p['original_native_basis'],original_native)
+                self.assertEqual(Decimal(p['basis']),Decimal('62.5'));self.assertEqual(Decimal(p['capital_deployed']),Decimal('75'));self.assertEqual(p['partials'],1)
+                self.assertTrue(p['scale_committed']);self.assertEqual(Decimal(after['capital']['realized_equity']),Decimal('1012.5'))
+                self.assertEqual(Decimal(after['capital']['actual_cash']),Decimal('950'));self.assertEqual(Decimal(after['risk']['marked_equity']),Decimal('1050'))
+                q,result=self.stage(h,r,life)
+                self.assertEqual(result['decisions'][q[0].request_id]['status'],'QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+                h.authority.verify_replay()
+
+    def test_original_scaling_conditions_are_still_required(self):
+        cases=[dict(control=dict(first_tail_crossed_at=1)),dict(control=dict(high_water_bps=9999)),
+            dict(control=dict(pending_exit=True)),dict(control=dict(last_action=dict(action='full_exit'))),
+            dict(facts=dict(after_cost_return_bps=6999)),dict(facts=dict(fresh_strategy_requalified=False)),
+            dict(facts=dict(fresh_execution_requalified=False)),dict(facts=dict(creator_distribution_safe=False))]
+        for changes in cases:
+            h,life=self.winner('pons_survivor');q,result=self.stage(h,'pons_survivor',life,**changes)
+            self.assertEqual(result['decisions'][q[0].request_id]['status'],'QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+        h=self.harness(shared_risk_candidate());q,_=h.allocate([('pump_current',dict(requested='50'))]);life,_=h.fill(q[0]);h.at=900
+        q,result=self.stage(h,'pump_current',life)
+        self.assertEqual(result['decisions'][q[0].request_id]['status'],'QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+
+    def test_appreciation_is_marked_risk_not_cash_or_a_sale_and_other_assets_keep_independent_headroom(self):
+        for multiple in (2,5,10,25,50):
+            h=self.harness(shared_risk_candidate());q,_=h.allocate([('pump_current',dict(requested='50'))]);life,_=h.fill(q[0])
+            h.at=1;h.mark('pump_current',life,str(50*multiple));before=h.check()
+            self.assertEqual(Decimal(before['capital']['realized_equity']),Decimal('1000'));self.assertEqual(Decimal(before['capital']['free_cash']),Decimal('950'))
+            self.assertEqual(before['risk']['marked_exposure'],str(50*multiple))
+            q,result=h.allocate([('pons_survivor',dict(requested='50'))])
+            self.assertEqual(result['decisions'][q[0].request_id]['status'],
+                'RESERVED' if multiple<=10 else 'QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+            self.assertEqual(h.check()['ledger']['positions'][life]['status'],'OPEN')
+            _,v,e=self.view(h)
+            self.assertEqual(Decimal(e['shared_capital']['directional_sizing']['pump_current']['new_position_target']),50)
+            self.assertEqual(Decimal(v['positions'][0]['risk_exposure']['marked_value']),50*multiple)
+
+    def test_simultaneous_funding_preserves_approved_aggregate_ceilings_and_candidates(self):
+        h=self.harness(shared_risk_candidate());q,result=h.allocate([(r,dict(requested='50')) for _ in range(5) for r in ACTIVE_REGIMES])
+        granted=[r for r in q if result['decisions'][r.request_id]['status']=='RESERVED']
+        self.assertEqual(len(granted),15);self.assertEqual(sum(Decimal(result['decisions'][r.request_id]['basis']) for r in granted),750)
+        self.assertTrue(all(o['status']=='QUALIFIED' for o in h.check()['ledger']['observations'].values()))
+        for r in granted:h.fill(r)
+        s=h.check();self.assertEqual(Decimal(s['capital']['free_cash']),Decimal('250'))
+        self.assertLessEqual(Decimal(s['risk']['exposure']['family']['pump']),450)
+        self.assertLessEqual(Decimal(s['risk']['exposure']['family']['pons']),450)
+        h.restart();h.authority.verify_replay()
+
+    def test_realized_compounding_900_1100_1500_2000_and_material_drawdown(self):
+        for equity in (900,1100,1500,2000):
+            h=self.harness(shared_risk_candidate());q,_=h.allocate([('pump_current',dict(requested='50')),('pons_current',dict(requested='50'))])
+            a,_=h.fill(q[0]);b,_=h.fill(q[1]);h.at=1
+            h.realize('pump_current',a,'0' if equity==900 else str(equity-950))
+            h.realize('pons_current',b,'0' if equity==900 else '50')
+            _,_,e=self.view(h);self.assertEqual(Decimal(e['shared_capital']['realized_equity']),equity)
+            self.assertTrue(all(Decimal(s['new_position_target'])==Decimal(equity)*Decimal('.05') for s in e['shared_capital']['directional_sizing'].values()))
+            self.assertTrue(all(Decimal(s['staged_add_equity_ceiling'])==Decimal(equity)*Decimal('.025') for s in e['shared_capital']['directional_sizing'].values()))
+            target=str(Decimal(equity)*Decimal('.05'));q,result=h.allocate([('pons_survivor',dict(requested=target))])
+            d=result['decisions'][q[0].request_id]
+            if equity==900:self.assertEqual(d['reason'],'PORTFOLIO_DRAWDOWN_LIMIT')
+            else:
+                self.assertEqual(Decimal(d['basis']),Decimal(target));life,_=h.fill(q[0]);h.at=2
+                original=Decimal(target)
+                h.mark('pons_survivor',life,str(original*2))
+                h.realize('pons_survivor',life,str(original/2),released=str(original/4),terminal=False)
+                h.mark('pons_survivor',life,str(original*Decimal('1.5')));h.at=902
+                q,result=self.stage(h,'pons_survivor',life,requested=str(original/2),control=dict(first_tail_crossed_at=2))
+                self.assertEqual(Decimal(result['decisions'][q[0].request_id]['basis']),original/2)
+                h.fill(q[0]);self.assertEqual(Decimal(h.check()['ledger']['positions'][life]['capital_deployed']),original*Decimal('1.5'))
+            h.restart();h.authority.verify_replay()
+
+    def test_cash_liquidity_execution_and_investment_limits_still_bind(self):
+        for field in ('liquidity_capacity','execution_capacity'):
+            h=self.harness(shared_risk_candidate());q,result=h.allocate([('pons_current',dict(requested='50',minimum_basis='1',**{field:'20'}))])
+            self.assertEqual(Decimal(result['decisions'][q[0].request_id]['basis']),Decimal('20'))
+            self.assertIn(field.upper(),result['decisions'][q[0].request_id]['binding_constraints'])
+        h,life=self.winner('pump_survivor');h.authority.require_obligation(operation_id='reserve-existing',
+            obligation_id='existing',regime_name='pump_survivor',amount_usd='965',at=h.at,proof_sha256='f'*64)
+        q,result=self.stage(h,'pump_survivor',life)
+        self.assertEqual(result['decisions'][q[0].request_id]['status'],'QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+        self.assertEqual(h.check()['ledger']['positions'][life]['status'],'OPEN')
+        # Released basis never enlarges the original-plus-add investment cap.
+        h,life=self.winner('pump_current',replace(shared_risk_candidate(),asset_invested_bps=500))
+        q,result=self.stage(h,'pump_current',life);d=result['decisions'][q[0].request_id]
+        self.assertEqual(Decimal(d['basis']),Decimal('.625'))
+        self.assertTrue(any(c.startswith('ASSET_INVESTED_BASIS:') for c in d['binding_constraints']))
+        h,life=self.winner('pons_survivor')
+        q,result=self.stage(h,'pons_survivor',life,cost_headroom='2');d=result['decisions'][q[0].request_id]
+        self.assertEqual(Decimal(d['basis']),(Decimal('1012.5')-2)*Decimal('.075')-50-2)
+        self.assertTrue(any(c.startswith('ASSET_INVESTED_BASIS:') for c in d['binding_constraints']))
+
+    def test_native_currency_appreciation_cannot_double_original_usd_add_limit(self):
+        h,life=self.winner('pons_survivor')
+        q,_=h.allocate([('pump_current',dict(requested='50'))]);other,_=h.fill(q[0])
+        h.realize('pump_current',other,'1037.5');h.mark('pons_survivor',life,'150')
+        self.assertEqual(Decimal(h.check()['capital']['realized_equity']),2000)
+        q,result=self.stage(h,'pons_survivor',life,requested='50',native_sizing=dict(
+            realized_equity_units=int(Decimal('2000')/(UNIT*2)),usd_per_native_unit=format(UNIT*2,'f'),journal_sha256='b'*64))
+        d=result['decisions'][q[0].request_id]
+        self.assertEqual(Decimal(d['limits']['STAGED_SCALE_CONTRACT']),25)
+        self.assertEqual(Decimal(d['basis']),25)
+        h.fill(q[0]);p=h.check()['ledger']['positions'][life]
+        self.assertEqual(Decimal(p['original_basis']),50);self.assertEqual(Decimal(p['capital_deployed']),75)
+        h.restart();h.authority.verify_replay()
+
+    def test_actual_dashboard_matches_selected_risk_authority_and_funding_constraints(self):
+        h,life=self.winner('pons_current');q,result=self.stage(h,'pons_current',life);h.fill(q[0]);h.mark('pons_current',life,'100')
+        reader,v,e=self.view(h);p=v['positions'][0];c=e['shared_capital']
+        self.assertEqual(c['risk_limits']['asset_bps'],1000);self.assertEqual(c['risk_limits']['asset_invested_bps'],750)
+        self.assertEqual(Decimal(p['risk_exposure']['invested_basis']),Decimal('75'));self.assertEqual(Decimal(p['remaining_basis']),Decimal('62.5'))
+        self.assertEqual(Decimal(p['risk_exposure']['marked_value']),Decimal('100'));self.assertEqual(Decimal(p['staged_add_limits']['maximum_basis']),Decimal('0'))
+        self.assertEqual({d['granted_basis'] for d in p['funding_decisions']},{'25','50'})
+        api=Dashboard(reader);status,_,body=api.response('GET','/api/dashboard/positions/'+life)
+        self.assertEqual(status,200);self.assertIn(b'asset_invested_ceiling',body)
+        tampered=deepcopy(e);tampered['positions'][0]['risk_exposure']['marked_value']='101'
+        (h.root/'dashboard/accounting.json').write_text(canonical(tampered))
+        self.assertEqual(reader.view()['portfolio']['state'],'FAIL_CLOSED')
+
+
 class NewNativeEpochTests(unittest.TestCase):
     fixture=native_fixtures.RuntimeIntegrationTests.fixture
     def test_long_held_native_protection_survives_readonly_transport_and_fails_closed_on_staleness(self):
@@ -370,7 +580,7 @@ class NewNativeEpochTests(unittest.TestCase):
         from meme_machine.runtime.directional_sleeve import open_sleeve,policies
         from meme_machine.lanes.pump.paper_accounting import PaperBook
         from meme_machine.runtime.directional_continuation import native_sync
-        root,a,now,plan=self.fixture(new_epoch=True)
+        root,a,now,plan=self.fixture(policy=shared_risk_candidate(),new_epoch=True)
         for family in ('pump','pons'):
             (root/family).mkdir(exist_ok=True)
             with patch.dict(os.environ,{'MM_DIRECTIONAL_SLEEVE_DB':str(root/family/'directional-sleeve.sqlite')}):
@@ -396,7 +606,7 @@ class NewNativeEpochTests(unittest.TestCase):
         from meme_machine.lanes.pons.pons_selective_ledger import SelectivePaper,STRATEGY_NAMESPACE
         from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH
         from meme_machine.runtime.directional_sleeve import open_sleeve
-        root,a,now,_=self.fixture(new_epoch=True);(root/'pons').mkdir()
+        root,a,now,_=self.fixture(policy=shared_risk_candidate(),new_epoch=True);(root/'pons').mkdir()
         with patch.dict(os.environ,{'MM_DIRECTIONAL_SLEEVE_DB':str(root/'pons/directional-sleeve.sqlite')}):
             store=Store(root/'pons/current.sqlite');self.addCleanup(store.close)
             guard=CohortCapital(root/'pons/capital.sqlite',1_000_000)
