@@ -1,7 +1,6 @@
 'use strict';
-const LANES = ['pump', 'pons', 'ramses', 'meteora'];
-const names = {pump:'Pump', pons:'Pons', ramses:'Ramses', meteora:'Meteora'};
-const REGIMES = ['pump_current','pump_survivor','pons_current','pons_survivor'];
+const LANES = ['pump', 'pons'];
+const names = {pump:'Pump', pons:'Pons'};
 const regimeName = r => names[r.split('_')[0]]+' '+(r.endsWith('_current')?'Current':'Survivor');
 const main = document.querySelector('#main');
 const state = {period:'ALL', series:'portfolio', offset:0, filters:{}, generation:0, busy:false, lastPortfolio:null};
@@ -51,7 +50,7 @@ async function api(path, params={}) {
 }
 function header(name,p) {
   const demo = p.mode==='fixture';
-  return `<div class="pagehead"><div><p class="eyebrow">Portfolio intelligence / Paper only</p><h1>${esc(name)}</h1></div><div class="head-right">${badge(demo?'UNKNOWN':p.state,demo?'DETERMINISTIC FIXTURE':p.state==='CURRENT'?'LIVE PAPER':title(p.state))}<small class="muted">Accounting ${date(p.as_of)}</small></div></div>`+
+  return `<div class="pagehead"><div><p class="eyebrow">Portfolio intelligence / Paper only</p><h1>${esc(name)}</h1></div><div class="head-right">${badge(demo?'UNKNOWN':p.state,demo?'DETERMINISTIC FIXTURE':p.paper_state==='STOPPED'?'PAPER STOPPED':p.state==='CURRENT'?'PAPER':title(p.state))}<small class="muted">Accounting ${date(p.as_of)}</small></div></div>`+
     (demo?'<div class="banner fixture"><strong>DEVELOPMENT FIXTURE</strong> · Synthetic balances and trades. Fixed demo clock. These results are not market performance.</div>':'')+
     (p.state==='NOT_INITIALIZED'?`<div class="banner"><strong>Portfolio not initialized.</strong> Planned inception ${value({value:p.desired_starting_capital,state:p.state})}. No canonical inception is connected; historical campaigns are excluded.</div>`:'')+
     (p.state==='FAIL_CLOSED'?'<div class="banner error"><strong>Accounting fail-closed.</strong> Source validation or reconciliation failed. Values are not trusted current balances.</div>':'')+
@@ -74,12 +73,6 @@ function hero(p,chart) {
     </div>
     <div class="summary-stats">
       ${stat(capitalLabel,p.epoch?p.starting_capital:{value:p.desired_starting_capital,state:p.state})}
-      ${stat('Total realized equity',m.realized_equity)}
-      ${stat('Available shared cash',m.available_cash)}
-      ${stat('Reserved capital',m.reserved_cash)}
-      ${stat('Deployed capital',m.deployed_capital)}
-      ${stat('Realized P&L',m.realized_pnl,'money',true)}
-      ${stat('Unrealized P&L',m.unrealized_pnl,'money',true)}
       ${stat('Total P&L',m.net_pnl,'money',true)}
       ${stat('Total trades',m.trades_taken,'count')}
       ${stat('Open positions',m.open_positions,'count')}
@@ -104,18 +97,17 @@ function sharedCapital(p) {
     ...['solana','robinhood','directional','crypto_beta'].map(g=>[title(g),c.risk.exposure.group[g],limits.group_bps[g]])] : [];
   const riskUse=(exposure,bps)=>{const ceiling=base*Number(bps)/10000;return ceiling>0 ? `${(Number(exposure)/ceiling*100).toFixed(1)}% of ${ceiling.toFixed(2)} USD` : 'Unavailable'};
   const latency=Object.values(c.allocation_latency||{}).flatMap(row=>Object.entries(row.regimes||{})).map(([r,v])=>`${title(r)}: median ${(v.median_us/1000).toFixed(1)} ms, p95 ${(v.p95_us/1000).toFixed(1)} ms, p99 ${(v.p99_us/1000).toFixed(1)} ms (${v.samples} requests)`).join(' · ') || 'Unmeasured';
-  return `<section class="panel"><h2>Shared capital</h2><p>Authority ${esc(c.authority_health)} · Cutover ${esc(c.cutover_status)}</p>
+  return `<div><h2>Shared capital</h2><p>Authority ${esc(c.authority_health)} · Cutover ${esc(c.cutover_status)}</p>
     <div class="summary-stats">${Object.entries(labels).map(([key,label])=>stat(label,amount(key))).join('')}</div>
     <p>${c.sizing_basis==='shared_realized_equity'?'Individual targets use 5% of total portfolio realized equity. Unrealized gains do not compound sizing. All regimes share available cash.':'Historical epoch: original native sizing policy retained.'}</p>
-    ${c.directional_sizing?`<div class="lane-grid">${regimes.map(r=>{const s=c.directional_sizing[r];return `<section class="panel"><h3>${esc(regimeName(r))}</h3>${stat('New-position target',{value:s.new_position_target,state:p.state})}${stat('Staged-add equity ceiling',{value:s.staged_add_equity_ceiling,state:p.state})}${stat('Combined basis ceiling',{value:s.combined_basis_ceiling,state:p.state})}</section>`}).join('')}</div><p>Adds also require the original 50%-of-basis limit, one-add rule, first realization, persistence and fresh native qualification. These ceilings are not funding grants.</p>`:''}
+    ${c.directional_sizing?`<div class="table-wrap"><table><thead><tr><th>Regime</th><th>New-position target</th><th>Staged-add equity ceiling</th><th>Combined basis ceiling</th></tr></thead><tbody>${regimes.map(r=>{const s=c.directional_sizing[r];return `<tr><td>${esc(regimeName(r))}</td><td>${value({value:s.new_position_target,state:p.state})}</td><td>${value({value:s.staged_add_equity_ceiling,state:p.state})}</td><td>${value({value:s.combined_basis_ceiling,state:p.state})}</td></tr>`}).join('')}</tbody></table></div><p>Adds also require the original 50%-of-basis limit, one-add rule, first realization, persistence and fresh native qualification. These ceilings are not funding grants.</p>`:''}
     <table><thead><tr><th>Regime</th><th>Deployed basis</th><th>Risk utilization</th><th>Qualified, unfunded</th><th>Funding constraints</th></tr></thead>
     <tbody>${regimes.map(r=>{const row=c.regimes[r];return `<tr><td>${esc(title(r))}</td><td>${value({value:row.deployed_basis,state:p.state})}</td><td>${esc(limits ? riskUse(row.aggregate_exposure,limits.regime_max_bps[r]) : 'Unavailable')}</td><td>${esc(row.qualified_but_unfunded)}</td><td>${esc(Object.entries(row.denials).map(([reason,n])=>`${reason}: ${n}`).join(', ')||'None')}</td></tr>`}).join('')}</tbody></table>
     <p>${riskRows.map(([label,exposure,bps])=>`${esc(label)} risk: ${esc(riskUse(exposure,bps))}`).join(' · ')}</p>
     ${limits&&limits.asset_invested_bps!=null?`<p>Asset invested-basis limit: ${esc((Number(limits.asset_invested_bps)/100).toFixed(2))}% of risk equity, counting original and added capital. Marked asset limit: ${esc((Number(limits.asset_bps)/100).toFixed(2))}%. Unrealized appreciation remains marked risk; it grants no spendable cash.</p>`:''}
     <p>Limits govern additional funding; exceeding a reference does not authorize a sale. New risk constraints: ${esc((c.new_risk_restrictions||[]).join(', ')||'None reported')}. Constraints may apply to a specific asset, family or regime. Existing-position protection remains independent.</p>
-    <p>Meteora: PAUSED · Ramses: PAUSED. Historical attribution remains in the portfolio.</p>
     <p>Portfolio exposure: ${value({value:c.risk.exposure.portfolio,state:p.state})} · Drawdown: ${esc(c.risk.drawdown_bps)} bps · Allocation latency: ${esc(latency)}</p>
-    </section>`;
+    </div>`;
 }
 function plot(points,reference,series='portfolio',small=false) {
   const valid=points.filter(p=>p.value!==null);
@@ -150,13 +142,6 @@ function plot(points,reference,series='portfolio',small=false) {
   }
   return `<svg class="${small?'spark':'chart'} ${series==='portfolio'?'':series}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(series)} actual observed samples">${labels}${area}${line}${circles}</svg>`;
 }
-function regimePerformance(p) {
-  if (!p.regimes || !Object.keys(p.regimes).length) return '';
-  return `<section class="panel"><h2>Directional strategy performance</h2><div class="lane-grid">${REGIMES.map(r=>{
-    const m=p.regimes[r].metrics;
-    return `<section class="panel"><h3>${esc(regimeName(r))}</h3>${stat('Realized P&L',m.realized_pnl,'money',true)}${stat('Unrealized P&L',m.unrealized_pnl,'money',true)}${stat('Completed',m.completed_trades,'count')}${stat('Open',m.open_positions,'count')}</section>`;
-  }).join('')}</div></section>`;
-}
 function positionCapitalDetails(p) {
   if (!p.regime) return '';
   const limit=p.staged_add_limits;
@@ -168,7 +153,7 @@ function positionProtectionDetails(p) {
   const r=p.protection;
   const age=Math.floor(p.age_seconds/86400)+'d '+Math.floor(p.age_seconds%86400/3600)+'h';
   if(!r)return `<p>Holding age ${esc(age)} · Protective monitoring unavailable.</p>`;
-  return `<section class="panel"><h2>Native position protection</h2><p>Holding age ${esc(age)} · ${esc(regimeName(p.regime))}. Holding age does not require a sale.</p>
+  return `<div><h2>Native position protection</h2><p>Holding age ${esc(age)} · ${esc(regimeName(p.regime))}. Holding age does not require a sale.</p>
     <p>Monitoring ${esc(r.state)} · Evidence ${r.evidence_current?'current':'unavailable or stale'} · Last observation ${date(r.observed_at)}</p>
     <p>High-water return ${r.high_water_bps==null?'Unavailable':esc(fixed(String(r.high_water_bps/100)))+'%'} · Remaining native quantity ${esc(r.remaining_quantity??'Unavailable')}</p>
     <p>Protection ${esc(r.trail?.kind??'Unavailable')} · Return floor ${r.trail?.return_floor_bps==null?'Unavailable':esc(fixed(String(r.trail.return_floor_bps/100)))+'%'}</p>
@@ -176,7 +161,7 @@ function positionProtectionDetails(p) {
     <p>Stop signal ${r.stop_signal_bps==null?'Unavailable':esc(fixed(String(r.stop_signal_bps/100)))+'%'} · Observed native return ${r.observed_return_bps==null?'Unavailable':esc(fixed(String(r.observed_return_bps/100)))+'%'} · Executed native return ${r.executed_return_bps==null?'Unavailable':esc(fixed(String(r.executed_return_bps/100)))+'%'}</p>
     <p>Return at first actionable exit observation ${r.trigger_return_bps==null?'Unavailable':esc(fixed(String(r.trigger_return_bps/100)))+'%'}.</p>
     <p>Actionable observation ${date(r.actionable_at)} · Native execution ${date(r.execution_at)}. Stop thresholds are signals, not guaranteed fill prices. Queue and transport latency are unavailable unless separately recorded.</p>
-    <p>Demand-exit shadow: research only; no complete executable follow-up is connected. Hypothetical outcomes never enter portfolio equity.</p></section>`;
+    <p>Demand-exit shadow: research only; no complete executable follow-up is connected. Hypothetical outcomes never enter portfolio equity.</p></div>`;
 }
 function chartPanel(c, options=true) {
   return `<section class="panel chart-main"><div class="panelhead"><h2>${c.series==='portfolio'?'Portfolio performance':names[c.series]+' cumulative P&L'}</h2>${options?`<div class="chart-tools"><select id="series" aria-label="Chart series">${['portfolio',...LANES].map(k=>`<option value="${k}" ${k===state.series?'selected':''}>${k==='portfolio'?'Portfolio':names[k]}</option>`).join('')}</select><div class="periods" aria-label="Chart period">${['1H','6H','24H','7D','30D','ALL'].map(p=>`<button data-period="${p}" class="${p===state.period?'selected':''}" ${c.periods.includes(p)?'':'disabled'}>${p}</button>`).join('')}</div></div>`:''}</div><div class="panelbody">${plot(c.data,c.reference,c.series)}<div class="chart-note"><span>${c.displayed_count} observed samples${c.truncated?' · bounded recent slice':''} · no interpolation</span><span>${c.series==='portfolio'?(c.reference!=null?'$'+fixed(c.reference)+' inception reference':'Inception unavailable'):'$0 P&L reference'}</span></div></div></section>`;
@@ -185,8 +170,6 @@ function laneIcon(lane) {
   const icons={
     pump:'<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10"/><path d="M8 22 23 7M21 7h4v4"/></svg>',
     pons:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16c4-7 8-7 11 0s7 7 11 0"/><path d="M5 11c4-5 8-5 11 0s7 5 11 0"/></svg>',
-    ramses:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 21c2-8 5-12 9-12s7 4 9 12"/><path d="M10 10 6 7M22 10l4-3M12 17c1 5 3 8 4 8s3-3 4-8"/></svg>',
-    meteora:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 24c10-2 15-8 16-17-8 2-14 7-16 17Z"/><path d="m8 24 13-13M8 18l-4 2M12 12l-3-3"/></svg>'
   };
   return icons[lane]||'';
 }
@@ -236,7 +219,7 @@ function tablePanel(name,res,completed,link) {
   return `<section class="panel"><div class="panelhead"><h2>${name}</h2>${link?`<a class="link" href="#${link}">View all →</a>`:''}</div>${res.total===null?empty('Position state unavailable'):positionsTable(res.data,completed)}</section>`;
 }
 function systemStrip(s) {
-  return `<section class="panel system-strip"><div><h3>Portfolio accounting</h3>${badge(s.accounting.state)}</div><div><h3>Read model</h3>${badge(s.read_model.state)}</div><div><h3>Persisted telemetry</h3>${badge(s.telemetry.state)}</div><div><h3>Lane state</h3><a href="#system" class="link">Inspect all four lanes →</a></div></section>`;
+  return `<section class="panel system-strip"><div><h3>Portfolio accounting</h3>${badge(s.accounting.state)}</div><div><h3>Read model</h3>${badge(s.read_model.state)}</div><div><h3>Persisted telemetry</h3>${badge(s.telemetry.state)}</div><div><h3>Lane state</h3><a href="#system" class="link">Inspect active lanes →</a></div></section>`;
 }
 function overviewAlerts(p) {
   const demo=p.mode==='fixture';
@@ -259,7 +242,7 @@ function overviewStatus(s,p) {
         <div><span>Accounting</span>${badge(s.accounting.state)}</div>
         <div><span>Read model</span>${badge(s.read_model.state)}</div>
         <div><span>Telemetry</span>${badge(s.telemetry.state)}</div>
-        <div><span>Lane health</span><strong>${laneStates.filter(x=>x==='CURRENT').length}/4 current</strong></div>
+        <div><span>Lane health</span><strong>${laneStates.filter(x=>x==='CURRENT').length}/${LANES.length} current</strong></div>
       </div>
     </section>
     <section class="panel notification-card">
@@ -281,6 +264,7 @@ function measuredRows(obj,prefix='',depth=0) {
   }).slice(0,100);
 }
 function observationsTable(rows) {
+  rows=rows.filter(([key])=>!/inactive[_ ]strategy/i.test(key));
   return rows.length?`<div class="table-wrap"><table><thead><tr><th>Recorded measure</th><th>Value</th></tr></thead><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>`:empty('No authentic measurements available');
 }
 function operationsPanel(s,detailed=false) {
@@ -292,15 +276,16 @@ function operationsPanel(s,detailed=false) {
     const r=phases[name]||{status:'UNAVAILABLE'}, previous=r.previous_attempt;
     return `<tr><td>${name}</td><td>${badge(r.status)}${previous?`<small>Previous source: ${esc(previous.status)} · ${seconds(previous.elapsed_seconds)} · ${esc(previous.commit)}</small>`:''}</td><td>${seconds(r.elapsed_seconds)}${r.required_seconds?` / ${seconds(r.required_seconds)}`:''}</td><td>${r.status==='PASS'&&r.verified_result?'PASS':r.status==='NOT_STARTED'?'No current-candidate result':esc(r.status)}</td></tr>`;
   }).join('');
-  const statusRows=['Pump Current','Pump Survivor','Pons Current','Pons Survivor','Meteora','Ramses'].map(name=>{
-    const r=regimes[name]||{}, paused=['Meteora','Ramses'].includes(name);
-    const phase=o.paper_state==='STOPPED'?(paused?'PAUSED (PAPER stopped)':'STOPPED'):(r.phase||'UNAVAILABLE');
+  const activeRegimes=['Pump Current','Pump Survivor','Pons Current','Pons Survivor'];
+  const statusRows=activeRegimes.map(name=>{
+    const r=regimes[name]||{};
+    const phase=o.paper_state==='STOPPED'?'STOPPED':(r.phase||'UNAVAILABLE');
     const evidence=o.observer_state==='CURRENT'?(r.report_state||'UNAVAILABLE'):o.observer_state;
     return `<tr><td>${name}</td><td>${badge(phase)}</td><td>${badge(evidence)}${r.report_age_seconds!=null?`<small>Report age ${seconds(r.report_age_seconds)}</small>`:''}</td></tr>`;
   }).join('');
-  const candidates=Object.entries(regimes).flatMap(([name,r])=>measuredRows(r.machinery).filter(([k])=>/candidate|qualif|evidence|completed steps|successful steps|processed events|completed windows/.test(k)).map(([k,v])=>[name+' · '+k,v]));
-  const errors=(rh.usage||[]).filter(r=>r.metric.startsWith('failure:')||['responses_429','retries'].includes(r.metric));
-  const usage=(rh.usage||[]).filter(r=>['physical_http_requests','logical_rpc_calls','completed_transport_attempts'].includes(r.metric));
+  const candidates=Object.entries(regimes).filter(([name])=>activeRegimes.includes(name)).flatMap(([name,r])=>measuredRows(r.machinery).filter(([k])=>/candidate|qualif|evidence|completed steps|successful steps|processed events|completed windows/.test(k)).map(([k,v])=>[name+' · '+k,v]));
+  const errors=(rh.usage||[]).filter(r=>(r.metric.startsWith('failure:')||['responses_429','retries'].includes(r.metric))&&r.lane!=='inactive_strategy');
+  const usage=(rh.usage||[]).filter(r=>['physical_http_requests','logical_rpc_calls','completed_transport_attempts'].includes(r.metric)&&r.lane!=='inactive_strategy');
   const providers=[
     ['Solana queue depth',observed.solana_provider?.queue_depth], ['Robinhood queue depth',rh.queue_depth],
     ['Solana rate errors',observed.solana_provider?.pressure?(observed.solana_provider.pressure).reduce((a,r)=>a+(r.rate_errors||0),0):undefined],
@@ -325,7 +310,7 @@ async function overview(p) {
   const [lanes,chart,positions,trades,system,...laneCharts] = await Promise.all([
     api('lanes'),api('equity',{period:state.period,series:state.series}),api('positions',{limit:5}),api('trades',{limit:5}),api('system'),...LANES.map(l=>api('equity',{series:l,limit:60}))]);
   const charts=Object.fromEntries(LANES.map((l,i)=>[l,laneCharts[i]]));
-  return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}${sharedCapital(p)}${regimePerformance(p)}
+  return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}
     ${operationsPanel(system.data)}${laneCards(lanes.data,charts)}
     <div class="chart-row overview-charts">
       ${chartPanel(chart)}
@@ -365,12 +350,12 @@ async function analytics(p) {
 }
 async function systemPage(p) {
   const s=(await api('system')).data;
-  return header('System & evidence',p)+operationsPanel(s,true)+systemStrip(s)+`<p class="status-notice">Telemetry snapshot: ${date(s.observed_at)}. Polling reads local persisted state only. Each lane retains its own operational and evidence status.</p><div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div><section class="panel detail-chart"><div class="panelhead"><h2>Portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}</details></div></section>`;
+  return header('System & evidence',p)+operationsPanel(s,true)+systemStrip(s)+`<p class="status-notice">Telemetry snapshot: ${date(s.observed_at)}. Polling reads local persisted state only. Each lane retains its own operational and evidence status.</p><div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div><section class="panel detail-chart"><div class="panelhead"><h2>Portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}${sharedCapital(p)}</details></div></section>`;
 }
 async function showPosition(id) {
   try {
     const p=(await api('positions/'+encodeURIComponent(id))).data;
-    document.querySelector('#detail-content').innerHTML=`<p class="eyebrow">Canonical paper position / ${names[p.lane]}</p><h1>${esc(p.asset)}</h1><div class="identity">${esc(p.id)}</div><p class="sample-count">One lifecycle · ${esc(p.state)} · ${esc(p.outcome||'remaining active exposure')}</p><div class="detail-metrics">${stat('Entry reference',{value:p.entry_value,state:'CURRENT'})}${stat('Exit reference',{value:p.exit_value,state:'CURRENT'})}${stat('Current value',p.current_value)}${stat('Capital used',{value:p.capital,state:'CURRENT'})}${stat('Remaining basis',{value:p.remaining_basis,state:'CURRENT'})}${stat('Realized net P&L',{value:p.realized_pnl,state:'CURRENT'},'money',true)}${stat('Gross realized result',{value:p.gross_result,state:'CURRENT'},'money',true)}${stat('Fees / costs',{value:p.fees,state:'CURRENT'})}${stat('Unrealized P&L',p.unrealized_pnl,'money',true)}</div>${positionCapitalDetails(p)}${positionProtectionDetails(p)}<p class="status-notice">Entry ${date(p.entered_at)} · Settlement ${date(p.settled_at)}<br>Exit reason: ${esc(p.exit_reason||'Unavailable')}</p>${['harvest_state','runner_state','remaining_runner_exposure','range_id','lp_state','in_range','rebalance_state','rebalance_count'].filter(k=>p[k]!=null).map(k=>`<div class="health-row"><span>${esc(title(k))}</span><span>${esc(p[k])}</span></div>`).join('')}<h2>Recorded lifecycle</h2>${p.lifecycle.length?`<ol class="timeline">${p.lifecycle.map(e=>`<li>${esc(title(e.stage))}<time>${date(e.at)}</time></li>`).join('')}</ol>`:empty('No lifecycle stages supplied')}<h2>Source identity</h2><p class="status-notice">${esc(p.strategy_id||'Strategy unavailable')}</p>${identityRows(p.identities)}`;
+    document.querySelector('#detail-content').innerHTML=`<p class="eyebrow">Canonical paper position / ${names[p.lane]}</p><h1>${esc(p.asset)}</h1><div class="identity">${esc(p.id)}</div><p class="sample-count">One lifecycle · ${esc(p.state)} · ${esc(p.outcome||'remaining active exposure')}</p><div class="detail-metrics">${stat('Entry reference',{value:p.entry_value,state:'CURRENT'})}${stat('Exit reference',{value:p.exit_value,state:'CURRENT'})}${stat('Current value',p.current_value)}${stat('Capital used',{value:p.capital,state:'CURRENT'})}${stat('Remaining basis',{value:p.remaining_basis,state:'CURRENT'})}${stat('Realized net P&L',{value:p.realized_pnl,state:'CURRENT'},'money',true)}${stat('Gross realized result',{value:p.gross_result,state:'CURRENT'},'money',true)}${stat('Fees / costs',{value:p.fees,state:'CURRENT'})}${stat('Unrealized P&L',p.unrealized_pnl,'money',true)}</div><details><summary>Allocation and native protection evidence</summary>${positionCapitalDetails(p)}${positionProtectionDetails(p)}</details><p class="status-notice">Entry ${date(p.entered_at)} · Settlement ${date(p.settled_at)}<br>Exit reason: ${esc(p.exit_reason||'Unavailable')}</p>${['harvest_state','runner_state','remaining_runner_exposure','range_id','lp_state','in_range','rebalance_state','rebalance_count'].filter(k=>p[k]!=null).map(k=>`<div class="health-row"><span>${esc(title(k))}</span><span>${esc(p[k])}</span></div>`).join('')}<h2>Recorded lifecycle</h2>${p.lifecycle.length?`<ol class="timeline">${p.lifecycle.map(e=>`<li>${esc(title(e.stage))}<time>${date(e.at)}</time></li>`).join('')}</ol>`:empty('No lifecycle stages supplied')}<h2>Source identity</h2><p class="status-notice">${esc(p.strategy_id||'Strategy unavailable')}</p>${identityRows(p.identities)}`;
     document.querySelector('#detail').showModal();
   } catch { document.querySelector('#detail-content').textContent='Position details unavailable.'; document.querySelector('#detail').showModal(); }
 }
@@ -378,9 +363,9 @@ function syncTopbar(p) {
   const indicator=document.querySelector('#live-indicator');
   const updated=document.querySelector('#last-update');
   if(indicator) {
-    const label=p.mode==='fixture'?'FIXTURE (Paper)':p.snapshot_state&&p.snapshot_state!=='CURRENT'?`PAPER · ${title(p.snapshot_state)}`:p.paper_state==='STOPPED'?'PAPER · STOPPED':p.paper_state==='UNAVAILABLE'?'PAPER · UNAVAILABLE':p.state==='CURRENT'?'LIVE (Paper)':`PAPER · ${title(p.state)}`;
+    const label=p.mode==='fixture'?'FIXTURE (Paper)':p.snapshot_state&&p.snapshot_state!=='CURRENT'?`PAPER · ${title(p.snapshot_state)}`:p.paper_state==='STOPPED'?'PAPER · STOPPED':p.paper_state==='RUNNING'&&p.state==='CURRENT'?'LIVE (Paper)':p.paper_state==='UNAVAILABLE'||!p.paper_state?'PAPER · UNAVAILABLE':`PAPER · ${title(p.state)}`;
     indicator.textContent=label;
-    indicator.className='live-indicator '+(p.state==='CURRENT'&&p.mode!=='fixture'&&(!p.paper_state||p.paper_state==='RUNNING')&&(!p.snapshot_state||p.snapshot_state==='CURRENT')?'is-live':p.state==='FAIL_CLOSED'?'is-error':'is-caution');
+    indicator.className='live-indicator '+(p.state==='CURRENT'&&p.mode!=='fixture'&&p.paper_state==='RUNNING'&&(!p.snapshot_state||p.snapshot_state==='CURRENT')?'is-live':p.state==='FAIL_CLOSED'?'is-error':'is-caution');
   }
   const at=p.snapshot_at||p.as_of;
   if(updated) updated.textContent=at?new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Unavailable';
@@ -406,7 +391,7 @@ async function render() {
     syncTopbar(p);
     let html;
     if(route==='overview') html=await overview(p);
-    else if(route==='lanes') html=header('Four paper lanes',p)+laneCards((await api('lanes')).data)+`<a class="link" href="#analytics">Portfolio analytics →</a>`;
+    else if(route==='lanes') html=header('Active paper lanes',p)+laneCards((await api('lanes')).data)+`<a class="link" href="#analytics">Portfolio analytics →</a>`;
     else if(route.startsWith('lane/')&&LANES.includes(route.slice(5))) html=await lanePage(route.slice(5),p);
     else if(route==='positions'||route==='trades') html=await historyPage(route==='trades',p);
     else if(route==='analytics') html=await analytics(p);

@@ -292,6 +292,29 @@ class DashboardTests(unittest.TestCase):
         _, body = self.get('trades?strategy=pons-fixture&q=PONS-ETH')
         self.assertEqual(body['total'], 1)
 
+    def test_two_family_public_projection_keeps_canonical_history(self):
+        # Presentation filtering must happen before pagination; the underlying
+        # historical portfolio, source identities and accounting stay complete.
+        original = deepcopy(self.view())
+        self.assertEqual(set(original['lanes']), {'pump', 'pons', 'ramses', 'meteora'})
+        self.assertEqual(original['portfolio']['metrics']['completed_trades']['value'], 8)
+        code, body = self.get('lanes')
+        self.assertEqual(code, 200)
+        self.assertEqual([row['lane'] for row in body['data']], ['pump', 'pons'])
+        _, trades = self.get('trades?limit=2')
+        _, second = self.get('trades?limit=2&offset=2')
+        self.assertEqual((trades['total'], second['total'], second['next_offset']), (4, 4, None))
+        self.assertEqual({row['lane'] for row in trades['data'] + second['data']}, {'pump', 'pons'})
+        for lane in ('ramses', 'meteora'):
+            self.assertEqual(self.get('lanes/' + lane)[0], 404)
+            self.assertEqual(self.get('positions/fixture-open-' + lane)[0], 404)
+            self.assertEqual(self.get('equity?series=' + lane)[0], 400)
+            self.assertEqual(self.get('trades?lane=' + lane)[0], 400)
+        for route in ('portfolio', 'system', 'analytics', 'positions', 'trades', 'equity'):
+            _, public = self.get(route)
+            self.assertNotRegex(json.dumps(public).lower(), r'ramses|meteora')
+        self.assertEqual(self.reader.view(), original)
+
     def test_date_filter_and_position_detail(self):
         _, body = self.get('trades?from=2026-09-24T00%3A00%3A00Z')
         self.assertTrue(all(p['settled_at'].startswith('2026-09-24') for p in body['data']))
@@ -300,8 +323,9 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(self.get('positions/no-such-id')[0], 404)
 
     def test_encoded_canonical_position_identity(self):
-        self.accounting['positions'][-1]['id'] = 'epoch:pool:position'
-        self.accounting['positions'][-1]['strategy_id'] = 'profitability-v1/protection-v2'
+        position = next(p for p in self.accounting['positions'] if p['id'] == 'fixture-open-pons')
+        position['id'] = 'epoch:pool:position'
+        position['strategy_id'] = 'profitability-v1/protection-v2'
         self.save()
         self.assertEqual(self.get('positions/epoch%3Apool%3Aposition')[0],200)
 

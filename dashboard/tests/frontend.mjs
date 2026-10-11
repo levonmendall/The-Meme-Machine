@@ -1,6 +1,7 @@
 // No dependencies or browser installation. Exercises the shipped renderer against
 // the real loopback fixture API. This is NOT a substitute for browser layout QA.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {spawn, spawnSync} from 'node:child_process';
 import {readFile, mkdtemp, rm, writeFile, mkdir} from 'node:fs/promises';
 import os from 'node:os';
@@ -34,7 +35,7 @@ try {
   const source = await readFile('dashboard/static/app.js','utf8');
   vm.runInContext(source,context);
   const snapshots={};
-  for(const route of ['overview','lanes','lane/pump','lane/pons','lane/ramses','lane/meteora','positions','trades','analytics','system']) {
+  for(const route of ['overview','lanes','lane/pump','lane/pons','positions','trades','analytics','system']) {
     context.location.hash='#'+route;
     await vm.runInContext('render()',context);
     const html=element('#main').innerHTML;
@@ -42,12 +43,14 @@ try {
     assert.ok(html.includes('DEVELOPMENT FIXTURE'),route);
     assert.ok(!html.includes('NaN'),route);
     assert.ok(!html.includes('[object Object]'),route);
+    assert.ok(!/ramses|meteora/i.test(html),route);
     snapshots[route]=html;
   }
   assert.ok(snapshots.overview.includes('$512.34'));
   assert.ok(snapshots.overview.includes('+2.47%'));
   assert.ok(snapshots['lane/pons'].includes('+$4.40'));
-  assert.ok(snapshots.system.includes('progress_stalled'));
+  assert.ok(snapshots.system.includes('Native accounting reconciliation'));
+  assert.ok(!snapshots.system.includes('progress_stalled')); // belongs to the hidden historical maker fixture
   assert.ok(snapshots.analytics.includes('Completed P&L by settlement day'));
   assert.ok(snapshots.positions.includes('fixture-open-pons'));
   assert.equal(vm.runInContext('fixed("0.005")',context),'0.00');
@@ -64,6 +67,11 @@ try {
   assert.equal(response.status,200);
   assert.ok(response.headers.get('content-security-policy').includes("connect-src 'self'"));
   const css=await readFile('dashboard/static/style.css','utf8');
+  // Actual last working Render frontend: 1deb19415ab1683f1fb6071ed6a1d6fdd5785817.
+  assert.equal(createHash('sha256').update(css).digest('hex'),'cc897350900fb0aeb6b4ba8c0f9e8b83bf8f1cce4bb0d32b1c733fe66d28fbb6');
+  assert.equal(createHash('sha256').update(await readFile('dashboard/static/index.html')).digest('hex'),'a08aedcacc16a0a72396175ccd184930ad4a0690bc52d79a4c9c9144414e8454');
+  assert.equal((snapshots.overview.match(/class="panel lane-card /g)||[]).length,2);
+  assert.equal((snapshots.overview.match(/class="stat /g)||[]).length,14); // six portfolio, four per family
   assert.ok(css.includes('@media(max-width:760px)'));
   assert.ok(css.includes('env(safe-area-inset-bottom)'));
   assert.ok(css.includes('prefers-reduced-motion'));
@@ -89,8 +97,8 @@ try:
  def responses():
   reader,_,_=t.view(h);app=Dashboard(reader)
   paths=['portfolio','lanes','positions','trades','equity','system','analytics','regimes']
-  paths+=['lanes/'+f for f in ('pump','pons','meteora','ramses')]
-  paths+=['equity?series='+f for f in ('pump','pons','meteora','ramses')]
+  paths+=['lanes/'+f for f in ('pump','pons')]
+  paths+=['equity?series='+f for f in ('pump','pons')]
   out={p:json.loads(app.response('GET','/api/dashboard/'+p)[2]) for p in paths}
   for row in out['positions']['data']:
    p='positions/'+row['id'];out[p]=json.loads(app.response('GET','/api/dashboard/'+p)[2])
@@ -119,21 +127,29 @@ finally:t.doCleanups()
   context.fetch=serveSnapshot(newEpoch.initial);
   await vm.runInContext('render()',context);
   const startHtml=element('#main').innerHTML;
-  assert.ok(startHtml.includes('$1,000.00')&&startHtml.includes('Total realized equity'));
-  assert.equal((startHtml.match(/New-position target/g)||[]).length,4);
-  assert.equal((startHtml.match(/Staged-add equity ceiling/g)||[]).length,4);
-  assert.ok(startHtml.includes('$50.00')&&startHtml.includes('$25.00'));
-  assert.ok(startHtml.includes('total portfolio realized equity'));
-  assert.ok(startHtml.includes('Asset invested-basis limit: 7.50%'));
-  assert.ok(startHtml.includes('Marked asset limit: 10.00%'));
+  assert.ok(startHtml.includes('$1,000.00')&&startHtml.includes('Starting capital'));
+  assert.equal((startHtml.match(/class="stat /g)||[]).length,14);
+  assert.equal((startHtml.match(/class="panel lane-card /g)||[]).length,2);
+  assert.ok(!startHtml.includes('Shared capital')&&!startHtml.includes('Directional strategy performance'));
+  // Financial evidence stays available in the existing System source disclosure.
+  context.location.hash='#system';
+  await vm.runInContext('render()',context);
+  const allocationHtml=element('#main').innerHTML;
+  assert.ok(allocationHtml.includes('<details><summary>Portfolio inception and source</summary>'));
+  assert.ok(allocationHtml.includes('$50.00')&&allocationHtml.includes('$25.00'));
+  assert.ok(allocationHtml.includes('total portfolio realized equity'));
+  assert.ok(allocationHtml.includes('Asset invested-basis limit: 7.50%'));
+  assert.ok(allocationHtml.includes('Marked asset limit: 10.00%'));
   assert.ok(!startHtml.includes('family-equivalent')&&!startHtml.includes('$500'));
-  assert.ok(startHtml.includes('Meteora: PAUSED')&&startHtml.includes('Ramses: PAUSED'));
+  assert.ok(!/ramses|meteora/i.test(startHtml+allocationHtml));
   assert.ok(startHtml.includes('$1,000.00 inception reference'));
   context.fetch=serveSnapshot(newEpoch.ongoing);
   await vm.runInContext('render()',context);
   assert.ok(element('#main').innerHTML.includes('$50.88')); // 5% of $1,017.50, presentation only
+  context.location.hash='#overview';
+  await vm.runInContext('render()',context);
   assert.ok(element('#main').innerHTML.includes('+2.00%')); // includes $2.50 open unrealized
-  assert.ok(element('#main').innerHTML.includes('Pons Survivor')&&element('#main').innerHTML.includes('Realized P&amp;L'));
+  assert.ok(element('#main').innerHTML.includes('Pons Survivor'));
   const openPosition=newEpoch.ongoing.positions.data[0].id;
   await vm.runInContext('showPosition('+JSON.stringify(openPosition)+')',context);
   assert.ok(element('#detail-content').innerHTML.includes('Partial exits'));
@@ -178,8 +194,38 @@ finally:t.doCleanups()
   assert.ok(connected.includes('PAPER STOPPED'));
   assert.ok(connected.includes('NOT STARTED'));
   assert.ok(connected.includes('Pump Current')&&connected.includes('Pons Survivor'));
-  assert.ok(connected.includes('PAUSED (PAPER stopped)'));
+  assert.ok(connected.includes('STOPPED')&&!connected.includes('PAUSED (PAPER stopped)'));
   assert.ok(connected.includes('No authentic measurements available'));
+  // Accounting freshness alone must not claim a running trading service.
+  vm.runInContext('syncTopbar({state:"CURRENT",mode:"canonical",snapshot_state:"CURRENT"})',context);
+  assert.equal(element('#live-indicator').textContent,'PAPER · UNAVAILABLE');
+  vm.runInContext('syncTopbar({state:"CURRENT",mode:"canonical",snapshot_state:"CURRENT",paper_state:"STOPPED"})',context);
+  assert.equal(element('#live-indicator').textContent,'PAPER · STOPPED');
+  assert.ok(!element('#live-indicator').className.includes('is-live'));
+  if(process.env.MM_ACTUAL_DASHBOARD_RESPONSES) {
+    // This optional input is an authenticated, validated host snapshot, never a fixture.
+    const actual=JSON.parse(await readFile(process.env.MM_ACTUAL_DASHBOARD_RESPONSES,'utf8'));
+    assert.equal(actual.portfolio.mode,'canonical');
+    assert.equal(actual.portfolio.data.epoch.epoch_id,'paper-shared-1000-20261011T071207Z');
+    assert.equal(actual.portfolio.data.starting_capital.value,'1000.00');
+    assert.equal(actual.equity.reference,'1000.00');
+    context.fetch=serveSnapshot(actual);
+    for(const route of ['overview','lanes','lane/pump','lane/pons','positions','trades','analytics','system']) {
+      context.location.hash='#'+route;
+      await vm.runInContext('render()',context);
+      const html=element('#main').innerHTML;
+      assert.ok(!/ramses|meteora|DEVELOPMENT FIXTURE|NaN|\[object Object\]/i.test(html),route);
+      assert.ok(html.includes('PAPER STOPPED'),route);
+      if(route==='overview') {
+        assert.ok(html.includes('$1,000.00')&&html.includes('$0.00'));
+        assert.ok(html.includes('$1,000.00 inception reference'));
+        assert.equal((html.match(/class="panel lane-card /g)||[]).length,2);
+        assert.equal((html.match(/class="stat /g)||[]).length,14);
+        assert.ok(!html.includes('Shared capital')&&!html.includes('Directional strategy performance'));
+      }
+    }
+    console.log('PASS: authoritative host $1,000 epoch rendered on all eight routes; correct chart reference, two families, zero balances/P&L and stopped service labeling.');
+  }
   if(process.argv[2]) {
     // Static captures contain the exact renderer output and stylesheet. They
     // deliberately have no scripts/API access and are always synthetic.
@@ -192,7 +238,7 @@ finally:t.doCleanups()
       await writeFile(path.join(process.argv[2],name+'.html'),html);
     }
   }
-  console.log('PASS: 10 rendered routes, exact presentation rounding, fixture labeling, lifecycle details, API integration, mutating-method rejection, CSP, responsive rules. Browser geometry not tested.');
+  console.log('PASS: eight rendered routes, prior Render shell/CSS identity and component proportions, exact presentation rounding, fixture labeling, shared financial/protection details, API integration, mutating-method rejection, CSP, responsive rules. Browser geometry not tested.');
 } finally {
   server.kill('SIGTERM');
   await once(server,'exit');
