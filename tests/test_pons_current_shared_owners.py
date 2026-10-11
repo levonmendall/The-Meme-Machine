@@ -263,7 +263,10 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     if failure or unavailable:
                         self.assertFalse(result['monitor'][0]['available'])
                     else:
-                        self.assertIn('action',result['monitor'][0],(result['monitor'][0],acquisition_errors))
+                        self.assertIn('action',result['monitor'][0],(result['monitor'][0],acquisition_errors,
+                            dict(actual_native_wall_seconds=time.perf_counter()-turn_wall,
+                                requests=[dict(consumer=getattr(rpc,'fixture_consumer','current'),starts=rpc.starts)
+                                    for rpc in sessions],mixed_survivor=mixed)))
                         self.assertEqual(result['monitor'][0]['action']['action'],
                             'hold' if price_factor==1 else ('full_exit' if price_factor==.6 else 'partial_exit'))
                     if price_factor==1:self.assertEqual(result['final_position']['tokens'],result['final_position']['entry_tokens'])

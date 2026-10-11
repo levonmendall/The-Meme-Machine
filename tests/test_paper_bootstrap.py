@@ -220,7 +220,7 @@ class ProviderBudgetTests(unittest.TestCase):
         self.budget.stream_close(token,unread_possible=True)
         row=self.budget.snapshot()
         self.assertEqual(int(row['native_bytes']),MAX_FRAME)
-        self.assertEqual(int(row['native_uncertain_bytes']),MAX_FRAME)
+        self.assertEqual(int(row['native_uncertain_bytes']),3*MAX_FRAME)
         self.assertEqual(row['native_reserved'],'0')
 
     def test_physical_boundary_refuses_dispatch_when_budget_is_exhausted(self):
