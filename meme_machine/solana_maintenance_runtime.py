@@ -390,13 +390,36 @@ class MaintenanceRuntime:
                     return True
         return False
 
+    def cold_nonrecord_required(self,observation):
+        """Restart cleans persisted metadata debt before ordinary admission.
+
+        A stopped owner cannot serve its latched continuity/floor obligation.
+        Keep its original clock and require actual committed retirement; merely
+        observing it again never renews service or grants canonical coverage.
+        Young record work is not an excuse to archive it for metadata cleanup.
+        """
+        active={('retirement',s.scope) for s in observation.scopes
+                if not s.retirement_eligible and (s.continuity or s.floor_changed)}
+        if observation.housekeeping:active.add(('retirement','__housekeeping__'))
+        progress={(r[1],r[0]):r for r in observation.recent_progress}
+        for key in active:
+            since=self.nonrecord_since.get(key)
+            if since is None:continue
+            prior=progress.get(key)
+            if prior is not None and prior[3]:since=max(since,prior[2])
+            if not math.isfinite(since) or since>observation.wall:
+                raise EvidenceUnavailable('maintenance_progress_clock_invalid')
+            if self.clock.project(since)+self.leases.drought<=observation.monotonic+self.leases.execution:
+                return True
+        return False
+
     def cold_completed(self,observation,flight=None):
         """Resume only after real overdue cleanup, crediting committed work."""
         from .startup_storage import needs_recovery
         if (flight is not None and not flight.idle or
                 observation.generation!=self.generation or
                 needs_recovery(observation,self.clock,housekeeping=True) or
-                self.cold_record_required(observation)):
+                self.cold_record_required(observation) or self.cold_nonrecord_required(observation)):
             raise EvidenceUnavailable('maintenance_startup_recovery_incomplete')
         self.last_observation=observation
         self.arbiter.origin.pop(('archive','__archive_receipt__'),None)

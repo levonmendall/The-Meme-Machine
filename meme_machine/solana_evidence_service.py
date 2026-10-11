@@ -927,7 +927,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             runtime=await work(lambda state:MaintenanceRuntime(state),4,label='maintenance_decision')
             await recover(work,decoder_pool,path,stop,wall=runtime.wall,
                 monotonic=runtime.monotonic,force=True,clock=runtime.clock,
-                record_required=runtime.cold_record_required)
+                record_required=runtime.cold_record_required,
+                nonrecord_required=runtime.cold_nonrecord_required,
+                on_complete=lambda state,observation:runtime.cold_completed(observation))
             storage_ready.set()
             admission.generation=runtime.generation
             flight=ArchiveFlight()
@@ -958,7 +960,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                         await recover(work,decoder_pool,path,stop,wall=runtime.wall,
                             monotonic=runtime.monotonic,force=True,flight=flight,
                             on_complete=lambda state,observation:runtime.cold_completed(observation,flight),clock=runtime.clock,
-                            record_required=runtime.cold_record_required)
+                            record_required=runtime.cold_record_required,
+                            nonrecord_required=runtime.cold_nonrecord_required)
                         if stop.is_set():break
                         await work(lambda state:state.fence.count('maintenance_cold_self_recoveries'),
                             4,label='maintenance_decision')

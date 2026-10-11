@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from meme_machine.startup_storage import recover
 from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader
@@ -13,6 +14,73 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class StartupStorage(unittest.IsolatedAsyncioTestCase):
+    def nonrecord_debt(self,state,runtime,clock):
+        from tests.test_production_maintenance_arbiter import finalized_frontier
+        from tests.maintenance_production_harness import SCOPES
+        from tests.test_solana_evidence_plane import proof
+        scope=SCOPES[1]
+        state.writer.ingest([],proof=proof(lo=10,hi=11,scope=scope,at=clock.time()-200))
+        finalized_frontier(state,clock,scope)
+        runtime._demands(runtime.adapter.observe(runtime.generation))
+        return scope
+
+    async def test_restart_cleans_overdue_metadata_without_archiving_young_records(self):
+        from tests.test_production_maintenance_arbiter import native_runtime
+        from meme_machine.solana_maintenance_runtime import MaintenanceRuntime,ArchiveFlight
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        with native_runtime() as (state,runtime,clock):
+            scope=self.nonrecord_debt(state,runtime,clock)
+            original=state.writer.db.execute('SELECT * FROM maintenance_nonrecord_demand').fetchall()
+            state.writer.gap(scope,12,15,'offline_preserved_gap')
+            gaps=state.writer.db.execute('SELECT scope,lo,hi,reason,repaired FROM gaps').fetchall()
+            clock.advance(3600)
+            runtime=MaintenanceRuntime(state,monotonic=clock.monotonic,wall=clock.time)
+            observation=runtime.adapter.observe(runtime.generation)
+            self.assertTrue(runtime.cold_nonrecord_required(observation))
+            self.assertEqual(state.writer.db.execute('SELECT * FROM maintenance_nonrecord_demand').fetchall(),original)
+            with self.assertRaisesRegex(EvidenceUnavailable,'maintenance_startup_recovery_incomplete'):runtime.cold_completed(observation)
+            async def work(fn,priority,**kwargs):return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool,patch.object(state,'archive_plan',side_effect=AssertionError('metadata is not record work')):
+                await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                    monotonic=clock.monotonic,force=True,clock=runtime.clock,
+                    record_required=runtime.cold_record_required,nonrecord_required=runtime.cold_nonrecord_required,
+                    on_complete=lambda s,o:runtime.cold_completed(o))
+            current=runtime.adapter.observe(runtime.generation)
+            self.assertFalse(runtime.cold_nonrecord_required(current))
+            self.assertEqual(state.writer.db.execute('SELECT scope,lo,hi,reason,repaired FROM gaps').fetchall(),gaps)
+            self.assertGreater(state.writer.db.execute("SELECT units FROM maintenance_progress WHERE scope=? AND side='retirement'",(scope,)).fetchone()[0],0)
+            self.assertIsNone(runtime.turn(ArchiveFlight(),clock.monotonic())['side'])
+
+    async def test_no_progress_cannot_discharge_overdue_metadata(self):
+        from tests.test_production_maintenance_arbiter import native_runtime
+        from meme_machine.solana_maintenance_runtime import MaintenanceRuntime
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        from unittest.mock import patch
+        with native_runtime() as (state,runtime,clock):
+            self.nonrecord_debt(state,runtime,clock);clock.advance(3600)
+            runtime=MaintenanceRuntime(state,monotonic=clock.monotonic,wall=clock.time)
+            before=state.writer.db.execute('SELECT * FROM maintenance_nonrecord_demand').fetchall()
+            async def work(fn,priority,**kwargs):clock.advance(1);return fn(state)
+            with ThreadPoolExecutor(max_workers=1) as pool,patch.object(state,'retention',return_value=None):
+                with self.assertRaisesRegex(EvidenceUnavailable,'maintenance_startup_recovery_incomplete'):
+                    await recover(work,pool,state.writer.path,asyncio.Event(),wall=clock.time,
+                        monotonic=clock.monotonic,force=True,clock=runtime.clock,
+                        record_required=runtime.cold_record_required,nonrecord_required=runtime.cold_nonrecord_required,
+                        on_complete=lambda s,o:runtime.cold_completed(o))
+            self.assertEqual(state.writer.db.execute('SELECT * FROM maintenance_nonrecord_demand').fetchall(),before)
+            self.assertFalse(state.writer.db.execute('SELECT 1 FROM maintenance_progress').fetchone())
+
+    async def test_committed_metadata_service_discharges_old_clock_without_restart_reset(self):
+        from tests.test_production_maintenance_arbiter import native_runtime
+        from meme_machine.solana_maintenance_runtime import MaintenanceRuntime
+        with native_runtime() as (state,runtime,clock):
+            self.nonrecord_debt(state,runtime,clock);clock.advance(3600)
+            runtime=MaintenanceRuntime(state,monotonic=clock.monotonic,wall=clock.time)
+            self.assertTrue(runtime.cold_nonrecord_required(runtime.adapter.observe(runtime.generation)))
+            with state.housekeeping_retention():outcome=state.retention()
+            self.assertGreater(outcome.continuity_rows,0)
+            self.assertFalse(runtime.cold_nonrecord_required(runtime.adapter.observe(runtime.generation)))
+
     async def test_cold_records_retire_under_continuously_queued_source_work(self):
         from tests.test_production_maintenance_arbiter import native_runtime,finalized_frontier
         from tests.maintenance_production_harness import rows,ingest,SCOPES

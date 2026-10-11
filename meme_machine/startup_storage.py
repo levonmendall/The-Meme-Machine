@@ -19,7 +19,8 @@ def needs_recovery(observation,clock=None,*,housekeeping=False):
 
 
 async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
-                  force=False,flight=None,on_complete=None,clock=None,record_required=None):
+                  force=False,flight=None,on_complete=None,clock=None,record_required=None,
+                  nonrecord_required=None):
     wall=wall or time.time;monotonic=monotonic or time.monotonic
     started=monotonic();deadline=started+60
     async def owned(fn,label):
@@ -44,7 +45,8 @@ async def recover(work,pool,path,stop,*,wall=None,monotonic=None,
         # evidence, then let the unchanged arbiter service ordinary young debt.
         records=needs_recovery(observation,clock)
         if record_required is not None:records=records or record_required(observation)
-        pending=records or force and bool(observation.housekeeping)
+        pending=(records or force and bool(observation.housekeeping) or
+                 nonrecord_required is not None and nonrecord_required(observation))
         if not pending and on_complete is not None:on_complete(state,observation)
         return pending,records
     async def commit(plan,receipt):

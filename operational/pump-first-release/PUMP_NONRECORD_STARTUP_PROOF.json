@@ -1,0 +1,91 @@
+{
+  "parent_source": "504479a9aff23c69064ed80a1414641ef4e9c969",
+  "change": "startup recovery discharges persisted metadata-only maintenance debt using committed native progress",
+  "offline_only": true,
+  "provider_requests": 0,
+  "focused_tests": [
+    {
+      "suite": "FAST",
+      "cases": 3,
+      "passed": 3,
+      "seconds": 0.383,
+      "log": "/tmp/pump-nonrecord-restart-regression.log",
+      "log_sha256": "ea5259b709d8a7ac0e61a72b4c68ea6be4a02b348de8a3abf7378a9094160427"
+    },
+    {
+      "suite": "OPERATIONAL",
+      "module": "tests.test_production_maintenance_arbiter",
+      "passed": 38,
+      "seconds": 42.371,
+      "log": "/tmp/pump-nonrecord-restart-operational.log",
+      "log_sha256": "924fd9e2d142d70277805405811e53f2bbc982f30800e2a15f73b39cb0d177d0"
+    },
+    {
+      "suite": "FAST",
+      "module": "tests.test_startup_storage",
+      "passed": 18,
+      "seconds": 12.349,
+      "log": "/tmp/pump-nonrecord-restart-final.log",
+      "log_sha256": "37feef2b8b95bd232e900f5c360fed04342f9798e4872d542e065d735ae2a0b5"
+    }
+  ],
+  "retained_replay": {
+    "status": "PASS_RETAINED_STARTUP_RECOVERY",
+    "seconds": 0.10377174499444664,
+    "original_persisted_demand": [
+      [
+        "control:solana",
+        "retirement",
+        1791758937.1284251
+      ]
+    ],
+    "remaining_persisted_demand": [
+      [
+        "control:solana",
+        "retirement",
+        1791758937.1284251
+      ]
+    ],
+    "native_progress": [
+      [
+        "control:solana",
+        "retirement",
+        1791760761.484936,
+        29816,
+        null,
+        0
+      ],
+      [
+        "program:pump",
+        "retirement",
+        1791741348.7412176,
+        2,
+        null,
+        0
+      ],
+      [
+        "program:pumpswap",
+        "retirement",
+        1791741348.7435217,
+        2,
+        null,
+        0
+      ]
+    ],
+    "unresolved_gap_count": 35,
+    "canonical_gaps_unchanged": true,
+    "normal_turn": {
+      "snapshot": null,
+      "side": "retirement",
+      "archive_pressure": false,
+      "retirement_pressure": true,
+      "retention_outcome": "RetentionOutcome(retired_records=0, continuity_rows=80, housekeeping_rows=0, floor_updates=0, committed_slices=1, examined_scopes=3, pending=False, interrupted=False, yield_reason=None)"
+    },
+    "disposable_copy_only": true,
+    "provider_requests": 0,
+    "source_records_freshened": false
+  },
+  "latched_demand_reset": false,
+  "canonical_membership_fabricated": false,
+  "provider_protection_proven": false
+}

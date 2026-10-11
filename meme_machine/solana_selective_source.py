@@ -45,6 +45,31 @@ def require_certified():
 REPLAY_SLOTS=6000
 CONTROL_OVERLAP=256
 WARM_OVERLAP=32
+
+def rolling_replay_boundary(state,desired,tip):
+    """Supported replay or a fresh prospective program census, never old proof.
+
+    An outage beyond the endpoint's replay window remains an explicit history
+    obligation. Candidate/position recovery must still supply its exact missing
+    intervals; account scouts and a new live tail cannot repair that history.
+    """
+    h=install(state);points=[]
+    for row in desired:
+        scopes=h.rolling.scopes(row['family'],row['scope'])
+        value=state.writer.db.execute('SELECT MAX(slot) FROM candidate_checkpoints WHERE scope IN ('+
+            ','.join('?' for _ in scopes)+')',scopes).fetchone()[0]
+        points.append(value)
+    present=[p for p in points if p is not None]
+    floor=max(1,min(present)-1) if present else tip+1
+    prospective=not present or any(p is None for p in points) or tip-floor>REPLAY_SLOTS
+    if prospective:
+        for row,point in zip(desired,points):
+            if point is not None and point<tip:
+                h.gap(row['scope'],point+1,tip,'rolling_checkpoint_outside_complete_replay_boundary')
+        # Actual finalized WS observations for BOTH programs replace this
+        # scheduling placeholder before any native subscription is opened.
+        floor=tip+1
+    return floor,prospective,bool(present)
 STATE_SCHEMA='''
 CREATE TABLE IF NOT EXISTS candidate_blocks(scope TEXT PRIMARY KEY,slot INTEGER NOT NULL,
  parent INTEGER NOT NULL,hash TEXT NOT NULL,previous_hash TEXT NOT NULL,
@@ -1160,10 +1185,13 @@ class SelectiveSource:
             except TimeoutError:pass
 
     async def live(self,channel,desired,local_stop):
-        rolling=any(r.get('rolling') for r in desired);has_checkpoint=False
+        rolling=any(r.get('rolling') for r in desired);has_checkpoint=False;prospective_rolling=False
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         def replay_floor(state):
-            nonlocal has_checkpoint
+            nonlocal has_checkpoint,prospective_rolling
+            if rolling:
+                floor,prospective_rolling,has_checkpoint=rolling_replay_boundary(state,desired,tip)
+                return floor
             h=install(state);points=[]
             for row in desired:
                 scopes=h.rolling.scopes(row['family'],row['scope'])
@@ -1172,7 +1200,6 @@ class SelectiveSource:
                 if value is not None:points.append(value)
             earliest=min(points,default=tip)
             has_checkpoint=bool(points)
-            if rolling and points:return max(1,earliest-1)
             if any(r.get('rolling') for r in desired) and not points:return tip+1
             if all(r['family']=='meteora' for r in desired) and not points:
                 # First-sight accumulation starts here. The scout's old locator
@@ -1187,7 +1214,7 @@ class SelectiveSource:
         # Buffer the startup log prefix until both subscribed programs deliver
         # their first real finalized slot. Coverage starts on the following
         # slot; the partially subscribed first slot is never called complete.
-        fresh_rolling=rolling and not has_checkpoint
+        fresh_rolling=rolling and prospective_rolling
         join=CandidateTransactionJoin(addresses,full,filtered_from_slot=1 if fresh_rolling else floor,max_join_seconds=120 if rolling else 10);session=uuid.uuid4().hex
         log_frontiers={};logs_available=asyncio.Event()
         candidate_queue=CandidateCommitQueue()
@@ -1258,7 +1285,7 @@ class SelectiveSource:
                 for task in done:task.result()
                 raise EvidenceUnavailable('candidate_websocket_ack_timeout')
             tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'replay',1)
-            if rolling and not has_checkpoint:
+            if fresh_rolling:
                 try:await asyncio.wait_for(logs_available.wait(),8)
                 except TimeoutError:raise EvidenceUnavailable('rolling_delivery_frontier_unavailable') from None
                 floor=max(log_frontiers.values())+1
@@ -1321,7 +1348,7 @@ class SelectiveSource:
                     if next_token is None:break
                     if next_token==token:raise EvidenceUnavailable('repair_pagination_stalled')
                     token=next_token
-            if rolling and has_checkpoint:
+            if rolling and has_checkpoint and not fresh_rolling:
                 async def repair_logs():
                     # Independent native identities determine the exact missing
                     # field. This exception fetches bodies only for the recovery

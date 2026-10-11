@@ -643,3 +643,45 @@ and grants no admission authority. Valid native USD acquisition was retained;
 17 starts, 64 elements, 1,832 CU, 180,036 HTTP bytes, public modeled upper
 $0.0009618. No synthetic trade was introduced. Full FAST passed for `3d8ca1d1`
 and `9f658ea3`; the new successor still requires its own CI and provider proof.
+
+The first `504479a9` check stopped on persisted
+`maintenance_service_deadline_exhausted` before native subscription. Its ledger
+contains one initial `getSlot`, 20 CU and 43 HTTP bytes ($0.0000105 public
+modeled); it must not be reported as zero provider traffic. Source startup's
+cold-recovery predicate handled overdue record debt and garbage but omitted
+persisted metadata-only continuity/floor debt. Storage was declared ready and
+ordinary arbitration then correctly refused that expired demand.
+
+Startup now routes that overdue metadata through the existing bounded cold
+retirement path before admitting the source. It preserves the latched demand,
+credits only actual committed native progress and refuses a no-progress cleanup.
+It does not archive young records just to service metadata. The original debt,
+recovery, owner, execution and memory guards are unchanged. The retained-state
+disposable replay completed in 0.104 seconds with all 35 unresolved gaps
+unchanged and the original nonrecord-demand timestamp still present; committed
+retirement progress allowed ordinary arbitration to resume. This is offline
+startup proof, not canonical repair or provider protection acceptance.
+
+Pons' prospective-discovery helper also stopped before dispatch because it
+omitted the chain verification performed by the native Survivor runtime before
+`Preparation.rpc`. The helper now performs that existing priced prerequisite;
+no Pons runtime, strategy or capital parameter was changed for that diagnosis.
+Both failed ledgers and receipts are retained. The ordinary PAPER service remains
+stopped, the existing $1,000 epoch is unchanged, and the sixty-minute clock is zero.
+
+Rolling program discovery previously returned the oldest checkpoint before
+checking the 6,000-slot endpoint replay bound. A long outage could therefore
+request an unsupported replay prefix repeatedly. The overlap slot now counts
+toward that bound. Unsupported or incomplete program checkpoints retain their
+explicit missing intervals and original identities; a new prospective census
+starts only after both programs deliver actual finalized observations, on the
+following slot. It never repairs old candidate or position history. Exact
+candidate qualification and funded-position recovery still require their original
+canonical evidence. The 74 affected selective-source, prewarm and usage tests
+passed, including the inclusive replay boundary and missing-program checkpoint.
+This needs authenticated delivery validation and is not a protection pass.
+
+The exceptional-winner study is suspended by owner direction. Its existing
+evidence remains outside this operational branch, with STUDY_SUSPENDED.md in the
+retained study directory. No research-derived strategy change or provider workload
+is included in this release.

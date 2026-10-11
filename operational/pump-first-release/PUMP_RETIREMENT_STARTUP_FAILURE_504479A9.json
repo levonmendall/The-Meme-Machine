@@ -1,0 +1,23 @@
+{
+  "source": "504479a9aff23c69064ed80a1414641ef4e9c969",
+  "tag": "504479a9-1791760310",
+  "status": "FAIL_STARTUP_BEFORE_NATIVE_SUBSCRIPTION",
+  "reason": "maintenance_service_deadline_exhausted",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-owner-repair-504479a9-1791760310108.sqlite",
+  "usage": {
+    "http_attempts": 1,
+    "rpc_elements": 1,
+    "rpc_cu": 20,
+    "http_bytes": 43,
+    "native_opens": 0,
+    "native_bytes": 0,
+    "native_reserved": 0,
+    "native_uncertain_bytes": 0
+  },
+  "modeled_public_upper_usd": "0.0000105",
+  "invoice_verified": false,
+  "log_sha256": "a54f6ec6e8742051827c13d3c46df266be02b1edc71cfe153e44b2edd90d08cb",
+  "failed_evidence_preserved": true,
+  "trading_active": false,
+  "acceptance_minutes": 0
+}
